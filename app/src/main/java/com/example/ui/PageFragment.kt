@@ -15,6 +15,8 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
+import com.example.R
+
 class PageFragment : Fragment() {
     private var pageText: String = ""
     private lateinit var textView: TextView
@@ -33,20 +35,13 @@ class PageFragment : Fragment() {
     ): View {
         val context = requireContext()
         
-        rootContainer = FrameLayout(context).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-        }
+        // Inflate from XML to ensure standard Android-compliant layout structure
+        val view = inflater.inflate(R.layout.fragment_page, container, false)
+        rootContainer = view.findViewById(R.id.rootContainer)
+        textView = view.findViewById(R.id.textView)
 
-        // TextView optimized for reading with minimal margins and full width/height
-        textView = TextView(context).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-            // Apply high-quality Russian hyphenation suggestions
+        // Ensure TextView takes 100% space and uses hyphenation
+        textView.apply {
             text = RussianHyphenator.hyphenate(pageText)
             
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
@@ -55,8 +50,6 @@ class PageFragment : Fragment() {
             }
             gravity = Gravity.TOP or Gravity.START
         }
-
-        rootContainer.addView(textView)
 
         // Retrieve shared ReaderViewModel from activity
         viewModel = (requireActivity() as ReaderActivity).viewModel
@@ -79,6 +72,18 @@ class PageFragment : Fragment() {
             
             view.setPadding(leftPadding, topPadding, rightPadding, bottomPadding)
             insets
+        }
+
+        // Add logging of heights post-layout as requested
+        rootContainer.post {
+            if (isAdded) {
+                val dm = resources.displayMetrics
+                val screenH = dm.heightPixels
+                val viewPagerH = (requireActivity() as? ReaderActivity)?.findViewById<View>(android.R.id.content)?.height ?: -1
+                val rootH = rootContainer.height
+                val textH = textView.height
+                android.util.Log.d("ReaderLayoutLog", "Layout heights -> Screen: ${screenH}px, ViewPager(Estimated): ${viewPagerH}px, RootContainer: ${rootH}px, TextView: ${textH}px")
+            }
         }
 
         // Observe settings flow to update styling dynamically without page reload

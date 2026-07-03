@@ -202,7 +202,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 sharedPrefs.getInt("book_char_offset_${book.id}", book.currentProgressChar)
             }
 
-            // 2. Measure and slice text into pages based on actual font parameters
+            // 2. Measure and slice text into pages based on actual font parameters using PageSplitter
             val paint = android.text.TextPaint().apply {
                 textSize = _fontSizeState.value * displayDensity
                 
@@ -216,51 +216,20 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
 
-            val pages = mutableListOf<String>()
-            val offsets = mutableListOf<Int>()
-            var start = 0
-            val textLength = text.length
+            val alignment = _fontAlignmentState.value
+            val lineSpacing = _lineSpacingState.value
+            
+            val result = PageSplitter.splitText(
+                text = text,
+                availableWidth = availableWidth,
+                availableHeight = availableHeight,
+                paint = paint,
+                lineSpacing = lineSpacing,
+                alignment = alignment
+            )
 
-            while (start < textLength) {
-                offsets.add(start)
-                
-                val maxLines = (availableHeight / (paint.fontSpacing * _lineSpacingState.value)).toInt().coerceAtLeast(1)
-                
-                val tempLayout = android.text.StaticLayout.Builder.obtain(
-                    text, start, textLength, paint, availableWidth
-                )
-                .setAlignment(
-                    when (_fontAlignmentState.value) {
-                        "left" -> android.text.Layout.Alignment.ALIGN_NORMAL
-                        "right" -> android.text.Layout.Alignment.ALIGN_OPPOSITE
-                        "center" -> android.text.Layout.Alignment.ALIGN_CENTER
-                        else -> android.text.Layout.Alignment.ALIGN_NORMAL
-                    }
-                )
-                .setLineSpacing(0f, _lineSpacingState.value)
-                .setIncludePad(false)
-                .build()
-
-                val actualLines = tempLayout.lineCount.coerceAtMost(maxLines)
-                var end = tempLayout.getLineEnd(actualLines - 1)
-                
-                // Refine end to prevent cutting in the middle of a word
-                if (end < textLength) {
-                    var spaceIndex = -1
-                    for (j in (end - 1) downTo (end - 30).coerceAtLeast(start)) {
-                        if (text[j].isWhitespace()) {
-                            spaceIndex = j
-                            break
-                        }
-                    }
-                    if (spaceIndex > start) {
-                        end = spaceIndex + 1
-                    }
-                }
-                
-                pages.add(text.substring(start, end))
-                start = end
-            }
+            val pages = result.pages
+            val offsets = result.offsets
 
             // 3. Find the best matching page in the new layout
             var newPageIndex = 0

@@ -871,10 +871,46 @@ Monsieur прогнали со двора.
             null
         }
 
-        val textWithoutBinaries = rawText.replace("""<binary[^>]*>[\s\S]*?</binary>""".toRegex(RegexOption.IGNORE_CASE), "")
-        val cleanContent = textWithoutBinaries.replace("<[^>]*>".toRegex(), " ")
-            .replace("\\s+".toRegex(), " ")
-            .trim()
+        // 1. Extract the actual <body> of the FB2 document to avoid duplicate description or metadata
+        val bodyStart = rawText.indexOf("<body>", ignoreCase = true)
+        val bodyEnd = rawText.lastIndexOf("</body>", ignoreCase = true)
+        val bodyContent = if (bodyStart != -1 && bodyEnd > bodyStart) {
+            rawText.substring(bodyStart + 6, bodyEnd)
+        } else {
+            rawText
+        }
+
+        // 2. Clear out any binary cover or base64 data to keep content lightweight
+        var processedText = bodyContent.replace("""<binary[^>]*>[\s\S]*?</binary>""".toRegex(RegexOption.IGNORE_CASE), "")
+
+        // 3. Mark titles of chapters (<title>) with form-feed (\u000C) so they start on a fresh page
+        processedText = processedText.replace("""<title[^>]*>""".toRegex(RegexOption.IGNORE_CASE), "\u000C\n")
+        processedText = processedText.replace("""</title>""".toRegex(RegexOption.IGNORE_CASE), "\n\n")
+
+        // 4. Retain paragraphs (<p>) using standard Russian indentation (красная строка) and single line break
+        processedText = processedText.replace("""<p[^>]*>""".toRegex(RegexOption.IGNORE_CASE), "    ")
+        processedText = processedText.replace("""</p>""".toRegex(RegexOption.IGNORE_CASE), "\n")
+
+        // 5. Remove any other XML markup
+        processedText = processedText.replace("<[^>]*>".toRegex(), "")
+
+        // 6. Format whitespace and consecutive empty lines
+        processedText = processedText.replace("\r", "")
+        processedText = processedText.replace("\n{3,}".toRegex(), "\n\n")
+        processedText = processedText.replace("\u000C\\s*\u000C".toRegex(), "\u000C")
+        if (processedText.startsWith("\u000C")) {
+            processedText = processedText.substring(1)
+        }
+
+        // Clean double spaces within each line while keeping indentation at the start
+        val cleanContent = processedText.lines().joinToString("\n") { line ->
+            if (line.trim().isEmpty()) ""
+            else {
+                val indent = line.takeWhile { it.isWhitespace() }
+                val trimmed = line.substring(indent.length).replace("\\s+".toRegex(), " ")
+                indent + trimmed
+            }
+        }.trim()
             
         return ParsedBook(title, author, cleanContent, series, language)
     }
