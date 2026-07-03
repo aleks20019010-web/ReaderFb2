@@ -1,0 +1,6 @@
+{
+  "name": "Книги и Заметки",
+  "description": "Приложение для чтения книг с возможностью создания заметок и синхронизацией прогресса чтения между устройствами.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
