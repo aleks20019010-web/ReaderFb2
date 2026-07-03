@@ -14,5 +14,12 @@ data class BookEntity(
     val category: String = "Классика",
     val currentProgressChar: Int = 0,
     val totalCharacters: Int = 0,
-    val lastReadTime: Long = System.currentTimeMillis()
+    val lastReadTime: Long = System.currentTimeMillis(),
+    val filePath: String? = null,
+    val sha1: String? = null,
+    val series: String? = null,
+    val language: String? = "ru",
+    val fileSize: Long = 0L,
+    val review: String? = null,
+    val isFavorite: Boolean = false
 )

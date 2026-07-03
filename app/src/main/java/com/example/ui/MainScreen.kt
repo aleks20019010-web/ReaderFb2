@@ -101,8 +101,8 @@ fun MainScreen(viewModel: BookViewModel) {
                 windowInsets = WindowInsets.navigationBars
             ) {
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.MenuBook, contentDescription = "Полка") },
-                    label = { Text("Полка") },
+                    icon = { Icon(Icons.Default.MenuBook, contentDescription = "Библиотека") },
+                    label = { Text("Библиотека") },
                     selected = viewModel.currentTab == 0,
                     onClick = { viewModel.currentTab = 0 }
                 )
@@ -170,6 +170,15 @@ fun MainScreen(viewModel: BookViewModel) {
                 )
             }
         }
+    }
+
+    // --- BOOK DETAILS OVERLAY ---
+    viewModel.detailedBook?.let { book ->
+        BookDetailsScreen(
+            viewModel = viewModel,
+            book = book,
+            onBack = { viewModel.detailedBook = null }
+        )
     }
 
     // --- ADD BOOK DIALOG ---
@@ -608,13 +617,13 @@ fun LibraryTab(
         ) {
             Column {
                 Text(
-                    "Моя полка",
+                    "Моя библиотека",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    "У вас на полке: ${books.size} кн.",
+                    "В библиотеке: ${books.size} кн.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.Gray
                 )
@@ -794,7 +803,7 @@ fun LibraryTab(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filteredBooks) { book ->
-                    BookGridItem(book = book, onOpen = { viewModel.openBook(book) }, onDelete = { viewModel.deleteBook(book.id) })
+                    BookGridItem(book = book, onOpen = { viewModel.detailedBook = book }, onDelete = { viewModel.deleteBook(book.id) })
                 }
             }
         }
@@ -962,20 +971,20 @@ fun ReaderTab(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "Полка пуста",
+                    "Библиотека пуста",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Выберите книгу на вкладке «Полка» или добавьте свою, чтобы начать чтение.",
+                    "Выберите книгу на вкладке «Библиотека» или добавьте свою, чтобы начать чтение.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.Gray,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = { viewModel.currentTab = 0 }) {
-                    Text("Перейти к Полке")
+                    Text("Перейти к Библиотеке")
                 }
             }
         }
@@ -1921,4 +1930,466 @@ fun SyncTab(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BookDetailsScreen(
+    viewModel: BookViewModel,
+    book: BookEntity,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var showEditDialog by remember { mutableStateOf(false) }
+    var reviewText by remember(book) { mutableStateOf(book.review ?: "") }
+    var fileInfoExpanded by remember { mutableStateOf(true) }
+
+    // TextToSpeech setup
+    var tts by remember { mutableStateOf<android.speech.tts.TextToSpeech?>(null) }
+    var isSpeaking by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) {
+        val t = android.speech.tts.TextToSpeech(context) { status ->
+            // Initialized
+        }
+        tts = t
+        onDispose {
+            t.stop()
+            t.shutdown()
+        }
+    }
+
+    val progressPercent = if (book.totalCharacters > 0) {
+        (book.currentProgressChar * 100f / book.totalCharacters).coerceIn(0f, 100f).toInt()
+    } else 0
+
+    // Custom dark background color matching the image (#06161A)
+    val customBackground = Color(0xFF06161A)
+    val customSurface = Color(0xFF0F262B)
+    val customYellow = Color(0xFFE5A93C)
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "О документе",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад",
+                            tint = Color.White
+                        )
+                    }
+                },
+                actions = {
+                    TextButton(
+                        onClick = {
+                            viewModel.openBook(book)
+                            onBack()
+                        }
+                    ) {
+                        Text(
+                            "ЧИТАТЬ",
+                            color = customYellow,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            tts?.let { t ->
+                                if (isSpeaking) {
+                                    t.stop()
+                                    isSpeaking = false
+                                } else {
+                                    val textToSpeak = book.content.take(1000)
+                                    if (textToSpeak.isNotEmpty()) {
+                                        t.speak(textToSpeak, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "FB2_SPEAK")
+                                        isSpeaking = true
+                                    }
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = if (isSpeaking) Icons.Default.Stop else Icons.Default.PlayArrow,
+                            contentDescription = "Озвучить text",
+                            tint = if (isSpeaking) customYellow else Color.White
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = customBackground
+                )
+            )
+        },
+        containerColor = customBackground
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Procedural Cover Book
+            val startColor = try { Color(android.graphics.Color.parseColor(book.coverGradientStart)) } catch (e: Exception) { Color(0xFFE94560) }
+            val endColor = try { Color(android.graphics.Color.parseColor(book.coverGradientEnd)) } catch (e: Exception) { Color(0xFF1A1A2E) }
+
+            Card(
+                modifier = Modifier
+                    .width(180.dp)
+                    .height(260.dp),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(startColor, endColor)
+                            )
+                        )
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = book.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            maxLines = 4,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = book.author,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.8f),
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Large title
+            Text(
+                text = book.title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Quick actions row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Star (Favorite)
+                IconButton(onClick = { viewModel.toggleFavorite(book.id) }) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = "В избранное",
+                        tint = if (book.isFavorite) customYellow else Color.Gray
+                    )
+                }
+
+                // Clock (Recent time info)
+                IconButton(onClick = {
+                    val formatted = formatRussianDateTime(book.lastReadTime)
+                    Toast.makeText(context, "Последнее чтение: $formatted", Toast.LENGTH_LONG).show()
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.AccessTime,
+                        contentDescription = "История чтения",
+                        tint = Color.White
+                    )
+                }
+
+                // Double check / read completion toggle
+                IconButton(onClick = {
+                    scope.launch {
+                        val updatedProgress = if (book.currentProgressChar == book.totalCharacters) 0 else book.totalCharacters
+                        viewModel.repository.updateProgress(book.id, updatedProgress)
+                        // Trigger UI update
+                        val updatedBook = book.copy(currentProgressChar = updatedProgress)
+                        if (viewModel.selectedBook?.id == book.id) {
+                            viewModel.selectedBook = updatedBook
+                        }
+                        viewModel.detailedBook = updatedBook
+                        val status = if (updatedProgress > 0) "Прочитана" else "Не прочитана"
+                        Toast.makeText(context, "Статус изменен: $status", Toast.LENGTH_SHORT).show()
+                    }
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Отметить прочитанной",
+                        tint = if (book.currentProgressChar == book.totalCharacters) Color.Green else Color.White
+                    )
+                }
+
+                // Info (Stats/Pages)
+                IconButton(onClick = {
+                    Toast.makeText(context, "Размер книги: ${book.totalCharacters} симв. (примерно ${book.totalCharacters / 300} стр.)", Toast.LENGTH_LONG).show()
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Статистика",
+                        tint = Color.White
+                    )
+                }
+
+                // Share
+                IconButton(onClick = {
+                    val sendIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        putExtra(Intent.EXTRA_TITLE, book.title)
+                        putExtra(Intent.EXTRA_TEXT, "Читаю книгу «${book.title}» автора ${book.author} в приложении NightRead!")
+                        type = "text/plain"
+                    }
+                    val shareIntent = Intent.createChooser(sendIntent, "Поделиться книгой")
+                    context.startActivity(shareIntent)
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Поделиться",
+                        tint = Color.White
+                    )
+                }
+
+                // Delete
+                IconButton(onClick = {
+                    viewModel.deleteBook(book.id)
+                    onBack()
+                    Toast.makeText(context, "Книга удалена из библиотеки", Toast.LENGTH_SHORT).show()
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Удалить",
+                        tint = Color.Red
+                    )
+                }
+
+                // Edit (Pencil / EditNote)
+                IconButton(onClick = { showEditDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Default.EditNote,
+                        contentDescription = "Редактировать",
+                        tint = Color.White
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Authors Row
+            DetailRow(label = "Авторы", value = book.author)
+
+            // Series Row
+            DetailRow(label = "Серия", value = book.series ?: "—")
+
+            // Annotation Row (First 400 characters of book content as description)
+            val desc = if (book.content.length > 400) book.content.take(400) + "..." else book.content
+            DetailRow(label = "Аннотация", value = desc.ifEmpty { "Описание отсутствует." })
+
+            // Language Row
+            DetailRow(label = "Язык документа", value = book.language ?: "Русский")
+
+            // Progress Row
+            val progressLabel = if (progressPercent > 0) {
+                "$progressPercent%, ${formatRussianDateTime(book.lastReadTime)}"
+            } else {
+                "Не начато"
+            }
+            DetailRow(label = "Текущая закладка и время последнего чтения", value = progressLabel)
+
+            // Format & Size Row (expandable)
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { fileInfoExpanded = !fileInfoExpanded }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    val formatName = if (book.filePath?.endsWith(".epub", ignoreCase = true) == true) "EPUB" else if (book.filePath?.endsWith(".zip", ignoreCase = true) == true) "FB2 (ZIP)" else "FB2"
+                    val displaySize = if (book.fileSize > 0) "${book.fileSize / 1024} кБ" else "Встроенная"
+                    Text(
+                        text = "$formatName, $displaySize, Файлы: 1",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "Формат и размер файла",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Icon(
+                    imageVector = if (fileInfoExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                    contentDescription = "Переключить детали",
+                    tint = Color.White
+                )
+            }
+
+            if (fileInfoExpanded) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = customSurface),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            "Файл №1",
+                            color = customYellow,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        val cleanPath = book.filePath ?: "Интегрированная классика в БД"
+                        Text(
+                            cleanPath,
+                            color = Color.LightGray,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+
+            // File SHA-1 Identifier Row
+            DetailRow(
+                label = "Идентификатор файла документа",
+                value = "SHA-1: ${book.sha1 ?: "Не вычислен"}"
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Review / Feedback box
+            OutlinedTextField(
+                value = reviewText,
+                onValueChange = {
+                    reviewText = it
+                    viewModel.updateBookReview(book.id, it)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .padding(vertical = 8.dp),
+                placeholder = { Text("Добавить отзыв", color = Color.Gray) },
+                textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = customYellow,
+                    unfocusedBorderColor = Color.Gray,
+                    focusedContainerColor = customSurface,
+                    unfocusedContainerColor = customSurface
+                )
+            )
+        }
+    }
+
+    if (showEditDialog) {
+        var tempTitle by remember { mutableStateOf(book.title) }
+        var tempAuthor by remember { mutableStateOf(book.author) }
+        var tempSeries by remember { mutableStateOf(book.series ?: "") }
+
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Редактировать книгу") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = tempTitle,
+                        onValueChange = { tempTitle = it },
+                        label = { Text("Название") },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    )
+                    OutlinedTextField(
+                        value = tempAuthor,
+                        onValueChange = { tempAuthor = it },
+                        label = { Text("Автор") },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    )
+                    OutlinedTextField(
+                        value = tempSeries,
+                        onValueChange = { tempSeries = it },
+                        label = { Text("Серия") },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            val updated = book.copy(
+                                title = tempTitle,
+                                author = tempAuthor,
+                                series = tempSeries.ifEmpty { null }
+                            )
+                            viewModel.repository.updateBook(updated)
+                            viewModel.detailedBook = updated
+                            showEditDialog = false
+                        }
+                    }
+                ) {
+                    Text("Сохранить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun DetailRow(label: String, value: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Text(
+            text = value,
+            color = Color.White,
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Text(
+            text = label,
+            color = Color.Gray,
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+fun formatRussianDateTime(timestamp: Long): String {
+    val sdf = java.text.SimpleDateFormat("d MMMM yyyy 'г.' HH:mm", java.util.Locale("ru"))
+    return sdf.format(java.util.Date(timestamp))
 }
