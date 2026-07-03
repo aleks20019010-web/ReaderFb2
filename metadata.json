@@ -1,5 +1,5 @@
 {
-  "name": "Книги и Заметки",
+  "name": "NightRead",
   "description": "Приложение для чтения книг с возможностью создания заметок и синхронизацией прогресса чтения между устройствами.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
