@@ -32,6 +32,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     var selectedBook by mutableStateOf<BookEntity?>(null)
     var detailedBook by mutableStateOf<BookEntity?>(null)
 
+    // Scanning Device for Local Books
+    var isScanning by mutableStateOf(false)
+    var scanProgressText by mutableStateOf("")
+
     private val prefs = application.getSharedPreferences("app_settings", android.content.Context.MODE_PRIVATE)
 
     private var _readerFontSize = mutableStateOf(prefs.getFloat("reader_font_size", 18f))
@@ -83,6 +87,19 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         // Prepare initial content and IP info
         checkAndInsertDefaultBooks()
         refreshIpAddress()
+        
+        // Initialize and observe background scanning state
+        com.example.service.BookScannerState.initialize(application)
+        viewModelScope.launch {
+            com.example.service.BookScannerState.isScanning.collect { active ->
+                isScanning = active
+            }
+        }
+        viewModelScope.launch {
+            com.example.service.BookScannerState.scanProgressText.collect { text ->
+                scanProgressText = text
+            }
+        }
     }
 
     private fun checkAndInsertDefaultBooks() {
@@ -300,6 +317,138 @@ Monsieur прогнали со двора.
         }
     }
 
+    fun importBookFromUri(uri: android.net.Uri, context: android.content.Context, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val contentResolver = context.contentResolver
+                var fileName = "imported_book.fb2"
+                val cursor = contentResolver.query(uri, null, null, null, null)
+                cursor?.use {
+                    if (it.moveToFirst()) {
+                        val nameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (nameIndex != -1) {
+                            fileName = it.getString(nameIndex)
+                        }
+                    }
+                }
+                
+                val ext = fileName.substringAfterLast(".", "").lowercase()
+                val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes == null || bytes.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        onResult(false, "Не удалось прочитать файл (файл пуст).")
+                    }
+                    return@launch
+                }
+                
+                val digest = java.security.MessageDigest.getInstance("SHA-1")
+                digest.update(bytes)
+                val computedSha1 = digest.digest().joinToString("") { String.format("%02x", it) }
+                
+                val duplicate = repository.allBooks.first().find { it.sha1 == computedSha1 }
+                if (duplicate != null) {
+                    withContext(Dispatchers.Main) {
+                        onResult(false, "Эта книга уже импортирована: \"${duplicate.title}\".")
+                    }
+                    return@launch
+                }
+                
+                val importedFolder = java.io.File(context.filesDir, "imported_books")
+                if (!importedFolder.exists()) {
+                    importedFolder.mkdirs()
+                }
+                val localFile = java.io.File(importedFolder, "$computedSha1.$ext")
+                localFile.writeBytes(bytes)
+                
+                var parsedTitle = fileName.substringBeforeLast(".")
+                var parsedAuthor = "Неизвестен"
+                var parsedContent = ""
+                var parsedSeries: String? = null
+                var parsedLanguage: String? = "ru"
+                
+                if (ext == "fb2") {
+                    val rawText = decodeBytesToString(bytes)
+                    val parsed = parseFb2DetailedText(rawText, parsedTitle)
+                    parsedTitle = parsed.title
+                    parsedAuthor = parsed.author
+                    parsedContent = parsed.content
+                    parsedSeries = parsed.series
+                    parsedLanguage = parsed.language
+                } else if (ext == "zip") {
+                    java.io.ByteArrayInputStream(bytes).use { bais ->
+                        java.util.zip.ZipInputStream(bais).use { zis ->
+                            var entry = zis.nextEntry
+                            var foundFb2 = false
+                            while (entry != null) {
+                                val entryName = entry.name.lowercase()
+                                if (!entry.isDirectory && entryName.endsWith(".fb2")) {
+                                    foundFb2 = true
+                                    val entryBytes = zis.readBytes()
+                                    val rawText = decodeBytesToString(entryBytes)
+                                    val parsed = parseFb2DetailedText(rawText, entryName.removeSuffix(".fb2"))
+                                    parsedTitle = parsed.title
+                                    parsedAuthor = parsed.author
+                                    parsedContent = parsed.content
+                                    parsedSeries = parsed.series
+                                    parsedLanguage = parsed.language
+                                    break
+                                }
+                                entry = zis.nextEntry
+                            }
+                            if (!foundFb2) {
+                                throw java.io.IOException("Внутри ZIP-архива не найден файл .fb2")
+                            }
+                        }
+                    }
+                } else if (ext == "epub") {
+                    val (title, content) = parseEpub(localFile)
+                    parsedTitle = title
+                    parsedAuthor = "Локальный EPUB"
+                    parsedContent = content
+                } else {
+                    parsedContent = decodeBytesToString(bytes)
+                    parsedAuthor = "Локальный TXT"
+                }
+                
+                if (parsedContent.isBlank()) {
+                    withContext(Dispatchers.Main) {
+                        onResult(false, "Файл не содержит читаемого текста.")
+                    }
+                    return@launch
+                }
+                
+                val coverPath = extractAndSaveCover(localFile, computedSha1)
+                
+                val newBook = BookEntity(
+                    title = parsedTitle,
+                    author = parsedAuthor,
+                    content = parsedContent,
+                    category = "Локальные",
+                    totalCharacters = parsedContent.length,
+                    coverGradientStart = getRandomGradientStartColor(),
+                    coverGradientEnd = getRandomGradientEndColor(),
+                    filePath = localFile.absolutePath,
+                    sha1 = computedSha1,
+                    series = parsedSeries,
+                    language = parsedLanguage,
+                    fileSize = bytes.size.toLong(),
+                    coverPath = coverPath
+                )
+                
+                repository.insertBook(newBook)
+                
+                withContext(Dispatchers.Main) {
+                    onResult(true, "Книга \"$parsedTitle\" успешно импортирована!")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("BookScanner", "Error importing from SAF: ", e)
+                withContext(Dispatchers.Main) {
+                    onResult(false, "Ошибка импорта: ${e.localizedMessage}")
+                }
+            }
+        }
+    }
+
     fun toggleFavorite(bookId: Int) {
         viewModelScope.launch {
             val book = allBooks.value.find { it.id == bookId }
@@ -498,14 +647,13 @@ Monsieur прогнали со двора.
         }
     }
 
-    // Scanning Device for Local Books
-    var isScanning by mutableStateOf(false)
-    var scanProgressText by mutableStateOf("")
-
     fun startLocalBookScan(rootPath: String = "/storage/emulated/0") {
-        viewModelScope.launch {
-            scanDirectoryForBooks(rootPath)
+        if (isScanning) return
+        val context = getApplication<Application>()
+        val intent = android.content.Intent(context, com.example.service.BookScannerService::class.java).apply {
+            putExtra("ROOT_PATH", rootPath)
         }
+        context.startService(intent)
     }
 
     private suspend fun scanDirectoryForBooks(rootPath: String) {

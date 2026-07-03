@@ -140,45 +140,14 @@ class PageFragment : Fragment() {
             }
         }
 
-        // Double-purpose tap gesture handler (Left-Top corner -> Theme, Center -> Toggle system UI controls)
-        val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onDown(e: MotionEvent): Boolean {
-                return true
+        // Tap anywhere on the page to toggle system UI controls
+        val clickListener = View.OnClickListener {
+            if (isAdded) {
+                (requireActivity() as? ReaderActivity)?.toggleSystemUi()
             }
-
-            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                val x = e.x
-                val y = e.y
-                val density = resources.displayMetrics.density
-                val area100dp = 100 * density
-                
-                if (x < area100dp && y < area100dp) {
-                    // Tap on top-left (100x100 dp zone): switch theme (day -> night -> sepia)
-                    viewModel.toggleTheme()
-                    return true
-                }
-                
-                // Tap in the middle 50% width & height zone: toggle fullscreen/immersive controls
-                val width = rootContainer.width
-                val height = rootContainer.height
-                val centerX = width / 2f
-                val centerY = height / 2f
-                val radiusX = width * 0.25f
-                val radiusY = height * 0.25f
-                if (x in (centerX - radiusX)..(centerX + radiusX) && y in (centerY - radiusY)..(centerY + radiusY)) {
-                    (requireActivity() as ReaderActivity).toggleSystemUi()
-                    return true
-                }
-                
-                return false
-            }
-        })
-
-        val touchListener = View.OnTouchListener { _, event ->
-            gestureDetector.onTouchEvent(event)
         }
-        rootContainer.setOnTouchListener(touchListener)
-        textView.setOnTouchListener(touchListener)
+        rootContainer.setOnClickListener(clickListener)
+        textView.setOnClickListener(clickListener)
 
         return rootContainer
     }

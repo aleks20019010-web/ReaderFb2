@@ -499,33 +499,8 @@ fun LibraryTab(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
             if (uri != null) {
-                try {
-                    val contentResolver = context.contentResolver
-                    contentResolver.openInputStream(uri)?.use { inputStream ->
-                        val reader = java.io.BufferedReader(java.io.InputStreamReader(inputStream))
-                        val content = reader.readText()
-                        
-                        var fileName = "Импортированная книга"
-                        val cursor = contentResolver.query(uri, null, null, null, null)
-                        cursor?.use {
-                            if (it.moveToFirst()) {
-                                val nameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                                if (nameIndex != -1) {
-                                    fileName = it.getString(nameIndex)
-                                }
-                            }
-                        }
-                        val title = fileName.substringBeforeLast(".")
-                        viewModel.addNewBook(
-                            title = title,
-                            author = "Импорт",
-                            content = content,
-                            category = "Локальные"
-                        )
-                        Toast.makeText(context, "Книга \"$title\" успешно импортирована!", Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Ошибка импорта: ${e.message}", Toast.LENGTH_LONG).show()
+                viewModel.importBookFromUri(uri, context) { success, message ->
+                    Toast.makeText(context, message, if (success) Toast.LENGTH_SHORT else Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -866,7 +841,6 @@ fun BookGridItem(
     onOpen: () -> Unit,
     onDelete: () -> Unit
 ) {
-    // Elegant procedural book cover cards with premium gradients (Penguin style)
     val startColor = try { Color(android.graphics.Color.parseColor(book.coverGradientStart)) } catch (e: Exception) { Color(0xFFE94560) }
     val endColor = try { Color(android.graphics.Color.parseColor(book.coverGradientEnd)) } catch (e: Exception) { Color(0xFF1A1A2E) }
 
@@ -885,18 +859,19 @@ fun BookGridItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(250.dp)
+            .height(310.dp)
             .clickable(onClick = onOpen)
             .testTag("book_card_${book.id}"),
         shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Gradient cover top
+            // Dominant Cover Box
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(0.6f)
+                    .weight(0.78f)
                     .then(
                         if (coverBitmap != null) {
                             Modifier
@@ -904,121 +879,91 @@ fun BookGridItem(
                             Modifier.background(Brush.verticalGradient(colors = listOf(startColor, endColor)))
                         }
                     )
-                    .padding(12.dp)
             ) {
                 if (coverBitmap != null) {
                     Image(
                         bitmap = coverBitmap.asImageBitmap(),
                         contentDescription = book.title,
-                        modifier = Modifier.matchParentSize(),
+                        modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
+                } else {
                     Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .background(Color.Black.copy(alpha = 0.4f))
-                    )
-                }
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = Color.White.copy(alpha = 0.2f)
-                        ) {
-                            Text(
-                                book.category,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = onDelete,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .testTag("delete_book_btn_${book.id}")
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Удалить книгу",
-                                tint = Color.White.copy(alpha = 0.8f)
-                            )
-                        }
-                    }
-
-                    Column {
-                        Text(
-                            book.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                        Icon(
+                            imageVector = Icons.Default.Book,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.5f),
+                            modifier = Modifier.size(48.dp)
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+                }
+                
+                // Badge category & delete button overlays
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = Color.Black.copy(alpha = 0.4f)
+                    ) {
                         Text(
-                            book.author,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.8f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            book.category,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                            .testTag("delete_book_btn_${book.id}")
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Удалить книгу",
+                            tint = Color.White,
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }
             }
 
-            // Progress bar and info bottom
+            // Book Details Under Cover (at the bottom of the card)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(0.4f)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(10.dp),
+                    .weight(0.22f)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalArrangement = Arrangement.Center
             ) {
-                val progressPercent = if (book.totalCharacters > 0) {
-                    ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt()
-                } else 0
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Прогресс",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "$progressPercent%",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                LinearProgressIndicator(
-                    progress = if (book.totalCharacters > 0) book.currentProgressChar.toFloat() / book.totalCharacters else 0f,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp)),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Символов: ${book.currentProgressChar}/${book.totalCharacters}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.Gray
+                    text = book.title,
+                    fontFamily = FontFamily.SansSerif,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(1.dp))
+                Text(
+                    text = book.author,
+                    fontFamily = FontFamily.SansSerif,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

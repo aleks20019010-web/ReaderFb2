@@ -64,6 +64,10 @@ object PageSplitter {
             val actualLines = tempLayout.lineCount.coerceAtMost(maxLines)
             var end = tempLayout.getLineEnd(actualLines - 1)
 
+            if (end <= start) {
+                end = (start + 1).coerceAtMost(textLength)
+            }
+
             // 2. Scan for any manual page/chapter breaks (\u000C) in the current page text block
             var foundChapterBreakIdx = -1
             for (idx in start until end.coerceAtMost(textLength)) {

@@ -29,7 +29,7 @@ class ReaderActivity : FragmentActivity() {
     private lateinit var viewPager: ViewPager2
     private lateinit var pageIndicator: TextView
     private lateinit var rootLayout: FrameLayout
-    private var isSystemUiVisible = false
+    private var isSystemUiVisible = true
 
     // Control Overlays
     private lateinit var topControlBar: LinearLayout
@@ -855,8 +855,9 @@ class ReaderActivity : FragmentActivity() {
 
         setContentView(rootLayout)
 
-        // Hide bars initially
-        hideSystemUi()
+        // Show controls initially
+        showSystemUi()
+        showControlPanels()
 
         // 4. Dynamic Dimensions listener to send boundaries to pagination engine
         rootLayout.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
