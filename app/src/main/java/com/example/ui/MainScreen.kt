@@ -110,18 +110,6 @@ fun MainScreen(viewModel: BookViewModel) {
                     onClick = { viewModel.currentTab = 0 }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Book, contentDescription = "Читалка") },
-                    label = { Text("Читалка") },
-                    selected = viewModel.currentTab == 1,
-                    onClick = {
-                        // If no book open, fall back to showing info or open first book
-                        if (viewModel.selectedBook == null && books.isNotEmpty()) {
-                            viewModel.openBook(books.first())
-                        }
-                        viewModel.currentTab = 1
-                    }
-                )
-                NavigationBarItem(
                     icon = { Icon(Icons.Default.EditNote, contentDescription = "Заметки") },
                     label = { Text("Заметки") },
                     selected = viewModel.currentTab == 2,
@@ -150,20 +138,6 @@ fun MainScreen(viewModel: BookViewModel) {
                     viewModel = viewModel,
                     onAddBookClick = { showAddBookDialog = true }
                 )
-                1 -> ReaderTab(
-                    viewModel = viewModel,
-                    readerBg = readerBackground,
-                    readerText = readerText,
-                    onAddNoteClick = {
-                        selectedTextForNote = ""
-                        showAddNoteDialog = true
-                    },
-                    onAiAssistantClick = {
-                        customAiPrompt = ""
-                        showAiAssistantDialog = true
-                        showAiAssistantPageContext(viewModel)
-                    }
-                )
                 2 -> NotesTab(
                     notes = notes,
                     viewModel = viewModel
@@ -171,6 +145,13 @@ fun MainScreen(viewModel: BookViewModel) {
                 3 -> SyncTab(
                     viewModel = viewModel
                 )
+                else -> {
+                    LibraryTab(
+                        books = books,
+                        viewModel = viewModel,
+                        onAddBookClick = { showAddBookDialog = true }
+                    )
+                }
             }
         }
     }
@@ -512,6 +493,7 @@ fun LibraryTab(
     val context = LocalContext.current
     var showPermissionExplanationDialog by remember { mutableStateOf(false) }
     var showOlderPermissionExplanationDialog by remember { mutableStateOf(false) }
+    var isSearchVisible by remember { mutableStateOf(false) }
 
     val singleFilePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -672,7 +654,7 @@ fun LibraryTab(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = { singleFilePickerLauncher.launch(arrayOf("text/plain")) },
+                    onClick = { singleFilePickerLauncher.launch(arrayOf("*/*")) },
                     colors = IconButtonDefaults.iconButtonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -682,33 +664,47 @@ fun LibraryTab(
                     Icon(Icons.Default.FileUpload, contentDescription = "Импортировать книгу")
                 }
                 IconButton(
-                    onClick = onAddBookClick,
+                    onClick = {
+                        isSearchVisible = !isSearchVisible
+                        if (!isSearchVisible) {
+                            viewModel.bookSearchQuery = ""
+                        }
+                    },
                     colors = IconButtonDefaults.iconButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                     ),
-                    modifier = Modifier.testTag("add_book_fab")
+                    modifier = Modifier.testTag("search_toggle_button")
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Добавить книгу вручную")
+                    Icon(Icons.Default.Search, contentDescription = "Поиск")
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Search Bar
-        OutlinedTextField(
-            value = viewModel.bookSearchQuery,
-            onValueChange = { viewModel.bookSearchQuery = it },
-            placeholder = { Text("Поиск книг или авторов...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("book_search_input"),
-            shape = RoundedCornerShape(12.dp)
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
+        // Search Bar (visible only when isSearchVisible is true)
+        if (isSearchVisible) {
+            OutlinedTextField(
+                value = viewModel.bookSearchQuery,
+                onValueChange = { viewModel.bookSearchQuery = it },
+                placeholder = { Text("Поиск книг или авторов...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    IconButton(onClick = {
+                        viewModel.bookSearchQuery = ""
+                        isSearchVisible = false
+                    }) {
+                        Icon(Icons.Default.Close, contentDescription = "Закрыть")
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("book_search_input"),
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         // Scan Progress / Trigger Layout
         if (viewModel.isScanning) {

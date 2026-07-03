@@ -87,10 +87,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun checkAndInsertDefaultBooks() {
         viewModelScope.launch {
-            allBooks.collectLatest { books ->
-                if (books.isEmpty()) {
-                    insertDefaultClassics()
-                }
+            val books = repository.allBooks.first()
+            if (books.isEmpty()) {
+                insertDefaultClassics()
             }
         }
     }
@@ -241,7 +240,6 @@ Monsieur прогнали со двора.
     fun openBook(book: BookEntity) {
         selectedBook = book
         readerPage = book.currentProgressChar / 1000
-        currentTab = 1 // Switch to Reader Tab
         viewModelScope.launch {
             repository.updateProgress(book.id, book.currentProgressChar)
         }
