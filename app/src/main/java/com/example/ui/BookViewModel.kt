@@ -731,6 +731,23 @@ Monsieur прогнали со двора.
 
     private fun decodeBytesToString(bytes: ByteArray): String {
         try {
+            // Safe detection from XML prolog first
+            val headerSize = if (bytes.size > 1024) 1024 else bytes.size
+            val header = String(bytes, 0, headerSize, java.nio.charset.StandardCharsets.ISO_8859_1)
+            val match = """encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(header)
+            if (match != null) {
+                val encName = match.groupValues[1].trim()
+                try {
+                    return String(bytes, java.nio.charset.Charset.forName(encName))
+                } catch (e: Exception) {
+                    // fall back if charset name is invalid or unsupported
+                }
+            }
+        } catch (e: Exception) {
+            // ignore and fallback
+        }
+
+        try {
             val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
             utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
             val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
@@ -796,7 +813,8 @@ Monsieur прогнали со двора.
             null
         }
 
-        val cleanContent = rawText.replace("<[^>]*>".toRegex(), " ")
+        val textWithoutBinaries = rawText.replace("""<binary[^>]*>[\s\S]*?</binary>""".toRegex(RegexOption.IGNORE_CASE), "")
+        val cleanContent = textWithoutBinaries.replace("<[^>]*>".toRegex(), " ")
             .replace("\\s+".toRegex(), " ")
             .trim()
             
@@ -903,29 +921,54 @@ Monsieur прогнали со двора.
 
     fun extractCoverUsingRegex(fb2Content: String): android.graphics.Bitmap? {
         try {
-            val binaryRegex = """<binary[^>]*id="([^"]+)"[^>]*>([\s\S]*?)</binary>""".toRegex(RegexOption.IGNORE_CASE)
-            val matches = binaryRegex.findAll(fb2Content)
+            // 1. Parse all binaries. Robust to attribute order, spaces, single/double quotes, and namespace tags
             val binaryDataMap = mutableMapOf<String, String>()
-            for (match in matches) {
-                val id = match.groups[1]?.value ?: continue
-                val base64 = match.groups[2]?.value ?: continue
-                binaryDataMap[id] = base64
-            }
-            
-            val imageRegex = """<image[^>]+(?:href|l:href)="([^"]+)"""".toRegex(RegexOption.IGNORE_CASE)
-            val imageMatch = imageRegex.find(fb2Content)
-            val coverId = imageMatch?.groups[1]?.value?.removePrefix("#")
-
-            val targetId = coverId ?: "cover"
-            var base64Data = binaryDataMap[targetId] ?: binaryDataMap[coverId]
-            
-            if (base64Data == null) {
-                val key = binaryDataMap.keys.find { it.lowercase().contains("cover") }
-                if (key != null) {
-                    base64Data = binaryDataMap[key]
+            val binaryBlockRegex = """<binary([^>]*)>([\s\S]*?)</binary>""".toRegex(RegexOption.IGNORE_CASE)
+            for (match in binaryBlockRegex.findAll(fb2Content)) {
+                val attrs = match.groups[1]?.value ?: ""
+                val base64 = match.groups[2]?.value ?: ""
+                val idMatch = """\bid\s*=\s*["']?([^"'\s>]+)["']?""".toRegex(RegexOption.IGNORE_CASE).find(attrs)
+                val id = idMatch?.groups[1]?.value
+                if (id != null) {
+                    binaryDataMap[id] = base64
+                    binaryDataMap[id.lowercase()] = base64
                 }
             }
-            
+
+            // 2. Find the coverpage image ID
+            // First try specifically within <coverpage>...</coverpage>
+            val coverpageRegex = """<coverpage>([\s\S]*?)</coverpage>""".toRegex(RegexOption.IGNORE_CASE)
+            val coverpageMatch = coverpageRegex.find(fb2Content)
+            var coverId: String? = null
+            if (coverpageMatch != null) {
+                val coverpageContent = coverpageMatch.groups[1]?.value ?: ""
+                val imageRegex = """<image[^>]*(?:href|l:href)\s*=\s*["']?#?([^"'\s>]+)["']?""".toRegex(RegexOption.IGNORE_CASE)
+                val imageMatch = imageRegex.find(coverpageContent)
+                coverId = imageMatch?.groups[1]?.value
+            }
+
+            // Fallback: look for the first <image> tag in the document
+            if (coverId == null) {
+                val imageRegex = """<image[^>]*(?:href|l:href)\s*=\s*["']?#?([^"'\s>]+)["']?""".toRegex(RegexOption.IGNORE_CASE)
+                val imageMatch = imageRegex.find(fb2Content)
+                coverId = imageMatch?.groups[1]?.value
+            }
+
+            // 3. Retrieve base64 data
+            var base64Data: String? = null
+            if (coverId != null) {
+                base64Data = binaryDataMap[coverId] ?: binaryDataMap[coverId.lowercase()] ?: binaryDataMap[coverId.removePrefix("#")] ?: binaryDataMap[coverId.removePrefix("#").lowercase()]
+            }
+
+            // Fallback: look for keys containing "cover" or "front"
+            if (base64Data == null) {
+                val coverKey = binaryDataMap.keys.find { it.lowercase().contains("cover") || it.lowercase().contains("front") }
+                if (coverKey != null) {
+                    base64Data = binaryDataMap[coverKey]
+                }
+            }
+
+            // Fallback 2: first binary if it looks like an image
             if (base64Data == null && binaryDataMap.isNotEmpty()) {
                 base64Data = binaryDataMap.values.first()
             }
