@@ -513,6 +513,42 @@ fun LibraryTab(
     var showPermissionExplanationDialog by remember { mutableStateOf(false) }
     var showOlderPermissionExplanationDialog by remember { mutableStateOf(false) }
 
+    val singleFilePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            if (uri != null) {
+                try {
+                    val contentResolver = context.contentResolver
+                    contentResolver.openInputStream(uri)?.use { inputStream ->
+                        val reader = java.io.BufferedReader(java.io.InputStreamReader(inputStream))
+                        val content = reader.readText()
+                        
+                        var fileName = "Импортированная книга"
+                        val cursor = contentResolver.query(uri, null, null, null, null)
+                        cursor?.use {
+                            if (it.moveToFirst()) {
+                                val nameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                                if (nameIndex != -1) {
+                                    fileName = it.getString(nameIndex)
+                                }
+                            }
+                        }
+                        val title = fileName.substringBeforeLast(".")
+                        viewModel.addNewBook(
+                            title = title,
+                            author = "Импорт",
+                            content = content,
+                            category = "Локальные"
+                        )
+                        Toast.makeText(context, "Книга \"$title\" успешно импортирована!", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Ошибка импорта: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    )
+
     // For Android < 11 (API < 30)
     val readPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -631,15 +667,30 @@ fun LibraryTab(
                     color = Color.Gray
                 )
             }
-            IconButton(
-                onClick = onAddBookClick,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ),
-                modifier = Modifier.testTag("add_book_fab")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Добавить книгу")
+                IconButton(
+                    onClick = { singleFilePickerLauncher.launch(arrayOf("text/plain")) },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    modifier = Modifier.testTag("import_book_fab")
+                ) {
+                    Icon(Icons.Default.FileUpload, contentDescription = "Импортировать книгу")
+                }
+                IconButton(
+                    onClick = onAddBookClick,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    ),
+                    modifier = Modifier.testTag("add_book_fab")
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Добавить книгу вручную")
+                }
             }
         }
 

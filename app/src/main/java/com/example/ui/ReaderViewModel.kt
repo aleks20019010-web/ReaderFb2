@@ -14,10 +14,11 @@ import kotlinx.coroutines.withContext
 
 class ReaderViewModel(application: Application) : AndroidViewModel(application) {
     private val bookDao = AppDatabase.getDatabase(application).bookDao()
-    
+    private val sharedPrefs = application.getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE)
+
     private val _bookState = MutableStateFlow<BookEntity?>(null)
     val bookState: StateFlow<BookEntity?> = _bookState.asStateFlow()
-    
+
     private val _pagesState = MutableStateFlow<List<String>>(emptyList())
     val pagesState: StateFlow<List<String>> = _pagesState.asStateFlow()
 
@@ -28,7 +29,28 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private val _themeState = MutableStateFlow("day")
     val themeState: StateFlow<String> = _themeState.asStateFlow()
 
-    private val sharedPrefs = application.getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE)
+    // Font size in SP
+    private val _fontSizeState = MutableStateFlow(18f)
+    val fontSizeState: StateFlow<Float> = _fontSizeState.asStateFlow()
+
+    // Line spacing multiplier
+    private val _lineSpacingState = MutableStateFlow(1.4f)
+    val lineSpacingState: StateFlow<Float> = _lineSpacingState.asStateFlow()
+
+    // Local dimension tracking
+    private var availableWidth = 0
+    private var availableHeight = 0
+    private var displayDensity = 1.0f
+
+    // Character start offsets of all pages
+    private var pageStartOffsets = listOf<Int>()
+
+    init {
+        // Restore saved font size and line spacing
+        _fontSizeState.value = sharedPrefs.getFloat("saved_font_size", 18f)
+        _lineSpacingState.value = sharedPrefs.getFloat("saved_line_spacing", 1.4f)
+        _themeState.value = sharedPrefs.getString("reader_theme", "day") ?: "day"
+    }
 
     fun loadBook(bookId: Int) {
         viewModelScope.launch {
@@ -38,47 +60,150 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             if (book != null) {
                 _bookState.value = book
                 
-                // Split text into pages
-                val pages = splitTextIntoPages(book.content)
-                _pagesState.value = pages
-
-                // Restore saved page for this book
-                val savedPage = sharedPrefs.getInt("book_page_${bookId}", 0)
-                _currentPage.value = savedPage.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
+                // If dimensions are already measured, trigger initial pagination
+                if (availableWidth > 0 && availableHeight > 0) {
+                    repaginate()
+                } else {
+                    // Fallback to static 1200 chars/page until first layout measure
+                    fallbackPagination(book)
+                }
             }
         }
-        
-        // Restore saved theme
-        val savedTheme = sharedPrefs.getString("reader_theme", "day") ?: "day"
-        _themeState.value = savedTheme
     }
 
-    private fun splitTextIntoPages(content: String): List<String> {
-        if (content.isEmpty()) return listOf("Документ пуст.")
+    private fun fallbackPagination(book: BookEntity) {
+        val content = book.content
+        if (content.isEmpty()) {
+            _pagesState.value = listOf("Документ пуст.")
+            pageStartOffsets = listOf(0)
+            return
+        }
+
         val pages = mutableListOf<String>()
-        val pageSize = 1200 // standard readable chunk size
+        val offsets = mutableListOf<Int>()
+        val pageSize = 1200
         var index = 0
         while (index < content.length) {
+            offsets.add(index)
             val end = (index + pageSize).coerceAtMost(content.length)
             pages.add(content.substring(index, end))
             index += pageSize
         }
-        return pages
+
+        _pagesState.value = pages
+        pageStartOffsets = offsets
+
+        val savedPage = sharedPrefs.getInt("book_page_${book.id}", 0)
+        _currentPage.value = savedPage.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
+    }
+
+    fun updateDimensions(width: Int, height: Int, density: Float) {
+        if (availableWidth != width || availableHeight != height || displayDensity != density) {
+            availableWidth = width
+            availableHeight = height
+            displayDensity = density
+            repaginate()
+        }
+    }
+
+    fun changeFontSize(delta: Float) {
+        val newSize = (_fontSizeState.value + delta).coerceIn(12f, 32f)
+        _fontSizeState.value = newSize
+        sharedPrefs.edit().putFloat("saved_font_size", newSize).apply()
+        repaginate()
+    }
+
+    fun changeLineSpacing(delta: Float) {
+        val newSpacing = (_lineSpacingState.value + delta).coerceIn(1.1f, 2.0f)
+        _lineSpacingState.value = newSpacing
+        sharedPrefs.edit().putFloat("saved_line_spacing", newSpacing).apply()
+        repaginate()
+    }
+
+    fun repaginate() {
+        val book = _bookState.value ?: return
+        val text = book.content
+        if (text.isEmpty() || availableWidth <= 0 || availableHeight <= 0) return
+
+        viewModelScope.launch(Dispatchers.Default) {
+            // 1. Determine current reading position (character offset)
+            val currentOffset = if (pageStartOffsets.isNotEmpty() && _currentPage.value < pageStartOffsets.size) {
+                pageStartOffsets[_currentPage.value]
+            } else {
+                sharedPrefs.getInt("book_char_offset_${book.id}", book.currentProgressChar)
+            }
+
+            // 2. Measure and slice text into pages based on actual font parameters
+            val paint = android.text.TextPaint().apply {
+                textSize = _fontSizeState.value * displayDensity
+            }
+
+            val pages = mutableListOf<String>()
+            val offsets = mutableListOf<Int>()
+            var start = 0
+            val textLength = text.length
+
+            while (start < textLength) {
+                offsets.add(start)
+                
+                val maxLines = (availableHeight / (paint.fontSpacing * _lineSpacingState.value)).toInt().coerceAtLeast(1)
+                
+                val tempLayout = android.text.StaticLayout.Builder.obtain(
+                    text, start, textLength, paint, availableWidth
+                )
+                .setAlignment(android.text.Layout.Alignment.ALIGN_NORMAL)
+                .setLineSpacing(0f, _lineSpacingState.value)
+                .setIncludePad(false)
+                .build()
+
+                val actualLines = tempLayout.lineCount.coerceAtMost(maxLines)
+                var end = tempLayout.getLineEnd(actualLines - 1)
+                
+                // Refine end to prevent cutting in the middle of a word
+                if (end < textLength) {
+                    var spaceIndex = -1
+                    for (j in (end - 1) downTo (end - 30).coerceAtLeast(start)) {
+                        if (text[j].isWhitespace()) {
+                            spaceIndex = j
+                            break
+                        }
+                    }
+                    if (spaceIndex > start) {
+                        end = spaceIndex + 1
+                    }
+                }
+                
+                pages.add(text.substring(start, end))
+                start = end
+            }
+
+            // 3. Find the best matching page in the new layout
+            var newPageIndex = 0
+            for (i in offsets.indices) {
+                if (offsets[i] <= currentOffset) {
+                    newPageIndex = i
+                } else {
+                    break
+                }
+            }
+
+            val clampedPageIndex = newPageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
+
+            // 4. Update state safely on Main Thread
+            withContext(Dispatchers.Main) {
+                _pagesState.value = pages
+                pageStartOffsets = offsets
+                _currentPage.value = clampedPageIndex
+                saveProgress()
+            }
+        }
     }
 
     fun setCurrentPage(page: Int) {
         val maxPage = (_pagesState.value.size - 1).coerceAtLeast(0)
         val clamped = page.coerceIn(0, maxPage)
         _currentPage.value = clamped
-        
-        // Save progress back to database as character offset
-        val book = _bookState.value ?: return
-        val charOffset = clamped * 1200
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                bookDao.updateProgress(book.id, charOffset, System.currentTimeMillis())
-            }
-        }
+        saveProgress()
     }
 
     fun toggleTheme() {
@@ -89,8 +214,22 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun saveProgress() {
         val book = _bookState.value ?: return
+        val pageIdx = _currentPage.value
+        val charOffset = if (pageStartOffsets.isNotEmpty() && pageIdx < pageStartOffsets.size) {
+            pageStartOffsets[pageIdx]
+        } else {
+            book.currentProgressChar
+        }
+
         sharedPrefs.edit()
-            .putInt("book_page_${book.id}", _currentPage.value)
+            .putInt("book_page_${book.id}", pageIdx)
+            .putInt("book_char_offset_${book.id}", charOffset)
             .apply()
+
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                bookDao.updateProgress(book.id, charOffset, System.currentTimeMillis())
+            }
+        }
     }
 }
