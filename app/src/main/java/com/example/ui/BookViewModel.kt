@@ -461,6 +461,178 @@ Monsieur прогнали со двора.
         }
     }
 
+    // Scanning Device for Local Books
+    var isScanning by mutableStateOf(false)
+    var scanProgressText by mutableStateOf("")
+
+    fun startLocalBookScan(rootPath: String = "/storage/emulated/0") {
+        viewModelScope.launch {
+            scanDirectoryForBooks(rootPath)
+        }
+    }
+
+    private suspend fun scanDirectoryForBooks(rootPath: String) {
+        withContext(Dispatchers.IO) {
+            isScanning = true
+            scanProgressText = "Запуск сканирования..."
+            val booksToInsert = mutableListOf<BookEntity>()
+            val existingTitles = repository.allBooks.first().map { it.title.lowercase() }.toSet()
+            
+            val rootDir = java.io.File(rootPath)
+            if (!rootDir.exists() || !rootDir.isDirectory) {
+                scanProgressText = "Папка не найдена: $rootPath"
+                isScanning = false
+                return@withContext
+            }
+            
+            val filesToProcess = mutableListOf<java.io.File>()
+            
+            fun traverse(dir: java.io.File) {
+                val list = dir.listFiles() ?: return
+                for (file in list) {
+                    if (file.isDirectory) {
+                        val name = file.name.lowercase()
+                        if (name.startsWith(".") || name == "android" || name == "cache" || name == "temp" || name == "tmp" || name == "thumbnails" || name == "thumbnail") {
+                            continue
+                        }
+                        traverse(file)
+                    } else {
+                        val ext = file.extension.lowercase()
+                        if (ext == "txt" || ext == "fb2" || ext == "epub") {
+                            filesToProcess.add(file)
+                        }
+                    }
+                }
+            }
+            
+            scanProgressText = "Поиск файлов в $rootPath..."
+            traverse(rootDir)
+            
+            if (filesToProcess.isEmpty()) {
+                scanProgressText = "Книг (*.txt, *.fb2, *.epub) не найдено в $rootPath"
+                isScanning = false
+                return@withContext
+            }
+
+            var importedCount = 0
+            for ((index, file) in filesToProcess.withIndex()) {
+                val progressText = "Чтение (${index + 1}/${filesToProcess.size}): ${file.name}"
+                withContext(Dispatchers.Main) {
+                    scanProgressText = progressText
+                }
+                val ext = file.extension.lowercase()
+                try {
+                    val (title, content) = when (ext) {
+                        "fb2" -> parseFb2(file)
+                        "epub" -> parseEpub(file)
+                        else -> {
+                            val txt = readTextFile(file)
+                            Pair(file.nameWithoutExtension, txt)
+                        }
+                    }
+                    
+                    if (content.isNotBlank() && !existingTitles.contains(title.lowercase())) {
+                        val newBook = BookEntity(
+                            title = title,
+                            author = if (ext == "fb2") "Локальный FB2" else if (ext == "epub") "Локальный EPUB" else "Локальный TXT",
+                            content = content,
+                            category = "Локальные",
+                            totalCharacters = content.length,
+                            coverGradientStart = getRandomGradientStartColor(),
+                            coverGradientEnd = getRandomGradientEndColor()
+                        )
+                        booksToInsert.add(newBook)
+                        importedCount++
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            
+            if (booksToInsert.isNotEmpty()) {
+                withContext(Dispatchers.Main) {
+                    scanProgressText = "Импорт ${booksToInsert.size} книг в базу данных..."
+                }
+                for (book in booksToInsert) {
+                    repository.insertBook(book)
+                }
+                withContext(Dispatchers.Main) {
+                    scanProgressText = "Успешно импортировано новых книг: $importedCount"
+                }
+            } else {
+                withContext(Dispatchers.Main) {
+                    scanProgressText = "Все найденные книги уже есть в библиотеке (${filesToProcess.size} файлов)"
+                }
+            }
+            
+            isScanning = false
+        }
+    }
+
+    private fun readTextFile(file: java.io.File): String {
+        val bytes = file.readBytes()
+        try {
+            val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+            utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
+            return charBuffer.toString()
+        } catch (e: Exception) {
+            try {
+                return String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
+            } catch (e2: Exception) {
+                return String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+            }
+        }
+    }
+
+    private fun parseFb2(file: java.io.File): Pair<String, String> {
+        val rawText = readTextFile(file)
+        val titleRegex = "<book-title>(.*?)</book-title>".toRegex(RegexOption.IGNORE_CASE)
+        val authorFirstRegex = "<first-name>(.*?)</first-name>".toRegex(RegexOption.IGNORE_CASE)
+        val authorLastRegex = "<last-name>(.*?)</last-name>".toRegex(RegexOption.IGNORE_CASE)
+        
+        val titleMatch = titleRegex.find(rawText)
+        val title = titleMatch?.groupValues?.get(1)?.trim() ?: file.nameWithoutExtension
+        
+        val first = authorFirstRegex.find(rawText)?.groupValues?.get(1)?.trim() ?: ""
+        val last = authorLastRegex.find(rawText)?.groupValues?.get(1)?.trim() ?: ""
+        val author = if (first.isNotEmpty() || last.isNotEmpty()) "$first $last".trim() else "Неизвестен"
+        
+        val cleanContent = rawText.replace("<[^>]*>".toRegex(), " ")
+            .replace("\\s+".toRegex(), " ")
+            .trim()
+            
+        return Pair(title, cleanContent)
+    }
+
+    private fun parseEpub(file: java.io.File): Pair<String, String> {
+        val content = readEpubText(file)
+        val title = file.nameWithoutExtension
+        return Pair(title, content)
+    }
+
+    private fun readEpubText(file: java.io.File): String {
+        val sb = java.lang.StringBuilder()
+        try {
+            java.io.FileInputStream(file).use { fis ->
+                java.util.zip.ZipInputStream(fis).use { zis ->
+                    var entry = zis.nextEntry
+                    while (entry != null) {
+                        if (entry.name.endsWith(".html") || entry.name.endsWith(".xhtml")) {
+                            val content = zis.bufferedReader(java.nio.charset.StandardCharsets.UTF_8).readText()
+                            val textOnly = content.replace("<[^>]*>".toRegex(), " ")
+                            sb.append(textOnly).append("\n\n")
+                        }
+                        entry = zis.nextEntry
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return sb.toString().replace("\\s+".toRegex(), " ").trim()
+    }
+
     override fun onCleared() {
         super.onCleared()
         syncManager.stopSyncServer()

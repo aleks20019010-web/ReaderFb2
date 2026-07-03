@@ -1,6 +1,17 @@
 package com.example.ui
 
 import android.widget.Toast
+import android.os.Build
+import android.os.Environment
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import android.content.pm.PackageManager
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
@@ -485,7 +496,104 @@ fun LibraryTab(
     viewModel: BookViewModel,
     onAddBookClick: () -> Unit
 ) {
-    val categories = listOf("Все", "Классика", "Проза", "Поэзия")
+    val categories = listOf("Все", "Классика", "Проза", "Поэзия", "Локальные")
+    val context = LocalContext.current
+    var showPermissionExplanationDialog by remember { mutableStateOf(false) }
+    var showOlderPermissionExplanationDialog by remember { mutableStateOf(false) }
+
+    // For Android < 11 (API < 30)
+    val readPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                viewModel.startLocalBookScan()
+            } else {
+                Toast.makeText(context, "Доступ к файлам отклонен", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
+    fun onScanClick() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (Environment.isExternalStorageManager()) {
+                viewModel.startLocalBookScan()
+            } else {
+                showPermissionExplanationDialog = true
+            }
+        } else {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+            
+            if (hasPermission) {
+                viewModel.startLocalBookScan()
+            } else {
+                showOlderPermissionExplanationDialog = true
+            }
+        }
+    }
+
+    if (showPermissionExplanationDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionExplanationDialog = false },
+            title = { Text("Доступ ко всем файлам") },
+            text = {
+                Text(
+                    "Для автоматического поиска книг на вашем устройстве (/storage/emulated/0) приложению требуется разрешение на доступ ко всем файлам.\n\n" +
+                    "После нажатия «Предоставить» откроется системное меню, где вам нужно будет включить переключатель для этого приложения."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showPermissionExplanationDialog = false
+                        try {
+                            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                data = Uri.parse("package:${context.packageName}")
+                            }
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                            context.startActivity(intent)
+                        }
+                    }
+                ) {
+                    Text("Предоставить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionExplanationDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
+
+    if (showOlderPermissionExplanationDialog) {
+        AlertDialog(
+            onDismissRequest = { showOlderPermissionExplanationDialog = false },
+            title = { Text("Доступ к памяти") },
+            text = {
+                Text("Для автоматического поиска книг приложению требуется доступ к памяти вашего устройства.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showOlderPermissionExplanationDialog = false
+                        readPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    }
+                ) {
+                    Text("Разрешить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOlderPermissionExplanationDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -539,9 +647,92 @@ fun LibraryTab(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // Scan Progress / Trigger Layout
+        if (viewModel.isScanning) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = viewModel.scanProgressText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        } else if (viewModel.scanProgressText.isNotEmpty()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = viewModel.scanProgressText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { viewModel.scanProgressText = "" },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Закрыть",
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.Gray
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Action Buttons Row (Scan device)
+        Button(
+            onClick = { onScanClick() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("scan_device_books_button"),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Поиск книг на устройстве", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         // Categories Row
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             categories.forEach { cat ->
