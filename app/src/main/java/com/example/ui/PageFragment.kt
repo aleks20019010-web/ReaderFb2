@@ -60,8 +60,9 @@ class PageFragment : Fragment() {
 
         // Set up cutout/notch and system bar safe margins (Left/Right/Bottom = 16dp, Top = cutout height + 12dp)
         ViewCompat.setOnApplyWindowInsetsListener(rootContainer) { view, insets ->
+            val systemBars = insets.getInsetsIgnoringVisibility(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             val cutout = insets.displayCutout
-            val cutoutHeight = cutout?.safeInsetTop ?: 0
+            val cutoutHeight = cutout?.safeInsetTop ?: systemBars.top
             val density = view.resources.displayMetrics.density
             val topPadding = cutoutHeight + (12 * density).toInt()
             val leftPadding = (16 * density).toInt()
@@ -101,6 +102,10 @@ class PageFragment : Fragment() {
 
         // Double-purpose tap guesture handler (Left-Top corner -> Theme, Center -> Toggle system UI controls)
         val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent): Boolean {
+                return true
+            }
+
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
                 val x = e.x
                 val y = e.y
@@ -129,11 +134,11 @@ class PageFragment : Fragment() {
             }
         })
 
-        rootContainer.setOnTouchListener { _, event ->
+        val touchListener = View.OnTouchListener { _, event ->
             gestureDetector.onTouchEvent(event)
-            // Bubble touch event up to ViewPager2 so swiping to change pages remains seamless
-            false
         }
+        rootContainer.setOnTouchListener(touchListener)
+        textView.setOnTouchListener(touchListener)
 
         return rootContainer
     }

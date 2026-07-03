@@ -600,16 +600,16 @@ class ReaderActivity : FragmentActivity() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         return when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                val nextPage = viewModel.currentPage.value + 1
-                if (nextPage < viewModel.pagesState.value.size) {
-                    viewModel.setCurrentPage(nextPage)
+                val nextPage = viewPager.currentItem + 1
+                if (nextPage < (viewPager.adapter?.itemCount ?: 0)) {
+                    viewPager.setCurrentItem(nextPage, true)
                 }
                 true
             }
             KeyEvent.KEYCODE_VOLUME_UP -> {
-                val prevPage = viewModel.currentPage.value - 1
+                val prevPage = viewPager.currentItem - 1
                 if (prevPage >= 0) {
-                    viewModel.setCurrentPage(prevPage)
+                    viewPager.setCurrentItem(prevPage, true)
                 }
                 true
             }
