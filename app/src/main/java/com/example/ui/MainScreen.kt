@@ -55,6 +55,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.data.BookEntity
 import com.example.data.NoteEntity
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.launch
 
 data class ReaderThemePreset(
@@ -820,6 +823,18 @@ fun BookGridItem(
     val startColor = try { Color(android.graphics.Color.parseColor(book.coverGradientStart)) } catch (e: Exception) { Color(0xFFE94560) }
     val endColor = try { Color(android.graphics.Color.parseColor(book.coverGradientEnd)) } catch (e: Exception) { Color(0xFF1A1A2E) }
 
+    val coverBitmap = remember(book.coverPath) {
+        book.coverPath?.let { path ->
+            try {
+                if (java.io.File(path).exists()) {
+                    android.graphics.BitmapFactory.decodeFile(path)
+                } else null
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -835,9 +850,28 @@ fun BookGridItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(0.6f)
-                    .background(Brush.verticalGradient(colors = listOf(startColor, endColor)))
+                    .then(
+                        if (coverBitmap != null) {
+                            Modifier
+                        } else {
+                            Modifier.background(Brush.verticalGradient(colors = listOf(startColor, endColor)))
+                        }
+                    )
                     .padding(12.dp)
             ) {
+                if (coverBitmap != null) {
+                    Image(
+                        bitmap = coverBitmap.asImageBitmap(),
+                        contentDescription = book.title,
+                        modifier = Modifier.matchParentSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(Color.Black.copy(alpha = 0.4f))
+                    )
+                }
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.SpaceBetween
@@ -2043,6 +2077,18 @@ fun BookDetailsScreen(
             val startColor = try { Color(android.graphics.Color.parseColor(book.coverGradientStart)) } catch (e: Exception) { Color(0xFFE94560) }
             val endColor = try { Color(android.graphics.Color.parseColor(book.coverGradientEnd)) } catch (e: Exception) { Color(0xFF1A1A2E) }
 
+            val coverBitmap = remember(book.coverPath) {
+                book.coverPath?.let { path ->
+                    try {
+                        if (java.io.File(path).exists()) {
+                            android.graphics.BitmapFactory.decodeFile(path)
+                        } else null
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            }
+
             Card(
                 modifier = Modifier
                     .width(180.dp)
@@ -2053,14 +2099,33 @@ fun BookDetailsScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(startColor, endColor)
-                            )
+                        .then(
+                            if (coverBitmap != null) {
+                                Modifier
+                            } else {
+                                Modifier.background(
+                                    Brush.linearGradient(
+                                        colors = listOf(startColor, endColor)
+                                    )
+                                )
+                            }
                         )
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
+                    if (coverBitmap != null) {
+                        Image(
+                            bitmap = coverBitmap.asImageBitmap(),
+                            contentDescription = book.title,
+                            modifier = Modifier.matchParentSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .background(Color.Black.copy(alpha = 0.4f))
+                        )
+                    }
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center

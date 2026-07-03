@@ -245,6 +245,12 @@ Monsieur прогнали со двора.
         viewModelScope.launch {
             repository.updateProgress(book.id, book.currentProgressChar)
         }
+        
+        val intent = android.content.Intent(getApplication(), ReaderActivity::class.java).apply {
+            putExtra("BOOK_ID", book.id)
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        getApplication<Application>().startActivity(intent)
     }
 
     fun updateReadingProgress(charOffset: Int) {
@@ -510,122 +516,163 @@ Monsieur прогнали со двора.
             scanProgressText = "Запуск сканирования..."
         }
         
-        withContext(Dispatchers.IO) {
-            val existingTitles = try {
-                repository.allBooks.first().map { it.title.lowercase() }.toMutableSet()
-            } catch (e: Exception) {
-                mutableSetOf<String>()
-            }
-            
-            val rootDir = java.io.File(rootPath)
-            if (!rootDir.exists() || !rootDir.isDirectory) {
-                withContext(Dispatchers.Main) {
-                    scanProgressText = "Папка не найдена: $rootPath"
-                    isScanning = false
+        try {
+            withContext(Dispatchers.IO) {
+                val existingSha1s = try {
+                    repository.allBooks.first().mapNotNull { it.sha1 }.toMutableSet()
+                } catch (e: Exception) {
+                    android.util.Log.e("BookScanner", "Failed to load existing SHA1 list", e)
+                    mutableSetOf<String>()
                 }
-                return@withContext
-            }
-            
-            val filesToProcess = mutableListOf<java.io.File>()
-            
-            fun traverse(dir: java.io.File) {
-                val list = dir.listFiles() ?: return
-                for (file in list) {
-                    if (file.isDirectory) {
-                        val name = file.name.lowercase()
-                        if (name.startsWith(".") || name == "android" || name == "cache" || name == "temp" || name == "tmp" || name == "thumbnails" || name == "thumbnail") {
-                            continue
-                        }
-                        traverse(file)
-                    } else {
-                        val ext = file.extension.lowercase()
-                        if (ext == "txt" || ext == "fb2" || ext == "epub") {
-                            // Exclude excessively large files (e.g. > 30MB) to prevent OOM
-                            if (file.length() < 30 * 1024 * 1024) {
-                                filesToProcess.add(file)
+
+                val existingTitles = try {
+                    repository.allBooks.first().map { it.title.lowercase() }.toMutableSet()
+                } catch (e: Exception) {
+                    android.util.Log.e("BookScanner", "Failed to load existing titles", e)
+                    mutableSetOf<String>()
+                }
+                
+                val rootDir = java.io.File(rootPath)
+                if (!rootDir.exists() || !rootDir.isDirectory) {
+                    withContext(Dispatchers.Main) {
+                        scanProgressText = "Папка не найдена или недоступна: $rootPath"
+                    }
+                    return@withContext
+                }
+                
+                val filesToProcess = mutableListOf<java.io.File>()
+                
+                fun traverse(dir: java.io.File) {
+                    try {
+                        val list = dir.listFiles() ?: return
+                        for (file in list) {
+                            if (file.isDirectory) {
+                                val name = file.name.lowercase()
+                                if (name.startsWith(".") || name == "android" || name == "cache" || name == "temp" || name == "tmp" || name == "thumbnails" || name == "thumbnail") {
+                                    continue
+                                }
+                                traverse(file)
+                            } else {
+                                val ext = file.extension.lowercase()
+                                if (ext == "txt" || ext == "fb2" || ext == "epub" || ext == "zip") {
+                                    // Exclude files >= 30MB to prevent memory crashes
+                                    if (file.length() < 30 * 1024 * 1024 && file.length() > 0) {
+                                        filesToProcess.add(file)
+                                    }
+                                }
                             }
                         }
+                    } catch (e: Exception) {
+                        android.util.Log.e("BookScanner", "Error traversing directory: ${dir.absolutePath}", e)
                     }
                 }
-            }
-            
-            withContext(Dispatchers.Main) {
-                scanProgressText = "Поиск файлов в $rootPath..."
-            }
-            traverse(rootDir)
-            
-            if (filesToProcess.isEmpty()) {
+                
                 withContext(Dispatchers.Main) {
-                    scanProgressText = "Книг (*.txt, *.fb2, *.epub) не найдено в $rootPath"
-                    isScanning = false
+                    scanProgressText = "Поиск файлов в $rootPath..."
                 }
-                return@withContext
-            }
+                traverse(rootDir)
+                
+                if (filesToProcess.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        scanProgressText = "Книг (*.txt, *.fb2, *.epub, *.zip) не найдено в $rootPath"
+                    }
+                    return@withContext
+                }
 
-            var importedCount = 0
-            for ((index, file) in filesToProcess.withIndex()) {
-                val progressText = "Чтение (${index + 1}/${filesToProcess.size}): ${file.name}"
-                withContext(Dispatchers.Main) {
-                    scanProgressText = progressText
+                var importedCount = 0
+                for ((index, file) in filesToProcess.withIndex()) {
+                    val progressText = "Чтение (${index + 1}/${filesToProcess.size}): ${file.name}"
+                    withContext(Dispatchers.Main) {
+                        scanProgressText = progressText
+                    }
+                    
+                    kotlin.runCatching {
+                        val ext = file.extension.lowercase()
+                        val computedSha1 = calculateFb2Sha1(file) ?: file.nameWithoutExtension // fallback to name
+                        
+                        // Check duplicates by SHA1
+                        if (existingSha1s.contains(computedSha1)) {
+                            return@runCatching
+                        }
+
+                        var parsedTitle = file.nameWithoutExtension
+                        var parsedAuthor = "Неизвестен"
+                        var parsedContent = ""
+                        var parsedSeries: String? = null
+                        var parsedLanguage: String? = "ru"
+                        
+                        if (ext == "fb2") {
+                            val parsed = parseFb2Detailed(file)
+                            parsedTitle = parsed.title
+                            parsedAuthor = parsed.author
+                            parsedContent = parsed.content
+                            parsedSeries = parsed.series
+                            parsedLanguage = parsed.language
+                        } else if (ext == "zip") {
+                            val parsed = parseFb2FromZip(file)
+                            parsedTitle = parsed.title
+                            parsedAuthor = parsed.author
+                            parsedContent = parsed.content
+                            parsedSeries = parsed.series
+                            parsedLanguage = parsed.language
+                        } else if (ext == "epub") {
+                            val (title, content) = parseEpub(file)
+                            parsedTitle = title
+                            parsedAuthor = "Локальный EPUB"
+                            parsedContent = content
+                        } else {
+                            parsedContent = readTextFile(file)
+                            parsedAuthor = "Локальный TXT"
+                        }
+                        
+                        if (existingTitles.contains(parsedTitle.lowercase())) {
+                            return@runCatching
+                        }
+
+                        if (parsedContent.isNotBlank()) {
+                            // Extract cover
+                            val coverPath = extractAndSaveCover(file, computedSha1)
+                            
+                            val newBook = BookEntity(
+                                title = parsedTitle,
+                                author = parsedAuthor,
+                                content = parsedContent,
+                                category = "Локальные",
+                                totalCharacters = parsedContent.length,
+                                coverGradientStart = getRandomGradientStartColor(),
+                                coverGradientEnd = getRandomGradientEndColor(),
+                                filePath = file.absolutePath,
+                                sha1 = computedSha1,
+                                series = parsedSeries,
+                                language = parsedLanguage,
+                                fileSize = file.length(),
+                                coverPath = coverPath
+                            )
+                            repository.insertBook(newBook)
+                            existingSha1s.add(computedSha1)
+                            existingTitles.add(parsedTitle.lowercase())
+                            importedCount++
+                        }
+                    }.onFailure { t ->
+                        android.util.Log.e("BookScanner", "Failed to import book: ${file.name}", t)
+                    }
                 }
-                val ext = file.extension.lowercase()
-                try {
-                    val computedSha1 = calculateFb2Sha1(file)
-                    
-                    var parsedTitle = file.nameWithoutExtension
-                    var parsedAuthor = "Неизвестен"
-                    var parsedContent = ""
-                    var parsedSeries: String? = null
-                    var parsedLanguage: String? = "ru"
-                    
-                    if (ext == "fb2") {
-                        val parsed = parseFb2Detailed(file)
-                        parsedTitle = parsed.title
-                        parsedAuthor = parsed.author
-                        parsedContent = parsed.content
-                        parsedSeries = parsed.series
-                        parsedLanguage = parsed.language
-                    } else if (ext == "epub") {
-                        val (title, content) = parseEpub(file)
-                        parsedTitle = title
-                        parsedAuthor = "Локальный EPUB"
-                        parsedContent = content
+                
+                withContext(Dispatchers.Main) {
+                    if (importedCount > 0) {
+                        scanProgressText = "Успешно импортировано новых книг: $importedCount"
                     } else {
-                        parsedContent = readTextFile(file)
-                        parsedAuthor = "Локальный TXT"
+                        scanProgressText = "Все найденные книги уже есть в библиотеке (${filesToProcess.size} файлов)"
                     }
-                    
-                    if (parsedContent.isNotBlank() && !existingTitles.contains(parsedTitle.lowercase())) {
-                        val newBook = BookEntity(
-                            title = parsedTitle,
-                            author = parsedAuthor,
-                            content = parsedContent,
-                            category = "Локальные",
-                            totalCharacters = parsedContent.length,
-                            coverGradientStart = getRandomGradientStartColor(),
-                            coverGradientEnd = getRandomGradientEndColor(),
-                            filePath = file.absolutePath,
-                            sha1 = computedSha1,
-                            series = parsedSeries,
-                            language = parsedLanguage,
-                            fileSize = file.length()
-                        )
-                        // Insert immediately to repository during scanning (progressive updates)
-                        repository.insertBook(newBook)
-                        existingTitles.add(parsedTitle.lowercase())
-                        importedCount++
-                    }
-                } catch (t: Throwable) {
-                    t.printStackTrace()
                 }
             }
-            
+        } catch (e: Exception) {
+            android.util.Log.e("BookScanner", "Critical error in scanDirectoryForBooks", e)
             withContext(Dispatchers.Main) {
-                if (importedCount > 0) {
-                    scanProgressText = "Успешно импортировано новых книг: $importedCount"
-                } else {
-                    scanProgressText = "Все найденные книги уже есть в библиотеке (${filesToProcess.size} файлов)"
-                }
+                scanProgressText = "Ошибка сканирования: ${e.localizedMessage}"
+            }
+        } finally {
+            withContext(Dispatchers.Main) {
                 isScanning = false
             }
         }
@@ -681,6 +728,10 @@ Monsieur прогнали со двора.
 
     private fun readTextFile(file: java.io.File): String {
         val bytes = file.readBytes()
+        return decodeBytesToString(bytes)
+    }
+
+    private fun decodeBytesToString(bytes: ByteArray): String {
         try {
             val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
             utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
@@ -695,6 +746,24 @@ Monsieur прогнали со двора.
         }
     }
 
+    private fun parseFb2FromZip(file: java.io.File): ParsedBook {
+        java.io.FileInputStream(file).use { fis ->
+            java.util.zip.ZipInputStream(fis).use { zis ->
+                var entry = zis.nextEntry
+                while (entry != null) {
+                    val entryName = entry.name.lowercase()
+                    if (!entry.isDirectory && entryName.endsWith(".fb2")) {
+                        val bytes = zis.readBytes()
+                        val rawText = decodeBytesToString(bytes)
+                        return parseFb2DetailedText(rawText, entryName.removeSuffix(".fb2"))
+                    }
+                    entry = zis.nextEntry
+                }
+            }
+        }
+        throw java.io.IOException("No fb2 file found inside zip")
+    }
+
     data class ParsedBook(
         val title: String,
         val author: String,
@@ -703,15 +772,14 @@ Monsieur прогнали со двора.
         val language: String? = "ru"
     )
 
-    private fun parseFb2Detailed(file: java.io.File): ParsedBook {
-        val rawText = readTextFile(file)
+    private fun parseFb2DetailedText(rawText: String, fallbackName: String): ParsedBook {
         val titleRegex = "<book-title>(.*?)</book-title>".toRegex(RegexOption.IGNORE_CASE)
         val authorFirstRegex = "<first-name>(.*?)</first-name>".toRegex(RegexOption.IGNORE_CASE)
         val authorLastRegex = "<last-name>(.*?)</last-name>".toRegex(RegexOption.IGNORE_CASE)
         val langRegex = "<lang>(.*?)</lang>".toRegex(RegexOption.IGNORE_CASE)
         
         val titleMatch = titleRegex.find(rawText)
-        val title = titleMatch?.groupValues?.get(1)?.trim() ?: file.nameWithoutExtension
+        val title = titleMatch?.groupValues?.get(1)?.trim() ?: fallbackName
         
         val first = authorFirstRegex.find(rawText)?.groupValues?.get(1)?.trim() ?: ""
         val last = authorLastRegex.find(rawText)?.groupValues?.get(1)?.trim() ?: ""
@@ -735,6 +803,11 @@ Monsieur прогнали со двора.
             .trim()
             
         return ParsedBook(title, author, cleanContent, series, language)
+    }
+
+    private fun parseFb2Detailed(file: java.io.File): ParsedBook {
+        val rawText = readTextFile(file)
+        return parseFb2DetailedText(rawText, file.nameWithoutExtension)
     }
 
     private fun parseEpub(file: java.io.File): Pair<String, String> {
@@ -763,6 +836,189 @@ Monsieur прогнали со двора.
             e.printStackTrace()
         }
         return sb.toString().replace("\\s+".toRegex(), " ").trim()
+    }
+
+    fun extractCoverFromFb2(fb2Content: String): android.graphics.Bitmap? {
+        try {
+            val factory = org.xmlpull.v1.XmlPullParserFactory.newInstance()
+            factory.isNamespaceAware = true
+            val parser = factory.newPullParser()
+            parser.setInput(java.io.StringReader(fb2Content))
+
+            var eventType = parser.eventType
+            var coverId: String? = null
+            val binaryDataMap = mutableMapOf<String, String>()
+
+            while (eventType != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
+                val tagName = parser.name?.lowercase()
+                if (eventType == org.xmlpull.v1.XmlPullParser.START_TAG) {
+                    if (tagName == "image") {
+                        for (i in 0 until parser.attributeCount) {
+                            val attrName = parser.getAttributeName(i).lowercase()
+                            if (attrName == "href" || attrName.endsWith("href")) {
+                                val href = parser.getAttributeValue(i)
+                                if (coverId == null) {
+                                    coverId = href.removePrefix("#")
+                                }
+                            }
+                        }
+                    } else if (tagName == "binary") {
+                        var id: String? = null
+                        for (i in 0 until parser.attributeCount) {
+                            if (parser.getAttributeName(i).lowercase() == "id") {
+                                id = parser.getAttributeValue(i)
+                            }
+                        }
+                        if (id != null) {
+                            val base64Text = parser.nextText()
+                            binaryDataMap[id] = base64Text
+                        }
+                    }
+                }
+                eventType = parser.next()
+            }
+
+            val targetId = coverId ?: "cover"
+            var base64Data = binaryDataMap[targetId] ?: binaryDataMap[coverId]
+            
+            if (base64Data == null) {
+                val key = binaryDataMap.keys.find { it.lowercase().contains("cover") }
+                if (key != null) {
+                    base64Data = binaryDataMap[key]
+                }
+            }
+            
+            if (base64Data == null && binaryDataMap.isNotEmpty()) {
+                base64Data = binaryDataMap.values.first()
+            }
+
+            if (base64Data != null) {
+                val cleanBase64 = base64Data.replace("\\s".toRegex(), "")
+                val decodedBytes = android.util.Base64.decode(cleanBase64, android.util.Base64.DEFAULT)
+                return android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookScanner", "Error parsing FB2 cover with XmlPullParser", e)
+        }
+        return null
+    }
+
+    fun extractCoverUsingRegex(fb2Content: String): android.graphics.Bitmap? {
+        try {
+            val binaryRegex = """<binary[^>]*id="([^"]+)"[^>]*>([\s\S]*?)</binary>""".toRegex(RegexOption.IGNORE_CASE)
+            val matches = binaryRegex.findAll(fb2Content)
+            val binaryDataMap = mutableMapOf<String, String>()
+            for (match in matches) {
+                val id = match.groups[1]?.value ?: continue
+                val base64 = match.groups[2]?.value ?: continue
+                binaryDataMap[id] = base64
+            }
+            
+            val imageRegex = """<image[^>]+(?:href|l:href)="([^"]+)"""".toRegex(RegexOption.IGNORE_CASE)
+            val imageMatch = imageRegex.find(fb2Content)
+            val coverId = imageMatch?.groups[1]?.value?.removePrefix("#")
+
+            val targetId = coverId ?: "cover"
+            var base64Data = binaryDataMap[targetId] ?: binaryDataMap[coverId]
+            
+            if (base64Data == null) {
+                val key = binaryDataMap.keys.find { it.lowercase().contains("cover") }
+                if (key != null) {
+                    base64Data = binaryDataMap[key]
+                }
+            }
+            
+            if (base64Data == null && binaryDataMap.isNotEmpty()) {
+                base64Data = binaryDataMap.values.first()
+            }
+
+            if (base64Data != null) {
+                val cleanBase64 = base64Data.replace("\\s".toRegex(), "")
+                val decodedBytes = android.util.Base64.decode(cleanBase64, android.util.Base64.DEFAULT)
+                return android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookScanner", "Error in regex cover extraction", e)
+        }
+        return null
+    }
+
+    fun extractCoverFromEpub(epubFile: java.io.File): android.graphics.Bitmap? {
+        try {
+            java.io.FileInputStream(epubFile).use { fis ->
+                java.util.zip.ZipInputStream(fis).use { zis ->
+                    var entry = zis.nextEntry
+                    while (entry != null) {
+                        val name = entry.name.lowercase()
+                        if (!entry.isDirectory && (name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png"))) {
+                            if (name.contains("cover")) {
+                                val bytes = zis.readBytes()
+                                if (bytes.isNotEmpty()) {
+                                    return android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                }
+                            }
+                        }
+                        entry = zis.nextEntry
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookScanner", "Error extracting EPUB cover", e)
+        }
+        return null
+    }
+
+    fun saveCoverToCache(context: android.content.Context, sha1: String, bitmap: android.graphics.Bitmap): String? {
+        return try {
+            val cacheDir = java.io.File(context.cacheDir, "book_covers")
+            if (!cacheDir.exists()) {
+                cacheDir.mkdirs()
+            }
+            val file = java.io.File(cacheDir, "$sha1.jpg")
+            java.io.FileOutputStream(file).use { out ->
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out)
+            }
+            file.absolutePath
+        } catch (e: Exception) {
+            android.util.Log.e("BookScanner", "Failed to save cover to cache", e)
+            null
+        }
+    }
+
+    fun extractAndSaveCover(file: java.io.File, sha1: String): String? {
+        val ext = file.extension.lowercase()
+        var bitmap: android.graphics.Bitmap? = null
+        try {
+            if (ext == "fb2") {
+                val fb2Content = readTextFile(file)
+                bitmap = extractCoverFromFb2(fb2Content) ?: extractCoverUsingRegex(fb2Content)
+            } else if (ext == "zip") {
+                java.io.FileInputStream(file).use { fis ->
+                    java.util.zip.ZipInputStream(fis).use { zis ->
+                        var entry = zis.nextEntry
+                        while (entry != null) {
+                            val entryName = entry.name.lowercase()
+                            if (!entry.isDirectory && entryName.endsWith(".fb2")) {
+                                val bytes = zis.readBytes()
+                                val fb2Content = decodeBytesToString(bytes)
+                                bitmap = extractCoverFromFb2(fb2Content) ?: extractCoverUsingRegex(fb2Content)
+                                break
+                            }
+                            entry = zis.nextEntry
+                        }
+                    }
+                }
+            } else if (ext == "epub") {
+                bitmap = extractCoverFromEpub(file)
+            }
+            
+            if (bitmap != null) {
+                return saveCoverToCache(getApplication<Application>(), sha1, bitmap)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookScanner", "Error in extractAndSaveCover for file ${file.name}", e)
+        }
+        return null
     }
 
     override fun onCleared() {

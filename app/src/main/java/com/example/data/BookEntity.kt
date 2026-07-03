@@ -21,5 +21,6 @@ data class BookEntity(
     val language: String? = "ru",
     val fileSize: Long = 0L,
     val review: String? = null,
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    val coverPath: String? = null
 )
