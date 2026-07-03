@@ -586,7 +586,7 @@ Monsieur прогнали со двора.
                     
                     kotlin.runCatching {
                         val ext = file.extension.lowercase()
-                        val computedSha1 = calculateFb2Sha1(file) ?: file.nameWithoutExtension // fallback to name
+                        val computedSha1 = calculateSha1(file.absolutePath)
                         
                         // Check duplicates by SHA1
                         if (existingSha1s.contains(computedSha1)) {
@@ -676,41 +676,99 @@ Monsieur прогнали со двора.
         }
     }
 
-    suspend fun calculateFb2Sha1(file: java.io.File): String? = withContext(Dispatchers.IO) {
-        try {
-            if (!file.exists()) return@withContext null
+    suspend fun calculateSha1(filePath: String): String = withContext(Dispatchers.IO) {
+        val TAG = "SHA1Calculator"
+        android.util.Log.d(TAG, "Starting SHA-1 calculation for path: $filePath")
+        
+        val file = java.io.File(filePath)
+        
+        // Check if file exists and is readable
+        if (!file.exists()) {
+            android.util.Log.e(TAG, "Error: File does not exist at path: $filePath")
+            return@withContext generateFallbackId(filePath, null)
+        }
+        if (!file.canRead()) {
+            android.util.Log.e(TAG, "Error: File is not readable (insufficient permissions): $filePath")
+            return@withContext generateFallbackId(filePath, file)
+        }
+        
+        val fileSize = file.length()
+        if (fileSize == 0L) {
+            android.util.Log.e(TAG, "Error: File is empty (size is 0 bytes): $filePath")
+            return@withContext generateFallbackId(filePath, file)
+        }
+
+        kotlin.runCatching {
             val ext = file.extension.lowercase()
+            android.util.Log.d(TAG, "Detected file extension: $ext")
+            
             when (ext) {
                 "fb2" -> {
+                    android.util.Log.d(TAG, "Reading directly from FB2 file")
                     java.io.FileInputStream(file).use { fis ->
                         computeSha1FromStream(fis)
                     }
                 }
                 "zip" -> {
+                    android.util.Log.d(TAG, "Decompressing ZIP to find FB2 contents")
+                    var fb2Found = false
+                    var sha1Result: String? = null
+                    
+                    // Attempt to parse/decompress ZIP
                     java.io.FileInputStream(file).use { fis ->
                         java.util.zip.ZipInputStream(fis).use { zis ->
                             var entry = zis.nextEntry
                             while (entry != null) {
                                 val entryName = entry.name.lowercase()
-                                if (!entry.isDirectory && entryName.endsWith(".fb2")) {
-                                    return@withContext computeSha1FromStream(zis)
+                                if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".fb2.xml"))) {
+                                    android.util.Log.d(TAG, "Found FB2 entry in ZIP: ${entry.name} (size: ${entry.size})")
+                                    fb2Found = true
+                                    
+                                    // Make sure entry is not empty or invalid
+                                    if (entry.size == 0L) {
+                                        android.util.Log.e(TAG, "FB2 entry inside ZIP is empty: ${entry.name}")
+                                    } else {
+                                        sha1Result = computeSha1FromStream(zis)
+                                        android.util.Log.d(TAG, "Successfully computed SHA-1 for ZIP entry: $sha1Result")
+                                    }
+                                    break // Grab only the first one as requested
                                 }
                                 entry = zis.nextEntry
                             }
                         }
                     }
-                    null
+                    
+                    if (!fb2Found) {
+                        android.util.Log.e(TAG, "Error: No FB2 file found inside the ZIP archive: $filePath")
+                        generateFallbackId(filePath, file)
+                    } else if (sha1Result == null) {
+                        android.util.Log.e(TAG, "Error: Failed to compute SHA-1 for the first FB2 entry inside the ZIP archive: $filePath")
+                        generateFallbackId(filePath, file)
+                    } else {
+                        sha1Result!!
+                    }
                 }
                 else -> {
+                    // Treat other files (epub, txt, etc.) or unknown types by reading directly
+                    android.util.Log.d(TAG, "Reading directly from file format: $ext")
                     java.io.FileInputStream(file).use { fis ->
                         computeSha1FromStream(fis)
                     }
                 }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
+        }.getOrElse { throwable ->
+            android.util.Log.e(TAG, "Exception caught during SHA-1 computation for: $filePath", throwable)
+            generateFallbackId(filePath, file)
         }
+    }
+
+    private fun generateFallbackId(filePath: String, file: java.io.File?): String {
+        val size = file?.length() ?: 0L
+        val lastModified = file?.lastModified() ?: System.currentTimeMillis()
+        val uniqueString = "${filePath}_${size}_${lastModified}"
+        val fallback = "fallback_" + Math.abs(uniqueString.hashCode().toLong()).toString(16)
+        android.util.Log.w("SHA1Calculator", "Generated fallback ID for $filePath: $fallback")
+        return fallback
     }
 
     private fun computeSha1FromStream(inputStream: java.io.InputStream): String {
@@ -1060,6 +1118,204 @@ Monsieur прогнали со двора.
             android.util.Log.e("BookScanner", "Error in extractAndSaveCover for file ${file.name}", e)
         }
         return null
+    }
+
+    /**
+     * Determines the encoding of the FB2 file from the XML prolog,
+     * reads the file, and extracts the contents of the <annotation> tag in the correct encoding.
+     */
+    suspend fun detectAndReadFile(filePath: String): String? = withContext(Dispatchers.IO) {
+        val TAG = "FB2Annotation"
+        android.util.Log.d(TAG, "Detecting encoding and extracting annotation for file: $filePath")
+        
+        val bytes = readFirstBytesOfFb2(filePath)
+        if (bytes == null || bytes.isEmpty()) {
+            android.util.Log.e(TAG, "Failed to read bytes from file: $filePath")
+            return@withContext null
+        }
+        
+        // 1. Detect encoding from XML prolog
+        val detectedEncoding = parseEncodingFromProlog(bytes)
+        val charsetsToTry = mutableListOf<String>()
+        
+        if (detectedEncoding != null) {
+            charsetsToTry.add(detectedEncoding)
+        }
+        
+        // Add fallback candidate charsets
+        val fallbacks = listOf("UTF-8", "windows-1251", "KOI8-R", "ISO-8859-1")
+        for (fallback in fallbacks) {
+            if (!charsetsToTry.contains(fallback)) {
+                charsetsToTry.add(fallback)
+            }
+        }
+        
+        android.util.Log.d(TAG, "Will attempt charsets in order: $charsetsToTry")
+        
+        for (charset in charsetsToTry) {
+            try {
+                if (!java.nio.charset.Charset.isSupported(charset)) {
+                    android.util.Log.w(TAG, "Charset not supported by JVM: $charset")
+                    continue
+                }
+                
+                android.util.Log.d(TAG, "Trying to extract annotation using charset: $charset")
+                val bais = java.io.ByteArrayInputStream(bytes)
+                val annotation = extractAnnotationFromStream(bais, charset)
+                
+                if (annotation != null) {
+                    // Check if the decoded text looks malformed (e.g., replacement character or only unreadable characters)
+                    if (charset.lowercase() == "utf-8" && hasMalformedCharacters(annotation)) {
+                        android.util.Log.w(TAG, "Parsed UTF-8 string contains malformed characters, trying next charset.")
+                        continue
+                    }
+                    
+                    android.util.Log.i(TAG, "Successfully extracted annotation in encoding: $charset")
+                    return@withContext annotation
+                }
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Error extracting annotation with charset $charset", e)
+            }
+        }
+        
+        android.util.Log.w(TAG, "Failed to extract annotation with any of the candidate charsets")
+        return@withContext null
+    }
+
+    /**
+     * Helper to read the first 256KB of the FB2 file (from a direct file or a ZIP).
+     * This holds enough content to cover the XML prolog and the <annotation> block.
+     */
+    private fun readFirstBytesOfFb2(filePath: String, limit: Int = 256 * 1024): ByteArray? {
+        val file = java.io.File(filePath)
+        if (!file.exists()) return null
+        
+        val ext = file.extension.lowercase()
+        if (ext == "zip") {
+            try {
+                java.io.FileInputStream(file).use { fis ->
+                    java.util.zip.ZipInputStream(fis).use { zis ->
+                        var entry = zis.nextEntry
+                        while (entry != null) {
+                            val entryName = entry.name.lowercase()
+                            if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".fb2.xml"))) {
+                                val bos = java.io.ByteArrayOutputStream()
+                                val buffer = ByteArray(4096)
+                                var totalRead = 0
+                                var read: Int = 0
+                                while (totalRead < limit && zis.read(buffer).also { read = it } != -1) {
+                                    val toWrite = minOf(read, limit - totalRead)
+                                    bos.write(buffer, 0, toWrite)
+                                    totalRead += toWrite
+                                }
+                                return bos.toByteArray()
+                            }
+                            entry = zis.nextEntry
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("FB2Annotation", "Error reading ZIP file: $filePath", e)
+            }
+        } else {
+            try {
+                java.io.FileInputStream(file).use { fis ->
+                    val bos = java.io.ByteArrayOutputStream()
+                    val buffer = ByteArray(4096)
+                    var totalRead = 0
+                    var read: Int = 0
+                    while (totalRead < limit && fis.read(buffer).also { read = it } != -1) {
+                        val toWrite = minOf(read, limit - totalRead)
+                        bos.write(buffer, 0, toWrite)
+                        totalRead += toWrite
+                    }
+                    return bos.toByteArray()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("FB2Annotation", "Error reading FB2 file: $filePath", e)
+            }
+        }
+        return null
+    }
+
+    /**
+     * Looks at the XML prolog in the header bytes to find the encoding attribute.
+     */
+    private fun parseEncodingFromProlog(bytes: ByteArray): String? {
+        try {
+            val size = minOf(bytes.size, 1024)
+            val header = String(bytes, 0, size, java.nio.charset.StandardCharsets.ISO_8859_1)
+            val match = """<\?xml[^>]*encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(header)
+            if (match != null) {
+                val enc = match.groupValues[1].trim()
+                android.util.Log.d("FB2Annotation", "Parsed encoding from XML prolog: $enc")
+                return enc
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FB2Annotation", "Error parsing prolog encoding", e)
+        }
+        return null
+    }
+
+    /**
+     * Parses the annotation from an input stream using the specified charset.
+     */
+    private fun extractAnnotationFromStream(inputStream: java.io.InputStream, charsetName: String): String? {
+        try {
+            val factory = org.xmlpull.v1.XmlPullParserFactory.newInstance()
+            factory.isNamespaceAware = false
+            val parser = factory.newPullParser()
+            
+            val reader = java.io.InputStreamReader(inputStream, charsetName)
+            parser.setInput(reader)
+            
+            var eventType = parser.eventType
+            var inAnnotation = false
+            val annotationText = java.lang.StringBuilder()
+            
+            while (eventType != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
+                val tagName = parser.name?.lowercase()
+                
+                when (eventType) {
+                    org.xmlpull.v1.XmlPullParser.START_TAG -> {
+                        if (tagName == "annotation" || tagName == "description") {
+                            // If we enter annotation or description (some files use description directly)
+                            inAnnotation = true
+                        }
+                    }
+                    org.xmlpull.v1.XmlPullParser.TEXT -> {
+                        if (inAnnotation) {
+                            val txt = parser.text
+                            if (txt != null) {
+                                annotationText.append(txt)
+                            }
+                        }
+                    }
+                    org.xmlpull.v1.XmlPullParser.END_TAG -> {
+                        if (tagName == "p" && inAnnotation) {
+                            annotationText.append("\n")
+                        } else if (tagName == "annotation" || tagName == "description") {
+                            inAnnotation = false
+                            break
+                        }
+                    }
+                }
+                eventType = parser.next()
+            }
+            
+            val result = annotationText.toString().trim()
+            return if (result.isNotEmpty()) result else null
+        } catch (e: Exception) {
+            android.util.Log.e("FB2Annotation", "Failed to parse XML using charset $charsetName", e)
+            return null
+        }
+    }
+
+    /**
+     * Validates whether a string has been incorrectly decoded (i.e. contains replacement characters).
+     */
+    private fun hasMalformedCharacters(str: String): Boolean {
+        return str.contains('\uFFFD')
     }
 
     override fun onCleared() {

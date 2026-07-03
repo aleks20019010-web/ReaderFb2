@@ -2026,6 +2026,26 @@ fun BookDetailsScreen(
     var reviewText by remember(book) { mutableStateOf(book.review ?: "") }
     var fileInfoExpanded by remember { mutableStateOf(true) }
 
+    var annotationTextState by remember(book) { mutableStateOf<String?>(null) }
+    var isLoadingAnnotation by remember(book) { mutableStateOf(false) }
+
+    androidx.compose.runtime.LaunchedEffect(book) {
+        val path = book.filePath
+        if (path != null) {
+            isLoadingAnnotation = true
+            try {
+                val detected = viewModel.detectAndReadFile(path)
+                if (detected != null) {
+                    annotationTextState = detected
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("BookDetailsScreen", "Failed to load annotation from file", e)
+            } finally {
+                isLoadingAnnotation = false
+            }
+        }
+    }
+
     // TextToSpeech setup
     var tts by remember { mutableStateOf<android.speech.tts.TextToSpeech?>(null) }
     var isSpeaking by remember { mutableStateOf(false) }
@@ -2321,9 +2341,13 @@ fun BookDetailsScreen(
             // Series Row
             DetailRow(label = "Серия", value = book.series ?: "—")
 
-            // Annotation Row (First 400 characters of book content as description)
-            val desc = if (book.content.length > 400) book.content.take(400) + "..." else book.content
-            DetailRow(label = "Аннотация", value = desc.ifEmpty { "Описание отсутствует." })
+            // Annotation Row
+            val displayAnnotation = when {
+                annotationTextState != null -> annotationTextState!!
+                isLoadingAnnotation -> "Загрузка аннотации..."
+                else -> if (book.content.length > 400) book.content.take(400) + "..." else book.content
+            }
+            DetailRow(label = "Аннотация", value = displayAnnotation.ifEmpty { "Описание отсутствует." })
 
             // Language Row
             DetailRow(label = "Язык документа", value = book.language ?: "Русский")
