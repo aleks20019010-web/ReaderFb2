@@ -370,6 +370,7 @@ class ReaderActivity : FragmentActivity() {
     }
 
     private fun showErrorAndExit(message: String) {
+        Log.e("READING_DEBUG", "READING_DEBUG: Ошибка в приложении, выход с сообщением: $message")
         progressBar.visibility = View.GONE
         Toast.makeText(this@ReaderActivity, message, Toast.LENGTH_LONG).show()
         lifecycleScope.launch {
@@ -380,69 +381,79 @@ class ReaderActivity : FragmentActivity() {
 
     private fun loadBook() {
         val path = bookPath
+        Log.d("READING_DEBUG", "READING_DEBUG: Вызов loadBook() без аргументов. Текущий сохранённый путь = $path")
         if (path != null) {
             loadBook(path)
         } else {
-            Log.e("READING_FIX", "READING_FIX: Вызов loadBook() без установленного пути")
+            Log.e("READING_DEBUG", "READING_DEBUG: Ошибка: Вызов loadBook() без установленного пути")
+            showErrorAndExit("Книга не загружена: отсутствует путь к файлу")
         }
     }
 
     private fun loadBookFromDbAndRead() {
+        Log.d("READING_DEBUG", "READING_DEBUG: Начало loadBookFromDbAndRead() для ID книги: $bookId")
+        progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
-                Log.d("READING_FIX", "Шаг 1 [Получение пути]: Запрос к БД по ID = $bookId")
+                Log.d("READING_DEBUG", "Шаг 1 [БД]: Запрос информации о книге по ID: $bookId")
                 val db = AppDatabase.getDatabase(this@ReaderActivity)
                 val book = withContext(Dispatchers.IO) {
                     db.bookDao().getBookById(bookId)
                 }
+                
                 if (book == null) {
-                    Log.e("READING_FIX", "READING_FIX: Ошибка: книга с ID = $bookId не найдена в базе данных")
+                    Log.e("READING_DEBUG", "READING_DEBUG: Книга с ID $bookId не найдена в базе данных")
                     showErrorAndExit("Ошибка: Книга не найдена в базе данных")
                     return@launch
                 }
+                
+                Log.d("READING_DEBUG", "READING_DEBUG: Успешно получена книга из БД: ${book.title}")
                 titleText.text = book.title
+                
                 val path = book.filePath
                 if (path.isNullOrEmpty()) {
-                    Log.d("READING_FIX", "READING_FIX: Путь к файлу в БД отсутствует. Используем встроенный текст из БД.")
+                    Log.d("READING_DEBUG", "READING_DEBUG: Путь отсутствует в БД, используем встроенный текст (длина: ${book.content.length})")
                     loadBookWithContent(book.content, "Встроенный текст")
                 } else {
-                    Log.d("READING_FIX", "READING_FIX: Найден путь к файлу в БД: $path")
+                    Log.d("READING_DEBUG", "READING_DEBUG: Найден путь в БД: $path. Переходим к загрузке файла...")
                     bookPath = path
                     loadBook(path)
                 }
-            } catch (e: Exception) {
-                Log.e("READING_FIX", "READING_FIX: Ошибка при получении книги из БД", e)
-                showErrorAndExit("Ошибка получения книги: ${e.localizedMessage}")
+            } catch (t: Throwable) {
+                Log.e("READING_DEBUG", "READING_DEBUG: Исключение на Шаге 1 [БД]: ${t.message}", t)
+                showErrorAndExit("Ошибка загрузки книги из БД: ${t.localizedMessage}")
             }
         }
     }
 
     private fun loadBook(path: String) {
+        Log.d("READING_DEBUG", "READING_DEBUG: Начало loadBook(path) по пути: $path")
+        progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
-                Log.d("READING_FIX", "Шаг 2 [Чтение файла]: Начало чтения файла по пути: $path")
+                Log.d("READING_DEBUG", "Шаг 2 [Чтение]: Проверка существования файла...")
                 val file = File(path)
                 if (!file.exists()) {
-                    Log.e("READING_FIX", "READING_FIX: Ошибка: файл не существует по пути: $path")
+                    Log.e("READING_DEBUG", "READING_DEBUG: Файл не найден по пути: $path")
                     showErrorAndExit("Ошибка: Файл книги не найден")
                     return@launch
                 }
+                
                 if (!file.canRead()) {
-                    Log.e("READING_FIX", "READING_FIX: Ошибка: нет прав на чтение файла: $path")
+                    Log.e("READING_DEBUG", "READING_DEBUG: Нет прав на чтение файла: $path")
                     showErrorAndExit("Ошибка: Нет прав на чтение файла книги")
                     return@launch
                 }
+                
                 val size = file.length()
-                Log.d("READING_FIX", "READING_FIX: Файл доступен. Размер: $size байт, Путь: $path")
+                Log.d("READING_DEBUG", "READING_DEBUG: Файл доступен. Размер: $size байт, Путь: $path")
                 if (size == 0L) {
-                    Log.e("READING_FIX", "READING_FIX: Ошибка: файл пуст (0 байт)")
+                    Log.e("READING_DEBUG", "READING_DEBUG: Файл пуст (0 байт)")
                     showErrorAndExit("Ошибка: Файл книги пуст")
                     return@launch
                 }
 
-                progressBar.visibility = View.VISIBLE
-
-                Log.d("READING_FIX", "Шаг 2.1 [Чтение файла]: Определение кодировки и извлечение содержимого...")
+                Log.d("READING_DEBUG", "Шаг 2.1 [Чтение]: Определение кодировки и извлечение содержимого...")
                 val rawContent = withContext(Dispatchers.IO) {
                     try {
                         if (path.lowercase().endsWith(".zip")) {
@@ -451,14 +462,14 @@ class ReaderActivity : FragmentActivity() {
                             readBookFile(file)
                         }
                     } catch (e: Exception) {
-                        Log.e("READING_FIX", "READING_FIX: Ошибка чтения файла", e)
+                        Log.e("READING_DEBUG", "READING_DEBUG: Исключение при чтении файла", e)
                         throw Exception("Файл поврежден или не поддерживается: ${e.localizedMessage}")
                     }
                 }
 
-                Log.d("READING_FIX", "Шаг 2.2 [Чтение файла]: Файл успешно прочитан. Длина: ${rawContent.length} символов")
+                Log.d("READING_DEBUG", "Шаг 2.2 [Чтение]: Файл успешно прочитан. Длина содержимого: ${rawContent.length} символов")
                 if (rawContent.trim().isEmpty()) {
-                    Log.e("READING_FIX", "READING_FIX: Ошибка: текст книги пуст")
+                    Log.e("READING_DEBUG", "READING_DEBUG: Содержимое файла пусто")
                     showErrorAndExit("Ошибка: Книга пуста")
                     return@launch
                 }
@@ -467,24 +478,31 @@ class ReaderActivity : FragmentActivity() {
                     titleText.text = file.nameWithoutExtension
                 }
 
+                Log.d("READING_DEBUG", "READING_DEBUG: Переход к разметке и отображению текста...")
                 processAndDisplayContent(rawContent)
 
-            } catch (e: Exception) {
-                Log.e("READING_FIX", "READING_FIX: Ошибка в loadBook()", e)
-                showErrorAndExit("Ошибка: ${e.localizedMessage}")
+            } catch (t: Throwable) {
+                Log.e("READING_DEBUG", "READING_DEBUG: Исключение на Шаге 2 [Чтение]: ${t.message}", t)
+                showErrorAndExit("Ошибка чтения файла: ${t.localizedMessage}")
             }
         }
     }
 
     private fun loadBookWithContent(content: String, sourceName: String) {
+        Log.d("READING_DEBUG", "READING_DEBUG: Начало loadBookWithContent() для источника $sourceName")
+        progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
-                Log.d("READING_FIX", "Шаг 2 [Чтение файла]: Прямое использование содержимого ($sourceName)")
-                progressBar.visibility = View.VISIBLE
+                Log.d("READING_DEBUG", "Шаг 2 [Встроенный текст]: Обработка встроенного текста (длина: ${content.length})")
+                if (content.trim().isEmpty()) {
+                    Log.e("READING_DEBUG", "READING_DEBUG: Встроенный текст пуст")
+                    showErrorAndExit("Ошибка: Книга пуста")
+                    return@launch
+                }
                 processAndDisplayContent(content)
-            } catch (e: Exception) {
-                Log.e("READING_FIX", "READING_FIX: Ошибка при обработке прямого содержимого", e)
-                showErrorAndExit("Ошибка: ${e.localizedMessage}")
+            } catch (t: Throwable) {
+                Log.e("READING_DEBUG", "READING_DEBUG: Исключение на Шаге 2 [Встроенный текст]: ${t.message}", t)
+                showErrorAndExit("Ошибка обработки встроенного текста: ${t.localizedMessage}")
             }
         }
     }
@@ -493,87 +511,94 @@ class ReaderActivity : FragmentActivity() {
         val vpWidth = viewPager.width
         val vpHeight = viewPager.height
 
-        Log.d("READING_FIX", "Шаг 3 [Разбивка]: Начало обработки и разбивки на страницы. Размеры ViewPager: ${vpWidth}x${vpHeight}")
-        pages = withContext(Dispatchers.Default) {
-            try {
-                val formattedText = preprocessTextAndHyphenate(rawContent)
-                splitContentToPages(formattedText, vpWidth, vpHeight)
-            } catch (e: Exception) {
-                Log.e("READING_FIX", "READING_FIX: Ошибка во время разбивки текста на страницы", e)
-                throw Exception("Не удалось обработать текст: ${e.localizedMessage}")
-            }
-        }
-
-        Log.d("READING_FIX", "Шаг 3.1 [Разбивка]: Разбивка завершена. Всего страниц: ${pages.size}")
-        if (pages.isEmpty()) {
-            Log.e("READING_FIX", "READING_FIX: Ошибка: получилось 0 страниц при разбивке")
-            showErrorAndExit("Ошибка: Не удалось разбить текст на страницы")
-            return
-        }
-
-        Log.d("READING_FIX", "Шаг 4 [Отображение]: Инициализация и передача страниц в BookPagerAdapter")
-        progressBar.visibility = View.GONE
-
-        val adapter = BookPagerAdapter(this@ReaderActivity, pages)
-        viewPager.adapter = adapter
-
-        // Configure seekbar max
-        seekBar.max = (pages.size - 1).coerceAtLeast(0)
-
-        // Restore saved page
-        val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
-        val savedPage = if (bookId != -1) sharedPrefs.getInt("book_page_$bookId", 0) else 0
-        val targetPage = savedPage.coerceIn(0, pages.size - 1)
+        Log.d("READING_DEBUG", "Шаг 3 [Разбивка]: Начало обработки и разметки страниц. Размеры ViewPager: ${vpWidth}x${vpHeight}")
         
-        viewPager.setCurrentItem(targetPage, false)
-        seekBar.progress = targetPage
-        progressText.text = "Стр. ${targetPage + 1} из ${pages.size}"
+        try {
+            pages = withContext(Dispatchers.Default) {
+                try {
+                    Log.d("READING_DEBUG", "Шаг 3.1 [Разбивка]: Препроцессинг и перенос слов...")
+                    val formattedText = preprocessTextAndHyphenate(rawContent)
+                    Log.d("READING_DEBUG", "Шаг 3.2 [Разбивка]: Разбивка текста на страницы через PageSplitter...")
+                    splitContentToPages(formattedText, vpWidth, vpHeight)
+                } catch (e: Exception) {
+                    Log.e("READING_DEBUG", "READING_DEBUG: Исключение во время разбивки на страницы в фоновом потоке", e)
+                    throw Exception("Не удалось разбить текст на страницы: ${e.localizedMessage}")
+                }
+            }
 
-        // Show and initialize the reading progress bar
-        readingProgressBar.visibility = View.VISIBLE
-        val initialProgress = if (pages.size > 0) {
-            ((targetPage + 1) * 100 / pages.size).coerceIn(0, 100)
-        } else {
-            0
+            Log.d("READING_DEBUG", "Шаг 3.3 [Разбивка]: Разбивка успешно завершена. Всего страниц: ${pages.size}")
+            if (pages.isEmpty()) {
+                Log.e("READING_DEBUG", "READING_DEBUG: Результат разбивки пуст")
+                showErrorAndExit("Ошибка: Не удалось разбить текст на страницы")
+                return
+            }
+
+            Log.d("READING_DEBUG", "Шаг 4 [Отображение]: Инициализация BookPagerAdapter и настройка UI")
+            progressBar.visibility = View.GONE
+
+            val adapter = BookPagerAdapter(this@ReaderActivity, pages)
+            viewPager.adapter = adapter
+
+            seekBar.max = (pages.size - 1).coerceAtLeast(0)
+
+            // Восстановление сохраненной страницы
+            val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
+            val savedPage = if (bookId != -1) sharedPrefs.getInt("book_page_$bookId", 0) else 0
+            val targetPage = savedPage.coerceIn(0, pages.size - 1)
+            
+            viewPager.setCurrentItem(targetPage, false)
+            seekBar.progress = targetPage
+            progressText.text = "Стр. ${targetPage + 1} из ${pages.size}"
+
+            readingProgressBar.visibility = View.VISIBLE
+            val initialProgress = if (pages.size > 0) {
+                ((targetPage + 1) * 100 / pages.size).coerceIn(0, 100)
+            } else {
+                0
+            }
+            readingProgressBar.progress = initialProgress
+
+            viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+                override fun onPageSelected(position: Int) {
+                    progressText.text = "Стр. ${position + 1} из ${pages.size}"
+                    seekBar.progress = position
+                    Log.d("READING_DEBUG", "READING_DEBUG: Отображение: Текущая страница изменена на: ${position + 1}")
+                    
+                    val progressPercent = if (pages.size > 0) {
+                        ((position + 1) * 100 / pages.size).coerceIn(0, 100)
+                    } else {
+                        0
+                    }
+                    readingProgressBar.progress = progressPercent
+
+                    if (bookId != -1) {
+                        sharedPrefs.edit().putInt("book_page_$bookId", position).apply()
+                    }
+                }
+            })
+
+            seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        val targetPage = progress.coerceIn(0, pages.size - 1)
+                        viewPager.setCurrentItem(targetPage, false)
+                        progressText.text = "Стр. ${targetPage + 1} из ${pages.size}"
+                    }
+                }
+                override fun onStartTrackingTouch(sb: SeekBar?) {
+                    hideHandler.removeCallbacks(hideRunnable)
+                }
+                override fun onStopTrackingTouch(sb: SeekBar?) {
+                    resetHideTimer()
+                }
+            })
+            
+            Log.d("READING_DEBUG", "READING_DEBUG: Успешно завершена вся логика загрузки и отображения книги!")
+            
+        } catch (t: Throwable) {
+            Log.e("READING_DEBUG", "READING_DEBUG: Исключение на Шаге 3 или 4 [Разметка/Отображение]: ${t.message}", t)
+            showErrorAndExit("Ошибка разметки или отображения книги: ${t.localizedMessage}")
         }
-        readingProgressBar.progress = initialProgress
-
-        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                progressText.text = "Стр. ${position + 1} из ${pages.size}"
-                seekBar.progress = position
-                Log.d("READING_FIX", "READING_FIX: Отображение: Текущая страница изменена на: ${position + 1}")
-                
-                // Update bottom reading progress bar
-                val progressPercent = if (pages.size > 0) {
-                    ((position + 1) * 100 / pages.size).coerceIn(0, 100)
-                } else {
-                    0
-                }
-                readingProgressBar.progress = progressPercent
-
-                // Save page progress dynamically
-                if (bookId != -1) {
-                    sharedPrefs.edit().putInt("book_page_$bookId", position).apply()
-                }
-            }
-        })
-
-        seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) {
-                    val targetPage = progress.coerceIn(0, pages.size - 1)
-                    viewPager.setCurrentItem(targetPage, false)
-                    progressText.text = "Стр. ${targetPage + 1} из ${pages.size}"
-                }
-            }
-            override fun onStartTrackingTouch(sb: SeekBar?) {
-                hideHandler.removeCallbacks(hideRunnable)
-            }
-            override fun onStopTrackingTouch(sb: SeekBar?) {
-                resetHideTimer()
-            }
-        })
     }
 
     private fun readBookFile(file: File): String {
