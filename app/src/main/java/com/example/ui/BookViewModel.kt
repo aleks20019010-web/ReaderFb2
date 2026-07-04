@@ -33,6 +33,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     var detailedBook by mutableStateOf<BookEntity?>(null)
 
     // Scanning Device for Local Books
+    val scanState = com.example.service.NewBookScanState.state
     var isScanning by mutableStateOf(false)
     var scanProgressText by mutableStateOf("")
 
@@ -89,15 +90,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         refreshIpAddress()
         
         // Initialize and observe background scanning state
-        com.example.service.BookScannerState.initialize(application)
         viewModelScope.launch {
-            com.example.service.BookScannerState.isScanning.collect { active ->
-                isScanning = active
-            }
-        }
-        viewModelScope.launch {
-            com.example.service.BookScannerState.scanProgressText.collect { text ->
-                scanProgressText = text
+            com.example.service.NewBookScanState.state.collect { state ->
+                isScanning = state.isScanning
+                scanProgressText = state.status
             }
         }
     }
@@ -1027,7 +1023,7 @@ Monsieur прогнали со двора.
     )
 
     private fun parseFb2DetailedText(rawText: String, fallbackName: String): ParsedBook {
-        val parsed = com.example.service.Fb2Parser.parse(rawText, fallbackName)
+        val parsed = com.example.service.NewFb2Parser.parse(rawText, fallbackName)
         return ParsedBook(
             title = parsed.title,
             author = parsed.author,

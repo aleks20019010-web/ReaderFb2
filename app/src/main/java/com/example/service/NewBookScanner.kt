@@ -2,28 +2,22 @@ package com.example.service
 
 import android.content.Context
 import android.os.Environment
+import android.util.Log
 import com.example.data.BookDao
 import com.example.data.BookEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
 import java.security.MessageDigest
 
-data class ScannerState(
-    val isScanning: Boolean = false,
-    val status: String = "",
-    val totalFiles: Int = 0,
-    val processedFiles: Int = 0,
-    val addedBooks: Int = 0,
-    val skippedBooks: Int = 0
-)
-
 class NewBookScanner(
     private val context: Context,
     private val bookDao: BookDao
 ) {
     val state = MutableStateFlow(ScannerState())
+    private val TAG = "NewBookScanner"
 
     suspend fun scan() {
+        Log.d(TAG, "Scanning started")
         state.value = ScannerState(isScanning = true, status = "Scanning started")
         
         val paths = listOf(
@@ -35,10 +29,11 @@ class NewBookScanner(
         
         val filesToProcess = mutableListOf<File>()
         for (path in paths) {
-            gatherFilesRecursive(path, filesToProcess)
+            gatherFilesRecursive(path, filesToProcess, 0)
         }
         
-        state.value = state.value.copy(totalFiles = filesToProcess.size, status = "Files gathered")
+        state.value = state.value.copy(totalFiles = filesToProcess.size, status = "Files gathered: ${filesToProcess.size}")
+        Log.d(TAG, "Files gathered: ${filesToProcess.size}")
         
         val sha1Cache = bookDao.getAllSha1s().toMutableSet()
         val batchList = mutableListOf<BookEntity>()
@@ -46,14 +41,13 @@ class NewBookScanner(
         for ((index, file) in filesToProcess.withIndex()) {
             state.value = state.value.copy(processedFiles = index + 1, status = "Processing: ${file.name}")
             
-            // Simplified logic for example purposes
-            val sha1 = computeSha1(file.readBytes())
+            val contentBytes = file.readBytes()
+            val sha1 = computeSha1(contentBytes)
             if (sha1 in sha1Cache) {
                 state.value = state.value.copy(skippedBooks = state.value.skippedBooks + 1)
                 continue
             }
             
-            // Parse metadata (simplified)
             val content = file.readText()
             val metadata = NewFb2Parser.parse(content, file.nameWithoutExtension)
             
@@ -82,15 +76,20 @@ class NewBookScanner(
             state.value = state.value.copy(addedBooks = state.value.addedBooks + batchList.size)
         }
         
+        Log.d(TAG, "Finished. Added: ${state.value.addedBooks}, Skipped: ${state.value.skippedBooks}")
         state.value = state.value.copy(isScanning = false, status = "Finished")
     }
     
-    private fun gatherFilesRecursive(dir: File, list: MutableList<File>) {
-        if (!dir.exists() || !dir.isDirectory) return
+    private fun gatherFilesRecursive(dir: File, list: MutableList<File>, depth: Int) {
+        if (depth > 6 || !dir.exists() || !dir.isDirectory) return
+        
         dir.listFiles()?.forEach { file ->
             if (file.isDirectory) {
-                if (file.name.startsWith(".")) return@forEach
-                gatherFilesRecursive(file, list)
+                val name = file.name.lowercase()
+                if (name.startsWith(".") || name == "android" || name == "data" || name == "obb" || name == "system" || name == "vendor") {
+                    return@forEach
+                }
+                gatherFilesRecursive(file, list, depth + 1)
             } else {
                 val ext = file.extension.lowercase()
                 if (ext == "fb2" || ext == "zip") {

@@ -246,9 +246,10 @@ class LibraryFragment : Fragment() {
             }
         }
 
-        // Observe Scan Progress state using flow
+        // Observe Scan Progress state
         viewLifecycleOwner.lifecycleScope.launch {
-            com.example.service.BookScanState.isScanning.collectLatest { active ->
+            viewModel.scanState.collectLatest { state ->
+                val active = state.isScanning
                 btnAutoScan.isEnabled = !active
                 if (active) {
                     startPulsing(btnAutoScan)
@@ -263,63 +264,24 @@ class LibraryFragment : Fragment() {
                     progressBarSpinner.visibility = View.VISIBLE
                 } else {
                     progressBarSpinner.visibility = View.GONE
-                    // When scanning completes, if there is a message, keep showing it so the user can read the result.
-                    // Clicking it will dismiss it.
-                    val statusText = com.example.service.BookScanState.scanProgressText.value
+                    
                     if (wasScanning) {
                         wasScanning = false
-                        if (statusText.startsWith("Сканирование завершено")) {
-                            val toastMsg = statusText.replace("Сканирование завершено. ", "")
-                            Toast.makeText(requireContext(), toastMsg, Toast.LENGTH_LONG).show()
+                        if (state.status.startsWith("Scan finished")) {
+                            Toast.makeText(requireContext(), state.status, Toast.LENGTH_LONG).show()
                         }
                     }
-                    if (statusText.isBlank()) {
+                    if (state.status.isBlank()) {
                         layoutScanProgress.visibility = View.GONE
                     }
                 }
-            }
-        }
-
-        // Ticker for elapsed time
-        viewLifecycleOwner.lifecycleScope.launch {
-            while (true) {
-                if (com.example.service.BookScanState.isScanning.value) {
-                    val lastUpdate = com.example.service.BookScanState.lastUpdateTime.value
-                    if (lastUpdate > 0) {
-                        val elapsed = System.currentTimeMillis() - lastUpdate
-                        if (elapsed > 2000) {
-                            tvTimeElapsed.text = "(зависло: ${elapsed / 1000}с)"
-                        } else {
-                            tvTimeElapsed.text = ""
-                        }
-                    }
-                } else {
-                    tvTimeElapsed.text = ""
-                }
-                kotlinx.coroutines.delay(1000)
-            }
-        }
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            com.example.service.BookScanState.scanProgressText.collectLatest { text ->
-                if (text.isNotBlank()) {
+                
+                if (state.status.isNotBlank()) {
                     layoutScanProgress.visibility = View.VISIBLE
-                    tvScanStatus.text = text
+                    tvScanStatus.text = state.status
                 }
-            }
-        }
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            com.example.service.BookScanState.totalFiles.collectLatest { total ->
-                val processed = com.example.service.BookScanState.processedFiles.value
-                updateProgressValues(total, processed)
-            }
-        }
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            com.example.service.BookScanState.processedFiles.collectLatest { processed ->
-                val total = com.example.service.BookScanState.totalFiles.value
-                updateProgressValues(total, processed)
+                
+                updateProgressValues(state.totalFiles, state.processedFiles)
             }
         }
     }
@@ -383,7 +345,7 @@ class LibraryFragment : Fragment() {
                         .scaleY(1.0f)
                         .setDuration(600)
                         .withEndAction {
-                            if (com.example.service.BookScanState.isScanning.value) {
+                            if (viewModel.isScanning) {
                                 pulse()
                             }
                         }

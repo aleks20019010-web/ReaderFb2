@@ -14,13 +14,7 @@ class BookScanWorker(
         Log.d("BookScanWorker", "Scanning started in background")
         
         // Mark scanning as active with initial message
-        BookScanState.updateScanning(
-            context = applicationContext,
-            active = true,
-            text = "Поиск файлов...",
-            total = 0,
-            processed = 0
-        )
+        NewBookScanState.updateState(ScannerState(isScanning = true, status = "Searching files..."))
 
         // Show starting notification
         ScanNotificationHelper.showScanningNotification(
@@ -39,13 +33,7 @@ class BookScanWorker(
             val finalState = scanner.state.value
             val finishMsg = "Scan finished. Added ${finalState.addedBooks} books, skipped ${finalState.skippedBooks} duplicates."
             
-            BookScanState.updateScanning(
-                context = applicationContext,
-                active = false,
-                text = finishMsg,
-                total = finalState.totalFiles,
-                processed = finalState.processedFiles
-            )
+            NewBookScanState.updateState(finalState.copy(isScanning = false, status = finishMsg))
             ScanNotificationHelper.showFinishedNotification(
                 context = applicationContext,
                 title = "Scan finished",
@@ -53,20 +41,13 @@ class BookScanWorker(
             )
         } catch (e: Exception) {
             Log.e("BookScanWorker", "Critical exception during scan", e)
-            val errorText = e.localizedMessage ?: "Неизвестная ошибка"
-            val errMsg = "Ошибка сканирования: $errorText"
+            val errorText = e.localizedMessage ?: "Unknown error"
+            val errMsg = "Error: $errorText"
             
-            BookScanState.updateScanning(
-                context = applicationContext,
-                active = false,
-                text = errMsg,
-                total = 0,
-                processed = 0,
-                error = errorText
-            )
+            NewBookScanState.updateState(ScannerState(isScanning = false, status = errMsg))
             ScanNotificationHelper.showFinishedNotification(
                 context = applicationContext,
-                title = "Ошибка сканирования",
+                title = "Scan Error",
                 message = errorText
             )
             return Result.failure()

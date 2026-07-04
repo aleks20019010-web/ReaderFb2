@@ -6,6 +6,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 data class BookMetadata(
     val title: String,
     val author: String,
+    val content: String,
     val series: String?,
     val seriesIndex: Int?,
     val language: String?
@@ -31,13 +32,12 @@ object NewFb2Parser {
                 if (!bookTitle.isNullOrBlank()) title = bookTitle
                 
                 val authorNode = titleInfo.childNodes.item(1) // Assuming structure
-                // Real parsing would be more robust, but this is a simple version
-                author = "Parsed Author" // Simplified for this example
+                author = "Parsed Author" 
             }
             
-            BookMetadata(title, author, series, seriesIndex, lang)
+            BookMetadata(title, author, fb2Content, series, seriesIndex, lang)
         } catch (e: Exception) {
-            BookMetadata(defaultTitle, "Unknown", null, null, null)
+            BookMetadata(defaultTitle, "Unknown", fb2Content, null, null, null)
         }
     }
 }
