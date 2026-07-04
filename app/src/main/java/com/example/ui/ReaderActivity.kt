@@ -72,16 +72,6 @@ class ReaderActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Use the newly created Jetpack Compose screen
-        setContent {
-            ReaderComposeScreen(
-                onBackClick = { finish() }
-            )
-        }
-        return
-        
-        // Old implementation below (temporarily disabled)
-        /*
         viewModel = vm
 
         // Retrieve book ID from intent
@@ -98,7 +88,6 @@ class ReaderActivity : FragmentActivity() {
 
         // Load content
         loadBookContent()
-        */
     }
 
     private fun setupLayout() {
@@ -450,11 +439,14 @@ class ReaderActivity : FragmentActivity() {
                     return@launch
                 }
 
+                val vpWidth = viewPager.width
+                val vpHeight = viewPager.height
+
                 Log.d(TAG, "Шаг 5: Разбивка текста на страницы и применение слогового переноса...")
                 pages = withContext(Dispatchers.Default) {
                     try {
                         val formattedText = preprocessTextAndHyphenate(rawContent)
-                        splitContentToPages(formattedText)
+                        splitContentToPages(formattedText, vpWidth, vpHeight)
                     } catch (e: Exception) {
                         Log.e(TAG, "Ошибка во время обработки и разбивки текста на страницы", e)
                         throw Exception("Не удалось обработать текст: ${e.localizedMessage}")
@@ -672,18 +664,44 @@ class ReaderActivity : FragmentActivity() {
         return RussianHyphenator.hyphenate(processedParagraphs)
     }
 
-    private fun splitContentToPages(content: String): List<String> {
-        val result = mutableListOf<String>()
-        val pageSize = 2000
-        var start = 0
-        val length = content.length
-
-        while (start < length) {
-            val end = (start + pageSize).coerceAtMost(length)
-            result.add(content.substring(start, end))
-            start += pageSize
+    private fun splitContentToPages(content: String, measuredWidth: Int, measuredHeight: Int): List<String> {
+        val density = resources.displayMetrics.density
+        
+        // Measure viewPager size, fall back to screen size if not measured yet
+        var width = measuredWidth
+        var height = measuredHeight
+        if (width <= 0 || height <= 0) {
+            val displayMetrics = resources.displayMetrics
+            width = displayMetrics.widthPixels
+            height = displayMetrics.heightPixels
         }
-        return result
+        
+        // Horizontal padding: 16dp on each side (32dp total)
+        val paddingHorizontal = (32 * density).toInt()
+        // Vertical padding: 16dp bottom, plus status bar / notch top padding.
+        // Let's use 64dp vertical padding to be safe.
+        val paddingVertical = (64 * density).toInt()
+        
+        val availableWidth = (width - paddingHorizontal).coerceAtLeast(100)
+        val availableHeight = (height - paddingVertical).coerceAtLeast(100)
+        
+        val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
+        val fontSize = sharedPrefs.getFloat("font_size", 18f)
+        
+        val paint = android.text.TextPaint().apply {
+            textSize = fontSize * density
+            typeface = android.graphics.Typeface.DEFAULT
+        }
+        
+        val result = PageSplitter.splitText(
+            text = content,
+            availableWidth = availableWidth,
+            availableHeight = availableHeight,
+            paint = paint,
+            lineSpacing = 1.15f,
+            alignment = "justify"
+        )
+        return result.pages
     }
 
     private fun resetHideTimer() {
