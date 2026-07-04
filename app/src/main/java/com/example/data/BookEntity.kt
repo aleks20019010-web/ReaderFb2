@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 data class BookEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val title: String,
-    val author: String,
+    val author: String? = "Неизвестен",
     val content: String,
     val coverGradientStart: String = "#FF6B6B",
     val coverGradientEnd: String = "#4D96FF",
@@ -22,5 +22,6 @@ data class BookEntity(
     val fileSize: Long = 0L,
     val review: String? = null,
     val isFavorite: Boolean = false,
-    val coverPath: String? = null
+    val coverPath: String? = null,
+    val seriesIndex: Int? = null
 )

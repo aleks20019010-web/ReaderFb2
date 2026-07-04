@@ -3,7 +3,6 @@ package com.example.service
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.util.Base64
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
 import java.io.FileOutputStream
@@ -29,15 +28,41 @@ object BookScannerState {
             .apply()
     }
 
+    private fun decodeBytesToString(bytes: ByteArray): String {
+        try {
+            val headerSize = if (bytes.size > 1024) 1024 else bytes.size
+            val header = String(bytes, 0, headerSize, java.nio.charset.StandardCharsets.ISO_8859_1)
+            val match = """encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(header)
+            if (match != null) {
+                val encName = match.groupValues[1].trim()
+                try {
+                    return String(bytes, java.nio.charset.Charset.forName(encName))
+                } catch (e: Exception) {}
+            }
+        } catch (e: Exception) {}
+
+        try {
+            val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+            utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
+            return charBuffer.toString()
+        } catch (e: Exception) {
+            try {
+                return String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
+            } catch (e2: Exception) {
+                return String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+            }
+        }
+    }
+
     fun extractCover(file: File, sha1: String, context: Context): String? {
         val ext = file.extension.lowercase()
         var bitmap: Bitmap? = null
         try {
             if (ext == "fb2") {
                 val bytes = file.readBytes()
-                val headerSize = if (bytes.size > 1024 * 500) 1024 * 500 else bytes.size
-                val fb2Content = String(bytes, 0, headerSize, java.nio.charset.Charset.forName("ISO-8859-1"))
-                bitmap = extractCoverFromFb2(fb2Content)
+                val fb2Content = decodeBytesToString(bytes)
+                bitmap = Fb2Parser.extractCover(fb2Content)
             } else if (ext == "zip") {
                 file.inputStream().use { fis ->
                     java.util.zip.ZipInputStream(fis).use { zis ->
@@ -46,9 +71,8 @@ object BookScannerState {
                             val entryName = entry.name.lowercase()
                             if (!entry.isDirectory && entryName.endsWith(".fb2")) {
                                 val bytes = zis.readBytes()
-                                val headerSize = if (bytes.size > 1024 * 500) 1024 * 500 else bytes.size
-                                val fb2Content = String(bytes, 0, headerSize, java.nio.charset.Charset.forName("ISO-8859-1"))
-                                bitmap = extractCoverFromFb2(fb2Content)
+                                val fb2Content = decodeBytesToString(bytes)
+                                bitmap = Fb2Parser.extractCover(fb2Content)
                                 break
                             }
                             entry = zis.nextEntry
@@ -70,42 +94,6 @@ object BookScannerState {
             }
         } catch (e: Exception) {
             android.util.Log.e("BookScannerState", "Error extracting cover", e)
-        }
-        return null
-    }
-
-    private fun extractCoverFromFb2(fb2Content: String): Bitmap? {
-        try {
-            val binaryBlockRegex = """<binary([^>]*)>([\s\S]*?)</binary>""".toRegex(RegexOption.IGNORE_CASE)
-            val binaryDataMap = mutableMapOf<String, String>()
-            for (match in binaryBlockRegex.findAll(fb2Content)) {
-                val attrs = match.groups[1]?.value ?: ""
-                val base64 = match.groups[2]?.value ?: ""
-                val idMatch = """\bid\s*=\s*["']?([^"'\s>]+)["']?""".toRegex(RegexOption.IGNORE_CASE).find(attrs)
-                val id = idMatch?.groups[1]?.value
-                if (id != null) {
-                    binaryDataMap[id.lowercase()] = base64
-                }
-            }
-
-            var base64Data: String? = binaryDataMap["cover.jpg"] ?: binaryDataMap["cover"] ?: binaryDataMap["cover.png"]
-            if (base64Data == null) {
-                val key = binaryDataMap.keys.find { it.contains("cover") }
-                if (key != null) {
-                    base64Data = binaryDataMap[key]
-                }
-            }
-            if (base64Data == null && binaryDataMap.isNotEmpty()) {
-                base64Data = binaryDataMap.values.first()
-            }
-
-            if (base64Data != null) {
-                val cleanBase64 = base64Data.replace("\\s".toRegex(), "")
-                val decodedBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
-                return BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("BookScannerState", "Error parsing FB2 XML for cover", e)
         }
         return null
     }

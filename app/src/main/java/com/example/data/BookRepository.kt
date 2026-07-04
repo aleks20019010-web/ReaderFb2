@@ -11,6 +11,10 @@ class BookRepository(
 
     suspend fun getBookById(id: Int): BookEntity? = bookDao.getBookById(id)
 
+    fun getBooksByAuthor(author: String): Flow<List<BookEntity>> = bookDao.getBooksByAuthor(author)
+
+    fun getBooksBySeries(series: String): Flow<List<BookEntity>> = bookDao.getBooksBySeries(series)
+
     suspend fun insertBook(book: BookEntity): Long = bookDao.insertBook(book)
 
     suspend fun insertBooks(books: List<BookEntity>) = bookDao.insertBooks(books)

@@ -364,6 +364,7 @@ Monsieur прогнали со двора.
                 var parsedAuthor = "Неизвестен"
                 var parsedContent = ""
                 var parsedSeries: String? = null
+                var parsedSeriesIndex: Int? = null
                 var parsedLanguage: String? = "ru"
                 
                 if (ext == "fb2") {
@@ -373,6 +374,7 @@ Monsieur прогнали со двора.
                     parsedAuthor = parsed.author
                     parsedContent = parsed.content
                     parsedSeries = parsed.series
+                    parsedSeriesIndex = parsed.seriesIndex
                     parsedLanguage = parsed.language
                 } else if (ext == "zip") {
                     java.io.ByteArrayInputStream(bytes).use { bais ->
@@ -390,6 +392,7 @@ Monsieur прогнали со двора.
                                     parsedAuthor = parsed.author
                                     parsedContent = parsed.content
                                     parsedSeries = parsed.series
+                                    parsedSeriesIndex = parsed.seriesIndex
                                     parsedLanguage = parsed.language
                                     break
                                 }
@@ -432,7 +435,8 @@ Monsieur прогнали со двора.
                     series = parsedSeries,
                     language = parsedLanguage,
                     fileSize = bytes.size.toLong(),
-                    coverPath = coverPath
+                    coverPath = coverPath,
+                    seriesIndex = parsedSeriesIndex
                 )
                 
                 repository.insertBook(newBook)
@@ -990,77 +994,20 @@ Monsieur прогнали со двора.
         val author: String,
         val content: String,
         val series: String? = null,
-        val language: String? = "ru"
+        val language: String? = "ru",
+        val seriesIndex: Int? = null
     )
 
     private fun parseFb2DetailedText(rawText: String, fallbackName: String): ParsedBook {
-        val titleRegex = "<book-title>(.*?)</book-title>".toRegex(RegexOption.IGNORE_CASE)
-        val authorFirstRegex = "<first-name>(.*?)</first-name>".toRegex(RegexOption.IGNORE_CASE)
-        val authorLastRegex = "<last-name>(.*?)</last-name>".toRegex(RegexOption.IGNORE_CASE)
-        val langRegex = "<lang>(.*?)</lang>".toRegex(RegexOption.IGNORE_CASE)
-        
-        val titleMatch = titleRegex.find(rawText)
-        val title = titleMatch?.groupValues?.get(1)?.trim() ?: fallbackName
-        
-        val first = authorFirstRegex.find(rawText)?.groupValues?.get(1)?.trim() ?: ""
-        val last = authorLastRegex.find(rawText)?.groupValues?.get(1)?.trim() ?: ""
-        val author = if (first.isNotEmpty() || last.isNotEmpty()) "$first $last".trim() else "Неизвестен"
-        
-        val langMatch = langRegex.find(rawText)
-        val language = langMatch?.groupValues?.get(1)?.trim() ?: "ru"
-        
-        val seriesNameMatch = """name="([^"]+)"""".toRegex().find(rawText.substringBefore("</title-info>"))
-        val seriesNumberMatch = """number="([^"]+)"""".toRegex().find(rawText.substringBefore("</title-info>"))
-        val series = if (seriesNameMatch != null) {
-            val sName = seriesNameMatch.groupValues[1]
-            val sNum = seriesNumberMatch?.groupValues?.get(1)
-            if (sNum != null) "$sName №$sNum" else sName
-        } else {
-            null
-        }
-
-        // 1. Extract the actual <body> of the FB2 document to avoid duplicate description or metadata
-        val bodyStart = rawText.indexOf("<body>", ignoreCase = true)
-        val bodyEnd = rawText.lastIndexOf("</body>", ignoreCase = true)
-        val bodyContent = if (bodyStart != -1 && bodyEnd > bodyStart) {
-            rawText.substring(bodyStart + 6, bodyEnd)
-        } else {
-            rawText
-        }
-
-        // 2. Clear out any binary cover or base64 data to keep content lightweight
-        var processedText = bodyContent.replace("""<binary[^>]*>[\s\S]*?</binary>""".toRegex(RegexOption.IGNORE_CASE), "")
-
-        // 3. Mark titles of chapters (<title>) with form-feed (\u000C) so they start on a fresh page
-        processedText = processedText.replace("""<title[^>]*>""".toRegex(RegexOption.IGNORE_CASE), "\u000C\n")
-        processedText = processedText.replace("""</title>""".toRegex(RegexOption.IGNORE_CASE), "\n\n")
-
-        // 4. Retain paragraphs (<p>) using standard Russian indentation (красная строка) and single line break
-        processedText = processedText.replace("""<p[^>]*>""".toRegex(RegexOption.IGNORE_CASE), "    ")
-        processedText = processedText.replace("""</p>""".toRegex(RegexOption.IGNORE_CASE), "\n")
-
-        // 5. Remove any other XML markup
-        processedText = processedText.replace("<[^>]*>".toRegex(), "")
-
-        // 6. Format whitespace and consecutive empty lines
-        processedText = processedText.replace("\r", "")
-        processedText = processedText.replace("\n{3,}".toRegex(), "\n\n")
-        processedText = processedText.replace("\u000C\\s*\u000C".toRegex(), "\u000C")
-        if (processedText.startsWith("\u000C")) {
-            processedText = processedText.substring(1)
-        }
-
-        // Clean double spaces within each line while keeping indentation at the start
-        val cleanContent = processedText.lines().joinToString("\n") { line ->
-            if (line.trim().isEmpty()) ""
-            else {
-                val indent = line.takeWhile { it.isWhitespace() }
-                val trimmed = line.substring(indent.length).replace("\\s+".toRegex(), " ")
-                indent + trimmed
-            }
-        }.trim()
-            
-        return ParsedBook(title, author, cleanContent, series, language)
+        val parsed = com.example.service.Fb2Parser.parse(rawText, fallbackName)
+        return ParsedBook(
+            title = parsed.title,
+            author = parsed.author,
+            content = parsed.content,
+            series = parsed.series,
+            language = parsed.language,
+            seriesIndex = parsed.seriesIndex
+        )
     }
 
     private fun parseFb2Detailed(file: java.io.File): ParsedBook {

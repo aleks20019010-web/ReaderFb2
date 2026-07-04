@@ -784,7 +784,7 @@ fun LibraryTab(
         // Book list filtering
         val filteredBooks = books.filter { book ->
             val matchesSearch = book.title.contains(viewModel.bookSearchQuery, ignoreCase = true) ||
-                    book.author.contains(viewModel.bookSearchQuery, ignoreCase = true)
+                    (book.author ?: "").contains(viewModel.bookSearchQuery, ignoreCase = true)
             val matchesCategory = viewModel.selectedCategory == "Все" || book.category == viewModel.selectedCategory
             matchesSearch && matchesCategory
         }
@@ -956,14 +956,21 @@ fun BookGridItem(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(1.dp))
+                val context = LocalContext.current
                 Text(
-                    text = book.author,
+                    text = book.author ?: "Неизвестен",
                     fontFamily = FontFamily.SansSerif,
-                    fontWeight = FontWeight.Normal,
+                    fontWeight = FontWeight.Medium,
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = Color(0xFFE5A93C),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.clickable {
+                        val authorIntent = Intent(context, AuthorBooksActivity::class.java).apply {
+                            putExtra("AUTHOR_NAME", book.author ?: "Неизвестен")
+                        }
+                        context.startActivity(authorIntent)
+                    }
                 )
             }
         }
@@ -1046,7 +1053,7 @@ fun ReaderTab(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                book.author,
+                                book.author ?: "Неизвестен",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = readerText.copy(alpha = 0.7f)
                             )
@@ -2153,7 +2160,7 @@ fun BookDetailsScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = book.author,
+                            text = book.author ?: "Неизвестен",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.8f),
                             textAlign = TextAlign.Center,
@@ -2281,10 +2288,30 @@ fun BookDetailsScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Authors Row
-            DetailRow(label = "Авторы", value = book.author)
+            DetailRow(
+                label = "Авторы",
+                value = book.author ?: "Неизвестен",
+                onClick = {
+                    val authorIntent = Intent(context, AuthorBooksActivity::class.java).apply {
+                        putExtra("AUTHOR_NAME", book.author ?: "Неизвестен")
+                    }
+                    context.startActivity(authorIntent)
+                }
+            )
 
             // Series Row
-            DetailRow(label = "Серия", value = book.series ?: "—")
+            DetailRow(
+                label = "Серия",
+                value = book.series ?: "—",
+                onClick = if (!book.series.isNullOrEmpty()) {
+                    {
+                        val seriesIntent = Intent(context, SeriesBooksActivity::class.java).apply {
+                            putExtra("SERIES_NAME", book.series)
+                        }
+                        context.startActivity(seriesIntent)
+                    }
+                } else null
+            )
 
             // Annotation Row
             val displayAnnotation = when {
@@ -2395,7 +2422,7 @@ fun BookDetailsScreen(
 
     if (showEditDialog) {
         var tempTitle by remember { mutableStateOf(book.title) }
-        var tempAuthor by remember { mutableStateOf(book.author) }
+        var tempAuthor by remember { mutableStateOf(book.author ?: "Неизвестен") }
         var tempSeries by remember { mutableStateOf(book.series ?: "") }
 
         AlertDialog(
@@ -2451,16 +2478,18 @@ fun BookDetailsScreen(
 }
 
 @Composable
-fun DetailRow(label: String, value: String) {
+fun DetailRow(label: String, value: String, onClick: (() -> Unit)? = null) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(vertical = 8.dp)
     ) {
         Text(
             text = value,
-            color = Color.White,
-            style = MaterialTheme.typography.bodyLarge
+            color = if (onClick != null) Color(0xFFE5A93C) else Color.White,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = if (onClick != null) FontWeight.Medium else FontWeight.Normal
         )
         Text(
             text = label,

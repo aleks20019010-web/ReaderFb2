@@ -74,7 +74,7 @@ class SyncManager(private val context: Context) {
      */
     suspend fun getLocalPayload(repository: BookRepository): SyncPayload = withContext(Dispatchers.IO) {
         val books = repository.allBooks.first().map {
-            SyncBook(it.title, it.author, it.currentProgressChar, it.lastReadTime)
+            SyncBook(it.title, it.author ?: "Неизвестен", it.currentProgressChar, it.lastReadTime)
         }
         val notes = repository.allNotes.first().map {
             SyncNote(it.bookTitle, it.selectedText, it.noteText, it.charOffset, it.timestamp)

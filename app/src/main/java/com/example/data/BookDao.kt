@@ -15,6 +15,12 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE id = :id")
     suspend fun getBookById(id: Int): BookEntity?
 
+    @Query("SELECT * FROM books WHERE author = :author ORDER BY title ASC")
+    fun getBooksByAuthor(author: String): Flow<List<BookEntity>>
+
+    @Query("SELECT * FROM books WHERE series = :series ORDER BY seriesIndex ASC, title ASC")
+    fun getBooksBySeries(series: String): Flow<List<BookEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBook(book: BookEntity): Long
 

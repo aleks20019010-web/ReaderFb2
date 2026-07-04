@@ -111,6 +111,7 @@ class BookScannerService : Service() {
                 var parsedAuthor = "Неизвестен"
                 var parsedContent = ""
                 var parsedSeries: String? = null
+                var parsedSeriesIndex: Int? = null
                 var parsedLanguage: String? = "ru"
 
                 fun decodeBytesToString(bytes: ByteArray): String {
@@ -140,58 +141,15 @@ class BookScannerService : Service() {
                     }
                 }
 
-                fun parseFb2Text(rawText: String, fallback: String): ParsedBookInfo {
-                    val titleRegex = "<book-title>(.*?)</book-title>".toRegex(RegexOption.IGNORE_CASE)
-                    val authorFirstRegex = "<first-name>(.*?)</first-name>".toRegex(RegexOption.IGNORE_CASE)
-                    val authorLastRegex = "<last-name>(.*?)</last-name>".toRegex(RegexOption.IGNORE_CASE)
-                    val langRegex = "<lang>(.*?)</lang>".toRegex(RegexOption.IGNORE_CASE)
-                    
-                    val titleMatch = titleRegex.find(rawText)
-                    val title = titleMatch?.groupValues?.get(1)?.trim() ?: fallback
-                    
-                    val first = authorFirstRegex.find(rawText)?.groupValues?.get(1)?.trim() ?: ""
-                    val last = authorLastRegex.find(rawText)?.groupValues?.get(1)?.trim() ?: ""
-                    val author = if (first.isNotEmpty() || last.isNotEmpty()) "$first $last".trim() else "Неизвестен"
-                    
-                    val bodyStart = rawText.indexOf("<body>", ignoreCase = true)
-                    val bodyEnd = rawText.lastIndexOf("</body>", ignoreCase = true)
-                    val bodyContent = if (bodyStart != -1 && bodyEnd > bodyStart) {
-                        rawText.substring(bodyStart + 6, bodyEnd)
-                    } else {
-                        rawText
-                    }
-
-                    var processedText = bodyContent.replace("""<binary[^>]*>[\s\S]*?</binary>""".toRegex(RegexOption.IGNORE_CASE), "")
-                    processedText = processedText.replace("""<title[^>]*>""".toRegex(RegexOption.IGNORE_CASE), "\u000C\n")
-                    processedText = processedText.replace("""</title>""".toRegex(RegexOption.IGNORE_CASE), "\n\n")
-                    processedText = processedText.replace("""<p[^>]*>""".toRegex(RegexOption.IGNORE_CASE), "    ")
-                    processedText = processedText.replace("""</p>""".toRegex(RegexOption.IGNORE_CASE), "\n")
-                    processedText = processedText.replace("<[^>]*>".toRegex(), "")
-                    processedText = processedText.replace("\r", "")
-                    processedText = processedText.replace("\n{3,}".toRegex(), "\n\n")
-                    processedText = processedText.replace("\u000C\\s*\u000C".toRegex(), "\u000C")
-                    if (processedText.startsWith("\u000C")) {
-                        processedText = processedText.substring(1)
-                    }
-
-                    val cleanContent = processedText.lines().joinToString("\n") { line ->
-                        if (line.trim().isEmpty()) ""
-                        else {
-                            val indent = line.takeWhile { it.isWhitespace() }
-                            val trimmed = line.substring(indent.length).replace("\\s+".toRegex(), " ")
-                            indent + trimmed
-                        }
-                    }.trim()
-                    
-                    return ParsedBookInfo(title, author, cleanContent, null, "ru")
-                }
-
                 if (ext == "fb2") {
                     val rawText = decodeBytesToString(file.readBytes())
-                    val parsed = parseFb2Text(rawText, parsedTitle)
+                    val parsed = Fb2Parser.parse(rawText, parsedTitle)
                     parsedTitle = parsed.title
                     parsedAuthor = parsed.author
                     parsedContent = parsed.content
+                    parsedSeries = parsed.series
+                    parsedSeriesIndex = parsed.seriesIndex
+                    parsedLanguage = parsed.language
                 } else if (ext == "zip") {
                     file.inputStream().use { fis ->
                         java.util.zip.ZipInputStream(fis).use { zis ->
@@ -201,10 +159,13 @@ class BookScannerService : Service() {
                                 if (!entry.isDirectory && entryName.endsWith(".fb2")) {
                                     val bytes = zis.readBytes()
                                     val rawText = decodeBytesToString(bytes)
-                                    val parsed = parseFb2Text(rawText, entryName.removeSuffix(".fb2"))
+                                    val parsed = Fb2Parser.parse(rawText, entryName.removeSuffix(".fb2"))
                                     parsedTitle = parsed.title
                                     parsedAuthor = parsed.author
                                     parsedContent = parsed.content
+                                    parsedSeries = parsed.series
+                                    parsedSeriesIndex = parsed.seriesIndex
+                                    parsedLanguage = parsed.language
                                     break
                                 }
                                 entry = zis.nextEntry
@@ -214,10 +175,6 @@ class BookScannerService : Service() {
                 } else {
                     parsedContent = decodeBytesToString(file.readBytes())
                     parsedAuthor = if (ext == "epub") "Локальный EPUB" else "Локальный TXT"
-                }
-
-                if (existingTitles.contains(parsedTitle.lowercase())) {
-                    return@runCatching
                 }
 
                 if (parsedContent.isNotBlank()) {
@@ -232,11 +189,13 @@ class BookScannerService : Service() {
                         filePath = file.absolutePath,
                         sha1 = computedSha1,
                         fileSize = file.length(),
-                        coverPath = coverPath
+                        coverPath = coverPath,
+                        series = parsedSeries,
+                        seriesIndex = parsedSeriesIndex,
+                        language = parsedLanguage
                     )
                     bookDao.insertBook(newBook)
                     existingSha1s.add(computedSha1)
-                    existingTitles.add(parsedTitle.lowercase())
                     importedCount++
                 }
             }.onFailure { t ->
@@ -268,12 +227,4 @@ class BookScannerService : Service() {
         super.onDestroy()
         serviceJob.cancel()
     }
-
-    data class ParsedBookInfo(
-        val title: String,
-        val author: String,
-        val content: String,
-        val series: String?,
-        val language: String?
-    )
 }
