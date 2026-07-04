@@ -54,7 +54,8 @@ class NewBookScanner(
             }
             
             // Parse metadata (simplified)
-            val metadata = NewFb2Parser.parse(file.readText(), file.nameWithoutExtension)
+            val content = file.readText()
+            val metadata = NewFb2Parser.parse(content, file.nameWithoutExtension)
             
             val book = BookEntity(
                 sha1 = sha1,
@@ -62,6 +63,7 @@ class NewBookScanner(
                 author = metadata.author,
                 series = metadata.series,
                 seriesIndex = metadata.seriesIndex,
+                content = content,
                 filePath = file.absolutePath
             )
             
