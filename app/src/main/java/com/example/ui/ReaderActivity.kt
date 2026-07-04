@@ -999,6 +999,7 @@ class ReaderActivity : FragmentActivity() {
 
     private fun splitContentToPages(content: String, measuredWidth: Int, measuredHeight: Int): List<String> {
         val density = resources.displayMetrics.density
+        val scaledDensity = resources.displayMetrics.scaledDensity
         
         // Measure viewPager size, fall back to screen size if not measured yet
         var width = measuredWidth
@@ -1057,7 +1058,7 @@ class ReaderActivity : FragmentActivity() {
         }
 
         val paint = android.text.TextPaint().apply {
-            textSize = fontSize * density
+            textSize = fontSize * scaledDensity
             typeface = resolvedTypeface
         }
         
