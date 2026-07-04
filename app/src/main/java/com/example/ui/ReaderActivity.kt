@@ -1049,19 +1049,12 @@ class ReaderActivity : FragmentActivity() {
         // Horizontal padding: 16dp on each side (32dp total)
         val paddingHorizontal = (32 * density).toInt()
         
-        // Dynamic padding vertical: bottom is 16dp. top is the cutout/notch top padding.
-        val insets = ViewCompat.getRootWindowInsets(window.decorView)
-        val statusBarTop = insets?.getInsets(WindowInsetsCompat.Type.statusBars())?.top ?: 0
-        val displayCutoutTop = insets?.getInsets(WindowInsetsCompat.Type.displayCutout())?.top ?: 0
-        val topInset = maxOf(statusBarTop, displayCutoutTop)
-        
-        val actualTopPadding = maxOf(displayCutoutTop, (12 * density).toInt())
-        val actualBottomPadding = (10 * density).toInt()
-        val paddingVertical = actualTopPadding + actualBottomPadding
-        
         val availableWidth = (width - paddingHorizontal).coerceAtLeast(100)
-        // No safety buffer, utilizing full screen height for optimal bottom line rendering
-        val availableHeight = (height - paddingVertical).coerceAtLeast(100)
+        
+        // Use full height. Padding will be handled directly in the PageFragment's container without reducing available text rendering height.
+        val availableHeight = height.coerceAtLeast(100)
+        
+        Log.d("READING_DEBUG", "splitContentToPages: screenHeight=$height, availableHeight=$availableHeight, availableWidth=$availableWidth")
         
         val fontSize = com.example.data.SettingsManager.getFontSize(this)
         val fontFamily = com.example.data.SettingsManager.getFontFamily(this)

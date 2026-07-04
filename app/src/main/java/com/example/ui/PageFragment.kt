@@ -116,6 +116,13 @@ class PageFragment : Fragment() {
             insets
         }
 
+        textView.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                textView.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                android.util.Log.d("READING_DEBUG", "PageFragment: paddingTop=${textView.paddingTop}, paddingBottom=${textView.paddingBottom}, TextView.height=${textView.height}")
+            }
+        })
+
         return view
     }
 
