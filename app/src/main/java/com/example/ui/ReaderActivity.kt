@@ -1,1206 +1,431 @@
 package com.example.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.util.Log
 import android.view.Gravity
-import android.view.KeyEvent
-import android.view.MotionEvent
 import android.view.View
-import android.view.WindowManager
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.viewModels
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.example.data.AppDatabase
+import com.example.data.BookEntity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileInputStream
+import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets
+import java.util.zip.ZipInputStream
 
 class ReaderActivity : FragmentActivity() {
+    private val TAG = "READING_DEBUG"
+
+    // Keep compatibility with any possible external references
     lateinit var viewModel: ReaderViewModel
+    private val vm: ReaderViewModel by viewModels()
+
     private lateinit var viewPager: ViewPager2
-    private lateinit var pageIndicator: TextView
-    private lateinit var rootLayout: FrameLayout
+    private lateinit var progressBar: ProgressBar
+    private lateinit var topBar: LinearLayout
+    private lateinit var bottomBar: LinearLayout
+    private lateinit var progressText: TextView
+    private lateinit var titleText: TextView
+
     private var isSystemUiVisible = true
-
-    // Control Overlays
-    private lateinit var topControlBar: LinearLayout
-    private lateinit var bottomControlBar: LinearLayout
-    private lateinit var bookTitleText: TextView
-    private lateinit var bookAuthorText: TextView
-    private lateinit var chapterInfoText: TextView
-
-    // Settings Panel Container Overlay
-    private lateinit var settingsPanelContainer: FrameLayout
-    private var isSettingsPanelVisible = false
-
-    // Brightness overlay views
-    private lateinit var brightnessOverlay: LinearLayout
-    private lateinit var brightnessProgressBar: ProgressBar
-    private lateinit var brightnessPercentText: TextView
-
-    // Brightness gesture state
-    private var isDraggingBrightness = false
-    private var maybeDraggingBrightness = false
-    private var startX = 0f
-    private var startY = 0f
-    private var initialBrightness = 0.5f
-    private val touchSlop = 10f
-    private var fadeJob: kotlinx.coroutines.Job? = null
+    private var bookId: Int = -1
+    private var pages: List<String> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        viewModel = vm
 
-        // 1. Edge-To-Edge rendering and display cutout setup
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-            window.attributes.layoutInDisplayCutoutMode =
-                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-        }
-
-        // Set layout flags as requested to let the window content stretch under status bars natively
-        window.decorView.systemUiVisibility = (
-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-        )
-
-        val bookId = intent.getIntExtra("BOOK_ID", -1)
+        // Retrieve book ID from intent
+        bookId = intent.getIntExtra("BOOK_ID", -1)
         if (bookId == -1) {
+            Log.e(TAG, "ReaderActivity запущен без BOOK_ID")
+            Toast.makeText(this, "Книга не найдена", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
 
-        val vm: ReaderViewModel by viewModels()
-        viewModel = vm
-        viewModel.loadBook(bookId)
+        // Programmatic layout assembly for robustness and speed
+        setupLayout()
 
-        // 2. Restore saved brightness on startup
-        val savedBrightness = getSharedPreferences("reader_prefs", MODE_PRIVATE)
-            .getFloat("saved_brightness", -1f)
-        if (savedBrightness >= 0f) {
-            val lp = window.attributes
-            lp.screenBrightness = savedBrightness
-            window.attributes = lp
-        }
+        // Load content in a safe IO coroutine
+        loadBookContent()
+    }
 
-        // 3. Programmatic Layout Assembly
+    private fun setupLayout() {
         val density = resources.displayMetrics.density
-        rootLayout = FrameLayout(this).apply {
+        val root = FrameLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
+            setBackgroundColor(Color.parseColor("#FAF6EE")) // Warm paper background
         }
 
+        // ViewPager2
         viewPager = ViewPager2(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
-            setPageTransformer(BookPageTransformer())
         }
-        rootLayout.addView(viewPager)
+        root.addView(viewPager)
 
-        // Bottom Page Indicator (centered above bottom of screen, overlaying the book text)
-        pageIndicator = TextView(this).apply {
-            val lp = FrameLayout.LayoutParams(
+        // Loading ProgressBar
+        progressBar = ProgressBar(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-                bottomMargin = (12 * density).toInt()
-            }
-            layoutParams = lp
-            textSize = 12f
-            setTextColor(Color.GRAY)
-        }
-        rootLayout.addView(pageIndicator)
-
-        // --- BRIGHTNESS GESTURE HUD OVERLAY ---
-        brightnessOverlay = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding((24 * density).toInt(), (16 * density).toInt(), (24 * density).toInt(), (16 * density).toInt())
-            alpha = 0f
-            visibility = View.GONE
-            
-            val shape = GradientDrawable().apply {
-                setColor(Color.parseColor("#E61A1A1A"))
-                cornerRadius = 16 * density
-            }
-            background = shape
-            
-            val lp = FrameLayout.LayoutParams(
-                (180 * density).toInt(),
-                (110 * density).toInt()
-            ).apply {
                 gravity = Gravity.CENTER
             }
-            layoutParams = lp
+            visibility = View.VISIBLE
         }
+        root.addView(progressBar)
 
-        val brightnessLabel = TextView(this).apply {
-            text = "Яркость"
-            setTextColor(Color.WHITE)
-            textSize = 14f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, (6 * density).toInt())
-        }
-        brightnessOverlay.addView(brightnessLabel)
-
-        brightnessProgressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-            max = 100
-            progress = 50
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-        brightnessOverlay.addView(brightnessProgressBar)
-
-        brightnessPercentText = TextView(this).apply {
-            text = "50%"
-            setTextColor(Color.WHITE)
-            textSize = 12f
-            gravity = Gravity.CENTER
-            setPadding(0, (6 * density).toInt(), 0, 0)
-        }
-        brightnessOverlay.addView(brightnessPercentText)
-        rootLayout.addView(brightnessOverlay)
-
-
-        // --- TOP CONTROL BAR OVERLAY ---
-        topControlBar = LinearLayout(this).apply {
+        // Top Controls Overlay Bar
+        topBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            visibility = View.GONE
-            alpha = 0f
-            
-            val shape = GradientDrawable().apply {
-                setColor(Color.parseColor("#E6232323")) // Dark gray semi-translucent bar
-            }
-            background = shape
-
-            val lp = FrameLayout.LayoutParams(
+            layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
+                (56 * density).toInt()
             ).apply {
                 gravity = Gravity.TOP
             }
-            layoutParams = lp
-        }
-
-        // Apply WindowInsets dynamically to make topControlBar start below cutout/notch
-        ViewCompat.setOnApplyWindowInsetsListener(topControlBar) { v, insets ->
-            val systemBars = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars())
-            val cutout = insets.displayCutout
-            val cutoutHeight = cutout?.safeInsetTop ?: systemBars.top
-            val currentDensity = v.resources.displayMetrics.density
-            v.setPadding(
-                (12 * currentDensity).toInt(),
-                cutoutHeight + (8 * currentDensity).toInt(),
-                (12 * currentDensity).toInt(),
-                (12 * currentDensity).toInt()
-            )
-            insets
+            setPadding((16 * density).toInt(), 0, (16 * density).toInt(), 0)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#FAF6EE"))
+                setStroke(1, Color.parseColor("#E0DCD3"))
+            }
         }
 
         val backButton = TextView(this).apply {
-            text = "←"
-            setTextColor(Color.WHITE)
-            textSize = 24f
-            setPadding((10 * density).toInt(), (4 * density).toInt(), (14 * density).toInt(), (4 * density).toInt())
+            text = "◀"
+            textSize = 20f
+            setTextColor(Color.parseColor("#2C2C2C"))
+            gravity = Gravity.CENTER
+            setPadding(0, 0, (16 * density).toInt(), 0)
             setOnClickListener {
                 finish()
             }
         }
-        topControlBar.addView(backButton)
+        topBar.addView(backButton)
 
-        val textContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
-            )
-        }
-
-        bookTitleText = TextView(this).apply {
-            text = "Загрузка..."
-            setTextColor(Color.WHITE)
-            textSize = 15f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            maxLines = 1
+        titleText = TextView(this).apply {
+            text = "Чтение"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.parseColor("#2C2C2C"))
+            setSingleLine(true)
             ellipsize = android.text.TextUtils.TruncateAt.END
         }
-        textContainer.addView(bookTitleText)
+        topBar.addView(titleText)
+        root.addView(topBar)
 
-        bookAuthorText = TextView(this).apply {
-            text = ""
-            setTextColor(Color.parseColor("#FF4FC3F7")) // Beautiful cyan
-            textSize = 12f
-            maxLines = 1
-            ellipsize = android.text.TextUtils.TruncateAt.END
-        }
-        textContainer.addView(bookAuthorText)
-
-        chapterInfoText = TextView(this).apply {
-            text = ""
-            setTextColor(Color.LTGRAY)
-            textSize = 11f
-            maxLines = 1
-            ellipsize = android.text.TextUtils.TruncateAt.END
-        }
-        textContainer.addView(chapterInfoText)
-        topControlBar.addView(textContainer)
-
-        val iconsLayout = LinearLayout(this).apply {
+        // Bottom Controls Overlay Bar
+        bottomBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        val newTag = TextView(this).apply {
-            text = "NEW  ●"
-            setTextColor(Color.parseColor("#FF4FC3F7"))
-            textSize = 10f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setPadding((6 * density).toInt(), 0, (8 * density).toInt(), 0)
-        }
-        iconsLayout.addView(newTag)
-
-        val speakerButton = TextView(this).apply {
-            text = "🔊"
-            setTextColor(Color.WHITE)
-            textSize = 18f
-            setPadding((8 * density).toInt(), (4 * density).toInt(), (8 * density).toInt(), (4 * density).toInt())
-            setOnClickListener {
-                android.widget.Toast.makeText(this@ReaderActivity, "Синтез речи (TTS) запущен", android.widget.Toast.LENGTH_SHORT).show()
-            }
-        }
-        iconsLayout.addView(speakerButton)
-
-        val searchButton = TextView(this).apply {
-            text = "🔍"
-            setTextColor(Color.WHITE)
-            textSize = 18f
-            setPadding((8 * density).toInt(), (4 * density).toInt(), (8 * density).toInt(), (4 * density).toInt())
-            setOnClickListener {
-                android.widget.Toast.makeText(this@ReaderActivity, "Поиск", android.widget.Toast.LENGTH_SHORT).show()
-            }
-        }
-        iconsLayout.addView(searchButton)
-
-        val listButton = TextView(this).apply {
-            text = "≡"
-            setTextColor(Color.WHITE)
-            textSize = 20f
-            setPadding((8 * density).toInt(), (4 * density).toInt(), (8 * density).toInt(), (4 * density).toInt())
-            setOnClickListener {
-                android.widget.Toast.makeText(this@ReaderActivity, "Содержание книги", android.widget.Toast.LENGTH_SHORT).show()
-            }
-        }
-        iconsLayout.addView(listButton)
-
-        val settingsButton = TextView(this).apply {
-            text = "⚙"
-            setTextColor(Color.WHITE)
-            textSize = 22f
-            setPadding((8 * density).toInt(), (4 * density).toInt(), (8 * density).toInt(), (4 * density).toInt())
-            setOnClickListener {
-                if (isSettingsPanelVisible) {
-                    hideSettingsPanel()
-                } else {
-                    showSettingsPanel()
-                }
-            }
-        }
-        iconsLayout.addView(settingsButton)
-
-        val moreButton = TextView(this).apply {
-            text = "⋮"
-            setTextColor(Color.WHITE)
-            textSize = 20f
-            setPadding((8 * density).toInt(), (4 * density).toInt(), (10 * density).toInt(), (4 * density).toInt())
-            setOnClickListener {
-                android.widget.Toast.makeText(this@ReaderActivity, "Дополнительно", android.widget.Toast.LENGTH_SHORT).show()
-            }
-        }
-        iconsLayout.addView(moreButton)
-
-        topControlBar.addView(iconsLayout)
-        rootLayout.addView(topControlBar)
-
-
-        // --- BOTTOM PROGRESS BAR OVERLAY (SEEK BAR & QUICK ACTION BUTTONS) ---
-        bottomControlBar = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            visibility = View.GONE
-            alpha = 0f
-            
-            val shape = GradientDrawable().apply {
-                setColor(Color.parseColor("#E6232323")) // Translucent dark grey background matching top bar
-            }
-            background = shape
-
-            val lp = FrameLayout.LayoutParams(
+            gravity = Gravity.CENTER
+            layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
+                (48 * density).toInt()
             ).apply {
                 gravity = Gravity.BOTTOM
             }
-            layoutParams = lp
-        }
-
-        // Apply safe WindowInsets bottom margins to bottomControlBar
-        ViewCompat.setOnApplyWindowInsetsListener(bottomControlBar) { v, insets ->
-            val systemBars = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars())
-            val currentDensity = v.resources.displayMetrics.density
-            v.setPadding(
-                (16 * currentDensity).toInt(),
-                (12 * currentDensity).toInt(),
-                (16 * currentDensity).toInt(),
-                systemBars.bottom + (12 * currentDensity).toInt()
-            )
-            insets
-        }
-
-        val bottomProgressText = TextView(this).apply {
-            text = "1 из 1"
-            setTextColor(Color.WHITE)
-            textSize = 13f
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, (6 * density).toInt())
-        }
-        bottomControlBar.addView(bottomProgressText)
-
-        val progressRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        val syncButton = TextView(this).apply {
-            text = "↻"
-            setTextColor(Color.WHITE)
-            textSize = 20f
-            setPadding((8 * density).toInt(), (4 * density).toInt(), (12 * density).toInt(), (4 * density).toInt())
-            setOnClickListener {
-                android.widget.Toast.makeText(this@ReaderActivity, "Прогресс чтения синхронизирован", android.widget.Toast.LENGTH_SHORT).show()
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#FAF6EE"))
+                setStroke(1, Color.parseColor("#E0DCD3"))
             }
         }
-        progressRow.addView(syncButton)
 
-        val pageSeekBar = android.widget.SeekBar(this).apply {
-            max = 100
-            progress = 0
-            val activeColor = Color.parseColor("#FF4FC3F7")
-            progressTintList = android.content.res.ColorStateList.valueOf(activeColor)
-            thumbTintList = android.content.res.ColorStateList.valueOf(activeColor)
-            progressBackgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#40FFFFFF"))
-            
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            
-            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
-                    if (fromUser) {
-                        viewPager.setCurrentItem(progress, false)
+        progressText = TextView(this).apply {
+            text = "Загрузка..."
+            textSize = 14f
+            setTextColor(Color.parseColor("#706B64"))
+        }
+        bottomBar.addView(progressText)
+        root.addView(bottomBar)
+
+        setContentView(root)
+    }
+
+    private fun loadBookContent() {
+        lifecycleScope.launch {
+            try {
+                Log.d(TAG, "Шаг 1: Получение пути к книге...")
+                val db = AppDatabase.getDatabase(this@ReaderActivity)
+                val book = withContext(Dispatchers.IO) {
+                    db.bookDao().getBookById(bookId)
+                }
+
+                if (book == null) {
+                    Log.e(TAG, "Книга с id=$bookId не найдена в базе данных")
+                    Toast.makeText(this@ReaderActivity, "Книга не найдена в базе", Toast.LENGTH_SHORT).show()
+                    finish()
+                    return@launch
+                }
+
+                titleText.text = book.title
+
+                val rawContent: String
+                val path = book.filePath
+
+                if (!path.isNullOrEmpty()) {
+                    Log.d(TAG, "Шаг 2: Проверка существования файла...")
+                    val file = File(path)
+                    if (!file.exists()) {
+                        Log.e(TAG, "Файл не найден по пути: $path")
+                        Toast.makeText(this@ReaderActivity, "Файл не найден", Toast.LENGTH_SHORT).show()
+                        finish()
+                        return@launch
                     }
-                }
-                override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
-            })
-        }
-        progressRow.addView(pageSeekBar)
 
-        val bookmarkButton = TextView(this).apply {
-            text = "📌"
-            setTextColor(Color.WHITE)
-            textSize = 18f
-            setPadding((12 * density).toInt(), (4 * density).toInt(), (8 * density).toInt(), (4 * density).toInt())
-            setOnClickListener {
-                android.widget.Toast.makeText(this@ReaderActivity, "Закладка сохранена!", android.widget.Toast.LENGTH_SHORT).show()
-            }
-        }
-        progressRow.addView(bookmarkButton)
-        bottomControlBar.addView(progressRow)
-
-        rootLayout.addView(bottomControlBar)
-
-
-        // --- SETTINGS OVERLAY CARD PANEL ---
-        settingsPanelContainer = FrameLayout(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-            visibility = View.GONE
-            alpha = 0f
-            setOnClickListener {
-                hideSettingsPanel()
-            }
-        }
-
-        val settingsCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding((18 * density).toInt(), (18 * density).toInt(), (18 * density).toInt(), (18 * density).toInt())
-            
-            val shape = GradientDrawable().apply {
-                setColor(Color.parseColor("#F2212121")) // Dark grey translucent
-                cornerRadius = 12 * density
-                setStroke((1 * density).toInt(), Color.parseColor("#26FFFFFF"))
-            }
-            background = shape
-            
-            val lp = FrameLayout.LayoutParams(
-                (320 * density).toInt(),
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                gravity = Gravity.CENTER
-            }
-            layoutParams = lp
-            
-            setOnClickListener { /* Consume clicks to prevent dismissing overlay */ }
-        }
-
-        // Header Title
-        val settingsHeader = TextView(this).apply {
-            text = "НАСТРОЙКИ EPUB, FB2, MOBI, DOC, DOCX, RTF, TXT И CHM"
-            setTextColor(Color.parseColor("#FF4FC3F7"))
-            textSize = 10f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(0, 0, 0, (14 * density).toInt())
-        }
-        settingsCard.addView(settingsHeader)
-
-        // Dropdown Builders helper
-        fun createDropdown(
-            labelText: String,
-            currentValueFlow: kotlinx.coroutines.flow.StateFlow<String>,
-            options: List<String>,
-            onOptionSelected: (String) -> Unit
-        ): View {
-            val container = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    setMargins(0, 0, 0, (12 * density).toInt())
-                }
-            }
-            
-            val label = TextView(this).apply {
-                text = labelText.uppercase()
-                setTextColor(Color.parseColor("#FF90A4AE"))
-                textSize = 10f
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
-                setPadding(0, 0, 0, (4 * density).toInt())
-            }
-            container.addView(label)
-            
-            val selectorBox = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding((12 * density).toInt(), (8 * density).toInt(), (12 * density).toInt(), (8 * density).toInt())
-                
-                val shape = GradientDrawable().apply {
-                    setColor(Color.parseColor("#1AFFFFFF"))
-                    cornerRadius = 6 * density
-                }
-                background = shape
-            }
-            
-            val selectedText = TextView(this).apply {
-                setTextColor(Color.WHITE)
-                textSize = 14f
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            }
-            selectorBox.addView(selectedText)
-            
-            val arrow = TextView(this).apply {
-                text = "▼"
-                setTextColor(Color.WHITE)
-                textSize = 9f
-            }
-            selectorBox.addView(arrow)
-            
-            lifecycleScope.launch {
-                currentValueFlow.collect { value ->
-                    selectedText.text = value
-                }
-            }
-            
-            selectorBox.setOnClickListener {
-                val popupMenu = androidx.appcompat.widget.PopupMenu(this@ReaderActivity, selectorBox)
-                options.forEach { option ->
-                    popupMenu.menu.add(option)
-                }
-                popupMenu.setOnMenuItemClickListener { menuItem ->
-                    onOptionSelected(menuItem.title.toString())
-                    true
-                }
-                popupMenu.show()
-            }
-            
-            container.addView(selectorBox)
-            return container
-        }
-
-        // Counter builders helper for size / spacing
-        fun createCounter(
-            labelText: String,
-            valueFlow: kotlinx.coroutines.flow.StateFlow<String>,
-            onMinus: () -> Unit,
-            onPlus: () -> Unit
-        ): View {
-            val container = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    setMargins(0, 0, 0, (12 * density).toInt())
-                }
-            }
-            
-            val label = TextView(this).apply {
-                text = labelText.uppercase()
-                setTextColor(Color.parseColor("#FF90A4AE"))
-                textSize = 10f
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
-                setPadding(0, 0, 0, (4 * density).toInt())
-            }
-            container.addView(label)
-            
-            val counterBox = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding((4 * density).toInt(), (2 * density).toInt(), (4 * density).toInt(), (2 * density).toInt())
-                
-                val shape = GradientDrawable().apply {
-                    setColor(Color.parseColor("#1AFFFFFF"))
-                    cornerRadius = 6 * density
-                }
-                background = shape
-            }
-            
-            val minusButton = TextView(this).apply {
-                text = "⊖"
-                setTextColor(Color.WHITE)
-                textSize = 22f
-                gravity = Gravity.CENTER
-                setPadding((16 * density).toInt(), (4 * density).toInt(), (16 * density).toInt(), (4 * density).toInt())
-                setOnClickListener { onMinus() }
-            }
-            counterBox.addView(minusButton)
-            
-            val valueText = TextView(this).apply {
-                setTextColor(Color.WHITE)
-                textSize = 14f
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            }
-            counterBox.addView(valueText)
-            
-            val plusButton = TextView(this).apply {
-                text = "⊕"
-                setTextColor(Color.WHITE)
-                textSize = 22f
-                gravity = Gravity.CENTER
-                setPadding((16 * density).toInt(), (4 * density).toInt(), (16 * density).toInt(), (4 * density).toInt())
-                setOnClickListener { onPlus() }
-            }
-            counterBox.addView(plusButton)
-            
-            lifecycleScope.launch {
-                valueFlow.collect { value ->
-                    valueText.text = value
-                }
-            }
-            
-            container.addView(counterBox)
-            return container
-        }
-
-        // Toggles / switches builder helper
-        fun createToggle(
-            labelText: String,
-            stateFlow: kotlinx.coroutines.flow.StateFlow<Boolean>,
-            onCheckedChange: (Boolean) -> Unit
-        ): View {
-            val container = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    setMargins(0, (6 * density).toInt(), 0, (6 * density).toInt())
-                }
-            }
-            
-            val label = TextView(this).apply {
-                text = labelText
-                setTextColor(Color.WHITE)
-                textSize = 13f
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            }
-            container.addView(label)
-            
-            val toggle = androidx.appcompat.widget.SwitchCompat(this@ReaderActivity).apply {
-                val activeColor = Color.parseColor("#FF4FC3F7")
-                thumbTintList = android.content.res.ColorStateList.valueOf(activeColor)
-                trackTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#33FFFFFF"))
-            }
-            toggle.setOnCheckedChangeListener { _, isChecked ->
-                onCheckedChange(isChecked)
-            }
-            
-            lifecycleScope.launch {
-                stateFlow.collect { isChecked ->
-                    if (toggle.isChecked != isChecked) {
-                        toggle.isChecked = isChecked
+                    val size = file.length()
+                    Log.d(TAG, "Файл существует. Размер: $size байт, Путь: $path")
+                    if (size == 0L) {
+                        Log.e(TAG, "Книга пуста (0 байт)")
+                        Toast.makeText(this@ReaderActivity, "Книга пуста", Toast.LENGTH_SHORT).show()
+                        finish()
+                        return@launch
                     }
-                }
-            }
-            container.addView(toggle)
-            return container
-        }
 
-        // Add settings components to card
-        // 1. ЛИСТАТЬ СТРАНИЦЫ
-        settingsCard.addView(createDropdown(
-            "Листать страницы",
-            viewModel.scrollDirectionState,
-            listOf("Горизонтально", "Вертикально")
-        ) { selected ->
-            viewModel.setScrollDirection(selected)
-        })
-
-        // 2. ЦВЕТОВАЯ СХЕМА
-        val mappedThemeFlow = MutableStateFlow("День")
-        lifecycleScope.launch {
-            viewModel.themeState.collect { internalTheme ->
-                mappedThemeFlow.value = when (internalTheme) {
-                    "night" -> "Ночь"
-                    "sepia" -> "Сепия"
-                    else -> "День"
-                }
-            }
-        }
-        settingsCard.addView(createDropdown(
-            "Цветовая схема",
-            mappedThemeFlow,
-            listOf("День", "Ночь", "Сепия")
-        ) { selected ->
-            val internalTheme = when (selected) {
-                "Ночь" -> "night"
-                "Сепия" -> "sepia"
-                else -> "day"
-            }
-            viewModel.setTheme(internalTheme)
-        })
-
-        // 3. ШРИФТ
-        settingsCard.addView(createDropdown(
-            "Шрифт",
-            viewModel.fontFamilyState,
-            listOf("Merriweather", "Roboto", "Sans Serif", "Serif", "Monospace")
-        ) { selected ->
-            viewModel.setFontFamily(selected)
-        })
-
-        // 4. РАЗМЕР ШРИФТА
-        val fontSizeStringFlow = MutableStateFlow("18")
-        lifecycleScope.launch {
-            viewModel.fontSizeState.collect { size ->
-                fontSizeStringFlow.value = String.format("%.0f", size)
-            }
-        }
-        settingsCard.addView(createCounter(
-            "Размер шрифта",
-            fontSizeStringFlow,
-            onMinus = { viewModel.changeFontSize(-1f) },
-            onPlus = { viewModel.changeFontSize(1f) }
-        ))
-
-        // 5. ЖИРНОСТЬ ШРИФТА
-        val fontWeightContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(0, 0, 0, (12 * density).toInt())
-            }
-        }
-        val fontWeightLabel = TextView(this).apply {
-            text = "ЖИРНОСТЬ ШРИФТА"
-            setTextColor(Color.parseColor("#FF90A4AE"))
-            textSize = 10f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setPadding(0, 0, 0, (4 * density).toInt())
-        }
-        fontWeightContainer.addView(fontWeightLabel)
-        val weightSeekBar = android.widget.SeekBar(this).apply {
-            max = 1
-            progress = 0
-            val activeColor = Color.parseColor("#FF4FC3F7")
-            progressTintList = android.content.res.ColorStateList.valueOf(activeColor)
-            thumbTintList = android.content.res.ColorStateList.valueOf(activeColor)
-            progressBackgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#33FFFFFF"))
-            
-            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
-                    if (fromUser) {
-                        viewModel.setFontWeight(progress)
+                    Log.d(TAG, "Шаг 3: Определение кодировки и чтение содержимого...")
+                    rawContent = withContext(Dispatchers.IO) {
+                        if (path.lowercase().endsWith(".zip")) {
+                            readZipFile(file)
+                        } else {
+                            readBookFile(file)
+                        }
                     }
-                }
-                override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
-            })
-        }
-        lifecycleScope.launch {
-            viewModel.fontWeightState.collect { weight ->
-                weightSeekBar.progress = weight
-            }
-        }
-        fontWeightContainer.addView(weightSeekBar)
-        settingsCard.addView(fontWeightContainer)
-
-        // 6. МЕЖДУСТРОЧНЫЙ ИНТЕРВАЛ
-        val spacingStringFlow = MutableStateFlow("1.4")
-        lifecycleScope.launch {
-            viewModel.lineSpacingState.collect { valSpacing ->
-                // Represent as percentage as in the screenshot, e.g. "95%"
-                val percentVal = (valSpacing * 100 / 1.4).toInt()
-                spacingStringFlow.value = "$percentVal%"
-            }
-        }
-        settingsCard.addView(createCounter(
-            "Междустрочный интервал",
-            spacingStringFlow,
-            onMinus = { viewModel.changeLineSpacing(-0.1f) },
-            onPlus = { viewModel.changeLineSpacing(0.1f) }
-        ))
-
-        // 7. ВЫРАВНИВАТЬ ТЕКСТ ПО
-        val alignmentStringFlow = MutableStateFlow("Ширине + Перенос слов")
-        lifecycleScope.launch {
-            viewModel.fontAlignmentState.collect { align ->
-                alignmentStringFlow.value = when (align) {
-                    "left" -> "По левому краю"
-                    "right" -> "По правому краю"
-                    "center" -> "По центру"
-                    else -> "Ширине + Перенос слов"
-                }
-            }
-        }
-        settingsCard.addView(createDropdown(
-            "Выравнивать текст по",
-            alignmentStringFlow,
-            listOf("Ширине + Перенос слов", "По левому краю", "По правому краю", "По центру")
-        ) { selected ->
-            val internalAlign = when (selected) {
-                "По левому краю" -> "left"
-                "По правому краю" -> "right"
-                "По центру" -> "center"
-                else -> "justify"
-            }
-            viewModel.setFontAlignment(internalAlign)
-        })
-
-        // 8. Две страницы в альбомной ориентации экрана
-        settingsCard.addView(createToggle(
-            "Две страницы в альбомной ориентации экрана",
-            viewModel.twoPagesLandscapeState
-        ) { checked ->
-            viewModel.setTwoPagesLandscape(checked)
-        })
-
-        // 9. Поля страниц
-        settingsCard.addView(createToggle(
-            "Поля страниц",
-            viewModel.pageMarginsState
-        ) { checked ->
-            viewModel.setPageMargins(checked)
-        })
-
-        // 10. Кнопка ОБЩИЕ НАСТРОЙКИ
-        val generalSettingsBtn = TextView(this).apply {
-            text = "ОБЩИЕ НАСТРОЙКИ"
-            setTextColor(Color.parseColor("#FF90A4AE"))
-            textSize = 12f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding(0, (14 * density).toInt(), 0, 0)
-            setOnClickListener {
-                android.widget.Toast.makeText(this@ReaderActivity, "Общие настройки", android.widget.Toast.LENGTH_SHORT).show()
-                hideSettingsPanel()
-            }
-        }
-        settingsCard.addView(generalSettingsBtn)
-
-        settingsPanelContainer.addView(settingsCard)
-        rootLayout.addView(settingsPanelContainer)
-
-        setContentView(rootLayout)
-
-        // Show controls initially
-        showSystemUi()
-        showControlPanels()
-
-        // 4. Dynamic Dimensions listener to send boundaries to pagination engine
-        rootLayout.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            recalculateDimensions()
-        }
-
-        // Trigger dynamic dimension updates when settings affect padding
-        lifecycleScope.launch {
-            viewModel.pageMarginsState.collect { _ ->
-                recalculateDimensions()
-            }
-        }
-
-        // 5. Collect ViewModel States to update the UI
-        lifecycleScope.launch {
-            viewModel.bookState.collect { book ->
-                book?.let {
-                    bookTitleText.text = it.title
-                    bookAuthorText.text = it.author
-                }
-            }
-        }
-
-        lifecycleScope.launch {
-            viewModel.pagesState.collect { pages ->
-                if (pages.isNotEmpty()) {
-                    val adapter = ReaderPagerAdapter(this@ReaderActivity, pages)
-                    viewPager.adapter = adapter
-                    viewPager.setCurrentItem(viewModel.currentPage.value, false)
-                    pageSeekBar.max = (pages.size - 1).coerceAtLeast(0)
-                    pageSeekBar.progress = viewModel.currentPage.value
-                    bottomProgressText.text = "${viewModel.currentPage.value + 1} из ${pages.size}"
-                    updatePageIndicator(viewModel.currentPage.value, pages.size)
-                    updateChapterInfo(viewModel.currentPage.value, pages.size)
-                }
-            }
-        }
-
-        lifecycleScope.launch {
-            viewModel.currentPage.collect { page ->
-                if (viewPager.currentItem != page) {
-                    viewPager.setCurrentItem(page, false)
-                }
-                pageSeekBar.progress = page
-                val total = viewModel.pagesState.value.size
-                if (total > 0) {
-                    bottomProgressText.text = "${page + 1} из $total"
-                    updatePageIndicator(page, total)
-                    updateChapterInfo(page, total)
-                }
-            }
-        }
-
-        lifecycleScope.launch {
-            viewModel.themeState.collect { theme ->
-                applyTheme(theme)
-            }
-        }
-
-        lifecycleScope.launch {
-            viewModel.scrollDirectionState.collect { direction ->
-                viewPager.orientation = if (direction == "Вертикально") {
-                    ViewPager2.ORIENTATION_VERTICAL
                 } else {
-                    ViewPager2.ORIENTATION_HORIZONTAL
+                    Log.d(TAG, "Путь к файлу отсутствует. Загружаем текст напрямую из базы данных...")
+                    rawContent = book.content
+                }
+
+                Log.d(TAG, "Шаг 4: Чтение содержимого выполнено. Количество символов: ${rawContent.length}")
+                if (rawContent.trim().isEmpty()) {
+                    Log.e(TAG, "Содержимое книги пусто")
+                    Toast.makeText(this@ReaderActivity, "Книга пуста", Toast.LENGTH_SHORT).show()
+                    finish()
+                    return@launch
+                }
+
+                Log.d(TAG, "Шаг 5: Разбивка на страницы...")
+                pages = withContext(Dispatchers.Default) {
+                    splitContentToPages(rawContent)
+                }
+
+                Log.d(TAG, "Количество страниц: ${pages.size}")
+                if (pages.isEmpty()) {
+                    Log.e(TAG, "Не удалось разбить текст на страницы (0 страниц)")
+                    Toast.makeText(this@ReaderActivity, "Не удалось разбить текст", Toast.LENGTH_SHORT).show()
+                    finish()
+                    return@launch
+                }
+
+                Log.d(TAG, "Шаг 6: Передача данных в адаптер...")
+                progressBar.visibility = View.GONE
+
+                val adapter = BookPagerAdapter(this@ReaderActivity, pages)
+                viewPager.adapter = adapter
+
+                // Restore saved page
+                val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
+                val savedPage = sharedPrefs.getInt("book_page_$bookId", 0)
+                val targetPage = savedPage.coerceIn(0, pages.size - 1)
+                
+                viewPager.setCurrentItem(targetPage, false)
+                progressText.text = "Страница ${targetPage + 1} из ${pages.size}"
+
+                viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+                    override fun onPageSelected(position: Int) {
+                        progressText.text = "Страница ${position + 1} из ${pages.size}"
+                        Log.d(TAG, "Текущая страница изменена на: ${position + 1}")
+                        
+                        // Save page progress dynamically
+                        sharedPrefs.edit().putInt("book_page_$bookId", position).apply()
+                    }
+                })
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Ошибка во время чтения/отображения книги", e)
+                Toast.makeText(this@ReaderActivity, "Ошибка чтения: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                finish()
+            }
+        }
+    }
+
+    private fun readBookFile(file: File): String {
+        val bytes = file.readBytes()
+        return decodeBytesWithLogs(bytes, file.name)
+    }
+
+    private fun readZipFile(file: File): String {
+        FileInputStream(file).use { fis ->
+            ZipInputStream(fis).use { zis ->
+                var entry = zis.nextEntry
+                while (entry != null) {
+                    val entryName = entry.name.lowercase()
+                    if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".txt"))) {
+                        Log.d(TAG, "Найдена книга в архиве: $entryName")
+                        val bytes = zis.readBytes()
+                        return decodeBytesWithLogs(bytes, entryName)
+                    }
+                    entry = zis.nextEntry
                 }
             }
         }
+        throw IllegalArgumentException("Книга не найдена внутри архива ZIP")
+    }
 
-        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                viewModel.setCurrentPage(position)
+    private fun decodeBytesWithLogs(bytes: ByteArray, fileName: String): String {
+        // 1. Try checking for XML encoding attribute
+        var encodingHeader: String? = null
+        try {
+            val previewSize = if (bytes.size > 1024) 1024 else bytes.size
+            val preview = String(bytes, 0, previewSize, StandardCharsets.ISO_8859_1)
+            val match = """encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(preview)
+            if (match != null) {
+                encodingHeader = match.groupValues[1].trim()
+                Log.d(TAG, "Обнаружена кодировка в заголовке XML: $encodingHeader")
             }
-        })
-    }
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка декодирования заголовка", e)
+        }
 
-    private fun recalculateDimensions() {
-        val screenWidth = rootLayout.width
-        val screenHeight = rootLayout.height
-        if (screenWidth > 0 && screenHeight > 0) {
-            val currentDensity = resources.displayMetrics.density
-            val isMarginsEnabled = viewModel.pageMarginsState.value
-            val sideMarginDp = if (isMarginsEnabled) 16 else 6
-            val bottomMarginDp = if (isMarginsEnabled) 48 else 32
-            
-            val topPadding = (54 * currentDensity).toInt()
-            val leftPadding = (sideMarginDp * currentDensity).toInt()
-            val rightPadding = (sideMarginDp * currentDensity).toInt()
-            val bottomPadding = (bottomMarginDp * currentDensity).toInt()
-            
-            val availableW = screenWidth - leftPadding - rightPadding
-            val availableH = screenHeight - topPadding - bottomPadding
-            
-            if (availableW > 0 && availableH > 0) {
-                viewModel.updateDimensions(availableW, availableH, currentDensity)
+        if (encodingHeader != null) {
+            try {
+                val charset = Charset.forName(encodingHeader)
+                Log.d(TAG, "Определение кодировки: успешно определена как $encodingHeader")
+                val content = String(bytes, charset)
+                return if (fileName.endsWith(".fb2")) parseFb2(content) else content
+            } catch (e: Exception) {
+                Log.w(TAG, "Не удалось декодировать используя заголовок кодировки $encodingHeader. Пробуем фоллбеки.", e)
             }
         }
-    }
 
-    private fun updatePageIndicator(currentPage: Int, totalPages: Int) {
-        pageIndicator.text = "${currentPage + 1} из $totalPages"
-    }
-
-    private fun updateChapterInfo(currentPage: Int, totalPages: Int) {
-        val book = viewModel.bookState.value
-        val seriesOrCat = book?.series ?: book?.category ?: "Книга"
-        chapterInfoText.text = "$seriesOrCat  . - стр. ${currentPage + 1} / $totalPages"
-    }
-
-    private fun applyTheme(theme: String) {
-        val colorHex = when (theme) {
-            "night" -> "#1a1a1a"
-            "sepia" -> "#f4ecd8"
-            else -> "#f5f0e8"
+        // 2. Try UTF-8
+        Log.d(TAG, "Определение кодировки: пробуем UTF-8...")
+        try {
+            val decoder = StandardCharsets.UTF_8.newDecoder()
+            decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            val charBuffer = decoder.decode(java.nio.ByteBuffer.wrap(bytes))
+            Log.d(TAG, "Определение кодировки: успешно определена как UTF-8")
+            val content = charBuffer.toString()
+            return if (fileName.endsWith(".fb2")) parseFb2(content) else content
+        } catch (e: Exception) {
+            Log.d(TAG, "Определение кодировки: UTF-8 не подошла")
         }
-        val textColorHex = when (theme) {
-            "night" -> "#80e0e0e0"
-            "sepia" -> "#805c4033"
-            else -> "#803a3a3a"
+
+        // 3. Try Windows-1251
+        Log.d(TAG, "Определение кодировки: пробуем windows-1251...")
+        try {
+            val charset = Charset.forName("windows-1251")
+            Log.d(TAG, "Определение кодировки: успешно определена как windows-1251")
+            val content = String(bytes, charset)
+            return if (fileName.endsWith(".fb2")) parseFb2(content) else content
+        } catch (e: Exception) {
+            Log.d(TAG, "Определение кодировки: windows-1251 не подошла")
         }
-        val backgroundColor = Color.parseColor(colorHex)
-        rootLayout.setBackgroundColor(backgroundColor)
-        pageIndicator.setTextColor(Color.parseColor(textColorHex))
+
+        // 4. Try KOI8-R
+        Log.d(TAG, "Определение кодировки: пробуем KOI8-R...")
+        try {
+            val charset = Charset.forName("KOI8-R")
+            Log.d(TAG, "Определение кодировки: успешно определена как KOI8-R")
+            val content = String(bytes, charset)
+            return if (fileName.endsWith(".fb2")) parseFb2(content) else content
+        } catch (e: Exception) {
+            Log.d(TAG, "Определение кодировки: KOI8-R не подошла")
+        }
+
+        // Default fallback to ISO-8859-1
+        Log.w(TAG, "Определение кодировки: кодировка не определена, используем ISO-8859-1 по умолчанию")
+        val content = String(bytes, StandardCharsets.ISO_8859_1)
+        return if (fileName.endsWith(".fb2")) parseFb2(content) else content
+    }
+
+    private fun parseFb2(rawText: String): String {
+        Log.d(TAG, "Запуск парсера FB2...")
+        val bodyStart = rawText.indexOf("<body>", ignoreCase = true)
+        val bodyEnd = rawText.lastIndexOf("</body>", ignoreCase = true)
+        val bodyContent = if (bodyStart != -1 && bodyEnd > bodyStart) {
+            rawText.substring(bodyStart + 6, bodyEnd)
+        } else {
+            rawText
+        }
+
+        // Strip binaries
+        var clean = bodyContent.replace("""<binary[^>]*>[\s\S]*?</binary>""".toRegex(RegexOption.IGNORE_CASE), "")
+        // Handle chapters/titles
+        clean = clean.replace("""<title[^>]*>""".toRegex(RegexOption.IGNORE_CASE), "\u000C\n")
+        clean = clean.replace("""</title>""".toRegex(RegexOption.IGNORE_CASE), "\n\n")
+        // Handle paragraphs
+        clean = clean.replace("""<p[^>]*>""".toRegex(RegexOption.IGNORE_CASE), "    ")
+        clean = clean.replace("""</p>""".toRegex(RegexOption.IGNORE_CASE), "\n")
+        // Remove remaining tags
+        clean = clean.replace("<[^>]*>".toRegex(), "")
+
+        // Normalize white spaces
+        clean = clean.replace("\r", "")
+        clean = clean.replace("\n{3,}".toRegex(), "\n\n")
         
-        // Ensure system status and navigation bars are fully transparent and inherit rootLayout background
-        window.statusBarColor = Color.TRANSPARENT
-        window.navigationBarColor = Color.TRANSPARENT
-        
-        // Setup light status bar text/icons or dark status bar text/icons dynamically based on the current theme
-        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
-        windowInsetsController.isAppearanceLightStatusBars = (theme != "night")
-        windowInsetsController.isAppearanceLightNavigationBars = (theme != "night")
+        return clean.lines().joinToString("\n") { line ->
+            if (line.trim().isEmpty()) ""
+            else {
+                val indent = line.takeWhile { it.isWhitespace() }
+                val trimmed = line.substring(indent.length).replace("\\s+".toRegex(), " ")
+                indent + trimmed
+            }
+        }.trim()
+    }
+
+    private fun splitContentToPages(content: String): List<String> {
+        val result = mutableListOf<String>()
+        val pageSize = 2000
+        var start = 0
+        val length = content.length
+
+        while (start < length) {
+            val end = (start + pageSize).coerceAtMost(length)
+            result.add(content.substring(start, end))
+            start += pageSize
+        }
+        return result
     }
 
     fun toggleSystemUi() {
-        if (isSystemUiVisible) {
-            hideSystemUi()
-            hideControlPanels()
-            hideSettingsPanel()
-        } else {
-            showSystemUi()
-            showControlPanels()
-        }
-    }
-
-    private fun hideSystemUi() {
-        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
-        windowInsetsController.systemBarsBehavior =
-            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
-        isSystemUiVisible = false
-    }
-
-    private fun showSystemUi() {
-        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
-        windowInsetsController.show(WindowInsetsCompat.Type.systemBars())
-        isSystemUiVisible = true
-    }
-
-    private fun showControlPanels() {
-        topControlBar.visibility = View.VISIBLE
-        topControlBar.animate().alpha(1f).setDuration(200).start()
-        
-        bottomControlBar.visibility = View.VISIBLE
-        bottomControlBar.animate().alpha(1f).setDuration(200).start()
-    }
-
-    private fun hideControlPanels() {
-        topControlBar.animate().alpha(0f).setDuration(200).withEndAction {
-            topControlBar.visibility = View.GONE
-        }.start()
-        
-        bottomControlBar.animate().alpha(0f).setDuration(200).withEndAction {
-            bottomControlBar.visibility = View.GONE
-        }.start()
-    }
-
-    private fun showSettingsPanel() {
-        settingsPanelContainer.visibility = View.VISIBLE
-        settingsPanelContainer.animate().alpha(1f).setDuration(200).start()
-        isSettingsPanelVisible = true
-    }
-
-    private fun hideSettingsPanel() {
-        settingsPanelContainer.animate().alpha(0f).setDuration(200).withEndAction {
-            settingsPanelContainer.visibility = View.GONE
-        }.start()
-        isSettingsPanelVisible = false
-    }
-
-    // --- BRIGHTNESS GESTURE CONTROL PANEL ---
-    private fun showBrightnessOverlay(percentage: Int) {
-        fadeJob?.cancel()
-        brightnessProgressBar.progress = percentage
-        brightnessPercentText.text = "$percentage%"
-        
-        if (brightnessOverlay.visibility != View.VISIBLE) {
-            brightnessOverlay.visibility = View.VISIBLE
-            brightnessOverlay.animate().alpha(1f).setDuration(150).start()
-        } else {
-            brightnessOverlay.alpha = 1f
-        }
-    }
-
-    private fun hideBrightnessOverlayWithDelay() {
-        fadeJob?.cancel()
-        fadeJob = lifecycleScope.launch {
-            kotlinx.coroutines.delay(1000)
-            brightnessOverlay.animate()
-                .alpha(0f)
-                .setDuration(300)
-                .withEndAction {
-                    brightnessOverlay.visibility = View.GONE
-                }
-                .start()
-        }
-    }
-
-    // Intercept touch events along the vertical left/right 70dp edges of screen
-    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        val density = resources.displayMetrics.density
-        val edgeWidthPx = 70 * density
-        val screenWidth = resources.displayMetrics.widthPixels
-        val screenHeight = resources.displayMetrics.heightPixels
-
-        when (ev.action) {
-            MotionEvent.ACTION_DOWN -> {
-                val x = ev.x
-                if (x < edgeWidthPx || x > (screenWidth - edgeWidthPx)) {
-                    maybeDraggingBrightness = true
-                    startX = ev.x
-                    startY = ev.y
-                    
-                    var currentBr = window.attributes.screenBrightness
-                    if (currentBr < 0) {
-                        currentBr = 0.5f
-                    }
-                    initialBrightness = currentBr
-                } else {
-                    maybeDraggingBrightness = false
-                }
-            }
-            MotionEvent.ACTION_MOVE -> {
-                if (maybeDraggingBrightness) {
-                    val deltaX = Math.abs(ev.x - startX)
-                    val deltaY = ev.y - startY
-                    val absDeltaY = Math.abs(deltaY)
-                    
-                    if (!isDraggingBrightness && absDeltaY > touchSlop && absDeltaY > deltaX) {
-                        isDraggingBrightness = true
-                        showBrightnessOverlay((initialBrightness * 100).toInt())
-                    }
-                    
-                    if (isDraggingBrightness) {
-                        val sensitivityFactor = 1.2f
-                        val brightnessChange = (-deltaY / screenHeight) * sensitivityFactor
-                        val newBrightness = (initialBrightness + brightnessChange).coerceIn(0.01f, 1.0f)
-                        
-                        val lp = window.attributes
-                        lp.screenBrightness = newBrightness
-                        window.attributes = lp
-                        
-                        showBrightnessOverlay((newBrightness * 100).toInt())
-                        return true // Intercept event to prevent ViewPager horizontal swiping
-                    }
-                }
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                if (isDraggingBrightness) {
-                    isDraggingBrightness = false
-                    maybeDraggingBrightness = false
-                    
-                    val finalBrightness = window.attributes.screenBrightness
-                    if (finalBrightness >= 0f) {
-                        getSharedPreferences("reader_prefs", MODE_PRIVATE)
-                            .edit()
-                            .putFloat("saved_brightness", finalBrightness)
-                            .apply()
-                    }
-                    
-                    hideBrightnessOverlayWithDelay()
-                    return true
-                }
-                maybeDraggingBrightness = false
-            }
-        }
-        return super.dispatchTouchEvent(ev)
-    }
-
-    // Turn pages using volume hardware buttons
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        return when (keyCode) {
-            KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                val nextPage = viewPager.currentItem + 1
-                if (nextPage < (viewPager.adapter?.itemCount ?: 0)) {
-                    viewPager.setCurrentItem(nextPage, true)
-                }
-                true
-            }
-            KeyEvent.KEYCODE_VOLUME_UP -> {
-                val prevPage = viewPager.currentItem - 1
-                if (prevPage >= 0) {
-                    viewPager.setCurrentItem(prevPage, true)
-                }
-                true
-            }
-            else -> super.onKeyDown(keyCode, event)
-        }
+        isSystemUiVisible = !isSystemUiVisible
+        topBar.visibility = if (isSystemUiVisible) View.VISIBLE else View.GONE
+        bottomBar.visibility = if (isSystemUiVisible) View.VISIBLE else View.GONE
     }
 
     override fun onPause() {
         super.onPause()
-        viewModel.saveProgress()
-    }
-}
-
-class BookPageTransformer : ViewPager2.PageTransformer {
-    override fun transformPage(view: View, position: Float) {
-        val pageWidth = view.width
-
-        when {
-            position < -1 -> {
-                view.alpha = 0f
-            }
-            position <= 0 -> {
-                view.alpha = 1f
-                view.translationX = 0f
-                view.translationZ = 0f
-                view.scaleX = 1f
-                view.scaleY = 1f
-            }
-            position <= 1 -> {
-                view.alpha = 1f - position
-                view.translationX = pageWidth * -position
-                view.translationZ = -1f
-
-                val scaleFactor = 0.85f + (1f - 0.85f) * (1f - Math.abs(position))
-                view.scaleX = scaleFactor
-                view.scaleY = scaleFactor
-            }
-            else -> {
-                view.alpha = 0f
-            }
+        // Ensure current page is preserved on pause
+        if (pages.isNotEmpty() && bookId != -1) {
+            val currentPageIndex = viewPager.currentItem
+            val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
+            sharedPrefs.edit().putInt("book_page_$bookId", currentPageIndex).apply()
+            Log.d(TAG, "Сохранена позиция при паузе: страница ${currentPageIndex + 1}")
         }
     }
 }
