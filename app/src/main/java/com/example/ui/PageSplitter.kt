@@ -16,6 +16,7 @@ object PageSplitter {
     /**
      * Splits the book content into pages of text that fit within the given height and width.
      * Honors form-feed characters (\u000C) as page breaks for starting new chapters on new pages.
+     * Uses exact StaticLayout line bottom measurements to guarantee text fits the vertical height.
      */
     fun splitText(
         text: String,
@@ -25,7 +26,7 @@ object PageSplitter {
         lineSpacing: Float,
         alignment: String = "justify"
     ): PageResult {
-        Log.d(TAG, "splitText called with width: $availableWidth, height: $availableHeight, lineSpacing: $lineSpacing")
+        Log.d(TAG, "splitText called: availableWidth=$availableWidth, availableHeight=$availableHeight, lineSpacing=$lineSpacing")
         
         val pages = mutableListOf<String>()
         val offsets = mutableListOf<Int>()
@@ -34,28 +35,24 @@ object PageSplitter {
             return PageResult(listOf("Документ пуст."), listOf(0))
         }
 
-        // Calculate max lines that fit vertically on the screen
-        val fontHeight = paint.fontSpacing * lineSpacing
-        val maxLines = (availableHeight / fontHeight).toInt().coerceAtLeast(1)
-        Log.d(TAG, "Font height: $fontHeight, Max lines per page: $maxLines")
-
         var start = 0
         val textLength = text.length
+
+        val alignmentVal = when (alignment) {
+            "left" -> Layout.Alignment.ALIGN_NORMAL
+            "right" -> Layout.Alignment.ALIGN_OPPOSITE
+            "center" -> Layout.Alignment.ALIGN_CENTER
+            else -> Layout.Alignment.ALIGN_NORMAL
+        }
 
         while (start < textLength) {
             offsets.add(start)
 
-            // 1. Create a layout of the remaining text to measure line ends
-            val alignmentVal = when (alignment) {
-                "left" -> Layout.Alignment.ALIGN_NORMAL
-                "right" -> Layout.Alignment.ALIGN_OPPOSITE
-                "center" -> Layout.Alignment.ALIGN_CENTER
-                else -> Layout.Alignment.ALIGN_NORMAL
-            }
-
+            // 1. Determine a segment of text to measure
             var chunkSize = 8000
             var tempLayout: StaticLayout
             var measureEnd: Int
+            
             while (true) {
                 measureEnd = (start + chunkSize).coerceAtMost(textLength)
                 tempLayout = StaticLayout.Builder.obtain(
@@ -66,20 +63,50 @@ object PageSplitter {
                 .setIncludePad(false)
                 .build()
                 
-                if (tempLayout.lineCount >= maxLines || measureEnd == textLength) {
+                // Check if all lines fit within the available height
+                var fitsAll = true
+                for (i in 0 until tempLayout.lineCount) {
+                    if (tempLayout.getLineBottom(i) > availableHeight) {
+                        fitsAll = false
+                        break
+                    }
+                }
+                
+                // If the entire chunk fits and there is more text, double the chunk size to scan further
+                if (fitsAll && measureEnd < textLength) {
+                    chunkSize *= 2
+                } else {
                     break
                 }
-                chunkSize *= 2
             }
 
-            val actualLines = tempLayout.lineCount.coerceAtMost(maxLines)
-            var end = tempLayout.getLineEnd(actualLines - 1)
+            // 2. Find the exact number of lines that fit in availableHeight
+            var fitLineCount = 0
+            for (i in 0 until tempLayout.lineCount) {
+                if (tempLayout.getLineBottom(i) <= availableHeight) {
+                    fitLineCount = i + 1
+                } else {
+                    break
+                }
+            }
+            
+            // Safety fallback: fit at least 1 line
+            if (fitLineCount == 0) {
+                fitLineCount = 1
+            }
+
+            var end = tempLayout.getLineEnd(fitLineCount - 1)
+            
+            // Log precise layout metrics to verify correctness as per requirement #5
+            val lastLineBottom = tempLayout.getLineBottom(fitLineCount - 1)
+            Log.d(TAG, "Page Split: start=$start, end=$end, fitLineCount=$fitLineCount, " +
+                    "availableHeight=$availableHeight, actualPageHeight=$lastLineBottom")
 
             if (end <= start) {
                 end = (start + 1).coerceAtMost(textLength)
             }
 
-            // 2. Scan for any manual page/chapter breaks (\u000C) in the current page text block
+            // 3. Scan for manual page/chapter breaks (\u000C) in the current page text block
             var foundChapterBreakIdx = -1
             for (idx in start until end.coerceAtMost(textLength)) {
                 if (text[idx] == '\u000C') {
@@ -96,11 +123,11 @@ object PageSplitter {
                 // Skip the \u000C character on the next iteration
                 start = foundChapterBreakIdx + 1
             } else {
-                // No chapter break in this segment. Apply standard word-boundary refinement.
+                // Apply word-boundary refinement to avoid breaking in the middle of words
                 if (end < textLength) {
                     var spaceIndex = -1
-                    // Search backward for a whitespace to avoid cutting a word in half
-                    for (j in (end - 1) downTo (end - 30).coerceAtLeast(start)) {
+                    // Search backward for whitespace to find a suitable word boundary
+                    for (j in (end - 1) downTo (end - 100).coerceAtLeast(start)) {
                         if (text[j].isWhitespace()) {
                             spaceIndex = j
                             break

@@ -245,7 +245,9 @@ class SettingsBottomSheet : DialogFragment() {
                     value = fontSize,
                     onValueChange = {
                         fontSize = it
-                        SettingsManager.setFontSize(context, it)
+                    },
+                    onValueChangeFinished = {
+                        SettingsManager.setFontSize(context, fontSize)
                     },
                     valueRange = 14f..28f,
                     steps = 14,
@@ -281,7 +283,9 @@ class SettingsBottomSheet : DialogFragment() {
                     value = lineSpacing,
                     onValueChange = {
                         lineSpacing = it
-                        SettingsManager.setLineSpacing(context, it)
+                    },
+                    onValueChangeFinished = {
+                        SettingsManager.setLineSpacing(context, lineSpacing)
                     },
                     valueRange = 1.0f..2.0f,
                     colors = SliderDefaults.colors(

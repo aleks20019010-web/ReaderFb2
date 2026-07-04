@@ -67,6 +67,11 @@ class ReaderActivity : FragmentActivity() {
     private var bookPath: String? = null
     private var pages: List<String> = emptyList()
     private var rawBookContent: String? = null
+    private var lastFontSize = 0f
+    private var lastFontFamily = ""
+    private var lastFontWeight = ""
+    private var lastLineSpacing = 0f
+    private var preprocessedText: String? = null
 
     // Gestures and touch detection
     private lateinit var gestureDetector: android.view.GestureDetector
@@ -101,13 +106,35 @@ class ReaderActivity : FragmentActivity() {
             com.example.data.SettingsManager.settingsChanged.collect {
                 Log.d(TAG, "Settings changed flow triggered!")
                 applyThemeColors()
+                
+                val fontSize = com.example.data.SettingsManager.getFontSize(this@ReaderActivity)
+                val fontFamily = com.example.data.SettingsManager.getFontFamily(this@ReaderActivity)
+                val fontWeight = com.example.data.SettingsManager.getFontWeight(this@ReaderActivity)
+                val lineSpacingMultiplier = com.example.data.SettingsManager.getLineSpacing(this@ReaderActivity)
+
+                val layoutChanged = fontSize != lastFontSize ||
+                        fontFamily != lastFontFamily ||
+                        fontWeight != lastFontWeight ||
+                        lineSpacingMultiplier != lastLineSpacing
+
+                lastFontSize = fontSize
+                lastFontFamily = fontFamily
+                lastFontWeight = fontWeight
+                lastLineSpacing = lineSpacingMultiplier
+
                 val content = rawBookContent
                 if (content != null) {
-                    val currentPos = if (pages.isNotEmpty()) viewPager.currentItem else 0
-                    processAndDisplayContent(content)
-                    if (pages.isNotEmpty()) {
-                        val targetPage = currentPos.coerceIn(0, pages.size - 1)
-                        viewPager.setCurrentItem(targetPage, false)
+                    if (layoutChanged) {
+                        val currentPos = if (pages.isNotEmpty()) viewPager.currentItem else 0
+                        processAndDisplayContent(content)
+                        if (pages.isNotEmpty()) {
+                            val targetPage = currentPos.coerceIn(0, pages.size - 1)
+                            viewPager.setCurrentItem(targetPage, false)
+                        }
+                    } else {
+                        // Only theme colors changed, notify existing fragments
+                        val adapter = viewPager.adapter as? BookPagerAdapter
+                        adapter?.notifyDataSetChanged()
                     }
                 }
             }
@@ -688,6 +715,7 @@ class ReaderActivity : FragmentActivity() {
     private fun loadBook(path: String) {
         Log.d("READING_DEBUG", "READING_DEBUG: Начало loadBook(path) по пути: $path")
         progressBar.visibility = View.VISIBLE
+        preprocessedText = null
         lifecycleScope.launch {
             try {
                 Log.d("READING_DEBUG", "Шаг 2 [Чтение]: Проверка существования файла...")
@@ -750,6 +778,7 @@ class ReaderActivity : FragmentActivity() {
     private fun loadBookWithContent(content: String, sourceName: String) {
         Log.d("READING_DEBUG", "READING_DEBUG: Начало loadBookWithContent() для источника $sourceName")
         progressBar.visibility = View.VISIBLE
+        preprocessedText = null
         lifecycleScope.launch {
             try {
                 Log.d("READING_DEBUG", "Шаг 2 [Встроенный текст]: Обработка встроенного текста (длина: ${content.length})")
@@ -776,8 +805,12 @@ class ReaderActivity : FragmentActivity() {
         try {
             pages = withContext(Dispatchers.Default) {
                 try {
-                    Log.d("READING_DEBUG", "Шаг 3.1 [Разбивка]: Препроцессинг и перенос слов...")
-                    val formattedText = preprocessTextAndHyphenate(rawContent)
+                    val formattedText = preprocessedText ?: run {
+                        Log.d("READING_DEBUG", "Шаг 3.1 [Разбивка]: Препроцессинг и перенос слов...")
+                        val res = preprocessTextAndHyphenate(rawContent)
+                        preprocessedText = res
+                        res
+                    }
                     Log.d("READING_DEBUG", "Шаг 3.2 [Разбивка]: Разбивка текста на страницы через PageSplitter...")
                     splitContentToPages(formattedText, vpWidth, vpHeight)
                 } catch (e: Exception) {
@@ -793,11 +826,16 @@ class ReaderActivity : FragmentActivity() {
                 return
             }
 
-            Log.d("READING_DEBUG", "Шаг 4 [Отображение]: Инициализация BookPagerAdapter и настройка UI")
+            Log.d("READING_DEBUG", "Шаг 4 [Отображение]: Настройка BookPagerAdapter и UI")
             progressBar.visibility = View.GONE
 
-            val adapter = BookPagerAdapter(this@ReaderActivity, pages)
-            viewPager.adapter = adapter
+            val activeAdapter = viewPager.adapter as? BookPagerAdapter
+            if (activeAdapter != null) {
+                activeAdapter.updatePages(pages)
+            } else {
+                val newAdapter = BookPagerAdapter(this@ReaderActivity, pages)
+                viewPager.adapter = newAdapter
+            }
 
             seekBar.max = (pages.size - 1).coerceAtLeast(0)
 

@@ -48,7 +48,7 @@ class PageFragment : Fragment() {
             else -> Pair("#f5f0e8", "#2C2C2C")
         }
 
-                val paddingBottom = (10 * density).toInt()
+        val paddingBottom = (12 * density).toInt()
 
         val view = inflater.inflate(com.example.R.layout.fragment_page, container, false)
         val root = view.findViewById<FrameLayout>(com.example.R.id.rootContainer).apply {
@@ -105,10 +105,12 @@ class PageFragment : Fragment() {
             gravity = Gravity.TOP or Gravity.START
         }
 
-                // Dynamic padding adjustment under display cutout / camera notch
+        // Dynamic padding adjustment under display cutout / camera notch
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
             val displayCutoutInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
-            val topPadding = maxOf(displayCutoutInsets.top, (12 * density).toInt())
+            val statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
+            val topPadding = maxOf(topInset, (12 * density).toInt())
             
             textView.setPadding(padding16, topPadding, padding16, paddingBottom)
             insets
