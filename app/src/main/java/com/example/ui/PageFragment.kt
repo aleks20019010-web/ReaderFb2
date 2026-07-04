@@ -9,6 +9,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 
 class PageFragment : Fragment() {
@@ -35,8 +37,8 @@ class PageFragment : Fragment() {
 
         val (bgColor, textColor) = when (themeName) {
             "light" -> Pair("#FFFFFF", "#121212")
-            "dark" -> Pair("#121212", "#E0E0E0")
-            else -> Pair("#FAF6EE", "#2C2C2C") // sepia / warm paper
+            "dark" -> Pair("#1a1a1a", "#E0E0E0")
+            else -> Pair("#f5f0e8", "#2C2C2C") // sepia / warm paper
         }
 
         val root = FrameLayout(context).apply {
@@ -69,6 +71,16 @@ class PageFragment : Fragment() {
         }
 
         root.addView(textView)
+
+        // Dynamic padding adjustment under display cutout / camera notch
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val displayCutoutInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
+            val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
+            
+            textView.setPadding(padding16, padding16 + topInset, padding16, padding16)
+            insets
+        }
 
         // Single tap to toggle UI controls in the parent Activity
         val clickListener = View.OnClickListener {

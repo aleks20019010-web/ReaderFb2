@@ -18,6 +18,10 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
@@ -84,6 +88,12 @@ class ReaderActivity : FragmentActivity() {
     }
 
     private fun setupLayout() {
+        // Enable edge-to-edge full-screen display
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+
         val density = resources.displayMetrics.density
         val root = FrameLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(
@@ -244,7 +254,33 @@ class ReaderActivity : FragmentActivity() {
         bottomBar.visibility = View.GONE
         isSystemUiVisible = false
 
+        // Apply WindowInsets safely for Notch, StatusBar and NavigationBar
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val displayCutoutInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
+            val navBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+
+            val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
+
+            // Adjust top bar top padding and height to accommodate status bar and notch
+            topBar.setPadding((16 * density).toInt(), topInset, (16 * density).toInt(), 0)
+            val topParams = topBar.layoutParams as FrameLayout.LayoutParams
+            topParams.height = (56 * density).toInt() + topInset
+            topBar.layoutParams = topParams
+
+            // Adjust bottom bar bottom padding to accommodate system navigation controls
+            bottomBar.setPadding(
+                (16 * density).toInt(),
+                (8 * density).toInt(),
+                (16 * density).toInt(),
+                (8 * density).toInt() + navBarInsets.bottom
+            )
+
+            insets
+        }
+
         setContentView(root)
+        hideSystemUi()
     }
 
     private fun createPanelButton(context: Context, text: String, onClick: View.OnClickListener): TextView {
@@ -303,15 +339,15 @@ class ReaderActivity : FragmentActivity() {
                 borderHex = "#E0E0E0"
             }
             "dark" -> {
-                bgColorHex = "#121212"
+                bgColorHex = "#1a1a1a"
                 textColorHex = "#E0E0E0"
                 panelBgHex = "#1E1E1E"
                 borderHex = "#2D2D2D"
             }
             "sepia" -> {
-                bgColorHex = "#FAF6EE"
+                bgColorHex = "#f5f0e8"
                 textColorHex = "#2C2C2C"
-                panelBgHex = "#FAF6EE"
+                panelBgHex = "#f5f0e8"
                 borderHex = "#E0DCD3"
             }
         }
@@ -323,6 +359,11 @@ class ReaderActivity : FragmentActivity() {
         
         findViewById<View>(android.R.id.content)?.setBackgroundColor(bgColor)
         viewPager.setBackgroundColor(bgColor)
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(bgColor))
+        window.decorView.setBackgroundColor(bgColor)
+        
+        // Update status bar and navigation bar colors
+        updateSystemBarsColors(themeName == "dark")
         
         // Style Top Bar
         topBar.background = GradientDrawable().apply {
@@ -355,6 +396,52 @@ class ReaderActivity : FragmentActivity() {
         }
     }
 
+    private fun updateSystemBarsColors(isNightMode: Boolean) {
+        val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
+        val themeName = sharedPrefs.getString("theme", "sepia") ?: "sepia"
+        val bgColorHex = when (themeName) {
+            "light" -> "#FFFFFF"
+            "dark" -> "#1a1a1a"
+            else -> "#f5f0e8" // sepia / warm paper
+        }
+        val bgColor = Color.parseColor(bgColorHex)
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = bgColor
+            window.navigationBarColor = bgColor
+        }
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            val controller = window.insetsController
+            if (controller != null) {
+                val statusFlag = if (themeName == "dark") 0 else android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                val navFlag = if (themeName == "dark") 0 else android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+                controller.setSystemBarsAppearance(statusFlag, android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS)
+                controller.setSystemBarsAppearance(navFlag, android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS)
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            var flags = window.decorView.systemUiVisibility
+            flags = flags or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                flags = if (themeName == "dark") {
+                    flags and android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+                } else {
+                    flags or android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                }
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                flags = if (themeName == "dark") {
+                    flags and android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+                } else {
+                    flags or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                }
+            }
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = flags
+        }
+    }
+
     private fun refreshAdapter() {
         if (pages.isNotEmpty()) {
             val currentPos = viewPager.currentItem
@@ -364,19 +451,27 @@ class ReaderActivity : FragmentActivity() {
         }
     }
 
+    private fun showErrorAndExit(message: String) {
+        progressBar.visibility = View.GONE
+        Toast.makeText(this@ReaderActivity, message, Toast.LENGTH_LONG).show()
+        lifecycleScope.launch {
+            kotlinx.coroutines.delay(2000)
+            finish()
+        }
+    }
+
     private fun loadBookContent() {
         lifecycleScope.launch {
             try {
-                Log.d(TAG, "Шаг 1: Получение пути к книге...")
+                Log.d(TAG, "Шаг 1: Получение пути к книге из БД... ID книги = $bookId")
                 val db = AppDatabase.getDatabase(this@ReaderActivity)
                 val book = withContext(Dispatchers.IO) {
                     db.bookDao().getBookById(bookId)
                 }
 
                 if (book == null) {
-                    Log.e(TAG, "Книга с id=$bookId не найдена в базе данных")
-                    Toast.makeText(this@ReaderActivity, "Книга не найдена в базе", Toast.LENGTH_SHORT).show()
-                    finish()
+                    Log.e(TAG, "Ошибка: Книга с id=$bookId не найдена в базе данных")
+                    showErrorAndExit("Ошибка: Книга не найдена в базе данных")
                     return@launch
                 }
 
@@ -386,30 +481,39 @@ class ReaderActivity : FragmentActivity() {
                 val path = book.filePath
 
                 if (!path.isNullOrEmpty()) {
-                    Log.d(TAG, "Шаг 2: Проверка существования файла...")
+                    Log.d(TAG, "Шаг 2: Проверка существования и доступности файла по пути: $path")
                     val file = File(path)
                     if (!file.exists()) {
-                        Log.e(TAG, "Файл не найден по пути: $path")
-                        Toast.makeText(this@ReaderActivity, "Файл не найден", Toast.LENGTH_SHORT).show()
-                        finish()
+                        Log.e(TAG, "Ошибка: Файл не найден по пути: $path")
+                        showErrorAndExit("Ошибка: Файл книги не найден")
+                        return@launch
+                    }
+
+                    if (!file.canRead()) {
+                        Log.e(TAG, "Ошибка: Нет прав на чтение файла: $path")
+                        showErrorAndExit("Ошибка: Нет прав на чтение файла книги")
                         return@launch
                     }
 
                     val size = file.length()
-                    Log.d(TAG, "Файл существует. Размер: $size байт, Путь: $path")
+                    Log.d(TAG, "Файл доступен. Размер: $size байт, Путь: $path")
                     if (size == 0L) {
-                        Log.e(TAG, "Книга пуста (0 байт)")
-                        Toast.makeText(this@ReaderActivity, "Книга пуста", Toast.LENGTH_SHORT).show()
-                        finish()
+                        Log.e(TAG, "Ошибка: Файл книги пуст (0 байт)")
+                        showErrorAndExit("Ошибка: Файл книги пуст")
                         return@launch
                     }
 
                     Log.d(TAG, "Шаг 3: Определение кодировки и чтение содержимого...")
                     rawContent = withContext(Dispatchers.IO) {
-                        if (path.lowercase().endsWith(".zip")) {
-                            readZipFile(file)
-                        } else {
-                            readBookFile(file)
+                        try {
+                            if (path.lowercase().endsWith(".zip")) {
+                                readZipFile(file)
+                            } else {
+                                readBookFile(file)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Ошибка во время чтения/распаковки файла", e)
+                            throw Exception("Файл поврежден или не поддерживается: ${e.localizedMessage}")
                         }
                     }
                 } else {
@@ -417,30 +521,32 @@ class ReaderActivity : FragmentActivity() {
                     rawContent = book.content
                 }
 
-                Log.d(TAG, "Шаг 4: Чтение содержимого выполнено. Количество символов: ${rawContent.length}")
+                Log.d(TAG, "Шаг 4: Чтение содержимого выполнено. Длина текста: ${rawContent.length} символов")
                 if (rawContent.trim().isEmpty()) {
-                    Log.e(TAG, "Содержимое книги пусто")
-                    Toast.makeText(this@ReaderActivity, "Книга пуста", Toast.LENGTH_SHORT).show()
-                    finish()
+                    Log.e(TAG, "Ошибка: Текст книги пуст")
+                    showErrorAndExit("Ошибка: Книга пуста")
                     return@launch
                 }
 
-                Log.d(TAG, "Шаг 5: Разбивка на страницы...")
+                Log.d(TAG, "Шаг 5: Разбивка текста на страницы и применение слогового переноса...")
                 pages = withContext(Dispatchers.Default) {
-                    // Preprocess paragraph structure & apply syllabic hyphenation on a background thread
-                    val formattedText = preprocessTextAndHyphenate(rawContent)
-                    splitContentToPages(formattedText)
+                    try {
+                        val formattedText = preprocessTextAndHyphenate(rawContent)
+                        splitContentToPages(formattedText)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Ошибка во время обработки и разбивки текста на страницы", e)
+                        throw Exception("Не удалось обработать текст: ${e.localizedMessage}")
+                    }
                 }
 
-                Log.d(TAG, "Количество страниц: ${pages.size}")
+                Log.d(TAG, "Результат разбивки: получено ${pages.size} страниц")
                 if (pages.isEmpty()) {
-                    Log.e(TAG, "Не удалось разбить текст на страницы (0 страниц)")
-                    Toast.makeText(this@ReaderActivity, "Не удалось разбить текст", Toast.LENGTH_SHORT).show()
-                    finish()
+                    Log.e(TAG, "Ошибка: Разбивка вернула 0 страниц")
+                    showErrorAndExit("Ошибка: Не удалось разбить текст на страницы")
                     return@launch
                 }
 
-                Log.d(TAG, "Шаг 6: Передача данных в адаптер...")
+                Log.d(TAG, "Шаг 6: Инициализация и передача данных в адаптер...")
                 progressBar.visibility = View.GONE
 
                 val adapter = BookPagerAdapter(this@ReaderActivity, pages)
@@ -486,9 +592,8 @@ class ReaderActivity : FragmentActivity() {
                 })
 
             } catch (e: Exception) {
-                Log.e(TAG, "Ошибка во время чтения/отображения книги", e)
-                Toast.makeText(this@ReaderActivity, "Ошибка чтения: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                finish()
+                Log.e(TAG, "Общая ошибка при загрузке/отображении книги", e)
+                showErrorAndExit("Ошибка: ${e.localizedMessage}")
             }
         }
     }
@@ -714,6 +819,13 @@ class ReaderActivity : FragmentActivity() {
         isSystemUiVisible = false
         hideHandler.removeCallbacks(hideRunnable)
 
+        // Immersive full screen: hide status and navigation bars using WindowInsetsControllerCompat
+        val window = this.window
+        val decorView = window.decorView
+        val controller = WindowCompat.getInsetsController(window, decorView)
+        controller.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
         val density = resources.displayMetrics.density
         val topTargetY = -(topBar.height.toFloat().takeIf { it > 0 } ?: (56 * density))
         val bottomTargetY = (bottomBar.height.toFloat().takeIf { it > 0 } ?: (150 * density))
@@ -746,6 +858,12 @@ class ReaderActivity : FragmentActivity() {
     private fun showSystemUi() {
         isSystemUiVisible = true
         hideHandler.removeCallbacks(hideRunnable)
+
+        // Show status and navigation bars using WindowInsetsControllerCompat
+        val window = this.window
+        val decorView = window.decorView
+        val controller = WindowCompat.getInsetsController(window, decorView)
+        controller.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
 
         val density = resources.displayMetrics.density
         val topStartY = -(topBar.height.toFloat().takeIf { it > 0 } ?: (56 * density))
