@@ -184,18 +184,20 @@ class ReaderActivity : FragmentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent?): Boolean {
-        if (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) {
-            val currentItem = viewPager.currentItem
-            if (currentItem < (viewPager.adapter?.itemCount ?: 0) - 1) {
-                viewPager.setCurrentItem(currentItem + 1, true)
+        if (::viewPager.isInitialized) {
+            if (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) {
+                val currentItem = viewPager.currentItem
+                if (currentItem < (viewPager.adapter?.itemCount ?: 0) - 1) {
+                    viewPager.setCurrentItem(currentItem + 1, true)
+                }
+                return true
+            } else if (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP) {
+                val currentItem = viewPager.currentItem
+                if (currentItem > 0) {
+                    viewPager.setCurrentItem(currentItem - 1, true)
+                }
+                return true
             }
-            return true
-        } else if (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP) {
-            val currentItem = viewPager.currentItem
-            if (currentItem > 0) {
-                viewPager.setCurrentItem(currentItem - 1, true)
-            }
-            return true
         }
         return super.onKeyDown(keyCode, event)
     }

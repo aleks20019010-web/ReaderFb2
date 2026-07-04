@@ -1,58 +1,216 @@
 package com.example.ui
 
+import android.app.Activity
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.launch
+
+enum class ThemeType(val displayName: String) {
+    DAY("День"),
+    NIGHT("Ночь"),
+    SEPIA("Сепия"),
+    SEPIA_CONTRAST("Сепия контраст")
+}
+
+data class ReaderSettings(
+    val themeType: ThemeType = ThemeType.SEPIA_CONTRAST,
+    val fontFamily: String = "Serif",
+    val fontSize: Float = 20f,
+    val fontWeight: Float = 0.5f,
+    val lineHeight: Float = 1.4f,
+    val isHideBars: Boolean = false
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderComposeScreen(
     bookTitle: String = "Орден Архитекторов",
     authorAndChapter: String = "Олег Сапфир, Юрий Винокуров | Глава 11",
-    pageInfo: String = "122 из 239",
     mainText: String = sampleText,
     onBackClick: () -> Unit = {}
 ) {
-    val bgColor = Color(0xFFF5ECD7)
-    val textColor = Color(0xFF333333)
-    val sheetColor = Color(0xFF2C2C2E)
-
-    var isMenuVisible by remember { mutableStateOf(false) }
+    var settings by remember { mutableStateOf(ReaderSettings()) }
     var isSettingsOpen by remember { mutableStateOf(false) }
+    
+    val context = LocalContext.current
+    val view = LocalView.current
+    val window = (context as? Activity)?.window
+    
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val coroutineScope = rememberCoroutineScope()
+
+    // Status bar and nav bar hiding
+    LaunchedEffect(settings.isHideBars) {
+        if (window != null) {
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            WindowCompat.setDecorFitsSystemWindows(window, !settings.isHideBars)
+            if (settings.isHideBars) {
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    val (bgColor, textColor) = when (settings.themeType) {
+        ThemeType.DAY -> Color(0xFFFFFFFF) to Color(0xFF000000)
+        ThemeType.NIGHT -> Color(0xFF121212) to Color(0xFFCCCCCC)
+        ThemeType.SEPIA -> Color(0xFFF5ECD7) to Color(0xFF333333)
+        ThemeType.SEPIA_CONTRAST -> Color(0xFFE8DCC4) to Color(0xFF1A1A1A)
+    }
+
+    val font = when (settings.fontFamily) {
+        "Default" -> FontFamily.Default
+        "Merriweather", "Serif" -> FontFamily.Serif
+        "Roboto", "SansSerif" -> FontFamily.SansSerif
+        "Monospace" -> FontFamily.Monospace
+        else -> FontFamily.Default
+    }
+    
+    // Map slider 0..1 to FontWeight 100..900
+    val weightValue = (settings.fontWeight * 800).toInt() + 100
+    val mappedFontWeight = FontWeight(weightValue.coerceIn(100, 900))
+
+    // Chunk text into pages
+    val pages = remember(mainText, settings.fontSize, settings.lineHeight) {
+        val words = mainText.split(Regex("(?<=\\s)"))
+        val chunks = mutableListOf<String>()
+        val currentChunk = StringBuilder()
+        // Approximation: a page holds fewer characters if font size is larger
+        // Base characters per page at fontSize 20f could be around 600
+        val charsPerPage = (600 * (20f / settings.fontSize) * (1.4f / settings.lineHeight)).toInt().coerceAtLeast(100)
+        
+        for (word in words) {
+            if (currentChunk.length + word.length > charsPerPage) {
+                chunks.add(currentChunk.toString().trimEnd())
+                currentChunk.clear()
+            }
+            currentChunk.append(word)
+        }
+        if (currentChunk.isNotEmpty()) chunks.add(currentChunk.toString().trimEnd())
+        if (chunks.isEmpty()) listOf(mainText) else chunks
+    }
+
+    val pagerState = rememberPagerState(pageCount = { pages.size })
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     Scaffold(
         containerColor = bgColor,
-        topBar = {
-            if (isMenuVisible) {
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        modifier = Modifier
+            .focusRequester(focusRequester)
+            .focusable()
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown) {
+                    when (event.nativeKeyEvent.keyCode) {
+                        android.view.KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                            coroutineScope.launch {
+                                if (pagerState.currentPage < pagerState.pageCount - 1) {
+                                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                }
+                            }
+                            true
+                        }
+                        android.view.KeyEvent.KEYCODE_VOLUME_UP -> {
+                            coroutineScope.launch {
+                                if (pagerState.currentPage > 0) {
+                                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                }
+                            }
+                            true
+                        }
+                        else -> false
+                    }
+                } else false
+            }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            // Main Text Content as HorizontalPager
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onDoubleTap = {
+                                settings = settings.copy(isHideBars = !settings.isHideBars)
+                            }
+                        )
+                    }
+                    .padding(
+                        top = if (settings.isHideBars) 16.dp else 80.dp, 
+                        bottom = if (settings.isHideBars) 16.dp else 80.dp,
+                        start = 16.dp, 
+                        end = 16.dp
+                    )
+            ) { page ->
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = pages[page],
+                        color = textColor,
+                        fontSize = settings.fontSize.sp,
+                        fontFamily = font,
+                        fontWeight = mappedFontWeight,
+                        textAlign = TextAlign.Justify,
+                        lineHeight = (settings.fontSize * settings.lineHeight).sp
+                    )
+                }
+            }
+
+            // Top Panel
+            AnimatedVisibility(
+                visible = !settings.isHideBars,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
                 TopAppBar(
                     title = {
                         Column {
@@ -79,101 +237,62 @@ fun ReaderComposeScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { /* TODO */ }) {
-                            Icon(Icons.Filled.VolumeUp, contentDescription = "Громкость", tint = textColor)
-                        }
-                        IconButton(onClick = { /* TODO */ }) {
-                            Icon(Icons.Filled.Search, contentDescription = "Поиск", tint = textColor)
-                        }
-                        IconButton(onClick = { /* TODO */ }) {
-                            Icon(Icons.Filled.List, contentDescription = "Список", tint = textColor)
-                        }
                         IconButton(onClick = { isSettingsOpen = true }) {
                             Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = textColor)
                         }
-                        IconButton(onClick = { /* TODO */ }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "Меню", tint = textColor)
-                        }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent
-                    )
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                 )
             }
-        },
-        bottomBar = {
-            if (isMenuVisible) {
+
+            // Bottom Panel
+            AnimatedVisibility(
+                visible = !settings.isHideBars,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.Transparent)
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .padding(horizontal = 16.dp, vertical = 24.dp)
                 ) {
                     Text(
-                        text = pageInfo,
+                        text = "${pagerState.currentPage + 1} из ${pagerState.pageCount}",
                         color = textColor,
                         fontSize = 14.sp,
                         modifier = Modifier.align(Alignment.Center)
                     )
-                    Row(
-                        modifier = Modifier.align(Alignment.CenterEnd),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = { /* TODO */ }) {
-                            Icon(Icons.Filled.Sync, contentDescription = "Синхронизация", tint = textColor)
-                        }
-                        IconButton(onClick = { /* TODO */ }) {
-                            Icon(Icons.Filled.Share, contentDescription = "Поделиться", tint = textColor)
-                        }
-                    }
                 }
-            }
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) {
-                    isMenuVisible = !isMenuVisible
-                }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = mainText,
-                    color = textColor,
-                    fontSize = 20.sp, // Approximate mapping to '39' font setting from the screenshot
-                    fontFamily = FontFamily.Serif,
-                    textAlign = TextAlign.Justify,
-                    lineHeight = 28.sp
-                )
             }
         }
     }
 
     if (isSettingsOpen) {
         ModalBottomSheet(
-            onDismissRequest = { isSettingsOpen = false },
+            onDismissRequest = { 
+                isSettingsOpen = false 
+                focusRequester.requestFocus() // Regain focus for volume keys after closing sheet
+            },
             sheetState = sheetState,
-            containerColor = sheetColor,
+            containerColor = Color(0xFF2C2C2E),
             dragHandle = null
         ) {
-            SettingsContent()
+            SettingsContent(
+                settings = settings,
+                onSettingsChange = { settings = it }
+            )
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsContent() {
+fun SettingsContent(
+    settings: ReaderSettings,
+    onSettingsChange: (ReaderSettings) -> Unit
+) {
     val sheetTextColor = Color.White
     val secondaryTextColor = Color.Gray
     val accentColor = Color(0xFFFFC107)
@@ -185,23 +304,55 @@ fun SettingsContent() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "НАСТРОЙКИ EPUB, FB2, MOBI,\nDOC, DOCX, RTF, TXT И CHM",
+            text = "НАСТРОЙКИ ЧТЕНИЯ",
             color = Color(0xFF00BCD4),
             fontSize = 12.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        SettingsDropdown(label = "ЛИСТАТЬ СТРАНИЦЫ", selectedValue = "Горизонтально")
-        SettingsDropdown(label = "ЦВЕТОВАЯ СХЕМА", selectedValue = "Сепия контраст")
-        SettingsDropdown(label = "ШРИФТ", selectedValue = "Merriweather")
-        SettingsStepper(label = "РАЗМЕР ШРИФТА", value = "39")
+        // Dropdown: Тема
+        val themes = ThemeType.values().map { it.displayName }
+        SettingsDropdown(
+            label = "ЦВЕТОВАЯ СХЕМА",
+            selectedValue = settings.themeType.displayName,
+            options = themes,
+            onOptionSelected = { selected ->
+                val type = ThemeType.values().first { it.displayName == selected }
+                onSettingsChange(settings.copy(themeType = type))
+            }
+        )
 
+        // Dropdown: Шрифт
+        val fonts = listOf("Default", "Merriweather", "Roboto", "Serif")
+        SettingsDropdown(
+            label = "ШРИФТ",
+            selectedValue = settings.fontFamily,
+            options = fonts,
+            onOptionSelected = { selected ->
+                onSettingsChange(settings.copy(fontFamily = selected))
+            }
+        )
+
+        // Stepper: Размер шрифта
+        SettingsStepper(
+            label = "РАЗМЕР ШРИФТА",
+            value = Math.round(settings.fontSize).toString(),
+            onDecrease = {
+                if (settings.fontSize > 14f) onSettingsChange(settings.copy(fontSize = settings.fontSize - 1f))
+            },
+            onIncrease = {
+                if (settings.fontSize < 40f) onSettingsChange(settings.copy(fontSize = settings.fontSize + 1f))
+            }
+        )
+
+        // Slider: Жирность шрифта
         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
             Text("ЖИРНОСТЬ ШРИФТА", color = secondaryTextColor, fontSize = 12.sp)
             Slider(
-                value = 0.5f,
-                onValueChange = {},
+                value = settings.fontWeight,
+                onValueChange = { onSettingsChange(settings.copy(fontWeight = it)) },
+                valueRange = 0f..1f,
                 colors = SliderDefaults.colors(
                     thumbColor = accentColor,
                     activeTrackColor = accentColor,
@@ -210,24 +361,51 @@ fun SettingsContent() {
             )
         }
 
-        SettingsStepper(label = "МЕЖСТРОЧНЫЙ ИНТЕРВАЛ", value = "100%")
-        SettingsDropdown(label = "ВЫРАВНИВАТЬ ТЕКСТ ПО", selectedValue = "Ширине + Перенос слов")
-        SettingsSwitch(label = "Две страницы в альбомной\nориентации экрана", checked = true)
-        SettingsSwitch(label = "Поля страниц", checked = false)
+        // Stepper: Межстрочный интервал
+        SettingsStepper(
+            label = "МЕЖСТРОЧНЫЙ ИНТЕРВАЛ",
+            value = String.format("%.1f", settings.lineHeight),
+            onDecrease = {
+                if (settings.lineHeight > 1.0f) onSettingsChange(settings.copy(lineHeight = settings.lineHeight - 0.1f))
+            },
+            onIncrease = {
+                if (settings.lineHeight < 2.0f) onSettingsChange(settings.copy(lineHeight = settings.lineHeight + 0.1f))
+            }
+        )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        TextButton(onClick = { /* TODO */ }) {
-            Text("ОБЩИЕ НАСТРОЙКИ", color = sheetTextColor)
+        // Switch: Скрыть бары
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Скрыть статус-бар и навигацию", color = Color.White, fontSize = 14.sp)
+            Switch(
+                checked = settings.isHideBars,
+                onCheckedChange = { onSettingsChange(settings.copy(isHideBars = it)) },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color(0xFFFFC107),
+                    checkedTrackColor = Color(0xFFFFC107).copy(alpha = 0.5f),
+                    uncheckedThumbColor = Color.Gray,
+                    uncheckedTrackColor = Color.DarkGray
+                )
+            )
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsDropdown(label: String, selectedValue: String) {
+fun SettingsDropdown(
+    label: String,
+    selectedValue: String,
+    options: List<String>,
+    onOptionSelected: (String) -> Unit
+) {
     var expanded by remember { mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Text(label, color = Color.Gray, fontSize = 12.sp)
@@ -240,7 +418,9 @@ fun SettingsDropdown(label: String, selectedValue: String) {
                 onValueChange = {},
                 readOnly = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color.Transparent,
                     unfocusedBorderColor = Color.Transparent,
@@ -255,21 +435,33 @@ fun SettingsDropdown(label: String, selectedValue: String) {
                 onDismissRequest = { expanded = false },
                 modifier = Modifier.background(Color(0xFF3A3A3C))
             ) {
-                DropdownMenuItem(
-                    text = { Text(selectedValue, color = Color.White) },
-                    onClick = { expanded = false }
-                )
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option, color = Color.White) },
+                        onClick = {
+                            onOptionSelected(option)
+                            expanded = false
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun SettingsStepper(label: String, value: String) {
+fun SettingsStepper(
+    label: String,
+    value: String,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Text(label, color = Color.Gray, fontSize = 12.sp)
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -277,7 +469,7 @@ fun SettingsStepper(label: String, value: String) {
                 modifier = Modifier
                     .size(40.dp)
                     .background(Color.Black, shape = CircleShape)
-                    .clickable { },
+                    .clickable { onDecrease() },
                 contentAlignment = Alignment.Center
             ) {
                 Text("–", color = Color.White, fontSize = 24.sp)
@@ -287,33 +479,12 @@ fun SettingsStepper(label: String, value: String) {
                 modifier = Modifier
                     .size(40.dp)
                     .background(Color.Black, shape = CircleShape)
-                    .clickable { },
+                    .clickable { onIncrease() },
                 contentAlignment = Alignment.Center
             ) {
                 Text("+", color = Color.White, fontSize = 24.sp)
             }
         }
-    }
-}
-
-@Composable
-fun SettingsSwitch(label: String, checked: Boolean) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(label, color = Color.White, fontSize = 14.sp)
-        Switch(
-            checked = checked,
-            onCheckedChange = {},
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color(0xFFFFC107),
-                checkedTrackColor = Color(0xFFFFC107).copy(alpha = 0.5f),
-                uncheckedThumbColor = Color.Gray,
-                uncheckedTrackColor = Color.DarkGray
-            )
-        )
     }
 }
 
