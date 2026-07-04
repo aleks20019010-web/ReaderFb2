@@ -50,6 +50,7 @@ class ReaderActivity : FragmentActivity() {
     private lateinit var progressText: TextView
     private lateinit var titleText: TextView
     private lateinit var seekBar: SeekBar
+    private lateinit var readingProgressBar: ProgressBar
 
     private lateinit var backButtonView: TextView
     private lateinit var infoButtonView: TextView
@@ -108,6 +109,8 @@ class ReaderActivity : FragmentActivity() {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
+            // Применяем 3D-анимацию перелистывания страниц (книжный разворот)
+            setPageTransformer(BookFlipPageTransformer())
         }
         root.addView(viewPager)
 
@@ -246,6 +249,20 @@ class ReaderActivity : FragmentActivity() {
         bottomBar.addView(actionsRow)
         root.addView(bottomBar)
 
+        // Thin horizontal progress bar at the bottom representing completed reading progress
+        readingProgressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                (4 * density).toInt()
+            ).apply {
+                gravity = Gravity.BOTTOM
+            }
+            max = 100
+            progress = 0
+            visibility = View.INVISIBLE
+        }
+        root.addView(readingProgressBar)
+
         // Setup theme immediately
         applyThemeColors()
 
@@ -275,6 +292,11 @@ class ReaderActivity : FragmentActivity() {
                 (16 * density).toInt(),
                 (8 * density).toInt() + navBarInsets.bottom
             )
+
+            // Adjust reading progress bar bottom margin to stay above navigation bar
+            val barParams = readingProgressBar.layoutParams as FrameLayout.LayoutParams
+            barParams.bottomMargin = navBarInsets.bottom
+            readingProgressBar.layoutParams = barParams
 
             insets
         }
@@ -388,11 +410,14 @@ class ReaderActivity : FragmentActivity() {
         themeBtn.setTextColor(btnTextColor)
         libraryBtn.setTextColor(btnTextColor)
         
-        // Update SeekBar colors if supported
+        // Update SeekBar and readingProgressBar colors if supported
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             val colorStateList = android.content.res.ColorStateList.valueOf(btnTextColor)
             seekBar.progressTintList = colorStateList
             seekBar.thumbTintList = colorStateList
+            readingProgressBar.progressTintList = colorStateList
+            val trackColor = if (themeName == "dark") Color.parseColor("#33E5A93C") else Color.parseColor("#338E6E36")
+            readingProgressBar.progressBackgroundTintList = android.content.res.ColorStateList.valueOf(trackColor)
         }
     }
 
@@ -564,12 +589,29 @@ class ReaderActivity : FragmentActivity() {
                 seekBar.progress = targetPage
                 progressText.text = "Стр. ${targetPage + 1} из ${pages.size}"
 
+                // Show and initialize the reading progress bar
+                readingProgressBar.visibility = View.VISIBLE
+                val initialProgress = if (pages.size > 0) {
+                    ((targetPage + 1) * 100 / pages.size).coerceIn(0, 100)
+                } else {
+                    0
+                }
+                readingProgressBar.progress = initialProgress
+
                 viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
                     override fun onPageSelected(position: Int) {
                         progressText.text = "Стр. ${position + 1} из ${pages.size}"
                         seekBar.progress = position
                         Log.d(TAG, "Текущая страница изменена на: ${position + 1}")
                         
+                        // Update bottom reading progress bar
+                        val progressPercent = if (pages.size > 0) {
+                            ((position + 1) * 100 / pages.size).coerceIn(0, 100)
+                        } else {
+                            0
+                        }
+                        readingProgressBar.progress = progressPercent
+
                         // Save page progress dynamically
                         sharedPrefs.edit().putInt("book_page_$bookId", position).apply()
                     }
@@ -729,71 +771,8 @@ class ReaderActivity : FragmentActivity() {
             .filter { it.isNotEmpty() }
             .joinToString("\n") { "    $it" }
 
-        // Step B: Inject soft hyphens (\u00AD) into Russian words to enable flawless line-breaks
-        val vowels = "аеёиоуыэюяАЕЁИОУЫЭЮЯ"
-        val special = "ьъйЬЪЙ"
-        val wordRegex = """([а-яА-ЯёЁ]+)""".toRegex()
-
-        return wordRegex.replace(processedParagraphs) { matchResult ->
-            val word = matchResult.value
-            if (word.length < 4 || !word.any { vowels.contains(it) }) {
-                word
-            } else {
-                val sb = java.lang.StringBuilder()
-                var vowelCount = 0
-                val totalVowels = word.count { vowels.contains(it) }
-
-                if (totalVowels <= 1) {
-                    word
-                } else {
-                    for (i in 0 until word.length) {
-                        val char = word[i]
-                        sb.append(char)
-
-                        if (vowels.contains(char)) {
-                            vowelCount++
-                        }
-
-                        // Inject hyphens at safe break points
-                        if (vowelCount > 0 && vowelCount < totalVowels) {
-                            // 1. Vowel-Consonant-Vowel: мо-ло-ко
-                            if (vowels.contains(char) && i + 2 < word.length && !vowels.contains(word[i + 1]) && vowels.contains(word[i + 2])) {
-                                if (!special.contains(word[i + 1])) {
-                                    sb.append('\u00AD')
-                                }
-                            }
-                            // 2. Consonant-Consonant: кар-та
-                            else if (!vowels.contains(char) && !special.contains(char) && i + 1 < word.length && !vowels.contains(word[i + 1]) && !special.contains(word[i + 1])) {
-                                var hasVowelLater = false
-                                for (j in (i + 2) until word.length) {
-                                    if (vowels.contains(word[j])) {
-                                        hasVowelLater = true
-                                        break
-                                    }
-                                }
-                                if (hasVowelLater) {
-                                    sb.append('\u00AD')
-                                }
-                            }
-                            // 3. Special characters (Ь, Ъ, Й)
-                            else if (special.contains(char) && i + 1 < word.length) {
-                                var hasVowelLater = false
-                                for (j in (i + 1) until word.length) {
-                                    if (vowels.contains(word[j])) {
-                                        hasVowelLater = true
-                                        break
-                                    }
-                                }
-                                if (hasVowelLater) {
-                                    sb.append('\u00AD')
-                                }
-                            }
-                        }
-                    }
-                    sb.toString()
-                }
-            }
-        }
+        // Step B: Inject soft hyphens (\u00AD) using the fast, optimized RussianHyphenator
+        return RussianHyphenator.hyphenate(processedParagraphs)
     }
 
     private fun splitContentToPages(content: String): List<String> {
@@ -911,6 +890,70 @@ class ReaderActivity : FragmentActivity() {
             val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
             sharedPrefs.edit().putInt("book_page_$bookId", currentPageIndex).apply()
             Log.d(TAG, "Сохранена позиция при паузе: страница ${currentPageIndex + 1}")
+        }
+    }
+
+    /**
+     * Кастомный PageTransformer для имитации 3D-эффекта перелистывания страниц бумажной книги.
+     * Реализует вращение по оси Y (эффект переворота листа), а также плавное масштабирование (scale)
+     * и прозрачность (alpha) для создания реалистичной глубины и объема.
+     */
+    class BookFlipPageTransformer : ViewPager2.PageTransformer {
+        override fun transformPage(page: View, position: Float) {
+            val width = page.width.toFloat()
+            val height = page.height.toFloat()
+
+            // Настройка расстояния камеры для предотвращения обрезания и 3D-искажений
+            page.cameraDistance = 20000f
+
+            when {
+                position < -1f -> { // [-Infinity, -1)
+                    // Страница полностью ушла влево за пределы экрана
+                    page.alpha = 0f
+                }
+                position <= 0f -> { // [-1, 0]
+                    // Текущая страница плавно перелистывается влево (уходит)
+                    // Плавное исчезновение при полном перевороте на 90 градусов
+                    page.alpha = 1f + position
+
+                    // Нейтрализуем стандартный сдвиг ViewPager2, чтобы зафиксировать страницу на левой оси (корешок книги)
+                    page.translationX = -position * width
+
+                    // Точка вращения находится на левой границе по центру вертикали (корешок)
+                    page.pivotX = 0f
+                    page.pivotY = height / 2f
+
+                    // Поворачиваем страницу на угол до -90 градусов
+                    page.rotationY = 90f * position
+
+                    // Применяем легкое масштабирование для имитации ухода вглубь при повороте
+                    val scaleFactor = 1f + (0.05f * position) // от 0.95 до 1.0
+                    page.scaleX = scaleFactor
+                    page.scaleY = scaleFactor
+                }
+                position <= 1f -> { // (0, 1]
+                    // Следующая страница лежит плоско под текущей и ждет раскрытия.
+                    // Она плавно проявляется по мере открытия верхней страницы.
+                    page.alpha = 1f - position * 0.5f // от 0.5 до 1.0
+
+                    // Нейтрализуем стандартный сдвиг ViewPager2, сохраняя страницу абсолютно статичной
+                    page.translationX = -position * width
+
+                    // Точка масштабирования находится в центре страницы
+                    page.pivotX = width / 2f
+                    page.pivotY = height / 2f
+                    page.rotationY = 0f
+
+                    // Страница плавно увеличивается (поднимается на передний план) при раскрытии верхнего листа
+                    val scaleFactor = 0.95f + (0.05f * (1f - position)) // от 0.95 до 1.0
+                    page.scaleX = scaleFactor
+                    page.scaleY = scaleFactor
+                }
+                else -> { // (1, +Infinity]
+                    // Страница находится далеко справа за пределами экрана
+                    page.alpha = 0f
+                }
+            }
         }
     }
 }
