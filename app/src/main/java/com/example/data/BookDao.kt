@@ -12,6 +12,20 @@ interface BookDao {
     @Query("SELECT * FROM books ORDER BY lastReadTime DESC")
     fun getAllBooks(): Flow<List<BookEntity>>
 
+    @Query("SELECT * FROM books WHERE sha1 = :sha1 LIMIT 1")
+    suspend fun getBookBySha1(sha1: String): BookEntity?
+
+    @androidx.room.Transaction
+    suspend fun insertBookIfUnique(book: BookEntity): Boolean {
+        val existing = book.sha1?.let { getBookBySha1(it) }
+        return if (existing == null) {
+            insertBook(book)
+            true
+        } else {
+            false
+        }
+    }
+
     @Query("SELECT * FROM books WHERE id = :id")
     suspend fun getBookById(id: Int): BookEntity?
 

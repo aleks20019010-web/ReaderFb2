@@ -906,6 +906,15 @@ class ReaderActivity : FragmentActivity() {
             // Настройка расстояния камеры для предотвращения обрезания и 3D-искажений
             page.cameraDistance = 20000f
 
+            // Динамический расчет Z-index (translationZ) для предотвращения наложения текста и слоев
+            if (position < -1f || position > 1f) {
+                page.translationZ = -100f
+            } else if (position <= 0f) {
+                page.translationZ = 100f - position
+            } else {
+                page.translationZ = -100f + (1f - position)
+            }
+
             when {
                 position < -1f -> { // [-Infinity, -1)
                     // Страница полностью ушла влево за пределы экрана

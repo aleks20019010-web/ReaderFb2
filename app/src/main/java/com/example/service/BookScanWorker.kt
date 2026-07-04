@@ -1,66 +1,43 @@
 package com.example.service
 
-import android.app.Service
 import android.content.Context
-import android.content.Intent
-import android.os.IBinder
+import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
 import com.example.data.AppDatabase
 import com.example.data.BookEntity
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.first
 import java.io.File
+import java.io.FileInputStream
+import java.security.MessageDigest
+import java.util.zip.ZipInputStream
 
-class BookScannerService : Service() {
-    private val serviceJob = SupervisorJob()
-    private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
+class BookScanWorker(
+    appContext: Context,
+    workerParams: WorkerParameters
+) : CoroutineWorker(appContext, workerParams) {
 
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val rootPath = intent?.getStringExtra("ROOT_PATH") ?: "/storage/emulated/0"
+    override suspend fun doWork(): Result {
+        val rootPath = inputData.getString("ROOT_PATH") ?: "/storage/emulated/0"
         
-        if (BookScannerState.isScanning.value) {
-            android.util.Log.d("BookScannerService", "Scan already in progress, skipping")
-            return START_NOT_STICKY
+        BookScannerState.updateScanning(applicationContext, true, "Подготовка к сканированию...")
+
+        try {
+            performScan(rootPath)
+        } catch (e: Exception) {
+            android.util.Log.e("BookScanWorker", "Error during scan", e)
+            BookScannerState.updateScanning(applicationContext, false, "Ошибка сканирования: ${e.localizedMessage}")
+            return Result.failure()
         }
 
-        BookScannerState.updateScanning(this, true, "Подготовка к сканированию...")
-
-        serviceScope.launch {
-            try {
-                performScan(rootPath)
-            } catch (e: Exception) {
-                android.util.Log.e("BookScannerService", "Error during scan", e)
-                BookScannerState.updateScanning(this@BookScannerService, false, "Ошибка сканирования: ${e.localizedMessage}")
-            } finally {
-                stopSelf()
-            }
-        }
-
-        return START_NOT_STICKY
+        return Result.success()
     }
 
     private suspend fun performScan(rootPath: String) {
         val database = AppDatabase.getDatabase(applicationContext)
         val bookDao = database.bookDao()
-        
-        val existingSha1s = try {
-            bookDao.getAllBooks().first().mapNotNull { it.sha1 }.toMutableSet()
-        } catch (e: Exception) {
-            android.util.Log.e("BookScannerService", "Failed to load existing SHA1 list", e)
-            mutableSetOf<String>()
-        }
-
-        val existingTitles = try {
-            bookDao.getAllBooks().first().map { it.title.lowercase() }.toMutableSet()
-        } catch (e: Exception) {
-            android.util.Log.e("BookScannerService", "Failed to load existing titles", e)
-            mutableSetOf<String>()
-        }
 
         val rootDir = File(rootPath)
         if (!rootDir.exists() || !rootDir.isDirectory) {
-            BookScannerState.updateScanning(this, false, "Папка не найдена: $rootPath")
+            BookScannerState.updateScanning(applicationContext, false, "Папка не найдена: $rootPath")
             return
         }
 
@@ -86,24 +63,26 @@ class BookScannerService : Service() {
             }
         }
 
-        BookScannerState.updateScanning(this, true, "Поиск файлов в $rootPath...")
+        BookScannerState.updateScanning(applicationContext, true, "Поиск файлов в $rootPath...")
         traverse(rootDir)
 
         if (filesToProcess.isEmpty()) {
-            BookScannerState.updateScanning(this, false, "Книг не найдено в $rootPath")
+            BookScannerState.updateScanning(applicationContext, false, "Книг не найдено в $rootPath")
             return
         }
 
         var importedCount = 0
         for ((index, file) in filesToProcess.withIndex()) {
             val progressText = "Чтение (${index + 1}/${filesToProcess.size}): ${file.name}"
-            BookScannerState.updateScanning(this, true, progressText)
+            BookScannerState.updateScanning(applicationContext, true, progressText)
 
             runCatching {
                 val ext = file.extension.lowercase()
-                
                 val computedSha1 = computeSha1(file)
-                if (existingSha1s.contains(computedSha1)) {
+
+                // Check duplicates first in a transaction
+                val existingBook = bookDao.getBookBySha1(computedSha1)
+                if (existingBook != null) {
                     return@runCatching
                 }
 
@@ -113,33 +92,6 @@ class BookScannerService : Service() {
                 var parsedSeries: String? = null
                 var parsedSeriesIndex: Int? = null
                 var parsedLanguage: String? = "ru"
-
-                fun decodeBytesToString(bytes: ByteArray): String {
-                    try {
-                        val headerSize = if (bytes.size > 1024) 1024 else bytes.size
-                        val header = String(bytes, 0, headerSize, java.nio.charset.StandardCharsets.ISO_8859_1)
-                        val match = """encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(header)
-                        if (match != null) {
-                            val encName = match.groupValues[1].trim()
-                            try {
-                                return String(bytes, java.nio.charset.Charset.forName(encName))
-                            } catch (e: Exception) {}
-                        }
-                    } catch (e: Exception) {}
-
-                    try {
-                        val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
-                        utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
-                        val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
-                        return charBuffer.toString()
-                    } catch (e: Exception) {
-                        try {
-                            return String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
-                        } catch (e2: Exception) {
-                            return String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
-                        }
-                    }
-                }
 
                 if (ext == "fb2") {
                     val rawText = decodeBytesToString(file.readBytes())
@@ -152,7 +104,7 @@ class BookScannerService : Service() {
                     parsedLanguage = parsed.language
                 } else if (ext == "zip") {
                     file.inputStream().use { fis ->
-                        java.util.zip.ZipInputStream(fis).use { zis ->
+                        ZipInputStream(fis).use { zis ->
                             var entry = zis.nextEntry
                             while (entry != null) {
                                 val entryName = entry.name.lowercase()
@@ -186,6 +138,8 @@ class BookScannerService : Service() {
                         content = parsedContent,
                         category = "Локальные",
                         totalCharacters = parsedContent.length,
+                        coverGradientStart = getRandomGradientStartColor(),
+                        coverGradientEnd = getRandomGradientEndColor(),
                         filePath = file.absolutePath,
                         sha1 = computedSha1,
                         fileSize = file.length(),
@@ -194,12 +148,15 @@ class BookScannerService : Service() {
                         seriesIndex = parsedSeriesIndex,
                         language = parsedLanguage
                     )
-                    bookDao.insertBook(newBook)
-                    existingSha1s.add(computedSha1)
-                    importedCount++
+                    
+                    // Prevent duplicate entries using Room transaction
+                    val inserted = bookDao.insertBookIfUnique(newBook)
+                    if (inserted) {
+                        importedCount++
+                    }
                 }
             }.onFailure { t ->
-                android.util.Log.e("BookScannerService", "Failed to scan book: ${file.name}", t)
+                android.util.Log.e("BookScanWorker", "Failed to scan book: ${file.name}", t)
             }
         }
 
@@ -208,11 +165,11 @@ class BookScannerService : Service() {
         } else {
             "Все найденные книги уже есть в библиотеке (${filesToProcess.size} файлов)"
         }
-        BookScannerState.updateScanning(this, false, resultMsg)
+        BookScannerState.updateScanning(applicationContext, false, resultMsg)
     }
 
     private fun computeSha1(file: File): String {
-        val digest = java.security.MessageDigest.getInstance("SHA-1")
+        val digest = MessageDigest.getInstance("SHA-1")
         file.inputStream().use { fis ->
             val buffer = ByteArray(8192)
             var read: Int
@@ -223,8 +180,40 @@ class BookScannerService : Service() {
         return digest.digest().joinToString("") { String.format("%02x", it) }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        serviceJob.cancel()
+    private fun decodeBytesToString(bytes: ByteArray): String {
+        try {
+            val headerSize = if (bytes.size > 1024) 1024 else bytes.size
+            val header = String(bytes, 0, headerSize, java.nio.charset.StandardCharsets.ISO_8859_1)
+            val match = """encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(header)
+            if (match != null) {
+                val encName = match.groupValues[1].trim()
+                try {
+                    return String(bytes, java.nio.charset.Charset.forName(encName))
+                } catch (e: Exception) {}
+            }
+        } catch (e: Exception) {}
+
+        try {
+            val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+            utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
+            return charBuffer.toString()
+        } catch (e: Exception) {
+            try {
+                return String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
+            } catch (e2: Exception) {
+                return String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+            }
+        }
+    }
+
+    private fun getRandomGradientStartColor(): String {
+        val list = listOf("#FF6B6B", "#4E65FF", "#11998e", "#FC466B", "#f12711", "#833ab4")
+        return list.random()
+    }
+
+    private fun getRandomGradientEndColor(): String {
+        val list = listOf("#4D96FF", "#92EFFD", "#38ef7d", "#3F5EFB", "#f5af19", "#fd1d1d")
+        return list.random()
     }
 }

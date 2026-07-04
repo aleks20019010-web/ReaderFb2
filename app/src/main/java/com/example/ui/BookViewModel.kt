@@ -653,11 +653,26 @@ Monsieur прогнали со двора.
 
     fun startLocalBookScan(rootPath: String = "/storage/emulated/0") {
         if (isScanning) return
-        val context = getApplication<Application>()
-        val intent = android.content.Intent(context, com.example.service.BookScannerService::class.java).apply {
-            putExtra("ROOT_PATH", rootPath)
-        }
-        context.startService(intent)
+        val context = getApplication<android.app.Application>()
+        val constraints = androidx.work.Constraints.Builder()
+            .setRequiresStorageNotLow(true)
+            .build()
+            
+        val inputData = androidx.work.Data.Builder()
+            .putString("ROOT_PATH", rootPath)
+            .build()
+
+        val scanRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.service.BookScanWorker>()
+            .setConstraints(constraints)
+            .setInputData(inputData)
+            .addTag("BookScanWork")
+            .build()
+
+        androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
+            "BookScanUniqueWork",
+            androidx.work.ExistingWorkPolicy.REPLACE,
+            scanRequest
+        )
     }
 
     private suspend fun scanDirectoryForBooks(rootPath: String) {

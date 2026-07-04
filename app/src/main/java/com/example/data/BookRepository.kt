@@ -17,6 +17,8 @@ class BookRepository(
 
     suspend fun insertBook(book: BookEntity): Long = bookDao.insertBook(book)
 
+    suspend fun insertBookIfUnique(book: BookEntity): Boolean = bookDao.insertBookIfUnique(book)
+
     suspend fun insertBooks(books: List<BookEntity>) = bookDao.insertBooks(books)
 
     suspend fun updateBook(book: BookEntity) = bookDao.updateBook(book)

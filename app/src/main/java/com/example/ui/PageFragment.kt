@@ -41,19 +41,12 @@ class PageFragment : Fragment() {
             else -> Pair("#f5f0e8", "#2C2C2C") // sepia / warm paper
         }
 
-        val root = FrameLayout(context).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
+        val view = inflater.inflate(com.example.R.layout.fragment_page, container, false)
+        val root = view.findViewById<FrameLayout>(com.example.R.id.rootContainer).apply {
             setBackgroundColor(Color.parseColor(bgColor))
         }
 
-        val textView = TextView(context).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
+        val textView = view.findViewById<TextView>(com.example.R.id.textView).apply {
             setPadding(padding16, padding16, padding16, padding16)
             text = pageText
             textSize = fontSize
@@ -64,13 +57,14 @@ class PageFragment : Fragment() {
             
             // Break strategy and hyphenation
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                breakStrategy = android.text.Layout.BREAK_STRATEGY_BALANCED
-                hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
+                breakStrategy = android.text.Layout.BREAK_STRATEGY_SIMPLE
+                hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_NONE
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                justificationMode = android.text.Layout.JUSTIFICATION_MODE_INTER_WORD
             }
             gravity = Gravity.TOP or Gravity.START
         }
-
-        root.addView(textView)
 
         // Dynamic padding adjustment under display cutout / camera notch
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->

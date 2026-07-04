@@ -45,10 +45,6 @@
             android:name="com.example.ui.SeriesBooksActivity"
             android:exported="false"
             android:theme="@style/Theme.MyApplication" />
-
-        <service
-            android:name="com.example.service.BookScannerService"
-            android:exported="false" />
     </application>
 
 </manifest>
