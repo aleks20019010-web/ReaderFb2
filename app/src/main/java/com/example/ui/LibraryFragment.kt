@@ -26,6 +26,23 @@ import kotlinx.coroutines.launch
 
 class LibraryFragment : Fragment() {
 
+    private var filterType: String = "all"
+    
+    companion object {
+        fun newInstance(filter: String): LibraryFragment {
+            val fragment = LibraryFragment()
+            val args = Bundle()
+            args.putString("FILTER_TYPE", filter)
+            fragment.arguments = args
+            return fragment
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        filterType = arguments?.getString("FILTER_TYPE") ?: "all"
+    }
+
     private val viewModel: BookViewModel by activityViewModels()
     
     private lateinit var adapter: BookAdapter
@@ -38,6 +55,8 @@ class LibraryFragment : Fragment() {
     private lateinit var btnSearchToggle: View
     private lateinit var btnAutoScan: View
     private lateinit var btnImport: View
+    private lateinit var btnMenu: View
+    private lateinit var tvTitle: TextView
     private lateinit var etSearch: EditText
     
     // Detailed Scan progress bindings
@@ -61,6 +80,61 @@ class LibraryFragment : Fragment() {
         }
     }
 
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            startScan()
+        } else {
+            Toast.makeText(requireContext(), "Необходимо разрешение для поиска книг", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val requestManageStorageLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            if (android.os.Environment.isExternalStorageManager()) {
+                startScan()
+            } else {
+                Toast.makeText(requireContext(), "Необходимо разрешение для поиска книг", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun checkPermissionsAndScan() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            if (android.os.Environment.isExternalStorageManager()) {
+                startScan()
+            } else {
+                try {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                    intent.addCategory("android.intent.category.DEFAULT")
+                    intent.data = Uri.parse("package:${requireContext().packageName}")
+                    requestManageStorageLauncher.launch(intent)
+                } catch (e: Exception) {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                    requestManageStorageLauncher.launch(intent)
+                }
+            }
+        } else {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(
+                    requireContext(),
+                    android.Manifest.permission.READ_EXTERNAL_STORAGE
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                startScan()
+            } else {
+                requestPermissionLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+        }
+    }
+
+    private fun startScan() {
+        viewModel.startLocalBookScan()
+        Toast.makeText(requireContext(), "Начато сканирование папок...", Toast.LENGTH_SHORT).show()
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -76,7 +150,19 @@ class LibraryFragment : Fragment() {
         btnSearchToggle = view.findViewById(R.id.btnSearchToggle)
         btnAutoScan = view.findViewById(R.id.btnAutoScan)
         btnImport = view.findViewById(R.id.btnImport)
+        btnMenu = view.findViewById(R.id.btnMenu)
+        tvTitle = view.findViewById(R.id.tvTitle)
         etSearch = view.findViewById(R.id.etSearch)
+        
+        tvTitle.text = when (filterType) {
+            "reading" -> "Читаю"
+            "read" -> "Прочитано"
+            else -> "Библиотека"
+        }
+        
+        btnMenu.setOnClickListener {
+            (requireActivity() as? com.example.MainActivity)?.openDrawer()
+        }
         
         layoutScanProgress = view.findViewById(R.id.layoutScanProgress)
         tvScanStatus = view.findViewById(R.id.tvScanStatus)
@@ -140,8 +226,7 @@ class LibraryFragment : Fragment() {
 
         // Compact Auto-Scan action
         btnAutoScan.setOnClickListener {
-            viewModel.startLocalBookScan()
-            Toast.makeText(requireContext(), "Начато сканирование папок...", Toast.LENGTH_SHORT).show()
+            checkPermissionsAndScan()
         }
         
         // Hide/dismiss progress layout on tap
@@ -243,10 +328,22 @@ class LibraryFragment : Fragment() {
     }
 
     private fun filterAndApplyBooks() {
-        val filtered = if (currentSearchQuery.isBlank()) {
-            allBooksList
-        } else {
-            allBooksList.filter { book ->
+        var filtered = allBooksList
+        
+        filtered = when (filterType) {
+            "reading" -> filtered.filter { book -> 
+                val percent = if (book.totalCharacters > 0) ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt() else 0
+                percent in 1..99
+            }
+            "read" -> filtered.filter { book -> 
+                val percent = if (book.totalCharacters > 0) ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt() else 0
+                percent >= 100
+            }
+            else -> filtered
+        }
+
+        if (currentSearchQuery.isNotBlank()) {
+            filtered = filtered.filter { book ->
                 book.title.contains(currentSearchQuery, ignoreCase = true) ||
                         (book.author ?: "").contains(currentSearchQuery, ignoreCase = true)
             }

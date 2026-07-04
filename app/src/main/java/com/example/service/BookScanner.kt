@@ -62,27 +62,31 @@ class BookScanner(private val context: Context) {
 
                 try {
                     val ext = file.extension.lowercase()
-                    val computedSha1 = computeSha1(file)
-
-                    // Check duplicates by SHA1 in memory
-                    if (existingMap.containsKey(computedSha1)) {
-                        skippedCount++
-                        if (existingMap[computedSha1] != file.absolutePath) {
-                            bookDao.updateFilePath(computedSha1, file.absolutePath)
-                            existingMap[computedSha1] = file.absolutePath
-                        }
-                        continue
-                    }
-
+                    
                     var parsedTitle = file.nameWithoutExtension
                     var parsedAuthor = "Неизвестен"
                     var parsedContent = ""
                     var parsedSeries: String? = null
                     var parsedSeriesIndex: Int? = null
                     var parsedLanguage: String? = "ru"
+                    var computedSha1 = ""
+                    var contentBytes: ByteArray? = null
 
                     if (ext == "fb2") {
-                        val rawText = decodeBytesToString(file.readBytes())
+                        contentBytes = file.readBytes()
+                        computedSha1 = computeSha1(contentBytes)
+                        
+                        // Check duplicates by SHA1 in memory
+                        if (existingMap.containsKey(computedSha1)) {
+                            skippedCount++
+                            if (existingMap[computedSha1] != file.absolutePath) {
+                                bookDao.updateFilePath(computedSha1, file.absolutePath)
+                                existingMap[computedSha1] = file.absolutePath
+                            }
+                            continue
+                        }
+                        
+                        val rawText = decodeBytesToString(contentBytes)
                         val parsed = Fb2Parser.parse(rawText, parsedTitle)
                         parsedTitle = parsed.title
                         parsedAuthor = parsed.author
@@ -97,8 +101,19 @@ class BookScanner(private val context: Context) {
                                 while (entry != null) {
                                     val entryName = entry.name.lowercase()
                                     if (!entry.isDirectory && entryName.endsWith(".fb2")) {
-                                        val bytes = zis.readBytes()
-                                        val rawText = decodeBytesToString(bytes)
+                                        contentBytes = zis.readBytes()
+                                        computedSha1 = computeSha1(contentBytes!!)
+                                        
+                                        if (existingMap.containsKey(computedSha1)) {
+                                            skippedCount++
+                                            if (existingMap[computedSha1] != file.absolutePath) {
+                                                bookDao.updateFilePath(computedSha1, file.absolutePath)
+                                                existingMap[computedSha1] = file.absolutePath
+                                            }
+                                            return@use // Break out of use block for this file
+                                        }
+
+                                        val rawText = decodeBytesToString(contentBytes!!)
                                         val parsed = Fb2Parser.parse(rawText, entryName.removeSuffix(".fb2"))
                                         parsedTitle = parsed.title
                                         parsedAuthor = parsed.author
@@ -112,8 +127,21 @@ class BookScanner(private val context: Context) {
                                 }
                             }
                         }
+                        if (computedSha1.isEmpty()) continue // Not a valid zip or already skipped
                     } else if (ext == "txt") {
-                        parsedContent = decodeBytesToString(file.readBytes())
+                        contentBytes = file.readBytes()
+                        computedSha1 = computeSha1(contentBytes)
+                        
+                        if (existingMap.containsKey(computedSha1)) {
+                            skippedCount++
+                            if (existingMap[computedSha1] != file.absolutePath) {
+                                bookDao.updateFilePath(computedSha1, file.absolutePath)
+                                existingMap[computedSha1] = file.absolutePath
+                            }
+                            continue
+                        }
+                        
+                        parsedContent = decodeBytesToString(contentBytes)
                         parsedAuthor = "Локальный TXT"
                     } else {
                         // Skip unsupported extensions
@@ -196,6 +224,12 @@ class BookScanner(private val context: Context) {
             }
         }
         return digest.digest().joinToString("") { String.format("%02x", it) }
+    }
+
+    private fun computeSha1(bytes: ByteArray): String {
+        val digest = MessageDigest.getInstance("SHA-1")
+        val hashBytes = digest.digest(bytes)
+        return hashBytes.joinToString("") { String.format("%02x", it) }
     }
 
     private fun decodeBytesToString(bytes: ByteArray): String {
