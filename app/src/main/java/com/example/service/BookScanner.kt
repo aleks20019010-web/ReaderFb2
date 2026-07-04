@@ -167,7 +167,7 @@ class BookScanner(private val context: Context) {
                             if (dbBook != null) {
                                 isDuplicate = true
                                 sha1Cache.add(computedSha1)
-                                existingMap[computedSha1] = dbBook.filePath
+                                existingMap[computedSha1] = dbBook.filePath ?: ""
                             }
                         }
 
