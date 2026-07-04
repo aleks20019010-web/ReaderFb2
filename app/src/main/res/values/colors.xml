@@ -2,7 +2,7 @@
 <resources>
     <!-- Light warm beige palette -->
     <color name="bg_main">#F5F0E8</color>
-    <color name="bg_card">#EDE5D8</color>
+    <color name="bg_card">#FFFFFF</color>
     <color name="text_primary">#3D2C1A</color>
     <color name="text_secondary">#7A6B5A</color>
     <color name="accent">#C4956A</color>
@@ -11,7 +11,7 @@
     <color name="divider">#E0D8C8</color>
     <color name="bg_panel">#EDE5D8</color>
     <color name="btn_bg">#C4956A</color>
-    <color name="btn_text">#F5F0E8</color>
+    <color name="btn_text">#FFFFFF</color>
     <color name="icon_tint">#3D2C1A</color>
 
     <!-- Legacy / compatibility colors (if any references are used in standard library views) -->

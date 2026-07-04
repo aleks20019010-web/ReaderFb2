@@ -17,9 +17,9 @@
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="#F5F0E8"
-        app:itemTextColor="#333333"
-        app:itemIconTint="#333333"
+        android:background="#EDE5D8"
+        app:itemTextColor="@color/nav_item_text_color"
+        app:itemIconTint="@color/nav_item_text_color"
         app:itemShapeFillColor="@color/nav_item_state_list"
         app:menu="@menu/menu_drawer" />
 
