@@ -17,6 +17,7 @@ import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -70,6 +71,17 @@ class ReaderActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Use the newly created Jetpack Compose screen
+        setContent {
+            ReaderComposeScreen(
+                onBackClick = { finish() }
+            )
+        }
+        return
+        
+        // Old implementation below (temporarily disabled)
+        /*
         viewModel = vm
 
         // Retrieve book ID from intent
@@ -86,6 +98,7 @@ class ReaderActivity : FragmentActivity() {
 
         // Load content
         loadBookContent()
+        */
     }
 
     private fun setupLayout() {
