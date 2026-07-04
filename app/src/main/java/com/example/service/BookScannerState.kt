@@ -53,7 +53,7 @@ object BookScannerState {
         }
     }
 
-    fun extractCover(file: File, sha1: String, context: Context): String? {
+    fun extractCover(file: File, sha1: String, context: Context?): String? {
         return CoverExtractor.extractCover(file, sha1, context)
     }
 }

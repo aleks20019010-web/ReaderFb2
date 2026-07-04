@@ -9,7 +9,8 @@ import java.util.zip.ZipInputStream
 
 object CoverExtractor {
 
-    fun extractCover(file: File, sha1: String, context: Context): String? {
+    fun extractCover(file: File, sha1: String, context: Context?): String? {
+        if (context == null) return null
         val ext = file.extension.lowercase()
         var bitmap: Bitmap? = null
         try {
