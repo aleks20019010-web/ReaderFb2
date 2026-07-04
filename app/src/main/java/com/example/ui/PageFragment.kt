@@ -12,6 +12,7 @@ import android.widget.TextView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 
 class PageFragment : Fragment() {
     private var pageText: String = ""
@@ -126,6 +127,32 @@ class PageFragment : Fragment() {
         })
 
         return view
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        
+        viewLifecycleOwner.lifecycleScope.launchWhenStarted {
+            com.example.data.SettingsManager.settingsChanged.collect {
+                val context = requireContext()
+                val themeName = com.example.data.SettingsManager.getTheme(context)
+                val (bgColor, textColor) = when (themeName) {
+                    "light" -> Pair("#FFFFFF", "#121212")
+                    "dark" -> Pair("#1a1a1a", "#E0E0E0")
+                    "sepia" -> Pair("#f5f0e8", "#2C2C2C")
+                    "sepia_contrast" -> Pair("#f5e6c8", "#1a1a1a")
+                    "contrast" -> Pair("#000000", "#FFFF00")
+                    "beige" -> Pair("#F4ECD8", "#3B2F1F")
+                    else -> Pair("#f5f0e8", "#2C2C2C")
+                }
+                
+                val root = view.findViewById<FrameLayout>(com.example.R.id.rootContainer)
+                root.setBackgroundColor(Color.parseColor(bgColor))
+                
+                val textView = view.findViewById<TextView>(com.example.R.id.textView)
+                textView.setTextColor(Color.parseColor(textColor))
+            }
+        }
     }
 
     companion object {

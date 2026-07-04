@@ -19,8 +19,21 @@ object SettingsManager {
     private val _settingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val settingsChanged: SharedFlow<Unit> = _settingsChanged.asSharedFlow()
 
+    private var prefs: SharedPreferences? = null
+
+    // Cache variables
+    private var cachedTheme: String? = null
+    private var cachedPrevTheme: String? = null
+    private var cachedFontSize: Float? = null
+    private var cachedFontFamily: String? = null
+    private var cachedFontWeight: String? = null
+    private var cachedLineSpacing: Float? = null
+
     private fun getPrefs(context: Context): SharedPreferences {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (prefs == null) {
+            prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        }
+        return prefs!!
     }
 
     fun notifyChanged() {
@@ -28,12 +41,18 @@ object SettingsManager {
     }
 
     fun getTheme(context: Context): String {
-        return getPrefs(context).getString(KEY_THEME, "sepia") ?: "sepia"
+        if (cachedTheme == null) {
+            cachedTheme = getPrefs(context).getString(KEY_THEME, "sepia") ?: "sepia"
+        }
+        return cachedTheme!!
     }
 
     fun setTheme(context: Context, theme: String) {
+        if (cachedTheme == theme) return
+        cachedTheme = theme
         val prefs = getPrefs(context)
         if (theme != "dark") {
+            cachedPrevTheme = theme
             prefs.edit().putString(KEY_PREVIOUS_THEME, theme).apply()
         }
         prefs.edit().putString(KEY_THEME, theme).apply()
@@ -41,41 +60,64 @@ object SettingsManager {
     }
 
     fun getPreviousTheme(context: Context): String {
-        return getPrefs(context).getString(KEY_PREVIOUS_THEME, "sepia") ?: "sepia"
+        if (cachedPrevTheme == null) {
+            cachedPrevTheme = getPrefs(context).getString(KEY_PREVIOUS_THEME, "sepia") ?: "sepia"
+        }
+        return cachedPrevTheme!!
     }
 
     fun getFontSize(context: Context): Float {
-        return getPrefs(context).getFloat(KEY_FONT_SIZE, 18f)
+        if (cachedFontSize == null) {
+            cachedFontSize = getPrefs(context).getFloat(KEY_FONT_SIZE, 18f)
+        }
+        return cachedFontSize!!
     }
 
     fun setFontSize(context: Context, size: Float) {
+        if (cachedFontSize == size) return
+        cachedFontSize = size
         getPrefs(context).edit().putFloat(KEY_FONT_SIZE, size).apply()
         notifyChanged()
     }
 
     fun getFontFamily(context: Context): String {
-        return getPrefs(context).getString(KEY_FONT_FAMILY, "Roboto") ?: "Roboto"
+        if (cachedFontFamily == null) {
+            cachedFontFamily = getPrefs(context).getString(KEY_FONT_FAMILY, "Roboto") ?: "Roboto"
+        }
+        return cachedFontFamily!!
     }
 
     fun setFontFamily(context: Context, family: String) {
+        if (cachedFontFamily == family) return
+        cachedFontFamily = family
         getPrefs(context).edit().putString(KEY_FONT_FAMILY, family).apply()
         notifyChanged()
     }
 
     fun getFontWeight(context: Context): String {
-        return getPrefs(context).getString(KEY_FONT_WEIGHT, "Normal") ?: "Normal"
+        if (cachedFontWeight == null) {
+            cachedFontWeight = getPrefs(context).getString(KEY_FONT_WEIGHT, "Normal") ?: "Normal"
+        }
+        return cachedFontWeight!!
     }
 
     fun setFontWeight(context: Context, weight: String) {
+        if (cachedFontWeight == weight) return
+        cachedFontWeight = weight
         getPrefs(context).edit().putString(KEY_FONT_WEIGHT, weight).apply()
         notifyChanged()
     }
 
     fun getLineSpacing(context: Context): Float {
-        return getPrefs(context).getFloat(KEY_LINE_SPACING, 1.2f)
+        if (cachedLineSpacing == null) {
+            cachedLineSpacing = getPrefs(context).getFloat(KEY_LINE_SPACING, 1.2f)
+        }
+        return cachedLineSpacing!!
     }
 
     fun setLineSpacing(context: Context, spacing: Float) {
+        if (cachedLineSpacing == spacing) return
+        cachedLineSpacing = spacing
         getPrefs(context).edit().putFloat(KEY_LINE_SPACING, spacing).apply()
         notifyChanged()
     }

@@ -759,6 +759,7 @@ class ReaderActivity : FragmentActivity() {
     }
 
     private suspend fun processAndDisplayContent(rawContent: String) {
+        val startTime = System.currentTimeMillis()
         rawBookContent = rawContent
         val vpWidth = viewPager.width
         val vpHeight = viewPager.height
@@ -766,7 +767,7 @@ class ReaderActivity : FragmentActivity() {
         Log.d("READING_DEBUG", "Шаг 3 [Разбивка]: Начало обработки и разметки страниц. Размеры ViewPager: ${vpWidth}x${vpHeight}")
         
         try {
-            pages = withContext(Dispatchers.Default) {
+            pages = withContext(Dispatchers.IO) {
                 try {
                     val formattedText = preprocessedText ?: run {
                         Log.d("READING_DEBUG", "Шаг 3.1 [Разбивка]: Препроцессинг и перенос слов...")
@@ -782,7 +783,7 @@ class ReaderActivity : FragmentActivity() {
                 }
             }
 
-            Log.d("READING_DEBUG", "Шаг 3.3 [Разбивка]: Разбивка успешно завершена. Всего страниц: ${pages.size}")
+            Log.d("READING_DEBUG", "Шаг 3.3 [Разбивка]: Разбивка успешно завершена. Всего страниц: ${pages.size}. Время разбивки: ${System.currentTimeMillis() - startTime}ms")
             if (pages.isEmpty()) {
                 Log.e("READING_DEBUG", "READING_DEBUG: Результат разбивки пуст")
                 showErrorAndExit("Ошибка: Не удалось разбить текст на страницы")
@@ -793,22 +794,60 @@ class ReaderActivity : FragmentActivity() {
             progressBar.visibility = View.GONE
 
             val activeAdapter = viewPager.adapter as? BookPagerAdapter
+            var currentPos = viewPager.currentItem
+            val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
             if (activeAdapter != null) {
                 activeAdapter.updatePages(pages)
+                // When layout changes but adapter exists, we already restored current position in the caller
+                // but let's make sure targetPage has a valid value
             } else {
                 val newAdapter = BookPagerAdapter(this@ReaderActivity, pages)
                 viewPager.adapter = newAdapter
+                
+                // Set initial saved page only when adapter is first created
+                val savedPage = if (bookSha1.isNotEmpty()) sharedPrefs.getInt("book_page_$bookSha1", 0) else 0
+                currentPos = savedPage.coerceIn(0, pages.size - 1)
+                viewPager.setCurrentItem(currentPos, false)
+
+                viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+                    override fun onPageSelected(position: Int) {
+                        progressText.text = "Стр. ${position + 1} из ${pages.size}"
+                        seekBar.progress = position
+                        Log.d("READING_DEBUG", "READING_DEBUG: Отображение: Текущая страница изменена на: ${position + 1}")
+                        
+                        val progressPercent = if (pages.size > 0) {
+                            ((position + 1) * 100 / pages.size).coerceIn(0, 100)
+                        } else {
+                            0
+                        }
+                        readingProgressBar.progress = progressPercent
+
+                        if (bookSha1.isNotEmpty()) {
+                            sharedPrefs.edit().putInt("book_page_$bookSha1", position).apply()
+                        }
+                    }
+                })
+
+                seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                        if (fromUser) {
+                            val targetPage = progress.coerceIn(0, pages.size - 1)
+                            viewPager.setCurrentItem(targetPage, false)
+                            progressText.text = "Стр. ${targetPage + 1} из ${pages.size}"
+                        }
+                    }
+                    override fun onStartTrackingTouch(sb: SeekBar?) {
+                        hideHandler.removeCallbacks(hideRunnable)
+                    }
+                    override fun onStopTrackingTouch(sb: SeekBar?) {
+                        resetHideTimer()
+                    }
+                })
             }
 
             seekBar.max = (pages.size - 1).coerceAtLeast(0)
-
-            // Восстановление сохраненной страницы
-            val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
-            val savedPage = if (bookSha1.isNotEmpty()) sharedPrefs.getInt("book_page_$bookSha1", 0) else 0
-            val targetPage = savedPage.coerceIn(0, pages.size - 1)
-            
-            viewPager.setCurrentItem(targetPage, false)
-            seekBar.progress = targetPage
+            seekBar.progress = currentPos
+            val targetPage = currentPos
             progressText.text = "Стр. ${targetPage + 1} из ${pages.size}"
 
             readingProgressBar.visibility = View.VISIBLE
@@ -818,42 +857,9 @@ class ReaderActivity : FragmentActivity() {
                 0
             }
             readingProgressBar.progress = initialProgress
-
-            viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-                override fun onPageSelected(position: Int) {
-                    progressText.text = "Стр. ${position + 1} из ${pages.size}"
-                    seekBar.progress = position
-                    Log.d("READING_DEBUG", "READING_DEBUG: Отображение: Текущая страница изменена на: ${position + 1}")
-                    
-                    val progressPercent = if (pages.size > 0) {
-                        ((position + 1) * 100 / pages.size).coerceIn(0, 100)
-                    } else {
-                        0
-                    }
-                    readingProgressBar.progress = progressPercent
-
-                    if (bookSha1.isNotEmpty()) {
-                        sharedPrefs.edit().putInt("book_page_$bookSha1", position).apply()
-                    }
-                }
-            })
-
-            seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                    if (fromUser) {
-                        val targetPage = progress.coerceIn(0, pages.size - 1)
-                        viewPager.setCurrentItem(targetPage, false)
-                        progressText.text = "Стр. ${targetPage + 1} из ${pages.size}"
-                    }
-                }
-                override fun onStartTrackingTouch(sb: SeekBar?) {
-                    hideHandler.removeCallbacks(hideRunnable)
-                }
-                override fun onStopTrackingTouch(sb: SeekBar?) {
-                    resetHideTimer()
-                }
-            })
             
+            Log.d("READING_DEBUG", "Шаг 5 [Готово]: Контент отображен. Общее время: ${System.currentTimeMillis() - startTime}ms")
+
             Log.d("READING_DEBUG", "READING_DEBUG: Успешно завершена вся логика загрузки и отображения книги!")
             
         } catch (t: Throwable) {
