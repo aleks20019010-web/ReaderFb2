@@ -251,12 +251,11 @@ class LibraryFragment : Fragment() {
             com.example.service.BookScanState.isScanning.collectLatest { active ->
                 btnAutoScan.isEnabled = !active
                 if (active) {
-                    btnAutoScan.animate().rotationBy(360f).setDuration(1000).withEndAction { if(com.example.service.BookScanState.isScanning.value) btnAutoScan.animate().rotationBy(360f).setDuration(1000).start() }.start()
+                    startPulsing(btnAutoScan)
                 } else {
-                    btnAutoScan.animate().cancel()
-                    btnAutoScan.rotation = 0f
+                    stopPulsing(btnAutoScan)
                 }
-                btnAutoScan.alpha = if (active) 0.5f else 1.0f
+                btnAutoScan.alpha = if (active) 0.7f else 1.0f
                 
                 if (active) {
                     wasScanning = true
@@ -366,5 +365,41 @@ class LibraryFragment : Fragment() {
             tvEmptyLibrary.visibility = View.GONE
             rvBooks.visibility = View.VISIBLE
         }
+    }
+
+    private fun startPulsing(view: View) {
+        view.animate().cancel()
+        view.scaleX = 1.0f
+        view.scaleY = 1.0f
+        
+        fun pulse() {
+            view.animate()
+                .scaleX(1.15f)
+                .scaleY(1.15f)
+                .setDuration(600)
+                .withEndAction {
+                    view.animate()
+                        .scaleX(1.0f)
+                        .scaleY(1.0f)
+                        .setDuration(600)
+                        .withEndAction {
+                            if (com.example.service.BookScanState.isScanning.value) {
+                                pulse()
+                            }
+                        }
+                        .start()
+                }
+                .start()
+        }
+        pulse()
+    }
+
+    private fun stopPulsing(view: View) {
+        view.animate().cancel()
+        view.animate()
+            .scaleX(1.0f)
+            .scaleY(1.0f)
+            .setDuration(300)
+            .start()
     }
 }

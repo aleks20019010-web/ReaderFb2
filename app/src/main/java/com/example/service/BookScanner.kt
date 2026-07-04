@@ -35,6 +35,7 @@ class BookScanner(private val context: Context) {
             var skippedCount = 0
 
             // Step 1.5: Cache existing SHA-1 hashes and paths
+            val sha1Cache = bookDao.getAllSha1s().toMutableSet()
             val existingMap = bookDao.getSha1ToPathMap().associate { it.sha1 to it.filePath }.toMutableMap()
             val batchList = mutableListOf<BookEntity>()
             val BATCH_SIZE = 50
@@ -55,7 +56,12 @@ class BookScanner(private val context: Context) {
                     val ext = file.extension.lowercase()
                     
                     var parsedTitle = file.nameWithoutExtension
-                    var parsedAuthor = "Неизвестен"
+                    val unknownAuthor = try {
+                        context.getString(com.example.R.string.unknown_author)
+                    } catch (e: Exception) {
+                        "Неизвестен"
+                    }
+                    var parsedAuthor = unknownAuthor
                     var parsedContent = ""
                     var parsedSeries: String? = null
                     var parsedSeriesIndex: Int? = null
@@ -67,10 +73,23 @@ class BookScanner(private val context: Context) {
                         contentBytes = file.readBytes()
                         computedSha1 = computeSha1(contentBytes)
                         
-                        // Check duplicates by SHA1 in memory
-                        if (existingMap.containsKey(computedSha1)) {
+                        // Deduplication: check cache (Set<String>) first, then DB
+                        var isDuplicate = false
+                        if (sha1Cache.contains(computedSha1)) {
+                            isDuplicate = true
+                        } else {
+                            val dbBook = bookDao.getBookBySha1(computedSha1)
+                            if (dbBook != null) {
+                                isDuplicate = true
+                                sha1Cache.add(computedSha1)
+                                existingMap[computedSha1] = dbBook.filePath ?: ""
+                            }
+                        }
+
+                        if (isDuplicate) {
                             skippedCount++
-                            if (existingMap[computedSha1] != file.absolutePath) {
+                            val oldPath = existingMap[computedSha1]
+                            if (oldPath != file.absolutePath) {
                                 bookDao.updateFilePath(computedSha1, file.absolutePath)
                                 existingMap[computedSha1] = file.absolutePath
                             }
@@ -81,10 +100,10 @@ class BookScanner(private val context: Context) {
                         val parsed = Fb2Parser.parse(rawText, parsedTitle)
                         parsedTitle = parsed.title
                         parsedAuthor = parsed.author
-                        parsedContent = parsed.content
                         parsedSeries = parsed.series
                         parsedSeriesIndex = parsed.seriesIndex
                         parsedLanguage = parsed.language
+                        parsedContent = parsed.content
 
                     } else if (ext == "zip") {
                         file.inputStream().use { fis ->
@@ -93,25 +112,41 @@ class BookScanner(private val context: Context) {
                                 while (entry != null) {
                                     val entryName = entry.name.lowercase()
                                     if (!entry.isDirectory && entryName.endsWith(".fb2")) {
-                                        contentBytes = zis.readBytes()
-                                        computedSha1 = computeSha1(contentBytes!!)
+                                        val tempBytes = zis.readBytes()
+                                        contentBytes = tempBytes
+                                        computedSha1 = computeSha1(tempBytes)
                                         
-                                        if (existingMap.containsKey(computedSha1)) {
+                                        // Deduplication: check cache (Set<String>) first, then DB
+                                        var isDuplicate = false
+                                        if (sha1Cache.contains(computedSha1)) {
+                                            isDuplicate = true
+                                        } else {
+                                            val dbBook = bookDao.getBookBySha1(computedSha1)
+                                            if (dbBook != null) {
+                                                isDuplicate = true
+                                                sha1Cache.add(computedSha1)
+                                                existingMap[computedSha1] = dbBook.filePath ?: ""
+                                            }
+                                        }
+
+                                        if (isDuplicate) {
                                             skippedCount++
-                                            if (existingMap[computedSha1] != file.absolutePath) {
+                                            val oldPath = existingMap[computedSha1]
+                                            if (oldPath != file.absolutePath) {
                                                 bookDao.updateFilePath(computedSha1, file.absolutePath)
                                                 existingMap[computedSha1] = file.absolutePath
                                             }
-                                            return@use // Break out of use block for this file
+                                            return@use
                                         }
-                                        val rawText = decodeBytesToString(contentBytes!!)
+
+                                        val rawText = decodeBytesToString(tempBytes)
                                         val parsed = Fb2Parser.parse(rawText, entryName.removeSuffix(".fb2"))
                                         parsedTitle = parsed.title
                                         parsedAuthor = parsed.author
-                                        parsedContent = parsed.content
                                         parsedSeries = parsed.series
                                         parsedSeriesIndex = parsed.seriesIndex
                                         parsedLanguage = parsed.language
+                                        parsedContent = parsed.content
                                         break
                                     }
                                     entry = zis.nextEntry
@@ -123,9 +158,23 @@ class BookScanner(private val context: Context) {
                         contentBytes = file.readBytes()
                         computedSha1 = computeSha1(contentBytes)
                         
-                        if (existingMap.containsKey(computedSha1)) {
+                        // Deduplication: check cache (Set<String>) first, then DB
+                        var isDuplicate = false
+                        if (sha1Cache.contains(computedSha1)) {
+                            isDuplicate = true
+                        } else {
+                            val dbBook = bookDao.getBookBySha1(computedSha1)
+                            if (dbBook != null) {
+                                isDuplicate = true
+                                sha1Cache.add(computedSha1)
+                                existingMap[computedSha1] = dbBook.filePath
+                            }
+                        }
+
+                        if (isDuplicate) {
                             skippedCount++
-                            if (existingMap[computedSha1] != file.absolutePath) {
+                            val oldPath = existingMap[computedSha1]
+                            if (oldPath != file.absolutePath) {
                                 bookDao.updateFilePath(computedSha1, file.absolutePath)
                                 existingMap[computedSha1] = file.absolutePath
                             }
@@ -133,13 +182,17 @@ class BookScanner(private val context: Context) {
                         }
                         
                         parsedContent = decodeBytesToString(contentBytes)
-                        parsedAuthor = "Локальный TXT"
+                        parsedAuthor = try {
+                            context.getString(com.example.R.string.local_txt)
+                        } catch (e: Exception) {
+                            "Локальный TXT"
+                        }
                     } else {
                         continue
                     }
 
                     if (parsedContent.isNotBlank()) {
-                        val coverPath = BookScannerState.extractCover(file, computedSha1, context)
+                        val coverPath = CoverExtractor.extractCover(file, computedSha1, context)
                         val newBook = BookEntity(
                             title = parsedTitle,
                             author = parsedAuthor,
@@ -157,6 +210,7 @@ class BookScanner(private val context: Context) {
                             language = parsedLanguage
                         )
                         batchList.add(newBook)
+                        sha1Cache.add(computedSha1)
                         existingMap[computedSha1] = file.absolutePath
                         addedCount++
 

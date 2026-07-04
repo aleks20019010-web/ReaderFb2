@@ -54,45 +54,6 @@ object BookScannerState {
     }
 
     fun extractCover(file: File, sha1: String, context: Context): String? {
-        val ext = file.extension.lowercase()
-        var bitmap: Bitmap? = null
-        try {
-            if (ext == "fb2") {
-                val bytes = file.readBytes()
-                val fb2Content = decodeBytesToString(bytes)
-                bitmap = Fb2Parser.extractCover(fb2Content)
-            } else if (ext == "zip") {
-                file.inputStream().use { fis ->
-                    java.util.zip.ZipInputStream(fis).use { zis ->
-                        var entry = zis.nextEntry
-                        while (entry != null) {
-                            val entryName = entry.name.lowercase()
-                            if (!entry.isDirectory && entryName.endsWith(".fb2")) {
-                                val bytes = zis.readBytes()
-                                val fb2Content = decodeBytesToString(bytes)
-                                bitmap = Fb2Parser.extractCover(fb2Content)
-                                break
-                            }
-                            entry = zis.nextEntry
-                        }
-                    }
-                }
-            }
-            
-            if (bitmap != null) {
-                val cacheDir = File(context.cacheDir, "covers")
-                if (!cacheDir.exists()) {
-                    cacheDir.mkdirs()
-                }
-                val coverFile = File(cacheDir, "${sha1}.jpg")
-                FileOutputStream(coverFile).use { fos ->
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos)
-                }
-                return coverFile.absolutePath
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("BookScannerState", "Error extracting cover", e)
-        }
-        return null
+        return CoverExtractor.extractCover(file, sha1, context)
     }
 }

@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">NightRead</string>
+    <string name="unknown_author">Неизвестен</string>
+    <string name="unknown_series">Неизвестная серия</string>
+    <string name="unknown_title">Неизвестно</string>
+    <string name="local_txt">Локальный TXT</string>
 </resources>
