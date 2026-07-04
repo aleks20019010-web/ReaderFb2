@@ -56,12 +56,7 @@ class BookScanner(private val context: Context) {
                     val ext = file.extension.lowercase()
                     
                     var parsedTitle = file.nameWithoutExtension
-                    val unknownAuthor = try {
-                        context.getString(com.example.R.string.unknown_author)
-                    } catch (e: Exception) {
-                        "Неизвестен"
-                    }
-                    var parsedAuthor = unknownAuthor
+                    var parsedAuthor = "Неизвестен"
                     var parsedContent = ""
                     var parsedSeries: String? = null
                     var parsedSeriesIndex: Int? = null
@@ -182,11 +177,7 @@ class BookScanner(private val context: Context) {
                         }
                         
                         parsedContent = decodeBytesToString(contentBytes)
-                        parsedAuthor = try {
-                            context.getString(com.example.R.string.local_txt)
-                        } catch (e: Exception) {
-                            "Локальный TXT"
-                        }
+                        parsedAuthor = "Локальный TXT"
                     } else {
                         continue
                     }
