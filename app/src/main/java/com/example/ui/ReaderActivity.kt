@@ -14,6 +14,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -44,10 +45,23 @@ class ReaderActivity : FragmentActivity() {
     private lateinit var bottomBar: LinearLayout
     private lateinit var progressText: TextView
     private lateinit var titleText: TextView
+    private lateinit var seekBar: SeekBar
 
-    private var isSystemUiVisible = true
+    private lateinit var backButtonView: TextView
+    private lateinit var infoButtonView: TextView
+    private lateinit var fontSizeDownBtn: TextView
+    private lateinit var fontSizeUpBtn: TextView
+    private lateinit var themeBtn: TextView
+    private lateinit var libraryBtn: TextView
+
+    private var isSystemUiVisible = false
     private var bookId: Int = -1
     private var pages: List<String> = emptyList()
+
+    private val hideHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val hideRunnable = Runnable {
+        hideSystemUi()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,10 +76,10 @@ class ReaderActivity : FragmentActivity() {
             return
         }
 
-        // Programmatic layout assembly for robustness and speed
+        // Programmatic layout assembly
         setupLayout()
 
-        // Load content in a safe IO coroutine
+        // Load content
         loadBookContent()
     }
 
@@ -76,7 +90,6 @@ class ReaderActivity : FragmentActivity() {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(Color.parseColor("#FAF6EE")) // Warm paper background
         }
 
         // ViewPager2
@@ -111,60 +124,244 @@ class ReaderActivity : FragmentActivity() {
                 gravity = Gravity.TOP
             }
             setPadding((16 * density).toInt(), 0, (16 * density).toInt(), 0)
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#FAF6EE"))
-                setStroke(1, Color.parseColor("#E0DCD3"))
-            }
         }
 
-        val backButton = TextView(this).apply {
+        backButtonView = TextView(this).apply {
             text = "◀"
             textSize = 20f
-            setTextColor(Color.parseColor("#2C2C2C"))
             gravity = Gravity.CENTER
             setPadding(0, 0, (16 * density).toInt(), 0)
             setOnClickListener {
                 finish()
             }
         }
-        topBar.addView(backButton)
+        topBar.addView(backButtonView)
 
         titleText = TextView(this).apply {
             text = "Чтение"
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#2C2C2C"))
             setSingleLine(true)
             ellipsize = android.text.TextUtils.TruncateAt.END
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
         topBar.addView(titleText)
+
+        infoButtonView = TextView(this).apply {
+            text = "ℹ"
+            textSize = 20f
+            gravity = Gravity.CENTER
+            setPadding((16 * density).toInt(), 0, 0, 0)
+            setOnClickListener {
+                Toast.makeText(this@ReaderActivity, "Разработчик: Google AI Studio\nФорматы: FB2, TXT, ZIP", Toast.LENGTH_LONG).show()
+                resetHideTimer()
+            }
+        }
+        topBar.addView(infoButtonView)
         root.addView(topBar)
 
         // Bottom Controls Overlay Bar
         bottomBar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
+            orientation = LinearLayout.VERTICAL
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                (48 * density).toInt()
+                FrameLayout.LayoutParams.WRAP_CONTENT
             ).apply {
                 gravity = Gravity.BOTTOM
             }
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#FAF6EE"))
-                setStroke(1, Color.parseColor("#E0DCD3"))
+            setPadding((16 * density).toInt(), (8 * density).toInt(), (16 * density).toInt(), (8 * density).toInt())
+        }
+
+        // Bottom Row 1: SeekBar and Page label
+        val seekRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 0, 0, (8 * density).toInt())
             }
         }
 
         progressText = TextView(this).apply {
-            text = "Загрузка..."
-            textSize = 14f
-            setTextColor(Color.parseColor("#706B64"))
+            text = "Стр. - / -"
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
         }
-        bottomBar.addView(progressText)
+        seekRow.addView(progressText)
+
+        seekBar = SeekBar(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                leftMargin = (12 * density).toInt()
+            }
+        }
+        seekRow.addView(seekBar)
+        bottomBar.addView(seekRow)
+
+        // Bottom Row 2: settings action buttons
+        val actionsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        fontSizeDownBtn = createPanelButton(this, "А-") {
+            adjustFontSize(-1f)
+        }
+        actionsRow.addView(fontSizeDownBtn)
+
+        fontSizeUpBtn = createPanelButton(this, "А+") {
+            adjustFontSize(1f)
+        }
+        actionsRow.addView(fontSizeUpBtn)
+
+        themeBtn = createPanelButton(this, "Тема") {
+            cycleTheme()
+        }
+        actionsRow.addView(themeBtn)
+
+        libraryBtn = createPanelButton(this, "Библиотека") {
+            finish()
+        }
+        actionsRow.addView(libraryBtn)
+
+        bottomBar.addView(actionsRow)
         root.addView(bottomBar)
 
+        // Setup theme immediately
+        applyThemeColors()
+
+        // Hide bars initially
+        topBar.visibility = View.GONE
+        bottomBar.visibility = View.GONE
+        isSystemUiVisible = false
+
         setContentView(root)
+    }
+
+    private fun createPanelButton(context: Context, text: String, onClick: View.OnClickListener): TextView {
+        val density = context.resources.displayMetrics.density
+        return TextView(context).apply {
+            this.text = text
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding((16 * density).toInt(), (10 * density).toInt(), (16 * density).toInt(), (10 * density).toInt())
+            gravity = Gravity.CENTER
+            setOnClickListener(onClick)
+        }
+    }
+
+    private fun adjustFontSize(delta: Float) {
+        val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
+        val currentSize = sharedPrefs.getFloat("font_size", 18f)
+        val newSize = (currentSize + delta).coerceIn(12f, 30f)
+        sharedPrefs.edit().putFloat("font_size", newSize).apply()
+        
+        Toast.makeText(this, "Шрифт: ${newSize.toInt()}sp", Toast.LENGTH_SHORT).show()
+        
+        refreshAdapter()
+        resetHideTimer()
+    }
+
+    private fun cycleTheme() {
+        val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
+        val currentTheme = sharedPrefs.getString("theme", "sepia") ?: "sepia"
+        val nextTheme = when (currentTheme) {
+            "sepia" -> "light"
+            "light" -> "dark"
+            else -> "sepia"
+        }
+        sharedPrefs.edit().putString("theme", nextTheme).apply()
+        
+        applyThemeColors()
+        refreshAdapter()
+        resetHideTimer()
+    }
+
+    private fun applyThemeColors() {
+        val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
+        val themeName = sharedPrefs.getString("theme", "sepia") ?: "sepia"
+        
+        var bgColorHex = "#FAF6EE"
+        var textColorHex = "#2C2C2C"
+        var panelBgHex = "#FAF6EE"
+        var borderHex = "#E0DCD3"
+        
+        when (themeName) {
+            "light" -> {
+                bgColorHex = "#FFFFFF"
+                textColorHex = "#121212"
+                panelBgHex = "#F5F5F5"
+                borderHex = "#E0E0E0"
+            }
+            "dark" -> {
+                bgColorHex = "#121212"
+                textColorHex = "#E0E0E0"
+                panelBgHex = "#1E1E1E"
+                borderHex = "#2D2D2D"
+            }
+            "sepia" -> {
+                bgColorHex = "#FAF6EE"
+                textColorHex = "#2C2C2C"
+                panelBgHex = "#FAF6EE"
+                borderHex = "#E0DCD3"
+            }
+        }
+        
+        val bgColor = Color.parseColor(bgColorHex)
+        val textColor = Color.parseColor(textColorHex)
+        val panelBg = Color.parseColor(panelBgHex)
+        val border = Color.parseColor(borderHex)
+        
+        findViewById<View>(android.R.id.content)?.setBackgroundColor(bgColor)
+        viewPager.setBackgroundColor(bgColor)
+        
+        // Style Top Bar
+        topBar.background = GradientDrawable().apply {
+            setColor(panelBg)
+            setStroke(1, border)
+        }
+        titleText.setTextColor(textColor)
+        backButtonView.setTextColor(textColor)
+        infoButtonView.setTextColor(textColor)
+        
+        // Style Bottom Bar
+        bottomBar.background = GradientDrawable().apply {
+            setColor(panelBg)
+            setStroke(1, border)
+        }
+        progressText.setTextColor(textColor)
+        
+        // Update button colors
+        val btnTextColor = if (themeName == "dark") Color.parseColor("#E5A93C") else Color.parseColor("#8E6E36")
+        fontSizeDownBtn.setTextColor(btnTextColor)
+        fontSizeUpBtn.setTextColor(btnTextColor)
+        themeBtn.setTextColor(btnTextColor)
+        libraryBtn.setTextColor(btnTextColor)
+        
+        // Update SeekBar colors if supported
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            val colorStateList = android.content.res.ColorStateList.valueOf(btnTextColor)
+            seekBar.progressTintList = colorStateList
+            seekBar.thumbTintList = colorStateList
+        }
+    }
+
+    private fun refreshAdapter() {
+        if (pages.isNotEmpty()) {
+            val currentPos = viewPager.currentItem
+            val adapter = BookPagerAdapter(this, pages)
+            viewPager.adapter = adapter
+            viewPager.setCurrentItem(currentPos, false)
+        }
     }
 
     private fun loadBookContent() {
@@ -230,7 +427,9 @@ class ReaderActivity : FragmentActivity() {
 
                 Log.d(TAG, "Шаг 5: Разбивка на страницы...")
                 pages = withContext(Dispatchers.Default) {
-                    splitContentToPages(rawContent)
+                    // Preprocess paragraph structure & apply syllabic hyphenation on a background thread
+                    val formattedText = preprocessTextAndHyphenate(rawContent)
+                    splitContentToPages(formattedText)
                 }
 
                 Log.d(TAG, "Количество страниц: ${pages.size}")
@@ -247,21 +446,42 @@ class ReaderActivity : FragmentActivity() {
                 val adapter = BookPagerAdapter(this@ReaderActivity, pages)
                 viewPager.adapter = adapter
 
+                // Configure seekbar max
+                seekBar.max = (pages.size - 1).coerceAtLeast(0)
+
                 // Restore saved page
                 val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
                 val savedPage = sharedPrefs.getInt("book_page_$bookId", 0)
                 val targetPage = savedPage.coerceIn(0, pages.size - 1)
                 
                 viewPager.setCurrentItem(targetPage, false)
-                progressText.text = "Страница ${targetPage + 1} из ${pages.size}"
+                seekBar.progress = targetPage
+                progressText.text = "Стр. ${targetPage + 1} из ${pages.size}"
 
                 viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
                     override fun onPageSelected(position: Int) {
-                        progressText.text = "Страница ${position + 1} из ${pages.size}"
+                        progressText.text = "Стр. ${position + 1} из ${pages.size}"
+                        seekBar.progress = position
                         Log.d(TAG, "Текущая страница изменена на: ${position + 1}")
                         
                         // Save page progress dynamically
                         sharedPrefs.edit().putInt("book_page_$bookId", position).apply()
+                    }
+                })
+
+                seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                        if (fromUser) {
+                            val targetPage = progress.coerceIn(0, pages.size - 1)
+                            viewPager.setCurrentItem(targetPage, false)
+                            progressText.text = "Стр. ${targetPage + 1} из ${pages.size}"
+                        }
+                    }
+                    override fun onStartTrackingTouch(sb: SeekBar?) {
+                        hideHandler.removeCallbacks(hideRunnable)
+                    }
+                    override fun onStopTrackingTouch(sb: SeekBar?) {
+                        resetHideTimer()
                     }
                 })
 
@@ -297,7 +517,6 @@ class ReaderActivity : FragmentActivity() {
     }
 
     private fun decodeBytesWithLogs(bytes: ByteArray, fileName: String): String {
-        // 1. Try checking for XML encoding attribute
         var encodingHeader: String? = null
         try {
             val previewSize = if (bytes.size > 1024) 1024 else bytes.size
@@ -322,7 +541,7 @@ class ReaderActivity : FragmentActivity() {
             }
         }
 
-        // 2. Try UTF-8
+        // Try UTF-8
         Log.d(TAG, "Определение кодировки: пробуем UTF-8...")
         try {
             val decoder = StandardCharsets.UTF_8.newDecoder()
@@ -335,7 +554,7 @@ class ReaderActivity : FragmentActivity() {
             Log.d(TAG, "Определение кодировки: UTF-8 не подошла")
         }
 
-        // 3. Try Windows-1251
+        // Try Windows-1251
         Log.d(TAG, "Определение кодировки: пробуем windows-1251...")
         try {
             val charset = Charset.forName("windows-1251")
@@ -346,7 +565,7 @@ class ReaderActivity : FragmentActivity() {
             Log.d(TAG, "Определение кодировки: windows-1251 не подошла")
         }
 
-        // 4. Try KOI8-R
+        // Try KOI8-R
         Log.d(TAG, "Определение кодировки: пробуем KOI8-R...")
         try {
             val charset = Charset.forName("KOI8-R")
@@ -398,6 +617,80 @@ class ReaderActivity : FragmentActivity() {
         }.trim()
     }
 
+    private fun preprocessTextAndHyphenate(rawContent: String): String {
+        // Step A: Re-format paragraphs to have minimal distance and clean 4-space indents
+        val processedParagraphs = rawContent.split("\n")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString("\n") { "    $it" }
+
+        // Step B: Inject soft hyphens (\u00AD) into Russian words to enable flawless line-breaks
+        val vowels = "аеёиоуыэюяАЕЁИОУЫЭЮЯ"
+        val special = "ьъйЬЪЙ"
+        val wordRegex = """([а-яА-ЯёЁ]+)""".toRegex()
+
+        return wordRegex.replace(processedParagraphs) { matchResult ->
+            val word = matchResult.value
+            if (word.length < 4 || !word.any { vowels.contains(it) }) {
+                word
+            } else {
+                val sb = java.lang.StringBuilder()
+                var vowelCount = 0
+                val totalVowels = word.count { vowels.contains(it) }
+
+                if (totalVowels <= 1) {
+                    word
+                } else {
+                    for (i in 0 until word.length) {
+                        val char = word[i]
+                        sb.append(char)
+
+                        if (vowels.contains(char)) {
+                            vowelCount++
+                        }
+
+                        // Inject hyphens at safe break points
+                        if (vowelCount > 0 && vowelCount < totalVowels) {
+                            // 1. Vowel-Consonant-Vowel: мо-ло-ко
+                            if (vowels.contains(char) && i + 2 < word.length && !vowels.contains(word[i + 1]) && vowels.contains(word[i + 2])) {
+                                if (!special.contains(word[i + 1])) {
+                                    sb.append('\u00AD')
+                                }
+                            }
+                            // 2. Consonant-Consonant: кар-та
+                            else if (!vowels.contains(char) && !special.contains(char) && i + 1 < word.length && !vowels.contains(word[i + 1]) && !special.contains(word[i + 1])) {
+                                var hasVowelLater = false
+                                for (j in (i + 2) until word.length) {
+                                    if (vowels.contains(word[j])) {
+                                        hasVowelLater = true
+                                        break
+                                    }
+                                }
+                                if (hasVowelLater) {
+                                    sb.append('\u00AD')
+                                }
+                            }
+                            // 3. Special characters (Ь, Ъ, Й)
+                            else if (special.contains(char) && i + 1 < word.length) {
+                                var hasVowelLater = false
+                                for (j in (i + 1) until word.length) {
+                                    if (vowels.contains(word[j])) {
+                                        hasVowelLater = true
+                                        break
+                                    }
+                                }
+                                if (hasVowelLater) {
+                                    sb.append('\u00AD')
+                                }
+                            }
+                        }
+                    }
+                    sb.toString()
+                }
+            }
+        }
+    }
+
     private fun splitContentToPages(content: String): List<String> {
         val result = mutableListOf<String>()
         val pageSize = 2000
@@ -412,15 +705,89 @@ class ReaderActivity : FragmentActivity() {
         return result
     }
 
+    private fun resetHideTimer() {
+        hideHandler.removeCallbacks(hideRunnable)
+        hideHandler.postDelayed(hideRunnable, 3000)
+    }
+
+    private fun hideSystemUi() {
+        isSystemUiVisible = false
+        hideHandler.removeCallbacks(hideRunnable)
+
+        val density = resources.displayMetrics.density
+        val topTargetY = -(topBar.height.toFloat().takeIf { it > 0 } ?: (56 * density))
+        val bottomTargetY = (bottomBar.height.toFloat().takeIf { it > 0 } ?: (150 * density))
+
+        topBar.animate()
+            .translationY(topTargetY)
+            .alpha(0f)
+            .setDuration(300)
+            .setListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    if (!isSystemUiVisible) {
+                        topBar.visibility = View.GONE
+                    }
+                }
+            })
+
+        bottomBar.animate()
+            .translationY(bottomTargetY)
+            .alpha(0f)
+            .setDuration(300)
+            .setListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    if (!isSystemUiVisible) {
+                        bottomBar.visibility = View.GONE
+                    }
+                }
+            })
+    }
+
+    private fun showSystemUi() {
+        isSystemUiVisible = true
+        hideHandler.removeCallbacks(hideRunnable)
+
+        val density = resources.displayMetrics.density
+        val topStartY = -(topBar.height.toFloat().takeIf { it > 0 } ?: (56 * density))
+        val bottomStartY = (bottomBar.height.toFloat().takeIf { it > 0 } ?: (150 * density))
+
+        if (topBar.visibility == View.GONE) {
+            topBar.visibility = View.VISIBLE
+            topBar.alpha = 0f
+            topBar.translationY = topStartY
+        }
+        if (bottomBar.visibility == View.GONE) {
+            bottomBar.visibility = View.VISIBLE
+            bottomBar.alpha = 0f
+            bottomBar.translationY = bottomStartY
+        }
+
+        topBar.animate()
+            .translationY(0f)
+            .alpha(1f)
+            .setDuration(300)
+            .setListener(null)
+
+        bottomBar.animate()
+            .translationY(0f)
+            .alpha(1f)
+            .setDuration(300)
+            .setListener(null)
+
+        resetHideTimer()
+    }
+
     fun toggleSystemUi() {
-        isSystemUiVisible = !isSystemUiVisible
-        topBar.visibility = if (isSystemUiVisible) View.VISIBLE else View.GONE
-        bottomBar.visibility = if (isSystemUiVisible) View.VISIBLE else View.GONE
+        if (isSystemUiVisible) {
+            hideSystemUi()
+        } else {
+            showSystemUi()
+        }
     }
 
     override fun onPause() {
         super.onPause()
-        // Ensure current page is preserved on pause
+        hideHandler.removeCallbacks(hideRunnable)
         if (pages.isNotEmpty() && bookId != -1) {
             val currentPageIndex = viewPager.currentItem
             val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)

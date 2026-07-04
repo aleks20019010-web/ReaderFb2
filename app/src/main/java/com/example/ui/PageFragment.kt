@@ -1,5 +1,7 @@
 package com.example.ui
 
+import android.content.Context
+import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -26,12 +28,23 @@ class PageFragment : Fragment() {
         val density = context.resources.displayMetrics.density
         val padding16 = (16 * density).toInt()
 
+        // Read preferences for dynamic styling
+        val sharedPrefs = context.getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
+        val fontSize = sharedPrefs.getFloat("font_size", 18f)
+        val themeName = sharedPrefs.getString("theme", "sepia") ?: "sepia"
+
+        val (bgColor, textColor) = when (themeName) {
+            "light" -> Pair("#FFFFFF", "#121212")
+            "dark" -> Pair("#121212", "#E0E0E0")
+            else -> Pair("#FAF6EE", "#2C2C2C") // sepia / warm paper
+        }
+
         val root = FrameLayout(context).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(android.graphics.Color.parseColor("#FAF6EE")) // Warm paper background
+            setBackgroundColor(Color.parseColor(bgColor))
         }
 
         val textView = TextView(context).apply {
@@ -41,9 +54,17 @@ class PageFragment : Fragment() {
             )
             setPadding(padding16, padding16, padding16, padding16)
             text = pageText
-            textSize = 18f
-            setTextColor(android.graphics.Color.parseColor("#2C2C2C")) // Highly legible charcoal text
-            setLineSpacing(0f, 1.3f)
+            textSize = fontSize
+            setTextColor(Color.parseColor(textColor))
+            
+            // Set minimal line spacing: extra 2dp, multiplier 1.0f
+            setLineSpacing(2 * density, 1.0f)
+            
+            // Break strategy and hyphenation
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                breakStrategy = android.text.Layout.BREAK_STRATEGY_BALANCED
+                hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
+            }
             gravity = Gravity.TOP or Gravity.START
         }
 
