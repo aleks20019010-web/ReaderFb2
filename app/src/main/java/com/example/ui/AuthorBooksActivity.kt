@@ -40,81 +40,84 @@ class AuthorBooksActivity : ComponentActivity() {
         val authorName = intent.getStringExtra("AUTHOR_NAME") ?: "Неизвестен"
         
         setContent {
-            val context = LocalContext.current
-            val database = remember { AppDatabase.getDatabase(context.applicationContext) }
-            val booksFlow = remember(authorName) { database.bookDao().getBooksByAuthor(authorName) }
-            val books by booksFlow.collectAsState(initial = emptyList())
-            
-            val customBackground = Color(0xFF06161A)
-            val customSurface = Color(0xFF0F262B)
-            val customYellow = Color(0xFFE5A93C)
-            
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                text = "Книги автора: $authorName",
-                                color = Color.White,
-                                style = MaterialTheme.typography.titleMedium
+            com.example.ui.theme.MyApplicationTheme {
+                val context = LocalContext.current
+                val database = remember { AppDatabase.getDatabase(context.applicationContext) }
+                val booksFlow = remember(authorName) { database.bookDao().getBooksByAuthor(authorName) }
+                val books by booksFlow.collectAsState(initial = emptyList())
+                
+                val customBackground = MaterialTheme.colorScheme.background
+                val customSurface = MaterialTheme.colorScheme.surface
+                val customYellow = MaterialTheme.colorScheme.primary
+                val onBackground = MaterialTheme.colorScheme.onBackground
+                
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    text = "Книги автора: $authorName",
+                                    color = onBackground,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            },
+                            navigationIcon = {
+                                IconButton(onClick = { finish() }) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Назад",
+                                        tint = onBackground
+                                    )
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = customBackground
                             )
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = { finish() }) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Назад",
-                                    tint = Color.White
+                        )
+                    },
+                    containerColor = customBackground
+                ) { paddingValues ->
+                    if (books.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(paddingValues),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Книг автора не найдено",
+                                color = MaterialTheme.colorScheme.secondary,
+                                fontSize = 16.sp
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(paddingValues)
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(bottom = 24.dp)
+                        ) {
+                            items(books) { book ->
+                                AuthorBookListItem(
+                                    book = book,
+                                    customSurface = customSurface,
+                                    customYellow = customYellow,
+                                    onClick = {
+                                        val readerIntent = Intent(context, ReaderActivity::class.java).apply {
+                                            putExtra("BOOK_SHA1", book.sha1)
+                                        }
+                                        context.startActivity(readerIntent)
+                                    },
+                                    onSeriesClick = { seriesName ->
+                                        val seriesIntent = Intent(context, SeriesBooksActivity::class.java).apply {
+                                            putExtra("SERIES_NAME", seriesName)
+                                        }
+                                        context.startActivity(seriesIntent)
+                                    }
                                 )
                             }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = customBackground
-                        )
-                    )
-                },
-                containerColor = customBackground
-            ) { paddingValues ->
-                if (books.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Книг автора не найдено",
-                            color = Color.LightGray,
-                            fontSize = 16.sp
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        contentPadding = PaddingValues(bottom = 24.dp)
-                    ) {
-                        items(books) { book ->
-                            AuthorBookListItem(
-                                book = book,
-                                customSurface = customSurface,
-                                customYellow = customYellow,
-                                onClick = {
-                                    val readerIntent = Intent(context, ReaderActivity::class.java).apply {
-                                        putExtra("BOOK_SHA1", book.sha1)
-                                    }
-                                    context.startActivity(readerIntent)
-                                },
-                                onSeriesClick = { seriesName ->
-                                    val seriesIntent = Intent(context, SeriesBooksActivity::class.java).apply {
-                                        putExtra("SERIES_NAME", seriesName)
-                                    }
-                                    context.startActivity(seriesIntent)
-                                }
-                            )
                         }
                     }
                 }
@@ -198,7 +201,7 @@ fun AuthorBookListItem(
             ) {
                 Text(
                     text = book.title,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
@@ -233,7 +236,7 @@ fun AuthorBookListItem(
                 
                 Text(
                     text = annotation.ifEmpty { "Описание отсутствует." },
-                    color = Color.LightGray,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                     fontSize = 12.sp,
                     maxLines = 4,
                     overflow = TextOverflow.Ellipsis

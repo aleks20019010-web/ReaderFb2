@@ -30,12 +30,12 @@
 
         <TextView
             android:id="@+id/backButtonView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:text="◀"
             android:textSize="20sp"
-            android:paddingEnd="16dp"
-            android:gravity="center" />
+            android:gravity="center"
+            android:background="?android:attr/selectableItemBackgroundBorderless" />
 
         <TextView
             android:id="@+id/titleText"
@@ -46,25 +46,26 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:singleLine="true"
-            android:ellipsize="end" />
+            android:ellipsize="end"
+            android:layout_marginStart="8dp" />
 
         <TextView
             android:id="@+id/infoButtonView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:text="ℹ"
-            android:textSize="20sp"
-            android:paddingStart="16dp"
-            android:gravity="center" />
+            android:textSize="22sp"
+            android:gravity="center"
+            android:background="?android:attr/selectableItemBackgroundBorderless" />
 
         <TextView
             android:id="@+id/settingsBtn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:text="⚙"
-            android:textSize="20sp"
-            android:paddingStart="16dp"
-            android:gravity="center" />
+            android:textSize="28sp"
+            android:gravity="center"
+            android:background="?android:attr/selectableItemBackgroundBorderless" />
     </LinearLayout>
 
     <!-- Bottom Bar -->

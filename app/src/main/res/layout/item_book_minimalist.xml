@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="4dp">
+
+    <!-- Cover container with fixed height for perfect grid alignment -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="140dp">
+
+        <!-- Gradient background (fallback) or loaded cover -->
+        <View
+            android:id="@+id/vCoverBackground"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#e94560" />
+
+        <ImageView
+            android:id="@+id/ivCover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:contentDescription="Обложка книги" />
+
+        <!-- Delete overlay button -->
+        <ImageButton
+            android:id="@+id/btnDelete"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="4dp"
+            android:background="@android:drawable/presence_offline"
+            android:backgroundTint="#80000000"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:contentDescription="Удалить"
+            android:tint="@android:color/white"
+            android:padding="4dp" />
+    </FrameLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="4dp" />
+
+    <!-- Book Title -->
+    <TextView
+        android:id="@+id/tvBookTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:paddingHorizontal="2dp" />
+
+    <!-- Book Author -->
+    <TextView
+        android:id="@+id/tvBookAuthor"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@android:color/darker_gray"
+        android:textSize="10sp"
+        android:paddingHorizontal="2dp" />
+
+</LinearLayout>

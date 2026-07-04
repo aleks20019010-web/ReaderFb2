@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <!-- Top Action Bar Header -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:layout_toStartOf="@+id/layoutActions"
+            android:text="Библиотека"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="?android:attr/textColorPrimary" />
+
+        <LinearLayout
+            android:id="@+id/layoutActions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Search Toggle -->
+            <ImageButton
+                android:id="@+id/btnSearchToggle"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_search"
+                android:contentDescription="Поиск"
+                android:tint="?android:attr/colorControlNormal" />
+
+            <!-- Auto Scan -->
+            <ImageButton
+                android:id="@+id/btnAutoScan"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_rotate"
+                android:contentDescription="Автосканирование"
+                android:tint="?android:attr/colorControlNormal" />
+
+            <!-- Manual Import -->
+            <ImageButton
+                android:id="@+id/btnImport"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_upload"
+                android:contentDescription="Импорт"
+                android:tint="?android:attr/colorControlNormal" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- Expandable Search Input -->
+    <EditText
+        android:id="@+id/etSearch"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_marginBottom="8dp"
+        android:background="@android:drawable/editbox_background_normal"
+        android:hint="Поиск по библиотеке..."
+        android:inputType="text"
+        android:maxLines="1"
+        android:paddingHorizontal="12dp"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+    <!-- Compact Scan Progress Indicator -->
+    <ProgressBar
+        android:id="@+id/progressBarScan"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginBottom="8dp"
+        android:indeterminate="true"
+        android:visibility="gone" />
+
+    <!-- FrameLayout for list and placeholder -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- RecyclerView Grid of Books -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvBooks"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scrollbars="vertical" />
+
+        <!-- Empty library placeholder state -->
+        <TextView
+            android:id="@+id/tvEmptyLibrary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="Библиотека пуста"
+            android:textColor="@android:color/darker_gray"
+            android:textSize="14sp"
+            android:visibility="gone" />
+    </FrameLayout>
+
+</LinearLayout>

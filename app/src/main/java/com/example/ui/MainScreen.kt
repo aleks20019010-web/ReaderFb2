@@ -489,7 +489,6 @@ fun LibraryTab(
     viewModel: BookViewModel,
     onAddBookClick: () -> Unit
 ) {
-    val categories = listOf("Все", "Классика", "Проза", "Поэзия", "Локальные")
     val context = LocalContext.current
     var showPermissionExplanationDialog by remember { mutableStateOf(false) }
     var showOlderPermissionExplanationDialog by remember { mutableStateOf(false) }
@@ -603,41 +602,26 @@ fun LibraryTab(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
-        // Top Heading Row
+        // Top Heading & Compact Action Bar
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    "Моя библиотека",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    "В библиотеке: ${books.size} кн.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
-                )
-            }
+            Text(
+                text = "Библиотека",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(start = 4.dp)
+            )
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = { singleFilePickerLauncher.launch(arrayOf("*/*")) },
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ),
-                    modifier = Modifier.testTag("import_book_fab")
-                ) {
-                    Icon(Icons.Default.FileUpload, contentDescription = "Импортировать книгу")
-                }
+                // Search Toggle Icon Button
                 IconButton(
                     onClick = {
                         isSearchVisible = !isSearchVisible
@@ -645,148 +629,87 @@ fun LibraryTab(
                             viewModel.bookSearchQuery = ""
                         }
                     },
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    ),
                     modifier = Modifier.testTag("search_toggle_button")
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = "Поиск")
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Поиск",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                // Compact Scan Button next to import
+                IconButton(
+                    onClick = { onScanClick() },
+                    modifier = Modifier.testTag("scan_device_books_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Scanner,
+                        contentDescription = "Автосканирование",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                // Import Button
+                IconButton(
+                    onClick = { singleFilePickerLauncher.launch(arrayOf("*/*")) },
+                    modifier = Modifier.testTag("import_book_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FileUpload,
+                        contentDescription = "Импорт",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Search Bar (visible only when isSearchVisible is true)
+        // Minimalist Search Bar (when active)
         if (isSearchVisible) {
             OutlinedTextField(
                 value = viewModel.bookSearchQuery,
                 onValueChange = { viewModel.bookSearchQuery = it },
-                placeholder = { Text("Поиск книг или авторов...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                placeholder = { Text("Поиск...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
                 trailingIcon = {
                     IconButton(onClick = {
                         viewModel.bookSearchQuery = ""
                         isSearchVisible = false
                     }) {
-                        Icon(Icons.Default.Close, contentDescription = "Закрыть")
+                        Icon(Icons.Default.Close, contentDescription = "Закрыть", tint = Color.Gray)
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(56.dp)
                     .testTag("book_search_input"),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f)
+                ),
+                singleLine = true
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Scan Progress / Trigger Layout
+        // Compact Scan Progress
         if (viewModel.isScanning) {
-            Card(
+            LinearProgressIndicator(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(2.dp)
                     .padding(vertical = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = viewModel.scanProgressText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        } else if (viewModel.scanProgressText.isNotEmpty()) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = viewModel.scanProgressText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(
-                        onClick = { viewModel.scanProgressText = "" },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Закрыть",
-                            modifier = Modifier.size(16.dp),
-                            tint = Color.Gray
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
+                color = MaterialTheme.colorScheme.primary
+            )
         }
-
-        // Action Buttons Row (Scan device)
-        Button(
-            onClick = { onScanClick() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("scan_device_books_button"),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Поиск книг на устройстве", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Categories Row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            categories.forEach { cat ->
-                val selected = viewModel.selectedCategory == cat
-                FilterChip(
-                    selected = selected,
-                    onClick = { viewModel.selectedCategory = cat },
-                    label = { Text(cat) }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
 
         // Book list filtering
         val filteredBooks = books.filter { book ->
-            val matchesSearch = book.title.contains(viewModel.bookSearchQuery, ignoreCase = true) ||
+            book.title.contains(viewModel.bookSearchQuery, ignoreCase = true) ||
                     (book.author ?: "").contains(viewModel.bookSearchQuery, ignoreCase = true)
-            val matchesCategory = viewModel.selectedCategory == "Все" || book.category == viewModel.selectedCategory
-            matchesSearch && matchesCategory
         }
 
         if (filteredBooks.isEmpty()) {
@@ -796,42 +719,136 @@ fun LibraryTab(
                     .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.LibraryBooks,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = Color.LightGray
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Книги не найдены",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.Gray
-                    )
-                    Text(
-                        "Попробуйте изменить запрос или добавить новую книгу.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 32.dp)
-                    )
-                }
+                Text(
+                    text = "Библиотека пуста",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Fixed(3),
                 modifier = Modifier
                     .fillMaxSize()
                     .weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(filteredBooks) { book ->
-                    BookGridItem(book = book, onOpen = { viewModel.detailedBook = book }, onDelete = { viewModel.deleteBook(book.sha1) })
+                    MinimalistBookItem(
+                        book = book,
+                        onOpen = { viewModel.detailedBook = book },
+                        onDelete = { viewModel.deleteBook(book.sha1) }
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun MinimalistBookItem(
+    book: BookEntity,
+    onOpen: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val startColor = try { Color(android.graphics.Color.parseColor(book.coverGradientStart)) } catch (e: Exception) { Color(0xFFE94560) }
+    val endColor = try { Color(android.graphics.Color.parseColor(book.coverGradientEnd)) } catch (e: Exception) { Color(0xFF1A1A2E) }
+
+    val coverBitmap = remember(book.coverPath) {
+        book.coverPath?.let { path ->
+            try {
+                if (java.io.File(path).exists()) {
+                    android.graphics.BitmapFactory.decodeFile(path)
+                } else null
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpen)
+            .testTag("book_card_${book.sha1}")
+    ) {
+        // Cover container
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(0.7f) // beautiful book ratio (width/height = 0.7)
+                .clip(RoundedCornerShape(6.dp))
+                .then(
+                    if (coverBitmap != null) {
+                        Modifier
+                    } else {
+                        Modifier.background(Brush.verticalGradient(colors = listOf(startColor, endColor)))
+                    }
+                )
+        ) {
+            if (coverBitmap != null) {
+                Image(
+                    bitmap = coverBitmap.asImageBitmap(),
+                    contentDescription = book.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Book,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.4f),
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
+            // Minimalist overlay Delete Button
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(20.dp)
+                    .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                    .testTag("delete_book_btn_${book.sha1}")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Удалить",
+                    tint = Color.White,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Title
+        Text(
+            text = book.title,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 2.dp)
+        )
+
+        // Author
+        Text(
+            text = book.author ?: "Неизвестен",
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.Gray,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 2.dp)
+        )
     }
 }
 
@@ -2016,10 +2033,10 @@ fun BookDetailsScreen(
         (book.currentProgressChar * 100f / book.totalCharacters).coerceIn(0f, 100f).toInt()
     } else 0
 
-    // Custom dark background color matching the image (#06161A)
-    val customBackground = Color(0xFF06161A)
-    val customSurface = Color(0xFF0F262B)
-    val customYellow = Color(0xFFE5A93C)
+    val customBackground = MaterialTheme.colorScheme.background
+    val customSurface = MaterialTheme.colorScheme.surface
+    val customYellow = MaterialTheme.colorScheme.primary
+    val onBg = MaterialTheme.colorScheme.onBackground
 
     Scaffold(
         topBar = {
@@ -2027,7 +2044,7 @@ fun BookDetailsScreen(
                 title = {
                     Text(
                         "О документе",
-                        color = Color.White,
+                        color = onBg,
                         style = MaterialTheme.typography.titleMedium
                     )
                 },
@@ -2036,7 +2053,7 @@ fun BookDetailsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад",
-                            tint = Color.White
+                            tint = onBg
                         )
                     }
                 },
@@ -2073,7 +2090,7 @@ fun BookDetailsScreen(
                         Icon(
                             imageVector = if (isSpeaking) Icons.Default.Stop else Icons.Default.PlayArrow,
                             contentDescription = "Озвучить text",
-                            tint = if (isSpeaking) customYellow else Color.White
+                            tint = if (isSpeaking) customYellow else onBg
                         )
                     }
                 },
@@ -2178,7 +2195,7 @@ fun BookDetailsScreen(
                 text = book.title,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = onBg,
                 textAlign = TextAlign.Center
             )
 
@@ -2195,7 +2212,7 @@ fun BookDetailsScreen(
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = "В избранное",
-                        tint = if (book.isFavorite) customYellow else Color.Gray
+                        tint = if (book.isFavorite) customYellow else onBg.copy(alpha = 0.4f)
                     )
                 }
 
@@ -2207,7 +2224,7 @@ fun BookDetailsScreen(
                     Icon(
                         imageVector = Icons.Default.AccessTime,
                         contentDescription = "История чтения",
-                        tint = Color.White
+                        tint = onBg
                     )
                 }
 
@@ -2229,7 +2246,7 @@ fun BookDetailsScreen(
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Отметить прочитанной",
-                        tint = if (book.currentProgressChar == book.totalCharacters) Color.Green else Color.White
+                        tint = if (book.currentProgressChar == book.totalCharacters) Color.Green else onBg
                     )
                 }
 
@@ -2240,7 +2257,7 @@ fun BookDetailsScreen(
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = "Статистика",
-                        tint = Color.White
+                        tint = onBg
                     )
                 }
 
@@ -2258,7 +2275,7 @@ fun BookDetailsScreen(
                     Icon(
                         imageVector = Icons.Default.Share,
                         contentDescription = "Поделиться",
-                        tint = Color.White
+                        tint = onBg
                     )
                 }
 
@@ -2280,7 +2297,7 @@ fun BookDetailsScreen(
                     Icon(
                         imageVector = Icons.Default.EditNote,
                         contentDescription = "Редактировать",
-                        tint = Color.White
+                        tint = onBg
                     )
                 }
             }
@@ -2346,19 +2363,19 @@ fun BookDetailsScreen(
                     val displaySize = if (book.fileSize > 0) "${book.fileSize / 1024} кБ" else "Встроенная"
                     Text(
                         text = "$formatName, $displaySize, Файлы: 1",
-                        color = Color.White,
+                        color = onBg,
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
                         text = "Формат и размер файла",
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
                 Icon(
                     imageVector = if (fileInfoExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
                     contentDescription = "Переключить детали",
-                    tint = Color.White
+                    tint = onBg
                 )
             }
 
@@ -2381,7 +2398,7 @@ fun BookDetailsScreen(
                         val cleanPath = book.filePath ?: "Интегрированная классика в БД"
                         Text(
                             cleanPath,
-                            color = Color.LightGray,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -2407,12 +2424,12 @@ fun BookDetailsScreen(
                     .fillMaxWidth()
                     .height(140.dp)
                     .padding(vertical = 8.dp),
-                placeholder = { Text("Добавить отзыв", color = Color.Gray) },
-                textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                placeholder = { Text("Добавить отзыв", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)) },
+                textStyle = androidx.compose.ui.text.TextStyle(color = MaterialTheme.colorScheme.onSurface),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = customYellow,
-                    unfocusedBorderColor = Color.Gray,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                     focusedContainerColor = customSurface,
                     unfocusedContainerColor = customSurface
                 )
@@ -2487,13 +2504,13 @@ fun DetailRow(label: String, value: String, onClick: (() -> Unit)? = null) {
     ) {
         Text(
             text = value,
-            color = if (onClick != null) Color(0xFFE5A93C) else Color.White,
+            color = if (onClick != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = if (onClick != null) FontWeight.Medium else FontWeight.Normal
         )
         Text(
             text = label,
-            color = Color.Gray,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
             style = MaterialTheme.typography.bodySmall
         )
     }

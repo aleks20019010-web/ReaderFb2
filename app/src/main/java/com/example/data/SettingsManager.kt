@@ -10,6 +10,7 @@ object SettingsManager {
     private const val PREFS_NAME = "reader_prefs"
     
     const val KEY_THEME = "theme"
+    const val KEY_PREVIOUS_THEME = "previous_theme"
     const val KEY_FONT_SIZE = "font_size"
     const val KEY_FONT_FAMILY = "font_family"
     const val KEY_FONT_WEIGHT = "font_weight"
@@ -31,8 +32,16 @@ object SettingsManager {
     }
 
     fun setTheme(context: Context, theme: String) {
-        getPrefs(context).edit().putString(KEY_THEME, theme).apply()
+        val prefs = getPrefs(context)
+        if (theme != "dark") {
+            prefs.edit().putString(KEY_PREVIOUS_THEME, theme).apply()
+        }
+        prefs.edit().putString(KEY_THEME, theme).apply()
         notifyChanged()
+    }
+
+    fun getPreviousTheme(context: Context): String {
+        return getPrefs(context).getString(KEY_PREVIOUS_THEME, "sepia") ?: "sepia"
     }
 
     fun getFontSize(context: Context): Float {

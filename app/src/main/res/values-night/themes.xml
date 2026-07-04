@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base application theme. -->
+    <!-- Base application theme for night/dark mode. -->
     <style name="Theme.MyApplication" parent="Theme.AppCompat.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/accent</item>

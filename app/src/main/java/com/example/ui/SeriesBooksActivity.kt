@@ -40,81 +40,84 @@ class SeriesBooksActivity : ComponentActivity() {
         val seriesName = intent.getStringExtra("SERIES_NAME") ?: "Неизвестная"
         
         setContent {
-            val context = LocalContext.current
-            val database = remember { AppDatabase.getDatabase(context.applicationContext) }
-            val booksFlow = remember(seriesName) { database.bookDao().getBooksBySeries(seriesName) }
-            val books by booksFlow.collectAsState(initial = emptyList())
-            
-            val customBackground = Color(0xFF06161A)
-            val customSurface = Color(0xFF0F262B)
-            val customYellow = Color(0xFFE5A93C)
-            
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                text = "Серия: $seriesName",
-                                color = Color.White,
-                                style = MaterialTheme.typography.titleMedium
+            com.example.ui.theme.MyApplicationTheme {
+                val context = LocalContext.current
+                val database = remember { AppDatabase.getDatabase(context.applicationContext) }
+                val booksFlow = remember(seriesName) { database.bookDao().getBooksBySeries(seriesName) }
+                val books by booksFlow.collectAsState(initial = emptyList())
+                
+                val customBackground = MaterialTheme.colorScheme.background
+                val customSurface = MaterialTheme.colorScheme.surface
+                val customYellow = MaterialTheme.colorScheme.primary
+                val onBackground = MaterialTheme.colorScheme.onBackground
+                
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    text = "Серия: $seriesName",
+                                    color = onBackground,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            },
+                            navigationIcon = {
+                                IconButton(onClick = { finish() }) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Назад",
+                                        tint = onBackground
+                                    )
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = customBackground
                             )
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = { finish() }) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Назад",
-                                    tint = Color.White
+                        )
+                    },
+                    containerColor = customBackground
+                ) { paddingValues ->
+                    if (books.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(paddingValues),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Книг серии не найдено",
+                                color = MaterialTheme.colorScheme.secondary,
+                                fontSize = 16.sp
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(paddingValues)
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(bottom = 24.dp)
+                        ) {
+                            items(books) { book ->
+                                SeriesBookListItem(
+                                    book = book,
+                                    customSurface = customSurface,
+                                    customYellow = customYellow,
+                                    onClick = {
+                                        val readerIntent = Intent(context, ReaderActivity::class.java).apply {
+                                            putExtra("BOOK_SHA1", book.sha1)
+                                        }
+                                        context.startActivity(readerIntent)
+                                    },
+                                    onAuthorClick = { authorName ->
+                                        val authorIntent = Intent(context, AuthorBooksActivity::class.java).apply {
+                                            putExtra("AUTHOR_NAME", authorName)
+                                        }
+                                        context.startActivity(authorIntent)
+                                    }
                                 )
                             }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = customBackground
-                        )
-                    )
-                },
-                containerColor = customBackground
-            ) { paddingValues ->
-                if (books.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Книг серии не найдено",
-                            color = Color.LightGray,
-                            fontSize = 16.sp
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        contentPadding = PaddingValues(bottom = 24.dp)
-                    ) {
-                        items(books) { book ->
-                            SeriesBookListItem(
-                                book = book,
-                                customSurface = customSurface,
-                                customYellow = customYellow,
-                                onClick = {
-                                    val readerIntent = Intent(context, ReaderActivity::class.java).apply {
-                                        putExtra("BOOK_SHA1", book.sha1)
-                                    }
-                                    context.startActivity(readerIntent)
-                                },
-                                onAuthorClick = { authorName ->
-                                    val authorIntent = Intent(context, AuthorBooksActivity::class.java).apply {
-                                        putExtra("AUTHOR_NAME", authorName)
-                                    }
-                                    context.startActivity(authorIntent)
-                                }
-                            )
                         }
                     }
                 }
@@ -198,7 +201,7 @@ fun SeriesBookListItem(
             ) {
                 Text(
                     text = if (book.seriesIndex != null) "${book.seriesIndex}. ${book.title}" else book.title,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
@@ -227,7 +230,7 @@ fun SeriesBookListItem(
                 
                 Text(
                     text = annotation.ifEmpty { "Описание отсутствует." },
-                    color = Color.LightGray,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                     fontSize = 12.sp,
                     maxLines = 4,
                     overflow = TextOverflow.Ellipsis

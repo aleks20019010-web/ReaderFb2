@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark warm beige palette -->
+    <color name="bg_main">#1E1A16</color>
+    <color name="bg_card">#2A261F</color>
+    <color name="text_primary">#E8E0D8</color>
+    <color name="text_secondary">#7A6B5A</color>
+    <color name="accent">#C4956A</color>
+    <color name="accent_hover">#D4A87A</color>
+    <color name="shadow">#12100D</color>
+    <color name="divider">#2A261F</color>
+    <color name="bg_panel">#2A261F</color>
+    <color name="btn_bg">#C4956A</color>
+    <color name="btn_text">#1E1A16</color>
+    <color name="icon_tint">#E8E0D8</color>
+
+    <color name="purple_200">#FFC4956A</color>
+    <color name="purple_500">#FFC4956A</color>
+    <color name="purple_700">#FFE8E0D8</color>
+    <color name="teal_200">#FFC4956A</color>
+    <color name="teal_700">#FFE8E0D8</color>
+</resources>

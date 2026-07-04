@@ -38,14 +38,17 @@ class PageFragment : Fragment() {
         val fontWeight = com.example.data.SettingsManager.getFontWeight(context)
         val lineSpacingMultiplier = com.example.data.SettingsManager.getLineSpacing(context)
 
-        val (bgColor, textColor) = when (themeName) {
+                val (bgColor, textColor) = when (themeName) {
             "light" -> Pair("#FFFFFF", "#121212")
             "dark" -> Pair("#1a1a1a", "#E0E0E0")
             "sepia" -> Pair("#f5f0e8", "#2C2C2C")
+            "sepia_contrast" -> Pair("#f5e6c8", "#1a1a1a")
             "contrast" -> Pair("#000000", "#FFFF00")
             "beige" -> Pair("#F4ECD8", "#3B2F1F")
             else -> Pair("#f5f0e8", "#2C2C2C")
         }
+
+                val paddingBottom = (10 * density).toInt()
 
         val view = inflater.inflate(com.example.R.layout.fragment_page, container, false)
         val root = view.findViewById<FrameLayout>(com.example.R.id.rootContainer).apply {
@@ -53,7 +56,7 @@ class PageFragment : Fragment() {
         }
 
         val textView = view.findViewById<TextView>(com.example.R.id.textView).apply {
-            setPadding(padding16, 0, padding16, padding16)
+            setPadding(padding16, 0, padding16, paddingBottom)
             text = pageText
             textSize = fontSize
             setTextColor(Color.parseColor(textColor))
@@ -63,6 +66,7 @@ class PageFragment : Fragment() {
                 "Roboto" -> android.graphics.Typeface.SANS_SERIF
                 "Times New Roman" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
                 "Georgia" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
+                "Merriweather" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
                 "OpenDyslexic" -> android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.NORMAL)
                 "Monospace" -> android.graphics.Typeface.MONOSPACE
                 else -> android.graphics.Typeface.DEFAULT
@@ -100,13 +104,13 @@ class PageFragment : Fragment() {
             gravity = Gravity.TOP or Gravity.START
         }
 
-        // Dynamic padding adjustment under display cutout / camera notch
+                // Dynamic padding adjustment under display cutout / camera notch
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
             val statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
             val displayCutoutInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
             val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
             
-            textView.setPadding(padding16, topInset, padding16, padding16)
+            textView.setPadding(padding16, topInset, padding16, paddingBottom)
             insets
         }
 
