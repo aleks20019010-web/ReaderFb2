@@ -28,7 +28,7 @@ jobs:
         if [ -z "$ENCODED_KEYSTORE" ]; then
           echo "::warning::KEYSTORE_BASE64 secret is empty. The release APK will be signed with the debug keystore."
         fi
-        printf "%s" "$ENCODED_KEYSTORE" | base64 -d > my-upload-key.jks
+        printf "%s" "$ENCODED_KEYSTORE" | tr -d '[:space:]' | base64 -d > my-upload-key.jks
 
     - name: Build Release APK
       env:
