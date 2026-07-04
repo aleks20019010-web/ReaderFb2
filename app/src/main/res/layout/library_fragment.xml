@@ -79,15 +79,34 @@
         android:textSize="14sp"
         android:visibility="gone" />
 
-    <!-- Compact Scan Progress Indicator -->
-    <ProgressBar
-        android:id="@+id/progressBarScan"
-        style="?android:attr/progressBarStyleHorizontal"
+    <!-- Scan Progress Status Container -->
+    <LinearLayout
+        android:id="@+id/layoutScanProgress"
         android:layout_width="match_parent"
-        android:layout_height="4dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="?android:attr/colorBackground"
+        android:padding="12dp"
         android:layout_marginBottom="8dp"
-        android:indeterminate="true"
-        android:visibility="gone" />
+        android:visibility="gone">
+        
+        <TextView
+            android:id="@+id/tvScanStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Идёт сканирование папок..."
+            android:textSize="13sp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:layout_marginBottom="6dp" />
+
+        <ProgressBar
+            android:id="@+id/progressBarScanProgress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="8dp"
+            android:max="100"
+            android:progress="0" />
+    </LinearLayout>
 
     <!-- FrameLayout for list and placeholder -->
     <FrameLayout

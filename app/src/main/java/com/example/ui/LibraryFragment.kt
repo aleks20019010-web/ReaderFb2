@@ -37,7 +37,12 @@ class LibraryFragment : Fragment() {
     private lateinit var btnAutoScan: View
     private lateinit var btnImport: View
     private lateinit var etSearch: EditText
-    private lateinit var progressBarScan: ProgressBar
+    
+    // Detailed Scan progress bindings
+    private lateinit var layoutScanProgress: View
+    private lateinit var tvScanStatus: TextView
+    private lateinit var progressBarScanProgress: ProgressBar
+    
     private lateinit var rvBooks: RecyclerView
     private lateinit var tvEmptyLibrary: TextView
 
@@ -68,7 +73,11 @@ class LibraryFragment : Fragment() {
         btnAutoScan = view.findViewById(R.id.btnAutoScan)
         btnImport = view.findViewById(R.id.btnImport)
         etSearch = view.findViewById(R.id.etSearch)
-        progressBarScan = view.findViewById(R.id.progressBarScan)
+        
+        layoutScanProgress = view.findViewById(R.id.layoutScanProgress)
+        tvScanStatus = view.findViewById(R.id.tvScanStatus)
+        progressBarScanProgress = view.findViewById(R.id.progressBarScanProgress)
+        
         rvBooks = view.findViewById(R.id.rvBooks)
         tvEmptyLibrary = view.findViewById(R.id.tvEmptyLibrary)
 
@@ -128,6 +137,11 @@ class LibraryFragment : Fragment() {
             viewModel.startLocalBookScan()
             Toast.makeText(requireContext(), "Сканирование запущено...", Toast.LENGTH_SHORT).show()
         }
+        
+        // Hide/dismiss progress layout on tap
+        layoutScanProgress.setOnClickListener {
+            layoutScanProgress.visibility = View.GONE
+        }
     }
 
     private fun observeViewModel() {
@@ -139,12 +153,56 @@ class LibraryFragment : Fragment() {
             }
         }
 
-        // Observe Scan Progress state
+        // Observe Scan Progress state using flow
         viewLifecycleOwner.lifecycleScope.launch {
-            // Note: Since BookViewModel has isScanning as a standard variable / MutableState
-            // We can check it or observe any corresponding flows. Let's safe-check with live cycle.
-            // Using a loop or periodic checks if needed, but standard observation works.
-            // In case it's Compose-only mutable state, we check periodic updates or map state.
+            com.example.service.BookScanState.isScanning.collectLatest { active ->
+                btnAutoScan.isEnabled = !active
+                btnAutoScan.alpha = if (active) 0.5f else 1.0f
+                
+                if (active) {
+                    layoutScanProgress.visibility = View.VISIBLE
+                } else {
+                    // When scanning completes, if there is a message, keep showing it so the user can read the result.
+                    // Clicking it will dismiss it.
+                    val statusText = com.example.service.BookScanState.scanProgressText.value
+                    if (statusText.isBlank()) {
+                        layoutScanProgress.visibility = View.GONE
+                    }
+                }
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            com.example.service.BookScanState.scanProgressText.collectLatest { text ->
+                if (text.isNotBlank()) {
+                    layoutScanProgress.visibility = View.VISIBLE
+                    tvScanStatus.text = text
+                }
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            com.example.service.BookScanState.totalFiles.collectLatest { total ->
+                val processed = com.example.service.BookScanState.processedFiles.value
+                updateProgressValues(total, processed)
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            com.example.service.BookScanState.processedFiles.collectLatest { processed ->
+                val total = com.example.service.BookScanState.totalFiles.value
+                updateProgressValues(total, processed)
+            }
+        }
+    }
+
+    private fun updateProgressValues(total: Int, processed: Int) {
+        if (total > 0) {
+            progressBarScanProgress.isIndeterminate = false
+            progressBarScanProgress.max = total
+            progressBarScanProgress.progress = processed
+        } else {
+            progressBarScanProgress.isIndeterminate = true
         }
     }
 

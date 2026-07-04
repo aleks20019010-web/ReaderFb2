@@ -1,0 +1,211 @@
+package com.example.service
+
+import android.content.Context
+import android.os.Environment
+import android.util.Log
+import com.example.data.AppDatabase
+import com.example.data.BookEntity
+import java.io.File
+import java.io.FileInputStream
+import java.security.MessageDigest
+import java.util.zip.ZipInputStream
+
+class BookScanner(private val context: Context) {
+
+    private val database = AppDatabase.getDatabase(context)
+    private val bookDao = database.bookDao()
+
+    suspend fun scanFolders(onProgress: suspend (current: Int, total: Int, currentFileName: String) -> Unit): ScanResult {
+        val foldersToScan = listOf(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+            File(Environment.getExternalStorageDirectory(), "Books")
+        )
+
+        val filesToProcess = mutableListOf<File>()
+        
+        // Step 1: Scan directories and gather files
+        for (folder in foldersToScan) {
+            if (folder.exists() && folder.isDirectory) {
+                gatherFiles(folder, filesToProcess)
+            }
+        }
+
+        if (filesToProcess.isEmpty()) {
+            return ScanResult.NoBooksFound
+        }
+
+        val total = filesToProcess.size
+        var addedCount = 0
+
+        // Step 2: Process files one by one
+        for ((index, file) in filesToProcess.withIndex()) {
+            val currentIndex = index + 1
+            onProgress(currentIndex, total, file.name)
+
+            try {
+                val ext = file.extension.lowercase()
+                val computedSha1 = computeSha1(file)
+
+                // Check duplicates by SHA1
+                val existing = bookDao.getBookBySha1(computedSha1)
+                if (existing != null) {
+                    continue
+                }
+
+                var parsedTitle = file.nameWithoutExtension
+                var parsedAuthor = "Неизвестен"
+                var parsedContent = ""
+                var parsedSeries: String? = null
+                var parsedSeriesIndex: Int? = null
+                var parsedLanguage: String? = "ru"
+
+                if (ext == "fb2") {
+                    val rawText = decodeBytesToString(file.readBytes())
+                    val parsed = Fb2Parser.parse(rawText, parsedTitle)
+                    parsedTitle = parsed.title
+                    parsedAuthor = parsed.author
+                    parsedContent = parsed.content
+                    parsedSeries = parsed.series
+                    parsedSeriesIndex = parsed.seriesIndex
+                    parsedLanguage = parsed.language
+                } else if (ext == "zip") {
+                    file.inputStream().use { fis ->
+                        ZipInputStream(fis).use { zis ->
+                            var entry = zis.nextEntry
+                            while (entry != null) {
+                                val entryName = entry.name.lowercase()
+                                if (!entry.isDirectory && entryName.endsWith(".fb2")) {
+                                    val bytes = zis.readBytes()
+                                    val rawText = decodeBytesToString(bytes)
+                                    val parsed = Fb2Parser.parse(rawText, entryName.removeSuffix(".fb2"))
+                                    parsedTitle = parsed.title
+                                    parsedAuthor = parsed.author
+                                    parsedContent = parsed.content
+                                    parsedSeries = parsed.series
+                                    parsedSeriesIndex = parsed.seriesIndex
+                                    parsedLanguage = parsed.language
+                                    break
+                                }
+                                entry = zis.nextEntry
+                            }
+                        }
+                    }
+                } else if (ext == "txt") {
+                    parsedContent = decodeBytesToString(file.readBytes())
+                    parsedAuthor = "Локальный TXT"
+                } else {
+                    // Skip unsupported extensions
+                    continue
+                }
+
+                if (parsedContent.isNotBlank()) {
+                    val coverPath = BookScannerState.extractCover(file, computedSha1, context)
+
+                    val newBook = BookEntity(
+                        title = parsedTitle,
+                        author = parsedAuthor,
+                        content = parsedContent,
+                        category = "Локальные",
+                        totalCharacters = parsedContent.length,
+                        coverGradientStart = getRandomGradientStartColor(),
+                        coverGradientEnd = getRandomGradientEndColor(),
+                        filePath = file.absolutePath,
+                        sha1 = computedSha1,
+                        fileSize = file.length(),
+                        coverPath = coverPath,
+                        series = parsedSeries,
+                        seriesIndex = parsedSeriesIndex,
+                        language = parsedLanguage
+                    )
+
+                    val inserted = bookDao.insertBookIfUnique(newBook)
+                    if (inserted) {
+                        addedCount++
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("BookScanner", "Error scanning file ${file.absolutePath}", e)
+            }
+        }
+
+        return ScanResult.Success(addedCount)
+    }
+
+    private fun gatherFiles(dir: File, resultList: MutableList<File>) {
+        val list = dir.listFiles() ?: return
+        for (file in list) {
+            if (file.isDirectory) {
+                val name = file.name.lowercase()
+                // Skip system and huge cache/temp folders
+                if (name.startsWith(".") || name == "android" || name == "cache" || name == "temp" || name == "tmp") {
+                    continue
+                }
+                gatherFiles(file, resultList)
+            } else {
+                val ext = file.extension.lowercase()
+                if (ext == "fb2" || ext == "zip" || ext == "txt") {
+                    // Safeguard: omit files over 30MB
+                    if (file.length() > 0 && file.length() < 30 * 1024 * 1024) {
+                        resultList.add(file)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun computeSha1(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-1")
+        file.inputStream().use { fis ->
+            val buffer = ByteArray(8192)
+            var read: Int
+            while (fis.read(buffer).also { read = it } != -1) {
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { String.format("%02x", it) }
+    }
+
+    private fun decodeBytesToString(bytes: ByteArray): String {
+        try {
+            val headerSize = if (bytes.size > 1024) 1024 else bytes.size
+            val header = String(bytes, 0, headerSize, java.nio.charset.StandardCharsets.ISO_8859_1)
+            val match = """encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(header)
+            if (match != null) {
+                val encName = match.groupValues[1].trim()
+                try {
+                    return String(bytes, java.nio.charset.Charset.forName(encName))
+                } catch (e: Exception) {}
+            }
+        } catch (e: Exception) {}
+
+        try {
+            val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+            utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
+            return charBuffer.toString()
+        } catch (e: Exception) {
+            try {
+                return String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
+            } catch (e2: Exception) {
+                return String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+            }
+        }
+    }
+
+    private fun getRandomGradientStartColor(): String {
+        val list = listOf("#FF6B6B", "#4E65FF", "#11998e", "#FC466B", "#f12711", "#833ab4")
+        return list.random()
+    }
+
+    private fun getRandomGradientEndColor(): String {
+        val list = listOf("#4D96FF", "#92EFFD", "#38ef7d", "#3F5EFB", "#f5af19", "#fd1d1d")
+        return list.random()
+    }
+}
+
+sealed class ScanResult {
+    data class Success(val addedCount: Int) : ScanResult()
+    object NoBooksFound : ScanResult()
+    data class Error(val message: String) : ScanResult()
+}

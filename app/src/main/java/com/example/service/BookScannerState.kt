@@ -8,24 +8,22 @@ import java.io.File
 import java.io.FileOutputStream
 
 object BookScannerState {
-    val isScanning = MutableStateFlow(false)
-    val scanProgressText = MutableStateFlow("")
+    val isScanning: MutableStateFlow<Boolean>
+        get() = BookScanState.isScanning
+
+    val scanProgressText: MutableStateFlow<String>
+        get() = BookScanState.scanProgressText
 
     fun initialize(context: Context) {
-        val prefs = context.getSharedPreferences("scanner_prefs", Context.MODE_PRIVATE)
-        isScanning.value = prefs.getBoolean("is_scanning", false)
-        scanProgressText.value = prefs.getString("progress_text", "") ?: ""
+        BookScanState.initialize(context)
     }
 
     fun updateScanning(context: Context, active: Boolean, text: String) {
-        isScanning.value = active
-        scanProgressText.value = text
-        
-        context.getSharedPreferences("scanner_prefs", Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean("is_scanning", active)
-            .putString("progress_text", text)
-            .apply()
+        BookScanState.updateScanning(context, active, text, 
+            total = BookScanState.totalFiles.value, 
+            processed = BookScanState.processedFiles.value, 
+            error = BookScanState.errorText.value
+        )
     }
 
     private fun decodeBytesToString(bytes: ByteArray): String {
