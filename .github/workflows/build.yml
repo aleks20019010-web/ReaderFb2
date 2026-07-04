@@ -21,30 +21,18 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    - name: Decode Keystore
-      env:
-        ENCODED_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 }}
+    - name: Build Debug APK
+      run: gradle assembleDebug
+
+    - name: Print SHA-256 Fingerprint
       run: |
-        if [ -z "$ENCODED_KEYSTORE" ]; then
-          echo "::warning::KEYSTORE_BASE64 secret is empty. The release APK will be signed with the debug keystore."
-        fi
-        printf "%s" "$ENCODED_KEYSTORE" | tr -d '[:space:]' | base64 -d > my-upload-key.jks
+        echo "SHA-256 Fingerprint for the Debug APK:"
+        # Use keytool to extract the fingerprint from the default debug.keystore
+        # Default debug.keystore is typically at ~/.android/debug.keystore
+        keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android | grep SHA256
 
-    - name: Build Release APK
-      env:
-        KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
-        STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      run: gradle assembleRelease
-
-    - name: Extract and Print SHA-256 Fingerprint
-      run: |
-        echo "SHA-256 Fingerprint for the Release APK:"
-        keytool -printcert -jarfile app/build/outputs/apk/release/app-release.apk | grep SHA256
-
-    - name: Upload Release APK
+    - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-release
-        path: app/build/outputs/apk/release/app-release.apk
+        name: app-debug
+        path: app/build/outputs/apk/debug/app-debug.apk
