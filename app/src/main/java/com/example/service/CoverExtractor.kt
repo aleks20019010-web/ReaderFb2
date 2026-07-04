@@ -9,11 +9,21 @@ import java.util.zip.ZipInputStream
 
 object CoverExtractor {
 
+    private const val TAG = "CoverExtractor"
+
     fun extractCover(file: File, sha1: String, context: Context?): String? {
-        if (context == null) return null
+        Log.d(TAG, "extractCover called for ${file.name}, sha1=$sha1, context=$context")
+        
+        if (context == null) {
+            Log.e(TAG, "Context is null, cannot extract cover")
+            return null
+        }
+        
         val ext = file.extension.lowercase()
         var bitmap: Bitmap? = null
+        
         try {
+            Log.d(TAG, "Parsing file: ${file.absolutePath}")
             if (ext == "fb2") {
                 val bytes = file.readBytes()
                 val fb2Content = decodeBytesToString(bytes)
@@ -37,18 +47,25 @@ object CoverExtractor {
             }
             
             if (bitmap != null) {
+                Log.d(TAG, "Cover found, saving to cache")
                 val cacheDir = File(context.cacheDir, "covers")
                 if (!cacheDir.exists()) {
-                    cacheDir.mkdirs()
+                    if (!cacheDir.mkdirs()) {
+                        Log.e(TAG, "Failed to create cache directory: ${cacheDir.absolutePath}")
+                        return null
+                    }
                 }
                 val coverFile = File(cacheDir, "${sha1}.jpg")
                 FileOutputStream(coverFile).use { fos ->
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos)
                 }
+                Log.d(TAG, "Cover saved: ${coverFile.absolutePath}")
                 return coverFile.absolutePath
+            } else {
+                Log.d(TAG, "No cover found for ${file.name}")
             }
         } catch (e: Exception) {
-            Log.e("CoverExtractor", "Error extracting cover", e)
+            Log.e(TAG, "Error extracting cover for ${file.name}", e)
         }
         return null
     }

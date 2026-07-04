@@ -192,7 +192,13 @@ class BookScanner(private val context: Context) {
                     }
 
                     if (parsedContent.isNotBlank()) {
-                        val coverPath = CoverExtractor.extractCover(file, computedSha1, context)
+                        Log.d("BookScanner", "Extracting cover for: ${file.name}, context: $context")
+                        val coverPath = if (context != null) {
+                            CoverExtractor.extractCover(file, computedSha1, context)
+                        } else {
+                            Log.e("BookScanner", "Context is null, skipping cover extraction")
+                            null
+                        }
                         val newBook = BookEntity(
                             title = parsedTitle,
                             author = parsedAuthor,

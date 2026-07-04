@@ -12,11 +12,14 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.lifecycleScope
+import coil.load
 import com.example.R
 import com.example.data.AppDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+import java.io.File
 
 class BookDetailActivity : AppCompatActivity() {
 
@@ -91,11 +94,23 @@ class BookDetailActivity : AppCompatActivity() {
             if (book != null) {
                 tvTitle.text = book.title
                 tvAuthor.text = book.author ?: "Неизвестен"
+                tvAuthor.setOnClickListener {
+                    val intent = Intent(this@BookDetailActivity, AuthorBooksActivity::class.java).apply {
+                        putExtra("AUTHOR_NAME", book.author)
+                    }
+                    startActivity(intent)
+                }
                 
                 if (!book.series.isNullOrEmpty()) {
                     tvSeries.visibility = View.VISIBLE
                     val indexText = if (book.seriesIndex != null && book.seriesIndex > 0) " (#${book.seriesIndex})" else ""
                     tvSeries.text = "Серия: ${book.series}$indexText"
+                    tvSeries.setOnClickListener {
+                        val intent = Intent(this@BookDetailActivity, SeriesBooksActivity::class.java).apply {
+                            putExtra("SERIES_NAME", book.series)
+                        }
+                        startActivity(intent)
+                    }
                 } else {
                     tvSeries.visibility = View.GONE
                 }
@@ -117,7 +132,12 @@ class BookDetailActivity : AppCompatActivity() {
                 )
                 val gradient = GradientDrawable(GradientDrawable.Orientation.TL_BR, colors)
                 vCoverBackground.background = gradient
-
+                
+                if (!book.coverPath.isNullOrEmpty()) {
+                    ivCover.load(File(book.coverPath))
+                } else {
+                    ivCover.setImageResource(R.drawable.ic_book_icon)
+                }
             } else {
                 finish()
             }

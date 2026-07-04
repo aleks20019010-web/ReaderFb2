@@ -3,6 +3,7 @@ package com.example.ui
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -40,6 +41,7 @@ class BookAdapter(
     class BookViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvBookTitle: TextView = itemView.findViewById(R.id.tvBookTitle)
         private val tvBookAuthor: TextView = itemView.findViewById(R.id.tvBookAuthor)
+        private val tvBookSeries: TextView = itemView.findViewById(R.id.tvBookSeries)
         private val ivCover: ImageView = itemView.findViewById(R.id.ivCover)
         private val vCoverBackground: View = itemView.findViewById(R.id.vCoverBackground)
         private val btnDelete: View = itemView.findViewById(R.id.btnDelete)
@@ -51,6 +53,25 @@ class BookAdapter(
         ) {
             tvBookTitle.text = book.title
             tvBookAuthor.text = book.author ?: "Неизвестен"
+            tvBookAuthor.setOnClickListener {
+                val intent = Intent(itemView.context, AuthorBooksActivity::class.java).apply {
+                    putExtra("AUTHOR_NAME", book.author)
+                }
+                itemView.context.startActivity(intent)
+            }
+
+            if (!book.series.isNullOrEmpty()) {
+                tvBookSeries.visibility = View.VISIBLE
+                tvBookSeries.text = book.series
+                tvBookSeries.setOnClickListener {
+                    val intent = Intent(itemView.context, SeriesBooksActivity::class.java).apply {
+                        putExtra("SERIES_NAME", book.series)
+                    }
+                    itemView.context.startActivity(intent)
+                }
+            } else {
+                tvBookSeries.visibility = View.GONE
+            }
 
             // Set background gradient fallback
             val startColorHex = if (book.coverGradientStart.startsWith("#")) book.coverGradientStart else "#E94560"
