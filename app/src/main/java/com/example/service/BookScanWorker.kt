@@ -30,77 +30,27 @@ class BookScanWorker(
             currentFileName = "Подготовка к поиску файлов..."
         )
 
-        val scanner = BookScanner(applicationContext)
+        val scanner = NewBookScanner(applicationContext, com.example.data.AppDatabase.getDatabase(applicationContext).bookDao())
 
         try {
-            val result = scanner.scanFolders { current, total, currentFileName ->
-                // Update SharedPreferences and state
-                val msg = "Обработка: $current из $total"
-                BookScanState.updateScanning(
-                    context = applicationContext,
-                    active = true,
-                    text = msg,
-                    total = total,
-                    processed = current
-                )
-                // Update status bar notification
-                ScanNotificationHelper.showScanningNotification(
-                    context = applicationContext,
-                    total = total,
-                    processed = current,
-                    currentFileName = currentFileName
-                )
-            }
-
+            scanner.scan()
+            
             // Handle scan results
-            when (result) {
-                is ScanResult.Success -> {
-                    val finishMsg = "Сканирование завершено. Добавлено ${result.addedCount} книг, пропущено ${result.skippedCount} дубликатов."
-                    BookScanState.updateScanning(
-                        context = applicationContext,
-                        active = false,
-                        text = finishMsg,
-                        total = BookScanState.totalFiles.value,
-                        processed = BookScanState.processedFiles.value
-                    )
-                    ScanNotificationHelper.showFinishedNotification(
-                        context = applicationContext,
-                        title = "Сканирование завершено",
-                        message = "Добавлено ${result.addedCount} книг, пропущено ${result.skippedCount} дубликатов"
-                    )
-                }
-                is ScanResult.NoBooksFound -> {
-                    val emptyMsg = "Книги не найдены. Проверьте папки Downloads, Documents, Books."
-                    BookScanState.updateScanning(
-                        context = applicationContext,
-                        active = false,
-                        text = emptyMsg,
-                        total = 0,
-                        processed = 0
-                    )
-                    ScanNotificationHelper.showFinishedNotification(
-                        context = applicationContext,
-                        title = "Книги не найдены",
-                        message = "Проверьте папки Downloads, Documents, Books"
-                    )
-                }
-                is ScanResult.Error -> {
-                    val errMsg = "Ошибка сканирования: ${result.message}"
-                    BookScanState.updateScanning(
-                        context = applicationContext,
-                        active = false,
-                        text = errMsg,
-                        total = 0,
-                        processed = 0,
-                        error = result.message
-                    )
-                    ScanNotificationHelper.showFinishedNotification(
-                        context = applicationContext,
-                        title = "Ошибка сканирования",
-                        message = result.message
-                    )
-                }
-            }
+            val finalState = scanner.state.value
+            val finishMsg = "Scan finished. Added ${finalState.addedBooks} books, skipped ${finalState.skippedBooks} duplicates."
+            
+            BookScanState.updateScanning(
+                context = applicationContext,
+                active = false,
+                text = finishMsg,
+                total = finalState.totalFiles,
+                processed = finalState.processedFiles
+            )
+            ScanNotificationHelper.showFinishedNotification(
+                context = applicationContext,
+                title = "Scan finished",
+                message = "Added ${finalState.addedBooks} books, skipped ${finalState.skippedBooks} duplicates"
+            )
         } catch (e: Exception) {
             Log.e("BookScanWorker", "Critical exception during scan", e)
             val errorText = e.localizedMessage ?: "Неизвестная ошибка"
