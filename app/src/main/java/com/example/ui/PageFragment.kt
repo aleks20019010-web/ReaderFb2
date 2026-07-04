@@ -31,14 +31,13 @@ class PageFragment : Fragment() {
         val density = context.resources.displayMetrics.density
         val padding16 = (16 * density).toInt()
 
-        // Read preferences for dynamic styling using SettingsManager
         val fontSize = com.example.data.SettingsManager.getFontSize(context)
         val themeName = com.example.data.SettingsManager.getTheme(context)
         val fontFamily = com.example.data.SettingsManager.getFontFamily(context)
         val fontWeight = com.example.data.SettingsManager.getFontWeight(context)
         val lineSpacingMultiplier = com.example.data.SettingsManager.getLineSpacing(context)
 
-                val (bgColor, textColor) = when (themeName) {
+        val (bgColor, textColor) = when (themeName) {
             "light" -> Pair("#FFFFFF", "#121212")
             "dark" -> Pair("#1a1a1a", "#E0E0E0")
             "sepia" -> Pair("#f5f0e8", "#2C2C2C")
@@ -54,13 +53,13 @@ class PageFragment : Fragment() {
         }
 
         val textView = view.findViewById<TextView>(com.example.R.id.textView).apply {
-            setPadding(padding16, (12 * density).toInt(), padding16, paddingBottom) // keep original padding from XML
+            // ✅ Исправлено: берём paddingBottom из XML
+            setPadding(padding16, (12 * density).toInt(), padding16, textView.paddingBottom)
             includeFontPadding = false
             text = pageText
             textSize = fontSize
             setTextColor(Color.parseColor(textColor))
             
-            // Resolve custom typeface
             val baseTypeface = when (fontFamily) {
                 "Roboto" -> android.graphics.Typeface.SANS_SERIF
                 "Times New Roman" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
@@ -89,10 +88,8 @@ class PageFragment : Fragment() {
                 typeface = android.graphics.Typeface.create(baseTypeface, style)
             }
 
-            // Set line spacing multiplier from SettingsManager and 0 extra
             setLineSpacing(0f, lineSpacingMultiplier)
             
-            // Break strategy and hyphenation
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                 breakStrategy = android.text.Layout.BREAK_STRATEGY_SIMPLE
                 hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_NONE
