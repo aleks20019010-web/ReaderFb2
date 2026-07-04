@@ -95,173 +95,37 @@ class ReaderActivity : FragmentActivity() {
             window.attributes.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
 
-        val density = resources.displayMetrics.density
-        val root = FrameLayout(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
+        setContentView(com.example.R.layout.activity_reading)
+
+        val root = findViewById<FrameLayout>(com.example.R.id.rootContainer)
+        viewPager = findViewById(com.example.R.id.viewPager)
+        progressBar = findViewById(com.example.R.id.progressBar)
+        topBar = findViewById(com.example.R.id.topBar)
+        bottomBar = findViewById(com.example.R.id.bottomBar)
+        progressText = findViewById(com.example.R.id.progressText)
+        titleText = findViewById(com.example.R.id.titleText)
+        seekBar = findViewById(com.example.R.id.seekBar)
+        readingProgressBar = findViewById(com.example.R.id.readingProgressBar)
+
+        backButtonView = findViewById(com.example.R.id.backButtonView)
+        infoButtonView = findViewById(com.example.R.id.infoButtonView)
+        fontSizeDownBtn = findViewById(com.example.R.id.fontSizeDownBtn)
+        fontSizeUpBtn = findViewById(com.example.R.id.fontSizeUpBtn)
+        themeBtn = findViewById(com.example.R.id.themeBtn)
+        libraryBtn = findViewById(com.example.R.id.libraryBtn)
+
+        viewPager.setPageTransformer(BookFlipPageTransformer())
+
+        backButtonView.setOnClickListener { finish() }
+        infoButtonView.setOnClickListener {
+            Toast.makeText(this@ReaderActivity, "Разработчик: Google AI Studio\nФорматы: FB2, TXT, ZIP", Toast.LENGTH_LONG).show()
+            resetHideTimer()
         }
 
-        // ViewPager2
-        viewPager = ViewPager2(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-            // Применяем 3D-анимацию перелистывания страниц (книжный разворот)
-            setPageTransformer(BookFlipPageTransformer())
-        }
-        root.addView(viewPager)
-
-        // Loading ProgressBar
-        progressBar = ProgressBar(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                gravity = Gravity.CENTER
-            }
-            visibility = View.VISIBLE
-        }
-        root.addView(progressBar)
-
-        // Top Controls Overlay Bar
-        topBar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                (56 * density).toInt()
-            ).apply {
-                gravity = Gravity.TOP
-            }
-            setPadding((16 * density).toInt(), 0, (16 * density).toInt(), 0)
-        }
-
-        backButtonView = TextView(this).apply {
-            text = "◀"
-            textSize = 20f
-            gravity = Gravity.CENTER
-            setPadding(0, 0, (16 * density).toInt(), 0)
-            setOnClickListener {
-                finish()
-            }
-        }
-        topBar.addView(backButtonView)
-
-        titleText = TextView(this).apply {
-            text = "Чтение"
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-            setSingleLine(true)
-            ellipsize = android.text.TextUtils.TruncateAt.END
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        topBar.addView(titleText)
-
-        infoButtonView = TextView(this).apply {
-            text = "ℹ"
-            textSize = 20f
-            gravity = Gravity.CENTER
-            setPadding((16 * density).toInt(), 0, 0, 0)
-            setOnClickListener {
-                Toast.makeText(this@ReaderActivity, "Разработчик: Google AI Studio\nФорматы: FB2, TXT, ZIP", Toast.LENGTH_LONG).show()
-                resetHideTimer()
-            }
-        }
-        topBar.addView(infoButtonView)
-        root.addView(topBar)
-
-        // Bottom Controls Overlay Bar
-        bottomBar = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                gravity = Gravity.BOTTOM
-            }
-            setPadding((16 * density).toInt(), (8 * density).toInt(), (16 * density).toInt(), (8 * density).toInt())
-        }
-
-        // Bottom Row 1: SeekBar and Page label
-        val seekRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(0, 0, 0, (8 * density).toInt())
-            }
-        }
-
-        progressText = TextView(this).apply {
-            text = "Стр. - / -"
-            textSize = 13f
-            typeface = Typeface.DEFAULT_BOLD
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-        seekRow.addView(progressText)
-
-        seekBar = SeekBar(this).apply {
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                leftMargin = (12 * density).toInt()
-            }
-        }
-        seekRow.addView(seekBar)
-        bottomBar.addView(seekRow)
-
-        // Bottom Row 2: settings action buttons
-        val actionsRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-
-        fontSizeDownBtn = createPanelButton(this, "А-") {
-            adjustFontSize(-1f)
-        }
-        actionsRow.addView(fontSizeDownBtn)
-
-        fontSizeUpBtn = createPanelButton(this, "А+") {
-            adjustFontSize(1f)
-        }
-        actionsRow.addView(fontSizeUpBtn)
-
-        themeBtn = createPanelButton(this, "Тема") {
-            cycleTheme()
-        }
-        actionsRow.addView(themeBtn)
-
-        libraryBtn = createPanelButton(this, "Библиотека") {
-            finish()
-        }
-        actionsRow.addView(libraryBtn)
-
-        bottomBar.addView(actionsRow)
-        root.addView(bottomBar)
-
-        // Thin horizontal progress bar at the bottom representing completed reading progress
-        readingProgressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                (4 * density).toInt()
-            ).apply {
-                gravity = Gravity.BOTTOM
-            }
-            max = 100
-            progress = 0
-            visibility = View.INVISIBLE
-        }
-        root.addView(readingProgressBar)
+        fontSizeDownBtn.setOnClickListener { adjustFontSize(-1f) }
+        fontSizeUpBtn.setOnClickListener { adjustFontSize(1f) }
+        themeBtn.setOnClickListener { cycleTheme() }
+        libraryBtn.setOnClickListener { finish() }
 
         // Setup theme immediately
         applyThemeColors()
@@ -270,6 +134,8 @@ class ReaderActivity : FragmentActivity() {
         topBar.visibility = View.GONE
         bottomBar.visibility = View.GONE
         isSystemUiVisible = false
+
+        val density = resources.displayMetrics.density
 
         // Apply WindowInsets safely for Notch, StatusBar and NavigationBar
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
@@ -301,8 +167,24 @@ class ReaderActivity : FragmentActivity() {
             insets
         }
 
-        setContentView(root)
         hideSystemUi()
+    }
+
+    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent?): Boolean {
+        if (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) {
+            val currentItem = viewPager.currentItem
+            if (currentItem < (viewPager.adapter?.itemCount ?: 0) - 1) {
+                viewPager.setCurrentItem(currentItem + 1, true)
+            }
+            return true
+        } else if (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP) {
+            val currentItem = viewPager.currentItem
+            if (currentItem > 0) {
+                viewPager.setCurrentItem(currentItem - 1, true)
+            }
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     private fun createPanelButton(context: Context, text: String, onClick: View.OnClickListener): TextView {

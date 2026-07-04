@@ -47,7 +47,7 @@ class PageFragment : Fragment() {
         }
 
         val textView = view.findViewById<TextView>(com.example.R.id.textView).apply {
-            setPadding(padding16, padding16, padding16, padding16)
+            setPadding(padding16, 0, padding16, padding16)
             text = pageText
             textSize = fontSize
             setTextColor(Color.parseColor(textColor))
@@ -72,7 +72,7 @@ class PageFragment : Fragment() {
             val displayCutoutInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
             val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
             
-            textView.setPadding(padding16, padding16 + topInset, padding16, padding16)
+            textView.setPadding(padding16, topInset, padding16, padding16)
             insets
         }
 
