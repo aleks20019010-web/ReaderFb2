@@ -8,7 +8,6 @@ import com.example.data.BookEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileInputStream
 import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 
@@ -21,7 +20,6 @@ class BookScanner(private val context: Context) {
             val rootDir = Environment.getExternalStorageDirectory()
             val filesToProcess = mutableListOf<File>()
             
-            // Step 1: Scan directories and gather files
             if (rootDir.exists() && rootDir.isDirectory) {
                 gatherFilesRecursive(rootDir, filesToProcess)
             }
@@ -34,19 +32,16 @@ class BookScanner(private val context: Context) {
             var addedCount = 0
             var skippedCount = 0
 
-            // Step 1.5: Cache existing SHA-1 hashes and paths
             val sha1Cache = bookDao.getAllSha1s().toMutableSet()
             val existingMap = bookDao.getSha1ToPathMap().associate { it.sha1 to it.filePath }.toMutableMap()
             val batchList = mutableListOf<BookEntity>()
             val BATCH_SIZE = 50
             var lastUpdateTime = System.currentTimeMillis()
 
-            // Step 2: Process files one by one
             for ((index, file) in filesToProcess.withIndex()) {
                 val currentIndex = index + 1
                 
                 val currentTime = System.currentTimeMillis()
-                // Update UI every 200ms or on the last item
                 if (currentTime - lastUpdateTime > 200 || currentIndex == total) {
                     onProgress(currentIndex, total, file.name)
                     lastUpdateTime = currentTime
@@ -56,7 +51,7 @@ class BookScanner(private val context: Context) {
                     val ext = file.extension.lowercase()
                     
                     var parsedTitle = file.nameWithoutExtension
-                    var parsedAuthor = "Неизвестен"
+                    var parsedAuthor = "Unknown Author"
                     var parsedContent = ""
                     var parsedSeries: String? = null
                     var parsedSeriesIndex: Int? = null
@@ -68,7 +63,6 @@ class BookScanner(private val context: Context) {
                         contentBytes = file.readBytes()
                         computedSha1 = computeSha1(contentBytes)
                         
-                        // Deduplication: check cache (Set<String>) first, then DB
                         var isDuplicate = false
                         if (sha1Cache.contains(computedSha1)) {
                             isDuplicate = true
@@ -94,7 +88,7 @@ class BookScanner(private val context: Context) {
                         val rawText = decodeBytesToString(contentBytes)
                         val parsed = Fb2Parser.parse(rawText, parsedTitle)
                         parsedTitle = parsed.title
-                        parsedAuthor = parsed.author
+                        parsedAuthor = parsed.author.ifBlank { "Unknown Author" }
                         parsedSeries = parsed.series
                         parsedSeriesIndex = parsed.seriesIndex
                         parsedLanguage = parsed.language
@@ -111,7 +105,6 @@ class BookScanner(private val context: Context) {
                                         contentBytes = tempBytes
                                         computedSha1 = computeSha1(tempBytes)
                                         
-                                        // Deduplication: check cache (Set<String>) first, then DB
                                         var isDuplicate = false
                                         if (sha1Cache.contains(computedSha1)) {
                                             isDuplicate = true
@@ -137,7 +130,7 @@ class BookScanner(private val context: Context) {
                                         val rawText = decodeBytesToString(tempBytes)
                                         val parsed = Fb2Parser.parse(rawText, entryName.removeSuffix(".fb2"))
                                         parsedTitle = parsed.title
-                                        parsedAuthor = parsed.author
+                                        parsedAuthor = parsed.author.ifBlank { "Unknown Author" }
                                         parsedSeries = parsed.series
                                         parsedSeriesIndex = parsed.seriesIndex
                                         parsedLanguage = parsed.language
@@ -148,12 +141,11 @@ class BookScanner(private val context: Context) {
                                 }
                             }
                         }
-                        if (computedSha1.isEmpty()) continue // Not a valid zip or already skipped
+                        if (computedSha1.isEmpty()) continue
                     } else if (ext == "txt") {
                         contentBytes = file.readBytes()
                         computedSha1 = computeSha1(contentBytes)
                         
-                        // Deduplication: check cache (Set<String>) first, then DB
                         var isDuplicate = false
                         if (sha1Cache.contains(computedSha1)) {
                             isDuplicate = true
@@ -177,24 +169,18 @@ class BookScanner(private val context: Context) {
                         }
                         
                         parsedContent = decodeBytesToString(contentBytes)
-                        parsedAuthor = "Локальный TXT"
+                        parsedAuthor = "Local TXT"
                     } else {
                         continue
                     }
 
                     if (parsedContent.isNotBlank()) {
-                        Log.d("BookScanner", "Extracting cover for: ${file.name}, context: $context")
-                        val coverPath = if (context != null) {
-                            CoverExtractor.extractCover(file, computedSha1, context)
-                        } else {
-                            Log.e("BookScanner", "Context is null, skipping cover extraction")
-                            null
-                        }
+                        val coverPath = CoverExtractor.extractCover(file, computedSha1, context)
                         val newBook = BookEntity(
                             title = parsedTitle,
                             author = parsedAuthor,
                             content = parsedContent,
-                            category = "Локальные",
+                            category = "Local",
                             totalCharacters = parsedContent.length,
                             coverGradientStart = getRandomGradientStartColor(),
                             coverGradientEnd = getRandomGradientEndColor(),
@@ -221,7 +207,6 @@ class BookScanner(private val context: Context) {
                 }
             }
 
-            // Insert remaining
             if (batchList.isNotEmpty()) {
                 bookDao.insertBooks(batchList)
                 batchList.clear()
@@ -236,7 +221,6 @@ class BookScanner(private val context: Context) {
         for (file in list) {
             if (file.isDirectory) {
                 val name = file.name.lowercase()
-                // Skip system and cache folders
                 if (name.startsWith(".") || name == "android" || name == "data" || name == "obb" || name == "system" || name == "vendor") {
                     continue
                 }
@@ -244,7 +228,6 @@ class BookScanner(private val context: Context) {
             } else {
                 val ext = file.extension.lowercase()
                 if (ext == "fb2" || ext == "zip" || ext == "txt") {
-                    // Safeguard: omit files over 30MB
                     if (file.length() > 0 && file.length() < 30 * 1024 * 1024) {
                         resultList.add(file)
                     }
