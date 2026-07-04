@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="?android:attr/colorBackground"
+    android:padding="12dp"
+    android:layout_marginBottom="8dp"
+    android:elevation="2dp"
+    android:visibility="gone"
+    android:id="@+id/layoutScanProgress">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp">
+
+        <ProgressBar
+            android:id="@+id/progressBarSpinner"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="8dp"
+            android:indeterminate="true"
+            style="?android:attr/progressBarStyleSmall" />
+
+        <TextView
+            android:id="@+id/tvScanStatus"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Идёт сканирование папок..."
+            android:textSize="13sp"
+            android:textColor="?android:attr/textColorPrimary" />
+            
+        <TextView
+            android:id="@+id/tvTimeElapsed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="11sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/progressBarScanProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:max="100"
+        android:progress="0" />
+</LinearLayout>

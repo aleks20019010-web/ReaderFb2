@@ -9,6 +9,7 @@ object BookScanState {
     val totalFiles = MutableStateFlow(0)
     val processedFiles = MutableStateFlow(0)
     val errorText = MutableStateFlow<String?>(null)
+    val lastUpdateTime = MutableStateFlow(0L)
 
     fun initialize(context: Context) {
         val prefs = context.getSharedPreferences("scanner_prefs", Context.MODE_PRIVATE)
@@ -17,6 +18,7 @@ object BookScanState {
         totalFiles.value = prefs.getInt("total_files", 0)
         processedFiles.value = prefs.getInt("processed_files", 0)
         errorText.value = prefs.getString("error_text", null)
+        lastUpdateTime.value = prefs.getLong("last_update_time", 0L)
     }
 
     fun updateScanning(context: Context, active: Boolean, text: String, total: Int = 0, processed: Int = 0, error: String? = null) {
@@ -25,6 +27,8 @@ object BookScanState {
         totalFiles.value = total
         processedFiles.value = processed
         errorText.value = error
+        val currentTime = System.currentTimeMillis()
+        lastUpdateTime.value = currentTime
         
         context.getSharedPreferences("scanner_prefs", Context.MODE_PRIVATE)
             .edit()
@@ -33,6 +37,7 @@ object BookScanState {
             .putInt("total_files", total)
             .putInt("processed_files", processed)
             .putString("error_text", error)
+            .putLong("last_update_time", currentTime)
             .apply()
     }
 }

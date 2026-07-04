@@ -43,6 +43,8 @@ class LibraryFragment : Fragment() {
     // Detailed Scan progress bindings
     private lateinit var layoutScanProgress: View
     private lateinit var tvScanStatus: TextView
+    private lateinit var tvTimeElapsed: TextView
+    private lateinit var progressBarSpinner: ProgressBar
     private lateinit var progressBarScanProgress: ProgressBar
     
     private lateinit var rvBooks: RecyclerView
@@ -78,6 +80,8 @@ class LibraryFragment : Fragment() {
         
         layoutScanProgress = view.findViewById(R.id.layoutScanProgress)
         tvScanStatus = view.findViewById(R.id.tvScanStatus)
+        tvTimeElapsed = view.findViewById(R.id.tvTimeElapsed)
+        progressBarSpinner = view.findViewById(R.id.progressBarSpinner)
         progressBarScanProgress = view.findViewById(R.id.progressBarScanProgress)
         
         rvBooks = view.findViewById(R.id.rvBooks)
@@ -137,7 +141,7 @@ class LibraryFragment : Fragment() {
         // Compact Auto-Scan action
         btnAutoScan.setOnClickListener {
             viewModel.startLocalBookScan()
-            Toast.makeText(requireContext(), "Сканирование запущено...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Начато сканирование папок...", Toast.LENGTH_SHORT).show()
         }
         
         // Hide/dismiss progress layout on tap
@@ -164,7 +168,9 @@ class LibraryFragment : Fragment() {
                 if (active) {
                     wasScanning = true
                     layoutScanProgress.visibility = View.VISIBLE
+                    progressBarSpinner.visibility = View.VISIBLE
                 } else {
+                    progressBarSpinner.visibility = View.GONE
                     // When scanning completes, if there is a message, keep showing it so the user can read the result.
                     // Clicking it will dismiss it.
                     val statusText = com.example.service.BookScanState.scanProgressText.value
@@ -179,6 +185,26 @@ class LibraryFragment : Fragment() {
                         layoutScanProgress.visibility = View.GONE
                     }
                 }
+            }
+        }
+
+        // Ticker for elapsed time
+        viewLifecycleOwner.lifecycleScope.launch {
+            while (true) {
+                if (com.example.service.BookScanState.isScanning.value) {
+                    val lastUpdate = com.example.service.BookScanState.lastUpdateTime.value
+                    if (lastUpdate > 0) {
+                        val elapsed = System.currentTimeMillis() - lastUpdate
+                        if (elapsed > 2000) {
+                            tvTimeElapsed.text = "(зависло: ${elapsed / 1000}с)"
+                        } else {
+                            tvTimeElapsed.text = ""
+                        }
+                    }
+                } else {
+                    tvTimeElapsed.text = ""
+                }
+                kotlinx.coroutines.delay(1000)
             }
         }
 

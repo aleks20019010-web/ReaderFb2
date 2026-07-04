@@ -17,7 +17,7 @@ class BookScanWorker(
         BookScanState.updateScanning(
             context = applicationContext,
             active = true,
-            text = "Идёт сканирование папок: Downloads, Documents, Books...",
+            text = "Поиск файлов...",
             total = 0,
             processed = 0
         )
@@ -35,7 +35,7 @@ class BookScanWorker(
         try {
             val result = scanner.scanFolders { current, total, currentFileName ->
                 // Update SharedPreferences and state
-                val msg = "Идёт сканирование папок: Downloads, Documents, Books...\nОбработано файлов: $current из $total"
+                val msg = "Обработка: $current из $total"
                 BookScanState.updateScanning(
                     context = applicationContext,
                     active = true,
