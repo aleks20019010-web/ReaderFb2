@@ -5,131 +5,163 @@ import android.os.Environment
 import android.util.Log
 import com.example.data.AppDatabase
 import com.example.data.BookEntity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
 import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 
 class BookScanner(private val context: Context) {
-
     private val database = AppDatabase.getDatabase(context)
     private val bookDao = database.bookDao()
 
     suspend fun scanFolders(onProgress: suspend (current: Int, total: Int, currentFileName: String) -> Unit): ScanResult {
-        val foldersToScan = listOf(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
-            File(Environment.getExternalStorageDirectory(), "Books")
-        )
+        return withContext(Dispatchers.IO) {
+            val foldersToScan = listOf(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+                File(Environment.getExternalStorageDirectory(), "Books")
+            )
 
-        val filesToProcess = mutableListOf<File>()
-        
-        // Step 1: Scan directories and gather files
-        for (folder in foldersToScan) {
-            if (folder.exists() && folder.isDirectory) {
-                gatherFiles(folder, filesToProcess)
+            val filesToProcess = mutableListOf<File>()
+            
+            // Step 1: Scan directories and gather files
+            for (folder in foldersToScan) {
+                if (folder.exists() && folder.isDirectory) {
+                    gatherFiles(folder, filesToProcess)
+                }
             }
-        }
 
-        if (filesToProcess.isEmpty()) {
-            return ScanResult.NoBooksFound
-        }
+            if (filesToProcess.isEmpty()) {
+                return@withContext ScanResult.NoBooksFound
+            }
 
-        val total = filesToProcess.size
-        var addedCount = 0
+            val total = filesToProcess.size
+            var addedCount = 0
+            var skippedCount = 0
 
-        // Step 2: Process files one by one
-        for ((index, file) in filesToProcess.withIndex()) {
-            val currentIndex = index + 1
-            onProgress(currentIndex, total, file.name)
+            // Step 1.5: Cache existing SHA-1 hashes and paths
+            val existingMap = bookDao.getSha1ToPathMap().associate { it.sha1 to it.filePath }.toMutableMap()
 
-            try {
-                val ext = file.extension.lowercase()
-                val computedSha1 = computeSha1(file)
+            val batchList = mutableListOf<BookEntity>()
+            val BATCH_SIZE = 50
 
-                // Check duplicates by SHA1
-                val existing = bookDao.getBookBySha1(computedSha1)
-                if (existing != null) {
-                    continue
+            var lastUpdateTime = System.currentTimeMillis()
+
+            // Step 2: Process files one by one
+            for ((index, file) in filesToProcess.withIndex()) {
+                val currentIndex = index + 1
+                
+                val currentTime = System.currentTimeMillis()
+                // Update UI every 200ms or on the last item
+                if (currentTime - lastUpdateTime > 200 || currentIndex == total) {
+                    onProgress(currentIndex, total, file.name)
+                    lastUpdateTime = currentTime
                 }
 
-                var parsedTitle = file.nameWithoutExtension
-                var parsedAuthor = "Неизвестен"
-                var parsedContent = ""
-                var parsedSeries: String? = null
-                var parsedSeriesIndex: Int? = null
-                var parsedLanguage: String? = "ru"
+                try {
+                    val ext = file.extension.lowercase()
+                    val computedSha1 = computeSha1(file)
 
-                if (ext == "fb2") {
-                    val rawText = decodeBytesToString(file.readBytes())
-                    val parsed = Fb2Parser.parse(rawText, parsedTitle)
-                    parsedTitle = parsed.title
-                    parsedAuthor = parsed.author
-                    parsedContent = parsed.content
-                    parsedSeries = parsed.series
-                    parsedSeriesIndex = parsed.seriesIndex
-                    parsedLanguage = parsed.language
-                } else if (ext == "zip") {
-                    file.inputStream().use { fis ->
-                        ZipInputStream(fis).use { zis ->
-                            var entry = zis.nextEntry
-                            while (entry != null) {
-                                val entryName = entry.name.lowercase()
-                                if (!entry.isDirectory && entryName.endsWith(".fb2")) {
-                                    val bytes = zis.readBytes()
-                                    val rawText = decodeBytesToString(bytes)
-                                    val parsed = Fb2Parser.parse(rawText, entryName.removeSuffix(".fb2"))
-                                    parsedTitle = parsed.title
-                                    parsedAuthor = parsed.author
-                                    parsedContent = parsed.content
-                                    parsedSeries = parsed.series
-                                    parsedSeriesIndex = parsed.seriesIndex
-                                    parsedLanguage = parsed.language
-                                    break
+                    // Check duplicates by SHA1 in memory
+                    if (existingMap.containsKey(computedSha1)) {
+                        skippedCount++
+                        if (existingMap[computedSha1] != file.absolutePath) {
+                            bookDao.updateFilePath(computedSha1, file.absolutePath)
+                            existingMap[computedSha1] = file.absolutePath
+                        }
+                        continue
+                    }
+
+                    var parsedTitle = file.nameWithoutExtension
+                    var parsedAuthor = "Неизвестен"
+                    var parsedContent = ""
+                    var parsedSeries: String? = null
+                    var parsedSeriesIndex: Int? = null
+                    var parsedLanguage: String? = "ru"
+
+                    if (ext == "fb2") {
+                        val rawText = decodeBytesToString(file.readBytes())
+                        val parsed = Fb2Parser.parse(rawText, parsedTitle)
+                        parsedTitle = parsed.title
+                        parsedAuthor = parsed.author
+                        parsedContent = parsed.content
+                        parsedSeries = parsed.series
+                        parsedSeriesIndex = parsed.seriesIndex
+                        parsedLanguage = parsed.language
+                    } else if (ext == "zip") {
+                        file.inputStream().use { fis ->
+                            ZipInputStream(fis).use { zis ->
+                                var entry = zis.nextEntry
+                                while (entry != null) {
+                                    val entryName = entry.name.lowercase()
+                                    if (!entry.isDirectory && entryName.endsWith(".fb2")) {
+                                        val bytes = zis.readBytes()
+                                        val rawText = decodeBytesToString(bytes)
+                                        val parsed = Fb2Parser.parse(rawText, entryName.removeSuffix(".fb2"))
+                                        parsedTitle = parsed.title
+                                        parsedAuthor = parsed.author
+                                        parsedContent = parsed.content
+                                        parsedSeries = parsed.series
+                                        parsedSeriesIndex = parsed.seriesIndex
+                                        parsedLanguage = parsed.language
+                                        break
+                                    }
+                                    entry = zis.nextEntry
                                 }
-                                entry = zis.nextEntry
                             }
                         }
+                    } else if (ext == "txt") {
+                        parsedContent = decodeBytesToString(file.readBytes())
+                        parsedAuthor = "Локальный TXT"
+                    } else {
+                        // Skip unsupported extensions
+                        continue
                     }
-                } else if (ext == "txt") {
-                    parsedContent = decodeBytesToString(file.readBytes())
-                    parsedAuthor = "Локальный TXT"
-                } else {
-                    // Skip unsupported extensions
-                    continue
-                }
 
-                if (parsedContent.isNotBlank()) {
-                    val coverPath = BookScannerState.extractCover(file, computedSha1, context)
+                    if (parsedContent.isNotBlank()) {
+                        val coverPath = BookScannerState.extractCover(file, computedSha1, context)
 
-                    val newBook = BookEntity(
-                        title = parsedTitle,
-                        author = parsedAuthor,
-                        content = parsedContent,
-                        category = "Локальные",
-                        totalCharacters = parsedContent.length,
-                        coverGradientStart = getRandomGradientStartColor(),
-                        coverGradientEnd = getRandomGradientEndColor(),
-                        filePath = file.absolutePath,
-                        sha1 = computedSha1,
-                        fileSize = file.length(),
-                        coverPath = coverPath,
-                        series = parsedSeries,
-                        seriesIndex = parsedSeriesIndex,
-                        language = parsedLanguage
-                    )
+                        val newBook = BookEntity(
+                            title = parsedTitle,
+                            author = parsedAuthor,
+                            content = parsedContent,
+                            category = "Локальные",
+                            totalCharacters = parsedContent.length,
+                            coverGradientStart = getRandomGradientStartColor(),
+                            coverGradientEnd = getRandomGradientEndColor(),
+                            filePath = file.absolutePath,
+                            sha1 = computedSha1,
+                            fileSize = file.length(),
+                            coverPath = coverPath,
+                            series = parsedSeries,
+                            seriesIndex = parsedSeriesIndex,
+                            language = parsedLanguage
+                        )
 
-                    val inserted = bookDao.insertBookIfUnique(newBook)
-                    if (inserted) {
+                        batchList.add(newBook)
+                        existingMap[computedSha1] = file.absolutePath
                         addedCount++
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("BookScanner", "Error scanning file ${file.absolutePath}", e)
-            }
-        }
 
-        return ScanResult.Success(addedCount)
+                        if (batchList.size >= BATCH_SIZE) {
+                            bookDao.insertBooks(batchList)
+                            batchList.clear()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("BookScanner", "Error scanning file ${file.absolutePath}", e)
+                }
+            }
+
+            // Insert remaining
+            if (batchList.isNotEmpty()) {
+                bookDao.insertBooks(batchList)
+                batchList.clear()
+            }
+
+            return@withContext ScanResult.Success(addedCount, skippedCount)
+        }
     }
 
     private fun gatherFiles(dir: File, resultList: MutableList<File>) {
@@ -205,7 +237,7 @@ class BookScanner(private val context: Context) {
 }
 
 sealed class ScanResult {
-    data class Success(val addedCount: Int) : ScanResult()
+    data class Success(val addedCount: Int, val skippedCount: Int) : ScanResult()
     object NoBooksFound : ScanResult()
     data class Error(val message: String) : ScanResult()
 }

@@ -32,6 +32,8 @@ class LibraryFragment : Fragment() {
     private var allBooksList: List<BookEntity> = emptyList()
     private var currentSearchQuery: String = ""
 
+    private var wasScanning: Boolean = false
+
     // View bindings
     private lateinit var btnSearchToggle: View
     private lateinit var btnAutoScan: View
@@ -160,11 +162,19 @@ class LibraryFragment : Fragment() {
                 btnAutoScan.alpha = if (active) 0.5f else 1.0f
                 
                 if (active) {
+                    wasScanning = true
                     layoutScanProgress.visibility = View.VISIBLE
                 } else {
                     // When scanning completes, if there is a message, keep showing it so the user can read the result.
                     // Clicking it will dismiss it.
                     val statusText = com.example.service.BookScanState.scanProgressText.value
+                    if (wasScanning) {
+                        wasScanning = false
+                        if (statusText.startsWith("Сканирование завершено")) {
+                            val toastMsg = statusText.replace("Сканирование завершено. ", "")
+                            Toast.makeText(requireContext(), toastMsg, Toast.LENGTH_LONG).show()
+                        }
+                    }
                     if (statusText.isBlank()) {
                         layoutScanProgress.visibility = View.GONE
                     }

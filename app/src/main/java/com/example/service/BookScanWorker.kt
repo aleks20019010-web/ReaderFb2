@@ -55,7 +55,7 @@ class BookScanWorker(
             // Handle scan results
             when (result) {
                 is ScanResult.Success -> {
-                    val finishMsg = "Сканирование завершено. Добавлено ${result.addedCount} книг."
+                    val finishMsg = "Сканирование завершено. Добавлено ${result.addedCount} книг, пропущено ${result.skippedCount} дубликатов."
                     BookScanState.updateScanning(
                         context = applicationContext,
                         active = false,
@@ -66,7 +66,7 @@ class BookScanWorker(
                     ScanNotificationHelper.showFinishedNotification(
                         context = applicationContext,
                         title = "Сканирование завершено",
-                        message = "Добавлено ${result.addedCount} новых книг в библиотеку"
+                        message = "Добавлено ${result.addedCount} книг, пропущено ${result.skippedCount} дубликатов"
                     )
                 }
                 is ScanResult.NoBooksFound -> {

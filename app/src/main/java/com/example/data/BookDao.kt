@@ -7,10 +7,24 @@ import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
+data class Sha1PathTuple(
+    val sha1: String,
+    val filePath: String
+)
+
 @Dao
 interface BookDao {
     @Query("SELECT * FROM books ORDER BY lastReadTime DESC")
     fun getAllBooks(): Flow<List<BookEntity>>
+
+    @Query("SELECT sha1 FROM books")
+    suspend fun getAllSha1s(): List<String>
+
+    @Query("SELECT sha1, filePath FROM books")
+    suspend fun getSha1ToPathMap(): List<Sha1PathTuple>
+
+    @Query("UPDATE books SET filePath = :newPath WHERE sha1 = :sha1")
+    suspend fun updateFilePath(sha1: String, newPath: String)
 
     @Query("SELECT * FROM books WHERE sha1 = :sha1 LIMIT 1")
     suspend fun getBookBySha1(sha1: String): BookEntity?
