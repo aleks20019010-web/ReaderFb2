@@ -1,0 +1,4 @@
+#!/bin/bash
+sed -i 's/etSearch.visibility = View.GONE/etSearch.visibility = View.GONE\n                btnSearchToggle.animate().rotation(0f).setDuration(300).start()/g' app/src/main/java/com/example/ui/LibraryFragment.kt
+sed -i 's/etSearch.visibility = View.VISIBLE/etSearch.visibility = View.VISIBLE\n                btnSearchToggle.animate().rotation(90f).setDuration(300).start()/g' app/src/main/java/com/example/ui/LibraryFragment.kt
+sed -i 's/btnAutoScan.isEnabled = !active/btnAutoScan.isEnabled = !active\n                if (active) {\n                    btnAutoScan.animate().rotationBy(360f).setDuration(1000).withEndAction { if(com.example.service.BookScanState.isScanning.value) btnAutoScan.animate().rotationBy(360f).setDuration(1000).start() }.start()\n                } else {\n                    btnAutoScan.animate().cancel()\n                    btnAutoScan.rotation = 0f\n                }/g' app/src/main/java/com/example/ui/LibraryFragment.kt

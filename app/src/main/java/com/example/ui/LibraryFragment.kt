@@ -200,11 +200,13 @@ class LibraryFragment : Fragment() {
         btnSearchToggle.setOnClickListener {
             if (etSearch.visibility == View.VISIBLE) {
                 etSearch.visibility = View.GONE
+                btnSearchToggle.animate().rotation(0f).setDuration(300).start()
                 etSearch.setText("")
                 currentSearchQuery = ""
                 filterAndApplyBooks()
             } else {
                 etSearch.visibility = View.VISIBLE
+                btnSearchToggle.animate().rotation(90f).setDuration(300).start()
                 etSearch.requestFocus()
             }
         }
@@ -248,6 +250,12 @@ class LibraryFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             com.example.service.BookScanState.isScanning.collectLatest { active ->
                 btnAutoScan.isEnabled = !active
+                if (active) {
+                    btnAutoScan.animate().rotationBy(360f).setDuration(1000).withEndAction { if(com.example.service.BookScanState.isScanning.value) btnAutoScan.animate().rotationBy(360f).setDuration(1000).start() }.start()
+                } else {
+                    btnAutoScan.animate().cancel()
+                    btnAutoScan.rotation = 0f
+                }
                 btnAutoScan.alpha = if (active) 0.5f else 1.0f
                 
                 if (active) {

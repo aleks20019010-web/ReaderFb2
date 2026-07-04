@@ -1,18 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/bg_main">
+    android:background="@color/bg_main"
+    android:animateLayoutChanges="true">
 
     <!-- Top Action Bar Header -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/bg_panel"
-        android:padding="12dp"
-        android:elevation="4dp">
+        android:padding="16dp"
+        android:elevation="4dp"
+        android:clipToPadding="false"
+        android:clipChildren="false">
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -21,23 +25,23 @@
             android:layout_centerVertical="true"
             android:gravity="center_vertical"
             android:orientation="horizontal">
-            
+
             <ImageButton
                 android:id="@+id/btnMenu"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_menu_sort_by_size"
                 android:contentDescription="Меню"
                 android:tint="@color/icon_tint"
                 android:layout_marginEnd="8dp" />
-                
+
             <TextView
                 android:id="@+id/tvTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Библиотека"
-                android:textSize="20sp"
+                android:textSize="22sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary" />
         </LinearLayout>
@@ -49,37 +53,68 @@
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
             android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:clipToPadding="false">
+
+            <!-- Expandable Search Input (Initially Hidden) -->
+            <EditText
+                android:id="@+id/etSearch"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_search_input"
+                android:hint="Поиск..."
+                android:inputType="text"
+                android:maxLines="1"
+                android:paddingHorizontal="16dp"
+                android:textColorHint="@color/text_secondary"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:visibility="gone"
+                android:elevation="2dp" />
 
             <!-- Search Toggle -->
-            <ImageButton
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSearchToggle"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_search"
-                android:contentDescription="Поиск"
-                android:tint="@color/icon_tint" />
-
-            <!-- Auto Scan -->
-            <ImageButton
-                android:id="@+id/btnAutoScan"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_rotate"
-                android:contentDescription="Автосканирование"
-                android:tint="@color/icon_tint" />
+                style="@style/Widget.Material3.Button.IconButton.Filled"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="8dp"
+                app:icon="@android:drawable/ic_menu_search"
+                app:iconTint="#3D2C1A"
+                app:backgroundTint="#EDE5D8"
+                app:cornerRadius="24dp"
+                app:elevation="2dp"
+                android:contentDescription="Поиск" />
 
             <!-- Manual Import -->
-            <ImageButton
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnImport"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_upload"
-                android:contentDescription="Импорт"
-                android:tint="@color/icon_tint" />
+                style="@style/Widget.Material3.Button.IconButton.Filled"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="8dp"
+                app:icon="@android:drawable/ic_menu_upload"
+                app:iconTint="#3D2C1A"
+                app:backgroundTint="#EDE5D8"
+                app:cornerRadius="24dp"
+                app:elevation="2dp"
+                android:contentDescription="Импорт" />
+
+            <!-- Auto Scan -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAutoScan"
+                style="@style/Widget.Material3.Button.IconButton.Filled"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                app:icon="@android:drawable/ic_menu_rotate"
+                app:iconTint="#FFFFFF"
+                app:backgroundTint="#C4956A"
+                app:cornerRadius="24dp"
+                app:elevation="4dp"
+                android:contentDescription="Автосканирование" />
+
         </LinearLayout>
     </RelativeLayout>
 
@@ -88,22 +123,6 @@
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:padding="12dp">
-
-        <!-- Expandable Search Input -->
-        <EditText
-            android:id="@+id/etSearch"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:layout_marginBottom="8dp"
-            android:background="@android:drawable/editbox_background_normal"
-            android:hint="Поиск по библиотеке..."
-            android:inputType="text"
-            android:maxLines="1"
-            android:paddingHorizontal="12dp"
-            android:textColorHint="@color/text_secondary"
-            android:textColor="@color/text_primary"
-            android:textSize="14sp"
-            android:visibility="gone" />
 
         <!-- Scan Progress Status Container -->
         <include layout="@layout/scan_status_layout" />

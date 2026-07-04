@@ -18,19 +18,12 @@ class BookScanner(private val context: Context) {
 
     suspend fun scanFolders(onProgress: suspend (current: Int, total: Int, currentFileName: String) -> Unit): ScanResult {
         return withContext(Dispatchers.IO) {
-            val foldersToScan = listOf(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
-                File(Environment.getExternalStorageDirectory(), "Books")
-            )
-
+            val rootDir = Environment.getExternalStorageDirectory()
             val filesToProcess = mutableListOf<File>()
             
             // Step 1: Scan directories and gather files
-            for (folder in foldersToScan) {
-                if (folder.exists() && folder.isDirectory) {
-                    gatherFiles(folder, filesToProcess)
-                }
+            if (rootDir.exists() && rootDir.isDirectory) {
+                gatherFilesRecursive(rootDir, filesToProcess)
             }
 
             if (filesToProcess.isEmpty()) {
@@ -43,10 +36,8 @@ class BookScanner(private val context: Context) {
 
             // Step 1.5: Cache existing SHA-1 hashes and paths
             val existingMap = bookDao.getSha1ToPathMap().associate { it.sha1 to it.filePath }.toMutableMap()
-
             val batchList = mutableListOf<BookEntity>()
             val BATCH_SIZE = 50
-
             var lastUpdateTime = System.currentTimeMillis()
 
             // Step 2: Process files one by one
@@ -94,6 +85,7 @@ class BookScanner(private val context: Context) {
                         parsedSeries = parsed.series
                         parsedSeriesIndex = parsed.seriesIndex
                         parsedLanguage = parsed.language
+
                     } else if (ext == "zip") {
                         file.inputStream().use { fis ->
                             ZipInputStream(fis).use { zis ->
@@ -112,7 +104,6 @@ class BookScanner(private val context: Context) {
                                             }
                                             return@use // Break out of use block for this file
                                         }
-
                                         val rawText = decodeBytesToString(contentBytes!!)
                                         val parsed = Fb2Parser.parse(rawText, entryName.removeSuffix(".fb2"))
                                         parsedTitle = parsed.title
@@ -144,13 +135,11 @@ class BookScanner(private val context: Context) {
                         parsedContent = decodeBytesToString(contentBytes)
                         parsedAuthor = "Локальный TXT"
                     } else {
-                        // Skip unsupported extensions
                         continue
                     }
 
                     if (parsedContent.isNotBlank()) {
                         val coverPath = BookScannerState.extractCover(file, computedSha1, context)
-
                         val newBook = BookEntity(
                             title = parsedTitle,
                             author = parsedAuthor,
@@ -167,7 +156,6 @@ class BookScanner(private val context: Context) {
                             seriesIndex = parsedSeriesIndex,
                             language = parsedLanguage
                         )
-
                         batchList.add(newBook)
                         existingMap[computedSha1] = file.absolutePath
                         addedCount++
@@ -192,16 +180,16 @@ class BookScanner(private val context: Context) {
         }
     }
 
-    private fun gatherFiles(dir: File, resultList: MutableList<File>) {
+    private fun gatherFilesRecursive(dir: File, resultList: MutableList<File>) {
         val list = dir.listFiles() ?: return
         for (file in list) {
             if (file.isDirectory) {
                 val name = file.name.lowercase()
-                // Skip system and huge cache/temp folders
-                if (name.startsWith(".") || name == "android" || name == "cache" || name == "temp" || name == "tmp") {
+                // Skip system and cache folders
+                if (name.startsWith(".") || name == "android" || name == "data" || name == "obb" || name == "system" || name == "vendor") {
                     continue
                 }
-                gatherFiles(file, resultList)
+                gatherFilesRecursive(file, resultList)
             } else {
                 val ext = file.extension.lowercase()
                 if (ext == "fb2" || ext == "zip" || ext == "txt") {
@@ -212,18 +200,6 @@ class BookScanner(private val context: Context) {
                 }
             }
         }
-    }
-
-    private fun computeSha1(file: File): String {
-        val digest = MessageDigest.getInstance("SHA-1")
-        file.inputStream().use { fis ->
-            val buffer = ByteArray(8192)
-            var read: Int
-            while (fis.read(buffer).also { read = it } != -1) {
-                digest.update(buffer, 0, read)
-            }
-        }
-        return digest.digest().joinToString("") { String.format("%02x", it) }
     }
 
     private fun computeSha1(bytes: ByteArray): String {
