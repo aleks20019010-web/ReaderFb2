@@ -33,6 +33,10 @@
         </activity>
 
         <activity
+            android:name="com.example.ui.BookDetailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MyApplication" />
+        <activity
             android:name="com.example.ui.ReaderActivity"
             android:exported="false"
             android:theme="@style/Theme.MyApplication" />

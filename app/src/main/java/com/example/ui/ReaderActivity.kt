@@ -1186,7 +1186,11 @@ class ReaderActivity : FragmentActivity() {
                     val db = AppDatabase.getDatabase(this@ReaderActivity)
                     val book = db.bookDao().getBookBySha1(bookSha1)
                     if (book != null) {
-                        val newOffset = (currentPageIndex * 1000).coerceIn(0, book.totalCharacters)
+                        val newOffset = if (pages.size > 0) {
+                            (((currentPageIndex + 1).toFloat() / pages.size) * book.totalCharacters).toInt().coerceIn(0, book.totalCharacters)
+                        } else {
+                            0
+                        }
                         db.bookDao().updateProgress(bookSha1, newOffset, System.currentTimeMillis())
                         Log.d(TAG, "Успешно обновлен прогресс в БД: SHA-1 = $bookSha1, смещение = $newOffset")
                     }

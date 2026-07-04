@@ -265,7 +265,7 @@ Monsieur прогнали со двора.
             repository.updateProgress(book.sha1, book.currentProgressChar)
         }
         
-        val intent = android.content.Intent(getApplication(), ReaderActivity::class.java).apply {
+        val intent = android.content.Intent(getApplication(), BookDetailActivity::class.java).apply {
             putExtra("BOOK_SHA1", book.sha1)
             addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         }
