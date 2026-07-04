@@ -48,15 +48,13 @@ class PageFragment : Fragment() {
             else -> Pair("#f5f0e8", "#2C2C2C")
         }
 
-        val paddingBottom = (12 * density).toInt()
-
         val view = inflater.inflate(com.example.R.layout.fragment_page, container, false)
         val root = view.findViewById<FrameLayout>(com.example.R.id.rootContainer).apply {
             setBackgroundColor(Color.parseColor(bgColor))
         }
 
         val textView = view.findViewById<TextView>(com.example.R.id.textView).apply {
-            setPadding(padding16, (12 * density).toInt(), padding16, paddingBottom)
+            setPadding(padding16, (12 * density).toInt(), padding16, paddingBottom) // keep original padding from XML
             includeFontPadding = false
             text = pageText
             textSize = fontSize
@@ -112,14 +110,19 @@ class PageFragment : Fragment() {
             val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
             val topPadding = maxOf(topInset, (12 * density).toInt())
             
-            textView.setPadding(padding16, topPadding, padding16, paddingBottom)
+            textView.setPadding(padding16, topPadding, padding16, textView.paddingBottom)
             insets
         }
 
         textView.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
                 textView.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                android.util.Log.d("READING_DEBUG", "PageFragment: paddingTop=${textView.paddingTop}, paddingBottom=${textView.paddingBottom}, TextView.height=${textView.height}")
+                val layout = textView.layout
+                val lastLineBottom = if (layout != null && layout.lineCount > 0) {
+                    layout.getLineBottom(layout.lineCount - 1)
+                } else 0
+                val freeSpace = textView.height - textView.paddingTop - textView.paddingBottom - lastLineBottom
+                android.util.Log.d("READING_DEBUG", "PageFragment: TextView.height=${textView.height}, paddingTop=${textView.paddingTop}, paddingBottom=${textView.paddingBottom}, lastLineBottom=$lastLineBottom, freeSpace=$freeSpace")
             }
         })
 

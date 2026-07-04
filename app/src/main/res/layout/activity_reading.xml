@@ -102,57 +102,6 @@
                 android:layout_weight="1"
                 android:layout_marginStart="12dp" />
         </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center">
-
-            <TextView
-                android:id="@+id/fontSizeDownBtn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="А-"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="10dp"
-                android:gravity="center" />
-
-            <TextView
-                android:id="@+id/fontSizeUpBtn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="А+"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="10dp"
-                android:gravity="center" />
-
-            <TextView
-                android:id="@+id/themeBtn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Тема"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="10dp"
-                android:gravity="center" />
-
-            <TextView
-                android:id="@+id/libraryBtn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Библиотека"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="10dp"
-                android:gravity="center" />
-        </LinearLayout>
     </LinearLayout>
 
     <ProgressBar

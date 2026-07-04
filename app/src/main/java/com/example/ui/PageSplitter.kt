@@ -99,8 +99,9 @@ object PageSplitter {
             
             // Log precise layout metrics to verify correctness as per requirement #5
             val lastLineBottom = tempLayout.getLineBottom(fitLineCount - 1)
+            val diff = availableHeight - lastLineBottom
             Log.d(TAG, "Page Split: start=$start, end=$end, fitLineCount=$fitLineCount, " +
-                    "availableHeight=$availableHeight, actualPageHeight=$lastLineBottom")
+                    "availableHeight=$availableHeight, actualPageHeight=$lastLineBottom, diff=$diff")
 
             if (end <= start) {
                 end = (start + 1).coerceAtMost(textLength)

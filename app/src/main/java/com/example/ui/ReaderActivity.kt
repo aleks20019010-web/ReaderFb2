@@ -57,10 +57,6 @@ class ReaderActivity : FragmentActivity() {
     private lateinit var backButtonView: TextView
     private lateinit var infoButtonView: TextView
     private lateinit var settingsBtn: ImageView
-    private lateinit var fontSizeDownBtn: TextView
-    private lateinit var fontSizeUpBtn: TextView
-    private lateinit var themeBtn: TextView
-    private lateinit var libraryBtn: TextView
 
     private var isSystemUiVisible = false
     private var bookSha1: String = ""
@@ -176,10 +172,6 @@ class ReaderActivity : FragmentActivity() {
         backButtonView = findViewById(com.example.R.id.backButtonView)
         infoButtonView = findViewById(com.example.R.id.infoButtonView)
         settingsBtn = findViewById(com.example.R.id.settingsBtn)
-        fontSizeDownBtn = findViewById(com.example.R.id.fontSizeDownBtn)
-        fontSizeUpBtn = findViewById(com.example.R.id.fontSizeUpBtn)
-        themeBtn = findViewById(com.example.R.id.themeBtn)
-        libraryBtn = findViewById(com.example.R.id.libraryBtn)
 
         viewPager.setPageTransformer(BookFlipPageTransformer())
 
@@ -191,11 +183,6 @@ class ReaderActivity : FragmentActivity() {
             val bottomSheet = SettingsBottomSheet()
             bottomSheet.show(supportFragmentManager, "SettingsBottomSheet")
         }
-
-        fontSizeDownBtn.setOnClickListener { adjustFontSize(-1f) }
-        fontSizeUpBtn.setOnClickListener { adjustFontSize(1f) }
-        themeBtn.setOnClickListener { cycleTheme() }
-        libraryBtn.setOnClickListener { finish() }
 
         // Setup theme immediately
         applyThemeColors()
@@ -394,26 +381,6 @@ class ReaderActivity : FragmentActivity() {
         }
     }
 
-    private fun adjustFontSize(delta: Float) {
-        val currentSize = com.example.data.SettingsManager.getFontSize(this)
-        val newSize = (currentSize + delta).coerceIn(14f, 28f)
-        com.example.data.SettingsManager.setFontSize(this, newSize)
-        Toast.makeText(this, "Шрифт: ${newSize.toInt()}sp", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun cycleTheme() {
-        val currentTheme = com.example.data.SettingsManager.getTheme(this)
-        val nextTheme = when (currentTheme) {
-            "sepia" -> "sepia_contrast"
-            "sepia_contrast" -> "light"
-            "light" -> "dark"
-            "dark" -> "contrast"
-            "contrast" -> "beige"
-            else -> "sepia"
-        }
-        com.example.data.SettingsManager.setTheme(this, nextTheme)
-    }
-
     private fun applyThemeColors() {
         val themeName = com.example.data.SettingsManager.getTheme(this)
         
@@ -493,10 +460,6 @@ class ReaderActivity : FragmentActivity() {
         
         // Update button colors
         val btnTextColor = Color.parseColor("#C4956A")
-        fontSizeDownBtn.setTextColor(btnTextColor)
-        fontSizeUpBtn.setTextColor(btnTextColor)
-        themeBtn.setTextColor(btnTextColor)
-        libraryBtn.setTextColor(btnTextColor)
         
         // Update SeekBar and readingProgressBar colors if supported
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
@@ -1054,7 +1017,13 @@ class ReaderActivity : FragmentActivity() {
         // Use full height. Padding will be handled directly in the PageFragment's container without reducing available text rendering height.
         val availableHeight = height.coerceAtLeast(100)
         
-        Log.d("READING_DEBUG", "splitContentToPages: screenHeight=$height, availableHeight=$availableHeight, availableWidth=$availableWidth")
+        val insets = ViewCompat.getRootWindowInsets(window.decorView)
+        val statusBarTop = insets?.getInsets(WindowInsetsCompat.Type.statusBars())?.top ?: 0
+        val displayCutoutTop = insets?.getInsets(WindowInsetsCompat.Type.displayCutout())?.top ?: 0
+        val paddingTop = maxOf(statusBarTop, displayCutoutTop)
+        val paddingBottom = (12 * density).toInt()
+
+        Log.d("READING_DEBUG", "splitContentToPages: screenHeight=$height, availableHeight=$availableHeight, availableWidth=$availableWidth, paddingTop=$paddingTop, paddingBottom=$paddingBottom")
         
         val fontSize = com.example.data.SettingsManager.getFontSize(this)
         val fontFamily = com.example.data.SettingsManager.getFontFamily(this)
