@@ -55,6 +55,7 @@ class ReaderActivity : FragmentActivity() {
 
     private lateinit var backButtonView: TextView
     private lateinit var infoButtonView: TextView
+    private lateinit var settingsBtn: TextView
     private lateinit var fontSizeDownBtn: TextView
     private lateinit var fontSizeUpBtn: TextView
     private lateinit var themeBtn: TextView
@@ -64,6 +65,14 @@ class ReaderActivity : FragmentActivity() {
     private var bookSha1: String = ""
     private var bookPath: String? = null
     private var pages: List<String> = emptyList()
+    private var rawBookContent: String? = null
+
+    // Gestures and touch detection
+    private lateinit var gestureDetector: android.view.GestureDetector
+    private var isTrackingBrightness = false
+    private var startY = 0f
+    private var startBrightness = 0.5f
+    private val BRIGHTNESS_EDGE_WIDTH_PERCENT = 0.15f
 
     private val hideHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val hideRunnable = Runnable {
@@ -82,6 +91,26 @@ class ReaderActivity : FragmentActivity() {
 
         // Programmatic layout assembly
         setupLayout()
+        
+        // Initialize gesture detection
+        setupGestures()
+
+        // Observe settings changes flow
+        lifecycleScope.launchWhenStarted {
+            com.example.data.SettingsManager.settingsChanged.collect {
+                Log.d(TAG, "Settings changed flow triggered!")
+                applyThemeColors()
+                val content = rawBookContent
+                if (content != null) {
+                    val currentPos = if (pages.isNotEmpty()) viewPager.currentItem else 0
+                    processAndDisplayContent(content)
+                    if (pages.isNotEmpty()) {
+                        val targetPage = currentPos.coerceIn(0, pages.size - 1)
+                        viewPager.setCurrentItem(targetPage, false)
+                    }
+                }
+            }
+        }
 
         if (bookSha1.isNotEmpty()) {
             Log.d("READING_FIX", "READING_FIX: Запуск асинхронного получения пути из БД по BOOK_SHA1: $bookSha1")
@@ -118,6 +147,7 @@ class ReaderActivity : FragmentActivity() {
 
         backButtonView = findViewById(com.example.R.id.backButtonView)
         infoButtonView = findViewById(com.example.R.id.infoButtonView)
+        settingsBtn = findViewById(com.example.R.id.settingsBtn)
         fontSizeDownBtn = findViewById(com.example.R.id.fontSizeDownBtn)
         fontSizeUpBtn = findViewById(com.example.R.id.fontSizeUpBtn)
         themeBtn = findViewById(com.example.R.id.themeBtn)
@@ -128,7 +158,10 @@ class ReaderActivity : FragmentActivity() {
         backButtonView.setOnClickListener { finish() }
         infoButtonView.setOnClickListener {
             Toast.makeText(this@ReaderActivity, "Разработчик: Google AI Studio\nФорматы: FB2, TXT, ZIP", Toast.LENGTH_LONG).show()
-            resetHideTimer()
+        }
+        settingsBtn.setOnClickListener {
+            val settingsIntent = Intent(this, SettingsActivity::class.java)
+            startActivity(settingsIntent)
         }
 
         fontSizeDownBtn.setOnClickListener { adjustFontSize(-1f) }
@@ -198,6 +231,134 @@ class ReaderActivity : FragmentActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    private val hudHideRunnable = Runnable {
+        findViewById<View>(com.example.R.id.brightnessHud)?.visibility = View.GONE
+    }
+
+    private fun showBrightnessFeedback(percentage: Int) {
+        val hud = findViewById<TextView>(com.example.R.id.brightnessHud) ?: return
+        hud.text = "☀ Яркость: $percentage%"
+        hud.visibility = View.VISIBLE
+        hideHandler.removeCallbacks(hudHideRunnable)
+        hideHandler.postDelayed(hudHideRunnable, 1000)
+    }
+
+    private fun toggleNightMode() {
+        val currentTheme = com.example.data.SettingsManager.getTheme(this)
+        val nextTheme = if (currentTheme == "dark") "light" else "dark"
+        com.example.data.SettingsManager.setTheme(this, nextTheme)
+        Toast.makeText(this, if (nextTheme == "dark") "Ночной режим" else "Дневной режим", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun setupGestures() {
+        gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapConfirmed(e: android.view.MotionEvent): Boolean {
+                val screenWidth = resources.displayMetrics.widthPixels
+                val screenHeight = resources.displayMetrics.heightPixels
+                val x = e.x
+                val y = e.y
+
+                // Tapping top-left 25% width and 20% height toggles night/day theme
+                if (x < screenWidth * 0.25f && y < screenHeight * 0.20f) {
+                    toggleNightMode()
+                    return true
+                }
+
+                // Tapping center toggles bars
+                val leftBound = screenWidth * 0.25f
+                val rightBound = screenWidth * 0.75f
+                val topBound = screenHeight * 0.20f
+                val bottomBound = screenHeight * 0.80f
+                
+                if (x in leftBound..rightBound && y in topBound..bottomBound) {
+                    toggleSystemUi()
+                    return true
+                }
+
+                // Tapping left edge turns page back
+                if (x < leftBound) {
+                    val prev = viewPager.currentItem - 1
+                    if (prev >= 0) {
+                        viewPager.setCurrentItem(prev, true)
+                    }
+                    return true
+                }
+
+                // Tapping right edge turns page forward
+                if (x > rightBound) {
+                    val next = viewPager.currentItem + 1
+                    if (next < (viewPager.adapter?.itemCount ?: 0)) {
+                        viewPager.setCurrentItem(next, true)
+                    }
+                    return true
+                }
+
+                return false
+            }
+        })
+    }
+
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        val screenWidth = resources.displayMetrics.widthPixels
+        
+        when (ev.action) {
+            android.view.MotionEvent.ACTION_DOWN -> {
+                if (ev.x < screenWidth * BRIGHTNESS_EDGE_WIDTH_PERCENT) {
+                    isTrackingBrightness = true
+                    startY = ev.y
+                    val lp = window.attributes
+                    startBrightness = if (lp.screenBrightness < 0f) {
+                        try {
+                            android.provider.Settings.System.getInt(
+                                contentResolver,
+                                android.provider.Settings.System.SCREEN_BRIGHTNESS
+                            ) / 255f
+                        } catch (e: Exception) {
+                            0.5f
+                        }
+                    } else {
+                        lp.screenBrightness
+                    }
+                } else {
+                    isTrackingBrightness = false
+                }
+            }
+            android.view.MotionEvent.ACTION_MOVE -> {
+                if (isTrackingBrightness) {
+                    val deltaY = startY - ev.y
+                    val screenHeight = resources.displayMetrics.heightPixels
+                    val deltaBrightness = deltaY / (screenHeight * 0.5f)
+                    val newBrightness = (startBrightness + deltaBrightness).coerceIn(0.01f, 1.0f)
+                    
+                    val lp = window.attributes
+                    lp.screenBrightness = newBrightness
+                    window.attributes = lp
+                    
+                    val pct = (newBrightness * 100).toInt()
+                    showBrightnessFeedback(pct)
+                    return true
+                }
+            }
+            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                if (isTrackingBrightness) {
+                    isTrackingBrightness = false
+                    val deltaY = Math.abs(startY - ev.y)
+                    val density = resources.displayMetrics.density
+                    if (deltaY < 10 * density) {
+                        gestureDetector.onTouchEvent(ev)
+                    }
+                    return true
+                }
+            }
+        }
+        
+        if (gestureDetector.onTouchEvent(ev)) {
+            return true
+        }
+        
+        return super.dispatchTouchEvent(ev)
+    }
+
     private fun createPanelButton(context: Context, text: String, onClick: View.OnClickListener): TextView {
         val density = context.resources.displayMetrics.density
         return TextView(context).apply {
@@ -211,35 +372,26 @@ class ReaderActivity : FragmentActivity() {
     }
 
     private fun adjustFontSize(delta: Float) {
-        val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
-        val currentSize = sharedPrefs.getFloat("font_size", 18f)
-        val newSize = (currentSize + delta).coerceIn(12f, 30f)
-        sharedPrefs.edit().putFloat("font_size", newSize).apply()
-        
+        val currentSize = com.example.data.SettingsManager.getFontSize(this)
+        val newSize = (currentSize + delta).coerceIn(14f, 28f)
+        com.example.data.SettingsManager.setFontSize(this, newSize)
         Toast.makeText(this, "Шрифт: ${newSize.toInt()}sp", Toast.LENGTH_SHORT).show()
-        
-        refreshAdapter()
-        resetHideTimer()
     }
 
     private fun cycleTheme() {
-        val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
-        val currentTheme = sharedPrefs.getString("theme", "sepia") ?: "sepia"
+        val currentTheme = com.example.data.SettingsManager.getTheme(this)
         val nextTheme = when (currentTheme) {
             "sepia" -> "light"
             "light" -> "dark"
+            "dark" -> "contrast"
+            "contrast" -> "beige"
             else -> "sepia"
         }
-        sharedPrefs.edit().putString("theme", nextTheme).apply()
-        
-        applyThemeColors()
-        refreshAdapter()
-        resetHideTimer()
+        com.example.data.SettingsManager.setTheme(this, nextTheme)
     }
 
     private fun applyThemeColors() {
-        val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
-        val themeName = sharedPrefs.getString("theme", "sepia") ?: "sepia"
+        val themeName = com.example.data.SettingsManager.getTheme(this)
         
         var bgColorHex = "#FAF6EE"
         var textColorHex = "#2C2C2C"
@@ -265,6 +417,18 @@ class ReaderActivity : FragmentActivity() {
                 panelBgHex = "#f5f0e8"
                 borderHex = "#E0DCD3"
             }
+            "contrast" -> {
+                bgColorHex = "#000000"
+                textColorHex = "#FFFF00"
+                panelBgHex = "#111111"
+                borderHex = "#333333"
+            }
+            "beige" -> {
+                bgColorHex = "#F4ECD8"
+                textColorHex = "#3B2F1F"
+                panelBgHex = "#F4ECD8"
+                borderHex = "#D9CDA9"
+            }
         }
         
         val bgColor = Color.parseColor(bgColorHex)
@@ -288,6 +452,7 @@ class ReaderActivity : FragmentActivity() {
         titleText.setTextColor(textColor)
         backButtonView.setTextColor(textColor)
         infoButtonView.setTextColor(textColor)
+        settingsBtn.setTextColor(textColor)
         
         // Style Bottom Bar
         bottomBar.background = GradientDrawable().apply {
@@ -297,7 +462,12 @@ class ReaderActivity : FragmentActivity() {
         progressText.setTextColor(textColor)
         
         // Update button colors
-        val btnTextColor = if (themeName == "dark") Color.parseColor("#E5A93C") else Color.parseColor("#8E6E36")
+        val btnTextColor = when (themeName) {
+            "dark" -> Color.parseColor("#E5A93C")
+            "contrast" -> Color.parseColor("#FFFF00")
+            "beige" -> Color.parseColor("#5C3E14")
+            else -> Color.parseColor("#8E6E36")
+        }
         fontSizeDownBtn.setTextColor(btnTextColor)
         fontSizeUpBtn.setTextColor(btnTextColor)
         themeBtn.setTextColor(btnTextColor)
@@ -309,18 +479,25 @@ class ReaderActivity : FragmentActivity() {
             seekBar.progressTintList = colorStateList
             seekBar.thumbTintList = colorStateList
             readingProgressBar.progressTintList = colorStateList
-            val trackColor = if (themeName == "dark") Color.parseColor("#33E5A93C") else Color.parseColor("#338E6E36")
+            val trackColor = when (themeName) {
+                "dark" -> Color.parseColor("#33E5A93C")
+                "contrast" -> Color.parseColor("#33FFFF00")
+                "beige" -> Color.parseColor("#335C3E14")
+                else -> Color.parseColor("#338E6E36")
+            }
             readingProgressBar.progressBackgroundTintList = android.content.res.ColorStateList.valueOf(trackColor)
         }
     }
 
     private fun updateSystemBarsColors(isNightMode: Boolean) {
-        val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
-        val themeName = sharedPrefs.getString("theme", "sepia") ?: "sepia"
+        val themeName = com.example.data.SettingsManager.getTheme(this)
         val bgColorHex = when (themeName) {
             "light" -> "#FFFFFF"
             "dark" -> "#1a1a1a"
-            else -> "#f5f0e8" // sepia / warm paper
+            "sepia" -> "#f5f0e8"
+            "contrast" -> "#000000"
+            "beige" -> "#F4ECD8"
+            else -> "#f5f0e8"
         }
         val bgColor = Color.parseColor(bgColorHex)
 
@@ -329,11 +506,13 @@ class ReaderActivity : FragmentActivity() {
             window.navigationBarColor = bgColor
         }
 
+        val isDark = themeName == "dark" || themeName == "contrast"
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             val controller = window.insetsController
             if (controller != null) {
-                val statusFlag = if (themeName == "dark") 0 else android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-                val navFlag = if (themeName == "dark") 0 else android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+                val statusFlag = if (isDark) 0 else android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                val navFlag = if (isDark) 0 else android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
                 controller.setSystemBarsAppearance(statusFlag, android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS)
                 controller.setSystemBarsAppearance(navFlag, android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS)
             }
@@ -342,14 +521,14 @@ class ReaderActivity : FragmentActivity() {
             var flags = window.decorView.systemUiVisibility
             flags = flags or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                flags = if (themeName == "dark") {
+                flags = if (isDark) {
                     flags and android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
                 } else {
                     flags or android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
                 }
             }
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                flags = if (themeName == "dark") {
+                flags = if (isDark) {
                     flags and android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
                 } else {
                     flags or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
@@ -594,6 +773,7 @@ class ReaderActivity : FragmentActivity() {
     }
 
     private suspend fun processAndDisplayContent(rawContent: String) {
+        rawBookContent = rawContent
         val vpWidth = viewPager.width
         val vpHeight = viewPager.height
 
@@ -836,19 +1016,54 @@ class ReaderActivity : FragmentActivity() {
         
         // Horizontal padding: 16dp on each side (32dp total)
         val paddingHorizontal = (32 * density).toInt()
-        // Vertical padding: 16dp bottom, plus status bar / notch top padding.
-        // Let's use 64dp vertical padding to be safe.
-        val paddingVertical = (64 * density).toInt()
+        
+        // Dynamic padding vertical: bottom is 16dp. top is the cutout/notch top padding.
+        val insets = ViewCompat.getRootWindowInsets(window.decorView)
+        val statusBarTop = insets?.getInsets(WindowInsetsCompat.Type.statusBars())?.top ?: 0
+        val displayCutoutTop = insets?.getInsets(WindowInsetsCompat.Type.displayCutout())?.top ?: 0
+        val topInset = maxOf(statusBarTop, displayCutoutTop)
+        
+        val actualTopPadding = if (topInset > 0) topInset else (24 * density).toInt()
+        val actualBottomPadding = (16 * density).toInt()
+        val paddingVertical = actualTopPadding + actualBottomPadding
         
         val availableWidth = (width - paddingHorizontal).coerceAtLeast(100)
-        val availableHeight = (height - paddingVertical).coerceAtLeast(100)
+        // Add a safety buffer to ensure lines don't get truncated or pushed onto a next page
+        val availableHeight = (height - paddingVertical - (4 * density).toInt()).coerceAtLeast(100)
         
-        val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
-        val fontSize = sharedPrefs.getFloat("font_size", 18f)
-        
+        val fontSize = com.example.data.SettingsManager.getFontSize(this)
+        val fontFamily = com.example.data.SettingsManager.getFontFamily(this)
+        val fontWeight = com.example.data.SettingsManager.getFontWeight(this)
+        val lineSpacingMultiplier = com.example.data.SettingsManager.getLineSpacing(this)
+
+        val baseTypeface = when (fontFamily) {
+            "Roboto" -> android.graphics.Typeface.SANS_SERIF
+            "Times New Roman" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
+            "Georgia" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
+            "OpenDyslexic" -> android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.NORMAL)
+            "Monospace" -> android.graphics.Typeface.MONOSPACE
+            else -> android.graphics.Typeface.DEFAULT
+        }
+        val style = when (fontWeight) {
+            "Bold" -> android.graphics.Typeface.BOLD
+            else -> android.graphics.Typeface.NORMAL
+        }
+        val resolvedTypeface = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            val numericWeight = when (fontWeight) {
+                "Normal" -> 400
+                "Medium" -> 500
+                "Bold" -> 700
+                "ExtraBold" -> 900
+                else -> 400
+            }
+            android.graphics.Typeface.create(baseTypeface, numericWeight, false)
+        } else {
+            android.graphics.Typeface.create(baseTypeface, style)
+        }
+
         val paint = android.text.TextPaint().apply {
             textSize = fontSize * density
-            typeface = android.graphics.Typeface.DEFAULT
+            typeface = resolvedTypeface
         }
         
         val result = PageSplitter.splitText(
@@ -856,15 +1071,14 @@ class ReaderActivity : FragmentActivity() {
             availableWidth = availableWidth,
             availableHeight = availableHeight,
             paint = paint,
-            lineSpacing = 1.15f,
+            lineSpacing = lineSpacingMultiplier,
             alignment = "justify"
         )
         return result.pages
     }
 
     private fun resetHideTimer() {
-        hideHandler.removeCallbacks(hideRunnable)
-        hideHandler.postDelayed(hideRunnable, 3000)
+        // Empty to prevent hiding UI elements on a timer as per requirements
     }
 
     private fun hideSystemUi() {

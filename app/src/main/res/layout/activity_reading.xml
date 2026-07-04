@@ -56,6 +56,15 @@
             android:textSize="20sp"
             android:paddingStart="16dp"
             android:gravity="center" />
+
+        <TextView
+            android:id="@+id/settingsBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⚙"
+            android:textSize="20sp"
+            android:paddingStart="16dp"
+            android:gravity="center" />
     </LinearLayout>
 
     <!-- Bottom Bar -->
@@ -153,5 +162,18 @@
         android:max="100"
         android:progress="0"
         android:visibility="invisible" />
+
+    <TextView
+        android:id="@+id/brightnessHud"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="#99000000"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="10dp"
+        android:visibility="gone" />
 
 </FrameLayout>

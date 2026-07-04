@@ -37,6 +37,11 @@
             android:theme="@style/Theme.MyApplication" />
 
         <activity
+            android:name="com.example.ui.SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MyApplication" />
+
+        <activity
             android:name="com.example.ui.AuthorBooksActivity"
             android:exported="false"
             android:theme="@style/Theme.MyApplication" />

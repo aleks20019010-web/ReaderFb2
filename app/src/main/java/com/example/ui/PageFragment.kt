@@ -31,15 +31,20 @@ class PageFragment : Fragment() {
         val density = context.resources.displayMetrics.density
         val padding16 = (16 * density).toInt()
 
-        // Read preferences for dynamic styling
-        val sharedPrefs = context.getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
-        val fontSize = sharedPrefs.getFloat("font_size", 18f)
-        val themeName = sharedPrefs.getString("theme", "sepia") ?: "sepia"
+        // Read preferences for dynamic styling using SettingsManager
+        val fontSize = com.example.data.SettingsManager.getFontSize(context)
+        val themeName = com.example.data.SettingsManager.getTheme(context)
+        val fontFamily = com.example.data.SettingsManager.getFontFamily(context)
+        val fontWeight = com.example.data.SettingsManager.getFontWeight(context)
+        val lineSpacingMultiplier = com.example.data.SettingsManager.getLineSpacing(context)
 
         val (bgColor, textColor) = when (themeName) {
             "light" -> Pair("#FFFFFF", "#121212")
             "dark" -> Pair("#1a1a1a", "#E0E0E0")
-            else -> Pair("#f5f0e8", "#2C2C2C") // sepia / warm paper
+            "sepia" -> Pair("#f5f0e8", "#2C2C2C")
+            "contrast" -> Pair("#000000", "#FFFF00")
+            "beige" -> Pair("#F4ECD8", "#3B2F1F")
+            else -> Pair("#f5f0e8", "#2C2C2C")
         }
 
         val view = inflater.inflate(com.example.R.layout.fragment_page, container, false)
@@ -53,8 +58,36 @@ class PageFragment : Fragment() {
             textSize = fontSize
             setTextColor(Color.parseColor(textColor))
             
-            // Set minimal line spacing: extra 2dp, multiplier 1.0f
-            setLineSpacing(2 * density, 1.0f)
+            // Resolve custom typeface
+            val baseTypeface = when (fontFamily) {
+                "Roboto" -> android.graphics.Typeface.SANS_SERIF
+                "Times New Roman" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
+                "Georgia" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
+                "OpenDyslexic" -> android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.NORMAL)
+                "Monospace" -> android.graphics.Typeface.MONOSPACE
+                else -> android.graphics.Typeface.DEFAULT
+            }
+            
+            val style = when (fontWeight) {
+                "Bold" -> android.graphics.Typeface.BOLD
+                else -> android.graphics.Typeface.NORMAL
+            }
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                val numericWeight = when (fontWeight) {
+                    "Normal" -> 400
+                    "Medium" -> 500
+                    "Bold" -> 700
+                    "ExtraBold" -> 900
+                    else -> 400
+                }
+                typeface = android.graphics.Typeface.create(baseTypeface, numericWeight, false)
+            } else {
+                typeface = android.graphics.Typeface.create(baseTypeface, style)
+            }
+
+            // Set line spacing multiplier from SettingsManager and 0 extra
+            setLineSpacing(0f, lineSpacingMultiplier)
             
             // Break strategy and hyphenation
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
