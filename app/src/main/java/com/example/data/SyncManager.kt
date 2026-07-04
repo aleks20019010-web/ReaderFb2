@@ -101,7 +101,16 @@ class SyncManager(private val context: Context) {
                 }
             } else {
                 // If book doesn't exist locally, insert it with a placeholder content or download
+                val rawBytes = (incoming.title + incoming.author).toByteArray(java.nio.charset.StandardCharsets.UTF_8)
+                val sha1String = try {
+                    val digest = java.security.MessageDigest.getInstance("SHA-1")
+                    val result = digest.digest(rawBytes)
+                    result.joinToString("") { "%02x".format(it) }
+                } catch (e: Exception) {
+                    java.util.UUID.randomUUID().toString()
+                }
                 repository.insertBook(BookEntity(
+                    sha1 = sha1String,
                     title = incoming.title,
                     author = incoming.author,
                     content = "Синхронизированная книга. Содержимое отсутствует, так как книга была импортирована через синхронизацию.",
@@ -125,7 +134,7 @@ class SyncManager(private val context: Context) {
                 // Find matching local book to tie note to, otherwise use default ID
                 val matchingBook = repository.allBooks.first().find { it.title.equals(incoming.bookTitle, ignoreCase = true) }
                 repository.insertNote(NoteEntity(
-                    bookId = matchingBook?.id ?: 0,
+                    bookId = matchingBook?.sha1 ?: "",
                     bookTitle = incoming.bookTitle,
                     selectedText = incoming.selectedText,
                     noteText = incoming.noteText,

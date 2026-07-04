@@ -61,7 +61,7 @@ class ReaderActivity : FragmentActivity() {
     private lateinit var libraryBtn: TextView
 
     private var isSystemUiVisible = false
-    private var bookId: Int = -1
+    private var bookSha1: String = ""
     private var bookPath: String? = null
     private var pages: List<String> = emptyList()
 
@@ -77,22 +77,22 @@ class ReaderActivity : FragmentActivity() {
 
         Log.d("READING_FIX", "Шаг 1 [Получение пути]: Начало работы onCreate. Извлечение данных из Intent...")
         val intentPath = intent.getStringExtra("book_path") ?: intent.getStringExtra("BOOK_PATH")
-        bookId = intent.getIntExtra("BOOK_ID", -1)
-        Log.d("READING_FIX", "READING_FIX: Получено из Intent: book_path = $intentPath, BOOK_ID = $bookId")
+        bookSha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
+        Log.d("READING_FIX", "READING_FIX: Получено из Intent: book_path = $intentPath, BOOK_SHA1 = $bookSha1")
 
         // Programmatic layout assembly
         setupLayout()
 
-        if (intentPath != null) {
+        if (bookSha1.isNotEmpty()) {
+            Log.d("READING_FIX", "READING_FIX: Запуск асинхронного получения пути из БД по BOOK_SHA1: $bookSha1")
+            loadBookFromDbAndRead()
+        } else if (intentPath != null) {
             bookPath = intentPath
             Log.d("READING_FIX", "READING_FIX: Найден прямой путь к книге в Intent: $bookPath")
             loadBook(bookPath!!)
-        } else if (bookId != -1) {
-            Log.d("READING_FIX", "READING_FIX: Прямой путь не передан. Запуск асинхронного получения пути из БД по BOOK_ID: $bookId")
-            loadBookFromDbAndRead()
         } else {
-            Log.e("READING_FIX", "READING_FIX: Ошибка: в Intent не передан ни book_path, ни BOOK_ID")
-            Toast.makeText(this, "Книга не найдена (не передан путь или ID)", Toast.LENGTH_SHORT).show()
+            Log.e("READING_FIX", "READING_FIX: Ошибка: в Intent не передан ни BOOK_SHA1, ни book_path")
+            Toast.makeText(this, "Книга не найдена (не передан SHA-1 или путь)", Toast.LENGTH_SHORT).show()
             finish()
         }
     }
@@ -390,19 +390,88 @@ class ReaderActivity : FragmentActivity() {
         }
     }
 
+    private suspend fun findBookFileBySha1(sha1: String, originalPath: String?): File? {
+        Log.d("READING_DEBUG", "Поиск файла по SHA-1: $sha1")
+        // 1. Check in application's private imported folder: filesDir/imported_books/
+        val importedFolder = File(filesDir, "imported_books")
+        if (importedFolder.exists()) {
+            val matchingFiles = importedFolder.listFiles()?.filter { it.name.startsWith(sha1) }
+            if (!matchingFiles.isNullOrEmpty()) {
+                Log.d("READING_DEBUG", "Файл найден в private imported_books: ${matchingFiles[0].absolutePath}")
+                return matchingFiles[0]
+            }
+        }
+
+        // 2. Let's look in standard directories: Download, Documents, Books, etc.
+        val searchDirs = listOf(
+            File("/storage/emulated/0/Download"),
+            File("/storage/emulated/0/Documents"),
+            File("/storage/emulated/0/Books"),
+            getExternalFilesDir(null)
+        ).filterNotNull()
+
+        // To make search super fast, let's first search for files that have the same name or extension as originalPath,
+        // or any files with .fb2, .zip, .txt, .epub extension.
+        val targetName = originalPath?.let { File(it).name }
+        val candidates = mutableListOf<File>()
+
+        for (dir in searchDirs) {
+            if (dir.exists() && dir.isDirectory) {
+                val list = dir.listFiles() ?: continue
+                for (f in list) {
+                    if (f.isFile) {
+                        val ext = f.extension.lowercase()
+                        if (ext == "fb2" || ext == "zip" || ext == "txt" || ext == "epub") {
+                            if (targetName != null && f.name.equals(targetName, ignoreCase = true)) {
+                                candidates.add(0, f) // high priority candidate
+                            } else {
+                                candidates.add(f)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Compute SHA-1 for the candidate files
+        for (cand in candidates) {
+            try {
+                val candSha1 = withContext(Dispatchers.IO) {
+                    val digest = java.security.MessageDigest.getInstance("SHA-1")
+                    val buffer = ByteArray(8192)
+                    FileInputStream(cand).use { fis ->
+                        var bytesRead = fis.read(buffer)
+                        while (bytesRead != -1) {
+                            digest.update(buffer, 0, bytesRead)
+                            bytesRead = fis.read(buffer)
+                        }
+                    }
+                    digest.digest().joinToString("") { String.format("%02x", it) }
+                }
+                if (candSha1 == sha1) {
+                    Log.d("READING_DEBUG", "Файл найден по SHA-1 в папке: ${cand.absolutePath}")
+                    return cand
+                }
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+        return null
+    }
+
     private fun loadBookFromDbAndRead() {
-        Log.d("READING_DEBUG", "READING_DEBUG: Начало loadBookFromDbAndRead() для ID книги: $bookId")
+        Log.d("READING_DEBUG", "READING_DEBUG: Начало loadBookFromDbAndRead() для SHA-1 книги: $bookSha1")
         progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
-                Log.d("READING_DEBUG", "Шаг 1 [БД]: Запрос информации о книге по ID: $bookId")
+                Log.d("READING_DEBUG", "Шаг 1 [БД]: Запрос информации о книге по SHA-1: $bookSha1")
                 val db = AppDatabase.getDatabase(this@ReaderActivity)
                 val book = withContext(Dispatchers.IO) {
-                    db.bookDao().getBookById(bookId)
+                    db.bookDao().getBookBySha1(bookSha1)
                 }
                 
                 if (book == null) {
-                    Log.e("READING_DEBUG", "READING_DEBUG: Книга с ID $bookId не найдена в базе данных")
+                    Log.e("READING_DEBUG", "READING_DEBUG: Книга с SHA-1 $bookSha1 не найдена в базе данных")
                     showErrorAndExit("Ошибка: Книга не найдена в базе данных")
                     return@launch
                 }
@@ -415,9 +484,26 @@ class ReaderActivity : FragmentActivity() {
                     Log.d("READING_DEBUG", "READING_DEBUG: Путь отсутствует в БД, используем встроенный текст (длина: ${book.content.length})")
                     loadBookWithContent(book.content, "Встроенный текст")
                 } else {
-                    Log.d("READING_DEBUG", "READING_DEBUG: Найден путь в БД: $path. Переходим к загрузке файла...")
-                    bookPath = path
-                    loadBook(path)
+                    Log.d("READING_DEBUG", "READING_DEBUG: Найден путь в БД: $path. Проверка доступности файла...")
+                    val file = File(path)
+                    if (file.exists()) {
+                        bookPath = path
+                        loadBook(path)
+                    } else {
+                        Log.d("READING_DEBUG", "READING_DEBUG: Файл не найден по пути $path. Запуск резервного поиска по SHA-1...")
+                        val foundFile = findBookFileBySha1(bookSha1, path)
+                        if (foundFile != null) {
+                            Log.d("READING_DEBUG", "READING_DEBUG: Резервный файл найден: ${foundFile.absolutePath}. Обновление БД...")
+                            bookPath = foundFile.absolutePath
+                            withContext(Dispatchers.IO) {
+                                db.bookDao().updateBook(book.copy(filePath = foundFile.absolutePath))
+                            }
+                            loadBook(foundFile.absolutePath)
+                        } else {
+                            Log.e("READING_DEBUG", "READING_DEBUG: Файл не найден по SHA-1 в резервных папках")
+                            showErrorAndExit("Ошибка: Файл книги не найден на устройстве")
+                        }
+                    }
                 }
             } catch (t: Throwable) {
                 Log.e("READING_DEBUG", "READING_DEBUG: Исключение на Шаге 1 [БД]: ${t.message}", t)
@@ -543,7 +629,7 @@ class ReaderActivity : FragmentActivity() {
 
             // Восстановление сохраненной страницы
             val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
-            val savedPage = if (bookId != -1) sharedPrefs.getInt("book_page_$bookId", 0) else 0
+            val savedPage = if (bookSha1.isNotEmpty()) sharedPrefs.getInt("book_page_$bookSha1", 0) else 0
             val targetPage = savedPage.coerceIn(0, pages.size - 1)
             
             viewPager.setCurrentItem(targetPage, false)
@@ -571,8 +657,8 @@ class ReaderActivity : FragmentActivity() {
                     }
                     readingProgressBar.progress = progressPercent
 
-                    if (bookId != -1) {
-                        sharedPrefs.edit().putInt("book_page_$bookId", position).apply()
+                    if (bookSha1.isNotEmpty()) {
+                        sharedPrefs.edit().putInt("book_page_$bookSha1", position).apply()
                     }
                 }
             })
@@ -872,11 +958,26 @@ class ReaderActivity : FragmentActivity() {
     override fun onPause() {
         super.onPause()
         hideHandler.removeCallbacks(hideRunnable)
-        if (pages.isNotEmpty() && bookId != -1) {
+        if (pages.isNotEmpty() && bookSha1.isNotEmpty()) {
             val currentPageIndex = viewPager.currentItem
             val sharedPrefs = getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
-            sharedPrefs.edit().putInt("book_page_$bookId", currentPageIndex).apply()
+            sharedPrefs.edit().putInt("book_page_$bookSha1", currentPageIndex).apply()
             Log.d(TAG, "Сохранена позиция при паузе: страница ${currentPageIndex + 1}")
+
+            // Update database progress to show correctly on main shelf
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val db = AppDatabase.getDatabase(this@ReaderActivity)
+                    val book = db.bookDao().getBookBySha1(bookSha1)
+                    if (book != null) {
+                        val newOffset = (currentPageIndex * 1000).coerceIn(0, book.totalCharacters)
+                        db.bookDao().updateProgress(bookSha1, newOffset, System.currentTimeMillis())
+                        Log.d(TAG, "Успешно обновлен прогресс в БД: SHA-1 = $bookSha1, смещение = $newOffset")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Ошибка при обновлении прогресса в БД при паузе", e)
+                }
+            }
         }
     }
 

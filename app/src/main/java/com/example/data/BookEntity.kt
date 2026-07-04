@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "books")
 data class BookEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @PrimaryKey val sha1: String,
     val title: String,
     val author: String? = "Неизвестен",
     val content: String,
@@ -16,7 +16,6 @@ data class BookEntity(
     val totalCharacters: Int = 0,
     val lastReadTime: Long = System.currentTimeMillis(),
     val filePath: String? = null,
-    val sha1: String? = null,
     val series: String? = null,
     val language: String? = "ru",
     val fileSize: Long = 0L,

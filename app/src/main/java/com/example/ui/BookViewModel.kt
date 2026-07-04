@@ -114,6 +114,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun insertDefaultClassics() {
         val defaultBooks = listOf(
             BookEntity(
+                sha1 = "dostoevsky_crime_punishment_sha1",
                 title = "Преступление и наказание",
                 author = "Фёдор Достоевский",
                 content = """Глава I
@@ -133,6 +134,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 totalCharacters = 2174
             ),
             BookEntity(
+                sha1 = "lermontov_hero_of_our_time_sha1",
                 title = "Герой нашего времени",
                 author = "Михаил Лермонтов",
                 content = """Бэла
@@ -168,6 +170,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 totalCharacters = 2243
             ),
             BookEntity(
+                sha1 = "pushkin_eugene_onegin_sha1",
                 title = "Евгений Онегин",
                 author = "Александр Пушкин",
                 content = """Глава Первая
@@ -233,6 +236,7 @@ Monsieur прогнали со двора.
                 totalCharacters = 1558
             ),
             BookEntity(
+                sha1 = "chekhov_ward_number_6_sha1",
                 title = "Палата №6",
                 author = "Антон Чехов",
                 content = """Глава I
@@ -258,11 +262,11 @@ Monsieur прогнали со двора.
         selectedBook = book
         readerPage = book.currentProgressChar / 1000
         viewModelScope.launch {
-            repository.updateProgress(book.id, book.currentProgressChar)
+            repository.updateProgress(book.sha1, book.currentProgressChar)
         }
         
         val intent = android.content.Intent(getApplication(), ReaderActivity::class.java).apply {
-            putExtra("BOOK_ID", book.id)
+            putExtra("BOOK_SHA1", book.sha1)
             addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         getApplication<Application>().startActivity(intent)
@@ -274,7 +278,7 @@ Monsieur прогнали со двора.
         selectedBook = book.copy(currentProgressChar = clampedOffset)
         readerPage = clampedOffset / 1000
         viewModelScope.launch {
-            repository.updateProgress(book.id, clampedOffset)
+            repository.updateProgress(book.sha1, clampedOffset)
         }
     }
 
@@ -292,10 +296,10 @@ Monsieur прогнали со двора.
         }
     }
 
-    fun deleteBook(bookId: Int) {
+    fun deleteBook(bookSha1: String) {
         viewModelScope.launch {
-            repository.deleteBookById(bookId)
-            if (selectedBook?.id == bookId) {
+            repository.deleteBookBySha1(bookSha1)
+            if (selectedBook?.sha1 == bookSha1) {
                 selectedBook = null
             }
         }
@@ -304,7 +308,16 @@ Monsieur прогнали со двора.
     fun addNewBook(title: String, author: String, content: String, category: String) {
         viewModelScope.launch {
             val totalChars = content.length
+            val rawBytes = (title + author + content).toByteArray(java.nio.charset.StandardCharsets.UTF_8)
+            val sha1String = try {
+                val digest = java.security.MessageDigest.getInstance("SHA-1")
+                val result = digest.digest(rawBytes)
+                result.joinToString("") { "%02x".format(it) }
+            } catch (e: Exception) {
+                java.util.UUID.randomUUID().toString()
+            }
             val newBook = BookEntity(
+                sha1 = sha1String,
                 title = title,
                 author = author,
                 content = content,
@@ -453,32 +466,32 @@ Monsieur прогнали со двора.
         }
     }
 
-    fun toggleFavorite(bookId: Int) {
+    fun toggleFavorite(bookSha1: String) {
         viewModelScope.launch {
-            val book = allBooks.value.find { it.id == bookId }
+            val book = allBooks.value.find { it.sha1 == bookSha1 }
             if (book != null) {
                 val updated = book.copy(isFavorite = !book.isFavorite)
                 repository.updateBook(updated)
-                if (selectedBook?.id == bookId) {
+                if (selectedBook?.sha1 == bookSha1) {
                     selectedBook = updated
                 }
-                if (detailedBook?.id == bookId) {
+                if (detailedBook?.sha1 == bookSha1) {
                     detailedBook = updated
                 }
             }
         }
     }
 
-    fun updateBookReview(bookId: Int, reviewText: String) {
+    fun updateBookReview(bookSha1: String, reviewText: String) {
         viewModelScope.launch {
-            val book = allBooks.value.find { it.id == bookId }
+            val book = allBooks.value.find { it.sha1 == bookSha1 }
             if (book != null) {
                 val updated = book.copy(review = reviewText)
                 repository.updateBook(updated)
-                if (selectedBook?.id == bookId) {
+                if (selectedBook?.sha1 == bookSha1) {
                     selectedBook = updated
                 }
-                if (detailedBook?.id == bookId) {
+                if (detailedBook?.sha1 == bookSha1) {
                     detailedBook = updated
                 }
             }
@@ -501,7 +514,7 @@ Monsieur прогнали со двора.
         val offset = readerPage * 1000
         viewModelScope.launch {
             val note = NoteEntity(
-                bookId = book.id,
+                bookId = book.sha1,
                 bookTitle = book.title,
                 selectedText = selectedText,
                 noteText = noteText,

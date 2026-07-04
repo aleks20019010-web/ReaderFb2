@@ -9,7 +9,7 @@ class BookRepository(
     val allBooks: Flow<List<BookEntity>> = bookDao.getAllBooks()
     val allNotes: Flow<List<NoteEntity>> = noteDao.getAllNotes()
 
-    suspend fun getBookById(id: Int): BookEntity? = bookDao.getBookById(id)
+    suspend fun getBookBySha1(sha1: String): BookEntity? = bookDao.getBookBySha1(sha1)
 
     fun getBooksByAuthor(author: String): Flow<List<BookEntity>> = bookDao.getBooksByAuthor(author)
 
@@ -23,13 +23,13 @@ class BookRepository(
 
     suspend fun updateBook(book: BookEntity) = bookDao.updateBook(book)
 
-    suspend fun updateProgress(id: Int, charOffset: Int) {
-        bookDao.updateProgress(id, charOffset, System.currentTimeMillis())
+    suspend fun updateProgress(sha1: String, charOffset: Int) {
+        bookDao.updateProgress(sha1, charOffset, System.currentTimeMillis())
     }
 
-    suspend fun deleteBookById(id: Int) = bookDao.deleteBookById(id)
+    suspend fun deleteBookBySha1(sha1: String) = bookDao.deleteBookBySha1(sha1)
 
-    fun getNotesForBook(bookId: Int): Flow<List<NoteEntity>> = noteDao.getNotesForBook(bookId)
+    fun getNotesForBook(bookSha1: String): Flow<List<NoteEntity>> = noteDao.getNotesForBook(bookSha1)
 
     suspend fun insertNote(note: NoteEntity): Long = noteDao.insertNote(note)
 

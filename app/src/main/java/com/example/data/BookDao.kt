@@ -17,7 +17,7 @@ interface BookDao {
 
     @androidx.room.Transaction
     suspend fun insertBookIfUnique(book: BookEntity): Boolean {
-        val existing = book.sha1?.let { getBookBySha1(it) }
+        val existing = getBookBySha1(book.sha1)
         return if (existing == null) {
             insertBook(book)
             true
@@ -25,9 +25,6 @@ interface BookDao {
             false
         }
     }
-
-    @Query("SELECT * FROM books WHERE id = :id")
-    suspend fun getBookById(id: Int): BookEntity?
 
     @Query("SELECT * FROM books WHERE author = :author ORDER BY title ASC")
     fun getBooksByAuthor(author: String): Flow<List<BookEntity>>
@@ -44,9 +41,9 @@ interface BookDao {
     @Update
     suspend fun updateBook(book: BookEntity)
 
-    @Query("UPDATE books SET currentProgressChar = :charOffset, lastReadTime = :timestamp WHERE id = :id")
-    suspend fun updateProgress(id: Int, charOffset: Int, timestamp: Long)
+    @Query("UPDATE books SET currentProgressChar = :charOffset, lastReadTime = :timestamp WHERE sha1 = :sha1")
+    suspend fun updateProgress(sha1: String, charOffset: Int, timestamp: Long)
 
-    @Query("DELETE FROM books WHERE id = :id")
-    suspend fun deleteBookById(id: Int)
+    @Query("DELETE FROM books WHERE sha1 = :sha1")
+    suspend fun deleteBookBySha1(sha1: String)
 }

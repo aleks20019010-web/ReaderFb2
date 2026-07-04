@@ -828,7 +828,7 @@ fun LibraryTab(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filteredBooks) { book ->
-                    BookGridItem(book = book, onOpen = { viewModel.detailedBook = book }, onDelete = { viewModel.deleteBook(book.id) })
+                    BookGridItem(book = book, onOpen = { viewModel.detailedBook = book }, onDelete = { viewModel.deleteBook(book.sha1) })
                 }
             }
         }
@@ -861,7 +861,7 @@ fun BookGridItem(
             .fillMaxWidth()
             .height(310.dp)
             .clickable(onClick = onOpen)
-            .testTag("book_card_${book.id}"),
+            .testTag("book_card_${book.sha1}"),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -925,7 +925,7 @@ fun BookGridItem(
                         modifier = Modifier
                             .size(24.dp)
                             .background(Color.Black.copy(alpha = 0.3f), CircleShape)
-                            .testTag("delete_book_btn_${book.id}")
+                            .testTag("delete_book_btn_${book.sha1}")
                     ) {
                         Icon(
                             Icons.Default.Delete,
@@ -2191,7 +2191,7 @@ fun BookDetailsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Star (Favorite)
-                IconButton(onClick = { viewModel.toggleFavorite(book.id) }) {
+                IconButton(onClick = { viewModel.toggleFavorite(book.sha1) }) {
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = "В избранное",
@@ -2215,10 +2215,10 @@ fun BookDetailsScreen(
                 IconButton(onClick = {
                     scope.launch {
                         val updatedProgress = if (book.currentProgressChar == book.totalCharacters) 0 else book.totalCharacters
-                        viewModel.repository.updateProgress(book.id, updatedProgress)
+                        viewModel.repository.updateProgress(book.sha1, updatedProgress)
                         // Trigger UI update
                         val updatedBook = book.copy(currentProgressChar = updatedProgress)
-                        if (viewModel.selectedBook?.id == book.id) {
+                        if (viewModel.selectedBook?.sha1 == book.sha1) {
                             viewModel.selectedBook = updatedBook
                         }
                         viewModel.detailedBook = updatedBook
@@ -2264,7 +2264,7 @@ fun BookDetailsScreen(
 
                 // Delete
                 IconButton(onClick = {
-                    viewModel.deleteBook(book.id)
+                    viewModel.deleteBook(book.sha1)
                     onBack()
                     Toast.makeText(context, "Книга удалена из библиотеки", Toast.LENGTH_SHORT).show()
                 }) {
@@ -2401,7 +2401,7 @@ fun BookDetailsScreen(
                 value = reviewText,
                 onValueChange = {
                     reviewText = it
-                    viewModel.updateBookReview(book.id, it)
+                    viewModel.updateBookReview(book.sha1, it)
                 },
                 modifier = Modifier
                     .fillMaxWidth()

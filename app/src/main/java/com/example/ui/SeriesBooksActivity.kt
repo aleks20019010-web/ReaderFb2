@@ -104,7 +104,7 @@ class SeriesBooksActivity : ComponentActivity() {
                                 customYellow = customYellow,
                                 onClick = {
                                     val readerIntent = Intent(context, ReaderActivity::class.java).apply {
-                                        putExtra("BOOK_ID", book.id)
+                                        putExtra("BOOK_SHA1", book.sha1)
                                     }
                                     context.startActivity(readerIntent)
                                 },

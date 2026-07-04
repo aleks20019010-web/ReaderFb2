@@ -82,10 +82,10 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         _twoPagesLandscapeState.value = sharedPrefs.getBoolean("saved_two_pages_landscape", false)
     }
 
-    fun loadBook(bookId: Int) {
+    fun loadBook(bookSha1: String) {
         viewModelScope.launch {
             val book = withContext(Dispatchers.IO) {
-                bookDao.getBookById(bookId)
+                bookDao.getBookBySha1(bookSha1)
             }
             if (book != null) {
                 _bookState.value = book
@@ -123,7 +123,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         _pagesState.value = pages
         pageStartOffsets = offsets
 
-        val savedPage = sharedPrefs.getInt("book_page_${book.id}", 0)
+        val savedPage = sharedPrefs.getInt("book_page_${book.sha1}", 0)
         _currentPage.value = savedPage.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
     }
 
@@ -199,7 +199,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             val currentOffset = if (pageStartOffsets.isNotEmpty() && _currentPage.value < pageStartOffsets.size) {
                 pageStartOffsets[_currentPage.value]
             } else {
-                sharedPrefs.getInt("book_char_offset_${book.id}", book.currentProgressChar)
+                sharedPrefs.getInt("book_char_offset_${book.sha1}", book.currentProgressChar)
             }
 
             // 2. Measure and slice text into pages based on actual font parameters using PageSplitter
@@ -280,13 +280,13 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         sharedPrefs.edit()
-            .putInt("book_page_${book.id}", pageIdx)
-            .putInt("book_char_offset_${book.id}", charOffset)
+            .putInt("book_page_${book.sha1}", pageIdx)
+            .putInt("book_char_offset_${book.sha1}", charOffset)
             .apply()
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                bookDao.updateProgress(book.id, charOffset, System.currentTimeMillis())
+                bookDao.updateProgress(book.sha1, charOffset, System.currentTimeMillis())
             }
         }
     }
