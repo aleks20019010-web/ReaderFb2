@@ -33,22 +33,23 @@ object RussianHyphenator {
     private fun hyphenateWord(word: String): String {
         if (word.length <= 4) return word // don't hyphenate short words
 
-        // Find vowel positions
-        val vowelIndices = mutableListOf<Int>()
+        // Count vowels first using primitive array to avoid boxed ArrayList allocation
+        val vowelIndices = IntArray(word.length)
+        var vowelCount = 0
         for (idx in word.indices) {
             if (word[idx] in VOWELS) {
-                vowelIndices.add(idx)
+                vowelIndices[vowelCount++] = idx
             }
         }
 
         // If less than 2 vowels, no hyphenation is possible
-        if (vowelIndices.size < 2) return word
+        if (vowelCount < 2) return word
 
         val result = java.lang.StringBuilder()
         var lastHyphenIndex = 0
 
         // We can place hyphens between vowels, but keeping rules in mind
-        for (vIdx in 0 until vowelIndices.size - 1) {
+        for (vIdx in 0 until vowelCount - 1) {
             val v1 = vowelIndices[vIdx]
             val v2 = vowelIndices[vIdx + 1]
 

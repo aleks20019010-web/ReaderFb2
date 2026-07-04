@@ -21,6 +21,7 @@ class PageFragment : Fragment() {
         pageText = arguments?.getString("PAGE_TEXT") ?: ""
     }
 
+    @Suppress("WrongConstant")
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,

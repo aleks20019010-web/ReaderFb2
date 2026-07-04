@@ -53,13 +53,24 @@ object PageSplitter {
                 else -> Layout.Alignment.ALIGN_NORMAL
             }
 
-            val tempLayout = StaticLayout.Builder.obtain(
-                text, start, textLength, paint, availableWidth
-            )
-            .setAlignment(alignmentVal)
-            .setLineSpacing(0f, lineSpacing)
-            .setIncludePad(false)
-            .build()
+            var chunkSize = 8000
+            var tempLayout: StaticLayout
+            var measureEnd: Int
+            while (true) {
+                measureEnd = (start + chunkSize).coerceAtMost(textLength)
+                tempLayout = StaticLayout.Builder.obtain(
+                    text, start, measureEnd, paint, availableWidth
+                )
+                .setAlignment(alignmentVal)
+                .setLineSpacing(0f, lineSpacing)
+                .setIncludePad(false)
+                .build()
+                
+                if (tempLayout.lineCount >= maxLines || measureEnd == textLength) {
+                    break
+                }
+                chunkSize *= 2
+            }
 
             val actualLines = tempLayout.lineCount.coerceAtMost(maxLines)
             var end = tempLayout.getLineEnd(actualLines - 1)
