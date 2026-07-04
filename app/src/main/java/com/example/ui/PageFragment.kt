@@ -56,7 +56,8 @@ class PageFragment : Fragment() {
         }
 
         val textView = view.findViewById<TextView>(com.example.R.id.textView).apply {
-            setPadding(padding16, 0, padding16, paddingBottom)
+            setPadding(padding16, (12 * density).toInt(), padding16, paddingBottom)
+            includeFontPadding = false
             text = pageText
             textSize = fontSize
             setTextColor(Color.parseColor(textColor))
@@ -106,22 +107,14 @@ class PageFragment : Fragment() {
 
                 // Dynamic padding adjustment under display cutout / camera notch
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
-            val statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
             val displayCutoutInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
-            val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
+            val topPadding = maxOf(displayCutoutInsets.top, (12 * density).toInt())
             
-            textView.setPadding(padding16, topInset, padding16, paddingBottom)
+            textView.setPadding(padding16, topPadding, padding16, paddingBottom)
             insets
         }
 
-        // Single tap to toggle UI controls in the parent Activity
-        val clickListener = View.OnClickListener {
-            (requireActivity() as? ReaderActivity)?.toggleSystemUi()
-        }
-        root.setOnClickListener(clickListener)
-        textView.setOnClickListener(clickListener)
-
-        return root
+        return view
     }
 
     companion object {

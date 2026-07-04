@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="36dp"
+    android:height="36dp"
+    android:viewportWidth="36"
+    android:viewportHeight="36">
+
+    <!-- Clip path to create a clean, 100% transparent hole in the center (radius 4.5 at 18,18) -->
+    <clip-path
+        android:pathData="M 0,0 H 36 V 36 H 0 Z M 18,13.5 A 4.5,4.5 0 1,0 18,22.5 A 4.5,4.5 0 1,0 18,13.5 Z" />
+
+    <!-- 1. Realistic Outer Gear Shadow (gives 3D depth against background) -->
+    <path
+        android:fillColor="#3D1A100A"
+        android:pathData="M18.5,3.8 L20,6.3 L23,5.8 L23.5,8.6 L26.5,8.8 L26,11.8 L28.5,12.8 L27.3,15.6 L29.5,17.3 L27.5,19.8 L29.3,22.3 L26.7,23.8 L27.7,26.8 L24.7,27.8 L24.7,30.8 L21.7,31 L20.7,33.8 L18,33 L16.3,35.3 L14,33.3 L11.5,34.3 L10.7,31.3 L8,31.3 L8.3,28.3 L5.5,27.3 L6.5,24.6 L4,23 L5.5,20.3 L3.5,17.8 L6,15.8 L5,12.8 L7.7,12.3 L7.7,9.3 L10.5,9.6 L11.5,6.8 L14.3,7.6 L15.5,5.3 L18.5,3.8 Z" />
+
+    <!-- 2. Realistic 3D Gear Teeth Base -->
+    <path
+        android:pathData="M18,3 L19.5,5.5 L22.5,5 L23,7.8 L26,8 L25.5,11 L28,12 L26.8,14.8 L29,16.5 L27,19 L28.8,21.5 L26.2,23 L27.2,26 L24.2,27 L24.2,30 L21.2,30.2 L20.2,33 L17.5,32.2 L15.8,34.5 L13.5,32.5 L11,33.5 L10.2,30.5 L7.5,30.5 L7.8,27.5 L5,26.5 L6,23.8 L3.5,22.2 L5,19.5 L3,17 L5.5,15 L4.5,12 L7.2,11.5 L7.2,8.5 L10,8.8 L11,6 L13.8,6.8 L15,4.5 L18,3 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="18"
+                android:startY="3"
+                android:endX="18"
+                android:endY="33"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFD4A87A" /> <!-- карамельный highlight #D4A87A -->
+                <item android:offset="0.5" android:color="#FFC4956A" /> <!-- карамельный base #C4956A -->
+                <item android:offset="1.0" android:color="#FFB8855A" /> <!-- карамельный shadow #B8855A -->
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 3. Volumetric Bevel Layer (gives depth and slopes to the gear teeth) -->
+    <path
+        android:pathData="M18,4.5 L19.2,6.8 L21.8,6.4 L22.2,8.6 L24.8,8.8 L24.4,11.2 L26.8,12 L25.8,14.2 L27.7,15.5 L26.1,17.7 L27.5,19.6 L25.5,20.8 L26.3,23 L24,23.8 L24.6,26 L22.2,26.8 L22,29 L19.7,29.1 L19,31.3 L16.9,30.7 L15.6,32.5 L13.9,31 L12,31.8 L11.4,29.5 L9.4,29.5 L9.6,27.2 L7.5,26.4 L8.2,24.3 L6.3,23.1 L7.4,21 L5.8,19.1 L7.7,17.6 L6.9,15.3 L9,14.9 L9,12.6 L11.2,12.8 L12,10.6 L14.1,11.2 L15,9.4 L17.2,10 L18,4.5 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="18"
+                android:startY="4.5"
+                android:endX="18"
+                android:endY="32.5"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFEBD2B4" /> <!-- light bronze highlight -->
+                <item android:offset="0.4" android:color="#FFD4A87A" />
+                <item android:offset="1.0" android:color="#FF9E6F45" /> <!-- dark bronze shadow -->
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 4. Volumetric Raised Rim (Outer circular border of the gear body) -->
+    <path
+        android:pathData="M18,7.5 C23.247,7.5 27.5,11.753 27.5,17 C27.5,22.247 23.247,26.5 18,26.5 C12.753,26.5 8.5,22.247 8.5,17 C8.5,11.753 12.753,7.5 18,7.5 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="18"
+                android:startY="7.5"
+                android:endX="18"
+                android:endY="26.5"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFD4A87A" />
+                <item android:offset="0.4" android:color="#FFC4956A" />
+                <item android:offset="1.0" android:color="#FF8C5B34" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 5. Concentric Ring Recess (carved groove for authentic metal machinery feel) -->
+    <path
+        android:pathData="M18,9.5 C22.142,9.5 25.5,12.858 25.5,17 C25.5,21.142 22.142,24.5 18,24.5 C13.858,24.5 10.5,21.142 10.5,17 C10.5,12.858 13.858,9.5 18,9.5 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="18"
+                android:startY="9.5"
+                android:endX="18"
+                android:endY="24.5"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF633E20" /> <!-- deep cavity shadow -->
+                <item android:offset="0.5" android:color="#FFAC7F59" />
+                <item android:offset="1.0" android:color="#FFEAD2B5" /> <!-- bright reflection -->
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 6. Heavy Raised Inner Hub Ring -->
+    <path
+        android:pathData="M18,12 C20.761,12 23,14.239 23,17 C23,19.761 20.761,22 18,22 C15.239,22 13,19.761 13,17 C13,14.239 15.239,12 18,12 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="18"
+                android:startY="12"
+                android:endX="18"
+                android:endY="22"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFD4A87A" />
+                <item android:offset="0.5" android:color="#FFC4956A" />
+                <item android:offset="1.0" android:color="#FF7A4E2C" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 7. Hub Inner Shadow Ring around center hole -->
+    <path
+        android:pathData="M18,13 C20.209,13 22,14.791 22,17 C22,19.209 20.209,21 18,21 C15.791,21 14,19.209 14,17 C14,14.791 15.791,13 18,13 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="18"
+                android:startY="13"
+                android:endX="18"
+                android:endY="21"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF5C381E" /> <!-- deep shadow around center hole -->
+                <item android:offset="1.0" android:color="#FFA67B57" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+</vector>

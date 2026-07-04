@@ -12,6 +12,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.SeekBar
@@ -55,7 +56,7 @@ class ReaderActivity : FragmentActivity() {
 
     private lateinit var backButtonView: TextView
     private lateinit var infoButtonView: TextView
-    private lateinit var settingsBtn: TextView
+    private lateinit var settingsBtn: ImageView
     private lateinit var fontSizeDownBtn: TextView
     private lateinit var fontSizeUpBtn: TextView
     private lateinit var themeBtn: TextView
@@ -288,13 +289,16 @@ class ReaderActivity : FragmentActivity() {
     }
 
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
-        val screenWidth = resources.displayMetrics.widthPixels
+        val screenWidth = resources.displayMetrics.widthPixels.toFloat()
+        val screenHeight = resources.displayMetrics.heightPixels.toFloat()
         val density = resources.displayMetrics.density
-        val brightnessEdgeWidth = 60 * density
+        val brightnessEdgeWidth = 60f * density
         
         when (ev.action) {
             android.view.MotionEvent.ACTION_DOWN -> {
-                if (ev.x > screenWidth - brightnessEdgeWidth) {
+                // Brightness only on the right edge, starting from the vertical middle and below (y >= screenHeight / 2)
+                val inBrightnessZone = ev.x > (screenWidth - brightnessEdgeWidth) && ev.y >= (screenHeight / 2.0f)
+                if (inBrightnessZone) {
                     isTrackingBrightness = true
                     startY = ev.y
                     val lp = window.attributes
@@ -317,7 +321,6 @@ class ReaderActivity : FragmentActivity() {
             android.view.MotionEvent.ACTION_MOVE -> {
                 if (isTrackingBrightness) {
                     val deltaY = startY - ev.y
-                    val screenHeight = resources.displayMetrics.heightPixels
                     val deltaBrightness = deltaY / (screenHeight * 0.5f)
                     val newBrightness = (startBrightness + deltaBrightness).coerceIn(0.01f, 1.0f)
                     
@@ -334,6 +337,7 @@ class ReaderActivity : FragmentActivity() {
                 if (isTrackingBrightness) {
                     isTrackingBrightness = false
                     val deltaY = Math.abs(startY - ev.y)
+                    // If it was a short tap instead of a real scroll, let the gesture detector handle it
                     if (deltaY < 10 * density) {
                         gestureDetector.onTouchEvent(ev)
                     }
@@ -342,8 +346,10 @@ class ReaderActivity : FragmentActivity() {
             }
         }
         
-        if (gestureDetector.onTouchEvent(ev)) {
-            return true
+        if (!isTrackingBrightness) {
+            if (gestureDetector.onTouchEvent(ev)) {
+                return true
+            }
         }
         
         return super.dispatchTouchEvent(ev)
@@ -389,11 +395,43 @@ class ReaderActivity : FragmentActivity() {
         var panelBgHex = "#EDE5D8"
         var borderHex = "#E0D8C8"
         
-        if (themeName == "dark") {
-            bgColorHex = "#1E1A16"
-            textColorHex = "#E8E0D8"
-            panelBgHex = "#2A261F"
-            borderHex = "#2A261F"
+        when (themeName) {
+            "light" -> {
+                bgColorHex = "#FFFFFF"
+                textColorHex = "#121212"
+                panelBgHex = "#F5F5F5"
+                borderHex = "#E0E0E0"
+            }
+            "dark" -> {
+                bgColorHex = "#1E1A16"
+                textColorHex = "#E8E0D8"
+                panelBgHex = "#2A261F"
+                borderHex = "#2A261F"
+            }
+            "sepia" -> {
+                bgColorHex = "#F5F0E8"
+                textColorHex = "#3D2C1A"
+                panelBgHex = "#EDE5D8"
+                borderHex = "#E0D8C8"
+            }
+            "sepia_contrast" -> {
+                bgColorHex = "#F5E6C8"
+                textColorHex = "#1A1A1A"
+                panelBgHex = "#EAD9B8"
+                borderHex = "#D6C39F"
+            }
+            "contrast" -> {
+                bgColorHex = "#000000"
+                textColorHex = "#FFFF00"
+                panelBgHex = "#111111"
+                borderHex = "#333333"
+            }
+            "beige" -> {
+                bgColorHex = "#F4ECD8"
+                textColorHex = "#3B2F1F"
+                panelBgHex = "#EADFC5"
+                borderHex = "#DED0B2"
+            }
         }
         
         val bgColor = Color.parseColor(bgColorHex)
@@ -417,7 +455,7 @@ class ReaderActivity : FragmentActivity() {
         titleText.setTextColor(textColor)
         backButtonView.setTextColor(textColor)
         infoButtonView.setTextColor(textColor)
-        settingsBtn.setTextColor(textColor)
+        // settingsBtn (ImageView) has a gorgeous volumetric gold/bronze color from its drawable, so we keep its natural colors!
         
         // Style Bottom Bar
         bottomBar.background = GradientDrawable().apply {
@@ -446,7 +484,15 @@ class ReaderActivity : FragmentActivity() {
 
     private fun updateSystemBarsColors(isNightMode: Boolean) {
         val themeName = com.example.data.SettingsManager.getTheme(this)
-        val bgColorHex = if (themeName == "dark") "#1E1A16" else "#F5F0E8"
+        val bgColorHex = when (themeName) {
+            "light" -> "#FFFFFF"
+            "dark" -> "#1E1A16"
+            "sepia" -> "#F5F0E8"
+            "sepia_contrast" -> "#F5E6C8"
+            "contrast" -> "#000000"
+            "beige" -> "#F4ECD8"
+            else -> "#F5F0E8"
+        }
         val bgColor = Color.parseColor(bgColorHex)
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
@@ -454,7 +500,7 @@ class ReaderActivity : FragmentActivity() {
             window.navigationBarColor = bgColor
         }
 
-        val isDark = themeName == "dark"
+        val isDark = themeName == "dark" || themeName == "contrast"
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             val controller = window.insetsController
@@ -971,13 +1017,13 @@ class ReaderActivity : FragmentActivity() {
         val displayCutoutTop = insets?.getInsets(WindowInsetsCompat.Type.displayCutout())?.top ?: 0
         val topInset = maxOf(statusBarTop, displayCutoutTop)
         
-        val actualTopPadding = if (topInset > 0) topInset else (24 * density).toInt()
+        val actualTopPadding = maxOf(displayCutoutTop, (12 * density).toInt())
         val actualBottomPadding = (10 * density).toInt()
         val paddingVertical = actualTopPadding + actualBottomPadding
         
         val availableWidth = (width - paddingHorizontal).coerceAtLeast(100)
-        // Add a safety buffer to ensure lines don't get truncated or pushed onto a next page
-        val availableHeight = (height - paddingVertical - (4 * density).toInt()).coerceAtLeast(100)
+        // No safety buffer, utilizing full screen height for optimal bottom line rendering
+        val availableHeight = (height - paddingVertical).coerceAtLeast(100)
         
         val fontSize = com.example.data.SettingsManager.getFontSize(this)
         val fontFamily = com.example.data.SettingsManager.getFontFamily(this)

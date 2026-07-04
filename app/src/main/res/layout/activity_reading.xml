@@ -58,14 +58,15 @@
             android:gravity="center"
             android:background="?android:attr/selectableItemBackgroundBorderless" />
 
-        <TextView
+        <ImageView
             android:id="@+id/settingsBtn"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:text="⚙"
-            android:textSize="28sp"
-            android:gravity="center"
-            android:background="?android:attr/selectableItemBackgroundBorderless" />
+            android:padding="6dp"
+            android:src="@drawable/ic_realistic_gear"
+            android:scaleType="fitCenter"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Настройки" />
     </LinearLayout>
 
     <!-- Bottom Bar -->
