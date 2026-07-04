@@ -54,7 +54,7 @@ class PageFragment : Fragment() {
         }
 
         val textView = view.findViewById<TextView>(com.example.R.id.textView).apply {
-            setPadding(padding16, paddingTop, padding16, paddingBottom) // keep original padding from XML
+            setPadding(padding16, paddingTop, padding16, this.paddingBottom) // keep original padding from XML
             includeFontPadding = false
             text = pageText
             textSize = fontSize

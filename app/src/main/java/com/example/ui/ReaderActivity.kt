@@ -1015,14 +1015,14 @@ class ReaderActivity : FragmentActivity() {
         
         val availableWidth = (width - paddingHorizontal).coerceAtLeast(100)
         
-        // Use full height. Padding will be handled directly in the PageFragment's container without reducing available text rendering height.
-        val availableHeight = height.coerceAtLeast(100)
-        
         val insets = ViewCompat.getRootWindowInsets(window.decorView)
         val statusBarTop = insets?.getInsets(WindowInsetsCompat.Type.statusBars())?.top ?: 0
         val displayCutoutTop = insets?.getInsets(WindowInsetsCompat.Type.displayCutout())?.top ?: 0
         val paddingTop = maxOf(statusBarTop, displayCutoutTop)
         val paddingBottom = (12 * density).toInt()
+
+        // We must subtract paddingTop and paddingBottom to get the actual canvas height available for text layout
+        val availableHeight = (height - paddingTop - paddingBottom).coerceAtLeast(100)
 
         Log.d("READING_DEBUG", "splitContentToPages: screenHeight=$height, availableHeight=$availableHeight, availableWidth=$availableWidth, paddingTop=$paddingTop, paddingBottom=$paddingBottom")
         
