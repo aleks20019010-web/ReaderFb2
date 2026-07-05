@@ -19,6 +19,29 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
 object YandexDiskManager {
+    suspend fun getFolders(context: Context, path: String = "disk:/"): List<ResourceItem> {
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val token = getToken(context) ?: return@withContext emptyList()
+            val authHeader = "OAuth $token"
+            try {
+                val response = api.getResource(authHeader, path, limit = 500)
+                response.embedded?.items?.filter { it.type == "dir" } ?: emptyList()
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
+
+    fun getSyncFolder(context: Context): String {
+        val prefs = context.getSharedPreferences("yandex_sync", Context.MODE_PRIVATE)
+        return prefs.getString("sync_folder", "disk:/Books") ?: "disk:/Books"
+    }
+
+    fun setSyncFolder(context: Context, folder: String) {
+        val prefs = context.getSharedPreferences("yandex_sync", Context.MODE_PRIVATE)
+        prefs.edit().putString("sync_folder", folder).apply()
+    }
+
     private const val TAG = "YandexDiskManager"
     private const val PREFS_NAME = "yandex_prefs"
     private const val KEY_TOKEN = "oauth_token"
@@ -90,8 +113,9 @@ object YandexDiskManager {
     /**
      * Creates folders on Yandex Disk if they don't already exist
      */
-    private suspend fun initDirectories(authHeader: String) {
-        val paths = listOf("disk:/SmartReader", "disk:/SmartReader/Books", "disk:/SmartReader/Progress")
+    private suspend fun initDirectories(authHeader: String, syncFolder: String) {
+        val progressFolder = "$syncFolder/Progress"
+        val paths = listOf(syncFolder, progressFolder)
         for (path in paths) {
             try {
                 api.createDirectory(authHeader, path)
@@ -144,12 +168,13 @@ object YandexDiskManager {
         context: Context,
         onProgress: (status: String) -> Unit
     ): SyncStats? = withContext(Dispatchers.IO) {
+        val syncFolder = getSyncFolder(context)
         val token = getToken(context) ?: return@withContext null
         val authHeader = "OAuth $token"
 
         try {
             onProgress("Инициализация папок в облаке...")
-            initDirectories(authHeader)
+            initDirectories(authHeader, syncFolder)
 
             val database = AppDatabase.getDatabase(context)
             val repository = BookRepository(database.bookDao(), database.noteDao())
@@ -157,7 +182,7 @@ object YandexDiskManager {
 
             onProgress("Получение списка книг из облака...")
             val cloudBooksResponse = try {
-                api.getResource(authHeader, "disk:/SmartReader/Books", limit = 500)
+                api.getResource(authHeader, syncFolder, limit = 500)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to get cloud books resource", e)
                 null
@@ -171,7 +196,7 @@ object YandexDiskManager {
             onProgress("Получение манифеста...")
             var manifest = SyncManifest()
             try {
-                val manifestLink = api.getDownloadLink(authHeader, "disk:/SmartReader/Books/sync_manifest.json")
+                val manifestLink = api.getDownloadLink(authHeader, "$syncFolder/sync_manifest.json")
                 val body = api.downloadFile(manifestLink.href)
                 val jsonStr = body.string()
                 val moshi = com.squareup.moshi.Moshi.Builder().add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory()).build()
@@ -191,7 +216,7 @@ object YandexDiskManager {
                 if (!manifest.books.containsKey(cloudItem.name)) {
                     onProgress("Анализ файла ${cloudItem.name} (${index + 1}/$totalCloudItems)...")
                     try {
-                        val linkResponse = api.getDownloadLink(authHeader, "disk:/SmartReader/Books/${cloudItem.name}")
+                        val linkResponse = api.getDownloadLink(authHeader, "$syncFolder/${cloudItem.name}")
                         val responseBody = api.downloadFile(linkResponse.href)
                         val bytes = responseBody.bytes()
                         
@@ -248,7 +273,7 @@ object YandexDiskManager {
 
             // Also get cloud progress items so we don't have to fetch them again
             val progressResponse = try {
-                api.getResource(authHeader, "disk:/SmartReader/Progress", limit = 500)
+                api.getResource(authHeader, "$syncFolder/Progress", limit = 500)
             } catch (e: Exception) {
                 null
             }
@@ -274,6 +299,7 @@ object YandexDiskManager {
         stats: SyncStats,
         onProgress: (status: String, completed: Int, total: Int) -> Unit
     ): Boolean = withContext(Dispatchers.IO) {
+        val syncFolder = getSyncFolder(context)
         val token = getToken(context) ?: return@withContext false
         val authHeader = "OAuth $token"
         
@@ -287,7 +313,7 @@ object YandexDiskManager {
             for ((index, cloudItem) in stats.toDownload.withIndex()) {
                 onProgress("Скачивание: ${index + 1} из $totalDownloads", index, totalDownloads)
                 try {
-                    val linkResponse = api.getDownloadLink(authHeader, "disk:/SmartReader/Books/${cloudItem.name}")
+                    val linkResponse = api.getDownloadLink(authHeader, "$syncFolder/${cloudItem.name}")
                     val responseBody = api.downloadFile(linkResponse.href)
                     val bytes = responseBody.bytes()
 
@@ -378,7 +404,7 @@ object YandexDiskManager {
                     val filename = localFile.name
                     onProgress("Загрузка: ${index + 1} из $totalUploads", index, totalUploads)
                     try {
-                        val linkResponse = api.getUploadLink(authHeader, "disk:/SmartReader/Books/$filename")
+                        val linkResponse = api.getUploadLink(authHeader, "$syncFolder/$filename")
                         val fileBytes = localFile.readBytes()
                         api.uploadFile(linkResponse.href, fileBytes.toRequestBody("application/octet-stream".toMediaType()))
                         
@@ -396,7 +422,7 @@ object YandexDiskManager {
                 val moshi = com.squareup.moshi.Moshi.Builder().add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory()).build()
                 val adapter = moshi.adapter(SyncManifest::class.java)
                 val jsonStr = adapter.toJson(stats.manifest)
-                val linkResponse = api.getUploadLink(authHeader, "disk:/SmartReader/Books/sync_manifest.json")
+                val linkResponse = api.getUploadLink(authHeader, "$syncFolder/sync_manifest.json")
                 api.uploadFile(linkResponse.href, jsonStr.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType()))
             } catch (e: Exception) {
                 Log.e(TAG, "Error uploading manifest", e)
@@ -409,7 +435,7 @@ object YandexDiskManager {
             for (progressItem in stats.cloudProgressItems) {
                 if (progressItem.type == "file" && progressItem.name.endsWith(".json")) {
                     try {
-                        val linkResponse = api.getDownloadLink(authHeader, "disk:/SmartReader/Progress/${progressItem.name}")
+                        val linkResponse = api.getDownloadLink(authHeader, "$syncFolder/Progress/${progressItem.name}")
                         val body = api.downloadFile(linkResponse.href)
                         val jsonStr = body.string()
                         val cloudProgress = progressAdapter.fromJson(jsonStr)
@@ -452,7 +478,7 @@ object YandexDiskManager {
                             lastReadTime = localBook.lastReadTime
                         )
                         val json = progressAdapter.toJson(payload)
-                        val link = api.getUploadLink(authHeader, "disk:/SmartReader/Progress/$cloudProgressName")
+                        val link = api.getUploadLink(authHeader, "$syncFolder/Progress/$cloudProgressName")
                         api.uploadFile(link.href, json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType()))
                     } catch (e: Exception) {
                         Log.e(TAG, "Error pushing progress: ${localBook.title}", e)
@@ -471,6 +497,7 @@ object YandexDiskManager {
      * Directly pushes reading progress for a single book to Yandex Disk
      */
     suspend fun pushProgressToCloud(context: Context, sha1: String, progressChar: Int) = withContext(Dispatchers.IO) {
+        val syncFolder = getSyncFolder(context)
         val token = getToken(context) ?: return@withContext
         val authHeader = "OAuth $token"
 
@@ -489,7 +516,7 @@ object YandexDiskManager {
             val json = progressAdapter.toJson(payload)
 
             val cloudProgressName = "progress_$sha1.json"
-            val link = api.getUploadLink(authHeader, "disk:/SmartReader/Progress/$cloudProgressName")
+            val link = api.getUploadLink(authHeader, "$syncFolder/Progress/$cloudProgressName")
             api.uploadFile(link.href, json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType()))
             Log.d(TAG, "Direct push progress for book $sha1 successful.")
         } catch (e: Exception) {

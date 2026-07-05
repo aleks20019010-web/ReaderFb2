@@ -82,9 +82,6 @@ class LibraryFragment : Fragment() {
     private lateinit var btnEmptyStateScan: com.google.android.material.button.MaterialButton
     private lateinit var ivEmptyIllustration: ImageView
     private lateinit var swipeRefresh: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-    private lateinit var continueReadingAdapter: ContinueReadingAdapter
-    private lateinit var layoutContinueReading: View
-    private lateinit var rvContinueReading: RecyclerView
 
     // Register Document Picker for single manual import
     private val filePickerLauncher = registerForActivityResult(
@@ -203,22 +200,12 @@ class LibraryFragment : Fragment() {
         btnEmptyStateScan = view.findViewById(R.id.btnEmptyStateScan)
         ivEmptyIllustration = view.findViewById(R.id.ivEmptyIllustration)
         swipeRefresh = view.findViewById(R.id.swipeRefresh)
-        layoutContinueReading = view.findViewById(R.id.layoutContinueReading)
-        rvContinueReading = view.findViewById(R.id.rvContinueReading)
 
         // Style SwipeRefreshLayout to match the app's theme
         swipeRefresh.setColorSchemeResources(R.color.accent, R.color.text_primary)
         swipeRefresh.setProgressBackgroundColorSchemeResource(R.color.bg_card)
 
         // Setup Continue Reading RecyclerView
-        continueReadingAdapter = ContinueReadingAdapter(
-            books = emptyList(),
-            onOpenBook = { book ->
-                viewModel.openBook(book)
-            }
-        )
-        rvContinueReading.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
-        rvContinueReading.adapter = continueReadingAdapter
 
         btnToggleViewMode = view.findViewById(R.id.btnToggleViewMode)
 
@@ -511,7 +498,6 @@ class LibraryFragment : Fragment() {
         if (allBooksList.isEmpty()) {
             layoutEmptyState.visibility = View.VISIBLE
             rvBooks.visibility = View.GONE
-            layoutContinueReading.visibility = View.GONE
             
             if (viewModel.scanState.value.isScanning) {
                 ivEmptyIllustration.visibility = View.VISIBLE
@@ -576,13 +562,9 @@ class LibraryFragment : Fragment() {
                 .take(3)
             
             if (recentlyRead.isNotEmpty()) {
-                continueReadingAdapter.updateBooks(recentlyRead)
-                layoutContinueReading.visibility = View.VISIBLE
             } else {
-                layoutContinueReading.visibility = View.GONE
             }
         } else {
-            layoutContinueReading.visibility = View.GONE
         }
     }
 

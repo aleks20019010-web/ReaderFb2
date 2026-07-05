@@ -45,6 +45,8 @@ class SyncFragment : Fragment() {
     private lateinit var btnDisconnect: Button
 
     private lateinit var cardSync: View
+    private lateinit var txtSyncFolder: TextView
+    private lateinit var btnSelectFolder: Button
     private lateinit var btnSyncNow: Button
     private lateinit var layoutSyncProgress: LinearLayout
     private lateinit var txtSyncStatus: TextView
@@ -78,6 +80,8 @@ class SyncFragment : Fragment() {
 
         cardSync = view.findViewById(R.id.cardSync)
         btnSyncNow = view.findViewById(R.id.btnSyncNow)
+        txtSyncFolder = view.findViewById(R.id.txtSyncFolder)
+        btnSelectFolder = view.findViewById(R.id.btnSelectFolder)
         layoutSyncProgress = view.findViewById(R.id.layoutSyncProgress)
         txtSyncStatus = view.findViewById(R.id.txtSyncStatus)
         progressSync = view.findViewById(R.id.progressSync)
@@ -99,6 +103,9 @@ class SyncFragment : Fragment() {
             updateUi()
         }
 
+        btnSelectFolder.setOnClickListener {
+            showFolderSelectionDialog()
+        }
         btnSyncNow.setOnClickListener {
             showStatsAndSync()
         }
@@ -164,6 +171,32 @@ class SyncFragment : Fragment() {
     }
 
     
+    private fun showFolderSelectionDialog() {
+        val context = requireContext()
+        lifecycleScope.launch {
+            val pd = android.app.ProgressDialog(context)
+            pd.setMessage("Загрузка папок...")
+            pd.setCancelable(false)
+            pd.show()
+            
+            val folders = YandexDiskManager.getFolders(context, "disk:/")
+            pd.dismiss()
+            
+            val folderNames = folders.map { it.name }.toMutableList()
+            folderNames.add(0, "/") // Root folder
+            
+            val builder = android.app.AlertDialog.Builder(context)
+            builder.setTitle("Выберите папку")
+            builder.setItems(folderNames.toTypedArray()) { _, which ->
+                val selectedPath = if (which == 0) "disk:/" else folders[which - 1].path
+                YandexDiskManager.setSyncFolder(context, selectedPath)
+                updateUi()
+            }
+            builder.setNegativeButton("Отмена", null)
+            builder.show()
+        }
+    }
+
     private fun showStatsAndSync() {
         val context = requireContext()
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
