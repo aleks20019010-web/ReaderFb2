@@ -1,35 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Dark warm beige palette -->
-    <color name="bg_main">#1E1A16</color>
-    <color name="bg_card">#2A261F</color>
-    <color name="bg_gradient_start">#12100D</color>
-    <color name="bg_gradient_end">#1E1A16</color>
-    <color name="text_primary">#E8E0D8</color>
-    <color name="text_secondary">#7A6B5A</color>
-    <color name="accent">#C4956A</color>
-    <color name="accent_hover">#D4A87A</color>
-    <color name="shadow">#12100D</color>
-    <color name="divider">#2A261F</color>
-    <color name="bg_panel">#2A261F</color>
-    <color name="btn_bg">#C4956A</color>
-    <color name="btn_text">#1E1A16</color>
-    <color name="icon_tint">#E8E0D8</color>
-    <color name="accent_light">#2A261F</color>
+    <!-- Forest theme palette (Night) -->
+    <color name="bg_main">#1A2216</color>
+    <color name="bg_card">#2A3222</color>
+    <color name="bg_gradient_start">#1A2216</color>
+    <color name="bg_gradient_end">#222A1E</color>
+    
+    <color name="text_primary">#D8E0D0</color>
+    <color name="text_secondary">#9AA890</color>
+    
+    <color name="accent">#6A8A5A</color>
+    <color name="accent_hover">#8AA87A</color>
+    
+    <color name="shadow">#0A1206</color>
+    <color name="divider">#3A4232</color>
+    <color name="bg_panel">#222A1E</color>
+    
+    <color name="btn_bg">#6A8A5A</color>
+    <color name="btn_text">#FFFFFF</color>
+    <color name="icon_tint">#D8E0D0</color>
+    <color name="accent_light">#3A4232</color>
 
     <!-- Material 3 Dark Theme Colors mapping -->
-    <color name="primary">#C4956A</color>
-    <color name="onPrimary">#1E1A16</color>
-    <color name="secondary">#7A6B5A</color>
-    <color name="onSecondary">#1E1A16</color>
-    <color name="surface">#2A261F</color>
-    <color name="onSurface">#E8E0D8</color>
-    <color name="background">#1E1A16</color>
-    <color name="onBackground">#E8E0D8</color>
+    <color name="primary">#6A8A5A</color>
+    <color name="onPrimary">#FFFFFF</color>
+    <color name="secondary">#9AA890</color>
+    <color name="onSecondary">#FFFFFF</color>
+    <color name="surface">#2A3222</color>
+    <color name="onSurface">#D8E0D0</color>
+    <color name="background">#1A2216</color>
+    <color name="onBackground">#D8E0D0</color>
 
-    <color name="purple_200">#FFC4956A</color>
-    <color name="purple_500">#FFC4956A</color>
-    <color name="purple_700">#FFE8E0D8</color>
-    <color name="teal_200">#FFC4956A</color>
-    <color name="teal_700">#FFE8E0D8</color>
+    <!-- Legacy / compatibility colors -->
+    <color name="purple_200">#FF6A8A5A</color>
+    <color name="purple_500">#FF6A8A5A</color>
+    <color name="purple_700">#FF1A2216</color>
+    <color name="teal_200">#FF6A8A5A</color>
+    <color name="teal_700">#FF1A2216</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
 </resources>

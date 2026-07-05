@@ -15,7 +15,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:strokeWidth="0dp"
-        app:cardBackgroundColor="@color/bg_card"
+        app:cardBackgroundColor="@android:color/transparent"
         app:cardUseCompatPadding="true">
         
         <LinearLayout
@@ -23,7 +23,8 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:padding="8dp"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_card_forest">
 
             <!-- Cover image on the left -->
             <FrameLayout

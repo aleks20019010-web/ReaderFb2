@@ -234,8 +234,8 @@ class SyncFragment : Fragment() {
             builder.setTitle("Синхронизация")
             val msg = "Книг на диске: ${stats.booksOnDisk}\n" +
                       "Книг в библиотеке: ${stats.booksLocal}\n" +
-                      "Будет скачано: ${stats.toDownload.size} (новых)\n" +
-                      "Будет загружено: ${stats.toUpload.size} (новых)\n" +
+                      "Найдено ${stats.toDownload.size} новых книг на диске\n" +
+                      "${stats.toUpload.size} книг нужно загрузить на диск\n" +
                       "Пропущено (дубликаты): ${stats.duplicates}"
             builder.setMessage(msg)
             builder.setPositiveButton("Начать") { _, _ ->

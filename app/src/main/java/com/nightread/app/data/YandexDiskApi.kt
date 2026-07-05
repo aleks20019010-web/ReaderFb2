@@ -40,7 +40,8 @@ data class ResourceItem(
     @Json(name = "path") val path: String,
     @Json(name = "size") val size: Long? = null,
     @Json(name = "md5") val md5: String? = null,
-    @Json(name = "sha256") val sha256: String? = null
+    @Json(name = "sha256") val sha256: String? = null,
+    @Json(name = "modified") val modified: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -69,7 +70,9 @@ interface YandexDiskApi {
     suspend fun getResource(
         @Header("Authorization") token: String,
         @Query("path") path: String,
-        @Query("limit") limit: Int = 100
+        @Query("limit") limit: Int = 1000,
+        @Query("offset") offset: Int = 0,
+        @Query("fields") fields: String? = null
     ): ResourceResponse
 
     @PUT("v1/disk/resources")

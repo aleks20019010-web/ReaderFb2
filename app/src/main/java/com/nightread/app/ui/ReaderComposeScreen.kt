@@ -92,10 +92,10 @@ fun ReaderComposeScreen(
     }
 
     val (bgColor, textColor) = when (settings.themeType) {
-        ThemeType.DAY -> Color(0xFFFFFFFF) to Color(0xFF000000)
-        ThemeType.NIGHT -> Color(0xFF121212) to Color(0xFFCCCCCC)
-        ThemeType.SEPIA -> Color(0xFFF5ECD7) to Color(0xFF333333)
-        ThemeType.SEPIA_CONTRAST -> Color(0xFFE8DCC4) to Color(0xFF1A1A1A)
+        ThemeType.DAY -> Color(0xFFEEF3E8) to Color(0xFF2A3A22)
+        ThemeType.NIGHT -> Color(0xFF1A2216) to Color(0xFFD8E0D0)
+        ThemeType.SEPIA -> Color(0xFFF8FAF0) to Color(0xFF5A6A4E)
+        ThemeType.SEPIA_CONTRAST -> Color(0xFFF8FAF0) to Color(0xFF2A3A22)
     }
 
     val font = when (settings.fontFamily) {
@@ -212,6 +212,7 @@ fun ReaderComposeScreen(
                 modifier = Modifier.align(Alignment.TopCenter)
             ) {
                 TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF8FAF0)),
                     title = {
                         Column {
                             Text(
@@ -241,7 +242,6 @@ fun ReaderComposeScreen(
                             Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = textColor)
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                 )
             }
 
@@ -276,7 +276,7 @@ fun ReaderComposeScreen(
                 focusRequester.requestFocus() // Regain focus for volume keys after closing sheet
             },
             sheetState = sheetState,
-            containerColor = Color(0xFF2C2C2E),
+            containerColor = Color(0xFFF8FAF0),
             dragHandle = null
         ) {
             SettingsContent(
@@ -293,9 +293,9 @@ fun SettingsContent(
     settings: ReaderSettings,
     onSettingsChange: (ReaderSettings) -> Unit
 ) {
-    val sheetTextColor = Color.White
+    val sheetTextColor = Color(0xFF2A3A22)
     val secondaryTextColor = Color.Gray
-    val accentColor = Color(0xFFFFC107)
+    val accentColor = Color(0xFF7A9B6A)
 
     Column(
         modifier = Modifier
@@ -305,7 +305,7 @@ fun SettingsContent(
     ) {
         Text(
             text = "НАСТРОЙКИ ЧТЕНИЯ",
-            color = Color(0xFF00BCD4),
+            color = Color(0xFF5C7A4E),
             fontSize = 12.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -381,13 +381,13 @@ fun SettingsContent(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("Скрыть статус-бар и навигацию", color = Color.White, fontSize = 14.sp)
+            Text("Скрыть статус-бар и навигацию", color = Color(0xFF2A3A22), fontSize = 14.sp)
             Switch(
                 checked = settings.isHideBars,
                 onCheckedChange = { onSettingsChange(settings.copy(isHideBars = it)) },
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color(0xFFFFC107),
-                    checkedTrackColor = Color(0xFFFFC107).copy(alpha = 0.5f),
+                    checkedThumbColor = Color(0xFF7A9B6A),
+                    checkedTrackColor = Color(0xFF7A9B6A).copy(alpha = 0.5f),
                     uncheckedThumbColor = Color.Gray,
                     uncheckedTrackColor = Color.DarkGray
                 )
@@ -424,8 +424,8 @@ fun SettingsDropdown(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color.Transparent,
                     unfocusedBorderColor = Color.Transparent,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
+                    focusedTextColor = Color(0xFF2A3A22),
+                    unfocusedTextColor = Color(0xFF2A3A22),
                     focusedContainerColor = Color.DarkGray.copy(alpha = 0.3f),
                     unfocusedContainerColor = Color.DarkGray.copy(alpha = 0.3f)
                 )
@@ -433,11 +433,11 @@ fun SettingsDropdown(
             ExposedDropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.background(Color(0xFF3A3A3C))
+                modifier = Modifier.background(Color(0xFFC8D4BA))
             ) {
                 options.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option, color = Color.White) },
+                        text = { Text(option, color = Color(0xFF2A3A22)) },
                         onClick = {
                             onOptionSelected(option)
                             expanded = false
@@ -468,21 +468,21 @@ fun SettingsStepper(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(Color.Black, shape = CircleShape)
+                    .background(Color(0xFFC8D4BA), shape = CircleShape)
                     .clickable { onDecrease() },
                 contentAlignment = Alignment.Center
             ) {
-                Text("–", color = Color.White, fontSize = 24.sp)
+                Text("–", color = Color(0xFF2A3A22), fontSize = 24.sp)
             }
-            Text(value, color = Color.White, fontSize = 16.sp)
+            Text(value, color = Color(0xFF2A3A22), fontSize = 16.sp)
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(Color.Black, shape = CircleShape)
+                    .background(Color(0xFFC8D4BA), shape = CircleShape)
                     .clickable { onIncrease() },
                 contentAlignment = Alignment.Center
             ) {
-                Text("+", color = Color.White, fontSize = 24.sp)
+                Text("+", color = Color(0xFF2A3A22), fontSize = 24.sp)
             }
         }
     }

@@ -1,124 +1,12 @@
-package com.nightread.app.data
+import re
 
-import android.content.Context
-import android.util.Log
-import com.nightread.app.service.NewCoverExtractor
-import com.nightread.app.service.NewFb2Parser
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.RequestBody.Companion.toRequestBody
-import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
-import java.io.File
-import java.nio.charset.StandardCharsets
-import java.util.concurrent.TimeUnit
+with open("app/src/main/java/com/nightread/app/data/YandexDiskManager.kt", "r") as f:
+    content = f.read()
 
-object YandexDiskManager {
+# We'll replace everything from `private suspend fun initDirectories` downwards, keeping imports and the first few methods.
+part1 = re.split(r'    private suspend fun initDirectories', content)[0]
 
-
-    suspend fun getFolders(context: Context, path: String = "disk:/"): List<ResourceItem> {
-        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            val token = getToken(context) ?: return@withContext emptyList()
-            val authHeader = "OAuth $token"
-            try {
-                val response = api.getResource(authHeader, path, limit = 500)
-                response.embedded?.items?.filter { it.type == "dir" } ?: emptyList()
-            } catch (e: Exception) {
-                emptyList()
-            }
-        }
-    }
-
-    fun getSyncFolder(context: Context): String {
-        val prefs = context.getSharedPreferences("yandex_sync", Context.MODE_PRIVATE)
-        return prefs.getString("sync_folder", "disk:/Books") ?: "disk:/Books"
-    }
-
-    fun setSyncFolder(context: Context, folder: String) {
-        val prefs = context.getSharedPreferences("yandex_sync", Context.MODE_PRIVATE)
-        prefs.edit().putString("sync_folder", folder).apply()
-    }
-
-    private const val TAG = "YandexDiskManager"
-    private const val PREFS_NAME = "yandex_prefs"
-    private const val KEY_TOKEN = "oauth_token"
-    private const val BASE_URL = "https://cloud-api.yandex.net/"
-
-    // Placeholder Client ID for Yandex OAuth. Users can replace this with their own.
-    const val CLIENT_ID = "bfdea73d1e6242ba826f15d9d0374005"
-
-    private val moshi = Moshi.Builder()
-        .add(KotlinJsonAdapterFactory())
-        .build()
-
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
-
-    private val api: YandexDiskApi by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .build()
-            .create(YandexDiskApi::class.java)
-    }
-
-    /**
-     * Checks if user has authorized Yandex Disk
-     */
-    fun isAuthorized(context: Context): Boolean {
-        return !getToken(context).isNullOrBlank()
-    }
-
-    /**
-     * Gets the stored OAuth Token
-     */
-    fun getToken(context: Context): String? {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_TOKEN, null)
-    }
-
-    /**
-     * Saves the Yandex Disk OAuth Token
-     */
-    fun saveToken(context: Context, token: String) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString(KEY_TOKEN, token).apply()
-        Log.d(TAG, "Yandex Disk OAuth Token saved successfully.")
-    }
-
-    /**
-     * Clears Yandex Disk authorization
-     */
-    fun clearToken(context: Context) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().remove(KEY_TOKEN).apply()
-        Log.d(TAG, "Yandex Disk OAuth Token cleared.")
-    }
-
-    /**
-     * Fetches general disk info from Yandex Disk API
-     */
-    suspend fun getDiskInfo(context: Context): DiskInfoResponse = withContext(Dispatchers.IO) {
-        val token = getToken(context) ?: throw IllegalStateException("Not authorized")
-        api.getDiskInfo("OAuth $token")
-    }
-
-    /**
-     * Creates folders on Yandex Disk if they don't already exist
-     */
-    private suspend fun initDirectories(authHeader: String, syncFolder: String) {
+new_part2 = """    private suspend fun initDirectories(authHeader: String, syncFolder: String) {
         val progressFolder = "$syncFolder/Progress"
         val paths = listOf(syncFolder, progressFolder)
         for (path in paths) {
@@ -208,16 +96,15 @@ object YandexDiskManager {
             if (needsSha1.isNotEmpty()) {
                 var processedCount = 0
                 val totalToProcess = needsSha1.size
-                val startTime = System.currentTimeMillis()
                 
                 // Parallel processing with limited concurrency
                 val concurrencyLimit = 5
                 val jobs = needsSha1.chunked(concurrencyLimit)
                 
                 for (chunk in jobs) {
-                    coroutineScope {
-                        val deferreds = chunk.map { item ->
-                            async {
+                    kotlinx.coroutines.awaitAll(
+                        *chunk.map { item ->
+                            kotlinx.coroutines.async {
                                 try {
                                     val linkResponse = api.getDownloadLink(authHeader, item.path ?: "$syncFolder/${item.name}")
                                     val responseBody = api.downloadFile(linkResponse.href)
@@ -252,23 +139,15 @@ object YandexDiskManager {
                                     synchronized(this@YandexDiskManager) {
                                         processedCount++
                                         if (processedCount % 5 == 0 || processedCount == totalToProcess) {
-                                            val elapsed = System.currentTimeMillis() - startTime
-                                            val avgTimePerFile = elapsed / processedCount
-                                            val remaining = totalToProcess - processedCount
-                                            val remainingMs = remaining * avgTimePerFile
-                                            val remainingMinutes = remainingMs / 60000
-                                            val remainingSeconds = (remainingMs % 60000) / 1000
-                                            val timeStr = if (remainingMinutes > 0) "$remainingMinutes мин" else "$remainingSeconds сек"
-                                            onProgress("Анализ диска: $processedCount из $totalToProcess файлов обработано. Осталось примерно: $timeStr")
+                                            onProgress("Анализ диска: $processedCount из $totalToProcess файлов обработано")
                                         }
                                     }
                                 }
                             }
-                        }
-                        awaitAll(*deferreds.toTypedArray())
-                    }
+                        }.toTypedArray()
+                    )
                 }
-CloudFileCache.saveCache(context, cloudCache)
+                CloudFileCache.saveCache(context, cloudCache)
             }
             
             val database = AppDatabase.getDatabase(context)
@@ -508,3 +387,7 @@ CloudFileCache.saveCache(context, cloudCache)
         return prefs.getLong("last_sync_time", 0L)
     }
 }
+"""
+
+with open("app/src/main/java/com/nightread/app/data/YandexDiskManager.kt", "w") as f:
+    f.write(part1 + new_part2)

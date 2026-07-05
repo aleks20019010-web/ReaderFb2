@@ -15,14 +15,15 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:strokeWidth="0dp"
-        app:cardBackgroundColor="@color/bg_card"
+        app:cardBackgroundColor="@android:color/transparent"
         app:cardUseCompatPadding="true">
         
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingBottom="8dp">
+            android:paddingBottom="8dp"
+            android:background="@drawable/bg_card_forest">
 
             <!-- Cover container with fixed height for perfect grid alignment -->
             <FrameLayout

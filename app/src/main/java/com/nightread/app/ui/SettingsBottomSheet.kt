@@ -65,15 +65,7 @@ class SettingsBottomSheet : DialogFragment() {
         var lineSpacing by remember { mutableStateOf(SettingsManager.getLineSpacing(context)) }
 
         // Dynamic visual properties matching current theme
-        val (bgColor, contentColor, cardColor) = when (selectedTheme) {
-            "light" -> Triple(Color(0xFFFFFFFF), Color(0xFF121212), Color(0xFFF5F5F5))
-            "dark" -> Triple(Color(0xFF1E1A16), Color(0xFFE8E0D8), Color(0xFF2A261F))
-            "sepia" -> Triple(Color(0xFFF5F0E8), Color(0xFF3D2C1A), Color(0xFFEDE5D8))
-            "sepia_contrast" -> Triple(Color(0xFFF5E6C8), Color(0xFF1A1A1A), Color(0xFFEAD9B8))
-            "contrast" -> Triple(Color(0xFF000000), Color(0xFFFFFF00), Color(0xFF111111))
-            "beige" -> Triple(Color(0xFFF4ECD8), Color(0xFF3B2F1F), Color(0xFFEADFC5))
-            else -> Triple(Color(0xFFF5F0E8), Color(0xFF3D2C1A), Color(0xFFEDE5D8))
-        }
+        val (bgColor, contentColor, cardColor) = Triple(Color(0xFFEEF3E8), Color(0xFF2A3A22), Color(0xFFF8FAF0))
 
         val themeOptions = listOf("light", "dark", "sepia", "sepia_contrast", "contrast", "beige")
         val themeNames = mapOf(

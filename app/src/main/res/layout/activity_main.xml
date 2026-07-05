@@ -7,6 +7,7 @@
 
     <!-- The main content view -->
     <FrameLayout
+        android:background="@drawable/bg_forest_gradient"
         android:id="@+id/fragment_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
@@ -17,7 +18,7 @@
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="#EDE5D8"
+        android:background="@drawable/bg_forest_gradient"
         app:itemTextColor="@color/nav_item_text_color"
         app:itemIconTint="@color/nav_item_text_color"
         app:itemShapeFillColor="@color/nav_item_state_list"

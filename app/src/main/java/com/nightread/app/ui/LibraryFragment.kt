@@ -255,7 +255,7 @@ class LibraryFragment : Fragment() {
 
                 if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
                     val background = ColorDrawable()
-                    background.color = android.graphics.Color.parseColor("#E53935") // Warm red accent for deletion
+                    background.color = resources.getColor(R.color.accent_hover, null) // Dark accent for deletion
 
                     if (dX > 0) { // Swiping to the right
                         background.setBounds(
@@ -513,8 +513,8 @@ class LibraryFragment : Fragment() {
                 stopPulsing(ivEmptyIllustration)
                 ivEmptyIllustration.visibility = View.VISIBLE
                 btnEmptyStateScan.visibility = View.VISIBLE
-                tvEmptyStateTitle.text = "Ваша библиотека пуста"
-                tvEmptyStateDesc.text = "Сканируйте память устройства, чтобы автоматически найти книги в форматах FB2, EPUB и TXT."
+                tvEmptyStateTitle.text = "Библиотека пока пустая"
+                tvEmptyStateDesc.text = "Начните сканирование или импортируйте книги"
             }
             return
         }

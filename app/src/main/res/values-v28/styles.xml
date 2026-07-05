@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- CardView Style with 16dp corner radius and 12dp elevation for Forest Theme -->
     <style name="CardViewStyle" parent="Widget.Material3.CardView.Elevated">
         <item name="cardCornerRadius">16dp</item>
         <item name="cardElevation">12dp</item>
+        <item name="android:outlineSpotShadowColor">@color/shadow</item>
+        <item name="android:outlineAmbientShadowColor">@color/shadow</item>
     </style>
 
-    <!-- Button Style with push down effect -->
     <style name="ButtonStyle" parent="Widget.Material3.Button.ElevatedButton">
         <item name="cornerRadius">12dp</item>
         <item name="android:elevation">4dp</item>
         <item name="android:stateListAnimator">@animator/button_press_animator</item>
+        <item name="android:outlineSpotShadowColor">@color/shadow</item>
+        <item name="android:outlineAmbientShadowColor">@color/shadow</item>
     </style>
 </resources>
