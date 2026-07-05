@@ -4,6 +4,9 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.isActive
 
 object PageSplitter {
     private const val TAG = "PageSplitter"
@@ -18,21 +21,21 @@ object PageSplitter {
      * Honors form-feed characters (\u000C) as page breaks for starting new chapters on new pages.
      * Uses exact StaticLayout line bottom measurements to guarantee text fits the vertical height.
      */
-    fun splitText(
+    suspend fun splitText(
         text: String,
         availableWidth: Int,
         availableHeight: Int,
         paint: TextPaint,
         lineSpacing: Float,
         alignment: String = "justify"
-    ): PageResult {
+    ): PageResult = withContext(Dispatchers.Default) {
         Log.d(TAG, "splitText called: availableWidth=$availableWidth, availableHeight=$availableHeight, lineSpacing=$lineSpacing")
         
         val pages = mutableListOf<String>()
         val offsets = mutableListOf<Int>()
         
         if (text.isEmpty() || availableWidth <= 0 || availableHeight <= 0) {
-            return PageResult(listOf("Документ пуст."), listOf(0))
+            return@withContext PageResult(listOf("Документ пуст."), listOf(0))
         }
 
         var start = 0
@@ -46,6 +49,7 @@ object PageSplitter {
         }
 
         while (start < textLength) {
+            if (!isActive) return@withContext PageResult(emptyList(), emptyList())
             offsets.add(start)
 
             // 1. Determine a segment of text to measure
@@ -146,6 +150,6 @@ object PageSplitter {
         }
 
         Log.d(TAG, "Completed pagination. Total pages: ${pages.size}")
-        return PageResult(pages, offsets)
+        return@withContext PageResult(pages, offsets)
     }
 }

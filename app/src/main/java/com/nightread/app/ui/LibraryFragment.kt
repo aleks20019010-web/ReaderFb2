@@ -12,6 +12,8 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Animatable
 import android.net.Uri
 import android.os.Bundle
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CancellationException
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
@@ -59,7 +61,7 @@ class LibraryFragment : Fragment() {
 
     private val viewModel: BookViewModel by activityViewModels()
     
-    private lateinit var adapter: SeriesGroupAdapter
+    private lateinit var adapter: BookAdapter
     private var allBooksList: List<BookEntity> = emptyList()
     private var currentSearchQuery: String = ""
 
@@ -135,7 +137,9 @@ class LibraryFragment : Fragment() {
                     intent.addCategory("android.intent.category.DEFAULT")
                     intent.data = Uri.parse("package:${requireContext().packageName}")
                     requestManageStorageLauncher.launch(intent)
-                } catch (e: Exception) {
+                } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
                     requestManageStorageLauncher.launch(intent)
                 }
@@ -249,34 +253,28 @@ class LibraryFragment : Fragment() {
         btnToggleViewMode = view.findViewById(R.id.btnToggleViewMode)
 
         // Setup RecyclerView
-        adapter = SeriesGroupAdapter(
-            onOpenBook = { book, view ->
+        adapter = BookAdapter(
+            books = emptyList(),
+            onOpenBook = { book ->
                 viewModel.openBook(book)
                 val intent = android.content.Intent(requireContext(), BookDetailActivity::class.java).apply {
                     putExtra("BOOK_SHA1", book.sha1)
                 }
-                val options = androidx.core.app.ActivityOptionsCompat.makeSceneTransitionAnimation(
-                    requireActivity(),
-                    view,
-                    "cover_${book.sha1}"
-                )
-                startActivity(intent, options.toBundle())
+                startActivity(intent)
             },
             onDeleteBook = { book ->
                 showDeleteConfirmationDialog(book)
             }
         )
-
         rvBooks.adapter = adapter
         rvBooks.itemAnimator = HighlightItemAnimator(adapter)
 
-        // Setup Swipe-to-Delete gestures on the library RecyclerView
         val swipeCallback = object : ItemTouchHelper.SimpleCallback(
             0,
             ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
         ) {
             override fun getSwipeDirs(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
-                if (viewHolder is SeriesGroupAdapter.HeaderViewHolder) return 0
+                
                 return super.getSwipeDirs(recyclerView, viewHolder)
             }
 
@@ -389,11 +387,7 @@ class LibraryFragment : Fragment() {
 
         if (isGridView) {
             val gridLayoutManager = GridLayoutManager(requireContext(), 3)
-            gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
-                override fun getSpanSize(position: Int): Int {
-                    return if (adapter.getItemViewType(position) == SeriesGroupAdapter.VIEW_TYPE_HEADER) 3 else 1
-                }
-            }
+            
             rvBooks.layoutManager = gridLayoutManager
             btnToggleViewMode.setIconResource(R.drawable.ic_custom_list)
             btnToggleViewMode.contentDescription = "Режим списка"
@@ -710,7 +704,7 @@ class LibraryFragment : Fragment() {
 
     private fun startRotating(view: View) {
         view.animate().cancel()
-        val animator = ObjectAnimator.ofFloat(view, View.ROTATION, 0f, 360f)
+        val animator = ObjectAnimator.ofFloat(null, View.ROTATION, 0f, 360f)
         animator.duration = 1000 // 1 revolution per second
         animator.repeatCount = ValueAnimator.INFINITE
         animator.interpolator = android.view.animation.LinearInterpolator()

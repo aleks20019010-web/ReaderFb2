@@ -1,6 +1,10 @@
 package com.nightread.app.service
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.isActive
 import android.content.Context
+
+
 import android.os.Environment
 import android.util.Log
 import com.nightread.app.data.BookDao
@@ -32,6 +36,10 @@ class NewBookScanner(
         Log.d(TAG, "scanBooks: Starting auto-scanning sequence.")
         updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Сканирование запущено..."))
 
+
+
+
+
         val paths = listOf(
             Environment.getExternalStorageDirectory(),
             File(Environment.getExternalStorageDirectory(), "Download"),
@@ -42,6 +50,7 @@ class NewBookScanner(
         val filesToProcess = mutableListOf<File>()
         val gatheredPaths = HashSet<String>()
         for (path in paths) {
+            if (!kotlin.coroutines.coroutineContext.isActive) return
             try {
                 if (path.exists() && path.isDirectory && path.canRead()) {
                     Log.d(TAG, "Checking path for gathering: ${path.absolutePath}")
@@ -61,6 +70,8 @@ class NewBookScanner(
                 }
             } catch (e: SecurityException) {
                 Log.e(TAG, "SecurityException checking root path: ${path.absolutePath}", e)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking root path: ${path.absolutePath}", e)
             }
@@ -88,7 +99,9 @@ class NewBookScanner(
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException fetching SHA1 map from DB", e)
             mutableMapOf()
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             Log.e(TAG, "Error fetching SHA1 map from DB", e)
             mutableMapOf()
         }
@@ -99,6 +112,7 @@ class NewBookScanner(
         val batchSize = 10 // Quick saves of 10 to keep the UI refreshed and avoid large OOMs
 
         for ((index, file) in filesToProcess.withIndex()) {
+            if (!kotlin.coroutines.coroutineContext.isActive) return
             val fileIndex = index + 1
             Log.d(TAG, "Processing file [$fileIndex/$total]: ${file.name}")
             
@@ -408,7 +422,9 @@ class NewBookScanner(
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException listing files for directory: ${dir.absolutePath}", e)
             null
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             Log.e(TAG, "Failed listFiles for directory: ${dir.absolutePath}", e)
             null
         } ?: return
@@ -447,6 +463,8 @@ class NewBookScanner(
                 }
             } catch (e: SecurityException) {
                 Log.e(TAG, "SecurityException checking file object: ${file.absolutePath}", e)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking file object: ${file.absolutePath}", e)
             }
@@ -463,7 +481,9 @@ class NewBookScanner(
             } else {
                 String(bytes, java.nio.charset.Charset.forName("windows-1251"))
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             String(bytes, Charsets.UTF_8)
         }
     }

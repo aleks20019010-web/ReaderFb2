@@ -11,6 +11,9 @@ import androidx.lifecycle.viewModelScope
 import com.nightread.app.BuildConfig
 import com.nightread.app.data.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CancellationException
+
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -65,9 +68,12 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun loadBooks() {
         viewModelScope.launch {
+            if (!isActive) return@launch
             try {
                 Log.d("BookViewModel", "loadBooks() called: Triggering fetch of books.")
                 repository.allBooks.first()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e("BookViewModel", "Critical error in loadBooks() during database fetch", e)
                 withContext(Dispatchers.Main) {
@@ -141,6 +147,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         
         // Initialize and observe background scanning state
         viewModelScope.launch {
+            if (!isActive) return@launch
             com.nightread.app.service.NewBookScanState.state.collect { state ->
                 isScanning = state.isScanning
                 scanProgressText = state.status
@@ -150,6 +157,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun checkAndInsertDefaultBooks() {
         viewModelScope.launch {
+            if (!isActive) return@launch
             val books = repository.allBooks.first()
             if (books.isEmpty()) {
                 insertDefaultClassics()
@@ -204,6 +212,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         selectedBook = book
         readerPage = book.currentProgressChar / 1000
         viewModelScope.launch {
+            if (!isActive) return@launch
             repository.updateProgress(book.sha1, book.currentProgressChar)
         }
     }
@@ -214,6 +223,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         selectedBook = book.copy(currentProgressChar = clampedOffset)
         readerPage = clampedOffset / 1000
         viewModelScope.launch {
+            if (!isActive) return@launch
             repository.updateProgress(book.sha1, clampedOffset)
         }
     }
@@ -234,6 +244,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteBook(bookSha1: String) {
         viewModelScope.launch {
+            if (!isActive) return@launch
             repository.deleteBookBySha1(bookSha1)
             if (selectedBook?.sha1 == bookSha1) {
                 selectedBook = null
@@ -243,12 +254,15 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addNewBook(title: String, author: String, content: String, category: String) {
         viewModelScope.launch {
+            if (!isActive) return@launch
             val totalChars = content.length
             val rawBytes = (title + author + content).toByteArray(java.nio.charset.StandardCharsets.UTF_8)
             val sha1String = try {
                 val digest = java.security.MessageDigest.getInstance("SHA-1")
                 val result = digest.digest(rawBytes)
                 result.joinToString("") { "%02x".format(it) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 java.util.UUID.randomUUID().toString()
             }
@@ -268,6 +282,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     fun importBookFromUri(uri: android.net.Uri, context: android.content.Context, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (!isActive) return@launch
             try {
                 val contentResolver = context.contentResolver
                 var fileName = "imported_book.fb2"
@@ -315,7 +330,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                                 }
                             }
                         }
-                    } catch (e: Exception) {
+                    } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
                             onResult(false, "Ошибка чтения ZIP-архива: ${e.localizedMessage}")
                         }
@@ -429,6 +446,8 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 withContext(Dispatchers.Main) {
                     onResult(true, "Книга \"$parsedTitle\" успешно импортирована!")
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 android.util.Log.e("BookScanner", "Error importing from SAF: ", e)
                 withContext(Dispatchers.Main) {
@@ -440,6 +459,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleFavorite(bookSha1: String) {
         viewModelScope.launch {
+            if (!isActive) return@launch
             val book = allBooks.value.find { it.sha1 == bookSha1 }
             if (book != null) {
                 val updated = book.copy(isFavorite = !book.isFavorite)
@@ -456,6 +476,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateBookReview(bookSha1: String, reviewText: String) {
         viewModelScope.launch {
+            if (!isActive) return@launch
             val book = allBooks.value.find { it.sha1 == bookSha1 }
             if (book != null) {
                 val updated = book.copy(review = reviewText)
@@ -485,6 +506,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         val book = selectedBook ?: return
         val offset = readerPage * 1000
         viewModelScope.launch {
+            if (!isActive) return@launch
             val note = NoteEntity(
                 bookId = book.sha1,
                 bookTitle = book.title,
@@ -498,6 +520,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteNote(noteId: Int) {
         viewModelScope.launch {
+            if (!isActive) return@launch
             repository.deleteNoteById(noteId)
         }
     }
@@ -509,6 +532,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startSyncServer() {
         viewModelScope.launch(Dispatchers.IO) {
+            if (!isActive) return@launch
             isServerRunning = true
             syncServerLogs.clear()
             syncServerLogs.add("Запуск сервера...")
@@ -517,6 +541,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 port = 8080,
                 onLog = { logMsg ->
                     viewModelScope.launch(Dispatchers.Main) {
+            if (!isActive) return@launch
                         syncServerLogs.add(logMsg)
                     }
                 }
@@ -538,12 +563,14 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         }
         isSyncLoading = true
         viewModelScope.launch {
+            if (!isActive) return@launch
             val success = syncManager.clientSync(
                 repository = repository,
                 ipAddress = ip,
                 port = 8080,
                 onLog = { logMsg ->
                     viewModelScope.launch(Dispatchers.Main) {
+            if (!isActive) return@launch
                         syncServerLogs.add(logMsg)
                     }
                 }
@@ -560,11 +587,13 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         }
         isSyncLoading = true
         viewModelScope.launch {
+            if (!isActive) return@launch
             syncManager.syncWithCloud(
                 repository = repository,
                 url = url,
                 onLog = { logMsg ->
                     viewModelScope.launch(Dispatchers.Main) {
+            if (!isActive) return@launch
                         syncServerLogs.add(logMsg)
                     }
                 }
@@ -575,6 +604,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     fun exportDatabaseState() {
         viewModelScope.launch {
+            if (!isActive) return@launch
             exportJsonString = syncManager.exportToJson(repository)
             syncServerLogs.add("Данные успешно экспортированы в текстовый буфер.")
         }
@@ -582,6 +612,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     fun importDatabaseState(json: String) {
         viewModelScope.launch {
+            if (!isActive) return@launch
             isSyncLoading = true
             val success = syncManager.importFromJson(repository, json)
             isSyncLoading = false
@@ -607,6 +638,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         aiResult = "ИИ думает..."
 
         viewModelScope.launch(Dispatchers.IO) {
+            if (!isActive) return@launch
             try {
                 val finalPrompt = "Вы — профессиональный литературный критик и ассистент по чтению. Ответьте на вопрос по книге или заметке кратко и ёмко на русском языке.\n\n$prompt"
                 val request = GeminiRequest(
@@ -620,6 +652,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 val textResponse = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
 
                 viewModelScope.launch(Dispatchers.Main) {
+            if (!isActive) return@launch
                     aiLoading = false
                     if (textResponse != null) {
                         aiResult = textResponse
@@ -627,8 +660,11 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                         aiError = "Не удалось получить ответ от ИИ."
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 viewModelScope.launch(Dispatchers.Main) {
+            if (!isActive) return@launch
                     aiLoading = false
                     aiError = "Ошибка соединения: ${e.localizedMessage}"
                 }
@@ -639,10 +675,13 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     fun startLocalBookScan(rootPath: String = "/storage/emulated/0") {
         if (isScanning) return
         viewModelScope.launch(Dispatchers.IO) {
+            if (!isActive) return@launch
             try {
                 val context = getApplication<android.app.Application>()
                 val scanner = com.nightread.app.service.NewBookScanner(context, database.bookDao())
                 scanner.scanBooks()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 android.util.Log.e("BookViewModel", "Failed to scan books locally", e)
             }
@@ -659,14 +698,18 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.IO) {
                 val existingSha1s = try {
                     repository.allBooks.first().mapNotNull { it.sha1 }.toMutableSet()
-                } catch (e: Exception) {
+                } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                     android.util.Log.e("BookScanner", "Failed to load existing SHA1 list", e)
                     mutableSetOf<String>()
                 }
 
                 val existingTitles = try {
                     repository.allBooks.first().map { it.title.lowercase() }.toMutableSet()
-                } catch (e: Exception) {
+                } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                     android.util.Log.e("BookScanner", "Failed to load existing titles", e)
                     mutableSetOf<String>()
                 }
@@ -701,7 +744,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                                 }
                             }
                         }
-                    } catch (e: Exception) {
+                    } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                         android.util.Log.e("BookScanner", "Error traversing directory: ${dir.absolutePath}", e)
                     }
                 }
@@ -811,7 +856,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             android.util.Log.e("BookScanner", "Critical error in scanDirectoryForBooks", e)
             withContext(Dispatchers.Main) {
                 scanProgressText = "Ошибка сканирования: ${e.localizedMessage}"
@@ -944,11 +991,15 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 val encName = match.groupValues[1].trim()
                 try {
                     return String(bytes, java.nio.charset.Charset.forName(encName))
-                } catch (e: Exception) {
+                } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                     // fall back if charset name is invalid or unsupported
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             // ignore and fallback
         }
 
@@ -957,7 +1008,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
             utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
             val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
             return charBuffer.toString()
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             try {
                 return String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
             } catch (e2: Exception) {
@@ -1034,7 +1087,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             e.printStackTrace()
         }
         return sb.toString().replace("\\s+".toRegex(), " ").trim()
@@ -1099,7 +1154,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 val decodedBytes = android.util.Base64.decode(cleanBase64, android.util.Base64.DEFAULT)
                 return android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             android.util.Log.e("BookScanner", "Error parsing FB2 cover with XmlPullParser", e)
         }
         return null
@@ -1164,7 +1221,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 val decodedBytes = android.util.Base64.decode(cleanBase64, android.util.Base64.DEFAULT)
                 return android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             android.util.Log.e("BookScanner", "Error in regex cover extraction", e)
         }
         return null
@@ -1189,7 +1248,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             android.util.Log.e("BookScanner", "Error extracting EPUB cover", e)
         }
         return null
@@ -1206,7 +1267,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out)
             }
             file.absolutePath
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             android.util.Log.e("BookScanner", "Failed to save cover to cache", e)
             null
         }
@@ -1242,7 +1305,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
             if (bitmap != null) {
                 return saveCoverToCache(getApplication<Application>(), sha1, bitmap)
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             android.util.Log.e("BookScanner", "Error in extractAndSaveCover for file ${file.name}", e)
         }
         return null
@@ -1301,6 +1366,8 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     android.util.Log.i(TAG, "Successfully extracted annotation in encoding: $charset")
                     return@withContext annotation
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Error extracting annotation with charset $charset", e)
             }
@@ -1342,6 +1409,8 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 android.util.Log.e("FB2Annotation", "Error reading ZIP file: $filePath", e)
             }
@@ -1359,6 +1428,8 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     return bos.toByteArray()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 android.util.Log.e("FB2Annotation", "Error reading FB2 file: $filePath", e)
             }
@@ -1379,7 +1450,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 android.util.Log.d("FB2Annotation", "Parsed encoding from XML prolog: $enc")
                 return enc
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             android.util.Log.e("FB2Annotation", "Error parsing prolog encoding", e)
         }
         return null
@@ -1433,7 +1506,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
             
             val result = annotationText.toString().trim()
             return if (result.isNotEmpty()) result else null
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
             android.util.Log.e("FB2Annotation", "Failed to parse XML using charset $charsetName", e)
             return null
         }

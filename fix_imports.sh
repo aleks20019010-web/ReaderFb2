@@ -1,0 +1,2 @@
+sed -i 's/^import android.os.Bundle/import android.os.Bundle\nimport kotlinx.coroutines.isActive\nimport kotlinx.coroutines.CancellationException/' app/src/main/java/com/nightread/app/ui/LibraryFragment.kt
+sed -i 's/^import android.content.Context/import android.content.Context\nimport kotlinx.coroutines.isActive\nimport kotlinx.coroutines.CancellationException/' app/src/main/java/com/nightread/app/service/NewBookScanner.kt

@@ -11,10 +11,10 @@ import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.RecyclerView
 import com.nightread.app.R
 
-class HighlightItemAnimator(private val adapter: SeriesGroupAdapter) : DefaultItemAnimator() {
+class HighlightItemAnimator(private val adapter: BookAdapter) : DefaultItemAnimator() {
 
     override fun animateAdd(holder: RecyclerView.ViewHolder?): Boolean {
-        if (holder is SeriesGroupAdapter.BookViewHolder) {
+        if (holder is BookAdapter.BookViewHolder) {
             val book = adapter.getBookAt(holder.adapterPosition)
             if (book != null && adapter.newlyAddedSha1s.contains(book.sha1)) {
                 // Apply gold border / highlight effect

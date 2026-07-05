@@ -32,6 +32,9 @@ import com.nightread.app.data.BookEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CancellationException
+
 import java.io.File
 import java.io.FileInputStream
 import java.nio.charset.Charset
@@ -626,6 +629,7 @@ class ReaderActivity : FragmentActivity() {
         lifecycleScope.launch {
             try {
                 Log.d("READING_DEBUG", "Шаг 1 [БД]: Запрос информации о книге по SHA-1: $bookSha1")
+                if (!isActive || isFinishing || isDestroyed) return@launch
                 val db = AppDatabase.getDatabase(this@ReaderActivity)
                 val book = withContext(Dispatchers.IO) {
                     db.bookDao().getBookBySha1(bookSha1)
@@ -662,6 +666,8 @@ class ReaderActivity : FragmentActivity() {
                         showErrorAndExit("Ошибка: Файл книги не найден на устройстве")
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (t: Throwable) {
                 Log.e("READING_DEBUG", "READING_DEBUG: Исключение на Шаге 1 [БД]: ${t.message}", t)
                 showErrorAndExit("Ошибка загрузки книги из БД: ${t.localizedMessage}")
@@ -676,6 +682,7 @@ class ReaderActivity : FragmentActivity() {
         lifecycleScope.launch {
             try {
                 Log.d("READING_DEBUG", "Шаг 2 [Чтение]: Проверка существования файла...")
+                if (!isActive || isFinishing || isDestroyed) return@launch
                 val file = File(path)
                 if (!file.exists()) {
                     Log.e("READING_DEBUG", "READING_DEBUG: Файл не найден по пути: $path")
@@ -725,6 +732,8 @@ class ReaderActivity : FragmentActivity() {
                 Log.d("READING_DEBUG", "READING_DEBUG: Переход к разметке и отображению текста...")
                 processAndDisplayContent(rawContent)
 
+            } catch (e: CancellationException) {
+                throw e
             } catch (t: Throwable) {
                 Log.e("READING_DEBUG", "READING_DEBUG: Исключение на Шаге 2 [Чтение]: ${t.message}", t)
                 showErrorAndExit("Ошибка чтения файла: ${t.localizedMessage}")
@@ -745,6 +754,8 @@ class ReaderActivity : FragmentActivity() {
                     return@launch
                 }
                 processAndDisplayContent(content)
+            } catch (e: CancellationException) {
+                throw e
             } catch (t: Throwable) {
                 Log.e("READING_DEBUG", "READING_DEBUG: Исключение на Шаге 2 [Встроенный текст]: ${t.message}", t)
                 showErrorAndExit("Ошибка обработки встроенного текста: ${t.localizedMessage}")
@@ -755,6 +766,7 @@ class ReaderActivity : FragmentActivity() {
     private suspend fun processAndDisplayContent(rawContent: String) {
         val startTime = System.currentTimeMillis()
         rawBookContent = rawContent
+        if (!kotlin.coroutines.coroutineContext.isActive) return
         val vpWidth = viewPager.width
         val vpHeight = viewPager.height
 
@@ -856,7 +868,9 @@ class ReaderActivity : FragmentActivity() {
 
             Log.d("READING_DEBUG", "READING_DEBUG: Успешно завершена вся логика загрузки и отображения книги!")
             
-        } catch (t: Throwable) {
+        } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
             Log.e("READING_DEBUG", "READING_DEBUG: Исключение на Шаге 3 или 4 [Разметка/Отображение]: ${t.message}", t)
             showErrorAndExit("Ошибка разметки или отображения книги: ${t.localizedMessage}")
         }
@@ -997,7 +1011,7 @@ class ReaderActivity : FragmentActivity() {
         return RussianHyphenator.hyphenate(processedParagraphs)
     }
 
-    private fun splitContentToPages(content: String, measuredWidth: Int, measuredHeight: Int): List<String> {
+    private suspend fun splitContentToPages(content: String, measuredWidth: Int, measuredHeight: Int): List<String> {
         val density = resources.displayMetrics.density
         val scaledDensity = resources.displayMetrics.scaledDensity
         
@@ -1177,7 +1191,8 @@ class ReaderActivity : FragmentActivity() {
             // Update database progress to show correctly on main shelf
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    val db = AppDatabase.getDatabase(this@ReaderActivity)
+                    if (!isActive || isFinishing || isDestroyed) return@launch
+                val db = AppDatabase.getDatabase(this@ReaderActivity)
                     val book = db.bookDao().getBookBySha1(bookSha1)
                     if (book != null) {
                         val newOffset = if (pages.size > 0) {

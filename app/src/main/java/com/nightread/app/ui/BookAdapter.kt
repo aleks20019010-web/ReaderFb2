@@ -79,6 +79,7 @@ class BookAdapter(
     }
 
 
+    val newlyAddedSha1s = mutableSetOf<String>()
     private var isGridView: Boolean = true
 
     override fun getItemViewType(position: Int): Int {
@@ -112,6 +113,11 @@ class BookAdapter(
     }
 
     override fun getItemCount(): Int = books.size
+
+    fun addBooks(addedBooks: List<BookEntity>, newFilteredList: List<BookEntity>) {
+        addedBooks.forEach { newlyAddedSha1s.add(it.sha1) }
+        updateData(newFilteredList)
+    }
 
     fun updateData(newBooks: List<BookEntity>) {
         val diffCallback = object : DiffUtil.Callback() {
