@@ -96,4 +96,26 @@ object NewCoverExtractor {
             return null
         }
     }
+
+    /**
+     * Fast non-regex removal of binary sections from FB2 content.
+     */
+    fun stripBinarySections(content: String): String {
+        val sb = java.lang.StringBuilder()
+        var lastIdx = 0
+        while (true) {
+            val start = content.indexOf("<binary", lastIdx, ignoreCase = true)
+            if (start == -1) {
+                sb.append(content.substring(lastIdx))
+                break
+            }
+            sb.append(content.substring(lastIdx, start))
+            val end = content.indexOf("</binary>", start, ignoreCase = true)
+            if (end == -1) {
+                break
+            }
+            lastIdx = end + "</binary>".length
+        }
+        return sb.toString()
+    }
 }

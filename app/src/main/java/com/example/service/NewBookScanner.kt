@@ -241,15 +241,16 @@ class NewBookScanner(
                 // Extract and save cover image to context.filesDir
                 val coverPath = NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
                 
+                val strippedContent = NewCoverExtractor.stripBinarySections(rawText)
                 val book = BookEntity(
                     sha1 = sha1,
                     title = resolvedTitle,
                     author = metadata.author,
-                    content = rawText,
+                    content = strippedContent,
                     coverGradientStart = getRandomGradientStartColor(),
                     coverGradientEnd = getRandomGradientEndColor(),
                     category = "Local",
-                    totalCharacters = rawText.length,
+                    totalCharacters = strippedContent.length,
                     filePath = file.absolutePath,
                     coverPath = coverPath
                 )
@@ -309,15 +310,16 @@ class NewBookScanner(
                                         // Extract and save cover image to context.filesDir
                                         val coverPath = NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
                                         
+                                        val strippedContent = NewCoverExtractor.stripBinarySections(rawText)
                                         val book = BookEntity(
                                             sha1 = sha1,
                                             title = resolvedTitle,
                                             author = metadata.author,
-                                            content = rawText,
+                                            content = strippedContent,
                                             coverGradientStart = getRandomGradientStartColor(),
                                             coverGradientEnd = getRandomGradientEndColor(),
                                             category = "Local",
-                                            totalCharacters = rawText.length,
+                                            totalCharacters = strippedContent.length,
                                             filePath = file.absolutePath,
                                             coverPath = coverPath
                                         )
@@ -409,9 +411,11 @@ class NewBookScanner(
 
     private fun decodeBytesToString(bytes: ByteArray): String {
         return try {
-            val utf8Str = String(bytes, Charsets.UTF_8)
-            if (utf8Str.contains("<?xml") || utf8Str.contains("<fictionbook")) {
-                utf8Str
+            // Determine encoding by scanning only the first 2048 bytes of the file, avoiding dual 25MB string allocations
+            val prefixLen = minOf(bytes.size, 2048)
+            val prefix = String(bytes, 0, prefixLen, Charsets.UTF_8)
+            if (prefix.contains("<?xml", ignoreCase = true) || prefix.contains("<fictionbook", ignoreCase = true)) {
+                String(bytes, Charsets.UTF_8)
             } else {
                 String(bytes, java.nio.charset.Charset.forName("windows-1251"))
             }

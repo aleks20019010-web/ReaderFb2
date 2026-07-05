@@ -15,6 +15,33 @@ class MainApplication : Application() {
         super.onCreate()
         Log.d("MainApplication", "MainApplication onCreate: Initializing app.")
         
+        // Always run database healing on start to clean up any oversized base64 binary blocks and prevent OOMs
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val database = AppDatabase.getDatabase(this@MainApplication)
+                val bookDao = database.bookDao()
+                val sha1s = bookDao.getAllSha1s()
+                Log.d("MainApplication", "Starting startup database healing check for ${sha1s.size} books.")
+                var healedCount = 0
+                for (sha1 in sha1s) {
+                    val content = bookDao.getBookContent(sha1)
+                    if (content != null && content.contains("<binary", ignoreCase = true)) {
+                        Log.d("MainApplication", "Healing book $sha1: removing giant base64 cover sections.")
+                        val stripped = com.example.service.NewCoverExtractor.stripBinarySections(content)
+                        bookDao.updateBookContent(sha1, stripped)
+                        healedCount++
+                    }
+                }
+                if (healedCount > 0) {
+                    Log.d("MainApplication", "Database healing finished. Successfully stripped binary sections from $healedCount books.")
+                } else {
+                    Log.d("MainApplication", "Database healing finished. No oversized books detected.")
+                }
+            } catch (e: Exception) {
+                Log.e("MainApplication", "Error running startup database healing", e)
+            }
+        }
+
         // Handle first launch and demo books insertion
         val prefs = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
         val isFirstLaunch = prefs.getBoolean("first_launch", true)

@@ -431,12 +431,18 @@ Monsieur прогнали со двора.
                 
                 val coverPath = extractAndSaveCover(localFile, computedSha1)
                 
+                val strippedContent = if (localFile.extension.lowercase() == "fb2") {
+                    com.example.service.NewCoverExtractor.stripBinarySections(parsedContent)
+                } else {
+                    parsedContent
+                }
+                
                 val newBook = BookEntity(
                     title = parsedTitle,
                     author = parsedAuthor,
-                    content = parsedContent,
+                    content = strippedContent,
                     category = "Локальные",
-                    totalCharacters = parsedContent.length,
+                    totalCharacters = strippedContent.length,
                     coverGradientStart = getRandomGradientStartColor(),
                     coverGradientEnd = getRandomGradientEndColor(),
                     filePath = localFile.absolutePath,
@@ -796,12 +802,18 @@ Monsieur прогнали со двора.
                             // Extract cover
                             val coverPath = extractAndSaveCover(file, computedSha1)
                             
+                            val strippedContent = if (file.extension.lowercase() == "fb2") {
+                                com.example.service.NewCoverExtractor.stripBinarySections(parsedContent)
+                            } else {
+                                parsedContent
+                            }
+                            
                             val newBook = BookEntity(
                                 title = parsedTitle,
                                 author = parsedAuthor,
-                                content = parsedContent,
+                                content = strippedContent,
                                 category = "Локальные",
-                                totalCharacters = parsedContent.length,
+                                totalCharacters = strippedContent.length,
                                 coverGradientStart = getRandomGradientStartColor(),
                                 coverGradientEnd = getRandomGradientEndColor(),
                                 filePath = file.absolutePath,
