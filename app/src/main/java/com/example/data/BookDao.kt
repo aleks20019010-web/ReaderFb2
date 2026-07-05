@@ -58,12 +58,6 @@ interface BookDao {
     @Query("UPDATE books SET currentProgressChar = :charOffset, lastReadTime = :timestamp WHERE sha1 = :sha1")
     suspend fun updateProgress(sha1: String, charOffset: Int, timestamp: Long)
 
-    @Query("SELECT content FROM books WHERE sha1 = :sha1 LIMIT 1")
-    suspend fun getBookContent(sha1: String): String?
-
-    @Query("UPDATE books SET content = :newContent WHERE sha1 = :sha1")
-    suspend fun updateBookContent(sha1: String, newContent: String)
-
     @Query("DELETE FROM books WHERE sha1 = :sha1")
     suspend fun deleteBookBySha1(sha1: String)
 }

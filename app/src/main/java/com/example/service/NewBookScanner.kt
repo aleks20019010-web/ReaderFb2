@@ -241,16 +241,13 @@ class NewBookScanner(
                 // Extract and save cover image to context.filesDir
                 val coverPath = NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
                 
-                val strippedContent = NewCoverExtractor.stripBinarySections(rawText)
                 val book = BookEntity(
                     sha1 = sha1,
                     title = resolvedTitle,
                     author = metadata.author,
-                    content = strippedContent,
                     coverGradientStart = getRandomGradientStartColor(),
                     coverGradientEnd = getRandomGradientEndColor(),
                     category = "Local",
-                    totalCharacters = strippedContent.length,
                     filePath = file.absolutePath,
                     coverPath = coverPath
                 )
@@ -310,16 +307,13 @@ class NewBookScanner(
                                         // Extract and save cover image to context.filesDir
                                         val coverPath = NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
                                         
-                                        val strippedContent = NewCoverExtractor.stripBinarySections(rawText)
                                         val book = BookEntity(
                                             sha1 = sha1,
                                             title = resolvedTitle,
                                             author = metadata.author,
-                                            content = strippedContent,
                                             coverGradientStart = getRandomGradientStartColor(),
                                             coverGradientEnd = getRandomGradientEndColor(),
                                             category = "Local",
-                                            totalCharacters = strippedContent.length,
                                             filePath = file.absolutePath,
                                             coverPath = coverPath
                                         )

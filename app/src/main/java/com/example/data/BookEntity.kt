@@ -8,7 +8,6 @@ data class BookEntity(
     @PrimaryKey val sha1: String,
     val title: String,
     val author: String? = "Неизвестен",
-    val content: String,
     val coverGradientStart: String = "#FF6B6B",
     val coverGradientEnd: String = "#4D96FF",
     val category: String = "Классика",
