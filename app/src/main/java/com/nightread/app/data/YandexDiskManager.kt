@@ -25,7 +25,7 @@ object YandexDiskManager {
     private const val BASE_URL = "https://cloud-api.yandex.net/"
 
     // Placeholder Client ID for Yandex OAuth. Users can replace this with their own.
-    const val CLIENT_ID = "61d9bc44f0f04c6e8f4fa2490dfb1ee1"
+    const val CLIENT_ID = "bfdea73d1e6242ba826f15d9d0374005"
 
     private val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
