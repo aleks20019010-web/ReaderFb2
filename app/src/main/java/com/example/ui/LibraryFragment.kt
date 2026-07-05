@@ -305,6 +305,13 @@ class LibraryFragment : Fragment() {
     }
 
     private fun filterAndApplyBooks() {
+        if (allBooksList.isEmpty()) {
+            tvEmptyLibrary.text = "Библиотека пуста"
+            tvEmptyLibrary.visibility = View.VISIBLE
+            rvBooks.visibility = View.GONE
+            return
+        }
+
         var filtered = allBooksList
         
         filtered = when (filterType) {
@@ -329,6 +336,7 @@ class LibraryFragment : Fragment() {
         adapter.updateData(filtered)
 
         if (filtered.isEmpty()) {
+            tvEmptyLibrary.text = "Ничего не найдено"
             tvEmptyLibrary.visibility = View.VISIBLE
             rvBooks.visibility = View.GONE
         } else {

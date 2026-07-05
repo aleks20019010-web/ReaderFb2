@@ -18,16 +18,31 @@ class BookRepository(
 
     fun getBooksBySeries(series: String): Flow<List<BookEntity>> = bookDao.getBooksBySeries(series)
 
-    suspend fun insertBook(book: BookEntity): Long = bookDao.insertBook(book)
+    suspend fun insertBook(book: BookEntity): Long = withContext(Dispatchers.IO) {
+        Log.d("BookRepo", "Inserting single book: ${book.title}")
+        val id = bookDao.insertBook(book)
+        Log.d("BookRepo", "Inserted single book with ID: $id")
+        id
+    }
 
-    suspend fun insertBookIfUnique(book: BookEntity): Boolean = bookDao.insertBookIfUnique(book)
+    suspend fun insertBookIfUnique(book: BookEntity): Boolean = withContext(Dispatchers.IO) {
+        Log.d("BookRepo", "Inserting if unique: ${book.title}")
+        val inserted = bookDao.insertBookIfUnique(book)
+        Log.d("BookRepo", "Insert if unique result: $inserted")
+        inserted
+    }
 
-    suspend fun insertBooks(books: List<BookEntity>) = bookDao.insertBooks(books)
+    suspend fun insertBooks(books: List<BookEntity>) = withContext(Dispatchers.IO) {
+        Log.d("BookRepo", "Inserting ${books.size} books")
+        bookDao.insertBooks(books)
+        Log.d("BookRepo", "Inserted ${books.size} books successfully")
+    }
 
     suspend fun saveBooks(books: List<BookEntity>) {
         withContext(Dispatchers.IO) {
+            Log.d("BookRepo", "Inserting ${books.size} books")
             bookDao.insertBooks(books)
-            Log.d("BookRepository", "Saved ${books.size} books")
+            Log.d("BookRepo", "Inserted ${books.size} books successfully")
         }
     }
 

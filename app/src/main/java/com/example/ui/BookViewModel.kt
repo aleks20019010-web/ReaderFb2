@@ -1,6 +1,7 @@
 package com.example.ui
 
 import android.app.Application
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -20,12 +21,40 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     val repository = BookRepository(database.bookDao(), database.noteDao())
     val syncManager = SyncManager(application)
 
-    // Observables from Database
+    // Observables from Database with robust error catching
     val allBooks: StateFlow<List<BookEntity>> = repository.allBooks
+        .catch { e ->
+            Log.e("BookViewModel", "Exception loading books from database", e)
+            withContext(Dispatchers.Main) {
+                android.widget.Toast.makeText(getApplication(), "Ошибка при чтении базы данных книг: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+            }
+            emit(emptyList())
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allNotes: StateFlow<List<NoteEntity>> = repository.allNotes
+        .catch { e ->
+            Log.e("BookViewModel", "Exception loading notes from database", e)
+            emit(emptyList())
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Explicit helper to load books from database safely with try-catch and Toast reporting.
+     */
+    fun loadBooks() {
+        viewModelScope.launch {
+            try {
+                Log.d("BookViewModel", "loadBooks() called: Triggering fetch of books.")
+                repository.allBooks.first()
+            } catch (e: Exception) {
+                Log.e("BookViewModel", "Critical error in loadBooks() during database fetch", e)
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(getApplication(), "Ошибка загрузки списка книг: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     // UI Navigation & Preferences State
     var currentTab by mutableStateOf(0) // 0 = Shelf, 1 = Reader, 2 = Notes, 3 = Sync/Settings

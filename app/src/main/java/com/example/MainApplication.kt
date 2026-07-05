@@ -46,13 +46,14 @@ class MainApplication : Application() {
         val prefs = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
         val isFirstLaunch = prefs.getBoolean("first_launch", true)
         
-        if (isFirstLaunch) {
-            Log.d("MainApplication", "First launch detected, preparing demo books.")
-            val database = AppDatabase.getDatabase(this)
-            val bookDao = database.bookDao()
-            
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
+        val database = AppDatabase.getDatabase(this)
+        val bookDao = database.bookDao()
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val existingBooks = bookDao.getAllSha1s()
+                if (isFirstLaunch || existingBooks.isEmpty()) {
+                    Log.d("MainApplication", "First launch or empty database detected (isFirstLaunch=$isFirstLaunch, existingCount=${existingBooks.size}), preparing demo books.")
                     val demoBooks = listOf(
                         BookEntity(
                             sha1 = "dostoevsky_crime_punishment_sha1",
@@ -126,9 +127,11 @@ class MainApplication : Application() {
                     bookDao.insertBooks(demoBooks)
                     prefs.edit().putBoolean("first_launch", false).apply()
                     Log.d("MainApplication", "Successfully inserted 4 demo books and marked first_launch as false.")
-                } catch (e: Exception) {
-                    Log.e("MainApplication", "Failed to insert demo books on first launch", e)
+                } else {
+                    Log.d("MainApplication", "Database already contains ${existingBooks.size} books, skipping demo books insertion.")
                 }
+            } catch (e: Exception) {
+                Log.e("MainApplication", "Failed to insert demo books on first launch", e)
             }
         }
     }
