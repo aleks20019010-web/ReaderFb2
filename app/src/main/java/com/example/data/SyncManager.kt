@@ -113,7 +113,6 @@ class SyncManager(private val context: Context) {
                     sha1 = sha1String,
                     title = incoming.title,
                     author = incoming.author,
-                    content = "Синхронизированная книга. Содержимое отсутствует, так как книга была импортирована через синхронизацию.",
                     currentProgressChar = incoming.currentProgressChar,
                     lastReadTime = incoming.lastReadTime,
                     totalCharacters = 1000

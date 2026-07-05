@@ -115,7 +115,7 @@ class BookDetailActivity : AppCompatActivity() {
                     tvSeries.visibility = View.GONE
                 }
 
-                tvAnnotation.text = if (book.content.length > 500) book.content.take(500) + "..." else book.content
+                tvAnnotation.text = "Аннотация отсутствует"
 
                 val percent = if (book.totalCharacters > 0) {
                     ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt().coerceIn(0, 100)

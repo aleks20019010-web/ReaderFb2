@@ -643,29 +643,25 @@ class ReaderActivity : FragmentActivity() {
                 titleText.text = book.title
                 
                 val path = book.filePath
-                if (path.isNullOrEmpty()) {
-                    Log.d("READING_DEBUG", "READING_DEBUG: Путь отсутствует в БД, используем встроенный текст (длина: ${book.content.length})")
-                    loadBookWithContent(book.content, "Встроенный текст")
-                } else {
+                
+                // Always try to load if path exists, otherwise attempt to find it via SHA-1
+                if (!path.isNullOrEmpty() && File(path).exists()) {
                     Log.d("READING_DEBUG", "READING_DEBUG: Найден путь в БД: $path. Проверка доступности файла...")
-                    val file = File(path)
-                    if (file.exists()) {
-                        bookPath = path
-                        loadBook(path)
-                    } else {
-                        Log.d("READING_DEBUG", "READING_DEBUG: Файл не найден по пути $path. Запуск резервного поиска по SHA-1...")
-                        val foundFile = findBookFileBySha1(bookSha1, path)
-                        if (foundFile != null) {
-                            Log.d("READING_DEBUG", "READING_DEBUG: Резервный файл найден: ${foundFile.absolutePath}. Обновление БД...")
-                            bookPath = foundFile.absolutePath
-                            withContext(Dispatchers.IO) {
-                                db.bookDao().updateBook(book.copy(filePath = foundFile.absolutePath))
-                            }
-                            loadBook(foundFile.absolutePath)
-                        } else {
-                            Log.e("READING_DEBUG", "READING_DEBUG: Файл не найден по SHA-1 в резервных папках")
-                            showErrorAndExit("Ошибка: Файл книги не найден на устройстве")
+                    bookPath = path
+                    loadBook(path)
+                } else {
+                    Log.d("READING_DEBUG", "READING_DEBUG: Путь отсутствует или файл не найден. Запуск поиска файла по SHA-1...")
+                    val foundFile = findBookFileBySha1(bookSha1, path)
+                    if (foundFile != null) {
+                        Log.d("READING_DEBUG", "READING_DEBUG: Резервный файл найден: ${foundFile.absolutePath}. Обновление БД...")
+                        bookPath = foundFile.absolutePath
+                        withContext(Dispatchers.IO) {
+                            db.bookDao().updateBook(book.copy(filePath = foundFile.absolutePath))
                         }
+                        loadBook(foundFile.absolutePath)
+                    } else {
+                        Log.e("READING_DEBUG", "READING_DEBUG: Файл не найден по SHA-1 в резервных папках")
+                        showErrorAndExit("Ошибка: Файл книги не найден на устройстве")
                     }
                 }
             } catch (t: Throwable) {

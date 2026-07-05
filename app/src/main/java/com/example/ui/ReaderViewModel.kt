@@ -102,7 +102,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun fallbackPagination(book: BookEntity) {
-        val content = book.content
+        val content = book.content ?: ""
         if (content.isEmpty()) {
             _pagesState.value = listOf("Документ пуст.")
             pageStartOffsets = listOf(0)
@@ -191,7 +191,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun repaginate() {
         val book = _bookState.value ?: return
-        val text = book.content
+        val text = book.content ?: ""
         if (text.isEmpty() || availableWidth <= 0 || availableHeight <= 0) return
 
         viewModelScope.launch(Dispatchers.Default) {
