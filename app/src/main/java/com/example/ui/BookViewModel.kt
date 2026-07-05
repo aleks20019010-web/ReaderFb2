@@ -33,7 +33,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     var detailedBook by mutableStateOf<BookEntity?>(null)
 
     // Scanning Device for Local Books
-    val scanState = com.example.service.NewBookScanState.state
+    val scanState: StateFlow<com.example.service.ScanState> = com.example.service.NewBookScanState.state
     var isScanning by mutableStateOf(false)
     var scanProgressText by mutableStateOf("")
 
@@ -662,26 +662,15 @@ Monsieur прогнали со двора.
 
     fun startLocalBookScan(rootPath: String = "/storage/emulated/0") {
         if (isScanning) return
-        val context = getApplication<android.app.Application>()
-        val constraints = androidx.work.Constraints.Builder()
-            .setRequiresStorageNotLow(true)
-            .build()
-            
-        val inputData = androidx.work.Data.Builder()
-            .putString("ROOT_PATH", rootPath)
-            .build()
-
-        val scanRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.service.BookScanWorker>()
-            .setConstraints(constraints)
-            .setInputData(inputData)
-            .addTag("BookScanWork")
-            .build()
-
-        androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
-            "BookScanUniqueWork",
-            androidx.work.ExistingWorkPolicy.REPLACE,
-            scanRequest
-        )
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val context = getApplication<android.app.Application>()
+                val scanner = com.example.service.NewBookScanner(context, database.bookDao())
+                scanner.scanBooks()
+            } catch (e: Exception) {
+                android.util.Log.e("BookViewModel", "Failed to scan books locally", e)
+            }
+        }
     }
 
     private suspend fun scanDirectoryForBooks(rootPath: String) {

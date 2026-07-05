@@ -249,41 +249,49 @@ class LibraryFragment : Fragment() {
         // Observe Scan Progress state
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.scanState.collectLatest { state ->
-                val active = state.isScanning
-                btnAutoScan.isEnabled = !active
-                if (active) {
-                    startPulsing(btnAutoScan)
-                } else {
-                    stopPulsing(btnAutoScan)
-                }
-                btnAutoScan.alpha = if (active) 0.7f else 1.0f
-                
-                if (active) {
-                    wasScanning = true
-                    layoutScanProgress.visibility = View.VISIBLE
-                    progressBarSpinner.visibility = View.VISIBLE
-                } else {
-                    progressBarSpinner.visibility = View.GONE
-                    
-                    if (wasScanning) {
-                        wasScanning = false
-                        if (state.status.startsWith("Scan finished")) {
-                            Toast.makeText(requireContext(), state.status, Toast.LENGTH_LONG).show()
-                        }
-                    }
-                    if (state.status.isBlank()) {
-                        layoutScanProgress.visibility = View.GONE
-                    }
-                }
-                
-                if (state.status.isNotBlank()) {
-                    layoutScanProgress.visibility = View.VISIBLE
-                    tvScanStatus.text = state.status
-                }
-                
-                updateProgressValues(state.totalFiles, state.processedFiles)
+                updateScanUI(state)
             }
         }
+    }
+
+    private fun updateScanUI(state: com.example.service.ScanState) {
+        val active = state.isScanning
+        btnAutoScan.isEnabled = !active
+        if (active) {
+            startPulsing(btnAutoScan)
+        } else {
+            stopPulsing(btnAutoScan)
+        }
+        btnAutoScan.alpha = if (active) 0.7f else 1.0f
+        
+        if (active) {
+            wasScanning = true
+            layoutScanProgress.visibility = View.VISIBLE
+            progressBarSpinner.visibility = View.VISIBLE
+        } else {
+            progressBarSpinner.visibility = View.GONE
+            
+            if (wasScanning) {
+                wasScanning = false
+                if (state.status.startsWith("Scan finished") || state.status.startsWith("No books")) {
+                    Toast.makeText(requireContext(), state.status, Toast.LENGTH_LONG).show()
+                }
+            }
+            if (state.status.isBlank()) {
+                layoutScanProgress.visibility = View.GONE
+            }
+        }
+        
+        if (state.status.isNotBlank()) {
+            layoutScanProgress.visibility = View.VISIBLE
+            tvScanStatus.text = state.status
+            
+            if (state.status.startsWith("Error", ignoreCase = true) || state.status.startsWith("Ошибка", ignoreCase = true)) {
+                Toast.makeText(requireContext(), state.status, Toast.LENGTH_LONG).show()
+            }
+        }
+        
+        updateProgressValues(state.totalFiles, state.processedFiles)
     }
 
     private fun updateProgressValues(total: Int, processed: Int) {

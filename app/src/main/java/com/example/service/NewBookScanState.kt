@@ -12,6 +12,8 @@ data class ScannerState(
     val skippedBooks: Int = 0
 )
 
+typealias ScanState = ScannerState
+
 object NewBookScanState {
     private val _state = MutableStateFlow(ScannerState())
     val state = _state.asStateFlow()
