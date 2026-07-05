@@ -7,12 +7,12 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.nightread.app"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
     manifestPlaceholders["YANDEX_CLIENT_ID"] = "61d9bc44f0f04c6e8f4fa2490dfb1ee1"
-    applicationId = "com.aistudio.bookreader.readx"
+    applicationId = "com.nightread.app"
     minSdk = 24
     targetSdk = 36
     versionCode = 1

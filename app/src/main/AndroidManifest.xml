@@ -34,31 +34,31 @@
         </activity>
 
         <activity
-            android:name="com.example.ui.BookDetailActivity"
+            android:name="com.nightread.app.ui.BookDetailActivity"
             android:exported="false"
             android:theme="@style/Theme.MyApplication" />
         <activity
-            android:name="com.example.ui.ReaderActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyApplication" />
-
-        <activity
-            android:name="com.example.ui.SettingsActivity"
+            android:name="com.nightread.app.ui.ReaderActivity"
             android:exported="false"
             android:theme="@style/Theme.MyApplication" />
 
         <activity
-            android:name="com.example.ui.AuthorBooksActivity"
+            android:name="com.nightread.app.ui.SettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.MyApplication" />
 
         <activity
-            android:name="com.example.ui.YandexAuthActivity"
+            android:name="com.nightread.app.ui.AuthorBooksActivity"
             android:exported="false"
             android:theme="@style/Theme.MyApplication" />
 
         <activity
-            android:name="com.example.ui.SeriesBooksActivity"
+            android:name="com.nightread.app.ui.YandexAuthActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MyApplication" />
+
+        <activity
+            android:name="com.nightread.app.ui.SeriesBooksActivity"
             android:exported="false"
             android:theme="@style/Theme.MyApplication" />
     </application>
