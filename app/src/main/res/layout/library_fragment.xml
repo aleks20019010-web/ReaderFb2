@@ -1,12 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@drawable/bg_screen_gradient"
-    android:animateLayoutChanges="true">
+    android:layout_height="match_parent">
+
+    <com.example.ui.TextureBackgroundView
+        android:id="@+id/textureBackground"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@android:color/transparent"
+        android:animateLayoutChanges="true">
 
     <!-- Top Action Bar Header -->
     <RelativeLayout
@@ -252,3 +261,4 @@
         </FrameLayout>
     </LinearLayout>
 </LinearLayout>
+</FrameLayout>
