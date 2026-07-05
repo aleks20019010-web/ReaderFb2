@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="400dp"
+    android:height="800dp"
+    android:viewportWidth="400"
+    android:viewportHeight="800">
+
+    <!-- Back tree / grass -->
+    <group android:name="tree_left" android:pivotX="100" android:pivotY="800">
+        <path android:fillColor="#157A9B6A" 
+              android:pathData="M50,800 Q100,500 150,800 Z" />
+        <path android:fillColor="#155C7A4E" 
+              android:pathData="M20,800 Q70,400 120,800 Z" />
+    </group>
+
+    <group android:name="tree_right" android:pivotX="300" android:pivotY="800">
+        <path android:fillColor="#155C7A4E" 
+              android:pathData="M250,800 Q300,450 350,800 Z" />
+        <path android:fillColor="#107A9B6A" 
+              android:pathData="M300,800 Q350,350 400,800 Z" />
+    </group>
+
+    <group android:name="leaves_group">
+        <group android:name="leaf1" android:pivotX="100" android:pivotY="100">
+            <path android:fillColor="#207A9B6A" android:pathData="M100,100 C110,90 120,100 110,110 C100,120 90,110 100,100 Z" />
+        </group>
+        <group android:name="leaf2" android:pivotX="300" android:pivotY="250">
+            <path android:fillColor="#155C7A4E" android:pathData="M300,250 C310,240 320,250 310,260 C300,270 290,260 300,250 Z" />
+        </group>
+        <group android:name="leaf3" android:pivotX="150" android:pivotY="400">
+            <path android:fillColor="#1A5C7A4E" android:pathData="M150,400 C160,390 170,400 160,410 C150,420 140,410 150,400 Z" />
+        </group>
+    </group>
+</vector>

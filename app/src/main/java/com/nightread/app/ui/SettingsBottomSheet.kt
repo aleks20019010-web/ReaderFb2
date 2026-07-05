@@ -63,6 +63,7 @@ class SettingsBottomSheet : DialogFragment() {
         var selectedWeight by remember { mutableStateOf(SettingsManager.getFontWeight(context)) }
         var fontSize by remember { mutableStateOf(SettingsManager.getFontSize(context)) }
         var lineSpacing by remember { mutableStateOf(SettingsManager.getLineSpacing(context)) }
+        var isAutoDiscovery by remember { mutableStateOf(SettingsManager.isAutoDiscoveryEnabled(context)) }
 
         // Dynamic visual properties matching current theme
         val (bgColor, contentColor, cardColor) = Triple(Color(0xFFEEF3E8), Color(0xFF2A3A22), Color(0xFFF8FAF0))
@@ -284,6 +285,61 @@ class SettingsBottomSheet : DialogFragment() {
                         thumbColor = contentColor,
                         activeTrackColor = contentColor,
                         inactiveTrackColor = contentColor.copy(alpha = 0.24f)
+                    )
+                )
+            }
+
+            // 5.5 Auto Discovery Toggle
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { 
+                        isAutoDiscovery = !isAutoDiscovery
+                        SettingsManager.setAutoDiscoveryEnabled(context, isAutoDiscovery)
+                        if (isAutoDiscovery) {
+                            com.nightread.app.service.AutoDiscoveryWorker.schedule(context)
+                            com.nightread.app.service.AutoDiscoveryService.start(context)
+                        } else {
+                            com.nightread.app.service.AutoDiscoveryWorker.cancel(context)
+                            com.nightread.app.service.AutoDiscoveryService.stop(context)
+                        }
+                    }
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Авто-обнаружение новых книг",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = contentColor
+                    )
+                    Text(
+                        text = "Отслеживание новых файлов fb2 и fb2.zip в фоне",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = contentColor.copy(alpha = 0.7f)
+                    )
+                }
+                Switch(
+                    checked = isAutoDiscovery,
+                    onCheckedChange = { 
+                        isAutoDiscovery = it
+                        SettingsManager.setAutoDiscoveryEnabled(context, isAutoDiscovery)
+                        if (isAutoDiscovery) {
+                            com.nightread.app.service.AutoDiscoveryWorker.schedule(context)
+                            com.nightread.app.service.AutoDiscoveryService.start(context)
+                        } else {
+                            com.nightread.app.service.AutoDiscoveryWorker.cancel(context)
+                            com.nightread.app.service.AutoDiscoveryService.stop(context)
+                        }
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = bgColor,
+                        checkedTrackColor = contentColor,
+                        uncheckedThumbColor = contentColor,
+                        uncheckedTrackColor = bgColor,
+                        uncheckedBorderColor = contentColor
                     )
                 )
             }

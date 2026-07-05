@@ -85,6 +85,7 @@ dependencies {
   implementation("com.google.android.material:material:1.11.0")
   implementation(libs.androidx.fragment.ktx)
   implementation(libs.androidx.swiperefreshlayout)
+    implementation("com.facebook.shimmer:shimmer:0.5.0")
   // implementation(libs.androidx.datastore.preferences)
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="24dp"
+    android:paddingBottom="8dp"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/tvSeriesHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Название серии"
+        android:textColor="@color/text_primary"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif-medium" />
+
+    <View
+        android:layout_width="48dp"
+        android:layout_height="2dp"
+        android:layout_marginTop="4dp"
+        android:background="@color/accent" />
+
+</LinearLayout>

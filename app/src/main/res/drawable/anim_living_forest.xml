@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/ic_forest_scene">
+    <target android:name="tree_left">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:valueFrom="-2"
+                android:valueTo="2"
+                android:duration="4000"
+                android:repeatCount="infinite"
+                android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+    <target android:name="tree_right">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:valueFrom="2"
+                android:valueTo="-2"
+                android:duration="5000"
+                android:repeatCount="infinite"
+                android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+    <target android:name="leaf1">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:propertyName="rotation"
+                    android:valueFrom="-10"
+                    android:valueTo="15"
+                    android:duration="3500"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse" />
+                <objectAnimator
+                    android:propertyName="translationX"
+                    android:valueFrom="-10"
+                    android:valueTo="10"
+                    android:duration="6000"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="leaf2">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:propertyName="rotation"
+                    android:valueFrom="10"
+                    android:valueTo="-15"
+                    android:duration="4000"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse" />
+                <objectAnimator
+                    android:propertyName="translationY"
+                    android:valueFrom="-15"
+                    android:valueTo="15"
+                    android:duration="7000"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="leaf3">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:propertyName="rotation"
+                    android:valueFrom="-5"
+                    android:valueTo="5"
+                    android:duration="3000"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse" />
+                <objectAnimator
+                    android:propertyName="translationX"
+                    android:valueFrom="-15"
+                    android:valueTo="15"
+                    android:duration="5500"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse" />
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

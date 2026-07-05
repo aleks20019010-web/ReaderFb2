@@ -1,24 +1,22 @@
 package com.nightread.app.ui
 
-import android.view.ViewGroup
-
-import android.animation.AnimatorSet
-import android.animation.ValueAnimator
-import android.animation.AnimatorListenerAdapter
 import android.animation.Animator
-import android.graphics.LinearGradient
-import android.graphics.Matrix
-import android.graphics.Shader
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
-import android.animation.PropertyValuesHolder
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Matrix
+import android.graphics.Shader
 import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.animation.OvershootInterpolator
 import android.widget.ImageView
 import android.widget.ProgressBar
@@ -29,16 +27,23 @@ import com.nightread.app.R
 import com.nightread.app.data.BookEntity
 import java.io.File
 
-class BookAdapter(
-    private var books: List<BookEntity>,
+sealed class SeriesItem {
+    data class Header(val seriesName: String) : SeriesItem()
+    data class Book(val book: BookEntity) : SeriesItem()
+}
+
+class SeriesGroupAdapter(
     private val onOpenBook: (BookEntity) -> Unit,
     private val onDeleteBook: ((BookEntity) -> Unit)? = null
-) : RecyclerView.Adapter<BookAdapter.BookViewHolder>() {
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    
+    private var items: List<SeriesItem> = emptyList()
+    private var isGridView: Boolean = true
+
     companion object {
-        private const val VIEW_TYPE_GRID = 0
-        private const val VIEW_TYPE_LIST = 1
+        const val VIEW_TYPE_HEADER = 0
+        const val VIEW_TYPE_BOOK_GRID = 1
+        const val VIEW_TYPE_BOOK_LIST = 2
 
         private fun triggerGoldShine(vararg textViews: TextView) {
             for (tv in textViews) {
@@ -78,72 +83,119 @@ class BookAdapter(
         }
     }
 
-
-    private var isGridView: Boolean = true
-
     override fun getItemViewType(position: Int): Int {
-        return if (isGridView) VIEW_TYPE_GRID else VIEW_TYPE_LIST
-    }
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BookViewHolder {
-        val layoutRes = if (viewType == VIEW_TYPE_GRID) {
-            R.layout.item_book_minimalist
-        } else {
-            R.layout.item_book_detailed_list
+        return when (items[position]) {
+            is SeriesItem.Header -> VIEW_TYPE_HEADER
+            is SeriesItem.Book -> if (isGridView) VIEW_TYPE_BOOK_GRID else VIEW_TYPE_BOOK_LIST
         }
-        val view = LayoutInflater.from(parent.context).inflate(layoutRes, parent, false)
-        return BookViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: BookViewHolder, position: Int) {
-        val book = books[position]
-        holder.bind(book, onOpenBook, onDeleteBook)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        return when (viewType) {
+            VIEW_TYPE_HEADER -> {
+                val view = inflater.inflate(R.layout.item_series_header, parent, false)
+                HeaderViewHolder(view)
+            }
+            VIEW_TYPE_BOOK_GRID -> {
+                val view = inflater.inflate(R.layout.item_book_minimalist, parent, false)
+                BookViewHolder(view)
+            }
+            VIEW_TYPE_BOOK_LIST -> {
+                val view = inflater.inflate(R.layout.item_book_detailed_list, parent, false)
+                BookViewHolder(view)
+            }
+            else -> throw IllegalArgumentException("Invalid view type")
+        }
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val item = items[position]
         
-        // Staggered cascade animation for a premium Material 3 entry effect
-        holder.itemView.alpha = 0f
-        holder.itemView.translationY = 32f * holder.itemView.resources.displayMetrics.density
-        holder.itemView.animate()
-            .alpha(1f)
-            .translationY(0f)
-            .setDuration(350)
-            .setStartDelay((position % 12).toLong() * 30) // Cap the delay to keep interactions snappy
-            .setInterpolator(android.view.animation.DecelerateInterpolator())
-            .start()
+        when (holder) {
+            is HeaderViewHolder -> {
+                val header = item as SeriesItem.Header
+                holder.bind(header.seriesName)
+            }
+            is BookViewHolder -> {
+                val bookItem = item as SeriesItem.Book
+                holder.bind(bookItem.book, onOpenBook, onDeleteBook)
+                
+                holder.itemView.alpha = 0f
+                holder.itemView.translationY = 32f * holder.itemView.resources.displayMetrics.density
+                holder.itemView.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(350)
+                    .setStartDelay((position % 12).toLong() * 30)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .start()
+            }
+        }
     }
 
-    override fun getItemCount(): Int = books.size
+    override fun getItemCount(): Int = items.size
 
     fun updateData(newBooks: List<BookEntity>) {
+        val groupedMap = newBooks.groupBy { it.series ?: "Без серии" }
+        val newItems = mutableListOf<SeriesItem>()
+        
+        val seriesKeys = groupedMap.keys.sortedWith(compareBy { if (it == "Без серии") 1 else 0 })
+        
+        for (key in seriesKeys) {
+            newItems.add(SeriesItem.Header(key))
+            val booksInSeries = groupedMap[key] ?: emptyList()
+            val sortedBooks = booksInSeries.sortedBy { it.seriesIndex ?: 9999 }
+            for (book in sortedBooks) {
+                newItems.add(SeriesItem.Book(book))
+            }
+        }
+        
         val diffCallback = object : DiffUtil.Callback() {
-            override fun getOldListSize() = books.size
-            override fun getNewListSize() = newBooks.size
+            override fun getOldListSize() = items.size
+            override fun getNewListSize() = newItems.size
             
             override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                return books[oldItemPosition].sha1 == newBooks[newItemPosition].sha1
-
-
+                val old = items[oldItemPosition]
+                val new = newItems[newItemPosition]
+                return if (old is SeriesItem.Header && new is SeriesItem.Header) {
+                    old.seriesName == new.seriesName
+                } else if (old is SeriesItem.Book && new is SeriesItem.Book) {
+                    old.book.sha1 == new.book.sha1
+                } else {
+                    false
+                }
             }
             
             override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                val old = books[oldItemPosition]
-                val new = newBooks[newItemPosition]
-                return old.title == new.title &&
-                       old.currentProgressChar == new.currentProgressChar &&
-                       old.coverPath == new.coverPath
+                val old = items[oldItemPosition]
+                val new = newItems[newItemPosition]
+                return if (old is SeriesItem.Header && new is SeriesItem.Header) {
+                    old.seriesName == new.seriesName
+                } else if (old is SeriesItem.Book && new is SeriesItem.Book) {
+                    old.book.title == new.book.title &&
+                    old.book.currentProgressChar == new.book.currentProgressChar &&
+                    old.book.coverPath == new.book.coverPath &&
+                    old.book.series == new.book.series &&
+                    old.book.seriesIndex == new.book.seriesIndex
+                } else {
+                    false
+                }
             }
         }
         
         val diffResult = DiffUtil.calculateDiff(diffCallback)
-        this.books = newBooks
+        this.items = newItems
         diffResult.dispatchUpdatesTo(this)
     }
 
-    fun getBookAt(position: Int): BookEntity {
-        return books[position]
+    fun getBookAt(position: Int): BookEntity? {
+        val item = items.getOrNull(position)
+        return if (item is SeriesItem.Book) item.book else null
     }
 
     fun getPositionOfBook(book: BookEntity): Int {
-        return books.indexOfFirst { it.sha1 == book.sha1 }
+        return items.indexOfFirst { it is SeriesItem.Book && it.book.sha1 == book.sha1 }
     }
 
     fun setGridView(grid: Boolean) {
@@ -153,13 +205,20 @@ class BookAdapter(
         }
     }
 
+    class HeaderViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val tvHeader: TextView = itemView.findViewById(R.id.tvSeriesHeader)
+        fun bind(seriesName: String) {
+            tvHeader.text = seriesName
+        }
+    }
+
     class BookViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvBookTitle: TextView = itemView.findViewById(R.id.tvBookTitle)
         private val tvBookAuthor: TextView = itemView.findViewById(R.id.tvBookAuthor)
-        private val tvBookSeries: TextView = itemView.findViewById(R.id.tvBookSeries)
+        private val tvBookSeries: TextView? = itemView.findViewById(R.id.tvBookSeries)
         private val ivCover: ImageView = itemView.findViewById(R.id.ivCover)
         private val vCoverBackground: View = itemView.findViewById(R.id.vCoverBackground)
-        private val btnDelete: View = itemView.findViewById(R.id.btnDelete)
+        private val btnDelete: View? = itemView.findViewById(R.id.btnDelete)
         private val pbReadingProgress: ProgressBar = itemView.findViewById(R.id.pbReadingProgress)
 
         fun bind(
@@ -179,20 +238,13 @@ class BookAdapter(
                 }
             }
 
-            if (!book.series.isNullOrEmpty()) {
-                tvBookSeries.visibility = View.VISIBLE
-                tvBookSeries.text = book.series
-                tvBookSeries.setOnClickListener {
-                    val intent = Intent(itemView.context, SeriesBooksActivity::class.java).apply {
-                        putExtra("SERIES_NAME", book.series)
-                    }
-                    itemView.context.startActivity(intent)
-                if (itemView.context is Activity) {
-                    (itemView.context as Activity).overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+            if (tvBookSeries != null) {
+                if (book.seriesIndex != null) {
+                    tvBookSeries.visibility = View.VISIBLE
+                    tvBookSeries.text = "Книга ${book.seriesIndex}"
+                } else {
+                    tvBookSeries.visibility = View.GONE
                 }
-                }
-            } else {
-                tvBookSeries.visibility = View.GONE
             }
 
             // Set background gradient fallback
@@ -225,7 +277,6 @@ class BookAdapter(
                 ivCover.visibility = View.GONE
             }
 
-            // Set reading progress
             val progressPercent = if (book.totalCharacters > 0) {
                 ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt().coerceIn(0, 100)
             } else {
@@ -237,7 +288,6 @@ class BookAdapter(
             } else {
                 pbReadingProgress.visibility = View.GONE
             }
-
 
             // Breathing effect on cover
             val oldAnimator = ivCover.getTag(R.id.breathing_animator) as? ObjectAnimator
@@ -251,8 +301,6 @@ class BookAdapter(
             }
             ivCover.setTag(R.id.breathing_animator, newAnimator)
 
-            // Click interactions
-            
             // Bounce animation
             itemView.setOnTouchListener { v, event ->
                 when (event.action) {
@@ -288,7 +336,6 @@ class BookAdapter(
                 onOpenBook(book)
             }
 
-
             // Long click interactions (Context Menu)
             itemView.setOnLongClickListener { view ->
                 val popup = androidx.appcompat.widget.PopupMenu(view.context, view)
@@ -314,9 +361,8 @@ class BookAdapter(
                 true
             }
             
-            // Hide delete button and remove listener
-            btnDelete.visibility = View.GONE
-            btnDelete.setOnClickListener(null)
+            btnDelete?.visibility = View.GONE
+            btnDelete?.setOnClickListener(null)
         }
     }
 }

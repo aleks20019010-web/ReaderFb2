@@ -23,7 +23,8 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingBottom="8dp"
-            android:background="@drawable/bg_card_forest">
+            android:background="@drawable/bg_card_glass"
+            android:foreground="?android:attr/selectableItemBackground">
 
             <!-- Cover container with fixed height for perfect grid alignment -->
             <FrameLayout
@@ -120,6 +121,30 @@
                 android:textSize="10sp"
                 android:paddingHorizontal="8dp"
                 android:visibility="gone" />
+
+            <ProgressBar
+                android:id="@+id/pbReadingProgress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_marginTop="8dp"
+                android:progress="0"
+                android:max="100"
+                android:progressTint="@color/accent"
+                android:progressBackgroundTint="#337A9B6A"
+                android:visibility="visible" />
+
+            <ProgressBar
+                android:id="@+id/pbReadingProgress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_marginTop="8dp"
+                android:progress="0"
+                android:max="100"
+                android:progressTint="@color/accent"
+                android:progressBackgroundTint="#337A9B6A"
+                android:visibility="visible" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 </LinearLayout>

@@ -16,6 +16,8 @@ object SettingsManager {
     const val KEY_FONT_WEIGHT = "font_weight"
     const val KEY_LINE_SPACING = "line_spacing"
 
+    const val KEY_AUTO_DISCOVERY = "auto_discovery"
+
     private val _settingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val settingsChanged: SharedFlow<Unit> = _settingsChanged.asSharedFlow()
 
@@ -28,6 +30,7 @@ object SettingsManager {
     private var cachedFontFamily: String? = null
     private var cachedFontWeight: String? = null
     private var cachedLineSpacing: Float? = null
+    private var cachedAutoDiscovery: Boolean? = null
 
     private fun getPrefs(context: Context): SharedPreferences {
         if (prefs == null) {
@@ -38,6 +41,20 @@ object SettingsManager {
 
     fun notifyChanged() {
         _settingsChanged.tryEmit(Unit)
+    }
+
+    fun isAutoDiscoveryEnabled(context: Context): Boolean {
+        if (cachedAutoDiscovery == null) {
+            cachedAutoDiscovery = getPrefs(context).getBoolean(KEY_AUTO_DISCOVERY, false)
+        }
+        return cachedAutoDiscovery!!
+    }
+
+    fun setAutoDiscoveryEnabled(context: Context, enabled: Boolean) {
+        if (cachedAutoDiscovery == enabled) return
+        cachedAutoDiscovery = enabled
+        getPrefs(context).edit().putBoolean(KEY_AUTO_DISCOVERY, enabled).apply()
+        notifyChanged()
     }
 
     fun getTheme(context: Context): String {

@@ -1,16 +1,22 @@
 package com.nightread.app.ui
 
+import android.view.ViewGroup
+
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
 import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Animatable
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
-import android.view.ViewGroup
+import android.view.animation.OvershootInterpolator
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.ProgressBar
@@ -22,13 +28,14 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.ItemTouchHelper
 import com.nightread.app.R
 import com.nightread.app.data.BookEntity
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+
 
 class LibraryFragment : Fragment() {
 
@@ -51,7 +58,7 @@ class LibraryFragment : Fragment() {
 
     private val viewModel: BookViewModel by activityViewModels()
     
-    private lateinit var adapter: BookAdapter
+    private lateinit var adapter: SeriesGroupAdapter
     private var allBooksList: List<BookEntity> = emptyList()
     private var currentSearchQuery: String = ""
 
@@ -82,6 +89,7 @@ class LibraryFragment : Fragment() {
     private lateinit var btnEmptyStateScan: com.google.android.material.button.MaterialButton
     private lateinit var ivEmptyIllustration: ImageView
     private lateinit var swipeRefresh: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    private lateinit var shimmerContainer: com.facebook.shimmer.ShimmerFrameLayout
 
     // Register Document Picker for single manual import
     private val filePickerLauncher = registerForActivityResult(
@@ -200,6 +208,36 @@ class LibraryFragment : Fragment() {
         btnEmptyStateScan = view.findViewById(R.id.btnEmptyStateScan)
         ivEmptyIllustration = view.findViewById(R.id.ivEmptyIllustration)
         swipeRefresh = view.findViewById(R.id.swipeRefresh)
+        shimmerContainer = view.findViewById(R.id.shimmer_view_container)
+        shimmerContainer.startShimmer()
+        shimmerContainer.visibility = View.VISIBLE
+        // Parallax effect for background and book covers
+        val textureBackground = view.findViewById<View>(R.id.textureBackground)
+        rvBooks.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            var totalScrollY = 0
+            override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                totalScrollY += dy
+                textureBackground?.translationY = -(totalScrollY * 0.1f)
+                
+                // Cover Parallax
+                val layoutManager = recyclerView.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager
+                if (layoutManager != null) {
+                    val firstVisible = layoutManager.findFirstVisibleItemPosition()
+                    val lastVisible = layoutManager.findLastVisibleItemPosition()
+                    val rvCenter = recyclerView.height / 2f
+                    
+                    for (i in firstVisible..lastVisible) {
+                        val child = layoutManager.findViewByPosition(i) ?: continue
+                        val ivCover = child.findViewById<ImageView>(R.id.ivCover) ?: continue
+                        val childCenter = child.y + child.height / 2f
+                        val offset = (childCenter - rvCenter) * 0.05f
+                        ivCover.translationY = offset
+                    }
+                }
+            }
+        })
+
 
         // Style SwipeRefreshLayout to match the app's theme
         swipeRefresh.setColorSchemeResources(R.color.accent, R.color.text_primary)
@@ -210,8 +248,7 @@ class LibraryFragment : Fragment() {
         btnToggleViewMode = view.findViewById(R.id.btnToggleViewMode)
 
         // Setup RecyclerView
-        adapter = BookAdapter(
-            books = emptyList(),
+        adapter = SeriesGroupAdapter(
             onOpenBook = { book ->
                 viewModel.openBook(book)
             },
@@ -227,6 +264,11 @@ class LibraryFragment : Fragment() {
             0,
             ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
         ) {
+            override fun getSwipeDirs(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
+                if (viewHolder is SeriesGroupAdapter.HeaderViewHolder) return 0
+                return super.getSwipeDirs(recyclerView, viewHolder)
+            }
+
             override fun onMove(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder,
@@ -237,7 +279,11 @@ class LibraryFragment : Fragment() {
                 val position = viewHolder.adapterPosition
                 if (position != RecyclerView.NO_POSITION) {
                     val book = adapter.getBookAt(position)
-                    showDeleteConfirmationDialog(book)
+                    if (book != null) {
+                        showDeleteConfirmationDialog(book)
+                    } else {
+                        adapter.notifyItemChanged(position)
+                    }
                 }
             }
 
@@ -331,7 +377,13 @@ class LibraryFragment : Fragment() {
         adapter.setGridView(isGridView)
 
         if (isGridView) {
-            rvBooks.layoutManager = GridLayoutManager(requireContext(), 3)
+            val gridLayoutManager = GridLayoutManager(requireContext(), 3)
+            gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                override fun getSpanSize(position: Int): Int {
+                    return if (adapter.getItemViewType(position) == SeriesGroupAdapter.VIEW_TYPE_HEADER) 3 else 1
+                }
+            }
+            rvBooks.layoutManager = gridLayoutManager
             btnToggleViewMode.setIconResource(R.drawable.ic_custom_list)
             btnToggleViewMode.contentDescription = "Режим списка"
         } else {
@@ -391,11 +443,13 @@ class LibraryFragment : Fragment() {
         }
 
         // Compact Auto-Scan action
+        setBounceAnimation(btnAutoScan)
         btnAutoScan.setOnClickListener {
             checkPermissionsAndScan()
         }
 
         // Empty state Auto-Scan action
+        setBounceAnimation(btnEmptyStateScan)
         btnEmptyStateScan.setOnClickListener {
             checkPermissionsAndScan()
         }
@@ -420,6 +474,8 @@ class LibraryFragment : Fragment() {
     private fun observeViewModel() {
         // Observe Books Stream
         viewLifecycleOwner.lifecycleScope.launch {
+            // Artificial delay to show shimmer for better UX as Room loads extremely fast
+            kotlinx.coroutines.delay(800)
             viewModel.searchedBooks.collectLatest { books ->
                 allBooksList = books
                 filterAndApplyBooks()
@@ -495,6 +551,9 @@ class LibraryFragment : Fragment() {
     }
 
     private fun filterAndApplyBooks() {
+        shimmerContainer.stopShimmer()
+        shimmerContainer.visibility = View.GONE
+        
         if (allBooksList.isEmpty()) {
             layoutEmptyState.visibility = View.VISIBLE
             rvBooks.visibility = View.GONE
@@ -625,5 +684,36 @@ class LibraryFragment : Fragment() {
                 }
             }
             .show()
+    }
+
+    private fun setBounceAnimation(view: View, scaleDownValue: Float = 0.92f) {
+        view.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    val scaleDownX = ObjectAnimator.ofFloat(v, "scaleX", scaleDownValue)
+                    val scaleDownY = ObjectAnimator.ofFloat(v, "scaleY", scaleDownValue)
+                    scaleDownX.duration = 100
+                    scaleDownY.duration = 100
+                    val scaleDown = AnimatorSet()
+                    scaleDown.play(scaleDownX).with(scaleDownY)
+                    scaleDown.start()
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    val scaleUpX = ObjectAnimator.ofFloat(v, "scaleX", 1.0f)
+                    val scaleUpY = ObjectAnimator.ofFloat(v, "scaleY", 1.0f)
+                    scaleUpX.duration = 300
+                    scaleUpY.duration = 300
+                    scaleUpX.interpolator = OvershootInterpolator(1.5f)
+                    scaleUpY.interpolator = OvershootInterpolator(1.5f)
+                    val scaleUp = AnimatorSet()
+                    scaleUp.play(scaleUpX).with(scaleUpY)
+                    scaleUp.start()
+                    if (event.action == MotionEvent.ACTION_UP) {
+                        v.performClick()
+                    }
+                }
+            }
+            true
+        }
     }
 }

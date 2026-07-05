@@ -5,6 +5,13 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <ImageView
+        android:id="@+id/ivLivingForest"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/anim_living_forest" />
+        
     <com.nightread.app.ui.TextureBackgroundView
         android:id="@+id/textureBackground"
         android:layout_width="match_parent"
@@ -21,7 +28,8 @@
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/bg_panel"
+        android:background="@drawable/bg_glass_panel"
+        android:layout_margin="8dp"
         android:padding="16dp"
         android:elevation="4dp"
         android:clipToPadding="false"
@@ -190,6 +198,7 @@
             android:layout_weight="1">
 
             <!-- SwipeRefreshLayout for manual rescan -->
+            <include layout="@layout/layout_shimmer_library" android:visibility="gone" />
             <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
                 android:id="@+id/swipeRefresh"
                 android:layout_width="match_parent"

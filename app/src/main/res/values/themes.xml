@@ -35,19 +35,23 @@
         <item name="android:navigationBarColor">@color/bg_gradient_end</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
+        <item name="colorControlHighlight">#4D7A9B6A</item>
     </style>
 
     <style name="ShapeAppearance.App.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
         <item name="cornerSize">12dp</item>
+        <item name="colorControlHighlight">#4D7A9B6A</item>
     </style>
 
     <style name="ShapeAppearance.App.Large" parent="ShapeAppearance.Material3.Corner.Large">
         <item name="cornerSize">20dp</item>
+        <item name="colorControlHighlight">#4D7A9B6A</item>
     </style>
 
     <style name="Widget.App.Button" parent="Widget.Material3.Button">
         <item name="backgroundTint">@color/btn_bg</item>
         <item name="android:textColor">@color/btn_text</item>
         <item name="cornerRadius">12dp</item>
+        <item name="colorControlHighlight">#4D7A9B6A</item>
     </style>
 </resources>
