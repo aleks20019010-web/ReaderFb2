@@ -33,7 +33,7 @@ sealed class SeriesItem {
 }
 
 class SeriesGroupAdapter(
-    private val onOpenBook: (BookEntity) -> Unit,
+    private val onOpenBook: (BookEntity, View) -> Unit,
     private val onDeleteBook: ((BookEntity) -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
@@ -136,6 +136,13 @@ class SeriesGroupAdapter(
 
     override fun getItemCount(): Int = items.size
 
+    var newlyAddedSha1s = mutableSetOf<String>()
+
+    fun addBooks(newBooks: List<BookEntity>, fullFilteredList: List<BookEntity>) {
+        newBooks.forEach { newlyAddedSha1s.add(it.sha1) }
+        updateData(fullFilteredList)
+    }
+
     fun updateData(newBooks: List<BookEntity>) {
         val groupedMap = newBooks.groupBy { it.series ?: "Без серии" }
         val newItems = mutableListOf<SeriesItem>()
@@ -223,9 +230,10 @@ class SeriesGroupAdapter(
 
         fun bind(
             book: BookEntity,
-            onOpenBook: (BookEntity) -> Unit,
+            onOpenBook: (BookEntity, View) -> Unit,
             onDeleteBook: ((BookEntity) -> Unit)?
         ) {
+            ivCover.transitionName = "cover_${book.sha1}"
             tvBookTitle.text = book.title
             tvBookAuthor.text = book.author ?: "Неизвестен"
             tvBookAuthor.setOnClickListener {
@@ -333,7 +341,7 @@ class SeriesGroupAdapter(
                 true
             }
             itemView.setOnClickListener {
-                onOpenBook(book)
+                onOpenBook(book, ivCover)
             }
 
             // Long click interactions (Context Menu)
@@ -347,7 +355,7 @@ class SeriesGroupAdapter(
                 popup.setOnMenuItemClickListener { menuItem ->
                     when (menuItem.itemId) {
                         1 -> {
-                            onOpenBook(book)
+                            onOpenBook(book, ivCover)
                             true
                         }
                         2 -> {

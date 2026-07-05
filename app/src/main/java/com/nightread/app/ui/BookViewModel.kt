@@ -206,12 +206,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.updateProgress(book.sha1, book.currentProgressChar)
         }
-        
-        val intent = android.content.Intent(getApplication(), BookDetailActivity::class.java).apply {
-            putExtra("BOOK_SHA1", book.sha1)
-            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        getApplication<Application>().startActivity(intent)
     }
 
     fun updateReadingProgress(charOffset: Int) {

@@ -38,6 +38,7 @@ class BookDetailActivity : AppCompatActivity() {
     private lateinit var tvProgress: TextView
     private lateinit var tvFormatSize: TextView
     private lateinit var tvSha1: TextView
+    private lateinit var tvReadMore: TextView
 
     private lateinit var vCoverBackground: View
     private lateinit var ivCover: ImageView
@@ -54,6 +55,7 @@ class BookDetailActivity : AppCompatActivity() {
 
     private var bookSha1: String? = null
     private var currentBook: BookEntity? = null
+    private var isAnnotationExpanded = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,13 +74,14 @@ class BookDetailActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.setDisplayShowTitleEnabled(false)
-        toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        toolbar.setNavigationOnClickListener { supportFinishAfterTransition() }
 
         // Bind views
         tvTitle = findViewById(R.id.tvTitle)
         tvAuthor = findViewById(R.id.tvAuthor)
         tvSeries = findViewById(R.id.tvSeries)
         tvAnnotation = findViewById(R.id.tvAnnotation)
+        tvReadMore = findViewById(R.id.tvReadMore)
         tvLanguage = findViewById(R.id.tvLanguage)
         tvProgress = findViewById(R.id.tvProgress)
         tvFormatSize = findViewById(R.id.tvFormatSize)
@@ -103,6 +106,12 @@ class BookDetailActivity : AppCompatActivity() {
             finish()
             return
         }
+        
+        ivCover.transitionName = "cover_$bookSha1"
+
+        tvReadMore.setOnClickListener {
+            toggleAnnotation()
+        }
 
         setupClickListeners()
     }
@@ -118,6 +127,7 @@ class BookDetailActivity : AppCompatActivity() {
                 putExtra("BOOK_SHA1", bookSha1)
             }
             startActivity(intent)
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         }
 
         ivFavorite.setOnClickListener {
@@ -226,6 +236,7 @@ class BookDetailActivity : AppCompatActivity() {
                         putExtra("AUTHOR_NAME", authorName)
                     }
                     startActivity(intent)
+                    overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
                 }
 
                 // Series setup
@@ -238,6 +249,7 @@ class BookDetailActivity : AppCompatActivity() {
                             putExtra("SERIES_NAME", book.series)
                         }
                         startActivity(intent)
+                        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
                     }
                 } else {
                     llSeriesContainer.visibility = View.GONE
@@ -320,6 +332,7 @@ class BookDetailActivity : AppCompatActivity() {
         // If there's an annotation stored in the entity, display it
         if (!dbAnnotation.isNullOrEmpty() && dbAnnotation != "Аннотация отсутствует") {
             tvAnnotation.text = dbAnnotation
+            checkAnnotationLength()
         } else if (!book.filePath.isNullOrEmpty() && File(book.filePath).exists()) {
             tvAnnotation.text = "Загрузка аннотации..."
             lifecycleScope.launch(Dispatchers.Default) {
@@ -327,18 +340,44 @@ class BookDetailActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     if (!fileAnnotation.isNullOrEmpty()) {
                         tvAnnotation.text = fileAnnotation
+                        checkAnnotationLength()
                         // Persist it back to database
                         launch(Dispatchers.IO) {
                             db.bookDao().updateBook(book.copy(annotation = fileAnnotation))
                         }
                     } else {
                         tvAnnotation.text = "Аннотация отсутствует"
+                        tvReadMore.visibility = View.GONE
                     }
                 }
             }
         } else {
             tvAnnotation.text = "Аннотация отсутствует"
+            tvReadMore.visibility = View.GONE
         }
+    }
+
+    private fun checkAnnotationLength() {
+        tvAnnotation.post {
+            if (tvAnnotation.layout != null && tvAnnotation.layout.lineCount > 4) {
+                tvReadMore.visibility = View.VISIBLE
+                tvAnnotation.maxLines = 4
+                isAnnotationExpanded = false
+            } else {
+                tvReadMore.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun toggleAnnotation() {
+        if (isAnnotationExpanded) {
+            tvAnnotation.maxLines = 4
+            tvReadMore.text = "...читать далее"
+        } else {
+            tvAnnotation.maxLines = Integer.MAX_VALUE
+            tvReadMore.text = "Свернуть"
+        }
+        isAnnotationExpanded = !isAnnotationExpanded
     }
 
     private fun renderFilesList(copies: List<BookEntity>) {

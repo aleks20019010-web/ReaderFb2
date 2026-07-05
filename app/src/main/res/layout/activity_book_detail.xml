@@ -240,7 +240,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:paddingVertical="10dp">
+                        android:paddingVertical="10dp"
+                        android:animateLayoutChanges="true">
 
                         <TextView
                             android:id="@+id/tvAnnotation"
@@ -249,7 +250,21 @@
                             android:textSize="15sp"
                             android:textColor="@color/text_primary"
                             android:lineSpacingExtra="4dp"
+                            android:ellipsize="end"
+                            android:maxLines="4"
                             tools:text="Я был величайшим Магом Земли в своем мире. Глава целого Ордена. Ордена Архитекторов. Но, чем старше ста..." />
+                            
+                        <TextView
+                            android:id="@+id/tvReadMore"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:layout_marginTop="2dp"
+                            android:text="...читать далее"
+                            android:textColor="@color/accent"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:visibility="gone" />
 
                         <TextView
                             android:layout_width="match_parent"

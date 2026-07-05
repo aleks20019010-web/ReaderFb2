@@ -4,6 +4,7 @@ import android.view.ViewGroup
 
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
@@ -249,8 +250,17 @@ class LibraryFragment : Fragment() {
 
         // Setup RecyclerView
         adapter = SeriesGroupAdapter(
-            onOpenBook = { book ->
+            onOpenBook = { book, view ->
                 viewModel.openBook(book)
+                val intent = android.content.Intent(requireContext(), BookDetailActivity::class.java).apply {
+                    putExtra("BOOK_SHA1", book.sha1)
+                }
+                val options = androidx.core.app.ActivityOptionsCompat.makeSceneTransitionAnimation(
+                    requireActivity(),
+                    view,
+                    "cover_${book.sha1}"
+                )
+                startActivity(intent, options.toBundle())
             },
             onDeleteBook = { book ->
                 showDeleteConfirmationDialog(book)
@@ -258,6 +268,7 @@ class LibraryFragment : Fragment() {
         )
 
         rvBooks.adapter = adapter
+        rvBooks.itemAnimator = HighlightItemAnimator(adapter)
 
         // Setup Swipe-to-Delete gestures on the library RecyclerView
         val swipeCallback = object : ItemTouchHelper.SimpleCallback(
@@ -471,14 +482,60 @@ class LibraryFragment : Fragment() {
         }
     }
 
+    private var scanAddedCount = 0
+
     private fun observeViewModel() {
         // Observe Books Stream
         viewLifecycleOwner.lifecycleScope.launch {
             // Artificial delay to show shimmer for better UX as Room loads extremely fast
             kotlinx.coroutines.delay(800)
             viewModel.searchedBooks.collectLatest { books ->
-                allBooksList = books
-                filterAndApplyBooks()
+                if (viewModel.scanState.value.isScanning && allBooksList.isNotEmpty()) {
+                    val currentSha1s = allBooksList.map { it.sha1 }.toSet()
+                    val newBooks = books.filter { it.sha1 !in currentSha1s }
+                    
+                    if (newBooks.isNotEmpty()) {
+                        val chunks = newBooks.chunked(20) // process in batches of 20
+                        var tempAllBooks = allBooksList.toMutableList()
+                        
+                        for (chunk in chunks) {
+                            tempAllBooks.addAll(chunk)
+                            allBooksList = tempAllBooks.toList()
+                            scanAddedCount += chunk.size
+                            
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                if (::tvScanStatus.isInitialized) {
+                                    tvScanStatus.text = "Добавлено: $scanAddedCount книг"
+                                }
+                                // We don't call filterAndApplyBooks() directly because we want to use adapter.addBooks
+                                // But we must filter it. 
+                                val filtered = applyFilters(allBooksList)
+                                adapter.addBooks(chunk, filtered)
+                                
+                                if (filtered.isEmpty()) {
+                                    layoutEmptyState.visibility = View.VISIBLE
+                                    rvBooks.visibility = View.GONE
+                                } else {
+                                    layoutEmptyState.visibility = View.GONE
+                                    rvBooks.visibility = View.VISIBLE
+                                }
+                            }
+                            kotlinx.coroutines.delay(100) // Small pause between chunks
+                        }
+                        
+                        // Ensure final state exactly matches DB to account for any deletions/updates
+                        allBooksList = books
+                        val finalFiltered = applyFilters(allBooksList)
+                        adapter.updateData(finalFiltered)
+                    } else {
+                        allBooksList = books
+                        filterAndApplyBooks()
+                    }
+                } else {
+                    scanAddedCount = 0
+                    allBooksList = books
+                    filterAndApplyBooks()
+                }
             }
         }
 
@@ -486,6 +543,9 @@ class LibraryFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.scanState.collectLatest { state ->
                 updateScanUI(state)
+                if (!state.isScanning) {
+                    scanAddedCount = 0
+                }
             }
         }
     }
@@ -494,9 +554,9 @@ class LibraryFragment : Fragment() {
         val active = state.isScanning
         btnAutoScan.isEnabled = !active
         if (active) {
-            startPulsing(btnAutoScan)
+            startRotating(btnAutoScan)
         } else {
-            stopPulsing(btnAutoScan)
+            stopRotating(btnAutoScan)
             isSwipeRescanInProgress = false
         }
         btnAutoScan.alpha = if (active) 0.7f else 1.0f
@@ -550,10 +610,50 @@ class LibraryFragment : Fragment() {
         }
     }
 
-    private fun filterAndApplyBooks() {
-        shimmerContainer.stopShimmer()
-        shimmerContainer.visibility = View.GONE
+    private fun applyFilters(books: List<BookEntity>): List<BookEntity> {
+        var filtered = books
         
+        filtered = when (filterType) {
+            "reading" -> filtered.filter { book -> 
+                val percent = if (book.totalCharacters > 0) ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt() else 0
+                percent in 1..99
+            }
+            "read" -> filtered.filter { book -> 
+                val percent = if (book.totalCharacters > 0) ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt() else 0
+                percent >= 100
+            }
+            else -> filtered
+        }
+
+        if (currentSearchQuery.isNotBlank()) {
+            filtered = filtered.filter { book ->
+                book.title.contains(currentSearchQuery, ignoreCase = true) ||
+                        (book.author ?: "").contains(currentSearchQuery, ignoreCase = true)
+            }
+        }
+        return filtered
+    }
+
+    private fun filterAndApplyBooks() {
+        if (shimmerContainer.visibility == View.VISIBLE) {
+            shimmerContainer.stopShimmer()
+            shimmerContainer.animate()
+                .alpha(0f)
+                .setDuration(300)
+                .withEndAction {
+                    shimmerContainer.visibility = View.GONE
+                    shimmerContainer.alpha = 1f
+                }
+                .start()
+            
+            swipeRefresh.alpha = 0f
+            swipeRefresh.visibility = View.VISIBLE
+            swipeRefresh.animate()
+                .alpha(1f)
+                .setDuration(300)
+                .start()
+        }
+
         if (allBooksList.isEmpty()) {
             layoutEmptyState.visibility = View.VISIBLE
             rvBooks.visibility = View.GONE
@@ -578,26 +678,7 @@ class LibraryFragment : Fragment() {
             return
         }
 
-        var filtered = allBooksList
-        
-        filtered = when (filterType) {
-            "reading" -> filtered.filter { book -> 
-                val percent = if (book.totalCharacters > 0) ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt() else 0
-                percent in 1..99
-            }
-            "read" -> filtered.filter { book -> 
-                val percent = if (book.totalCharacters > 0) ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt() else 0
-                percent >= 100
-            }
-            else -> filtered
-        }
-
-        if (currentSearchQuery.isNotBlank()) {
-            filtered = filtered.filter { book ->
-                book.title.contains(currentSearchQuery, ignoreCase = true) ||
-                        (book.author ?: "").contains(currentSearchQuery, ignoreCase = true)
-            }
-        }
+        val filtered = applyFilters(allBooksList)
 
         adapter.updateData(filtered)
 
@@ -625,6 +706,22 @@ class LibraryFragment : Fragment() {
             }
         } else {
         }
+    }
+
+    private fun startRotating(view: View) {
+        view.animate().cancel()
+        val animator = ObjectAnimator.ofFloat(view, View.ROTATION, 0f, 360f)
+        animator.duration = 1000 // 1 revolution per second
+        animator.repeatCount = ValueAnimator.INFINITE
+        animator.interpolator = android.view.animation.LinearInterpolator()
+        view.setTag(R.id.breathing_animator, animator) // reuse tag or create new
+        animator.start()
+    }
+
+    private fun stopRotating(view: View) {
+        val animator = view.getTag(R.id.breathing_animator) as? ObjectAnimator
+        animator?.cancel()
+        view.animate().rotation(0f).setDuration(300).start()
     }
 
     private fun startPulsing(view: View) {
