@@ -29,17 +29,34 @@ object NewCoverExtractor {
     fun extractAndSaveCover(fb2Content: String, sha1: String, context: Context?): String? {
         if (context == null) return null
         try {
-            // Find binary section using regex
-            // Standard FB2 has <binary id="cover.jpg" content-type="image/jpeg">BASE64_DATA</binary>
-            val binaryRegex = Regex("<binary[^>]*id\\s*=\\s*\"([^\"]+?)\"[^>]*>(.*?)</binary>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
-            var match = binaryRegex.find(fb2Content)
-            var base64Data = match?.groupValues?.get(2)?.trim()
-
-            if (base64Data.isNullOrBlank()) {
-                // Try fallback to any first <binary> tag
-                val fallbackRegex = Regex("<binary[^>]*>(.*?)</binary>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
-                match = fallbackRegex.find(fb2Content)
-                base64Data = match?.groupValues?.get(1)?.trim()
+            // Use fast non-regex substring search to prevent OutOfMemory and regex backtracking
+            var base64Data: String? = null
+            var searchStart = 0
+            while (true) {
+                val start = fb2Content.indexOf("<binary", searchStart, ignoreCase = true)
+                if (start == -1) break
+                val end = fb2Content.indexOf("</binary>", start, ignoreCase = true)
+                if (end == -1) break
+                
+                val block = fb2Content.substring(start, end + "</binary>".length)
+                val contentStart = block.indexOf(">")
+                if (contentStart != -1) {
+                    val content = block.substring(contentStart + 1, block.length - "</binary>".length).trim()
+                    if (content.isNotEmpty()) {
+                        // Check if this block is the cover (has id containing "cover" or "thumb")
+                        val header = block.substring(0, contentStart)
+                        val isCoverBlock = header.contains("cover", ignoreCase = true) ||
+                                           header.contains("thumb", ignoreCase = true) ||
+                                           header.contains("image", ignoreCase = true)
+                        if (isCoverBlock) {
+                            base64Data = content
+                            break // Found the best cover block, stop searching!
+                        } else if (base64Data == null) {
+                            base64Data = content // Fallback to first binary block found
+                        }
+                    }
+                }
+                searchStart = end + "</binary>".length
             }
 
             if (base64Data.isNullOrBlank()) {
@@ -47,7 +64,7 @@ object NewCoverExtractor {
                 return null
             }
 
-            // Clean up any potential xml tag residue or spaces
+            // Clean up any potential spaces/newlines in base64 block
             val cleanBase64 = base64Data.replace(Regex("\\s+"), "")
 
             // Decode base64

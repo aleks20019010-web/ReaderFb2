@@ -133,22 +133,28 @@ class NewBookScanner(
                 try {
                     bookDao.insertBooks(batchList)
                     Log.d(TAG, "Inserted batch of ${batchList.size} books to database successfully.")
-                    batchList.clear()
-                    
-                    // Immediately update status with successful DB save
-                    updateLocalAndGlobalState(ScannerState(
-                        isScanning = true,
-                        status = "Сохранение книг в библиотеку... ($fileIndex/$total)",
-                        totalFiles = total,
-                        processedFiles = fileIndex,
-                        addedBooks = addedCount,
-                        skippedBooks = skippedCount
-                    ))
-                } catch (e: SecurityException) {
-                    Log.e(TAG, "SecurityException inserting books batch to DB", e)
-                } catch (e: Throwable) {
-                    Log.e(TAG, "Error committing books batch to DB", e)
+                } catch (dbEx: Throwable) {
+                    Log.e(TAG, "Batch insert failed, falling back to safe one-by-one insert to prevent discard", dbEx)
+                    for (book in batchList) {
+                        try {
+                            bookDao.insertBooks(listOf(book))
+                            Log.d(TAG, "Successfully inserted single book after batch fallback: ${book.title}")
+                        } catch (singleEx: Throwable) {
+                            Log.e(TAG, "Failed to insert single book in fallback: ${book.title}", singleEx)
+                        }
+                    }
                 }
+                batchList.clear()
+                
+                // Immediately update status with successful DB save
+                updateLocalAndGlobalState(ScannerState(
+                    isScanning = true,
+                    status = "Сохранение книг в библиотеку... ($fileIndex/$total)",
+                    totalFiles = total,
+                    processedFiles = fileIndex,
+                    addedBooks = addedCount,
+                    skippedBooks = skippedCount
+                ))
             }
         }
 
@@ -157,12 +163,18 @@ class NewBookScanner(
             try {
                 bookDao.insertBooks(batchList)
                 Log.d(TAG, "Inserted final batch of ${batchList.size} books to database successfully.")
-                batchList.clear()
-            } catch (e: SecurityException) {
-                Log.e(TAG, "SecurityException inserting final books batch to DB", e)
-            } catch (e: Throwable) {
-                Log.e(TAG, "Error committing final books batch to DB", e)
+            } catch (dbEx: Throwable) {
+                Log.e(TAG, "Final batch insert failed, falling back to safe one-by-one insert", dbEx)
+                for (book in batchList) {
+                    try {
+                        bookDao.insertBooks(listOf(book))
+                        Log.d(TAG, "Successfully inserted single book after final batch fallback: ${book.title}")
+                    } catch (singleEx: Throwable) {
+                        Log.e(TAG, "Failed to insert single book in final fallback: ${book.title}", singleEx)
+                    }
+                }
             }
+            batchList.clear()
         }
 
         val finalStatus = "Сканирование завершено. Добавлено книг: $addedCount, дубликатов пропущено: $skippedCount."
@@ -193,7 +205,9 @@ class NewBookScanner(
                 }
 
                 val bytes = try {
-                    file.readBytes()
+                    file.inputStream().buffered().use { fis ->
+                        readLimitedBytes(fis, 25 * 1024 * 1024)
+                    }
                 } catch (e: SecurityException) {
                     Log.e(TAG, "SecurityException reading file: ${file.absolutePath}", e)
                     return
@@ -259,7 +273,8 @@ class NewBookScanner(
                             val entryName = entry.name.lowercase()
                             if (!entry.isDirectory && entryName.endsWith(".fb2")) {
                                 val tempBytes = try {
-                                    zis.readBytes()
+                                    // Protect against oversized files to avoid OutOfMemory
+                                    readLimitedBytes(zis, 25 * 1024 * 1024)
                                 } catch (e: SecurityException) {
                                     Log.e(TAG, "SecurityException reading zip entry: $entryName in ${file.absolutePath}", e)
                                     byteArrayOf()
@@ -446,5 +461,21 @@ class NewBookScanner(
     private fun getRandomGradientEndColor(): String {
         val colors = listOf("#E94560", "#00ADB5", "#FF2E63", "#FF9F43", "#F35588")
         return colors.random()
+    }
+
+    private fun readLimitedBytes(inputStream: java.io.InputStream, limit: Int): ByteArray {
+        val buffer = java.io.ByteArrayOutputStream()
+        val data = ByteArray(8192)
+        var totalRead = 0
+        var nRead: Int
+        while (inputStream.read(data, 0, data.size).also { nRead = it } != -1) {
+            totalRead += nRead
+            if (totalRead > limit) {
+                Log.w(TAG, "File size limit exceeded while reading stream ($totalRead > $limit bytes), truncating.")
+                break
+            }
+            buffer.write(data, 0, nRead)
+        }
+        return buffer.toByteArray()
     }
 }

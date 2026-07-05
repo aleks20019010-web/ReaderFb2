@@ -19,13 +19,22 @@ object NewFb2Parser {
             var seriesIndex: Int? = null
             var lang: String? = null
 
+            // Limit regex matching to the first ~150KB or the end of the <description> block
+            // to prevent OutOfMemory and catastrophic regex backtracking on large books.
+            val descriptionEnd = fb2Content.indexOf("</description>", ignoreCase = true)
+            val headerContent = if (descriptionEnd != -1) {
+                fb2Content.substring(0, descriptionEnd + "</description>".length)
+            } else {
+                fb2Content.take(150000)
+            }
+
             // Use regex for extremely fast and robust parsing of metadata (avoids XML parsing exceptions on huge/malformed files)
-            val titleMatch = Regex("<book-title>\\s*([^<]+?)\\s*</book-title>", RegexOption.IGNORE_CASE).find(fb2Content)
+            val titleMatch = Regex("<book-title>\\s*([^<]+?)\\s*</book-title>", RegexOption.IGNORE_CASE).find(headerContent)
             if (titleMatch != null) {
                 title = titleMatch.groupValues[1].trim()
             }
 
-            val authorMatch = Regex("<author>\\s*(.*?)\\s*</author>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(fb2Content)
+            val authorMatch = Regex("<author>\\s*(.*?)\\s*</author>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(headerContent)
             if (authorMatch != null) {
                 val authorBlock = authorMatch.groupValues[1]
                 val fnMatch = Regex("<first-name>\\s*([^<]+?)\\s*</first-name>", RegexOption.IGNORE_CASE).find(authorBlock)
@@ -34,7 +43,7 @@ object NewFb2Parser {
                 if (lnMatch != null) lastName = lnMatch.groupValues[1].trim()
             }
 
-            val seriesMatch = Regex("<sequence[^>]*?name\\s*=\\s*\"([^\"]+?)\"", RegexOption.IGNORE_CASE).find(fb2Content)
+            val seriesMatch = Regex("<sequence[^>]*?name\\s*=\\s*\"([^\"]+?)\"", RegexOption.IGNORE_CASE).find(headerContent)
             if (seriesMatch != null) {
                 series = seriesMatch.groupValues[1].trim()
                 val indexMatch = Regex("number\\s*=\\s*\"(\\d+?)\"", RegexOption.IGNORE_CASE).find(seriesMatch.value)
@@ -43,7 +52,7 @@ object NewFb2Parser {
                 }
             }
 
-            val langMatch = Regex("<lang>\\s*([^<]+?)\\s*</lang>", RegexOption.IGNORE_CASE).find(fb2Content)
+            val langMatch = Regex("<lang>\\s*([^<]+?)\\s*</lang>", RegexOption.IGNORE_CASE).find(headerContent)
             if (langMatch != null) {
                 lang = langMatch.groupValues[1].trim()
             }
