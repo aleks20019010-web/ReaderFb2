@@ -12,6 +12,11 @@ class BookRepository(
     val allBooks: Flow<List<BookEntity>> = bookDao.getAllBooks()
     val allNotes: Flow<List<NoteEntity>> = noteDao.getAllNotes()
 
+    fun searchBooks(query: String): Flow<List<BookEntity>> {
+        val sqlQuery = "%$query%"
+        return bookDao.searchBooks(sqlQuery)
+    }
+
     suspend fun getBookBySha1(sha1: String): BookEntity? = bookDao.getBookBySha1(sha1)
 
     suspend fun getBooksBySha1(sha1: String): List<BookEntity> = withContext(Dispatchers.IO) {

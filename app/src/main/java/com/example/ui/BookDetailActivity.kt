@@ -316,7 +316,7 @@ class BookDetailActivity : AppCompatActivity() {
     }
 
     private fun setupAnnotation(book: BookEntity, db: AppDatabase) {
-        val dbAnnotation = book.review ?: book.content // review or content as fallback annotation
+        val dbAnnotation = book.annotation
         // If there's an annotation stored in the entity, display it
         if (!dbAnnotation.isNullOrEmpty() && dbAnnotation != "Аннотация отсутствует") {
             tvAnnotation.text = dbAnnotation
@@ -329,7 +329,7 @@ class BookDetailActivity : AppCompatActivity() {
                         tvAnnotation.text = fileAnnotation
                         // Persist it back to database
                         launch(Dispatchers.IO) {
-                            db.bookDao().updateBook(book.copy(review = fileAnnotation))
+                            db.bookDao().updateBook(book.copy(annotation = fileAnnotation))
                         }
                     } else {
                         tvAnnotation.text = "Аннотация отсутствует"

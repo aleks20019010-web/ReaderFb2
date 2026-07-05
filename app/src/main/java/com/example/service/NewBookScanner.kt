@@ -40,11 +40,22 @@ class NewBookScanner(
         )
 
         val filesToProcess = mutableListOf<File>()
+        val gatheredPaths = HashSet<String>()
         for (path in paths) {
             try {
                 if (path.exists() && path.isDirectory && path.canRead()) {
                     Log.d(TAG, "Checking path for gathering: ${path.absolutePath}")
-                    gatherFilesRecursive(path, filesToProcess, 0)
+                    val tempFileList = mutableListOf<File>()
+                    gatherFilesRecursive(path, tempFileList, 0)
+                    for (file in tempFileList) {
+                        val canonical = file.canonicalPath
+                        if (!gatheredPaths.contains(canonical)) {
+                            gatheredPaths.add(canonical)
+                            filesToProcess.add(file)
+                        } else {
+                            Log.d(TAG, "[SCAN-DUPLICATE-PATH] Skipped already gathered file path: $canonical")
+                        }
+                    }
                 } else {
                     Log.w(TAG, "Path is not accessible: ${path.absolutePath} (exists=${path.exists()}, isDir=${path.isDirectory()}, canRead=${path.canRead()})")
                 }
@@ -56,7 +67,7 @@ class NewBookScanner(
         }
 
         val total = filesToProcess.size
-        Log.d(TAG, "Total FB2/ZIP files gathered: $total")
+        Log.d(TAG, "Total FB2/ZIP files gathered after path de-duplication: $total")
         
         if (total == 0) {
             Log.d(TAG, "Finished scanning: no supported books found.")
@@ -71,7 +82,9 @@ class NewBookScanner(
         ))
 
         val sha1ToPathMap = try {
-            bookDao.getSha1ToPathMap().associate { it.sha1 to it.filePath }.toMutableMap()
+            val dbMap = bookDao.getSha1ToPathMap().associate { it.sha1 to it.filePath }.toMutableMap()
+            Log.d(TAG, "[SCAN-DB-STATE] Loaded ${dbMap.size} existing SHA-1 values from database for comparison.")
+            dbMap
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException fetching SHA1 map from DB", e)
             mutableMapOf()
@@ -131,12 +144,14 @@ class NewBookScanner(
             // Insert to DB in batches to maximize performance and ensure data is committed incrementally
             if (batchList.size >= batchSize) {
                 try {
+                    Log.d(TAG, "[DB-INSERT] Batch writing ${batchList.size} books to database: " + batchList.map { "${it.title} (SHA-1: ${it.sha1})" }.joinToString(", "))
                     bookDao.insertBooks(batchList)
                     Log.d(TAG, "Inserted batch of ${batchList.size} books to database successfully.")
                 } catch (dbEx: Throwable) {
                     Log.e(TAG, "Batch insert failed, falling back to safe one-by-one insert to prevent discard", dbEx)
                     for (book in batchList) {
                         try {
+                            Log.d(TAG, "[DB-INSERT] Safe fallback inserting book: ${book.title} (SHA-1: ${book.sha1})")
                             bookDao.insertBooks(listOf(book))
                             Log.d(TAG, "Successfully inserted single book after batch fallback: ${book.title}")
                         } catch (singleEx: Throwable) {
@@ -161,12 +176,14 @@ class NewBookScanner(
         // Final insert of remaining books
         if (batchList.isNotEmpty()) {
             try {
+                Log.d(TAG, "[DB-INSERT] Final writing ${batchList.size} books to database: " + batchList.map { "${it.title} (SHA-1: ${it.sha1})" }.joinToString(", "))
                 bookDao.insertBooks(batchList)
                 Log.d(TAG, "Inserted final batch of ${batchList.size} books to database successfully.")
             } catch (dbEx: Throwable) {
                 Log.e(TAG, "Final batch insert failed, falling back to safe one-by-one insert", dbEx)
                 for (book in batchList) {
                     try {
+                        Log.d(TAG, "[DB-INSERT] Safe final fallback inserting book: ${book.title} (SHA-1: ${book.sha1})")
                         bookDao.insertBooks(listOf(book))
                         Log.d(TAG, "Successfully inserted single book after final batch fallback: ${book.title}")
                     } catch (singleEx: Throwable) {
@@ -226,7 +243,7 @@ class NewBookScanner(
                 if (bytes.isEmpty()) return
                 
                 val sha1 = computeSha1(bytes)
-                Log.d(TAG, "Computed SHA-1 for FB2: $sha1 (file: ${file.name}, size: ${file.length()} bytes)")
+                Log.d(TAG, "[SCAN-SHA1] Calculated SHA-1: $sha1 for FB2 file: ${file.name} (path: ${file.absolutePath})")
                 
                 if (sha1ToPathMap.containsKey(sha1)) {
                     val existingPath = sha1ToPathMap[sha1]
@@ -265,7 +282,8 @@ class NewBookScanner(
                     coverGradientEnd = getRandomGradientEndColor(),
                     category = "Local",
                     filePath = file.absolutePath,
-                    coverPath = coverPath
+                    coverPath = coverPath,
+                    annotation = metadata.annotation
                 )
                 batchList.add(book)
                 sha1ToPathMap[sha1] = file.absolutePath
@@ -309,12 +327,12 @@ class NewBookScanner(
 
                                 if (tempBytes.isNotEmpty()) {
                                     val sha1 = computeSha1(tempBytes)
-                                    Log.d(TAG, "Computed SHA-1 for FB2 inside ZIP: $sha1 (entry: $entryName in ZIP: ${file.name})")
+                                    Log.d(TAG, "[SCAN-SHA1] Calculated SHA-1: $sha1 for ZIP-entry: $entryName inside: ${file.name}")
                                     
                                     if (sha1ToPathMap.containsKey(sha1)) {
                                         val existingPath = sha1ToPathMap[sha1]
                                         if (existingPath != file.absolutePath) {
-                                            Log.d(TAG, "Book with SHA-1 $sha1 from ZIP entry already exists but path changed from '$existingPath' to '${file.absolutePath}'. Updating path.")
+                                            Log.d(TAG, "Book with SHA-1 $sha1 already exists but path changed from '$existingPath' to '${file.absolutePath}'. Updating path in database.")
                                             try {
                                                 kotlinx.coroutines.runBlocking {
                                                     bookDao.updateFilePath(sha1, file.absolutePath)
@@ -346,7 +364,8 @@ class NewBookScanner(
                                             coverGradientEnd = getRandomGradientEndColor(),
                                             category = "Local",
                                             filePath = file.absolutePath,
-                                            coverPath = coverPath
+                                            coverPath = coverPath,
+                                            annotation = metadata.annotation
                                         )
                                         batchList.add(book)
                                         sha1ToPathMap[sha1] = file.absolutePath

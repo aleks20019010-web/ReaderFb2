@@ -65,6 +65,14 @@ class BookAdapter(
         notifyDataSetChanged()
     }
 
+    fun getBookAt(position: Int): BookEntity {
+        return books[position]
+    }
+
+    fun getPositionOfBook(book: BookEntity): Int {
+        return books.indexOfFirst { it.sha1 == book.sha1 }
+    }
+
     fun setGridView(grid: Boolean) {
         if (this.isGridView != grid) {
             this.isGridView = grid

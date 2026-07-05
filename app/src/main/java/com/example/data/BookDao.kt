@@ -17,6 +17,9 @@ interface BookDao {
     @Query("SELECT * FROM books ORDER BY lastReadTime DESC")
     fun getAllBooks(): Flow<List<BookEntity>>
 
+    @Query("SELECT * FROM books WHERE title LIKE :query OR author LIKE :query ORDER BY lastReadTime DESC")
+    fun searchBooks(query: String): Flow<List<BookEntity>>
+
     @Query("SELECT sha1 FROM books")
     suspend fun getAllSha1s(): List<String>
 

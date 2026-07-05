@@ -6,10 +6,39 @@ data class BookMetadata(
     val content: String,
     val series: String?,
     val seriesIndex: Int?,
-    val language: String?
+    val language: String?,
+    val annotation: String? = null
 )
 
 object NewFb2Parser {
+    fun extractAnnotation(fb2Content: String): String? {
+        return try {
+            val annotationMatch = Regex("<annotation>\\s*(.*?)\\s*</annotation>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(fb2Content)
+            if (annotationMatch != null) {
+                var annotationText = annotationMatch.groupValues[1]
+                // Strip tags like <p>, <strong>, etc.
+                annotationText = annotationText.replace(Regex("<[^>]+>"), " ")
+                // Decode common XML entities
+                annotationText = annotationText
+                    .replace("&amp;", "&")
+                    .replace("&lt;", "<")
+                    .replace("&gt;", ">")
+                    .replace("&quot;", "\"")
+                    .replace("&apos;", "'")
+                
+                annotationText.split("\n")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .joinToString("\n")
+                    .trim()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun parse(fb2Content: String, defaultTitle: String): BookMetadata {
         return try {
             var title = ""
@@ -61,9 +90,11 @@ object NewFb2Parser {
             val authorList = listOf(firstName, lastName).filter { it.isNotBlank() }
             val finalAuthor = if (authorList.isNotEmpty()) authorList.joinToString(" ") else "Unknown Author"
 
-            BookMetadata(finalTitle, finalAuthor, fb2Content, series, seriesIndex, lang)
+            val annotation = extractAnnotation(headerContent)
+
+            BookMetadata(finalTitle, finalAuthor, fb2Content, series, seriesIndex, lang, annotation)
         } catch (e: Exception) {
-            BookMetadata(defaultTitle, "Unknown Author", fb2Content, null, null, null)
+            BookMetadata(defaultTitle, "Unknown Author", fb2Content, null, null, null, null)
         }
     }
 }

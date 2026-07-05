@@ -32,6 +32,27 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val searchQuery = MutableStateFlow("")
+
+    fun setSearchQuery(query: String) {
+        searchQuery.value = query
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val searchedBooks: StateFlow<List<BookEntity>> = searchQuery
+        .flatMapLatest { query ->
+            if (query.isBlank()) {
+                repository.allBooks
+            } else {
+                repository.searchBooks(query)
+            }
+        }
+        .catch { e ->
+            Log.e("BookViewModel", "Exception searching books from database", e)
+            emit(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val allNotes: StateFlow<List<NoteEntity>> = repository.allNotes
         .catch { e ->
             Log.e("BookViewModel", "Exception loading notes from database", e)
@@ -314,16 +335,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 digest.update(finalBytesForSha1)
                 val computedSha1 = digest.digest().joinToString("") { String.format("%02x", it) }
                 
-                Log.d("BookScanner", "Manual import: computed SHA-1: $computedSha1 for file: $fileName")
+                Log.d("BookScanner", "[MANUAL-SHA1] Calculated SHA-1: $computedSha1 for manual imported file: $fileName")
                 
                 // Query database directly to avoid any flow latency/cache duplication issues
                 val duplicate = repository.getBookBySha1(computedSha1)
-                if (duplicate != null) {
-                    withContext(Dispatchers.Main) {
-                        onResult(false, "Эта книга уже импортирована: \"${duplicate.title}\".")
-                    }
-                    return@launch
-                }
                 
                 val importedFolder = java.io.File(context.filesDir, "imported_books")
                 if (!importedFolder.exists()) {
@@ -331,6 +346,16 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val localFile = java.io.File(importedFolder, "$computedSha1.$ext")
                 localFile.writeBytes(bytes)
+
+                if (duplicate != null) {
+                    Log.d("BookScanner", "[MANUAL-DUPLICATE] Book with SHA-1 $computedSha1 already exists in database. Updating its file path to ${localFile.absolutePath}")
+                    val updatedBook = duplicate.copy(filePath = localFile.absolutePath)
+                    repository.insertBook(updatedBook)
+                    withContext(Dispatchers.Main) {
+                        onResult(true, "Книга \"${duplicate.title}\" успешно обновлена (путь изменен)!")
+                    }
+                    return@launch
+                }
                 
                 var parsedTitle = fileName.substringBeforeLast(".")
                 var parsedAuthor = "Неизвестен"
@@ -338,6 +363,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 var parsedSeries: String? = null
                 var parsedSeriesIndex: Int? = null
                 var parsedLanguage: String? = "ru"
+                var parsedAnnotation: String? = null
                 
                 if (ext == "fb2") {
                     val rawText = decodeBytesToString(bytes)
@@ -348,6 +374,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     parsedSeries = parsed.series
                     parsedSeriesIndex = parsed.seriesIndex
                     parsedLanguage = parsed.language
+                    parsedAnnotation = parsed.annotation
                 } else if (ext == "zip") {
                     // Extract data from the uncompressed bytes we found earlier
                     val rawText = decodeBytesToString(finalBytesForSha1)
@@ -358,6 +385,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     parsedSeries = parsed.series
                     parsedSeriesIndex = parsed.seriesIndex
                     parsedLanguage = parsed.language
+                    parsedAnnotation = parsed.annotation
                 } else if (ext == "epub") {
                     val (title, content) = parseEpub(localFile)
                     parsedTitle = title
@@ -397,9 +425,11 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     language = parsedLanguage,
                     fileSize = bytes.size.toLong(),
                     coverPath = coverPath,
-                    seriesIndex = parsedSeriesIndex
+                    seriesIndex = parsedSeriesIndex,
+                    annotation = parsedAnnotation
                 )
                 
+                Log.d("BookScanner", "[MANUAL-DB-INSERT] Saving newly imported book: ${newBook.title} (SHA-1: ${newBook.sha1})")
                 repository.insertBook(newBook)
                 
                 withContext(Dispatchers.Main) {
@@ -966,7 +996,8 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         val content: String,
         val series: String? = null,
         val language: String? = "ru",
-        val seriesIndex: Int? = null
+        val seriesIndex: Int? = null,
+        val annotation: String? = null
     )
 
     private fun parseFb2DetailedText(rawText: String, fallbackName: String): ParsedBook {
@@ -977,7 +1008,8 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
             content = parsed.content,
             series = parsed.series,
             language = parsed.language,
-            seriesIndex = parsed.seriesIndex
+            seriesIndex = parsed.seriesIndex,
+            annotation = parsed.annotation
         )
     }
 

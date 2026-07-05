@@ -2,6 +2,8 @@ package com.example.ui
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Canvas
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
@@ -15,12 +17,14 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.ItemTouchHelper
 import com.example.R
 import com.example.data.BookEntity
 import kotlinx.coroutines.flow.collectLatest
@@ -225,19 +229,105 @@ class LibraryFragment : Fragment() {
                 viewModel.openBook(book)
             },
             onDeleteBook = { book ->
-                androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                    .setTitle("Удалить книгу?")
-                    .setMessage("Вы уверены, что хотите удалить книгу \"${book.title}\" из библиотеки?")
-                    .setPositiveButton("Удалить") { _, _ ->
-                        viewModel.deleteBook(book.sha1)
-                        Toast.makeText(requireContext(), "Книга удалена", Toast.LENGTH_SHORT).show()
-                    }
-                    .setNegativeButton("Отмена", null)
-                    .show()
+                showDeleteConfirmationDialog(book)
             }
         )
 
         rvBooks.adapter = adapter
+
+        // Setup Swipe-to-Delete gestures on the library RecyclerView
+        val swipeCallback = object : ItemTouchHelper.SimpleCallback(
+            0,
+            ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
+        ) {
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean = false
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                val position = viewHolder.adapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    val book = adapter.getBookAt(position)
+                    showDeleteConfirmationDialog(book)
+                }
+            }
+
+            override fun onChildDraw(
+                c: Canvas,
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                dX: Float,
+                dY: Float,
+                actionState: Int,
+                isCurrentlyActive: Boolean
+            ) {
+                val itemView = viewHolder.itemView
+                val itemHeight = itemView.bottom - itemView.top
+
+                if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
+                    val background = ColorDrawable()
+                    background.color = android.graphics.Color.parseColor("#E53935") // Warm red accent for deletion
+
+                    if (dX > 0) { // Swiping to the right
+                        background.setBounds(
+                            itemView.left,
+                            itemView.top,
+                            itemView.left + dX.toInt(),
+                            itemView.bottom
+                        )
+                    } else if (dX < 0) { // Swiping to the left
+                        background.setBounds(
+                            itemView.right + dX.toInt(),
+                            itemView.top,
+                            itemView.right,
+                            itemView.bottom
+                        )
+                    } else {
+                        background.setBounds(0, 0, 0, 0)
+                    }
+                    background.draw(c)
+
+                    // Draw a centered trash bin icon inside the swipe background
+                    val deleteIcon = ContextCompat.getDrawable(
+                        itemView.context,
+                        android.R.drawable.ic_menu_delete
+                    )
+                    if (deleteIcon != null) {
+                        val intrinsicWidth = deleteIcon.intrinsicWidth
+                        val intrinsicHeight = deleteIcon.intrinsicHeight
+                        val deleteIconTop = itemView.top + (itemHeight - intrinsicHeight) / 2
+                        val deleteIconMargin = (itemHeight - intrinsicHeight) / 2
+
+                        if (dX > 0) { // Swiping to the right
+                            val deleteIconLeft = itemView.left + deleteIconMargin
+                            val deleteIconRight = itemView.left + deleteIconMargin + intrinsicWidth
+                            val deleteIconBottom = deleteIconTop + intrinsicHeight
+
+                            deleteIcon.setBounds(deleteIconLeft, deleteIconTop, deleteIconRight, deleteIconBottom)
+                            if (dX > deleteIconMargin) {
+                                deleteIcon.draw(c)
+                            }
+                        } else if (dX < 0) { // Swiping to the left
+                            val deleteIconLeft = itemView.right - deleteIconMargin - intrinsicWidth
+                            val deleteIconRight = itemView.right - deleteIconMargin
+                            val deleteIconBottom = deleteIconTop + intrinsicHeight
+
+                            deleteIcon.setBounds(deleteIconLeft, deleteIconTop, deleteIconRight, deleteIconBottom)
+                            if (dX < -deleteIconMargin) {
+                                deleteIcon.draw(c)
+                            }
+                        }
+                    }
+                }
+
+                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+            }
+        }
+
+        ItemTouchHelper(swipeCallback).attachToRecyclerView(rvBooks)
+
         applyViewMode()
 
         // Setup Listeners
@@ -282,6 +372,7 @@ class LibraryFragment : Fragment() {
                 btnSearchToggle.animate().rotation(0f).setDuration(300).start()
                 etSearch.setQuery("", false)
                 currentSearchQuery = ""
+                viewModel.setSearchQuery("")
                 filterAndApplyBooks()
             } else {
                 etSearch.visibility = View.VISIBLE
@@ -294,12 +385,14 @@ class LibraryFragment : Fragment() {
         etSearch.setOnQueryTextListener(object : androidx.appcompat.widget.SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
                 currentSearchQuery = query ?: ""
+                viewModel.setSearchQuery(currentSearchQuery)
                 filterAndApplyBooks()
                 return true
             }
 
             override fun onQueryTextChange(newText: String?): Boolean {
                 currentSearchQuery = newText ?: ""
+                viewModel.setSearchQuery(currentSearchQuery)
                 filterAndApplyBooks()
                 return true
             }
@@ -340,7 +433,7 @@ class LibraryFragment : Fragment() {
     private fun observeViewModel() {
         // Observe Books Stream
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.allBooks.collectLatest { books ->
+            viewModel.searchedBooks.collectLatest { books ->
                 allBooksList = books
                 filterAndApplyBooks()
             }
@@ -527,5 +620,28 @@ class LibraryFragment : Fragment() {
             .scaleY(1.0f)
             .setDuration(300)
             .start()
+    }
+
+    private fun showDeleteConfirmationDialog(book: BookEntity) {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Удалить книгу?")
+            .setMessage("Вы уверены, что хотите удалить книгу \"${book.title}\" из библиотеки?")
+            .setPositiveButton("Удалить") { _, _ ->
+                viewModel.deleteBook(book.sha1)
+                Toast.makeText(requireContext(), "Книга удалена", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Отмена") { _, _ ->
+                val pos = adapter.getPositionOfBook(book)
+                if (pos != -1) {
+                    adapter.notifyItemChanged(pos)
+                }
+            }
+            .setOnCancelListener {
+                val pos = adapter.getPositionOfBook(book)
+                if (pos != -1) {
+                    adapter.notifyItemChanged(pos)
+                }
+            }
+            .show()
     }
 }
