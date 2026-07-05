@@ -1,30 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Base application theme. -->
-    <style name="Theme.MyApplication" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.MyApplication" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/accent</item>
-        <item name="colorPrimaryVariant">@color/accent_hover</item>
         <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/bg_panel</item>
+        <item name="colorOnPrimaryContainer">@color/text_primary</item>
         
         <!-- Secondary brand color. -->
         <item name="colorSecondary">@color/accent</item>
-        <item name="colorSecondaryVariant">@color/accent_hover</item>
         <item name="colorOnSecondary">@color/white</item>
         
+        <!-- Surface and background colors -->
         <item name="android:colorBackground">@color/bg_main</item>
         <item name="android:windowBackground">@color/bg_main</item>
+        <item name="colorSurface">@color/bg_card</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorSurfaceVariant">@color/bg_panel</item>
+        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
+        
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
+        
+        <!-- Customized shape appearances for tactile/rounded design -->
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.App.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.App.Large</item>
         
         <!-- Button Style -->
         <item name="materialButtonStyle">@style/Widget.App.Button</item>
     </style>
 
-    <style name="Widget.App.Button" parent="Widget.MaterialComponents.Button">
+    <style name="ShapeAppearance.App.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <style name="ShapeAppearance.App.Large" parent="ShapeAppearance.Material3.Corner.Large">
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <style name="Widget.App.Button" parent="Widget.Material3.Button">
         <item name="backgroundTint">@color/btn_bg</item>
         <item name="android:textColor">@color/btn_text</item>
-        <item name="cornerRadius">8dp</item>
+        <item name="cornerRadius">12dp</item>
     </style>
 </resources>

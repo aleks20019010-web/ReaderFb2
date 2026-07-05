@@ -14,6 +14,10 @@ class BookRepository(
 
     suspend fun getBookBySha1(sha1: String): BookEntity? = bookDao.getBookBySha1(sha1)
 
+    suspend fun getBooksBySha1(sha1: String): List<BookEntity> = withContext(Dispatchers.IO) {
+        bookDao.getBooksBySha1(sha1)
+    }
+
     fun getBooksByAuthor(author: String): Flow<List<BookEntity>> = bookDao.getBooksByAuthor(author)
 
     fun getBooksBySeries(series: String): Flow<List<BookEntity>> = bookDao.getBooksBySeries(series)

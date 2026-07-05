@@ -55,7 +55,6 @@ class ReaderActivity : FragmentActivity() {
     private lateinit var readingProgressBar: ProgressBar
 
     private lateinit var backButtonView: TextView
-    private lateinit var infoButtonView: TextView
     private lateinit var settingsBtn: ImageView
 
     private var isSystemUiVisible = false
@@ -170,15 +169,11 @@ class ReaderActivity : FragmentActivity() {
         readingProgressBar = findViewById(com.example.R.id.readingProgressBar)
 
         backButtonView = findViewById(com.example.R.id.backButtonView)
-        infoButtonView = findViewById(com.example.R.id.infoButtonView)
         settingsBtn = findViewById(com.example.R.id.settingsBtn)
 
         viewPager.setPageTransformer(BookFlipPageTransformer())
 
         backButtonView.setOnClickListener { finish() }
-        infoButtonView.setOnClickListener {
-            Toast.makeText(this@ReaderActivity, "Разработчик: Google AI Studio\nФорматы: FB2, TXT, ZIP", Toast.LENGTH_LONG).show()
-        }
         settingsBtn.setOnClickListener {
             val bottomSheet = SettingsBottomSheet()
             bottomSheet.show(supportFragmentManager, "SettingsBottomSheet")
@@ -441,20 +436,23 @@ class ReaderActivity : FragmentActivity() {
         // Update status bar and navigation bar colors
         updateSystemBarsColors(themeName == "dark")
         
-        // Style Top Bar
+        // Style Top Bar with rounded bottom corners and beautiful floating depth
+        val density = resources.displayMetrics.density
+        val panelCornerRadius = 16f * density
         topBar.background = GradientDrawable().apply {
             setColor(panelBg)
-            setStroke(1, border)
+            setStroke((1 * density).toInt(), border)
+            cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, panelCornerRadius, panelCornerRadius, panelCornerRadius, panelCornerRadius)
         }
         titleText.setTextColor(textColor)
         backButtonView.setTextColor(textColor)
-        infoButtonView.setTextColor(textColor)
         // settingsBtn (ImageView) has a gorgeous volumetric gold/bronze color from its drawable, so we keep its natural colors!
         
-        // Style Bottom Bar
+        // Style Bottom Bar with rounded top corners
         bottomBar.background = GradientDrawable().apply {
             setColor(panelBg)
-            setStroke(1, border)
+            setStroke((1 * density).toInt(), border)
+            cornerRadii = floatArrayOf(panelCornerRadius, panelCornerRadius, panelCornerRadius, panelCornerRadius, 0f, 0f, 0f, 0f)
         }
         progressText.setTextColor(textColor)
         

@@ -13,6 +13,17 @@
     <color name="btn_bg">#C4956A</color>
     <color name="btn_text">#1E1A16</color>
     <color name="icon_tint">#E8E0D8</color>
+    <color name="accent_light">#2A261F</color>
+
+    <!-- Material 3 Dark Theme Colors mapping -->
+    <color name="primary">#C4956A</color>
+    <color name="onPrimary">#1E1A16</color>
+    <color name="secondary">#7A6B5A</color>
+    <color name="onSecondary">#1E1A16</color>
+    <color name="surface">#2A261F</color>
+    <color name="onSurface">#E8E0D8</color>
+    <color name="background">#1E1A16</color>
+    <color name="onBackground">#E8E0D8</color>
 
     <color name="purple_200">#FFC4956A</color>
     <color name="purple_500">#FFC4956A</color>

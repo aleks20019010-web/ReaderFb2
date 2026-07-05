@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- CardView Style with 12dp corner radius and 4dp elevation -->
+    <style name="CardViewStyle" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardCornerRadius">12dp</item>
+        <item name="cardElevation">4dp</item>
+    </style>
+
+    <!-- Button Style with 12dp corner radius and 4dp elevation -->
+    <style name="ButtonStyle" parent="Widget.Material3.Button.ElevatedButton">
+        <item name="cornerRadius">12dp</item>
+        <item name="android:elevation">4dp</item>
+    </style>
+</resources>

@@ -10,6 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -18,6 +19,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.R
 import com.example.data.BookEntity
@@ -50,14 +52,17 @@ class LibraryFragment : Fragment() {
     private var currentSearchQuery: String = ""
 
     private var wasScanning: Boolean = false
+    private var isSwipeRescanInProgress: Boolean = false
 
     // View bindings
+    private lateinit var btnToggleViewMode: com.google.android.material.button.MaterialButton
+    private var isGridView: Boolean = true
     private lateinit var btnSearchToggle: View
     private lateinit var btnAutoScan: View
     private lateinit var btnImport: View
     private lateinit var btnMenu: View
     private lateinit var tvTitle: TextView
-    private lateinit var etSearch: EditText
+    private lateinit var etSearch: androidx.appcompat.widget.SearchView
     
     // Detailed Scan progress bindings
     private lateinit var layoutScanProgress: View
@@ -67,7 +72,15 @@ class LibraryFragment : Fragment() {
     private lateinit var progressBarScanProgress: ProgressBar
     
     private lateinit var rvBooks: RecyclerView
-    private lateinit var tvEmptyLibrary: TextView
+    private lateinit var layoutEmptyState: View
+    private lateinit var tvEmptyStateTitle: TextView
+    private lateinit var tvEmptyStateDesc: TextView
+    private lateinit var btnEmptyStateScan: com.google.android.material.button.MaterialButton
+    private lateinit var ivEmptyIllustration: ImageView
+    private lateinit var swipeRefresh: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    private lateinit var continueReadingAdapter: ContinueReadingAdapter
+    private lateinit var layoutContinueReading: View
+    private lateinit var rvContinueReading: RecyclerView
 
     // Register Document Picker for single manual import
     private val filePickerLauncher = registerForActivityResult(
@@ -153,6 +166,15 @@ class LibraryFragment : Fragment() {
         btnMenu = view.findViewById(R.id.btnMenu)
         tvTitle = view.findViewById(R.id.tvTitle)
         etSearch = view.findViewById(R.id.etSearch)
+        // Customize SearchView text color, hint, and close button to match theme
+        val searchEditText = etSearch.findViewById<EditText>(androidx.appcompat.R.id.search_src_text)
+        searchEditText?.apply {
+            setTextColor(resources.getColor(R.color.text_primary, null))
+            setHintTextColor(resources.getColor(R.color.text_secondary, null))
+            textSize = 14f
+        }
+        val closeButton = etSearch.findViewById<ImageView>(androidx.appcompat.R.id.search_close_btn)
+        closeButton?.setColorFilter(resources.getColor(R.color.icon_tint, null))
         
         tvTitle.text = when (filterType) {
             "reading" -> "Читаю"
@@ -171,7 +193,30 @@ class LibraryFragment : Fragment() {
         progressBarScanProgress = view.findViewById(R.id.progressBarScanProgress)
         
         rvBooks = view.findViewById(R.id.rvBooks)
-        tvEmptyLibrary = view.findViewById(R.id.tvEmptyLibrary)
+        layoutEmptyState = view.findViewById(R.id.layoutEmptyState)
+        tvEmptyStateTitle = view.findViewById(R.id.tvEmptyStateTitle)
+        tvEmptyStateDesc = view.findViewById(R.id.tvEmptyStateDesc)
+        btnEmptyStateScan = view.findViewById(R.id.btnEmptyStateScan)
+        ivEmptyIllustration = view.findViewById(R.id.ivEmptyIllustration)
+        swipeRefresh = view.findViewById(R.id.swipeRefresh)
+        layoutContinueReading = view.findViewById(R.id.layoutContinueReading)
+        rvContinueReading = view.findViewById(R.id.rvContinueReading)
+
+        // Style SwipeRefreshLayout to match the app's theme
+        swipeRefresh.setColorSchemeResources(R.color.accent, R.color.text_primary)
+        swipeRefresh.setProgressBackgroundColorSchemeResource(R.color.bg_card)
+
+        // Setup Continue Reading RecyclerView
+        continueReadingAdapter = ContinueReadingAdapter(
+            books = emptyList(),
+            onOpenBook = { book ->
+                viewModel.openBook(book)
+            }
+        )
+        rvContinueReading.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        rvContinueReading.adapter = continueReadingAdapter
+
+        btnToggleViewMode = view.findViewById(R.id.btnToggleViewMode)
 
         // Setup RecyclerView
         adapter = BookAdapter(
@@ -180,13 +225,20 @@ class LibraryFragment : Fragment() {
                 viewModel.openBook(book)
             },
             onDeleteBook = { book ->
-                viewModel.deleteBook(book.sha1)
-                Toast.makeText(requireContext(), "Книга удалена", Toast.LENGTH_SHORT).show()
+                androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle("Удалить книгу?")
+                    .setMessage("Вы уверены, что хотите удалить книгу \"${book.title}\" из библиотеки?")
+                    .setPositiveButton("Удалить") { _, _ ->
+                        viewModel.deleteBook(book.sha1)
+                        Toast.makeText(requireContext(), "Книга удалена", Toast.LENGTH_SHORT).show()
+                    }
+                    .setNegativeButton("Отмена", null)
+                    .show()
             }
         )
 
-        rvBooks.layoutManager = GridLayoutManager(requireContext(), 3)
         rvBooks.adapter = adapter
+        applyViewMode()
 
         // Setup Listeners
         setupListeners()
@@ -195,13 +247,40 @@ class LibraryFragment : Fragment() {
         observeViewModel()
     }
 
+    private fun applyViewMode() {
+        val prefs = requireContext().getSharedPreferences("library_prefs", android.content.Context.MODE_PRIVATE)
+        isGridView = prefs.getBoolean("key_is_grid_view", true)
+        
+        adapter.setGridView(isGridView)
+
+        if (isGridView) {
+            rvBooks.layoutManager = GridLayoutManager(requireContext(), 3)
+            btnToggleViewMode.setIconResource(R.drawable.ic_custom_list)
+            btnToggleViewMode.contentDescription = "Режим списка"
+        } else {
+            rvBooks.layoutManager = LinearLayoutManager(requireContext())
+            btnToggleViewMode.setIconResource(R.drawable.ic_custom_grid)
+            btnToggleViewMode.contentDescription = "Режим сетки"
+        }
+    }
+
     private fun setupListeners() {
+        // Toggle Grid/List view mode
+        btnToggleViewMode.setOnClickListener {
+            isGridView = !isGridView
+            requireContext().getSharedPreferences("library_prefs", android.content.Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("key_is_grid_view", isGridView)
+                .apply()
+            applyViewMode()
+        }
+
         // Toggle Search Input visibility
         btnSearchToggle.setOnClickListener {
             if (etSearch.visibility == View.VISIBLE) {
                 etSearch.visibility = View.GONE
                 btnSearchToggle.animate().rotation(0f).setDuration(300).start()
-                etSearch.setText("")
+                etSearch.setQuery("", false)
                 currentSearchQuery = ""
                 filterAndApplyBooks()
             } else {
@@ -212,13 +291,18 @@ class LibraryFragment : Fragment() {
         }
 
         // Live text change listener for real-time search
-        etSearch.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                currentSearchQuery = s?.toString() ?: ""
+        etSearch.setOnQueryTextListener(object : androidx.appcompat.widget.SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                currentSearchQuery = query ?: ""
                 filterAndApplyBooks()
+                return true
             }
-            override fun afterTextChanged(s: Editable?) {}
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                currentSearchQuery = newText ?: ""
+                filterAndApplyBooks()
+                return true
+            }
         })
 
         // Manual upload / SAF document import
@@ -229,6 +313,22 @@ class LibraryFragment : Fragment() {
         // Compact Auto-Scan action
         btnAutoScan.setOnClickListener {
             checkPermissionsAndScan()
+        }
+
+        // Empty state Auto-Scan action
+        btnEmptyStateScan.setOnClickListener {
+            checkPermissionsAndScan()
+        }
+
+        // Swipe refresh layout manual scan trigger
+        swipeRefresh.setOnRefreshListener {
+            if (viewModel.scanState.value.isScanning) {
+                Toast.makeText(requireContext(), "Сканирование уже выполняется", Toast.LENGTH_SHORT).show()
+                swipeRefresh.isRefreshing = false
+            } else {
+                isSwipeRescanInProgress = true
+                checkPermissionsAndScan()
+            }
         }
         
         // Hide/dismiss progress layout on tap
@@ -261,8 +361,13 @@ class LibraryFragment : Fragment() {
             startPulsing(btnAutoScan)
         } else {
             stopPulsing(btnAutoScan)
+            isSwipeRescanInProgress = false
         }
         btnAutoScan.alpha = if (active) 0.7f else 1.0f
+        
+        if (::swipeRefresh.isInitialized) {
+            swipeRefresh.isRefreshing = active
+        }
         
         if (active) {
             wasScanning = true
@@ -284,7 +389,11 @@ class LibraryFragment : Fragment() {
         
         if (state.status.isNotBlank()) {
             layoutScanProgress.visibility = View.VISIBLE
-            tvScanStatus.text = state.status
+            if (isSwipeRescanInProgress) {
+                tvScanStatus.text = "Обновление: ${state.status}"
+            } else {
+                tvScanStatus.text = state.status
+            }
             
             if (state.status.startsWith("Error", ignoreCase = true) || state.status.startsWith("Ошибка", ignoreCase = true)) {
                 Toast.makeText(requireContext(), state.status, Toast.LENGTH_LONG).show()
@@ -292,6 +401,7 @@ class LibraryFragment : Fragment() {
         }
         
         updateProgressValues(state.totalFiles, state.processedFiles)
+        filterAndApplyBooks()
     }
 
     private fun updateProgressValues(total: Int, processed: Int) {
@@ -306,9 +416,27 @@ class LibraryFragment : Fragment() {
 
     private fun filterAndApplyBooks() {
         if (allBooksList.isEmpty()) {
-            tvEmptyLibrary.text = "Библиотека пуста"
-            tvEmptyLibrary.visibility = View.VISIBLE
+            layoutEmptyState.visibility = View.VISIBLE
             rvBooks.visibility = View.GONE
+            layoutContinueReading.visibility = View.GONE
+            
+            if (viewModel.scanState.value.isScanning) {
+                ivEmptyIllustration.visibility = View.VISIBLE
+                startPulsing(ivEmptyIllustration)
+                btnEmptyStateScan.visibility = View.GONE
+                tvEmptyStateTitle.text = "Сканирование памяти..."
+                if (isSwipeRescanInProgress) {
+                    tvEmptyStateDesc.text = "Выполняется обновление библиотеки по запросу...\nПожалуйста, подождите."
+                } else {
+                    tvEmptyStateDesc.text = "Идёт автоматический поиск книг...\nПожалуйста, подождите."
+                }
+            } else {
+                stopPulsing(ivEmptyIllustration)
+                ivEmptyIllustration.visibility = View.VISIBLE
+                btnEmptyStateScan.visibility = View.VISIBLE
+                tvEmptyStateTitle.text = "Ваша библиотека пуста"
+                tvEmptyStateDesc.text = "Сканируйте память устройства, чтобы автоматически найти книги в форматах FB2, EPUB и TXT."
+            }
             return
         }
 
@@ -336,12 +464,32 @@ class LibraryFragment : Fragment() {
         adapter.updateData(filtered)
 
         if (filtered.isEmpty()) {
-            tvEmptyLibrary.text = "Ничего не найдено"
-            tvEmptyLibrary.visibility = View.VISIBLE
+            layoutEmptyState.visibility = View.VISIBLE
+            ivEmptyIllustration.visibility = View.GONE
+            btnEmptyStateScan.visibility = View.GONE
+            tvEmptyStateTitle.text = "Ничего не найдено"
+            tvEmptyStateDesc.text = "Попробуйте изменить поисковый запрос."
             rvBooks.visibility = View.GONE
         } else {
-            tvEmptyLibrary.visibility = View.GONE
+            layoutEmptyState.visibility = View.GONE
             rvBooks.visibility = View.VISIBLE
+        }
+
+        // Display Continue Reading horizontal list if on "All" tab and no active search query
+        if (filterType == "all" && currentSearchQuery.isBlank()) {
+            val recentlyRead = allBooksList
+                .filter { it.lastReadTime > 0 }
+                .sortedByDescending { it.lastReadTime }
+                .take(3)
+            
+            if (recentlyRead.isNotEmpty()) {
+                continueReadingAdapter.updateBooks(recentlyRead)
+                layoutContinueReading.visibility = View.VISIBLE
+            } else {
+                layoutContinueReading.visibility = View.GONE
+            }
+        } else {
+            layoutContinueReading.visibility = View.GONE
         }
     }
 

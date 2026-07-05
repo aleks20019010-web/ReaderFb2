@@ -34,7 +34,9 @@
                 android:src="@android:drawable/ic_menu_sort_by_size"
                 android:contentDescription="Меню"
                 android:tint="@color/icon_tint"
-                android:layout_marginEnd="8dp" />
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true" />
 
             <TextView
                 android:id="@+id/tvTitle"
@@ -56,23 +58,36 @@
             android:gravity="center_vertical"
             android:clipToPadding="false">
 
-            <!-- Expandable Search Input (Initially Hidden) -->
-            <EditText
+            <!-- Expandable SearchView (Initially Hidden) -->
+            <androidx.appcompat.widget.SearchView
                 android:id="@+id/etSearch"
-                android:layout_width="0dp"
+                android:layout_width="180dp"
                 android:layout_height="48dp"
-                android:layout_weight="1"
                 android:layout_marginEnd="8dp"
                 android:background="@drawable/bg_search_input"
-                android:hint="Поиск..."
-                android:inputType="text"
-                android:maxLines="1"
-                android:paddingHorizontal="16dp"
-                android:textColorHint="@color/text_secondary"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
                 android:visibility="gone"
-                android:elevation="2dp" />
+                android:elevation="2dp"
+                app:iconifiedByDefault="false"
+                app:queryHint="Поиск..."
+                app:searchIcon="@null"
+                app:queryBackground="@null"
+                app:submitBackground="@null" />
+
+            <!-- Toggle Grid/List View Mode -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnToggleViewMode"
+                style="@style/Widget.Material3.Button.IconButton.Filled"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="8dp"
+                app:icon="@drawable/ic_custom_list"
+                app:iconTint="#3D2C1A"
+                app:backgroundTint="#EDE5D8"
+                app:cornerRadius="24dp"
+                app:elevation="2dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:contentDescription="Режим списка" />
 
             <!-- Search Toggle -->
             <com.google.android.material.button.MaterialButton
@@ -86,6 +101,8 @@
                 app:backgroundTint="#EDE5D8"
                 app:cornerRadius="24dp"
                 app:elevation="2dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
                 android:contentDescription="Поиск" />
 
             <!-- Manual Import -->
@@ -100,6 +117,8 @@
                 app:backgroundTint="#EDE5D8"
                 app:cornerRadius="24dp"
                 app:elevation="2dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
                 android:contentDescription="Импорт" />
 
             <!-- Auto Scan -->
@@ -113,6 +132,8 @@
                 app:backgroundTint="#C4956A"
                 app:cornerRadius="24dp"
                 app:elevation="4dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
                 android:contentDescription="Автосканирование" />
 
         </LinearLayout>
@@ -127,29 +148,107 @@
         <!-- Scan Progress Status Container -->
         <include layout="@layout/scan_status_layout" />
 
+        <!-- Continue Reading Section -->
+        <LinearLayout
+            android:id="@+id/layoutContinueReading"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Продолжить чтение"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvContinueReading"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+        </LinearLayout>
+
         <!-- FrameLayout for list and placeholder -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1">
 
-            <!-- RecyclerView Grid of Books -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvBooks"
+            <!-- SwipeRefreshLayout for manual rescan -->
+            <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+                android:id="@+id/swipeRefresh"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scrollbars="vertical" />
+                android:layout_height="match_parent">
 
-            <!-- Empty library placeholder state -->
-            <TextView
-                android:id="@+id/tvEmptyLibrary"
-                android:layout_width="wrap_content"
+                <!-- RecyclerView Grid of Books -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvBooks"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scrollbars="vertical" />
+            </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+            <!-- Beautiful Empty library placeholder state with illustration and call to action -->
+            <LinearLayout
+                android:id="@+id/layoutEmptyState"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:text="Библиотека пуста"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp"
-                android:visibility="gone" />
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="24dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/ivEmptyIllustration"
+                    android:layout_width="160dp"
+                    android:layout_height="160dp"
+                    android:src="@drawable/ic_empty_library"
+                    android:contentDescription="Иллюстрация пустой библиотеки"
+                    android:layout_marginBottom="16dp" />
+
+                <TextView
+                    android:id="@+id/tvEmptyStateTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Ваша библиотека пуста"
+                    android:textColor="@color/text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tvEmptyStateDesc"
+                    android:layout_width="260dp"
+                    android:layout_height="wrap_content"
+                    android:text="Сканируйте память устройства, чтобы автоматически найти книги в форматах FB2, EPUB и TXT."
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:gravity="center"
+                    android:lineSpacingMultiplier="1.1"
+                    android:layout_marginBottom="24dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnEmptyStateScan"
+                    style="@style/ButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:icon="@drawable/ic_custom_scan"
+                    app:iconTint="#FFFFFF"
+                    android:text="Запустить сканирование"
+                    android:textColor="#FFFFFF"
+                    app:backgroundTint="#C4956A"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:paddingHorizontal="24dp"
+                    android:paddingVertical="12dp" />
+            </LinearLayout>
         </FrameLayout>
     </LinearLayout>
 </LinearLayout>

@@ -29,6 +29,9 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE sha1 = :sha1 LIMIT 1")
     suspend fun getBookBySha1(sha1: String): BookEntity?
 
+    @Query("SELECT * FROM books WHERE sha1 = :sha1")
+    suspend fun getBooksBySha1(sha1: String): List<BookEntity>
+
     @androidx.room.Transaction
     suspend fun insertBookIfUnique(book: BookEntity): Boolean {
         val existing = getBookBySha1(book.sha1)

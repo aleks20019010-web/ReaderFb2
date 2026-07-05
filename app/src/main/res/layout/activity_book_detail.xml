@@ -19,7 +19,24 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="@android:drawable/ic_menu_revert"
-            app:titleTextColor="@color/text_primary" />
+            app:titleTextColor="@color/text_primary">
+
+            <TextView
+                android:id="@+id/btnReadToolbar"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_gravity="end"
+                android:gravity="center_vertical"
+                android:paddingEnd="16dp"
+                android:paddingStart="16dp"
+                android:text="ЧИТАТЬ"
+                android:textColor="@color/accent"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true" />
+        </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
@@ -31,14 +48,15 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="24dp"
-            android:gravity="center_horizontal">
+            android:padding="20dp">
 
-            <androidx.cardview.widget.CardView
-                android:layout_width="160dp"
-                android:layout_height="220dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="8dp"
+            <!-- Book Cover -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardViewStyle"
+                android:layout_width="180dp"
+                android:layout_height="250dp"
+                app:strokeWidth="0dp"
+                android:layout_gravity="center_horizontal"
                 android:layout_marginBottom="24dp">
 
                 <FrameLayout
@@ -50,100 +68,340 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent" />
 
+                    <TextView
+                        android:id="@+id/tvCoverLetter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:textSize="56sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/white"
+                        android:visibility="gone"
+                        tools:text="O"
+                        tools:visibility="visible" />
+
                     <ImageView
                         android:id="@+id/ivCover"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:scaleType="centerCrop" />
                 </FrameLayout>
-            </androidx.cardview.widget.CardView>
+            </com.google.android.material.card.MaterialCardView>
 
+            <!-- Book Title -->
             <TextView
                 android:id="@+id/tvTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="24sp"
+                android:textSize="22sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
-                android:gravity="center"
-                android:layout_marginBottom="8dp"
-                tools:text="Название книги" />
-
-            <TextView
-                android:id="@+id/tvAuthor"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="16sp"
-                android:textColor="@color/text_secondary"
-                android:gravity="center"
-                android:layout_marginBottom="8dp"
-                tools:text="Автор Авторский" />
-
-            <TextView
-                android:id="@+id/tvSeries"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="14sp"
-                android:textStyle="italic"
-                android:textColor="@color/accent"
-                android:gravity="center"
                 android:layout_marginBottom="16dp"
-                tools:text="Серия: Хроники (Книга 1)" />
+                tools:text="Орден Архитекторов" />
 
+            <!-- Action Buttons Row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:gravity="start"
                 android:layout_marginBottom="24dp">
-                
-                <ProgressBar
-                    android:id="@+id/pbProgress"
-                    style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="8dp"
-                    android:progressTint="@color/accent"
-                    android:layout_marginEnd="12dp" />
 
-                <TextView
-                    android:id="@+id/tvProgress"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    tools:text="45%" />
+                <ImageView
+                    android:id="@+id/ivFavorite"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
+                    android:src="@android:drawable/btn_star_big_off"
+                    android:contentDescription="Избранное"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:layout_marginEnd="16dp" />
+
+                <ImageView
+                    android:id="@+id/ivShare"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
+                    android:src="@android:drawable/ic_menu_share"
+                    android:contentDescription="Поделиться"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:layout_marginEnd="16dp" />
+
+                <ImageView
+                    android:id="@+id/ivDelete"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
+                    android:src="@android:drawable/ic_menu_delete"
+                    android:contentDescription="Удалить"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true" />
             </LinearLayout>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnRead"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="ЧИТАТЬ"
-                android:textSize="16sp"
-                app:cornerRadius="12dp"
-                android:backgroundTint="@color/btn_bg"
-                android:textColor="@color/btn_text"
-                android:layout_marginBottom="24dp" />
-
-            <TextView
+            <!-- Book Details Metadata Card Container -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardViewStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Аннотация"
-                android:textSize="18sp"
+                app:strokeWidth="0dp"
+                app:cardBackgroundColor="@color/bg_card"
+                android:layout_marginBottom="20dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Authors Block -->
+                    <LinearLayout
+                        android:id="@+id/llAuthorContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingVertical="10dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <TextView
+                            android:id="@+id/tvAuthor"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="16sp"
+                            android:textColor="@color/text_primary"
+                            tools:text="Олег Сапфир, Юрий Винокуров" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="12sp"
+                            android:textColor="@color/text_secondary"
+                            android:text="Авторы"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/divider"
+                        android:layout_marginVertical="4dp" />
+
+                    <!-- Series Block -->
+                    <LinearLayout
+                        android:id="@+id/llSeriesContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingVertical="10dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <TextView
+                            android:id="@+id/tvSeries"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="16sp"
+                            android:textColor="@color/accent"
+                            tools:text="Орден Архитекторов №1" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="12sp"
+                            android:textColor="@color/text_secondary"
+                            android:text="Серия"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/divider"
+                        android:layout_marginVertical="4dp" />
+
+                    <!-- Annotation Block -->
+                    <LinearLayout
+                        android:id="@+id/llAnnotationContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingVertical="10dp">
+
+                        <TextView
+                            android:id="@+id/tvAnnotation"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="15sp"
+                            android:textColor="@color/text_primary"
+                            android:lineSpacingExtra="4dp"
+                            tools:text="Я был величайшим Магом Земли в своем мире. Глава целого Ордена. Ордена Архитекторов. Но, чем старше ста..." />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="12sp"
+                            android:textColor="@color/text_secondary"
+                            android:text="Аннотация"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/divider"
+                        android:layout_marginVertical="4dp" />
+
+                    <!-- Language Block -->
+                    <LinearLayout
+                        android:id="@+id/llLanguageContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingVertical="10dp">
+
+                        <TextView
+                            android:id="@+id/tvLanguage"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="16sp"
+                            android:textColor="@color/text_primary"
+                            tools:text="Русский" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="12sp"
+                            android:textColor="@color/text_secondary"
+                            android:text="Язык документа"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/divider"
+                        android:layout_marginVertical="4dp" />
+
+                    <!-- Bookmark and Last Read Block -->
+                    <LinearLayout
+                        android:id="@+id/llProgressContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingVertical="10dp">
+
+                        <TextView
+                            android:id="@+id/tvProgress"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="16sp"
+                            android:textColor="@color/text_primary"
+                            tools:text="63%, 5 июля 2026 г. 11:11" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="12sp"
+                            android:textColor="@color/text_secondary"
+                            android:text="Текущая закладка и время последнего чтения"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/divider"
+                        android:layout_marginVertical="4dp" />
+
+                    <!-- Format and File Size Block -->
+                    <LinearLayout
+                        android:id="@+id/llFormatSizeContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingVertical="10dp">
+
+                        <TextView
+                            android:id="@+id/tvFormatSize"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="16sp"
+                            android:textColor="@color/text_primary"
+                            tools:text="FB2, 818 КБ" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="12sp"
+                            android:textColor="@color/text_secondary"
+                            android:text="Формат и размер файла"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/divider"
+                        android:layout_marginVertical="4dp" />
+
+                    <!-- SHA-1 Identifier Block -->
+                    <LinearLayout
+                        android:id="@+id/llSha1Container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingVertical="10dp">
+
+                        <TextView
+                            android:id="@+id/tvSha1"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="14sp"
+                            android:textColor="@color/text_primary"
+                            tools:text="SHA-1: 47fbfb03d54eb3ec97f5053e267c907c322dd51c" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="12sp"
+                            android:textColor="@color/text_secondary"
+                            android:text="Идентификатор файла документа (SHA-1)"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Copies Files List Section -->
+            <TextView
+                android:id="@+id/tvCopiesHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
                 android:textStyle="bold"
-                android:textColor="@color/text_primary"
+                android:textColor="@color/text_secondary"
+                android:text="Копии файла документа"
+                android:layout_marginTop="16dp"
                 android:layout_marginBottom="8dp" />
 
-            <TextView
-                android:id="@+id/tvAnnotation"
+            <LinearLayout
+                android:id="@+id/llFilesContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/text_primary"
-                android:lineSpacingExtra="4dp"
-                android:textSize="14sp"
-                tools:text="Описание книги..." />
+                android:orientation="vertical" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

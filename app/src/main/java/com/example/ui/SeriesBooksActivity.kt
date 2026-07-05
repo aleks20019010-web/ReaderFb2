@@ -29,14 +29,14 @@ class SeriesBooksActivity : AppCompatActivity() {
         toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         rvBooks = findViewById(R.id.rvBooks)
-        rvBooks.layoutManager = LinearLayoutManager(this)
+        rvBooks.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 3)
 
         adapter = BookAdapter(emptyList(), { book ->
             val intent = Intent(this, BookDetailActivity::class.java).apply {
                 putExtra("BOOK_SHA1", book.sha1)
             }
             startActivity(intent)
-        }, {})
+        })
         rvBooks.adapter = adapter
 
         loadBooks(seriesName)

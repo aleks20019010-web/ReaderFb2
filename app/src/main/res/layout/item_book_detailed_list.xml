@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="6dp"
+    android:foreground="?android:attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
+
+    <com.google.android.material.card.MaterialCardView
+        style="@style/CardViewStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:strokeWidth="0dp"
+        app:cardBackgroundColor="@color/bg_card"
+        app:cardUseCompatPadding="true">
+        
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp"
+            android:gravity="center_vertical">
+
+            <!-- Cover image on the left -->
+            <FrameLayout
+                android:layout_width="72dp"
+                android:layout_height="100dp"
+                android:layout_marginEnd="12dp">
+
+                <View
+                    android:id="@+id/vCoverBackground"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="#e94560" />
+
+                <ImageView
+                    android:id="@+id/ivCover"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="Обложка книги" />
+
+                <!-- Progress bar at the bottom of the cover -->
+                <ProgressBar
+                    android:id="@+id/pbReadingProgress"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="4dp"
+                    android:layout_gravity="bottom"
+                    android:progress="0"
+                    android:max="100"
+                    android:progressTint="@color/accent"
+                    android:progressBackgroundTint="#20FFFFFF"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <!-- Book details on the right -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvBookTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="4dp" />
+
+                <TextView
+                    android:id="@+id/tvBookAuthor"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackground" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="2dp" />
+
+                <TextView
+                    android:id="@+id/tvBookSeries"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/accent"
+                    android:textSize="11sp"
+                    android:textStyle="italic"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackground" />
+            </LinearLayout>
+
+            <!-- Dummy/hidden delete button to keep view binding happy -->
+            <View
+                android:id="@+id/btnDelete"
+                android:layout_width="1dp"
+                android:layout_height="1dp"
+                android:visibility="gone" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+</LinearLayout>

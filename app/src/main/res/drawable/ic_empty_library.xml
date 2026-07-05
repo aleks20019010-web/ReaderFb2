@@ -1,0 +1,72 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="160dp"
+    android:height="160dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- Cozy Warm Circular Background -->
+    <path
+        android:fillColor="#15C4956A"
+        android:pathData="M50,50m-35,0a35,35 0,1 1,70 0a35,35 0,1 1,-70 0" />
+
+    <!-- Scanning Radar/Light Beam Waves -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#C4956A"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M 32,28 A 28,28 0 0,1 68,28" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#C4956A"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:pathData="M 38,36 A 18,18 0 0,1 62,36" />
+
+    <!-- Open Book Left Page -->
+    <path
+        android:fillColor="#EDE5D8"
+        android:pathData="M 50,72 C 38,72 26,75 18,78 L 18,48 C 26,45 38,42 50,42 Z" />
+
+    <!-- Open Book Right Page -->
+    <path
+        android:fillColor="#F6F1E5"
+        android:pathData="M 50,72 C 62,72 74,75 82,78 L 82,48 C 74,45 62,42 50,42 Z" />
+
+    <!-- Spine / Middle Divider -->
+    <path
+        android:fillColor="#3D2C1A"
+        android:pathData="M 49,42 h 2 v 30 h -2 z" />
+
+    <!-- Stylized Book Lines/Text Left Page -->
+    <path
+        android:fillColor="#253D2C1A"
+        android:pathData="M 24,52 h 18 v 2 H 24 z M 24,58 h 14 v 2 H 24 z M 28,64 h 14 v 2 H 28 z" />
+
+    <!-- Stylized Book Lines/Text Right Page -->
+    <path
+        android:fillColor="#253D2C1A"
+        android:pathData="M 58,52 h 18 v 2 H 58 z M 62,58 h 14 v 2 H 62 z M 58,64 h 10 v 2 H 58 z" />
+
+    <!-- Cute Small Sparkles / Stars -->
+    <path
+        android:fillColor="#E94560"
+        android:pathData="M 72,32 l 1,2 l 2,1 l -2,1 l -1,2 l -1,-2 l -2,-1 l 2,-1 z M 24,40 l 1.5,3 l 3,1.5 l -3,1.5 l -1.5,3 l -1.5,-3 l -3,-1.5 l 3,-1.5 z" />
+
+    <!-- Stylized Scan Magnifying Glass handle -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#3D2C1A"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M 58,58 L 68,68" />
+
+    <!-- Stylized Scan Magnifying Glass Lens -->
+    <path
+        android:fillColor="#15E94560"
+        android:strokeColor="#3D2C1A"
+        android:strokeWidth="3"
+        android:pathData="M 50,50m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0" />
+
+</vector>
