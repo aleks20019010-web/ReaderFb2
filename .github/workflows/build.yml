@@ -31,7 +31,7 @@ jobs:
       run: |
         keytool -list -v -keystore ~/.android/debug.keystore \
           -alias androiddebugkey -storepass android -keypass android \
-          | grep -A1 "SHA-256"
+          | grep "SHA256"
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:
