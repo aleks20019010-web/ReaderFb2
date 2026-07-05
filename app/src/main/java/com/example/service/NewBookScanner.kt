@@ -7,7 +7,9 @@ import com.example.data.BookDao
 import com.example.data.BookEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
+import java.io.IOException
 import java.security.MessageDigest
+import java.util.zip.ZipException
 
 class NewBookScanner(
     private val context: Context,
@@ -45,6 +47,8 @@ class NewBookScanner(
                 } else {
                     Log.w(TAG, "Path is not accessible: ${path.absolutePath} (exists=${path.exists()}, isDir=${path.isDirectory()}, canRead=${path.canRead()})")
                 }
+            } catch (e: SecurityException) {
+                Log.e(TAG, "SecurityException checking root path: ${path.absolutePath}", e)
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking root path: ${path.absolutePath}", e)
             }
@@ -67,6 +71,9 @@ class NewBookScanner(
 
         val sha1Cache = try {
             bookDao.getAllSha1s().toMutableSet()
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException fetching SHA1 cache from DB", e)
+            mutableSetOf<String>()
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching SHA1 cache from DB", e)
             mutableSetOf<String>()
@@ -75,6 +82,7 @@ class NewBookScanner(
         val batchList = mutableListOf<BookEntity>()
         var addedCount = 0
         var skippedCount = 0
+        val batchSize = 10
 
         for ((index, file) in filesToProcess.withIndex()) {
             val fileIndex = index + 1
@@ -89,29 +97,55 @@ class NewBookScanner(
                 skippedBooks = skippedCount
             ))
 
-            val success = kotlinx.coroutines.withTimeoutOrNull(12000) {
+            // Add timeout of 5 seconds per file processing
+            val success = kotlinx.coroutines.withTimeoutOrNull(5000) {
                 try {
                     processFile(file, sha1Cache, batchList, { added, skipped ->
                         addedCount += added
                         skippedCount += skipped
                     })
                     true
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error processing file ${file.absolutePath}", e)
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "SecurityException in processFile for: ${file.absolutePath}", e)
+                    false
+                } catch (e: ZipException) {
+                    Log.e(TAG, "ZipException in processFile for: ${file.absolutePath}", e)
+                    false
+                } catch (e: IOException) {
+                    Log.e(TAG, "IOException in processFile for: ${file.absolutePath}", e)
+                    false
+                } catch (e: OutOfMemoryError) {
+                    Log.e(TAG, "OutOfMemoryError in processFile for: ${file.absolutePath}", e)
+                    System.gc()
+                    false
+                } catch (e: Throwable) {
+                    Log.e(TAG, "Unknown error in processFile for: ${file.absolutePath}", e)
                     false
                 }
             }
             if (success == null) {
-                Log.e(TAG, "Timeout of 12s exceeded processing file: ${file.absolutePath}")
+                Log.e(TAG, "Timeout of 5s exceeded processing file: ${file.absolutePath}")
             }
 
-            // Insert to DB in batches of 50 to maximize performance
-            if (batchList.size >= 50) {
+            // Insert to DB in batches to maximize performance and improve responsiveness
+            if (batchList.size >= batchSize) {
                 try {
                     bookDao.insertBooks(batchList)
                     Log.d(TAG, "Inserted batch of ${batchList.size} books to database successfully.")
                     batchList.clear()
-                } catch (e: Exception) {
+                    
+                    // Update progress state after successful batch database write
+                    updateLocalAndGlobalState(ScannerState(
+                        isScanning = true,
+                        status = "Saved books to library... ($fileIndex/$total)",
+                        totalFiles = total,
+                        processedFiles = fileIndex,
+                        addedBooks = addedCount,
+                        skippedBooks = skippedCount
+                    ))
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "SecurityException inserting books batch to DB", e)
+                } catch (e: Throwable) {
                     Log.e(TAG, "Error committing books batch to DB", e)
                 }
             }
@@ -122,7 +156,9 @@ class NewBookScanner(
                 bookDao.insertBooks(batchList)
                 Log.d(TAG, "Inserted final batch of ${batchList.size} books to database successfully.")
                 batchList.clear()
-            } catch (e: Exception) {
+            } catch (e: SecurityException) {
+                Log.e(TAG, "SecurityException inserting final books batch to DB", e)
+            } catch (e: Throwable) {
                 Log.e(TAG, "Error committing final books batch to DB", e)
             }
         }
@@ -148,75 +184,141 @@ class NewBookScanner(
     ) {
         val ext = file.extension.lowercase()
         if (ext == "fb2") {
-            val bytes = try {
-                file.readBytes()
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to read bytes for file: ${file.absolutePath}", e)
-                return
+            try {
+                if (!file.exists() || !file.canRead()) {
+                    Log.w(TAG, "File does not exist or is not readable: ${file.absolutePath}")
+                    return
+                }
+
+                val bytes = try {
+                    file.readBytes()
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "SecurityException reading file: ${file.absolutePath}", e)
+                    return
+                } catch (e: IOException) {
+                    Log.e(TAG, "IOException reading file: ${file.absolutePath}", e)
+                    return
+                } catch (e: OutOfMemoryError) {
+                    Log.e(TAG, "OutOfMemoryError reading file: ${file.absolutePath}", e)
+                    System.gc()
+                    return
+                } catch (e: Throwable) {
+                    Log.e(TAG, "Unknown error reading file: ${file.absolutePath}", e)
+                    return
+                }
+
+                if (bytes.isEmpty()) return
+                
+                val sha1 = computeSha1(bytes)
+                if (sha1 in sha1Cache) {
+                    Log.d(TAG, "Skipped existing book by SHA1 ($sha1): ${file.name}")
+                    onStatsUpdated(0, 1)
+                    return
+                }
+                
+                val rawText = decodeBytesToString(bytes)
+                val metadata = NewFb2Parser.parse(rawText, file.nameWithoutExtension)
+                
+                // Resolve correct Russian title with transliteration support
+                val resolvedTitle = resolveRussianTitle(metadata.title, file.nameWithoutExtension)
+                
+                val book = BookEntity(
+                    sha1 = sha1,
+                    title = resolvedTitle,
+                    author = metadata.author,
+                    content = rawText,
+                    coverGradientStart = getRandomGradientStartColor(),
+                    coverGradientEnd = getRandomGradientEndColor(),
+                    category = "Local",
+                    totalCharacters = rawText.length,
+                    filePath = file.absolutePath
+                )
+                batchList.add(book)
+                sha1Cache.add(sha1)
+                onStatsUpdated(1, 0)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error handling fb2 file: ${file.absolutePath}", e)
             }
-            if (bytes.isEmpty()) return
-            
-            val sha1 = computeSha1(bytes)
-            if (sha1 in sha1Cache) {
-                Log.d(TAG, "Skipped existing book by SHA1 ($sha1): ${file.name}")
-                onStatsUpdated(0, 1)
-                return
-            }
-            
-            val rawText = decodeBytesToString(bytes)
-            val metadata = NewFb2Parser.parse(rawText, file.nameWithoutExtension)
-            val book = BookEntity(
-                sha1 = sha1,
-                title = metadata.title,
-                author = metadata.author,
-                content = rawText,
-                coverGradientStart = getRandomGradientStartColor(),
-                coverGradientEnd = getRandomGradientEndColor(),
-                category = "Local",
-                totalCharacters = rawText.length,
-                filePath = file.absolutePath
-            )
-            batchList.add(book)
-            sha1Cache.add(sha1)
-            onStatsUpdated(1, 0)
         } else if (ext == "zip") {
             try {
-                java.util.zip.ZipInputStream(file.inputStream()).use { zis ->
+                if (!file.exists() || !file.canRead()) {
+                    Log.w(TAG, "Zip file does not exist or is not readable: ${file.absolutePath}")
+                    return
+                }
+
+                java.util.zip.ZipInputStream(file.inputStream().buffered()).use { zis ->
                     var entry = zis.nextEntry
                     while (entry != null) {
-                        val entryName = entry.name.lowercase()
-                        if (!entry.isDirectory && entryName.endsWith(".fb2")) {
-                            val tempBytes = zis.readBytes()
-                            if (tempBytes.isNotEmpty()) {
-                                val sha1 = computeSha1(tempBytes)
-                                if (sha1 in sha1Cache) {
-                                    Log.d(TAG, "Skipped existing ZIP-entry book by SHA1 ($sha1): $entryName")
-                                    onStatsUpdated(0, 1)
-                                } else {
-                                    val rawText = decodeBytesToString(tempBytes)
-                                    val metadata = NewFb2Parser.parse(rawText, entryName.removeSuffix(".fb2"))
-                                    val book = BookEntity(
-                                        sha1 = sha1,
-                                        title = metadata.title,
-                                        author = metadata.author,
-                                        content = rawText,
-                                        coverGradientStart = getRandomGradientStartColor(),
-                                        coverGradientEnd = getRandomGradientEndColor(),
-                                        category = "Local",
-                                        totalCharacters = rawText.length,
-                                        filePath = file.absolutePath
-                                    )
-                                    batchList.add(book)
-                                    sha1Cache.add(sha1)
-                                    onStatsUpdated(1, 0)
+                        try {
+                            val entryName = entry.name.lowercase()
+                            if (!entry.isDirectory && entryName.endsWith(".fb2")) {
+                                val tempBytes = try {
+                                    zis.readBytes()
+                                } catch (e: SecurityException) {
+                                    Log.e(TAG, "SecurityException reading zip entry: $entryName in ${file.absolutePath}", e)
+                                    byteArrayOf()
+                                } catch (e: ZipException) {
+                                    Log.e(TAG, "ZipException reading zip entry: $entryName in ${file.absolutePath}", e)
+                                    byteArrayOf()
+                                } catch (e: IOException) {
+                                    Log.e(TAG, "IOException reading zip entry: $entryName in ${file.absolutePath}", e)
+                                    byteArrayOf()
+                                } catch (e: OutOfMemoryError) {
+                                    Log.e(TAG, "OutOfMemoryError reading zip entry: $entryName in ${file.absolutePath}", e)
+                                    System.gc()
+                                    byteArrayOf()
+                                } catch (e: Throwable) {
+                                    Log.e(TAG, "Throwable reading zip entry: $entryName in ${file.absolutePath}", e)
+                                    byteArrayOf()
+                                }
+
+                                if (tempBytes.isNotEmpty()) {
+                                    val sha1 = computeSha1(tempBytes)
+                                    if (sha1 in sha1Cache) {
+                                        Log.d(TAG, "Skipped existing ZIP-entry book by SHA1 ($sha1): $entryName")
+                                        onStatsUpdated(0, 1)
+                                    } else {
+                                        val rawText = decodeBytesToString(tempBytes)
+                                        val entryFallback = entryName.removeSuffix(".fb2")
+                                        val metadata = NewFb2Parser.parse(rawText, entryFallback)
+                                        
+                                        // Resolve correct Russian title with transliteration support
+                                        val resolvedTitle = resolveRussianTitle(metadata.title, entryFallback)
+                                        
+                                        val book = BookEntity(
+                                            sha1 = sha1,
+                                            title = resolvedTitle,
+                                            author = metadata.author,
+                                            content = rawText,
+                                            coverGradientStart = getRandomGradientStartColor(),
+                                            coverGradientEnd = getRandomGradientEndColor(),
+                                            category = "Local",
+                                            totalCharacters = rawText.length,
+                                            filePath = file.absolutePath
+                                        )
+                                        batchList.add(book)
+                                        sha1Cache.add(sha1)
+                                        onStatsUpdated(1, 0)
+                                    }
                                 }
                             }
+                        } catch (e: Throwable) {
+                            Log.e(TAG, "Error processing zip entry: ${entry.name} in file: ${file.absolutePath}", e)
                         }
                         entry = zis.nextEntry
                     }
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to read zip archive: ${file.absolutePath}", e)
+            } catch (e: SecurityException) {
+                Log.e(TAG, "SecurityException opening zip archive: ${file.absolutePath}", e)
+            } catch (e: ZipException) {
+                Log.e(TAG, "ZipException opening zip archive: ${file.absolutePath}", e)
+            } catch (e: IOException) {
+                Log.e(TAG, "IOException opening zip archive: ${file.absolutePath}", e)
+            } catch (e: OutOfMemoryError) {
+                Log.e(TAG, "OutOfMemoryError opening zip archive: ${file.absolutePath}", e)
+                System.gc()
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error opening zip archive: ${file.absolutePath}", e)
             }
         }
     }
@@ -232,6 +334,9 @@ class NewBookScanner(
 
         val files = try {
             dir.listFiles()
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException listing files for directory: ${dir.absolutePath}", e)
+            null
         } catch (e: Exception) {
             Log.e(TAG, "Failed listFiles for directory: ${dir.absolutePath}", e)
             null
@@ -269,6 +374,8 @@ class NewBookScanner(
                         }
                     }
                 }
+            } catch (e: SecurityException) {
+                Log.e(TAG, "SecurityException checking file object: ${file.absolutePath}", e)
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking file object: ${file.absolutePath}", e)
             }
@@ -292,6 +399,33 @@ class NewBookScanner(
         val digest = MessageDigest.getInstance("SHA-1")
         val hash = digest.digest(bytes)
         return hash.joinToString("") { "%02x".format(it) }
+    }
+
+    private fun containsCyrillic(str: String): Boolean {
+        return str.any { it in '\u0400'..'\u04FF' }
+    }
+
+    private fun resolveRussianTitle(metadataTitle: String, filename: String): String {
+        val cleanMetadataTitle = metadataTitle.trim()
+        val cleanFilename = filename.trim()
+
+        // 1. If metadata title has Cyrillic, use it directly (corresponds to: "Если в FB2 есть тег <title> — использовать его")
+        if (cleanMetadataTitle.isNotEmpty() && containsCyrillic(cleanMetadataTitle)) {
+            return cleanMetadataTitle
+        }
+
+        // 2. If the filename has Cyrillic, use the filename as the base title ("Если имя файла содержит русские буквы — использовать их как основу")
+        if (containsCyrillic(cleanFilename)) {
+            return cleanFilename
+        }
+
+        // 3. If there is a metadata title but it is in Latin, transliterate it ("Если заголовок на латинице или отсутствует — транслитерировать с помощью TitleHelper.transliterate()")
+        if (cleanMetadataTitle.isNotEmpty()) {
+            return TitleHelper.transliterate(cleanMetadataTitle)
+        }
+
+        // 4. Otherwise, transliterate the filename as fallback
+        return TitleHelper.transliterate(cleanFilename)
     }
 
     private fun getRandomGradientStartColor(): String {
