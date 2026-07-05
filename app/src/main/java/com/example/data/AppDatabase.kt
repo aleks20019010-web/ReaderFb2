@@ -19,7 +19,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "lumina_reader_db"
+                    "books.db"
                 )
                 .fallbackToDestructiveMigration()
                 .build()

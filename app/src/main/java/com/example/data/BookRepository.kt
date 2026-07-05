@@ -1,6 +1,9 @@
 package com.example.data
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import android.util.Log
 
 class BookRepository(
     private val bookDao: BookDao,
@@ -20,6 +23,13 @@ class BookRepository(
     suspend fun insertBookIfUnique(book: BookEntity): Boolean = bookDao.insertBookIfUnique(book)
 
     suspend fun insertBooks(books: List<BookEntity>) = bookDao.insertBooks(books)
+
+    suspend fun saveBooks(books: List<BookEntity>) {
+        withContext(Dispatchers.IO) {
+            bookDao.insertBooks(books)
+            Log.d("BookRepository", "Saved ${books.size} books")
+        }
+    }
 
     suspend fun updateBook(book: BookEntity) = bookDao.updateBook(book)
 

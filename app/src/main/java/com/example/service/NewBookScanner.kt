@@ -6,6 +6,7 @@ import android.util.Log
 import com.example.data.BookDao
 import com.example.data.BookEntity
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
@@ -29,7 +30,7 @@ class NewBookScanner(
 
     suspend fun scanBooks() {
         Log.d(TAG, "scanBooks: Starting auto-scanning sequence.")
-        updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Scanning started..."))
+        updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Сканирование запущено..."))
 
         val paths = listOf(
             Environment.getExternalStorageDirectory(),
@@ -59,13 +60,13 @@ class NewBookScanner(
         
         if (total == 0) {
             Log.d(TAG, "Finished scanning: no supported books found.")
-            updateLocalAndGlobalState(ScannerState(isScanning = false, status = "No books found. Please check Download, Documents, or Books folders."))
+            updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Книги не найдены. Проверьте папки Download, Documents или Books."))
             return
         }
 
         updateLocalAndGlobalState(ScannerState(
             isScanning = true,
-            status = "Files gathered: $total",
+            status = "Найдено файлов для обработки: $total",
             totalFiles = total
         ))
 
@@ -73,16 +74,16 @@ class NewBookScanner(
             bookDao.getAllSha1s().toMutableSet()
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException fetching SHA1 cache from DB", e)
-            mutableSetOf<String>()
+            mutableSetOf()
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching SHA1 cache from DB", e)
-            mutableSetOf<String>()
+            mutableSetOf()
         }
 
         val batchList = mutableListOf<BookEntity>()
         var addedCount = 0
         var skippedCount = 0
-        val batchSize = 10
+        val batchSize = 10 // Quick saves of 10 to keep the UI refreshed and avoid large OOMs
 
         for ((index, file) in filesToProcess.withIndex()) {
             val fileIndex = index + 1
@@ -90,20 +91,20 @@ class NewBookScanner(
             
             updateLocalAndGlobalState(ScannerState(
                 isScanning = true,
-                status = "Processing: ${file.name} ($fileIndex/$total)",
+                status = "Обработка: ${file.name} ($fileIndex/$total)",
                 totalFiles = total,
                 processedFiles = fileIndex,
                 addedBooks = addedCount,
                 skippedBooks = skippedCount
             ))
 
-            // Add timeout of 5 seconds per file processing
-            val success = kotlinx.coroutines.withTimeoutOrNull(5000) {
+            // Timeout of 5 seconds per file to avoid hanging on massive or corrupted files
+            val success = withTimeoutOrNull(5000) {
                 try {
-                    processFile(file, sha1Cache, batchList, { added, skipped ->
+                    processFile(file, sha1Cache, batchList) { added, skipped ->
                         addedCount += added
                         skippedCount += skipped
-                    })
+                    }
                     true
                 } catch (e: SecurityException) {
                     Log.e(TAG, "SecurityException in processFile for: ${file.absolutePath}", e)
@@ -124,20 +125,20 @@ class NewBookScanner(
                 }
             }
             if (success == null) {
-                Log.e(TAG, "Timeout of 5s exceeded processing file: ${file.absolutePath}")
+                Log.e(TAG, "Timeout of 5 seconds exceeded processing file: ${file.absolutePath}")
             }
 
-            // Insert to DB in batches to maximize performance and improve responsiveness
+            // Insert to DB in batches to maximize performance and ensure data is committed incrementally
             if (batchList.size >= batchSize) {
                 try {
                     bookDao.insertBooks(batchList)
                     Log.d(TAG, "Inserted batch of ${batchList.size} books to database successfully.")
                     batchList.clear()
                     
-                    // Update progress state after successful batch database write
+                    // Immediately update status with successful DB save
                     updateLocalAndGlobalState(ScannerState(
                         isScanning = true,
-                        status = "Saved books to library... ($fileIndex/$total)",
+                        status = "Сохранение книг в библиотеку... ($fileIndex/$total)",
                         totalFiles = total,
                         processedFiles = fileIndex,
                         addedBooks = addedCount,
@@ -151,6 +152,7 @@ class NewBookScanner(
             }
         }
 
+        // Final insert of remaining books
         if (batchList.isNotEmpty()) {
             try {
                 bookDao.insertBooks(batchList)
@@ -163,7 +165,7 @@ class NewBookScanner(
             }
         }
 
-        val finalStatus = "Scan finished. Added $addedCount books, skipped $skippedCount duplicates."
+        val finalStatus = "Сканирование завершено. Добавлено книг: $addedCount, дубликатов пропущено: $skippedCount."
         Log.d(TAG, "Scan sequence completed successfully: totalFiles=$total, added=$addedCount, skipped=$skippedCount")
         
         updateLocalAndGlobalState(ScannerState(
@@ -222,6 +224,9 @@ class NewBookScanner(
                 // Resolve correct Russian title with transliteration support
                 val resolvedTitle = resolveRussianTitle(metadata.title, file.nameWithoutExtension)
                 
+                // Extract and save cover image to context.filesDir
+                val coverPath = NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
+                
                 val book = BookEntity(
                     sha1 = sha1,
                     title = resolvedTitle,
@@ -231,7 +236,8 @@ class NewBookScanner(
                     coverGradientEnd = getRandomGradientEndColor(),
                     category = "Local",
                     totalCharacters = rawText.length,
-                    filePath = file.absolutePath
+                    filePath = file.absolutePath,
+                    coverPath = coverPath
                 )
                 batchList.add(book)
                 sha1Cache.add(sha1)
@@ -285,6 +291,9 @@ class NewBookScanner(
                                         // Resolve correct Russian title with transliteration support
                                         val resolvedTitle = resolveRussianTitle(metadata.title, entryFallback)
                                         
+                                        // Extract and save cover image to context.filesDir
+                                        val coverPath = NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
+                                        
                                         val book = BookEntity(
                                             sha1 = sha1,
                                             title = resolvedTitle,
@@ -294,7 +303,8 @@ class NewBookScanner(
                                             coverGradientEnd = getRandomGradientEndColor(),
                                             category = "Local",
                                             totalCharacters = rawText.length,
-                                            filePath = file.absolutePath
+                                            filePath = file.absolutePath,
+                                            coverPath = coverPath
                                         )
                                         batchList.add(book)
                                         sha1Cache.add(sha1)

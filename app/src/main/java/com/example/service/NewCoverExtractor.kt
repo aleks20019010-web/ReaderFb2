@@ -1,24 +1,81 @@
 package com.example.service
 
 import android.content.Context
-import android.graphics.BitmapFactory
+import android.util.Base64
+import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 
 object NewCoverExtractor {
 
+    /**
+     * Extracts cover from file, fallback implementation.
+     */
     fun extractCover(file: File, sha1: String, context: Context?): String? {
         if (context == null) return null
-        
-        // Simple extraction logic without resources
-        // Assume fb2 file content contains binary cover data
+        return try {
+            val content = file.readText(Charsets.UTF_8)
+            extractAndSaveCover(content, sha1, context)
+        } catch (e: Exception) {
+            Log.e("NewCoverExtractor", "Failed to extract cover from file directly", e)
+            null
+        }
+    }
+
+    /**
+     * Extracts cover image from FB2 content (xml/string), decodes the base64 data,
+     * and saves it to internal files directory so it persists and is fast to load.
+     */
+    fun extractAndSaveCover(fb2Content: String, sha1: String, context: Context?): String? {
+        if (context == null) return null
         try {
-            // Placeholder: Implement real FB2 cover extraction here
-            // Example: find <binary> tag in FB2, decode base64
+            // Find binary section using regex
+            // Standard FB2 has <binary id="cover.jpg" content-type="image/jpeg">BASE64_DATA</binary>
+            val binaryRegex = Regex("<binary[^>]*id\\s*=\\s*\"([^\"]+?)\"[^>]*>(.*?)</binary>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+            var match = binaryRegex.find(fb2Content)
+            var base64Data = match?.groupValues?.get(2)?.trim()
+
+            if (base64Data.isNullOrBlank()) {
+                // Try fallback to any first <binary> tag
+                val fallbackRegex = Regex("<binary[^>]*>(.*?)</binary>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+                match = fallbackRegex.find(fb2Content)
+                base64Data = match?.groupValues?.get(1)?.trim()
+            }
+
+            if (base64Data.isNullOrBlank()) {
+                Log.d("NewCoverExtractor", "No binary cover data found for book SHA1: $sha1")
+                return null
+            }
+
+            // Clean up any potential xml tag residue or spaces
+            val cleanBase64 = base64Data.replace(Regex("\\s+"), "")
+
+            // Decode base64
+            val imageBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+            if (imageBytes.isEmpty()) {
+                Log.w("NewCoverExtractor", "Decoded image bytes are empty for book SHA1: $sha1")
+                return null
+            }
+
+            // Ensure the directory exists
+            val coverDir = File(context.filesDir, "covers")
+            if (!coverDir.exists()) {
+                coverDir.mkdirs()
+            }
+
+            val coverFile = File(coverDir, "cover_$sha1.jpg")
+            FileOutputStream(coverFile).use { fos ->
+                fos.write(imageBytes)
+            }
             
-            // For now, return null to indicate no cover
+            Log.d("NewCoverExtractor", "Cover successfully saved to: ${coverFile.absolutePath}")
+            return coverFile.absolutePath
+        } catch (e: OutOfMemoryError) {
+            Log.e("NewCoverExtractor", "OutOfMemoryError while extracting cover for $sha1", e)
+            System.gc()
             return null
         } catch (e: Exception) {
+            Log.e("NewCoverExtractor", "Error extracting cover for $sha1", e)
             return null
         }
     }
