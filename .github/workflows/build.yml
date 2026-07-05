@@ -16,6 +16,15 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         cache: gradle
+    - name: Create debug keystore (if missing)
+      run: |
+        if [ ! -f ~/.android/debug.keystore ]; then
+          mkdir -p ~/.android
+          keytool -genkey -v -keystore ~/.android/debug.keystore \
+            -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=Android Debug, O=Android, C=US"
+        fi
     - name: Build Debug APK
       run: gradle assembleDebug
     - name: Get SHA-256 from debug.keystore
