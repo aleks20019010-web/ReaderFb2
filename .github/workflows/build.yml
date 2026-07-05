@@ -21,20 +21,20 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    - name: Set up deterministic debug keystore
+      run: |
+        mkdir -p ~/.android
+        base64 -d debug.keystore.base64 > ~/.android/debug.keystore
+
     - name: Build Debug APK
       run: gradle assembleDebug
 
     - name: Print SHA-256 Fingerprint
       run: |
-        echo "SHA-256 Fingerprint for the Debug APK:"
-        # Check if debug.keystore exists, if not, generate it
-        if [ ! -f ~/.android/debug.keystore ]; then
-          echo "debug.keystore not found. Generating it..."
-          mkdir -p ~/.android
-          keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-        fi
-        # Extract the fingerprint
+        echo "SHA-256 Fingerprint for the Debug APK (Keystore):"
         keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android | grep SHA256
+        echo "SHA-256 of the generated APK file:"
+        sha256sum app/build/outputs/apk/debug/app-debug.apk
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4

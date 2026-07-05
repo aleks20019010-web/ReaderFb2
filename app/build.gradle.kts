@@ -20,9 +20,18 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
+  signingConfigs {
+    getByName("debug") {
+      storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+      storePassword = "android"
+      keyAlias = "androiddebugkey"
+      keyPassword = "android"
+    }
+  }
+
   buildTypes {
     debug {
-      // Use default debug signing config
+      signingConfig = signingConfigs.getByName("debug")
     }
   }
   compileOptions {
@@ -34,6 +43,14 @@ android {
     buildConfig = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
+}
+
+androidComponents {
+  beforeVariants { variantBuilder ->
+    if (variantBuilder.buildType == "release") {
+      variantBuilder.enable = false
+    }
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
