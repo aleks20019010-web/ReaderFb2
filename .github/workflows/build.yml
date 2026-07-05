@@ -1,41 +1,28 @@
 name: Android CI/CD
-
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
         cache: gradle
-
-    - name: Set up deterministic debug keystore
-      run: |
-        mkdir -p ~/.android
-        base64 -d debug.keystore.base64 > ~/.android/debug.keystore
-
     - name: Build Debug APK
       run: gradle assembleDebug
-
-    - name: Print SHA-256 Fingerprint
+    - name: Get SHA-256 from debug.keystore
       run: |
-        echo "SHA-256 Fingerprint for the Debug APK (Keystore):"
-        keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android | grep SHA256
-        echo "SHA-256 of the generated APK file:"
-        sha256sum app/build/outputs/apk/debug/app-debug.apk
-
+        keytool -list -v -keystore ~/.android/debug.keystore \
+          -alias androiddebugkey -storepass android -keypass android \
+          | grep -A1 "SHA-256"
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:
