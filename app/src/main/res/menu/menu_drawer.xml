@@ -13,5 +13,9 @@
             android:id="@+id/nav_read"
             android:icon="@android:drawable/ic_menu_view"
             android:title="Прочитано" />
+        <item
+            android:id="@+id/nav_sync"
+            android:icon="@android:drawable/stat_notify_sync"
+            android:title="Синхронизация" />
     </group>
 </menu>

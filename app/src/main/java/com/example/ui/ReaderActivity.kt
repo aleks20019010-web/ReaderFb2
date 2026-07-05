@@ -1187,6 +1187,9 @@ class ReaderActivity : FragmentActivity() {
                         }
                         db.bookDao().updateProgress(bookSha1, newOffset, System.currentTimeMillis())
                         Log.d(TAG, "Успешно обновлен прогресс в БД: SHA-1 = $bookSha1, смещение = $newOffset")
+                        if (com.example.data.YandexDiskManager.isAuthorized(this@ReaderActivity)) {
+                            com.example.data.YandexDiskManager.pushProgressToCloud(this@ReaderActivity, bookSha1, newOffset)
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Ошибка при обновлении прогресса в БД при паузе", e)

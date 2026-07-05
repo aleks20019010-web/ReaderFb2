@@ -34,18 +34,22 @@ class MainActivity : AppCompatActivity() {
 
         // Setup Navigation logic
         navView.setNavigationItemSelectedListener { menuItem ->
-            val filter = when (menuItem.itemId) {
-                R.id.nav_reading -> "reading"
-                R.id.nav_read -> "read"
-                else -> "all"
-            }
-            
-            // Save selected menu in preferences
-            getSharedPreferences("nav_prefs", MODE_PRIVATE).edit()
-                .putString("last_selected_filter", filter)
-                .apply()
+            if (menuItem.itemId == R.id.nav_sync) {
+                openSyncFragment()
+            } else {
+                val filter = when (menuItem.itemId) {
+                    R.id.nav_reading -> "reading"
+                    R.id.nav_read -> "read"
+                    else -> "all"
+                }
                 
-            openLibraryFragment(filter)
+                // Save selected menu in preferences
+                getSharedPreferences("nav_prefs", MODE_PRIVATE).edit()
+                    .putString("last_selected_filter", filter)
+                    .apply()
+                    
+                openLibraryFragment(filter)
+            }
             drawerLayout.closeDrawer(GravityCompat.START)
             true
         }
@@ -66,6 +70,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun openLibraryFragment(filter: String) {
         val fragment = LibraryFragment.newInstance(filter)
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .commit()
+    }
+
+    private fun openSyncFragment() {
+        val fragment = com.example.ui.SyncFragment.newInstance()
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()
