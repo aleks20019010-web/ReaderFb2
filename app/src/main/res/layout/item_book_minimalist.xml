@@ -43,6 +43,12 @@
                     android:scaleType="centerCrop"
                     android:contentDescription="Обложка книги" />
 
+                <!-- Semi-transparent gloss/glow overlay for realistic dust-jacket shine -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_cover_glow" />
+
                 <!-- Delete overlay button -->
                 <ImageButton
                     android:id="@+id/btnDelete"

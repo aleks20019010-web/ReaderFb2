@@ -44,6 +44,12 @@
                     android:scaleType="centerCrop"
                     android:contentDescription="Обложка книги" />
 
+                <!-- Semi-transparent gloss/glow overlay for realistic dust-jacket shine -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_cover_glow" />
+
                 <!-- Progress bar at the bottom of the cover -->
                 <ProgressBar
                     android:id="@+id/pbReadingProgress"

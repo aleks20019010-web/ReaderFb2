@@ -82,6 +82,17 @@ class ContinueReadingAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(books[position], onOpenBook)
+        
+        // Smooth entry animation for continue reading items
+        holder.itemView.alpha = 0f
+        holder.itemView.translationY = 24f * holder.itemView.resources.displayMetrics.density
+        holder.itemView.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(350)
+            .setStartDelay(position.toLong() * 30)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .start()
     }
 
     override fun getItemCount(): Int = books.size

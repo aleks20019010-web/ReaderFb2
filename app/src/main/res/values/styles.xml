@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- CardView Style with 12dp corner radius and 4dp elevation -->
+    <!-- CardView Style with 16dp corner radius and 6dp elevation -->
     <style name="CardViewStyle" parent="Widget.Material3.CardView.Elevated">
-        <item name="cardCornerRadius">12dp</item>
-        <item name="cardElevation">4dp</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">6dp</item>
     </style>
 
     <!-- Button Style with 12dp corner radius and 4dp elevation -->

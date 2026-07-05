@@ -3,6 +3,8 @@
     <!-- Dark warm beige palette -->
     <color name="bg_main">#1E1A16</color>
     <color name="bg_card">#2A261F</color>
+    <color name="bg_gradient_start">#12100D</color>
+    <color name="bg_gradient_end">#1E1A16</color>
     <color name="text_primary">#E8E0D8</color>
     <color name="text_secondary">#7A6B5A</color>
     <color name="accent">#C4956A</color>

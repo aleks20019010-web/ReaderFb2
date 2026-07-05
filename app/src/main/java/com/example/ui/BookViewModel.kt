@@ -275,11 +275,49 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
                 
+                // Align ZIP SHA-1 calculation with uncompressed FB2 bytes just like in scanning
+                var bytesForSha1 = bytes
+                if (ext == "zip") {
+                    try {
+                        java.io.ByteArrayInputStream(bytes).use { bais ->
+                            java.util.zip.ZipInputStream(bais).use { zis ->
+                                var entry = zis.nextEntry
+                                var foundFb2 = false
+                                while (entry != null) {
+                                    val entryName = entry.name.lowercase()
+                                    if (!entry.isDirectory && entryName.endsWith(".fb2")) {
+                                        foundFb2 = true
+                                        bytesForSha1 = zis.readBytes()
+                                        break
+                                    }
+                                    entry = zis.nextEntry
+                                }
+                                if (!foundFb2) {
+                                    withContext(Dispatchers.Main) {
+                                        onResult(false, "Внутри ZIP-архива не найден файл .fb2")
+                                    }
+                                    return@launch
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            onResult(false, "Ошибка чтения ZIP-архива: ${e.localizedMessage}")
+                        }
+                        return@launch
+                    }
+                }
+                
+                val finalBytesForSha1: ByteArray = bytesForSha1!!
+                
                 val digest = java.security.MessageDigest.getInstance("SHA-1")
-                digest.update(bytes)
+                digest.update(finalBytesForSha1)
                 val computedSha1 = digest.digest().joinToString("") { String.format("%02x", it) }
                 
-                val duplicate = repository.allBooks.first().find { it.sha1 == computedSha1 }
+                Log.d("BookScanner", "Manual import: computed SHA-1: $computedSha1 for file: $fileName")
+                
+                // Query database directly to avoid any flow latency/cache duplication issues
+                val duplicate = repository.getBookBySha1(computedSha1)
                 if (duplicate != null) {
                     withContext(Dispatchers.Main) {
                         onResult(false, "Эта книга уже импортирована: \"${duplicate.title}\".")
@@ -311,32 +349,15 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     parsedSeriesIndex = parsed.seriesIndex
                     parsedLanguage = parsed.language
                 } else if (ext == "zip") {
-                    java.io.ByteArrayInputStream(bytes).use { bais ->
-                        java.util.zip.ZipInputStream(bais).use { zis ->
-                            var entry = zis.nextEntry
-                            var foundFb2 = false
-                            while (entry != null) {
-                                val entryName = entry.name.lowercase()
-                                if (!entry.isDirectory && entryName.endsWith(".fb2")) {
-                                    foundFb2 = true
-                                    val entryBytes = zis.readBytes()
-                                    val rawText = decodeBytesToString(entryBytes)
-                                    val parsed = parseFb2DetailedText(rawText, entryName.removeSuffix(".fb2"))
-                                    parsedTitle = parsed.title
-                                    parsedAuthor = parsed.author
-                                    parsedContent = parsed.content
-                                    parsedSeries = parsed.series
-                                    parsedSeriesIndex = parsed.seriesIndex
-                                    parsedLanguage = parsed.language
-                                    break
-                                }
-                                entry = zis.nextEntry
-                            }
-                            if (!foundFb2) {
-                                throw java.io.IOException("Внутри ZIP-архива не найден файл .fb2")
-                            }
-                        }
-                    }
+                    // Extract data from the uncompressed bytes we found earlier
+                    val rawText = decodeBytesToString(finalBytesForSha1)
+                    val parsed = parseFb2DetailedText(rawText, fileName.substringBeforeLast(".").removeSuffix(".fb2"))
+                    parsedTitle = parsed.title
+                    parsedAuthor = parsed.author
+                    parsedContent = parsed.content
+                    parsedSeries = parsed.series
+                    parsedSeriesIndex = parsed.seriesIndex
+                    parsedLanguage = parsed.language
                 } else if (ext == "epub") {
                     val (title, content) = parseEpub(localFile)
                     parsedTitle = title

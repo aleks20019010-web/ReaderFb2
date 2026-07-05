@@ -45,6 +45,17 @@ class BookAdapter(
     override fun onBindViewHolder(holder: BookViewHolder, position: Int) {
         val book = books[position]
         holder.bind(book, onOpenBook, onDeleteBook)
+        
+        // Staggered cascade animation for a premium Material 3 entry effect
+        holder.itemView.alpha = 0f
+        holder.itemView.translationY = 32f * holder.itemView.resources.displayMetrics.density
+        holder.itemView.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(350)
+            .setStartDelay((position % 12).toLong() * 30) // Cap the delay to keep interactions snappy
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .start()
     }
 
     override fun getItemCount(): Int = books.size

@@ -70,14 +70,14 @@ class NewBookScanner(
             totalFiles = total
         ))
 
-        val sha1Cache = try {
-            bookDao.getAllSha1s().toMutableSet()
+        val sha1ToPathMap = try {
+            bookDao.getSha1ToPathMap().associate { it.sha1 to it.filePath }.toMutableMap()
         } catch (e: SecurityException) {
-            Log.e(TAG, "SecurityException fetching SHA1 cache from DB", e)
-            mutableSetOf()
+            Log.e(TAG, "SecurityException fetching SHA1 map from DB", e)
+            mutableMapOf()
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching SHA1 cache from DB", e)
-            mutableSetOf()
+            Log.e(TAG, "Error fetching SHA1 map from DB", e)
+            mutableMapOf()
         }
 
         val batchList = mutableListOf<BookEntity>()
@@ -101,7 +101,7 @@ class NewBookScanner(
             // Timeout of 5 seconds per file to avoid hanging on massive or corrupted files
             val success = withTimeoutOrNull(5000) {
                 try {
-                    processFile(file, sha1Cache, batchList) { added, skipped ->
+                    processFile(file, sha1ToPathMap, batchList) { added, skipped ->
                         addedCount += added
                         skippedCount += skipped
                     }
@@ -192,7 +192,7 @@ class NewBookScanner(
 
     private fun processFile(
         file: File,
-        sha1Cache: MutableSet<String>,
+        sha1ToPathMap: MutableMap<String, String>,
         batchList: MutableList<BookEntity>,
         onStatsUpdated: (added: Int, skipped: Int) -> Unit
     ) {
@@ -226,8 +226,24 @@ class NewBookScanner(
                 if (bytes.isEmpty()) return
                 
                 val sha1 = computeSha1(bytes)
-                if (sha1 in sha1Cache) {
-                    Log.d(TAG, "Skipped existing book by SHA1 ($sha1): ${file.name}")
+                Log.d(TAG, "Computed SHA-1 for FB2: $sha1 (file: ${file.name}, size: ${file.length()} bytes)")
+                
+                if (sha1ToPathMap.containsKey(sha1)) {
+                    val existingPath = sha1ToPathMap[sha1]
+                    if (existingPath != file.absolutePath) {
+                        Log.d(TAG, "Book with SHA-1 $sha1 already exists but path changed from '$existingPath' to '${file.absolutePath}'. Updating path in database.")
+                        try {
+                            // Direct database update to prevent duplicate rows while resolving new paths
+                            kotlinx.coroutines.runBlocking {
+                                bookDao.updateFilePath(sha1, file.absolutePath)
+                            }
+                            sha1ToPathMap[sha1] = file.absolutePath
+                        } catch (ex: Exception) {
+                            Log.e(TAG, "Failed to update file path in DB during scanning for SHA-1: $sha1", ex)
+                        }
+                    } else {
+                        Log.d(TAG, "Skipped existing FB2 book by SHA-1 ($sha1): ${file.name}")
+                    }
                     onStatsUpdated(0, 1)
                     return
                 }
@@ -252,7 +268,7 @@ class NewBookScanner(
                     coverPath = coverPath
                 )
                 batchList.add(book)
-                sha1Cache.add(sha1)
+                sha1ToPathMap[sha1] = file.absolutePath
                 onStatsUpdated(1, 0)
             } catch (e: Throwable) {
                 Log.e(TAG, "Error handling fb2 file: ${file.absolutePath}", e)
@@ -293,8 +309,23 @@ class NewBookScanner(
 
                                 if (tempBytes.isNotEmpty()) {
                                     val sha1 = computeSha1(tempBytes)
-                                    if (sha1 in sha1Cache) {
-                                        Log.d(TAG, "Skipped existing ZIP-entry book by SHA1 ($sha1): $entryName")
+                                    Log.d(TAG, "Computed SHA-1 for FB2 inside ZIP: $sha1 (entry: $entryName in ZIP: ${file.name})")
+                                    
+                                    if (sha1ToPathMap.containsKey(sha1)) {
+                                        val existingPath = sha1ToPathMap[sha1]
+                                        if (existingPath != file.absolutePath) {
+                                            Log.d(TAG, "Book with SHA-1 $sha1 from ZIP entry already exists but path changed from '$existingPath' to '${file.absolutePath}'. Updating path.")
+                                            try {
+                                                kotlinx.coroutines.runBlocking {
+                                                    bookDao.updateFilePath(sha1, file.absolutePath)
+                                                }
+                                                sha1ToPathMap[sha1] = file.absolutePath
+                                            } catch (ex: Exception) {
+                                                Log.e(TAG, "Failed to update file path in DB for ZIP entry SHA-1: $sha1", ex)
+                                            }
+                                        } else {
+                                            Log.d(TAG, "Skipped existing ZIP-entry book by SHA-1 ($sha1): $entryName")
+                                        }
                                         onStatsUpdated(0, 1)
                                     } else {
                                         val rawText = decodeBytesToString(tempBytes)
@@ -318,7 +349,7 @@ class NewBookScanner(
                                             coverPath = coverPath
                                         )
                                         batchList.add(book)
-                                        sha1Cache.add(sha1)
+                                        sha1ToPathMap[sha1] = file.absolutePath
                                         onStatsUpdated(1, 0)
                                     }
                                 }
