@@ -622,6 +622,8 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     fun startLocalBookScan(rootPath: String = "/storage/emulated/0") {
         if (isScanning) return
         
+        com.nightread.app.service.AutoDiscoveryService.isManualScanning = true
+        
         val context = getApplication<android.app.Application>()
         if (context == null) {
             android.util.Log.e("BookViewModel", "startLocalBookScan: Application Context is null")
@@ -649,12 +651,15 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             if (!isActive) return@launch
             try {
-                val scanner = com.nightread.app.service.NewBookScanner(context, dao)
+                val app = context as? com.nightread.app.MainApplication
+                val scanner = app?.bookScanner ?: com.nightread.app.service.NewBookScanner(context, dao).also { app?.bookScanner = it }
                 scanner.scanBooks()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 android.util.Log.e("BookViewModel", "Failed to scan books locally", e)
+            } finally {
+                com.nightread.app.service.AutoDiscoveryService.isManualScanning = false
             }
         }
     }

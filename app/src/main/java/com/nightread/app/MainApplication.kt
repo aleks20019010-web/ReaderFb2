@@ -7,6 +7,9 @@ import com.nightread.app.service.AutoDiscoveryService
 import com.nightread.app.service.AutoDiscoveryWorker
 
 class MainApplication : Application() {
+    
+    var bookScanner: com.nightread.app.service.NewBookScanner? = null
+
     override fun onCreate() {
         super.onCreate()
         Log.d("MainApplication", "MainApplication onCreate: Initializing app.")

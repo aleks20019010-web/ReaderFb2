@@ -70,6 +70,10 @@ class AutoDiscoveryService : Service() {
     }
 
     private fun handleNewFile(file: File) {
+        if (AutoDiscoveryService.isManualScanning) {
+            Log.d("AutoDiscoveryService", "Manual scan in progress, skipping new file: ${file.name}")
+            return
+        }
         serviceScope.launch {
             try {
                 // Small delay to make sure file is fully written
@@ -134,6 +138,8 @@ class AutoDiscoveryService : Service() {
     companion object {
         private const val CHANNEL_ID = "AutoDiscoveryChannel"
         private const val NOTIFICATION_ID = 101
+
+        var isManualScanning = false
 
         fun start(context: Context) {
             val intent = Intent(context, AutoDiscoveryService::class.java)
