@@ -165,6 +165,16 @@ class SyncFragment : Fragment() {
 
     private fun triggerSync() {
         val context = requireContext()
+        
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val networkCapabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+        val hasInternet = networkCapabilities?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        
+        if (!hasInternet) {
+            Toast.makeText(context, "Отсутствует подключение к интернету", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
         btnSyncNow.isEnabled = false
         layoutSyncProgress.visibility = View.VISIBLE
 

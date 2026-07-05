@@ -4,4 +4,5 @@
     <string name="unknown_series">Неизвестная серия</string>
     <string name="unknown_title">Неизвестно</string>
     <string name="local_txt">Локальный TXT</string>
+    <string name="yandex_client_id">61d9bc44f0f04c6e8f4fa2490dfb1ee1</string>
 </resources>
