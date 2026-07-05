@@ -34,6 +34,18 @@ class NewBookScanner(
 
     suspend fun scanBooks() {
         Log.d(TAG, "scanBooks: Starting auto-scanning sequence.")
+        
+        if ((context as? Context) == null) {
+            Log.e(TAG, "scanBooks: Context is null, cannot proceed.")
+            updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Критическая ошибка: Context is null"))
+            return
+        }
+        if ((bookDao as? BookDao) == null) {
+            Log.e(TAG, "scanBooks: BookDao is null, cannot proceed.")
+            updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Критическая ошибка: BookDao is null"))
+            return
+        }
+
         updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Сканирование запущено..."))
 
         try {

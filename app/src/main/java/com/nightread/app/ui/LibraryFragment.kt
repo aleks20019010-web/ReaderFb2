@@ -128,38 +128,71 @@ class LibraryFragment : Fragment() {
     }
 
     private fun checkPermissionsAndScan() {
+        val ctx = context ?: return
+        if (!isAdded) return
+        
+        android.util.Log.d("LibraryFragment", "checkPermissionsAndScan: Checking storage permissions")
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            if (android.os.Environment.isExternalStorageManager()) {
-                startScan()
-            } else {
-                try {
-                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                    intent.addCategory("android.intent.category.DEFAULT")
-                    intent.data = Uri.parse("package:${requireContext().packageName}")
-                    requestManageStorageLauncher.launch(intent)
-                } catch (e: CancellationException) {
+            try {
+                if (android.os.Environment.isExternalStorageManager()) {
+                    android.util.Log.d("LibraryFragment", "checkPermissionsAndScan: All Files Access granted")
+                    startScan()
+                } else {
+                    android.util.Log.d("LibraryFragment", "checkPermissionsAndScan: Requesting All Files Access")
+                    try {
+                        val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                        intent.addCategory("android.intent.category.DEFAULT")
+                        intent.data = Uri.parse("package:${ctx.packageName}")
+                        requestManageStorageLauncher.launch(intent)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        android.util.Log.e("LibraryFragment", "Failed to launch ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, trying general settings", e)
+                        try {
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                            requestManageStorageLauncher.launch(intent)
+                        } catch (ex: CancellationException) {
+                            throw ex
+                        } catch (ex: Exception) {
+                            android.util.Log.e("LibraryFragment", "Failed to launch ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION, falling back to standard READ_EXTERNAL_STORAGE", ex)
+                            requestStandardStoragePermission()
+                        }
+                    }
+                }
+            } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                    requestManageStorageLauncher.launch(intent)
-                }
+                android.util.Log.e("LibraryFragment", "Error checking isExternalStorageManager, falling back to standard permission", e)
+                requestStandardStoragePermission()
             }
         } else {
-            if (androidx.core.content.ContextCompat.checkSelfPermission(
-                    requireContext(),
-                    android.Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-            ) {
-                startScan()
-            } else {
-                requestPermissionLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
+            requestStandardStoragePermission()
+        }
+    }
+
+    private fun requestStandardStoragePermission() {
+        val ctx = context ?: return
+        if (!isAdded) return
+        
+        android.util.Log.d("LibraryFragment", "requestStandardStoragePermission: Checking standard READ_EXTERNAL_STORAGE permission")
+        if (androidx.core.content.ContextCompat.checkSelfPermission(
+                ctx,
+                android.Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            startScan()
+        } else {
+            android.util.Log.d("LibraryFragment", "requestStandardStoragePermission: Launching standard permission request")
+            requestPermissionLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }
 
     private fun startScan() {
+        val ctx = context ?: return
+        if (!isAdded) return
+        android.util.Log.d("LibraryFragment", "startScan: Starting local book scan on ViewModel")
         viewModel.startLocalBookScan()
-        Toast.makeText(requireContext(), "Начато сканирование папок...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(ctx, "Начато сканирование папок...", Toast.LENGTH_SHORT).show()
     }
 
     override fun onCreateView(

@@ -621,11 +621,35 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startLocalBookScan(rootPath: String = "/storage/emulated/0") {
         if (isScanning) return
+        
+        val context = getApplication<android.app.Application>()
+        if (context == null) {
+            android.util.Log.e("BookViewModel", "startLocalBookScan: Application Context is null")
+            return
+        }
+        
+        val db = database
+        if (db == null) {
+            android.util.Log.e("BookViewModel", "startLocalBookScan: AppDatabase is null")
+            return
+        }
+        
+        val dao = try {
+            db.bookDao()
+        } catch (e: Exception) {
+            android.util.Log.e("BookViewModel", "startLocalBookScan: Failed to obtain BookDao", e)
+            null
+        }
+        
+        if (dao == null) {
+            android.util.Log.e("BookViewModel", "startLocalBookScan: BookDao is null")
+            return
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             if (!isActive) return@launch
             try {
-                val context = getApplication<android.app.Application>()
-                val scanner = com.nightread.app.service.NewBookScanner(context, database.bookDao())
+                val scanner = com.nightread.app.service.NewBookScanner(context, dao)
                 scanner.scanBooks()
             } catch (e: CancellationException) {
                 throw e
