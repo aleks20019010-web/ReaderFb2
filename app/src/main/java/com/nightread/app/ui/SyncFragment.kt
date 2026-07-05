@@ -56,7 +56,7 @@ class SyncFragment : Fragment() {
         if (result.resultCode == Activity.RESULT_OK) {
             Toast.makeText(requireContext(), "Авторизация прошла успешно!", Toast.LENGTH_SHORT).show()
             updateUi()
-            triggerSync()
+            showStatsAndSync()
         }
     }
 
@@ -100,7 +100,7 @@ class SyncFragment : Fragment() {
         }
 
         btnSyncNow.setOnClickListener {
-            triggerSync()
+            showStatsAndSync()
         }
 
         return view
@@ -163,9 +163,9 @@ class SyncFragment : Fragment() {
         }
     }
 
-    private fun triggerSync() {
+    
+    private fun showStatsAndSync() {
         val context = requireContext()
-        
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
         val networkCapabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
         val hasInternet = networkCapabilities?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
@@ -177,9 +177,53 @@ class SyncFragment : Fragment() {
         
         btnSyncNow.isEnabled = false
         layoutSyncProgress.visibility = View.VISIBLE
+        txtSyncStatus.text = "Анализ файлов..."
+        progressSync.isIndeterminate = true
+        txtSyncProgressCount.text = ""
 
         lifecycleScope.launch {
-            val success = YandexDiskManager.syncWithCloud(context) { status, completed, total ->
+            val stats = YandexDiskManager.calculateSyncStats(context) { status ->
+                lifecycleScope.launch(Dispatchers.Main) {
+                    txtSyncStatus.text = status
+                }
+            }
+            
+            if (stats == null) {
+                Toast.makeText(context, "Ошибка при получении данных", Toast.LENGTH_SHORT).show()
+                btnSyncNow.isEnabled = true
+                layoutSyncProgress.visibility = View.GONE
+                return@launch
+            }
+            
+            progressSync.isIndeterminate = false
+            
+            val builder = android.app.AlertDialog.Builder(context)
+            builder.setTitle("Синхронизация")
+            val msg = "Книг на диске: ${stats.booksOnDisk}\n" +
+                      "Книг в библиотеке: ${stats.booksLocal}\n" +
+                      "Будет скачано: ${stats.toDownload.size} (новых)\n" +
+                      "Будет загружено: ${stats.toUpload.size} (новых)\n" +
+                      "Пропущено (дубликаты): ${stats.duplicates}"
+            builder.setMessage(msg)
+            builder.setPositiveButton("Начать") { _, _ ->
+                executeSync(stats)
+            }
+            builder.setNegativeButton("Отмена") { dialog, _ ->
+                btnSyncNow.isEnabled = true
+                layoutSyncProgress.visibility = View.GONE
+                dialog.dismiss()
+            }
+            builder.setCancelable(false)
+            builder.show()
+        }
+    }
+
+    private fun executeSync(stats: com.nightread.app.data.SyncStats) {
+        val context = requireContext()
+        layoutSyncProgress.visibility = View.VISIBLE
+        btnSyncNow.isEnabled = false
+        lifecycleScope.launch {
+            val success = YandexDiskManager.executeSync(context, stats) { status, completed, total ->
                 lifecycleScope.launch(Dispatchers.Main) {
                     txtSyncStatus.text = status
                     if (total > 0) {
@@ -193,13 +237,18 @@ class SyncFragment : Fragment() {
                     }
                 }
             }
-
             if (success) {
-                Toast.makeText(context, "Синхронизация завершена успешно!", Toast.LENGTH_SHORT).show()
+                val report = "Скачано: ${stats.toDownload.size} книг\n" +
+                             "Загружено: ${stats.toUpload.size} книг\n" +
+                             "Пропущено (дубликаты): ${stats.duplicates} книг"
+                android.app.AlertDialog.Builder(context)
+                    .setTitle("Отчет о синхронизации")
+                    .setMessage(report)
+                    .setPositiveButton("OK", null)
+                    .show()
             } else {
                 Toast.makeText(context, "Ошибка при синхронизации", Toast.LENGTH_SHORT).show()
             }
-
             btnSyncNow.isEnabled = true
             updateUi()
         }

@@ -14,6 +14,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.nightread.app.R
 import com.nightread.app.data.BookEntity
 import java.io.File
+import androidx.recyclerview.widget.DiffUtil
+
 
 class BookAdapter(
     private var books: List<BookEntity>,
@@ -61,8 +63,26 @@ class BookAdapter(
     override fun getItemCount(): Int = books.size
 
     fun updateData(newBooks: List<BookEntity>) {
+        val diffCallback = object : DiffUtil.Callback() {
+            override fun getOldListSize() = books.size
+            override fun getNewListSize() = newBooks.size
+            
+            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                return books[oldItemPosition].sha1 == newBooks[newItemPosition].sha1
+            }
+            
+            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                val old = books[oldItemPosition]
+                val new = newBooks[newItemPosition]
+                return old.title == new.title &&
+                       old.currentProgressChar == new.currentProgressChar &&
+                       old.coverPath == new.coverPath
+            }
+        }
+        
+        val diffResult = DiffUtil.calculateDiff(diffCallback)
         this.books = newBooks
-        notifyDataSetChanged()
+        diffResult.dispatchUpdatesTo(this)
     }
 
     fun getBookAt(position: Int): BookEntity {

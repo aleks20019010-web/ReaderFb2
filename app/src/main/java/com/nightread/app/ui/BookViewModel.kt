@@ -38,13 +38,13 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         searchQuery.value = query
     }
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class, kotlinx.coroutines.FlowPreview::class)
     val searchedBooks: StateFlow<List<BookEntity>> = searchQuery
-        .flatMapLatest { query ->
+                .flatMapLatest { query ->
             if (query.isBlank()) {
-                repository.allBooks
+                repository.allBooks.debounce(500)
             } else {
-                repository.searchBooks(query)
+                repository.searchBooks(query).debounce(500)
             }
         }
         .catch { e ->

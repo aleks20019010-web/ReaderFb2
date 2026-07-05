@@ -1,146 +1,17 @@
-package com.nightread.app.data
+import re
 
-import android.content.Context
-import android.util.Log
-import com.nightread.app.service.NewCoverExtractor
-import com.nightread.app.service.NewFb2Parser
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.RequestBody.Companion.toRequestBody
-import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
-import java.io.File
-import java.nio.charset.StandardCharsets
-import java.util.concurrent.TimeUnit
+with open("app/src/main/java/com/nightread/app/data/YandexDiskManager.kt", "r") as f:
+    content = f.read()
 
-object YandexDiskManager {
-    private const val TAG = "YandexDiskManager"
-    private const val PREFS_NAME = "yandex_prefs"
-    private const val KEY_TOKEN = "oauth_token"
-    private const val BASE_URL = "https://cloud-api.yandex.net/"
+# I will replace `suspend fun syncWithCloud` entirely.
+start_idx = content.find("    suspend fun syncWithCloud(")
+end_idx = content.find("    /**\n     * Directly pushes reading progress")
 
-    // Placeholder Client ID for Yandex OAuth. Users can replace this with their own.
-    const val CLIENT_ID = "bfdea73d1e6242ba826f15d9d0374005"
+if start_idx == -1 or end_idx == -1:
+    print("Could not find start or end index.")
+    exit(1)
 
-    private val moshi = Moshi.Builder()
-        .add(KotlinJsonAdapterFactory())
-        .build()
-
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
-
-    private val api: YandexDiskApi by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .build()
-            .create(YandexDiskApi::class.java)
-    }
-
-    /**
-     * Checks if user has authorized Yandex Disk
-     */
-    fun isAuthorized(context: Context): Boolean {
-        return !getToken(context).isNullOrBlank()
-    }
-
-    /**
-     * Gets the stored OAuth Token
-     */
-    fun getToken(context: Context): String? {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_TOKEN, null)
-    }
-
-    /**
-     * Saves the Yandex Disk OAuth Token
-     */
-    fun saveToken(context: Context, token: String) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString(KEY_TOKEN, token).apply()
-        Log.d(TAG, "Yandex Disk OAuth Token saved successfully.")
-    }
-
-    /**
-     * Clears Yandex Disk authorization
-     */
-    fun clearToken(context: Context) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().remove(KEY_TOKEN).apply()
-        Log.d(TAG, "Yandex Disk OAuth Token cleared.")
-    }
-
-    /**
-     * Fetches general disk info from Yandex Disk API
-     */
-    suspend fun getDiskInfo(context: Context): DiskInfoResponse = withContext(Dispatchers.IO) {
-        val token = getToken(context) ?: throw IllegalStateException("Not authorized")
-        api.getDiskInfo("OAuth $token")
-    }
-
-    /**
-     * Creates folders on Yandex Disk if they don't already exist
-     */
-    private suspend fun initDirectories(authHeader: String) {
-        val paths = listOf("disk:/SmartReader", "disk:/SmartReader/Books", "disk:/SmartReader/Progress")
-        for (path in paths) {
-            try {
-                api.createDirectory(authHeader, path)
-                Log.d(TAG, "Directory created or verified: $path")
-            } catch (e: Exception) {
-                // If it fails because folder already exists (typically 409), ignore
-                Log.d(TAG, "Directory already exists or could not be created: $path. Error: ${e.message}")
-            }
-        }
-    }
-
-    /**
-     * Main synchronization method
-     * Performs full scan, uploads missing local books, downloads missing cloud books,
-     * and syncs/merges reading progress.
-     */
-    private fun calculateMD5(file: File): String {
-        val digest = java.security.MessageDigest.getInstance("MD5")
-        file.inputStream().use { input ->
-            val buffer = ByteArray(8192)
-            var bytesRead: Int
-            while (input.read(buffer).also { bytesRead = it } != -1) {
-                digest.update(buffer, 0, bytesRead)
-            }
-        }
-        return digest.digest().joinToString("") { "%02x".format(it) }
-    }
-
-    private fun computeSha1(bytes: ByteArray): String {
-        val digest = java.security.MessageDigest.getInstance("SHA-1")
-        val hash = digest.digest(bytes)
-        return hash.joinToString("") { "%02x".format(it) }
-    }
-
-    private fun decodeBytesToString(bytes: ByteArray): String {
-        return try {
-            val prefixLen = minOf(bytes.size, 2048)
-            val prefix = String(bytes, 0, prefixLen, Charsets.UTF_8)
-            if (prefix.contains("<?xml", ignoreCase = true) || prefix.contains("<fictionbook", ignoreCase = true)) {
-                String(bytes, Charsets.UTF_8)
-            } else {
-                String(bytes, java.nio.charset.Charset.forName("windows-1251"))
-            }
-        } catch (e: Exception) {
-            String(bytes, Charsets.UTF_8)
-        }
-    }
-
-    suspend fun calculateSyncStats(
+new_code = """    suspend fun calculateSyncStats(
         context: Context,
         onProgress: (status: String) -> Unit
     ): SyncStats? = withContext(Dispatchers.IO) {
@@ -214,9 +85,8 @@ object YandexDiskManager {
                             sha1 = computeSha1(bytes)
                         }
                         
-                        val finalSha1 = sha1
-                        if (finalSha1 != null) {
-                            manifest.books[cloudItem.name] = finalSha1
+                        if (sha1 != null) {
+                            manifest.books[cloudItem.name] = sha1
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to analyze ${cloudItem.name}", e)
@@ -467,57 +337,11 @@ object YandexDiskManager {
             return@withContext false
         }
     }
-    /**
-     * Directly pushes reading progress for a single book to Yandex Disk
-     */
-    suspend fun pushProgressToCloud(context: Context, sha1: String, progressChar: Int) = withContext(Dispatchers.IO) {
-        val token = getToken(context) ?: return@withContext
-        val authHeader = "OAuth $token"
+"""
 
-        try {
-            val database = AppDatabase.getDatabase(context)
-            val book = database.bookDao().getBookBySha1(sha1) ?: return@withContext
+new_content = content[:start_idx] + new_code + content[end_idx:]
 
-            val payload = BookProgressPayload(
-                sha1 = sha1,
-                title = book.title,
-                currentProgressChar = progressChar,
-                lastReadTime = System.currentTimeMillis()
-            )
+with open("app/src/main/java/com/nightread/app/data/YandexDiskManager.kt", "w") as f:
+    f.write(new_content)
 
-            val progressAdapter = moshi.adapter(BookProgressPayload::class.java)
-            val json = progressAdapter.toJson(payload)
-
-            val cloudProgressName = "progress_$sha1.json"
-            val link = api.getUploadLink(authHeader, "disk:/SmartReader/Progress/$cloudProgressName")
-            api.uploadFile(link.href, json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType()))
-            Log.d(TAG, "Direct push progress for book $sha1 successful.")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to push single progress to cloud", e)
-        }
-    }
-
-    private fun cloudResourceItems(response: ResourceResponse?): List<ResourceItem> {
-        return response?.embedded?.items?.filter { it.type == "file" } ?: emptyList()
-    }
-
-    private fun getRandomGradientStartColor(): String {
-        val colors = listOf("#E0A96D", "#D4A373", "#CCA43B", "#C5A880", "#B5838D", "#E5989B")
-        return colors.random()
-    }
-
-    private fun getRandomGradientEndColor(): String {
-        val colors = listOf("#201A15", "#432818", "#3D348B", "#6F4E37", "#582F0E", "#6A4C93")
-        return colors.random()
-    }
-
-    fun saveSyncTimestamp(context: Context) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putLong("last_sync_time", System.currentTimeMillis()).apply()
-    }
-
-    fun getLastSyncTimestamp(context: Context): Long {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getLong("last_sync_time", 0L)
-    }
-}
+print("Patched YandexDiskManager.kt successfully!")
