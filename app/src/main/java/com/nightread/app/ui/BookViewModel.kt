@@ -142,7 +142,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         // Prepare initial content and IP info
-        checkAndInsertDefaultBooks()
         refreshIpAddress()
         
         // Initialize and observe background scanning state
@@ -153,58 +152,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 scanProgressText = state.status
             }
         }
-    }
-
-    private fun checkAndInsertDefaultBooks() {
-        viewModelScope.launch {
-            if (!isActive) return@launch
-            val books = repository.allBooks.first()
-            if (books.isEmpty()) {
-                insertDefaultClassics()
-            }
-        }
-    }
-
-    private suspend fun insertDefaultClassics() {
-        val defaultBooks = listOf(
-            BookEntity(
-                sha1 = "dostoevsky_crime_punishment_sha1",
-                title = "Преступление и наказание",
-                author = "Фёдор Достоевский",
-                coverGradientStart = "#E94560",
-                coverGradientEnd = "#1A1A2E",
-                category = "Классика",
-                totalCharacters = 2174
-            ),
-            BookEntity(
-                sha1 = "lermontov_hero_of_our_time_sha1",
-                title = "Герой нашего времени",
-                author = "Михаил Лермонтов",
-                coverGradientStart = "#0F3460",
-                coverGradientEnd = "#16213E",
-                category = "Классика",
-                totalCharacters = 2243
-            ),
-            BookEntity(
-                sha1 = "pushkin_eugene_onegin_sha1",
-                title = "Евгений Онегин",
-                author = "Александр Пушкин",
-                coverGradientStart = "#8A307F",
-                coverGradientEnd = "#79A7D3",
-                category = "Поэзия",
-                totalCharacters = 1558
-            ),
-            BookEntity(
-                sha1 = "chekhov_ward_number_6_sha1",
-                title = "Палата №6",
-                author = "Антон Чехов",
-                coverGradientStart = "#3A6073",
-                coverGradientEnd = "#3A6073",
-                category = "Проза",
-                totalCharacters = 1918
-            )
-        )
-        repository.insertBooks(defaultBooks)
     }
 
     // Book Interactions

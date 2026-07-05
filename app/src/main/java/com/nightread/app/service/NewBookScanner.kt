@@ -36,189 +36,186 @@ class NewBookScanner(
         Log.d(TAG, "scanBooks: Starting auto-scanning sequence.")
         updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Сканирование запущено..."))
 
+        try {
+            val paths = listOf(
+                Environment.getExternalStorageDirectory(),
+                File(Environment.getExternalStorageDirectory(), "Download"),
+                File(Environment.getExternalStorageDirectory(), "Documents"),
+                File(Environment.getExternalStorageDirectory(), "Books")
+            )
 
-
-
-
-        val paths = listOf(
-            Environment.getExternalStorageDirectory(),
-            File(Environment.getExternalStorageDirectory(), "Download"),
-            File(Environment.getExternalStorageDirectory(), "Documents"),
-            File(Environment.getExternalStorageDirectory(), "Books")
-        )
-
-        val filesToProcess = mutableListOf<File>()
-        val gatheredPaths = HashSet<String>()
-        for (path in paths) {
-            if (!kotlin.coroutines.coroutineContext.isActive) return
-            try {
-                if (path.exists() && path.isDirectory && path.canRead()) {
-                    Log.d(TAG, "Checking path for gathering: ${path.absolutePath}")
-                    val tempFileList = mutableListOf<File>()
-                    gatherFilesRecursive(path, tempFileList, 0)
-                    for (file in tempFileList) {
-                        val canonical = file.canonicalPath
-                        if (!gatheredPaths.contains(canonical)) {
-                            gatheredPaths.add(canonical)
-                            filesToProcess.add(file)
-                        } else {
-                            Log.d(TAG, "[SCAN-DUPLICATE-PATH] Skipped already gathered file path: $canonical")
+            val filesToProcess = mutableListOf<File>()
+            val gatheredPaths = HashSet<String>()
+            for (path in paths) {
+                if (!kotlin.coroutines.coroutineContext.isActive) return
+                try {
+                    if (path.exists() && path.isDirectory && path.canRead()) {
+                        Log.d(TAG, "Checking path for gathering: ${path.absolutePath}")
+                        val tempFileList = mutableListOf<File>()
+                        gatherFilesRecursive(path, tempFileList, 0)
+                        for (file in tempFileList) {
+                            val canonical = file.canonicalPath
+                            if (!gatheredPaths.contains(canonical)) {
+                                gatheredPaths.add(canonical)
+                                filesToProcess.add(file)
+                            } else {
+                                Log.d(TAG, "[SCAN-DUPLICATE-PATH] Skipped already gathered file path: $canonical")
+                            }
                         }
+                    } else {
+                        Log.w(TAG, "Path is not accessible: ${path.absolutePath} (exists=${path.exists()}, isDir=${path.isDirectory()}, canRead=${path.canRead()})")
                     }
-                } else {
-                    Log.w(TAG, "Path is not accessible: ${path.absolutePath} (exists=${path.exists()}, isDir=${path.isDirectory()}, canRead=${path.canRead()})")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking root path: ${path.absolutePath}", e)
                 }
+            }
+
+            val total = filesToProcess.size
+            Log.d(TAG, "Total FB2/ZIP files gathered after path de-duplication: $total")
+            
+            if (total == 0) {
+                Log.d(TAG, "Finished scanning: no supported books found.")
+                updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Книги не найдены. Проверьте папки Download, Documents или Books."))
+                return
+            }
+
+            updateLocalAndGlobalState(ScannerState(
+                isScanning = true,
+                status = "Найдено файлов для обработки: $total",
+                totalFiles = total
+            ))
+
+            val sha1ToPathMap = try {
+                val dbMap = bookDao.getSha1ToPathMap().associate { it.sha1 to it.filePath }.toMutableMap()
+                Log.d(TAG, "[SCAN-DB-STATE] Loaded ${dbMap.size} existing SHA-1 values from database for comparison.")
+                dbMap
             } catch (e: SecurityException) {
-                Log.e(TAG, "SecurityException checking root path: ${path.absolutePath}", e)
+                Log.e(TAG, "SecurityException fetching SHA1 map from DB", e)
+                mutableMapOf()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "Error checking root path: ${path.absolutePath}", e)
-            }
-        }
-
-        val total = filesToProcess.size
-        Log.d(TAG, "Total FB2/ZIP files gathered after path de-duplication: $total")
-        
-        if (total == 0) {
-            Log.d(TAG, "Finished scanning: no supported books found.")
-            updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Книги не найдены. Проверьте папки Download, Documents или Books."))
-            return
-        }
-
-        updateLocalAndGlobalState(ScannerState(
-            isScanning = true,
-            status = "Найдено файлов для обработки: $total",
-            totalFiles = total
-        ))
-
-        val sha1ToPathMap = try {
-            val dbMap = bookDao.getSha1ToPathMap().associate { it.sha1 to it.filePath }.toMutableMap()
-            Log.d(TAG, "[SCAN-DB-STATE] Loaded ${dbMap.size} existing SHA-1 values from database for comparison.")
-            dbMap
-        } catch (e: SecurityException) {
-            Log.e(TAG, "SecurityException fetching SHA1 map from DB", e)
-            mutableMapOf()
-        } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-            Log.e(TAG, "Error fetching SHA1 map from DB", e)
-            mutableMapOf()
-        }
-
-        val batchList = mutableListOf<BookEntity>()
-        var addedCount = 0
-        var skippedCount = 0
-        val batchSize = 10 // Quick saves of 10 to keep the UI refreshed and avoid large OOMs
-
-        for ((index, file) in filesToProcess.withIndex()) {
-            if (!kotlin.coroutines.coroutineContext.isActive) return
-            val fileIndex = index + 1
-            Log.d(TAG, "Processing file [$fileIndex/$total]: ${file.name}")
-            
-            updateLocalAndGlobalState(ScannerState(
-                isScanning = true,
-                status = "Обработка: ${file.name} ($fileIndex/$total)",
-                totalFiles = total,
-                processedFiles = fileIndex,
-                addedBooks = addedCount,
-                skippedBooks = skippedCount
-            ))
-
-            // Timeout of 5 seconds per file to avoid hanging on massive or corrupted files
-            val success = withTimeoutOrNull(5000) {
-                try {
-                    processFile(file, sha1ToPathMap, batchList) { added, skipped ->
-                        addedCount += added
-                        skippedCount += skipped
-                    }
-                    true
-                } catch (e: SecurityException) {
-                    Log.e(TAG, "SecurityException in processFile for: ${file.absolutePath}", e)
-                    false
-                } catch (e: ZipException) {
-                    Log.e(TAG, "ZipException in processFile for: ${file.absolutePath}", e)
-                    false
-                } catch (e: IOException) {
-                    Log.e(TAG, "IOException in processFile for: ${file.absolutePath}", e)
-                    false
-                } catch (e: OutOfMemoryError) {
-                    Log.e(TAG, "OutOfMemoryError in processFile for: ${file.absolutePath}", e)
-                    System.gc()
-                    false
-                } catch (e: Throwable) {
-                    Log.e(TAG, "Unknown error in processFile for: ${file.absolutePath}", e)
-                    false
-                }
-            }
-            if (success == null) {
-                Log.e(TAG, "Timeout of 5 seconds exceeded processing file: ${file.absolutePath}")
+                Log.e(TAG, "Error fetching SHA1 map from DB", e)
+                mutableMapOf()
             }
 
-            // Insert to DB in batches to maximize performance and ensure data is committed incrementally
-            if (batchList.size >= batchSize) {
-                try {
-                    Log.d(TAG, "[DB-INSERT] Batch writing ${batchList.size} books to database: " + batchList.map { "${it.title} (SHA-1: ${it.sha1})" }.joinToString(", "))
-                    bookDao.insertBooks(batchList)
-                    Log.d(TAG, "Inserted batch of ${batchList.size} books to database successfully.")
-                } catch (dbEx: Throwable) {
-                    Log.e(TAG, "Batch insert failed, falling back to safe one-by-one insert to prevent discard", dbEx)
-                    for (book in batchList) {
-                        try {
-                            Log.d(TAG, "[DB-INSERT] Safe fallback inserting book: ${book.title} (SHA-1: ${book.sha1})")
-                            bookDao.insertBooks(listOf(book))
-                            Log.d(TAG, "Successfully inserted single book after batch fallback: ${book.title}")
-                        } catch (singleEx: Throwable) {
-                            Log.e(TAG, "Failed to insert single book in fallback: ${book.title}", singleEx)
-                        }
-                    }
-                }
-                batchList.clear()
+            val batchList = mutableListOf<BookEntity>()
+            var addedCount = 0
+            var skippedCount = 0
+            val batchSize = 10 // Quick saves of 10 to keep the UI refreshed and avoid large OOMs
+
+            for ((index, file) in filesToProcess.withIndex()) {
+                if (!kotlin.coroutines.coroutineContext.isActive) return
+                val fileIndex = index + 1
+                Log.d(TAG, "Processing file [$fileIndex/$total]: ${file.name}")
                 
-                // Immediately update status with successful DB save
                 updateLocalAndGlobalState(ScannerState(
                     isScanning = true,
-                    status = "Сохранение книг в библиотеку... ($fileIndex/$total)",
+                    status = "Обработка: ${file.name} ($fileIndex/$total)",
                     totalFiles = total,
                     processedFiles = fileIndex,
                     addedBooks = addedCount,
                     skippedBooks = skippedCount
                 ))
-            }
-        }
 
-        // Final insert of remaining books
-        if (batchList.isNotEmpty()) {
-            try {
-                Log.d(TAG, "[DB-INSERT] Final writing ${batchList.size} books to database: " + batchList.map { "${it.title} (SHA-1: ${it.sha1})" }.joinToString(", "))
-                bookDao.insertBooks(batchList)
-                Log.d(TAG, "Inserted final batch of ${batchList.size} books to database successfully.")
-            } catch (dbEx: Throwable) {
-                Log.e(TAG, "Final batch insert failed, falling back to safe one-by-one insert", dbEx)
-                for (book in batchList) {
+                // Timeout of 5 seconds per file to avoid hanging on massive or corrupted files
+                val success = withTimeoutOrNull(5000) {
                     try {
-                        Log.d(TAG, "[DB-INSERT] Safe final fallback inserting book: ${book.title} (SHA-1: ${book.sha1})")
-                        bookDao.insertBooks(listOf(book))
-                        Log.d(TAG, "Successfully inserted single book after final batch fallback: ${book.title}")
-                    } catch (singleEx: Throwable) {
-                        Log.e(TAG, "Failed to insert single book in final fallback: ${book.title}", singleEx)
+                        processFile(file, sha1ToPathMap, batchList) { added, skipped ->
+                            addedCount += added
+                            skippedCount += skipped
+                        }
+                        true
+                    } catch (e: SecurityException) {
+                        Log.e(TAG, "SecurityException in processFile for: ${file.absolutePath}", e)
+                        false
+                    } catch (e: ZipException) {
+                        Log.e(TAG, "ZipException in processFile for: ${file.absolutePath}", e)
+                        false
+                    } catch (e: IOException) {
+                        Log.e(TAG, "IOException in processFile for: ${file.absolutePath}", e)
+                        false
+                    } catch (e: OutOfMemoryError) {
+                        Log.e(TAG, "OutOfMemoryError in processFile for: ${file.absolutePath}", e)
+                        System.gc()
+                        false
+                    } catch (e: Throwable) {
+                        Log.e(TAG, "Unknown error in processFile for: ${file.absolutePath}", e)
+                        false
                     }
                 }
-            }
-            batchList.clear()
-        }
+                if (success == null) {
+                    Log.e(TAG, "Timeout of 5 seconds exceeded processing file: ${file.absolutePath}")
+                }
 
-        val finalStatus = "Сканирование завершено. Добавлено книг: $addedCount, дубликатов пропущено: $skippedCount."
-        Log.d(TAG, "Scan sequence completed successfully: totalFiles=$total, added=$addedCount, skipped=$skippedCount")
-        
-        updateLocalAndGlobalState(ScannerState(
-            isScanning = false,
-            status = finalStatus,
-            totalFiles = total,
-            processedFiles = total,
-            addedBooks = addedCount,
-            skippedBooks = skippedCount
-        ))
+                // Insert to DB in batches to maximize performance and ensure data is committed incrementally
+                if (batchList.size >= batchSize) {
+                    try {
+                        Log.d(TAG, "[DB-INSERT] Batch writing ${batchList.size} books to database: " + batchList.map { "${it.title} (SHA-1: ${it.sha1})" }.joinToString(", "))
+                        bookDao.insertBooks(batchList)
+                        Log.d(TAG, "Inserted batch of ${batchList.size} books to database successfully.")
+                    } catch (dbEx: Throwable) {
+                        Log.e(TAG, "Batch insert failed, falling back to safe one-by-one insert to prevent discard", dbEx)
+                        for (book in batchList) {
+                            try {
+                                Log.d(TAG, "[DB-INSERT] Safe fallback inserting book: ${book.title} (SHA-1: ${book.sha1})")
+                                bookDao.insertBooks(listOf(book))
+                                Log.d(TAG, "Successfully inserted single book after batch fallback: ${book.title}")
+                            } catch (singleEx: Throwable) {
+                                Log.e(TAG, "Failed to insert single book in fallback: ${book.title}", singleEx)
+                            }
+                        }
+                    }
+                    batchList.clear()
+                    
+                    // Immediately update status with successful DB save
+                    updateLocalAndGlobalState(ScannerState(
+                        isScanning = true,
+                        status = "Сохранение книг в библиотеку... ($fileIndex/$total)",
+                        totalFiles = total,
+                        processedFiles = fileIndex,
+                        addedBooks = addedCount,
+                        skippedBooks = skippedCount
+                    ))
+                }
+            }
+
+            // Final insert of remaining books
+            if (batchList.isNotEmpty()) {
+                try {
+                    Log.d(TAG, "[DB-INSERT] Final writing ${batchList.size} books to database: " + batchList.map { "${it.title} (SHA-1: ${it.sha1})" }.joinToString(", "))
+                    bookDao.insertBooks(batchList)
+                    Log.d(TAG, "Inserted final batch of ${batchList.size} books to database successfully.")
+                } catch (dbEx: Throwable) {
+                    Log.e(TAG, "Final batch insert failed, falling back to safe one-by-one insert", dbEx)
+                    for (book in batchList) {
+                        try {
+                            Log.d(TAG, "[DB-INSERT] Safe final fallback inserting book: ${book.title} (SHA-1: ${book.sha1})")
+                            bookDao.insertBooks(listOf(book))
+                            Log.d(TAG, "Successfully inserted single book after final batch fallback: ${book.title}")
+                        } catch (singleEx: Throwable) {
+                            Log.e(TAG, "Failed to insert single book in final fallback: ${book.title}", singleEx)
+                        }
+                    }
+                }
+                batchList.clear()
+            }
+
+            val finalStatus = "Сканирование завершено. Добавлено книг: $addedCount, дубликатов пропущено: $skippedCount."
+            Log.d(TAG, "Scan sequence completed successfully: totalFiles=$total, added=$addedCount, skipped=$skippedCount")
+            
+            updateLocalAndGlobalState(ScannerState(
+                isScanning = false,
+                status = finalStatus,
+                totalFiles = total,
+                processedFiles = total,
+                addedBooks = addedCount,
+                skippedBooks = skippedCount
+            ))
+        } catch (e: Exception) {
+            Log.e(TAG, "Critical error during scanBooks", e)
+            updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Критическая ошибка сканирования: ${e.localizedMessage}"))
+        }
     }
 
     private fun processFile(
