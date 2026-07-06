@@ -75,6 +75,13 @@ object YandexDiskManager {
     }
 
     /**
+     * Helper to compute SHA-1 of the FB2 content (unzipped if necessary)
+     */
+    fun computeSha1FromContent(file: File): String? {
+        return Sha1Helper.computeSha1FromContent(file)
+    }
+
+    /**
      * Checks if user has authorized Yandex Disk
      */
     fun isAuthorized(context: Context): Boolean {
