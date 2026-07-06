@@ -64,7 +64,13 @@ class MainActivity : AppCompatActivity() {
                 else -> R.id.nav_library
             }
             navView.setCheckedItem(menuId)
-            openLibraryFragment(lastFilter)
+            
+            if (intent.getBooleanExtra("OPEN_SYNC", false)) {
+                openSyncFragment()
+                navView.setCheckedItem(R.id.nav_sync)
+            } else {
+                openLibraryFragment(lastFilter)
+            }
         }
     }
 

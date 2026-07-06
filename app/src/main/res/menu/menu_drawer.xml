@@ -17,5 +17,8 @@
             android:id="@+id/nav_sync"
             android:icon="@android:drawable/stat_notify_sync"
             android:title="Синхронизация" />
+        <item
+            android:id="@+id/nav_settings"
+            android:title="Настройки" />
     </group>
 </menu>

@@ -63,6 +63,8 @@ class BookRepository(
 
     suspend fun deleteBookBySha1(sha1: String) = bookDao.deleteBookBySha1(sha1)
 
+    suspend fun deleteAllBooks() = bookDao.deleteAllBooks()
+
     fun getNotesForBook(bookSha1: String): Flow<List<NoteEntity>> = noteDao.getNotesForBook(bookSha1)
 
     suspend fun insertNote(note: NoteEntity): Long = noteDao.insertNote(note)

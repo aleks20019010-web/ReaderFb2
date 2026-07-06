@@ -438,6 +438,18 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun clearCache() {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (!isActive) return@launch
+            val importedFolder = java.io.File(getApplication<android.app.Application>().filesDir, "imported_books")
+            if (importedFolder.exists()) {
+                importedFolder.deleteRecursively()
+            }
+            // Also optionally clear any other cache, like Yandex sync cache
+            repository.deleteAllBooks()
+        }
+    }
+
     private fun getRandomGradientStartColor(): String {
         val colors = listOf("#FF6B6B", "#4D96FF", "#6BCB77", "#FFD93D", "#9B5DE5", "#00F5D4")
         return colors.random()

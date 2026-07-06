@@ -1,12 +1,17 @@
 package com.nightread.app.ui
 
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -45,8 +50,19 @@ class SettingsActivity : ComponentActivity() {
     @Composable
     fun SettingsScreen(onBack: () -> Unit) {
         val context = this@SettingsActivity
-        
-        // Theme states
+        val viewModel: com.nightread.app.ui.BookViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+
+        val importLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.OpenDocument()
+        ) { uri ->
+            uri?.let {
+                viewModel.importBookFromUri(it, context) { success, message ->
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        // Theme states (Existing)
         val themeOptions = listOf("light", "dark", "sepia", "contrast", "beige")
         val themeNames = mapOf(
             "light" to "День",
@@ -72,7 +88,7 @@ class SettingsActivity : ComponentActivity() {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Настройки чтения", fontWeight = FontWeight.Bold) },
+                    title = { Text("Настройки", fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(
@@ -89,132 +105,114 @@ class SettingsActivity : ComponentActivity() {
                 )
             }
         ) { paddingValues ->
-            Column(
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Theme Selection
-                SettingsDropdown(
-                    label = "Тема оформления",
-                    options = themeOptions,
-                    selectedOption = selectedTheme,
-                    onOptionSelected = {
-                        selectedTheme = it
-                        SettingsManager.setTheme(context, it)
-                    },
-                    displayMapper = { themeNames[it] ?: it }
-                )
-
-                // Font Family Selection
-                SettingsDropdown(
-                    label = "Шрифт",
-                    options = fontOptions,
-                    selectedOption = selectedFont,
-                    onOptionSelected = {
-                        selectedFont = it
-                        SettingsManager.setFontFamily(context, it)
+                // New Functionality Section
+                item { Text("Основные функции", style = MaterialTheme.typography.titleMedium) }
+                item { 
+                    Button(onClick = { viewModel.startLocalBookScan() }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Сканировать библиотеку")
                     }
-                )
-
-                // Font Weight Selection
-                SettingsDropdown(
-                    label = "Жирность шрифта",
-                    options = weightOptions,
-                    selectedOption = selectedWeight,
-                    onOptionSelected = {
-                        selectedWeight = it
-                        SettingsManager.setFontWeight(context, it)
+                }
+                item {
+                    Button(onClick = { importLauncher.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Ручной импорт")
                     }
-                )
-
-                // Font Size Slider
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Размер шрифта",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "${fontSize.toInt()} sp",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold
-                        )
+                }
+                item {
+                    Button(onClick = { 
+                        val intent = Intent(context, com.nightread.app.MainActivity::class.java).apply {
+                            putExtra("OPEN_SYNC", true)
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        }
+                        context.startActivity(intent)
+                        context.finish()
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Синхронизация с Яндекс Диском")
                     }
-                    Slider(
-                        value = fontSize,
-                        onValueChange = {
-                            fontSize = it
-                            SettingsManager.setFontSize(context, it)
+                }
+                item { Text("Очистка", style = MaterialTheme.typography.titleMedium) }
+                item { 
+                    Button(onClick = { viewModel.clearCache() }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Очистить кэш")
+                    }
+                }
+                item { Text("Информация", style = MaterialTheme.typography.titleMedium) }
+                item { Text("Версия: 1.0.0\nРазработчик: NightRead Team\nКонтакты: support@nightread.com") }
+                
+                item { Spacer(modifier = Modifier.height(24.dp)) }
+
+                // Existing Reading Settings Section
+                item { Text("Настройки чтения", style = MaterialTheme.typography.titleMedium) }
+                
+                item {
+                    SettingsDropdown(
+                        label = "Тема оформления",
+                        options = themeOptions,
+                        selectedOption = selectedTheme,
+                        onOptionSelected = {
+                            selectedTheme = it
+                            SettingsManager.setTheme(context, it)
                         },
-                        valueRange = 14f..28f,
-                        steps = 14
+                        displayMapper = { themeNames[it] ?: it }
                     )
                 }
 
-                // Line Spacing Slider
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Межстрочный интервал",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = String.format("%.2f", lineSpacing),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Slider(
-                        value = lineSpacing,
-                        onValueChange = {
-                            lineSpacing = it
-                            SettingsManager.setLineSpacing(context, it)
-                        },
-                        valueRange = 1.0f..2.0f
+                item {
+                    SettingsDropdown(
+                        label = "Шрифт",
+                        options = fontOptions,
+                        selectedOption = selectedFont,
+                        onOptionSelected = {
+                            selectedFont = it
+                            SettingsManager.setFontFamily(context, it)
+                        }
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                // Live Preview Box to demonstrate styling
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+
+                item {
+                    SettingsDropdown(
+                        label = "Жирность шрифта",
+                        options = weightOptions,
+                        selectedOption = selectedWeight,
+                        onOptionSelected = {
+                            selectedWeight = it
+                            SettingsManager.setFontWeight(context, it)
+                        }
                     )
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Предпросмотр текста:",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Так будет выглядеть текст книги на экране чтения при текущих настройках.",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = when (selectedWeight) {
-                                    "Medium" -> FontWeight.Medium
-                                    "Bold" -> FontWeight.Bold
-                                    "ExtraBold" -> FontWeight.ExtraBold
-                                    else -> FontWeight.Normal
-                                }
+                }
+
+                item {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Размер шрифта",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Text(
+                                text = "${fontSize.toInt()} sp",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Slider(
+                            value = fontSize,
+                            onValueChange = {
+                                fontSize = it
+                                SettingsManager.setFontSize(context, it)
+                            },
+                            valueRange = 14f..28f,
+                            steps = 14
                         )
                     }
                 }
