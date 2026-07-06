@@ -1,4 +1,4 @@
-name: Android CI/C
+name: Android CI/CD
 on:
   push:
     branches: [ "main" ]
