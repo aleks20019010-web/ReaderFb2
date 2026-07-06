@@ -76,6 +76,7 @@ class LibraryFragment : Fragment() {
     private lateinit var btnImport: View
     private lateinit var btnMenu: View
     private lateinit var tvTitle: TextView
+    private lateinit var tvBookCount: TextView
     private lateinit var etSearch: androidx.appcompat.widget.SearchView
     
     // Detailed Scan progress bindings
@@ -212,6 +213,7 @@ class LibraryFragment : Fragment() {
         btnImport = view.findViewById(R.id.btnImport)
         btnMenu = view.findViewById(R.id.btnMenu)
         tvTitle = view.findViewById(R.id.tvTitle)
+        tvBookCount = view.findViewById(R.id.tvBookCount)
         etSearch = view.findViewById(R.id.etSearch)
         // Customize SearchView text color, hint, and close button to match theme
         val searchEditText = etSearch.findViewById<EditText>(androidx.appcompat.R.id.search_src_text)
@@ -538,6 +540,7 @@ class LibraryFragment : Fragment() {
                                 // But we must filter it. 
                                 val filtered = applyFilters(allBooksList)
                                 adapter.addBooks(chunk, filtered)
+                                updateBookCount(filtered.size)
                                 
                                 if (filtered.isEmpty()) {
                                     layoutEmptyState.visibility = View.VISIBLE
@@ -554,6 +557,7 @@ class LibraryFragment : Fragment() {
                         allBooksList = books
                         val finalFiltered = applyFilters(allBooksList)
                         adapter.updateData(finalFiltered)
+                        updateBookCount(finalFiltered.size)
                     } else {
                         allBooksList = books
                         filterAndApplyBooks()
@@ -637,6 +641,19 @@ class LibraryFragment : Fragment() {
         }
     }
 
+    private fun updateBookCount(count: Int) {
+        if (!::tvBookCount.isInitialized) return
+        val remainder10 = count % 10
+        val remainder100 = count % 100
+        val countText = when {
+            remainder100 in 11..19 -> "$count книг"
+            remainder10 == 1 -> "$count книга"
+            remainder10 in 2..4 -> "$count книги"
+            else -> "$count книг"
+        }
+        tvBookCount.text = countText
+    }
+
     private fun applyFilters(books: List<BookEntity>): List<BookEntity> {
         var filtered = books
         
@@ -684,6 +701,7 @@ class LibraryFragment : Fragment() {
         if (allBooksList.isEmpty()) {
             layoutEmptyState.visibility = View.VISIBLE
             rvBooks.visibility = View.GONE
+            updateBookCount(0)
             
             if (viewModel.scanState.value.isScanning) {
                 ivEmptyIllustration.visibility = View.VISIBLE
@@ -708,6 +726,7 @@ class LibraryFragment : Fragment() {
         val filtered = applyFilters(allBooksList)
 
         adapter.updateData(filtered)
+        updateBookCount(filtered.size)
 
         if (filtered.isEmpty()) {
             layoutEmptyState.visibility = View.VISIBLE
