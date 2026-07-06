@@ -1,8 +1,8 @@
 package com.nightread.app.data
 
 import android.content.Context
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -12,14 +12,15 @@ class YandexSyncManager(private val context: Context) {
     private val bookDao = database.bookDao()
 
     suspend fun getSyncStats(): SyncStats = withContext(Dispatchers.IO) {
-        // 1. Get local books (with SHA-1)
-        val localBooks = bookDao.getAllBooks() // Assuming getAllBooks returns List<BookEntity>
+        val localBooks = bookDao.getAllBooks().first()
         val localSha1Set = localBooks.map { it.sha1 }.toSet()
 
-        // 2. Get cloud files (via YandexDiskManager)
-        val cloudFiles = YandexDiskManager.getAllFilesFromFolder(context, YandexDiskManager.getSyncFolder(context))
+        val token = YandexDiskManager.getToken(context) ?: ""
+        val authHeader = "OAuth $token"
+
+        val cloudFiles = YandexDiskManager.getAllFilesFromFolder(authHeader, YandexDiskManager.getSyncFolder(context))
         
-        val toDownload = mutableListOf<ResourceItem>()
+        val toDownload = mutableListOf<CloudFileEntry>()
         val cloudSha1Set = mutableSetOf<String>()
 
         for (item in cloudFiles) {
@@ -27,7 +28,6 @@ class YandexSyncManager(private val context: Context) {
             val sha1 = if (cached != null && cached.lastModified == item.modified) {
                 cached.sha1
             } else {
-                // Download and calc
                 val tempFile = downloadTemp(item)
                 val s = Sha1Helper.computeSha1FromContent(tempFile)
                 tempFile.delete()
@@ -41,7 +41,7 @@ class YandexSyncManager(private val context: Context) {
             if (sha1 != null) {
                 cloudSha1Set.add(sha1)
                 if (!localSha1Set.contains(sha1)) {
-                    toDownload.add(item)
+                    toDownload.add(CloudFileEntry(item.name ?: "", item.size ?: 0, item.modified ?: "", sha1))
                 }
             }
         }
@@ -53,13 +53,12 @@ class YandexSyncManager(private val context: Context) {
             booksLocal = localBooks.size,
             toDownload = toDownload,
             toUpload = toUpload,
-            duplicates = 0 // simplified
+            duplicates = 0,
+            cloudProgressItems = emptyList() // Added missing parameter
         )
     }
 
     private suspend fun downloadTemp(item: ResourceItem): File {
-        // Need API call from YandexDiskManager, maybe expose it better
-        // For now, I'll assume YandexDiskManager has downloadFile
-        return File(context.cacheDir, "temp_${item.name}") // Simplified
+        return File(context.cacheDir, "temp_${item.name}")
     }
 }

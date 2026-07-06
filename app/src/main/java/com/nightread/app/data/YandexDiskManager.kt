@@ -138,7 +138,7 @@ object YandexDiskManager {
         }
     }
 
-    private suspend fun getAllFilesFromFolder(
+    suspend fun getAllFilesFromFolder(
         authHeader: String,
         path: String,
         onProgress: ((String) -> Unit)? = null
