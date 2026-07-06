@@ -8,6 +8,8 @@
     
     <color name="text_primary">#2A3A22</color>
     <color name="text_secondary">#5A6A4E</color>
+    <color name="text_title">#1A2A12</color>
+    <color name="text_author">#4A5A3E</color>
     
     <color name="accent">#7A9B6A</color>
     <color name="accent_hover">#5C7A4E</color>
