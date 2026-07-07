@@ -613,7 +613,6 @@ class LibraryFragment : Fragment() {
             startRotating(btnAutoScan)
         } else {
             stopRotating(btnAutoScan)
-            isSwipeRescanInProgress = false
         }
         btnAutoScan.alpha = if (active) 0.7f else 1.0f
         
@@ -662,6 +661,9 @@ class LibraryFragment : Fragment() {
         
         updateProgressValues(state.totalFiles, state.processedFiles)
         filterAndApplyBooks()
+        if (!active) {
+            isSwipeRescanInProgress = false
+        }
     }
 
     private fun updateProgressValues(total: Int, processed: Int) {

@@ -309,7 +309,7 @@ class NewBookScanner(
             }
 
             val booksByPath = allBooksList.filter { !it.filePath.isNullOrBlank() }.associateBy { it.filePath!! }
-            val sha1ToPathMap = allBooksList.associate { it.sha1 to it.filePath }.toMutableMap()
+            val sha1ToPathMap = allBooksList.filter { !it.filePath.isNullOrBlank() }.associate { it.sha1 to it.filePath!! }.toMutableMap()
             
             val prefs = context.getSharedPreferences("book_scanner_cache", Context.MODE_PRIVATE)
 
