@@ -237,15 +237,22 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 java.util.UUID.randomUUID().toString()
             }
+            val importedFolder = java.io.File(getApplication<Application>().filesDir, "imported_books")
+            if (!importedFolder.exists()) {
+                importedFolder.mkdirs()
+            }
+            val localFile = java.io.File(importedFolder, "$sha1String.txt")
+            localFile.writeText(content)
+
             val newBook = BookEntity(
                 sha1 = sha1String,
                 title = title,
                 author = author,
-                content = content,
                 category = category.ifEmpty { "Классика" },
                 totalCharacters = totalChars,
                 coverGradientStart = getRandomGradientStartColor(),
-                coverGradientEnd = getRandomGradientEndColor()
+                coverGradientEnd = getRandomGradientEndColor(),
+                filePath = localFile.absolutePath
             )
             repository.insertBook(newBook)
         }
@@ -396,7 +403,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 val newBook = BookEntity(
                     title = parsedTitle,
                     author = parsedAuthor,
-                    content = strippedContent,
                     category = "Локальные",
                     totalCharacters = strippedContent.length,
                     coverGradientStart = getRandomGradientStartColor(),
@@ -947,7 +953,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             val newBook = BookEntity(
                                 title = parsedTitle,
                                 author = parsedAuthor,
-                                content = strippedContent,
                                 category = "Локальные",
                                 totalCharacters = strippedContent.length,
                                 coverGradientStart = getRandomGradientStartColor(),

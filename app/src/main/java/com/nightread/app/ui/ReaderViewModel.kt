@@ -29,6 +29,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private val _themeState = MutableStateFlow("day")
     val themeState: StateFlow<String> = _themeState.asStateFlow()
 
+    private var content: String = ""
+
     // Font size in SP
     private val _fontSizeState = MutableStateFlow(18f)
     val fontSizeState: StateFlow<Float> = _fontSizeState.asStateFlow()
@@ -83,18 +85,25 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun loadBook(bookSha1: String) {
-        viewModelScope.launch {
-            val book = withContext(Dispatchers.IO) {
-                bookDao.getBookBySha1(bookSha1)
-            }
+        viewModelScope.launch(Dispatchers.IO) {
+            val book = bookDao.getBookBySha1(bookSha1)
             if (book != null) {
                 _bookState.value = book
                 
-                // If dimensions are already measured, trigger initial pagination
+                val file = java.io.File(book.filePath ?: "")
+                if (file.exists()) {
+                    content = if (file.extension.lowercase() == "zip") {
+                        readZipFile(file)
+                    } else {
+                        file.readText(java.nio.charset.StandardCharsets.UTF_8)
+                    }
+                } else {
+                    content = ""
+                }
+                
                 if (availableWidth > 0 && availableHeight > 0) {
                     repaginate()
                 } else {
-                    // Fallback to static 1200 chars/page until first layout measure
                     fallbackPagination(book)
                 }
             }
@@ -102,7 +111,6 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun fallbackPagination(book: BookEntity) {
-        val content = book.content ?: ""
         if (content.isEmpty()) {
             _pagesState.value = listOf("Документ пуст.")
             pageStartOffsets = listOf(0)
@@ -190,9 +198,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun repaginate() {
+        if (content.isEmpty() || availableWidth <= 0 || availableHeight <= 0) return
         val book = _bookState.value ?: return
-        val text = book.content ?: ""
-        if (text.isEmpty() || availableWidth <= 0 || availableHeight <= 0) return
 
         viewModelScope.launch(Dispatchers.Default) {
             // 1. Determine current reading position (character offset)
@@ -220,7 +227,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             val lineSpacing = _lineSpacingState.value
             
             val result = PageSplitter.splitText(
-                text = text,
+                text = content,
                 availableWidth = availableWidth,
                 availableHeight = availableHeight,
                 paint = paint,
@@ -289,5 +296,21 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 bookDao.updateProgressAndPage(book.sha1, charOffset, pageIdx, System.currentTimeMillis())
             }
         }
+    }
+
+    private fun readZipFile(file: java.io.File): String {
+        java.io.FileInputStream(file).use { fis ->
+            java.util.zip.ZipInputStream(fis).use { zis ->
+                var entry = zis.nextEntry
+                while (entry != null) {
+                    val entryName = entry.name.lowercase()
+                    if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".txt"))) {
+                        return zis.bufferedReader().use { it.readText() }
+                    }
+                    entry = zis.nextEntry
+                }
+            }
+        }
+        return ""
     }
 }

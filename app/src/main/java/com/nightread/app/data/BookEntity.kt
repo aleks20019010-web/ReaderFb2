@@ -22,7 +22,6 @@ data class BookEntity(
     val isFavorite: Boolean = false,
     val coverPath: String? = null,
     val seriesIndex: Int? = null,
-    val content: String? = null,
     val annotation: String? = null,
     val currentPageIndex: Int = 0
 )

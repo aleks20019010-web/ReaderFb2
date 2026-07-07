@@ -372,11 +372,16 @@ class YandexSyncManager(private val context: Context) {
                         val bytes = tempFile.readBytes()
                         val content = String(bytes, StandardCharsets.UTF_8)
                         
+                        // Parse FB2 correctly to get metadata
                         val meta = NewFb2Parser.parse(content, originalName)
-                        val sha1 = cloudItem.sha1
+                        
+                        // SHA-1 from FB2 content
+                        val sha1 = computeSha1(content.toByteArray(StandardCharsets.UTF_8))
                         
                         val coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
-                        val strippedContent = NewCoverExtractor.stripBinarySections(content)
+                        
+                        // Truncate annotation
+                        val truncatedAnnotation = meta.annotation?.take(500)
                         
                         val localFile = File(booksDirectory, originalName)
                         tempFile.copyTo(localFile, overwrite = true)
@@ -385,22 +390,25 @@ class YandexSyncManager(private val context: Context) {
                             sha1 = sha1,
                             title = meta.title,
                             author = meta.author,
-                            content = strippedContent,
                             category = "Локальные",
-                            totalCharacters = strippedContent.length,
+                            totalCharacters = content.length,
                             coverGradientStart = getRandomGradientStartColor(),
                             coverGradientEnd = getRandomGradientEndColor(),
                             filePath = localFile.absolutePath,
                             series = meta.series,
                             seriesIndex = meta.seriesIndex,
                             language = meta.language,
-                            annotation = meta.annotation,
+                            annotation = truncatedAnnotation,
                             fileSize = bytes.size.toLong(),
                             coverPath = coverPath
                         )
-                        repository.insertBook(newBook)
-                        downloadedCount++
-                        Log.d(TAG, "Успешно скачана и импортирована книга: $originalName (SHA-1: $sha1)")
+                        try {
+                            repository.insertBook(newBook)
+                            downloadedCount++
+                            Log.d(TAG, "Успешно скачана и импортирована книга: $originalName (SHA-1: $sha1)")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Ошибка вставки книги '$originalName' в базу: ${e.message}")
+                        }
                     } finally {
                         if (tempFile.exists()) tempFile.delete()
                     }
