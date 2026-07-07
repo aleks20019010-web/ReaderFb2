@@ -79,6 +79,9 @@ interface BookDao {
     @Query("DELETE FROM books WHERE sha1 = :sha1")
     suspend fun deleteBookBySha1(sha1: String)
 
+    @Query("SELECT * FROM books WHERE sha1 IN (SELECT sha1 FROM books GROUP BY sha1 HAVING COUNT(sha1) > 1) ORDER BY sha1")
+    suspend fun getDuplicateBooks(): List<BookEntity>
+
     @Query("SELECT COUNT(*) FROM books")
     suspend fun getBooksCount(): Int
 

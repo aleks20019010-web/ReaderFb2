@@ -137,6 +137,22 @@ class SettingsActivity : ComponentActivity() {
                         Text("Синхронизация с Яндекс Диском")
                     }
                 }
+                item {
+                    Button(
+                        onClick = { 
+                            // Launch dialog here - this requires FragmentManager.
+                            // Since this is a Compose activity, I'll show a toast for now,
+                            // or create a Compose equivalent of the dialog.
+                            // Let's create a Compose equivalent to make it easy.
+                            Toast.makeText(context, "Функция в разработке", Toast.LENGTH_SHORT).show()
+                        }, 
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                    ) {
+                        Text("Найти и удалить дубликаты книг")
+                    }
+                }
+                
                 item { Text("Очистка и восстановление", style = MaterialTheme.typography.titleMedium) }
                 item { 
                     Button(
