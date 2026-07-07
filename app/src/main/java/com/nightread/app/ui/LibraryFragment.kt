@@ -94,6 +94,7 @@ class LibraryFragment : Fragment() {
     private lateinit var tvEmptyStateTitle: TextView
     private lateinit var tvEmptyStateDesc: TextView
     private lateinit var btnEmptyStateScan: com.google.android.material.button.MaterialButton
+    private lateinit var btnRecoverLibrary: com.google.android.material.button.MaterialButton
     private lateinit var ivEmptyIllustration: ImageView
     private lateinit var swipeRefresh: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
     private lateinit var shimmerContainer: com.facebook.shimmer.ShimmerFrameLayout
@@ -259,6 +260,7 @@ class LibraryFragment : Fragment() {
         tvEmptyStateTitle = view.findViewById(R.id.tvEmptyStateTitle)
         tvEmptyStateDesc = view.findViewById(R.id.tvEmptyStateDesc)
         btnEmptyStateScan = view.findViewById(R.id.btnEmptyStateScan)
+        btnRecoverLibrary = view.findViewById(R.id.btnRecoverLibrary)
         ivEmptyIllustration = view.findViewById(R.id.ivEmptyIllustration)
         swipeRefresh = view.findViewById(R.id.swipeRefresh)
         shimmerContainer = view.findViewById(R.id.shimmer_view_container)
@@ -517,6 +519,15 @@ class LibraryFragment : Fragment() {
         // Empty state Auto-Scan action
         setBounceAnimation(btnEmptyStateScan)
         btnEmptyStateScan.setOnClickListener {
+            checkPermissionsAndScan()
+        }
+
+        // Empty state Recovery action
+        setBounceAnimation(btnRecoverLibrary)
+        btnRecoverLibrary.setOnClickListener {
+            viewModel.cancelAllScanningTasks()
+            viewModel.clearScanCache()
+            viewModel.resetLibrary()
             checkPermissionsAndScan()
         }
 
@@ -784,8 +795,9 @@ class LibraryFragment : Fragment() {
             if (::progressBarEmptyState.isInitialized) {
                 progressBarEmptyState.visibility = View.GONE
             }
-            ivEmptyIllustration.visibility = View.GONE
-            btnEmptyStateScan.visibility = View.GONE
+            ivEmptyIllustration.visibility = View.VISIBLE
+            btnEmptyStateScan.visibility = View.VISIBLE
+            btnRecoverLibrary.visibility = if (!viewModel.isScanning) View.VISIBLE else View.GONE
             tvEmptyStateTitle.text = "Ничего не найдено"
             tvEmptyStateDesc.text = "Попробуйте изменить поисковый запрос."
             rvBooks.visibility = View.GONE

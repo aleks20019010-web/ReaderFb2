@@ -41,6 +41,10 @@ class BookRepository(
         inserted
     }
 
+    suspend fun insertBookSafely(book: BookEntity): Boolean = withContext(Dispatchers.IO) {
+        bookDao.insertBookSafely(book)
+    }
+    
     suspend fun insertBooks(books: List<BookEntity>) = withContext(Dispatchers.IO) {
         Log.d("BookRepo", "Inserting ${books.size} books")
         bookDao.insertBooks(books)
@@ -75,6 +79,13 @@ class BookRepository(
 
     suspend fun clearLibrary() = withContext(Dispatchers.IO) {
         bookDao.deleteAllBooks()
+        bookDao.deleteAllScannedFiles()
+    }
+
+    suspend fun resetDatabase() = withContext(Dispatchers.IO) {
+        // Fallback to destructive migration or clear all tables
+        bookDao.deleteAllBooks()
+        bookDao.deleteAllScannedFiles()
     }
 
     suspend fun clearScanCache(context: android.content.Context) = withContext(Dispatchers.IO) {

@@ -492,6 +492,12 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun resetLibrary() {
+        viewModelScope.launch {
+            repository.resetDatabase()
+        }
+    }
+
     fun cancelAllScanningTasks() {
         val context = getApplication<Application>()
         try {

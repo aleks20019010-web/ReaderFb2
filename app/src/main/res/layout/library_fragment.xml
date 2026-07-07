@@ -311,6 +311,20 @@
                     android:clickable="true"
                     android:paddingHorizontal="24dp"
                     android:paddingVertical="12dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnRecoverLibrary"
+                    style="@style/ButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Восстановить библиотеку"
+                    android:textColor="#FFFFFF"
+                    app:backgroundTint="@color/accent"
+                    android:layout_marginTop="8dp"
+                    android:clickable="true"
+                    android:paddingHorizontal="24dp"
+                    android:paddingVertical="12dp"
+                    android:visibility="gone" />
             </LinearLayout>
         </FrameLayout>
     </LinearLayout>

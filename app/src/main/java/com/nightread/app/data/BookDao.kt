@@ -57,6 +57,15 @@ interface BookDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertBooks(books: List<BookEntity>)
+    
+    suspend fun insertBookSafely(book: BookEntity): Boolean {
+        return try {
+            insertBook(book) != -1L
+        } catch (e: Exception) {
+            android.util.Log.e("BookDao", "Error inserting book ${book.title}: ${e.message}")
+            false
+        }
+    }
 
     @Update
     suspend fun updateBook(book: BookEntity)

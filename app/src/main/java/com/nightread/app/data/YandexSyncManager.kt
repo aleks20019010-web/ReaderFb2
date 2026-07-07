@@ -210,7 +210,9 @@ class YandexSyncManager(private val context: Context) {
                                             }
                                         }
                                         val bytes = tempFile.readBytes()
-                                        val sha1 = computeSha1(bytes)
+                                        val content = extractContentFromBytes(bytes, item.name)
+                                        val sha1 = computeSha1(content.toByteArray(StandardCharsets.UTF_8))
+                                        
                                         val entity = CloudFileEntity(
                                             path = cleanItemPath,
                                             sha1 = sha1,
@@ -402,12 +404,11 @@ class YandexSyncManager(private val context: Context) {
                             fileSize = bytes.size.toLong(),
                             coverPath = coverPath
                         )
-                        try {
-                            repository.insertBook(newBook)
+                        if (repository.insertBookSafely(newBook)) {
                             downloadedCount++
                             Log.d(TAG, "Успешно скачана и импортирована книга: $originalName (SHA-1: $sha1)")
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Ошибка вставки книги '$originalName' в базу: ${e.message}")
+                        } else {
+                            Log.e(TAG, "Ошибка вставки книги '$originalName' в базу")
                         }
                     } finally {
                         if (tempFile.exists()) tempFile.delete()
@@ -569,6 +570,28 @@ class YandexSyncManager(private val context: Context) {
         val digest = java.security.MessageDigest.getInstance("SHA-1")
         val hash = digest.digest(bytes)
         return hash.joinToString("") { "%02x".format(it) }
+    }
+    
+    private fun extractContentFromBytes(bytes: ByteArray, fileName: String): String {
+        return try {
+            if (fileName.lowercase().endsWith(".zip")) {
+                java.util.zip.ZipInputStream(bytes.inputStream()).use { zis ->
+                    var entry = zis.nextEntry
+                    while (entry != null) {
+                        if (!entry.isDirectory && entry.name.lowercase().endsWith(".fb2")) {
+                            return zis.bufferedReader().use { it.readText() }
+                        }
+                        entry = zis.nextEntry
+                    }
+                }
+                ""
+            } else {
+                String(bytes, StandardCharsets.UTF_8)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting content from $fileName", e)
+            ""
+        }
     }
 
     private fun getRandomGradientStartColor(): String {

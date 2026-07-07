@@ -81,10 +81,26 @@ class SplashActivity : AppCompatActivity() {
                 // Step 2: Query library book count (20% -> 50%)
                 animateProgressTo(50, "Проверка книг в библиотеке...", 400)
                 val repository = BookRepository(db.bookDao(), db.noteDao())
-                val booksCount = withContext(Dispatchers.IO) {
-                    repository.getBooksCount()
+                
+                var booksCount = 0
+                try {
+                    booksCount = withContext(Dispatchers.IO) {
+                        repository.getBooksCount()
+                    }
+                    Log.d(TAG, "Database check: total books count = $booksCount")
+                    
+                    // Integrity check: if 0 books but cache has entries, reset cache.
+                    val cacheCount = withContext(Dispatchers.IO) {
+                        db.cloudFileDao().getAll().size
+                    }
+                    if (booksCount == 0 && cacheCount > 0) {
+                        Log.w(TAG, "Inconsistent state: 0 books but cache has $cacheCount entries. Resetting scan cache.")
+                        repository.clearScanCache(applicationContext)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Database access failed, resetting DB", e)
+                    repository.resetDatabase()
                 }
-                Log.d(TAG, "Database check: total books count = $booksCount")
 
                 // Step 3: Check/Trigger background auto-discovery
                 val isAutoDiscoveryEnabled = SettingsManager.isAutoDiscoveryEnabled(applicationContext)
