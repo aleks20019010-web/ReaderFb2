@@ -47,7 +47,7 @@ object SettingsManager {
 
     fun isAutoDiscoveryEnabled(context: Context): Boolean {
         if (cachedAutoDiscovery == null) {
-            cachedAutoDiscovery = getPrefs(context).getBoolean(KEY_AUTO_DISCOVERY, false)
+            cachedAutoDiscovery = getPrefs(context).getBoolean(KEY_AUTO_DISCOVERY, true)
         }
         return cachedAutoDiscovery!!
     }

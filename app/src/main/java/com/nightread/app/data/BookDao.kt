@@ -70,6 +70,9 @@ interface BookDao {
     @Query("DELETE FROM books WHERE sha1 = :sha1")
     suspend fun deleteBookBySha1(sha1: String)
 
+    @Query("SELECT COUNT(*) FROM books")
+    suspend fun getBooksCount(): Int
+
     @Query("DELETE FROM books")
     suspend fun deleteAllBooks()
 }

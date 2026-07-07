@@ -12,7 +12,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.nightread.app.data.AppDatabase
 import com.nightread.app.data.BookRepository
+import com.nightread.app.data.SettingsManager
 import com.nightread.app.service.NewBookScanner
+import com.nightread.app.service.AutoDiscoveryWorker
+import com.nightread.app.service.AutoDiscoveryService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -41,10 +44,15 @@ class SplashActivity : AppCompatActivity() {
         tvStatus = findViewById(R.id.tv_status)
         tvPercentage = findViewById(R.id.tv_percentage)
 
-        // 1. Centered logo animation fade-in (0.5 sec)
+        // 1. Centered logo animation fade-in and subtle zoom-in (800ms)
+        brandContainer.scaleX = 0.8f
+        brandContainer.scaleY = 0.8f
         brandContainer.animate()
             .alpha(1f)
-            .setDuration(500)
+            .scaleX(1.0f)
+            .scaleY(1.0f)
+            .setDuration(800)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
             .start()
 
         // Start initialization logic
@@ -70,62 +78,32 @@ class SplashActivity : AppCompatActivity() {
                     AppDatabase.getDatabase(applicationContext)
                 }
 
-                // Step 2: Load Library (20% -> 50%)
-                animateProgressTo(50, "Загрузка библиотеки...", 400)
+                // Step 2: Query library book count (20% -> 50%)
+                animateProgressTo(50, "Проверка книг в библиотеке...", 400)
                 val repository = BookRepository(db.bookDao(), db.noteDao())
-                val cachedBooks = withContext(Dispatchers.IO) {
-                    db.bookDao().getAllBooks().first()
+                val booksCount = withContext(Dispatchers.IO) {
+                    repository.getBooksCount()
                 }
-                Log.d(TAG, "Cached books loaded: ${cachedBooks.size}")
+                Log.d(TAG, "Database check: total books count = $booksCount")
 
-                // Step 3: Scan / Search for new books (50% -> 90%)
-                tvStatus.text = "Поиск новых книг..."
-                val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    checkSelfPermission("android.permission.READ_MEDIA_BOOKS") == PackageManager.PERMISSION_GRANTED
+                // Step 3: Check/Trigger background auto-discovery
+                val isAutoDiscoveryEnabled = SettingsManager.isAutoDiscoveryEnabled(applicationContext)
+
+                if (booksCount > 0 && isAutoDiscoveryEnabled) {
+                    tvStatus.text = "Фоновый поиск новых книг..."
+                    Log.d(TAG, "Books exist and auto-discovery is enabled. Triggering background work.")
+                    AutoDiscoveryWorker.runOnce(applicationContext)
+                    AutoDiscoveryWorker.schedule(applicationContext)
+                    try {
+                        AutoDiscoveryService.start(applicationContext)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to start AutoDiscoveryService", e)
+                    }
+                    animateProgressTo(90, "Фоновый поиск запущен", 400)
                 } else {
-                    checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-                }
-
-                if (hasPermission) {
-                    // Instantiate scanner
-                    val scanner = withContext(Dispatchers.IO) {
-                        val app = application as? MainApplication
-                        app?.bookScanner ?: NewBookScanner(applicationContext, db.bookDao()).also {
-                            app?.bookScanner = it
-                        }
-                    }
-
-                    // Perform actual scanning in background and map progress
-                    val scanJob = launch(Dispatchers.IO) {
-                        try {
-                            scanner.scanBooks()
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error scanning books during splash", e)
-                        }
-                    }
-
-                    // Collect scanner progress and map it between 50% and 90%
-                    lifecycleScope.launch {
-                        scanner.state.collect { state ->
-                            if (state.isScanning && state.totalFiles > 0) {
-                                val ratio = state.processedFiles.toFloat() / state.totalFiles.toFloat()
-                                val progressValue = 50 + (ratio * 40).toInt()
-                                withContext(Dispatchers.Main) {
-                                    progressBar.progress = progressValue
-                                    tvPercentage.text = "$progressValue%"
-                                    if (state.status.isNotEmpty()) {
-                                        tvStatus.text = state.status
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    scanJob.join()
-                    animateProgressTo(90, "Поиск новых книг...", 200)
-                } else {
-                    // No permission, just smoothly animate to 90%
-                    animateProgressTo(90, "Поиск новых книг...", 600)
+                    tvStatus.text = "Проверка библиотеки..."
+                    Log.d(TAG, "Library is empty or auto-discovery disabled. No auto-discovery triggered.")
+                    animateProgressTo(90, "Библиотека готова", 400)
                 }
 
                 // Step 4: Finished (90% -> 100%)

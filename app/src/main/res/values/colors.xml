@@ -1,44 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Forest theme palette (Day) -->
-    <color name="bg_main">#EEF3E8</color>
-    <color name="bg_card">#F8FAF0</color>
-    <color name="bg_gradient_start">#E6EDD8</color>
-    <color name="bg_gradient_end">#F5F7EE</color>
+    <!-- Purple Fog theme palette (Day) -->
+    <color name="bg_main">#1A0D2A</color>
+    <color name="bg_card">#2A1A3E</color>
+    <color name="bg_gradient_start">#1A0D2A</color>
+    <color name="bg_gradient_end">#2A1A3E</color>
     
-    <color name="text_primary">#2A3A22</color>
-    <color name="text_secondary">#5A6A4E</color>
-    <color name="text_title">#1A2A12</color>
-    <color name="text_author">#4A5A3E</color>
+    <color name="text_primary">#E8D8F0</color>
+    <color name="text_secondary">#B8A0C8</color>
+    <color name="text_title">#E8D8F0</color>
+    <color name="text_author">#B8A0C8</color>
     
-    <color name="accent">#7A9B6A</color>
-    <color name="accent_hover">#5C7A4E</color>
+    <color name="accent">#9B59B6</color>
+    <color name="accent_hover">#7D3C98</color>
     
-    <color name="shadow">#C8D4BA</color>
-    <color name="divider">#DCE4D0</color>
-    <color name="bg_panel">#E6EDD8</color>
+    <color name="shadow">#2A1A3E</color>
+    <color name="divider">#3A2A4E</color>
+    <color name="bg_panel">#2A1A3E</color>
     
-    <color name="btn_bg">#7A9B6A</color>
+    <color name="btn_bg">#9B59B6</color>
     <color name="btn_text">#FFFFFF</color>
-    <color name="icon_tint">#2A3A22</color>
-    <color name="accent_light">#E6EDD8</color>
+    <color name="icon_tint">#E8D8F0</color>
+    <color name="accent_light">#3A2A4E</color>
 
     <!-- Material 3 Light Theme Colors mapping -->
-    <color name="primary">#7A9B6A</color>
+    <color name="primary">#9B59B6</color>
     <color name="onPrimary">#FFFFFF</color>
-    <color name="secondary">#5A6A4E</color>
+    <color name="secondary">#7D3C98</color>
     <color name="onSecondary">#FFFFFF</color>
-    <color name="surface">#F8FAF0</color>
-    <color name="onSurface">#2A3A22</color>
-    <color name="background">#EEF3E8</color>
-    <color name="onBackground">#2A3A22</color>
+    <color name="surface">#2A1A3E</color>
+    <color name="onSurface">#E8D8F0</color>
+    <color name="background">#1A0D2A</color>
+    <color name="onBackground">#E8D8F0</color>
 
     <!-- Legacy / compatibility colors -->
-    <color name="purple_200">#FF7A9B6A</color>
-    <color name="purple_500">#FF7A9B6A</color>
-    <color name="purple_700">#FF2A3A22</color>
-    <color name="teal_200">#FF7A9B6A</color>
-    <color name="teal_700">#FF2A3A22</color>
+    <color name="purple_200">#9B59B6</color>
+    <color name="purple_500">#9B59B6</color>
+    <color name="purple_700">#7D3C98</color>
+    <color name="teal_200">#9B59B6</color>
+    <color name="teal_700">#7D3C98</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

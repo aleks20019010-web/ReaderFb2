@@ -30,11 +30,11 @@
 
         <!-- Button Style -->
         <item name="materialButtonStyle">@style/Widget.App.Button</item>
-        <!-- Status Bar and Navigation Bar Colors for Forest Theme -->
+        <!-- Status Bar and Navigation Bar Colors for Purple Fog Theme -->
         <item name="android:statusBarColor">@color/bg_gradient_start</item>
         <item name="android:navigationBarColor">@color/bg_gradient_end</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
-        <item name="colorControlHighlight">#4D7A9B6A</item>
+        <item name="colorControlHighlight">#4D9B59B6</item>
     </style>
 </resources>

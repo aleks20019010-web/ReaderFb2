@@ -68,6 +68,17 @@ class AutoDiscoveryWorker(
             )
         }
 
+        fun runOnce(context: Context) {
+            val workRequest = androidx.work.OneTimeWorkRequestBuilder<AutoDiscoveryWorker>()
+                .addTag("AutoDiscoveryOnce")
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "AutoDiscoveryOnce",
+                androidx.work.ExistingWorkPolicy.REPLACE,
+                workRequest
+            )
+        }
+
         fun cancel(context: Context) {
             WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
         }

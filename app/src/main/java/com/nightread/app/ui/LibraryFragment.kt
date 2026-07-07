@@ -85,6 +85,8 @@ class LibraryFragment : Fragment() {
     private lateinit var tvTimeElapsed: TextView
     private lateinit var progressBarSpinner: ProgressBar
     private lateinit var progressBarScanProgress: ProgressBar
+    private lateinit var headerProgressBar: ProgressBar
+    private lateinit var progressBarEmptyState: ProgressBar
     
     private lateinit var rvBooks: RecyclerView
     private lateinit var layoutEmptyState: View
@@ -242,6 +244,8 @@ class LibraryFragment : Fragment() {
         tvTimeElapsed = view.findViewById(R.id.tvTimeElapsed)
         progressBarSpinner = view.findViewById(R.id.progressBarSpinner)
         progressBarScanProgress = view.findViewById(R.id.progressBarScanProgress)
+        headerProgressBar = view.findViewById(R.id.headerProgressBar)
+        progressBarEmptyState = view.findViewById(R.id.progressBarEmptyState)
         
         rvBooks = view.findViewById(R.id.rvBooks)
         layoutEmptyState = view.findViewById(R.id.layoutEmptyState)
@@ -594,6 +598,10 @@ class LibraryFragment : Fragment() {
         }
         btnAutoScan.alpha = if (active) 0.7f else 1.0f
         
+        if (::headerProgressBar.isInitialized) {
+            headerProgressBar.visibility = if (active) View.VISIBLE else View.GONE
+        }
+        
         if (::swipeRefresh.isInitialized) {
             swipeRefresh.isRefreshing = active
         }
@@ -710,8 +718,11 @@ class LibraryFragment : Fragment() {
             updateBookCount(0)
             
             if (viewModel.scanState.value.isScanning) {
-                ivEmptyIllustration.visibility = View.VISIBLE
-                startPulsing(ivEmptyIllustration)
+                if (::progressBarEmptyState.isInitialized) {
+                    progressBarEmptyState.visibility = View.VISIBLE
+                }
+                ivEmptyIllustration.visibility = View.GONE
+                stopPulsing(ivEmptyIllustration)
                 btnEmptyStateScan.visibility = View.GONE
                 tvEmptyStateTitle.text = "Сканирование памяти..."
                 if (isSwipeRescanInProgress) {
@@ -720,6 +731,9 @@ class LibraryFragment : Fragment() {
                     tvEmptyStateDesc.text = "Идёт автоматический поиск книг...\nПожалуйста, подождите."
                 }
             } else {
+                if (::progressBarEmptyState.isInitialized) {
+                    progressBarEmptyState.visibility = View.GONE
+                }
                 stopPulsing(ivEmptyIllustration)
                 ivEmptyIllustration.visibility = View.VISIBLE
                 btnEmptyStateScan.visibility = View.VISIBLE
@@ -736,6 +750,9 @@ class LibraryFragment : Fragment() {
 
         if (filtered.isEmpty()) {
             layoutEmptyState.visibility = View.VISIBLE
+            if (::progressBarEmptyState.isInitialized) {
+                progressBarEmptyState.visibility = View.GONE
+            }
             ivEmptyIllustration.visibility = View.GONE
             btnEmptyStateScan.visibility = View.GONE
             tvEmptyStateTitle.text = "Ничего не найдено"
@@ -743,6 +760,9 @@ class LibraryFragment : Fragment() {
             rvBooks.visibility = View.GONE
         } else {
             layoutEmptyState.visibility = View.GONE
+            if (::progressBarEmptyState.isInitialized) {
+                progressBarEmptyState.visibility = View.GONE
+            }
             rvBooks.visibility = View.VISIBLE
         }
 

@@ -28,7 +28,7 @@
             android:layout_height="96dp"
             app:cardCornerRadius="24dp"
             app:cardElevation="4dp"
-            app:cardBackgroundColor="#F8FAF0">
+            app:cardBackgroundColor="@color/bg_card">
 
             <ImageView
                 android:id="@+id/iv_logo"
@@ -44,21 +44,11 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="NightRead"
-            android:textColor="#2A3A22"
+            android:textColor="@color/text_primary"
             android:textSize="32sp"
             android:textStyle="bold"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.05" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Лесная библиотека"
-            android:textColor="#5A6A4E"
-            android:textSize="14sp"
-            android:fontFamily="sans-serif"
-            android:letterSpacing="0.1" />
 
     </LinearLayout>
 
@@ -85,8 +75,8 @@
             android:max="100"
             android:progress="0"
             android:progressDrawable="@android:drawable/progress_horizontal"
-            android:progressTint="#7A9B6A"
-            android:progressBackgroundTint="#DCE4D0" />
+            android:progressTint="@color/accent"
+            android:progressBackgroundTint="@color/divider" />
 
         <!-- Status & Percentage Row -->
         <RelativeLayout
@@ -101,7 +91,7 @@
                 android:layout_alignParentStart="true"
                 android:layout_toStartOf="@+id/tv_percentage"
                 android:text="Подготовка..."
-                android:textColor="#2A3A22"
+                android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif-light" />
 
@@ -111,7 +101,7 @@
                 android:layout_height="wrap_content"
                 android:layout_alignParentEnd="true"
                 android:text="0%"
-                android:textColor="#2A3A22"
+                android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:fontFamily="sans-serif-medium" />

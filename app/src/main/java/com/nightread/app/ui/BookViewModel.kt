@@ -152,6 +152,30 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 scanProgressText = state.status
             }
         }
+
+        // Automatically enable and schedule auto-discovery when the first book is added
+        viewModelScope.launch(Dispatchers.IO) {
+            var wasEmpty = true
+            allBooks.collect { books ->
+                if (books.isNotEmpty()) {
+                    if (wasEmpty) {
+                        wasEmpty = false
+                        val context = getApplication<Application>().applicationContext
+                        if (!SettingsManager.isAutoDiscoveryEnabled(context)) {
+                            SettingsManager.setAutoDiscoveryEnabled(context, true)
+                        }
+                        com.nightread.app.service.AutoDiscoveryWorker.schedule(context)
+                        try {
+                            com.nightread.app.service.AutoDiscoveryService.start(context)
+                        } catch (e: Exception) {
+                            Log.e("BookViewModel", "Failed to start AutoDiscoveryService", e)
+                        }
+                    }
+                } else {
+                    wasEmpty = true
+                }
+            }
+        }
     }
 
     // Book Interactions

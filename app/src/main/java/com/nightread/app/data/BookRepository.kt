@@ -67,6 +67,10 @@ class BookRepository(
 
     suspend fun deleteBookBySha1(sha1: String) = bookDao.deleteBookBySha1(sha1)
 
+    suspend fun getBooksCount(): Int = withContext(Dispatchers.IO) {
+        bookDao.getBooksCount()
+    }
+
     suspend fun deleteAllBooks() = bookDao.deleteAllBooks()
 
     fun getNotesForBook(bookSha1: String): Flow<List<NoteEntity>> = noteDao.getNotesForBook(bookSha1)

@@ -1,42 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Forest theme palette (Night) -->
-    <color name="bg_main">#1A2216</color>
-    <color name="bg_card">#2A3222</color>
-    <color name="bg_gradient_start">#1A2216</color>
-    <color name="bg_gradient_end">#222A1E</color>
+    <!-- Purple Fog theme palette (Night) -->
+    <color name="bg_main">#1A0D2A</color>
+    <color name="bg_card">#2A1A3E</color>
+    <color name="bg_gradient_start">#1A0D2A</color>
+    <color name="bg_gradient_end">#2A1A3E</color>
     
-    <color name="text_primary">#D8E0D0</color>
-    <color name="text_secondary">#9AA890</color>
+    <color name="text_primary">#E8D8F0</color>
+    <color name="text_secondary">#B8A0C8</color>
     
-    <color name="accent">#6A8A5A</color>
-    <color name="accent_hover">#8AA87A</color>
+    <color name="accent">#9B59B6</color>
+    <color name="accent_hover">#7D3C98</color>
     
-    <color name="shadow">#0A1206</color>
-    <color name="divider">#3A4232</color>
-    <color name="bg_panel">#222A1E</color>
+    <color name="shadow">#2A1A3E</color>
+    <color name="divider">#3A2A4E</color>
+    <color name="bg_panel">#2A1A3E</color>
     
-    <color name="btn_bg">#6A8A5A</color>
+    <color name="btn_bg">#9B59B6</color>
     <color name="btn_text">#FFFFFF</color>
-    <color name="icon_tint">#D8E0D0</color>
-    <color name="accent_light">#3A4232</color>
+    <color name="icon_tint">#E8D8F0</color>
+    <color name="accent_light">#3A2A4E</color>
 
     <!-- Material 3 Dark Theme Colors mapping -->
-    <color name="primary">#6A8A5A</color>
+    <color name="primary">#9B59B6</color>
     <color name="onPrimary">#FFFFFF</color>
-    <color name="secondary">#9AA890</color>
+    <color name="secondary">#7D3C98</color>
     <color name="onSecondary">#FFFFFF</color>
-    <color name="surface">#2A3222</color>
-    <color name="onSurface">#D8E0D0</color>
-    <color name="background">#1A2216</color>
-    <color name="onBackground">#D8E0D0</color>
+    <color name="surface">#2A1A3E</color>
+    <color name="onSurface">#E8D8F0</color>
+    <color name="background">#1A0D2A</color>
+    <color name="onBackground">#E8D8F0</color>
 
     <!-- Legacy / compatibility colors -->
-    <color name="purple_200">#FF6A8A5A</color>
-    <color name="purple_500">#FF6A8A5A</color>
-    <color name="purple_700">#FF1A2216</color>
-    <color name="teal_200">#FF6A8A5A</color>
-    <color name="teal_700">#FF1A2216</color>
+    <color name="purple_200">#9B59B6</color>
+    <color name="purple_500">#9B59B6</color>
+    <color name="purple_700">#7D3C98</color>
+    <color name="teal_200">#9B59B6</color>
+    <color name="teal_700">#7D3C98</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

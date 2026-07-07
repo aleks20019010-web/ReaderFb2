@@ -175,6 +175,20 @@
         </LinearLayout>
     </RelativeLayout>
 
+    <!-- Sleek Horizontal Progress Bar for Scanning Indicator -->
+    <ProgressBar
+        android:id="@+id/headerProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginBottom="4dp"
+        android:indeterminate="true"
+        android:indeterminateTint="@color/accent"
+        android:visibility="gone" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -250,6 +264,15 @@
                     android:contentDescription="Иллюстрация пустой библиотеки"
                     app:tint="@color/accent"
                     android:layout_marginBottom="16dp" />
+
+                <ProgressBar
+                    android:id="@+id/progressBarEmptyState"
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:layout_marginBottom="16dp"
+                    android:indeterminate="true"
+                    android:indeterminateTint="@color/accent"
+                    android:visibility="gone" />
 
                 <TextView
                     android:id="@+id/tvEmptyStateTitle"

@@ -21,14 +21,5 @@ class MainApplication : Application() {
         if (SettingsManager.isAutoThemeEnabled(this)) {
             ThemeUpdateReceiver.scheduleNextThemeAlarm(this)
         }
-        
-        if (SettingsManager.isAutoDiscoveryEnabled(this)) {
-            AutoDiscoveryWorker.schedule(this)
-            try {
-                AutoDiscoveryService.start(this)
-            } catch (e: Exception) {
-                Log.e("MainApplication", "Failed to start AutoDiscoveryService", e)
-            }
-        }
     }
 }
