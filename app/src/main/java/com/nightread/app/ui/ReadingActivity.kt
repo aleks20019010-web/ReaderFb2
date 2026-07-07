@@ -79,7 +79,7 @@ class ReadingActivity : AppCompatActivity() {
         tvTitle = findViewById(R.id.tvTitle)
         btnSettings = findViewById(R.id.btnSettings)
         
-        findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
+        findViewById<ImageButton>(R.id.btnBack).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         hideSystemBars()
 
@@ -90,18 +90,17 @@ class ReadingActivity : AppCompatActivity() {
             return
         }
 
-        setupGestures()
-        gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
-            override fun onSingleTapConfirmed(e: android.view.MotionEvent): Boolean {
-                val cornerSize = 80 * resources.displayMetrics.density
-                if (e.x < cornerSize && e.y < cornerSize) {
-                    toggleNightMode()
-                } else {
-                    toggleBars()
+        
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (isTaskRoot) {
+                    startActivity(android.content.Intent(this@ReadingActivity, com.nightread.app.MainActivity::class.java))
                 }
-                return super.onSingleTapConfirmed(e)
+                finish()
             }
         })
+
+        setupGestures()
         setupSeekBar()
         
         btnSettings.setOnClickListener {
@@ -203,8 +202,8 @@ class ReadingActivity : AppCompatActivity() {
     }
 
     private fun preprocessTextAndHyphenate(text: String): String {
-        var processedText = text.replace(Regex("\n{2,}"), "\n")
-        return com.nightread.app.service.RussianHyphenator.hyphenate(processedText)
+        var processedText = text.replace(Regex("(\\s*\\n\\s*)+"), "\n    ")
+        return com.nightread.app.service.RussianHyphenator.hyphenate(processedText).trim()
     }
 
     private suspend fun recalculatePages(targetCharOffset: Int = -1) {

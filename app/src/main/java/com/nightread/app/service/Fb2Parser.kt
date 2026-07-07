@@ -15,7 +15,7 @@ object Fb2Parser {
                 .replace(Regex("<empty-line[^>]*>"), "\n")
                 .replace(Regex("<p[^>]*>"), "\n    ")
                 .replace(Regex("</p>"), "")
-                .replace(Regex("<v[^>]*>"), "\n")
+                .replace(Regex("<v[^>]*>"), "\n    ")
                 .replace(Regex("</v>"), "")
                 .replace(Regex("<title[^>]*>"), "\n")
                 .replace(Regex("</title>"), "\n")
@@ -35,7 +35,9 @@ object Fb2Parser {
                 .replace("&nbsp;", " ")
                 
             // Clean up multiple newlines to just one newline
-            text.replace(Regex("\n{2,}"), "\n").trim()
+            // Replace multiple newlines (with optional whitespace) with a single newline
+            text = text.replace(Regex("(\\s*\\n\\s*)+"), "\n    ")
+            return text.trim()
         } catch (e: Exception) {
             xmlContent
         }
