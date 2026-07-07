@@ -85,6 +85,9 @@ interface BookDao {
     @Query("SELECT COUNT(*) FROM books")
     suspend fun getBooksCount(): Int
 
+    @Query("SELECT * FROM books WHERE lastReadTime > 0 ORDER BY lastReadTime DESC LIMIT 1")
+    suspend fun getLastReadBook(): BookEntity?
+
     @Query("DELETE FROM books")
     suspend fun deleteAllBooks()
 
