@@ -449,7 +449,7 @@ class ReaderActivity : FragmentActivity() {
         }
         titleText.setTextColor(textColor)
         backButtonView.setTextColor(textColor)
-        // settingsBtn (ImageView) has a gorgeous volumetric gold/bronze color from its drawable, so we keep its natural colors!
+        settingsBtn.setColorFilter(textColor)
         
         // Style Bottom Bar with rounded top corners
         bottomBar.background = GradientDrawable().apply {
