@@ -30,7 +30,7 @@
         android:layout_height="wrap_content"
         android:background="@drawable/bg_glass_panel"
         android:layout_margin="8dp"
-        android:padding="16dp"
+        android:padding="12dp"
         android:elevation="4dp"
         android:clipToPadding="false"
         android:clipChildren="false">
@@ -45,34 +45,39 @@
 
             <ImageButton
                 android:id="@+id/btnMenu"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_menu_sort_by_size"
                 android:contentDescription="Меню"
                 android:tint="@color/icon_tint"
-                android:layout_marginEnd="8dp"
+                android:layout_marginEnd="6dp"
                 android:clickable="true"
                 android:focusable="true" />
 
-            <TextView
-                android:id="@+id/tvTitle"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Библиотека"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_title" />
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/tvBookCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:textSize="14sp"
-                android:textColor="#5A6A4E"
-                android:fontFamily="sans-serif-light"
-                android:text="" />
+                <TextView
+                    android:id="@+id/tvTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Библиотека"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_title" />
+
+                <TextView
+                    android:id="@+id/tvBookCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="#5A6A4E"
+                    android:fontFamily="sans-serif-light"
+                    android:text="" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
@@ -88,9 +93,9 @@
             <!-- Expandable SearchView (Initially Hidden) -->
             <androidx.appcompat.widget.SearchView
                 android:id="@+id/etSearch"
-                android:layout_width="180dp"
-                android:layout_height="48dp"
-                android:layout_marginEnd="8dp"
+                android:layout_width="140dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="4dp"
                 android:background="@drawable/bg_search_input"
                 android:visibility="gone"
                 android:elevation="2dp"
@@ -104,14 +109,14 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnToggleViewMode"
                 style="@style/Widget.Material3.Button.IconButton.Filled"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_marginEnd="8dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="4dp"
                 app:icon="@drawable/ic_custom_list"
-                app:iconSize="24dp"
+                app:iconSize="20dp"
                 app:iconTint="@color/icon_tint"
                 app:backgroundTint="@color/bg_panel"
-                app:cornerRadius="24dp"
+                app:cornerRadius="20dp"
                 app:elevation="2dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
@@ -121,14 +126,14 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSearchToggle"
                 style="@style/Widget.Material3.Button.IconButton.Filled"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_marginEnd="8dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="4dp"
                 app:icon="@drawable/ic_custom_search"
-                app:iconSize="24dp"
+                app:iconSize="20dp"
                 app:iconTint="@color/icon_tint"
                 app:backgroundTint="@color/bg_panel"
-                app:cornerRadius="24dp"
+                app:cornerRadius="20dp"
                 app:elevation="2dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
@@ -138,14 +143,14 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnImport"
                 style="@style/Widget.Material3.Button.IconButton.Filled"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_marginEnd="8dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="4dp"
                 app:icon="@drawable/ic_custom_import"
-                app:iconSize="24dp"
+                app:iconSize="20dp"
                 app:iconTint="@color/icon_tint"
                 app:backgroundTint="@color/bg_panel"
-                app:cornerRadius="24dp"
+                app:cornerRadius="20dp"
                 app:elevation="2dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
@@ -155,13 +160,13 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnAutoScan"
                 style="@style/Widget.Material3.Button.IconButton.Filled"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 app:icon="@drawable/ic_custom_scan"
-                app:iconSize="24dp"
+                app:iconSize="20dp"
                 app:iconTint="#FFFFFF"
                 app:backgroundTint="@color/accent"
-                app:cornerRadius="24dp"
+                app:cornerRadius="20dp"
                 app:elevation="4dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"

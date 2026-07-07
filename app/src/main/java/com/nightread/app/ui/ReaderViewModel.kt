@@ -123,7 +123,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         _pagesState.value = pages
         pageStartOffsets = offsets
 
-        val savedPage = sharedPrefs.getInt("book_page_${book.sha1}", 0)
+        val savedPage = sharedPrefs.getInt("book_page_${book.sha1}", book.currentPageIndex)
         _currentPage.value = savedPage.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
     }
 
@@ -286,7 +286,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                bookDao.updateProgress(book.sha1, charOffset, System.currentTimeMillis())
+                bookDao.updateProgressAndPage(book.sha1, charOffset, pageIdx, System.currentTimeMillis())
             }
         }
     }

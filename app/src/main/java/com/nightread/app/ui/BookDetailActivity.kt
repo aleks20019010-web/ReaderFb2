@@ -275,7 +275,11 @@ class BookDetailActivity : AppCompatActivity() {
                 }
                 val sdf = SimpleDateFormat("d MMMM yyyy г. HH:mm", Locale("ru"))
                 val formattedDate = sdf.format(Date(book.lastReadTime))
-                tvProgress.text = "$percent%, $formattedDate"
+                if (book.currentPageIndex > 0) {
+                    tvProgress.text = "Стр. ${book.currentPageIndex + 1} ($percent%), $formattedDate"
+                } else {
+                    tvProgress.text = "$percent%, $formattedDate"
+                }
 
                 // Format & Size setup
                 val filePath = book.filePath

@@ -112,7 +112,9 @@ class LibraryFragment : Fragment() {
         if (isGranted) {
             startScan()
         } else {
-            Toast.makeText(requireContext(), "Необходимо разрешение для поиска книг", Toast.LENGTH_SHORT).show()
+            context?.let { ctx ->
+                Toast.makeText(ctx, "Необходимо разрешение для поиска книг", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -123,7 +125,9 @@ class LibraryFragment : Fragment() {
             if (android.os.Environment.isExternalStorageManager()) {
                 startScan()
             } else {
-                Toast.makeText(requireContext(), "Необходимо разрешение для поиска книг", Toast.LENGTH_SHORT).show()
+                context?.let { ctx ->
+                    Toast.makeText(ctx, "Необходимо разрешение для поиска книг", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -141,27 +145,21 @@ class LibraryFragment : Fragment() {
                 } else {
                     android.util.Log.d("LibraryFragment", "checkPermissionsAndScan: Requesting All Files Access")
                     try {
-                        val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                        intent.addCategory("android.intent.category.DEFAULT")
-                        intent.data = Uri.parse("package:${ctx.packageName}")
+                        val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                            data = Uri.parse("package:${ctx.packageName}")
+                        }
                         requestManageStorageLauncher.launch(intent)
-                    } catch (e: CancellationException) {
-                        throw e
                     } catch (e: Exception) {
                         android.util.Log.e("LibraryFragment", "Failed to launch ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, trying general settings", e)
                         try {
                             val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
                             requestManageStorageLauncher.launch(intent)
-                        } catch (ex: CancellationException) {
-                            throw ex
                         } catch (ex: Exception) {
                             android.util.Log.e("LibraryFragment", "Failed to launch ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION, falling back to standard READ_EXTERNAL_STORAGE", ex)
                             requestStandardStoragePermission()
                         }
                     }
                 }
-            } catch (e: CancellationException) {
-                throw e
             } catch (e: Exception) {
                 android.util.Log.e("LibraryFragment", "Error checking isExternalStorageManager, falling back to standard permission", e)
                 requestStandardStoragePermission()
@@ -184,7 +182,11 @@ class LibraryFragment : Fragment() {
             startScan()
         } else {
             android.util.Log.d("LibraryFragment", "requestStandardStoragePermission: Launching standard permission request")
-            requestPermissionLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+            try {
+                requestPermissionLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+            } catch (e: Exception) {
+                android.util.Log.e("LibraryFragment", "Failed standard permission launcher", e)
+            }
         }
     }
 
@@ -606,7 +608,9 @@ class LibraryFragment : Fragment() {
             if (wasScanning) {
                 wasScanning = false
                 if (state.status.startsWith("Scan finished") || state.status.startsWith("No books")) {
-                    Toast.makeText(requireContext(), state.status, Toast.LENGTH_LONG).show()
+                    context?.let { ctx ->
+                        Toast.makeText(ctx, state.status, Toast.LENGTH_LONG).show()
+                    }
                 }
             }
             if (state.status.isBlank()) {
@@ -623,7 +627,9 @@ class LibraryFragment : Fragment() {
             }
             
             if (state.status.startsWith("Error", ignoreCase = true) || state.status.startsWith("Ошибка", ignoreCase = true)) {
-                Toast.makeText(requireContext(), state.status, Toast.LENGTH_LONG).show()
+                context?.let { ctx ->
+                    Toast.makeText(ctx, state.status, Toast.LENGTH_LONG).show()
+                }
             }
         }
         
@@ -756,7 +762,7 @@ class LibraryFragment : Fragment() {
 
     private fun startRotating(view: View) {
         view.animate().cancel()
-        val animator = ObjectAnimator.ofFloat(null, View.ROTATION, 0f, 360f)
+        val animator = ObjectAnimator.ofFloat(view, View.ROTATION, 0f, 360f)
         animator.duration = 1000 // 1 revolution per second
         animator.repeatCount = ValueAnimator.INFINITE
         animator.interpolator = android.view.animation.LinearInterpolator()

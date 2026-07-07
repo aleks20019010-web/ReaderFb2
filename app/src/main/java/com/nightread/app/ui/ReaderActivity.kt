@@ -63,6 +63,7 @@ class ReaderActivity : FragmentActivity() {
     private var isSystemUiVisible = false
     private var bookSha1: String = ""
     private var bookPath: String? = null
+    private var currentBook: BookEntity? = null
     private var pages: List<String> = emptyList()
     private var rawBookContent: String? = null
     private var lastFontSize = 0f
@@ -634,6 +635,7 @@ class ReaderActivity : FragmentActivity() {
                 val book = withContext(Dispatchers.IO) {
                     db.bookDao().getBookBySha1(bookSha1)
                 }
+                currentBook = book
                 
                 if (book == null) {
                     Log.e("READING_DEBUG", "READING_DEBUG: Книга с SHA-1 $bookSha1 не найдена в базе данных")
@@ -811,7 +813,7 @@ class ReaderActivity : FragmentActivity() {
                 viewPager.adapter = newAdapter
                 
                 // Set initial saved page only when adapter is first created
-                val savedPage = if (bookSha1.isNotEmpty()) sharedPrefs.getInt("book_page_$bookSha1", 0) else 0
+                val savedPage = if (bookSha1.isNotEmpty()) sharedPrefs.getInt("book_page_$bookSha1", currentBook?.currentPageIndex ?: 0) else 0
                 currentPos = savedPage.coerceIn(0, pages.size - 1)
                 viewPager.setCurrentItem(currentPos, false)
 
@@ -1200,7 +1202,7 @@ class ReaderActivity : FragmentActivity() {
                         } else {
                             0
                         }
-                        db.bookDao().updateProgress(bookSha1, newOffset, System.currentTimeMillis())
+                        db.bookDao().updateProgressAndPage(bookSha1, newOffset, currentPageIndex, System.currentTimeMillis())
                         Log.d(TAG, "Успешно обновлен прогресс в БД: SHA-1 = $bookSha1, смещение = $newOffset")
                         if (com.nightread.app.data.YandexDiskManager.isAuthorized(this@ReaderActivity)) {
                             com.nightread.app.data.YandexDiskManager.pushProgressToCloud(this@ReaderActivity, bookSha1, newOffset)
