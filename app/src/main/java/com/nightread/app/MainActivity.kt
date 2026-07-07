@@ -1,5 +1,6 @@
 package com.nightread.app
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
@@ -36,6 +37,10 @@ class MainActivity : AppCompatActivity() {
         navView.setNavigationItemSelectedListener { menuItem ->
             if (menuItem.itemId == R.id.nav_sync) {
                 openSyncFragment()
+            } else if (menuItem.itemId == R.id.nav_settings) {
+                // Open SettingsActivity
+                val intent = Intent(this, com.nightread.app.ui.SettingsActivity::class.java)
+                startActivity(intent)
             } else {
                 val filter = when (menuItem.itemId) {
                     R.id.nav_reading -> "reading"
