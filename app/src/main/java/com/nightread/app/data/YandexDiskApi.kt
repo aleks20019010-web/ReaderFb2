@@ -30,7 +30,10 @@ data class ResourceResponse(
 
 @JsonClass(generateAdapter = true)
 data class EmbeddedResources(
-    @Json(name = "items") val items: List<ResourceItem>
+    @Json(name = "items") val items: List<ResourceItem>,
+    @Json(name = "limit") val limit: Int? = null,
+    @Json(name = "offset") val offset: Int? = null,
+    @Json(name = "total") val total: Int? = null
 )
 
 @JsonClass(generateAdapter = true)

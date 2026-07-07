@@ -46,4 +46,15 @@ object CloudFileCache {
             e.printStackTrace()
         }
     }
+
+    suspend fun clearCache(context: Context) = withContext(Dispatchers.IO) {
+        try {
+            val file = getCacheFile(context)
+            if (file.exists()) {
+                file.delete()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }

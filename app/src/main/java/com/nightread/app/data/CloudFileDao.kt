@@ -15,4 +15,7 @@ interface CloudFileDao {
     
     @Query("SELECT * FROM cloud_file_cache")
     suspend fun getAll(): List<CloudFileEntity>
+
+    @Query("DELETE FROM cloud_file_cache")
+    suspend fun clearAll()
 }

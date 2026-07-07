@@ -138,6 +138,55 @@ object YandexDiskManager {
         }
     }
 
+    suspend fun resolveCaseInsensitivePath(context: Context, path: String): String {
+        val token = getToken(context) ?: return path
+        val authHeader = "OAuth $token"
+        
+        if (checkPathExists(authHeader, path)) {
+            Log.d(TAG, "resolveCaseInsensitivePath: Path '$path' exists as-is.")
+            return path
+        }
+        
+        Log.d(TAG, "resolveCaseInsensitivePath: Path '$path' does not exist as-is. Resolving case-insensitively.")
+        if (!path.startsWith("disk:/")) return path
+        
+        val parts = path.substring("disk:/".length).split("/").filter { it.isNotEmpty() }
+        if (parts.isEmpty()) return "disk:/"
+        
+        var currentPath = "disk:/"
+        for (part in parts) {
+            try {
+                val response = api.getResource(
+                    token = authHeader,
+                    path = currentPath,
+                    limit = 500,
+                    fields = "_embedded.items.name,_embedded.items.type,_embedded.items.path"
+                )
+                val dirs = response.embedded?.items?.filter { it.type == "dir" } ?: emptyList()
+                val matchingDir = dirs.find { it.name.equals(part, ignoreCase = true) }
+                if (matchingDir != null) {
+                    currentPath = matchingDir.path ?: "$currentPath/${matchingDir.name}"
+                } else {
+                    currentPath = "$currentPath/$part"
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "resolveCaseInsensitivePath: Error resolving path part: $part in $currentPath", e)
+                currentPath = "$currentPath/$part"
+            }
+        }
+        Log.d(TAG, "resolveCaseInsensitivePath: Resolved path from '$path' to '$currentPath'")
+        return currentPath
+    }
+
+    private suspend fun checkPathExists(authHeader: String, path: String): Boolean {
+        return try {
+            api.getResource(authHeader, path, limit = 1, fields = "type")
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     suspend fun getAllFilesFromFolder(
         authHeader: String,
         path: String,
@@ -145,33 +194,62 @@ object YandexDiskManager {
     ): List<ResourceItem> {
         val items = mutableListOf<ResourceItem>()
         var offset = 0
-        val limit = 500
+        val limit = 100 // Using a safe, standard limit to prevent oversized pages
         var hasMore = true
         var page = 1
 
+        Log.d(TAG, "getAllFilesFromFolder: Starting listing for path='$path'")
+
         while (hasMore) {
             try {
+                Log.d(TAG, "getAllFilesFromFolder: Page $page, offset $offset, limit $limit")
                 val response = api.getResource(
                     token = authHeader,
                     path = path,
                     limit = limit,
                     offset = offset,
-                    fields = "_embedded.items.name,_embedded.items.type,_embedded.items.path,_embedded.items.size,_embedded.items.modified"
+                    fields = "_embedded.items.name,_embedded.items.type,_embedded.items.path,_embedded.items.size,_embedded.items.modified,_embedded.total,_embedded.limit,_embedded.offset"
                 )
-                val pageItems = response.embedded?.items?.filter { it.type == "file" } ?: emptyList()
-                items.addAll(pageItems)
                 
-                if ((response.embedded?.items?.size ?: 0) < limit) {
+                val embedded = response.embedded
+                val pageItems = embedded?.items ?: emptyList()
+                Log.d(TAG, "getAllFilesFromFolder: Page $page fetched, received ${pageItems.size} items from API.")
+
+                if (pageItems.isEmpty()) {
+                    Log.d(TAG, "getAllFilesFromFolder: Page $page is empty. Stopping pagination.")
                     hasMore = false
                 } else {
-                    offset += limit
-                    page++
+                    val fileItems = pageItems.filter { it.type == "file" }
+                    items.addAll(fileItems)
+                    Log.d(TAG, "getAllFilesFromFolder: Added ${fileItems.size} files to list. Total gathered: ${items.size}")
+
+                    val total = embedded?.total
+                    if (total != null) {
+                        Log.d(TAG, "getAllFilesFromFolder: Pagination status: offset=$offset, total=$total")
+                        offset += pageItems.size
+                        if (offset >= total) {
+                            Log.d(TAG, "getAllFilesFromFolder: Offset $offset reached or exceeded total $total. Stopping pagination.")
+                            hasMore = false
+                        } else {
+                            page++
+                        }
+                    } else {
+                        // Fallback pagination
+                        if (pageItems.size < limit) {
+                            Log.d(TAG, "getAllFilesFromFolder: Received less than limit $limit. Stopping pagination.")
+                            hasMore = false
+                        } else {
+                            offset += pageItems.size
+                            page++
+                        }
+                    }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error fetching folder $path", e)
+                Log.e(TAG, "getAllFilesFromFolder: Error fetching folder $path on page $page", e)
                 hasMore = false
             }
         }
+        Log.d(TAG, "getAllFilesFromFolder: Completed. Total files found: ${items.size}")
         return items
     }
 
@@ -185,18 +263,34 @@ object YandexDiskManager {
         context: Context,
         onProgress: (status: String) -> Unit
     ): SyncStats? = withContext(Dispatchers.IO) {
-        val syncFolder = getSyncFolder(context)
+        val originalFolder = getSyncFolder(context)
         val token = getToken(context) ?: return@withContext null
         val authHeader = "OAuth $token"
 
         try {
+            onProgress("Очистка кэша...")
+            // Clear JSON and room caches for a guaranteed fresh start
+            CloudFileCache.clearCache(context)
+            val database = AppDatabase.getDatabase(context)
+            database.cloudFileDao().clearAll()
+
+            onProgress("Поиск папки синхронизации...")
+            val syncFolder = resolveCaseInsensitivePath(context, originalFolder)
+            if (syncFolder != originalFolder) {
+                setSyncFolder(context, syncFolder)
+            }
+
             onProgress("Подготовка облака...")
             initDirectories(authHeader, syncFolder)
 
             onProgress("Получение списка файлов с Яндекс Диска...")
             val cloudItems = getAllFilesFromFolder(authHeader, syncFolder)
-            val cloudBooks = cloudItems.filter { it.name.endsWith(".fb2") || it.name.endsWith(".fb2.zip") || it.name.endsWith(".epub") }
+            val cloudBooks = cloudItems.filter {
+                val lowerName = it.name.lowercase()
+                lowerName.endsWith(".fb2") || lowerName.endsWith(".fb2.zip") || lowerName.endsWith(".epub")
+            }
             val booksOnDisk = cloudBooks.size
+            Log.d(TAG, "calculateSyncStats: Found $booksOnDisk books out of ${cloudItems.size} files on disk.")
 
             val cloudCache = CloudFileCache.loadCache(context)
             val updatedCloudBooks = mutableListOf<CloudFileEntry>()
@@ -278,7 +372,6 @@ object YandexDiskManager {
 CloudFileCache.saveCache(context, cloudCache)
             }
             
-            val database = AppDatabase.getDatabase(context)
             val repository = BookRepository(database.bookDao(), database.noteDao())
             val localBooks = repository.allBooks.first()
             val localSha1s = localBooks.map { it.sha1 }.toSet()

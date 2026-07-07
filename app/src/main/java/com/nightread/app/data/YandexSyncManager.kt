@@ -18,7 +18,14 @@ class YandexSyncManager(private val context: Context) {
         val token = YandexDiskManager.getToken(context) ?: ""
         val authHeader = "OAuth $token"
 
-        val cloudFiles = YandexDiskManager.getAllFilesFromFolder(authHeader, YandexDiskManager.getSyncFolder(context))
+        val originalFolder = YandexDiskManager.getSyncFolder(context)
+        val syncFolder = YandexDiskManager.resolveCaseInsensitivePath(context, originalFolder)
+        
+        val cloudFiles = YandexDiskManager.getAllFilesFromFolder(authHeader, syncFolder)
+            .filter {
+                val lowerName = it.name.lowercase()
+                lowerName.endsWith(".fb2") || lowerName.endsWith(".fb2.zip") || lowerName.endsWith(".epub")
+            }
         
         val toDownload = mutableListOf<CloudFileEntry>()
         val cloudSha1Set = mutableSetOf<String>()
