@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Состояние фоновой синхронизации с Яндекс Диском.
- * Позволяет передавать информацию о прогрессе между SyncWorker и YandexSyncFragment в реальном времени.
+ * Позволяет передавать информацию о прогрессе между SyncService и YandexSyncFragment в реальном времени.
  */
 data class YandexSyncState(
     val isRunning: Boolean = false,

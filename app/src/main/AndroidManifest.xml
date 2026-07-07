@@ -76,6 +76,11 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <service 
+            android:name=".service.SyncService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <receiver
             android:name=".service.ThemeUpdateReceiver"
             android:exported="false" />

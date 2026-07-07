@@ -18,12 +18,9 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import androidx.work.ExistingWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
+import android.os.Build
 import com.nightread.app.MainActivity
 import com.nightread.app.R
-import com.nightread.app.data.SyncWorker
 import com.nightread.app.data.YandexDiskManager
 import com.nightread.app.data.YandexSyncManager
 import com.nightread.app.data.YandexSyncState
@@ -80,7 +77,7 @@ class YandexSyncFragment : Fragment() {
         if (result.resultCode == Activity.RESULT_OK) {
             Toast.makeText(requireContext(), "Авторизация прошла успешно!", Toast.LENGTH_SHORT).show()
             updateUi()
-            startPlanningSync()
+            startForegroundSync()
         }
     }
 
@@ -137,11 +134,11 @@ class YandexSyncFragment : Fragment() {
         }
 
         btnSyncNow.setOnClickListener {
-            startPlanningSync()
+            startForegroundSync()
         }
 
         btnCancelSync.setOnClickListener {
-            cancelBackgroundSync()
+            cancelForegroundSync()
         }
 
         return view
@@ -217,91 +214,38 @@ class YandexSyncFragment : Fragment() {
     }
 
     /**
-     * Запускает корутину для первоначального анализа диска и планирования синхронизации.
+     * Запуск фоновой синхронизации через Foreground Service.
      */
-    private fun startPlanningSync() {
+    private fun startForegroundSync() {
         val context = requireContext()
         val syncManager = YandexSyncManager(context)
-        
+
         if (!syncManager.hasInternetConnection()) {
             Toast.makeText(context, "Отсутствует подключение к интернету", Toast.LENGTH_SHORT).show()
             return
         }
 
-        btnSyncNow.isEnabled = false
-        btnSelectFolder.isEnabled = false
-        layoutSyncProgress.visibility = View.VISIBLE
-        txtSyncStatus.text = "Анализ файлов на Яндекс Диске..."
-        progressSync.isIndeterminate = true
-        txtSyncProgressCount.text = ""
-        txtRemainingTime.text = "Расчет оставшегося времени..."
-        txtSyncStatsDetail.text = "Подготовка..."
-
-        lifecycleScope.launch {
-            val stats = withContext(Dispatchers.IO) {
-                syncManager.calculateSyncStats { status ->
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        txtSyncStatus.text = status
-                    }
-                }
-            }
-
-            if (stats == null) {
-                Toast.makeText(context, "Ошибка при получении данных с диска", Toast.LENGTH_SHORT).show()
-                btnSyncNow.isEnabled = true
-                btnSelectFolder.isEnabled = true
-                layoutSyncProgress.visibility = View.GONE
-                return@launch
-            }
-
-            progressSync.isIndeterminate = false
-
-            val builder = android.app.AlertDialog.Builder(context)
-            builder.setTitle("Синхронизация с Яндекс Диском")
-            val msg = "Папка на диске: ${YandexDiskManager.getSyncFolder(context)}\n\n" +
-                      "Книг в облаке: ${stats.booksOnDisk}\n" +
-                      "Книг на устройстве: ${stats.booksLocal}\n\n" +
-                      "Новых книг для скачивания: ${stats.toDownload.size}\n" +
-                      "Книг для загрузки на диск: ${stats.toUpload.size}\n" +
-                      "Пропущено (дубликаты): ${stats.duplicates}"
-            
-            builder.setMessage(msg)
-            builder.setPositiveButton("Запустить в фоне") { _, _ ->
-                enqueueBackgroundSync()
-            }
-            builder.setNegativeButton("Отмена") { dialog, _ ->
-                btnSyncNow.isEnabled = true
-                btnSelectFolder.isEnabled = true
-                layoutSyncProgress.visibility = View.GONE
-                dialog.dismiss()
-            }
-            builder.setCancelable(false)
-            builder.show()
+        val intent = Intent(context, com.nightread.app.service.SyncService::class.java).apply {
+            action = com.nightread.app.service.SyncService.ACTION_START_SYNC
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
+        Toast.makeText(context, "Синхронизация запущена в фоновом режиме", Toast.LENGTH_SHORT).show()
     }
 
     /**
-     * Постановка задачи синхронизации в WorkManager.
+     * Отмена фоновой синхронизации в Foreground Service.
      */
-    private fun enqueueBackgroundSync() {
-        val syncWorkRequest = OneTimeWorkRequestBuilder<SyncWorker>()
-            .addTag("YandexSync")
-            .build()
-
-        WorkManager.getInstance(requireContext()).enqueueUniqueWork(
-            WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
-            syncWorkRequest
-        )
-        Toast.makeText(requireContext(), "Синхронизация запущена в фоновом режиме", Toast.LENGTH_SHORT).show()
-    }
-
-    /**
-     * Отмена фоновой задачи в WorkManager.
-     */
-    private fun cancelBackgroundSync() {
-        WorkManager.getInstance(requireContext()).cancelUniqueWork(WORK_NAME)
-        Toast.makeText(requireContext(), "Запрос на отмену отправлен", Toast.LENGTH_SHORT).show()
+    private fun cancelForegroundSync() {
+        val context = requireContext()
+        val intent = Intent(context, com.nightread.app.service.SyncService::class.java).apply {
+            action = com.nightread.app.service.SyncService.ACTION_STOP_SYNC
+        }
+        context.startService(intent)
+        Toast.makeText(context, "Запрос на отмену отправлен", Toast.LENGTH_SHORT).show()
     }
 
     /**
