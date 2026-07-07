@@ -291,6 +291,35 @@
                                 android:text="0 / 0"
                                 android:textColor="@color/text_secondary"
                                 android:textSize="12sp" />
+
+                            <TextView
+                                android:id="@+id/txtRemainingTime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp"
+                                android:layout_marginTop="4dp"
+                                android:layout_marginBottom="4dp"
+                                android:text="Оставшееся время: расчет..." />
+
+                            <TextView
+                                android:id="@+id/txtSyncStatsDetail"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp"
+                                android:layout_marginBottom="8dp"
+                                android:text="Скачано: 0, Загружено: 0" />
+
+                            <Button
+                                android:id="@+id/btnCancelSync"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Отмена"
+                                android:backgroundTint="#FF4D4D"
+                                android:textColor="@color/btn_text"
+                                android:layout_marginTop="8dp"
+                                app:cornerRadius="8dp" />
                         </LinearLayout>
 
                         <TextView

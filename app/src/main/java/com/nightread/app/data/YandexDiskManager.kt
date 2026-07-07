@@ -89,7 +89,7 @@ object YandexDiskManager {
     // Placeholder Client ID for Yandex OAuth. Users can replace this with their own.
     const val CLIENT_ID = "bfdea73d1e6242ba826f15d9d0374005"
 
-    private val moshi = Moshi.Builder()
+    val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
         .build()
 
@@ -99,7 +99,7 @@ object YandexDiskManager {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    private val api: YandexDiskApi by lazy {
+    val api: YandexDiskApi by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(okHttpClient)

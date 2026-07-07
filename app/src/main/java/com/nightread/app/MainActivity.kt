@@ -87,7 +87,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openSyncFragment() {
-        val fragment = com.nightread.app.ui.SyncFragment.newInstance()
+        val fragment = com.nightread.app.ui.YandexSyncFragment.newInstance()
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()
