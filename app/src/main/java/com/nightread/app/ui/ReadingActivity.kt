@@ -39,7 +39,7 @@ class ReadingActivity : AppCompatActivity() {
     private lateinit var bottomBar: LinearLayout
     private lateinit var tvPageInfo: TextView
     private lateinit var seekBar: SeekBar
-    private lateinit var touchOverlay: View
+    
     private lateinit var tvTitle: TextView
     private lateinit var btnSettings: ImageButton
 
@@ -49,6 +49,10 @@ class ReadingActivity : AppCompatActivity() {
     private var splitResult: PageSplitter.PageResult? = null
     private var isBarsVisible = false
     private var isNightMode = false
+    private lateinit var gestureDetector: android.view.GestureDetector
+    private lateinit var tvBrightness: TextView
+    private var startX = 0f
+    private var isGestureConsumed = false
 
     private var lastFontSize = 0f
     private var lastFontFamily = ""
@@ -56,16 +60,22 @@ class ReadingActivity : AppCompatActivity() {
     private var lastLineSpacing = 0f
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val savedBrightness = SettingsManager.getBrightness(this)
+        if (savedBrightness > 0) {
+            BrightnessHelper.setBrightness(this, savedBrightness)
+        }
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_reading) // Actually we updated activity_reader.xml but wait, I didn't change setContentView name! Let me use activity_reader.
 
         viewPager = findViewById(R.id.viewPager)
         progressBar = findViewById(R.id.progressBar)
         topBar = findViewById(R.id.topBar)
+        tvBrightness = findViewById(R.id.tvBrightness)
         bottomBar = findViewById(R.id.bottomBar)
         tvPageInfo = findViewById(R.id.tvPageInfo)
         seekBar = findViewById(R.id.seekBar)
-        touchOverlay = findViewById(R.id.touchOverlay)
+        
         tvTitle = findViewById(R.id.tvTitle)
         btnSettings = findViewById(R.id.btnSettings)
         
@@ -81,6 +91,17 @@ class ReadingActivity : AppCompatActivity() {
         }
 
         setupGestures()
+        gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapConfirmed(e: android.view.MotionEvent): Boolean {
+                val cornerSize = 80 * resources.displayMetrics.density
+                if (e.x < cornerSize && e.y < cornerSize) {
+                    toggleNightMode()
+                } else {
+                    toggleBars()
+                }
+                return super.onSingleTapConfirmed(e)
+            }
+        })
         setupSeekBar()
         
         btnSettings.setOnClickListener {
@@ -182,7 +203,8 @@ class ReadingActivity : AppCompatActivity() {
     }
 
     private fun preprocessTextAndHyphenate(text: String): String {
-        return com.nightread.app.service.RussianHyphenator.hyphenate(text)
+        var processedText = text.replace(Regex("\n{2,}"), "\n")
+        return com.nightread.app.service.RussianHyphenator.hyphenate(processedText)
     }
 
     private suspend fun recalculatePages(targetCharOffset: Int = -1) {
@@ -280,55 +302,92 @@ class ReadingActivity : AppCompatActivity() {
     private var isChangingBrightness = false
 
     private fun setupGestures() {
-        touchOverlay.setOnTouchListener { v, event ->
-            val x = event.x
-            val y = event.y
-            val width = v.width
-            val height = v.height
-
-            when (event.action) {
-                android.view.MotionEvent.ACTION_DOWN -> {
-                    startY = y
-                    val rightEdge = width - (60 * resources.displayMetrics.density)
-                    // Check if starting in the right edge and bottom half
-                    if (x > rightEdge && y > height / 2f) {
-                        isChangingBrightness = true
-                        startBrightness = BrightnessHelper.getBrightness(this)
-                        return@setOnTouchListener true
-                    }
-                }
-                android.view.MotionEvent.ACTION_MOVE -> {
-                    if (isChangingBrightness) {
-                        val dy = startY - y // Moving up means positive dy -> increase brightness
-                        val deltaBrightness = dy / (height / 2f) // max change over half screen
-                        BrightnessHelper.setBrightness(this, startBrightness + deltaBrightness)
-                        return@setOnTouchListener true
-                    }
-                }
-                android.view.MotionEvent.ACTION_UP -> {
-                    if (isChangingBrightness) {
-                        isChangingBrightness = false
-                        return@setOnTouchListener true
-                    }
-                    
-                    val cornerSize = 80 * resources.displayMetrics.density
-                    if (x < cornerSize && y < cornerSize) {
-                        toggleNightMode()
-                        return@setOnTouchListener true
-                    }
-                    
+        gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapConfirmed(e: android.view.MotionEvent): Boolean {
+                val cornerSize = 80 * resources.displayMetrics.density
+                if (e.x < cornerSize && e.y < cornerSize) {
+                    toggleNightMode()
+                } else {
                     toggleBars()
                 }
+                return super.onSingleTapConfirmed(e)
             }
-            true
-        }
+        })
         
-        // Also add onPageChange callback
-        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+        viewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 updateBottomBar(position)
             }
         })
+    }
+
+    override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
+        val width = window.decorView.width
+        val height = window.decorView.height
+        
+        when (event.action) {
+            android.view.MotionEvent.ACTION_DOWN -> {
+                startX = event.x
+                startY = event.y
+                isChangingBrightness = false
+                isGestureConsumed = false
+                
+                val rightEdge = width - (60 * resources.displayMetrics.density)
+                if (event.x > rightEdge && event.y > height / 2f) {
+                    if (!isTouchOnUiBars(event)) {
+                        isChangingBrightness = true
+                        startBrightness = BrightnessHelper.getBrightness(this)
+                    }
+                }
+            }
+            android.view.MotionEvent.ACTION_MOVE -> {
+                if (isChangingBrightness) {
+                    val dy = startY - event.y
+                    if (Math.abs(dy) > 10 * resources.displayMetrics.density || isGestureConsumed) {
+                        if (!isGestureConsumed) {
+                            isGestureConsumed = true
+                            val cancelEvent = android.view.MotionEvent.obtain(event)
+                            cancelEvent.action = android.view.MotionEvent.ACTION_CANCEL
+                            super.dispatchTouchEvent(cancelEvent)
+                            cancelEvent.recycle()
+                        }
+                        
+                        val deltaBrightness = dy / (height / 2f)
+                        val newBrightness = (startBrightness + deltaBrightness).coerceIn(0.01f, 1f)
+                        BrightnessHelper.setBrightness(this, newBrightness)
+                        com.nightread.app.data.SettingsManager.setBrightness(this, newBrightness)
+                        
+                        tvBrightness.visibility = android.view.View.VISIBLE
+                        tvBrightness.text = "☀ ${(newBrightness * 100).toInt()}%"
+                        return true
+                    }
+                }
+            }
+            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                if (isGestureConsumed) {
+                    tvBrightness.visibility = android.view.View.GONE
+                    return true
+                }
+            }
+        }
+        
+        if (!isTouchOnUiBars(event)) {
+            gestureDetector.onTouchEvent(event)
+        }
+        
+        return super.dispatchTouchEvent(event)
+    }
+
+    private fun isTouchOnUiBars(event: android.view.MotionEvent): Boolean {
+        if (!isBarsVisible) return false
+        val rect = android.graphics.Rect()
+        topBar.getGlobalVisibleRect(rect)
+        if (rect.contains(event.rawX.toInt(), event.rawY.toInt())) return true
+        
+        bottomBar.getGlobalVisibleRect(rect)
+        if (rect.contains(event.rawX.toInt(), event.rawY.toInt())) return true
+        
+        return false
     }
 
     private fun toggleBars() {

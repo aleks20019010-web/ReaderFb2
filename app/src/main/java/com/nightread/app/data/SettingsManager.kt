@@ -15,6 +15,7 @@ object SettingsManager {
     const val KEY_FONT_FAMILY = "font_family"
     const val KEY_FONT_WEIGHT = "font_weight"
     const val KEY_LINE_SPACING = "line_spacing"
+    const val KEY_BRIGHTNESS = "brightness"
 
     const val KEY_AUTO_DISCOVERY = "auto_discovery"
     const val KEY_AUTO_THEME = "auto_theme"
@@ -33,6 +34,7 @@ object SettingsManager {
     private var cachedFontFamily: String? = null
     private var cachedFontWeight: String? = null
     private var cachedLineSpacing: Float? = null
+    private var cachedBrightness: Float? = null
     private var cachedAutoDiscovery: Boolean? = null
     private var cachedAutoTheme: Boolean? = null
     private var cachedCloudSyncUrl: String? = null
@@ -190,4 +192,19 @@ object SettingsManager {
         getPrefs(context).edit().putFloat(KEY_LINE_SPACING, spacing).apply()
         notifyChanged()
     }
+    fun getBrightness(context: Context): Float {
+        if (cachedBrightness == null) {
+            cachedBrightness = getPrefs(context).getFloat(KEY_BRIGHTNESS, -1f)
+        }
+        return cachedBrightness!!
+    }
+
+    fun setBrightness(context: Context, brightness: Float) {
+        if (cachedBrightness == brightness) return
+        cachedBrightness = brightness
+        getPrefs(context).edit().putFloat(KEY_BRIGHTNESS, brightness).apply()
+        // notifyChanged() // Usually brightness doesn't need a UI redraw, handled directly
+    }
+
 }
+
