@@ -19,7 +19,12 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = TextPrimaryDark,
     secondary = TextSecondaryDark,
     onSecondary = BgMainDark,
-    tertiary = AccentHoverDark
+    tertiary = AccentHoverDark,
+    surfaceVariant = BgCardDark,
+    onSurfaceVariant = TextPrimaryDark,
+    outline = DividerDark,
+    primaryContainer = BgCardDark,
+    onPrimaryContainer = TextPrimaryDark
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -31,7 +36,12 @@ private val LightColorScheme = lightColorScheme(
     onSurface = TextPrimaryLight,
     secondary = TextSecondaryLight,
     onSecondary = BgMainLight,
-    tertiary = AccentHoverLight
+    tertiary = AccentHoverLight,
+    surfaceVariant = BgCardLight,
+    onSurfaceVariant = TextPrimaryLight,
+    outline = DividerLight,
+    primaryContainer = BgCardLight,
+    onPrimaryContainer = TextPrimaryLight
 )
 
 @Composable

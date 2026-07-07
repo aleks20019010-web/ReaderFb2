@@ -254,30 +254,32 @@ class YandexSyncManager(private val context: Context) {
 
             // Получаем список всех локальных книг из базы данных
             val localBooks = database.bookDao().getAllBooks().first()
-            val localSha1Set = localBooks.map { it.sha1 }.toSet()
-            val localNamesSet = localBooks.mapNotNull { it.filePath?.let { path -> File(path).name.lowercase() } }.toSet()
+            val localSha1Set = localBooks.filter { !it.sha1.isNullOrEmpty() }.map { it.sha1 }.toSet()
+            
+            Log.d(TAG, "Локальных книг (по SHA-1): ${localSha1Set.size}")
+            Log.d(TAG, "Книг в облаке (по SHA-1): ${updatedCloudBooks.size}")
 
             // 1. Книги для скачивания (есть в облаке, но нет локально по SHA-1)
             val toDownload = updatedCloudBooks.filter { !localSha1Set.contains(it.sha1) }
+            Log.d(TAG, "Книг для скачивания (разница cloud - local): ${toDownload.size}")
 
-            // 2. Книги для загрузки (есть на устройстве, но нет в облаке ни по SHA-1, ни по оригинальному имени)
+            // 2. Книги для загрузки (есть на устройстве, но нет в облаке по SHA-1)
             val cloudSha1Set = updatedCloudBooks.map { it.sha1 }.toSet()
-            val cloudNamesSet = updatedCloudBooks.map { File(it.path).name.lowercase() }.toSet()
-
+            
             val toUpload = localBooks.filter { localBook ->
-                val hasSha1InCloud = cloudSha1Set.contains(localBook.sha1)
+                if (localBook.sha1.isNullOrEmpty()) {
+                    Log.w(TAG, "Пропущена книга '${localBook.title}' для загрузки: отсутствует SHA-1")
+                    return@filter false
+                }
                 
-                val localFileName = localBook.filePath?.let { File(it).name.lowercase() }
-                val hasNameInCloud = localFileName != null && cloudNamesSet.contains(localFileName)
-
+                val hasSha1InCloud = cloudSha1Set.contains(localBook.sha1)
                 if (hasSha1InCloud) {
                     Log.d(TAG, "Книга '${localBook.title}' пропущена для загрузки: SHA-1 уже есть в облаке")
-                } else if (hasNameInCloud) {
-                    Log.d(TAG, "Книга '${localBook.title}' пропущена для загрузки: Файл с именем '$localFileName' уже есть в облаке")
                 }
-
-                !hasSha1InCloud && !hasNameInCloud
+                
+                !hasSha1InCloud
             }
+            Log.d(TAG, "Книг для загрузки (разница local - cloud): ${toUpload.size}")
 
             val duplicates = updatedCloudBooks.size - toDownload.size
 
