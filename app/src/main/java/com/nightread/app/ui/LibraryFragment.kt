@@ -67,6 +67,7 @@ class LibraryFragment : Fragment() {
 
     private var wasScanning: Boolean = false
     private var isSwipeRescanInProgress: Boolean = false
+    private var isJobCancelledDialogShown: Boolean = false
 
     // View bindings
     private lateinit var btnToggleViewMode: com.google.android.material.button.MaterialButton
@@ -652,6 +653,15 @@ class LibraryFragment : Fragment() {
                 tvScanStatus.text = state.status
             }
             
+            if (state.status.contains("Job was cancelled", ignoreCase = true)) {
+                if (!isJobCancelledDialogShown) {
+                    isJobCancelledDialogShown = true
+                    showJobCancelledDialog()
+                }
+            } else {
+                isJobCancelledDialogShown = false
+            }
+            
             if (state.status.startsWith("Error", ignoreCase = true) || state.status.startsWith("Ошибка", ignoreCase = true)) {
                 context?.let { ctx ->
                     Toast.makeText(ctx, state.status, Toast.LENGTH_LONG).show()
@@ -905,5 +915,20 @@ class LibraryFragment : Fragment() {
             }
             true
         }
+    }
+
+    private fun showJobCancelledDialog() {
+        if (!isAdded) return
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Сканирование прервано")
+            .setMessage("Предыдущее сканирование было прервано. Это могло повредить кэш библиотеки, из-за чего книги пропускаются.\n\nРекомендуется очистить кэш сканирования и запустить полное сканирование заново.")
+            .setPositiveButton("Очистить кэш и пересканировать") { _, _ ->
+                viewModel.clearScanCache()
+                viewModel.cancelAllScanningTasks()
+                isSwipeRescanInProgress = false
+                checkPermissionsAndScan()
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
     }
 }

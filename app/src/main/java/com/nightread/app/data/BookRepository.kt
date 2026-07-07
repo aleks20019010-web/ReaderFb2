@@ -73,6 +73,16 @@ class BookRepository(
 
     suspend fun deleteAllBooks() = bookDao.deleteAllBooks()
 
+    suspend fun clearLibrary() = withContext(Dispatchers.IO) {
+        bookDao.deleteAllBooks()
+    }
+
+    suspend fun clearScanCache(context: android.content.Context) = withContext(Dispatchers.IO) {
+        bookDao.deleteAllScannedFiles()
+        val prefs = context.getSharedPreferences("book_scanner_cache", android.content.Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+    }
+
     fun getNotesForBook(bookSha1: String): Flow<List<NoteEntity>> = noteDao.getNotesForBook(bookSha1)
 
     suspend fun insertNote(note: NoteEntity): Long = noteDao.insertNote(note)

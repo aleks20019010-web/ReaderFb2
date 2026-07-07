@@ -474,6 +474,35 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun clearScanCache() {
+        viewModelScope.launch {
+            repository.clearScanCache(getApplication())
+        }
+    }
+
+    fun clearLibrary() {
+        viewModelScope.launch {
+            repository.clearLibrary()
+        }
+    }
+
+    fun cancelAllScanningTasks() {
+        val context = getApplication<Application>()
+        try {
+            val workManager = androidx.work.WorkManager.getInstance(context)
+            workManager.cancelUniqueWork("AutoDiscoveryWorker")
+            workManager.cancelUniqueWork("AutoDiscoveryOnce")
+            workManager.cancelAllWorkByTag("AutoDiscoveryOnce")
+            workManager.cancelAllWorkByTag("BookScanWorker")
+            workManager.cancelAllWorkByTag("com.nightread.app.service.BookScanWorker")
+        } catch (e: Exception) {
+            Log.e("BookViewModel", "Failed to cancel WorkManager tasks", e)
+        }
+        com.nightread.app.service.NewBookScanState.updateState(
+            com.nightread.app.service.ScannerState(isScanning = false, status = "Сканирование отменено")
+        )
+    }
+
     private fun getRandomGradientStartColor(): String {
         val colors = listOf("#FF6B6B", "#4D96FF", "#6BCB77", "#FFD93D", "#9B5DE5", "#00F5D4")
         return colors.random()

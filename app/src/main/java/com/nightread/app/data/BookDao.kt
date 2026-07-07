@@ -75,4 +75,7 @@ interface BookDao {
 
     @Query("DELETE FROM books")
     suspend fun deleteAllBooks()
+
+    @Query("DELETE FROM cloud_file_cache")
+    suspend fun deleteAllScannedFiles()
 }

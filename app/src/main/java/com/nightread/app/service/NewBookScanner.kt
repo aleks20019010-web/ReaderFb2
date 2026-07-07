@@ -57,6 +57,22 @@ class NewBookScanner(
         updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Сканирование запущено..."))
 
         try {
+            val booksCount = try {
+                bookDao.getBooksCount()
+            } catch (e: Exception) {
+                0
+            }
+            if (booksCount == 0) {
+                Log.d(TAG, "Database is empty. Automatically clearing scanner cache to ensure full re-indexing.")
+                try {
+                    bookDao.deleteAllScannedFiles()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error deleting cloud file cache", e)
+                }
+                val prefs = context.getSharedPreferences("book_scanner_cache", Context.MODE_PRIVATE)
+                prefs.edit().clear().apply()
+            }
+
             val paths = listOf(
                 Environment.getExternalStorageDirectory(),
                 File(Environment.getExternalStorageDirectory(), "Download"),
@@ -263,6 +279,22 @@ class NewBookScanner(
         updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Быстрое сканирование..."))
 
         try {
+            val booksCount = try {
+                bookDao.getBooksCount()
+            } catch (e: Exception) {
+                0
+            }
+            if (booksCount == 0) {
+                Log.d(TAG, "Database is empty. Automatically clearing scanner cache to ensure full re-indexing.")
+                try {
+                    bookDao.deleteAllScannedFiles()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error deleting cloud file cache", e)
+                }
+                val prefs = context.getSharedPreferences("book_scanner_cache", Context.MODE_PRIVATE)
+                prefs.edit().clear().apply()
+            }
+
             val paths = listOf(
                 Environment.getExternalStorageDirectory(),
                 File(Environment.getExternalStorageDirectory(), "Download"),

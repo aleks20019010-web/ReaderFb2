@@ -137,10 +137,37 @@ class SettingsActivity : ComponentActivity() {
                         Text("Синхронизация с Яндекс Диском")
                     }
                 }
-                item { Text("Очистка", style = MaterialTheme.typography.titleMedium) }
+                item { Text("Очистка и восстановление", style = MaterialTheme.typography.titleMedium) }
                 item { 
-                    Button(onClick = { viewModel.clearCache() }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Очистить кэш")
+                    Button(
+                        onClick = { 
+                            viewModel.clearScanCache()
+                            Toast.makeText(context, "Кэш сканирования успешно сброшен", Toast.LENGTH_SHORT).show()
+                        }, 
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    ) {
+                        Text("Сбросить кэш сканирования")
+                    }
+                }
+                item { 
+                    Button(
+                        onClick = { 
+                            androidx.appcompat.app.AlertDialog.Builder(context)
+                                .setTitle("Очистить библиотеку?")
+                                .setMessage("Все книги будут удалены из базы данных приложения. Это действие необратимо.")
+                                .setPositiveButton("Удалить всё") { _, _ ->
+                                    viewModel.clearLibrary()
+                                    viewModel.cancelAllScanningTasks()
+                                    Toast.makeText(context, "Библиотека полностью очищена", Toast.LENGTH_SHORT).show()
+                                }
+                                .setNegativeButton("Отмена", null)
+                                .show()
+                        }, 
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Очистить библиотеку")
                     }
                 }
                 item { Text("Информация", style = MaterialTheme.typography.titleMedium) }
