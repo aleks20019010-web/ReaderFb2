@@ -18,7 +18,7 @@ object PageSplitter {
 
     /**
      * Splits the book content into pages of text that fit within the given height and width.
-     * Honors form-feed characters (\u000C) as page breaks for starting new chapters on new pages.
+     * Honors form-feed characters (\u000C) as page breaks.
      * Uses exact StaticLayout line bottom measurements to guarantee text fits the vertical height.
      */
     suspend fun splitText(
@@ -52,7 +52,6 @@ object PageSplitter {
             if (!isActive) return@withContext PageResult(emptyList(), emptyList())
             offsets.add(start)
 
-            // 1. Determine a segment of text to measure
             var chunkSize = 8000
             var tempLayout: StaticLayout
             var measureEnd: Int
@@ -67,7 +66,6 @@ object PageSplitter {
                 .setIncludePad(false)
                 .build()
                 
-                // Check if all lines fit within the available height
                 var fitsAll = true
                 for (i in 0 until tempLayout.lineCount) {
                     if (tempLayout.getLineBottom(i) > availableHeight) {
@@ -76,7 +74,6 @@ object PageSplitter {
                     }
                 }
                 
-                // If the entire chunk fits and there is more text, double the chunk size to scan further
                 if (fitsAll && measureEnd < textLength) {
                     chunkSize *= 2
                 } else {
@@ -84,7 +81,6 @@ object PageSplitter {
                 }
             }
 
-            // 2. Find the exact number of lines that fit in availableHeight
             var fitLineCount = 0
             for (i in 0 until tempLayout.lineCount) {
                 if (tempLayout.getLineBottom(i) <= availableHeight) {
@@ -94,24 +90,14 @@ object PageSplitter {
                 }
             }
             
-            // Safety fallback: fit at least 1 line
-            if (fitLineCount == 0) {
-                fitLineCount = 1
-            }
+            if (fitLineCount == 0) fitLineCount = 1
 
             var end = tempLayout.getLineEnd(fitLineCount - 1)
-            
-            // Log precise layout metrics to verify correctness as per requirement #5
-            val lastLineBottom = tempLayout.getLineBottom(fitLineCount - 1)
-            val diff = availableHeight - lastLineBottom
-            Log.d(TAG, "Page Split: start=$start, end=$end, fitLineCount=$fitLineCount, " +
-                    "availableHeight=$availableHeight, actualPageHeight=$lastLineBottom, diff=$diff")
 
             if (end <= start) {
                 end = (start + 1).coerceAtMost(textLength)
             }
 
-            // 3. Scan for manual page/chapter breaks (\u000C) in the current page text block
             var foundChapterBreakIdx = -1
             for (idx in start until end.coerceAtMost(textLength)) {
                 if (text[idx] == '\u000C') {
@@ -121,17 +107,12 @@ object PageSplitter {
             }
 
             if (foundChapterBreakIdx != -1) {
-                // If a chapter break is found, end the page right before it
                 end = foundChapterBreakIdx
-                val pageText = text.substring(start, end)
-                pages.add(pageText)
-                // Skip the \u000C character on the next iteration
+                pages.add(text.substring(start, end))
                 start = foundChapterBreakIdx + 1
             } else {
-                // Apply word-boundary refinement to avoid breaking in the middle of words
                 if (end < textLength) {
                     var spaceIndex = -1
-                    // Search backward for whitespace to find a suitable word boundary
                     for (j in (end - 1) downTo (end - 100).coerceAtLeast(start)) {
                         if (text[j].isWhitespace()) {
                             spaceIndex = j
@@ -143,12 +124,11 @@ object PageSplitter {
                     }
                 }
                 
-                val pageText = text.substring(start, end)
-                pages.add(pageText)
+                pages.add(text.substring(start, end))
                 start = end
             }
         }
-
+        
         Log.d(TAG, "Completed pagination. Total pages: ${pages.size}")
         return@withContext PageResult(pages, offsets)
     }

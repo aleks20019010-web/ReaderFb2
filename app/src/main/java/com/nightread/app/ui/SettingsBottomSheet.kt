@@ -7,7 +7,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -57,18 +56,12 @@ class SettingsBottomSheet : DialogFragment() {
     fun SettingsBottomSheetContent() {
         val context = requireContext()
         
-        // Settings states loaded directly from SettingsManager
         var selectedTheme by remember { mutableStateOf(SettingsManager.getTheme(context)) }
         var selectedFont by remember { mutableStateOf(SettingsManager.getFontFamily(context)) }
         var selectedWeight by remember { mutableStateOf(SettingsManager.getFontWeight(context)) }
         var fontSize by remember { mutableStateOf(SettingsManager.getFontSize(context)) }
         var lineSpacing by remember { mutableStateOf(SettingsManager.getLineSpacing(context)) }
-        var isAutoDiscovery by remember { mutableStateOf(SettingsManager.isAutoDiscoveryEnabled(context)) }
-
-        // Dynamic visual properties matching current theme
-        val (bgColor, contentColor, cardColor) = Triple(Color(0xFFEEF3E8), Color(0xFF2A3A22), Color(0xFFF8FAF0))
-
-        val themeOptions = listOf("light", "dark", "sepia", "sepia_contrast", "contrast", "beige")
+        
         val themeNames = mapOf(
             "light" to "День",
             "dark" to "Ночь",
@@ -77,9 +70,20 @@ class SettingsBottomSheet : DialogFragment() {
             "contrast" to "Контраст",
             "beige" to "Бежевый"
         )
-
         val fontOptions = listOf("Roboto", "Times New Roman", "Georgia", "Merriweather", "OpenDyslexic", "Monospace")
         val weightOptions = listOf("Normal", "Medium", "Bold", "ExtraBold")
+        val themeOptions = themeNames.keys.toList()
+
+        // Match current theme background for the bottom sheet
+        val (bgColor, contentColor) = when (selectedTheme) {
+            "light" -> Pair(Color(0xFFFFFFFF), Color(0xFF121212))
+            "dark" -> Pair(Color(0xFF1A1A1A), Color(0xFFE0E0E0))
+            "sepia" -> Pair(Color(0xFFF5F0E8), Color(0xFF2C2C2C))
+            "sepia_contrast" -> Pair(Color(0xFFF5E6C8), Color(0xFF1A1A1A))
+            "contrast" -> Pair(Color(0xFF000000), Color(0xFFFFFF00))
+            "beige" -> Pair(Color(0xFFF4ECD8), Color(0xFF3B2F1F))
+            else -> Pair(Color(0xFFF5F0E8), Color(0xFF2C2C2C))
+        }
 
         Column(
             modifier = Modifier
@@ -89,7 +93,6 @@ class SettingsBottomSheet : DialogFragment() {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Drag handle to indicate it's draggable
             Box(
                 modifier = Modifier
                     .width(40.dp)
@@ -97,21 +100,20 @@ class SettingsBottomSheet : DialogFragment() {
                     .background(contentColor.copy(alpha = 0.3f), RoundedCornerShape(2.dp))
                     .align(Alignment.CenterHorizontally)
             )
-
-            // Title
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Настройки чтения",
+                    text = "Настройки",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = contentColor
                 )
                 Text(
-                    text = "Применить",
+                    text = "Закрыть",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = contentColor,
@@ -121,131 +123,34 @@ class SettingsBottomSheet : DialogFragment() {
                 )
             }
 
-            // 1. Theme Section
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Тема оформления",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = contentColor
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                androidx.compose.foundation.lazy.LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(themeOptions.size) { index ->
-                        val themeKey = themeOptions[index]
-                        val isSelected = themeKey == selectedTheme
-                        SettingsChip(
-                            text = themeNames[themeKey] ?: themeKey,
-                            selected = isSelected,
-                            onClick = {
-                                selectedTheme = themeKey
-                                SettingsManager.setTheme(context, themeKey)
-                                com.nightread.app.service.ThemeUpdateReceiver.cancelAlarm(context)
-                                com.nightread.app.data.ThemeManager.applyTheme(context)
-                            },
-                            bgColor = bgColor,
-                            contentColor = contentColor
-                        )
-                    }
-                }
-            }
+            // 1. Font (Dropdown)
+            SettingsDropdown(
+                label = "Шрифт",
+                options = fontOptions,
+                selectedOption = selectedFont,
+                onOptionSelected = { 
+                    selectedFont = it
+                    SettingsManager.setFontFamily(context, it)
+                },
+                contentColor = contentColor,
+                bgColor = bgColor
+            )
 
-            // 2. Font Section
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Шрифт",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = contentColor
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                androidx.compose.foundation.lazy.LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(fontOptions.size) { index ->
-                        val fontKey = fontOptions[index]
-                        val isSelected = fontKey == selectedFont
-                        SettingsChip(
-                            text = fontKey,
-                            selected = isSelected,
-                            onClick = {
-                                selectedFont = fontKey
-                                SettingsManager.setFontFamily(context, fontKey)
-                            },
-                            bgColor = bgColor,
-                            contentColor = contentColor
-                        )
-                    }
-                }
-            }
-
-            // 3. Weight Section
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Жирность шрифта",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = contentColor
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                androidx.compose.foundation.lazy.LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(weightOptions.size) { index ->
-                        val weightKey = weightOptions[index]
-                        val isSelected = weightKey == selectedWeight
-                        SettingsChip(
-                            text = when (weightKey) {
-                                "Normal" -> "Обычный"
-                                "Medium" -> "Средний"
-                                "Bold" -> "Жирный"
-                                "ExtraBold" -> "Сверхжирный"
-                                else -> weightKey
-                            },
-                            selected = isSelected,
-                            onClick = {
-                                selectedWeight = weightKey
-                                SettingsManager.setFontWeight(context, weightKey)
-                            },
-                            bgColor = bgColor,
-                            contentColor = contentColor
-                        )
-                    }
-                }
-            }
-
-            // 4. Font Size Slider
+            // 2. Font Size (Slider)
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = "Размер шрифта",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = contentColor
-                    )
-                    Text(
-                        text = "${fontSize.toInt()} sp",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = contentColor
-                    )
+                    Text("Размер шрифта", color = contentColor, fontWeight = FontWeight.Bold)
+                    Text("${fontSize.toInt()} sp", color = contentColor)
                 }
                 Slider(
                     value = fontSize,
-                    onValueChange = {
-                        fontSize = it
-                    },
-                    onValueChangeFinished = {
-                        SettingsManager.setFontSize(context, fontSize)
-                    },
+                    onValueChange = { fontSize = it },
+                    onValueChangeFinished = { SettingsManager.setFontSize(context, fontSize) },
                     valueRange = 14f..28f,
-                    steps = 14,
+                    steps = 13,
                     colors = SliderDefaults.colors(
                         thumbColor = contentColor,
                         activeTrackColor = contentColor,
@@ -254,34 +159,46 @@ class SettingsBottomSheet : DialogFragment() {
                 )
             }
 
-            // 5. Line Spacing Slider
+            // 3. Font Weight (Dropdown)
+            SettingsDropdown(
+                label = "Жирность",
+                options = weightOptions,
+                selectedOption = selectedWeight,
+                onOptionSelected = { 
+                    selectedWeight = it
+                    SettingsManager.setFontWeight(context, it)
+                },
+                contentColor = contentColor,
+                bgColor = bgColor
+            )
+
+            // 4. Theme (Dropdown)
+            SettingsDropdown(
+                label = "Тема",
+                options = themeOptions,
+                displayNames = themeNames,
+                selectedOption = selectedTheme,
+                onOptionSelected = { 
+                    selectedTheme = it
+                    SettingsManager.setTheme(context, it)
+                },
+                contentColor = contentColor,
+                bgColor = bgColor
+            )
+
+            // 5. Line Spacing (Slider)
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = "Межстрочный интервал",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = contentColor
-                    )
-                    Text(
-                        text = String.format("%.2f", lineSpacing),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = contentColor
-                    )
+                    Text("Межстрочный интервал", color = contentColor, fontWeight = FontWeight.Bold)
+                    Text(String.format("%.2f", lineSpacing), color = contentColor)
                 }
                 Slider(
                     value = lineSpacing,
-                    onValueChange = {
-                        lineSpacing = it
-                    },
-                    onValueChangeFinished = {
-                        SettingsManager.setLineSpacing(context, lineSpacing)
-                    },
+                    onValueChange = { lineSpacing = it },
+                    onValueChangeFinished = { SettingsManager.setLineSpacing(context, lineSpacing) },
                     valueRange = 1.0f..2.0f,
                     colors = SliderDefaults.colors(
                         thumbColor = contentColor,
@@ -290,8 +207,8 @@ class SettingsBottomSheet : DialogFragment() {
                     )
                 )
             }
-
-            // 5.5 Auto Discovery Toggle
+            
+            var isAutoDiscovery by remember { mutableStateOf(SettingsManager.isAutoDiscoveryEnabled(context)) }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -312,13 +229,13 @@ class SettingsBottomSheet : DialogFragment() {
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Авто-обнаружение новых книг",
+                        text = "Авто-обнаружение",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = contentColor
                     )
                     Text(
-                        text = "Отслеживание новых файлов fb2 и fb2.zip в фоне",
+                        text = "Отслеживание новых файлов fb2 и fb2.zip",
                         style = MaterialTheme.typography.bodySmall,
                         color = contentColor.copy(alpha = 0.7f)
                     )
@@ -345,71 +262,67 @@ class SettingsBottomSheet : DialogFragment() {
                     )
                 )
             }
-
-            // 6. Live Preview Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = cardColor
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Предпросмотр настроек:",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = contentColor.copy(alpha = 0.6f)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "При изменении шрифта, размера или интервала этот текст пересчитывается мгновенно.",
-                        color = contentColor,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 15.sp,
-                            fontWeight = when (selectedWeight) {
-                                "Medium" -> FontWeight.Medium
-                                "Bold" -> FontWeight.Bold
-                                "ExtraBold" -> FontWeight.ExtraBold
-                                else -> FontWeight.Normal
-                            }
-                        )
-                    )
-                }
-            }
             
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun SettingsChip(
-        text: String,
-        selected: Boolean,
-        onClick: () -> Unit,
-        bgColor: Color,
-        contentColor: Color
+    fun SettingsDropdown(
+        label: String,
+        options: List<String>,
+        displayNames: Map<String, String>? = null,
+        selectedOption: String,
+        onOptionSelected: (String) -> Unit,
+        contentColor: Color,
+        bgColor: Color
     ) {
-        val chipBg = if (selected) contentColor.copy(alpha = 0.15f) else Color.Transparent
-        val chipBorder = if (selected) contentColor else contentColor.copy(alpha = 0.25f)
-        val chipWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+        var expanded by remember { mutableStateOf(false) }
 
-        Box(
-            modifier = Modifier
-                .border(1.dp, chipBorder, RoundedCornerShape(16.dp))
-                .background(chipBg, RoundedCornerShape(16.dp))
-                .clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                color = contentColor,
-                fontWeight = chipWeight,
-                fontSize = 13.sp
-            )
+        Column {
+            Text(label, color = contentColor, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                OutlinedTextField(
+                    readOnly = true,
+                    value = displayNames?.get(selectedOption) ?: selectedOption,
+                    onValueChange = { },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(),
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = contentColor,
+                        unfocusedTextColor = contentColor,
+                        focusedBorderColor = contentColor,
+                        unfocusedBorderColor = contentColor.copy(alpha = 0.5f),
+                        focusedTrailingIconColor = contentColor,
+                        unfocusedTrailingIconColor = contentColor,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
+                    )
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(bgColor)
+                ) {
+                    options.forEach { selectionOption ->
+                        DropdownMenuItem(
+                            text = { Text(displayNames?.get(selectionOption) ?: selectionOption, color = contentColor) },
+                            onClick = {
+                                onOptionSelected(selectionOption)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }
