@@ -23,17 +23,22 @@ class NewBookScanner(
     val state = MutableStateFlow(ScannerState())
     private val TAG = "NewBookScanner"
 
+    private var isBgScan: Boolean = false
+
     private fun updateLocalAndGlobalState(newState: ScannerState) {
         state.value = newState
-        NewBookScanState.updateState(newState)
+        if (!isBgScan) {
+            NewBookScanState.updateState(newState)
+        }
     }
 
-    suspend fun scan() {
-        scanBooks()
+    suspend fun scan(isBackground: Boolean = false) {
+        scanBooks(isBackground)
     }
 
-    suspend fun scanBooks() {
-        Log.d(TAG, "scanBooks: Starting auto-scanning sequence.")
+    suspend fun scanBooks(isBackground: Boolean = false) {
+        this.isBgScan = isBackground
+        Log.d(TAG, "scanBooks: Starting auto-scanning sequence. isBackground=$isBackground")
         
         if ((context as? Context) == null) {
             Log.e(TAG, "scanBooks: Context is null, cannot proceed.")
@@ -116,9 +121,27 @@ class NewBookScanner(
             var skippedCount = 0
             val batchSize = 10 // Quick saves of 10 to keep the UI refreshed and avoid large OOMs
 
+            val existingPaths = sha1ToPathMap.values.filterNotNull().toSet()
+
             for ((index, file) in filesToProcess.withIndex()) {
                 if (!kotlin.coroutines.coroutineContext.isActive) return
                 val fileIndex = index + 1
+                
+                if (existingPaths.contains(file.absolutePath)) {
+                    skippedCount++
+                    if (!isBgScan && (fileIndex % 50 == 0 || fileIndex == total)) {
+                        updateLocalAndGlobalState(ScannerState(
+                            isScanning = true,
+                            status = "Поиск новых книг... ($fileIndex/$total)",
+                            totalFiles = total,
+                            processedFiles = fileIndex,
+                            addedBooks = addedCount,
+                            skippedBooks = skippedCount
+                        ))
+                    }
+                    continue
+                }
+
                 Log.d(TAG, "Processing file [$fileIndex/$total]: ${file.name}")
                 
                 updateLocalAndGlobalState(ScannerState(

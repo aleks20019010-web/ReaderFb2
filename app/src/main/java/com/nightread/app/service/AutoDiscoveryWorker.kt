@@ -22,7 +22,7 @@ class AutoDiscoveryWorker(
             val scanner = NewBookScanner(context, bookDao)
             
             val initialCount = bookDao.getSha1ToPathMap().size
-            scanner.scanBooks()
+            scanner.scanBooks(isBackground = true)
             val newCount = bookDao.getSha1ToPathMap().size
             
             val added = newCount - initialCount

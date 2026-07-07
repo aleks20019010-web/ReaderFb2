@@ -90,7 +90,7 @@ class AutoDiscoveryService : Service() {
                 val scanner = NewBookScanner(this@AutoDiscoveryService, bookDao)
                 
                 val initialCount = bookDao.getSha1ToPathMap().size
-                scanner.scanBooks()
+                scanner.scanBooks(isBackground = true)
                 val newCount = bookDao.getSha1ToPathMap().size
                 
                 val added = newCount - initialCount

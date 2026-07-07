@@ -427,13 +427,26 @@ class LibraryFragment : Fragment() {
         adapter.setGridView(isGridView)
 
         if (isGridView) {
-            val gridLayoutManager = GridLayoutManager(requireContext(), 3)
-            
+            val widthDp = resources.configuration.screenWidthDp
+            val spanCount = when {
+                widthDp >= 800 -> 4
+                widthDp >= 600 -> 3
+                else -> 2
+            }
+            val gridLayoutManager = GridLayoutManager(requireContext(), spanCount)
             rvBooks.layoutManager = gridLayoutManager
+            
+            // Set margins/padding symmetrically for the grid
+            val padding = (6 * resources.displayMetrics.density).toInt()
+            rvBooks.setPadding(padding, padding, padding, padding)
+            rvBooks.clipToPadding = false
+            
             btnToggleViewMode.setIconResource(R.drawable.ic_custom_list)
             btnToggleViewMode.contentDescription = "Режим списка"
         } else {
             rvBooks.layoutManager = LinearLayoutManager(requireContext())
+            rvBooks.setPadding(0, 0, 0, 0)
+            
             btnToggleViewMode.setIconResource(R.drawable.ic_custom_grid)
             btnToggleViewMode.contentDescription = "Режим сетки"
         }
