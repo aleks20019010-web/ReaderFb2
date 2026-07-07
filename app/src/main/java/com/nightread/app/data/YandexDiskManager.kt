@@ -37,14 +37,31 @@ object YandexDiskManager {
         }
     }
 
+    fun normalizePath(path: String): String {
+        var p = path.trim()
+        if (p.isEmpty()) return "disk:/"
+        if (!p.startsWith("disk:/")) {
+            if (p.startsWith("/")) {
+                p = "disk:$p"
+            } else {
+                p = "disk:/$p"
+            }
+        }
+        while (p.endsWith("/") && p != "disk:/") {
+            p = p.substring(0, p.length - 1)
+        }
+        return p
+    }
+
     fun getSyncFolder(context: Context): String {
         val prefs = context.getSharedPreferences("yandex_sync", Context.MODE_PRIVATE)
-        return prefs.getString("sync_folder", "disk:/Books") ?: "disk:/Books"
+        val raw = prefs.getString("sync_folder", "disk:/Books") ?: "disk:/Books"
+        return normalizePath(raw)
     }
 
     fun setSyncFolder(context: Context, folder: String) {
         val prefs = context.getSharedPreferences("yandex_sync", Context.MODE_PRIVATE)
-        prefs.edit().putString("sync_folder", folder).apply()
+        prefs.edit().putString("sync_folder", normalizePath(folder)).apply()
     }
 
     private const val TAG = "YandexDiskManager"
@@ -194,7 +211,7 @@ object YandexDiskManager {
     ): List<ResourceItem> {
         val items = mutableListOf<ResourceItem>()
         var offset = 0
-        val limit = 100 // Using a safe, standard limit to prevent oversized pages
+        val limit = 500 // Faster fetching using larger page limits
         var hasMore = true
         var page = 1
 
@@ -208,7 +225,7 @@ object YandexDiskManager {
                     path = path,
                     limit = limit,
                     offset = offset,
-                    fields = "_embedded.items.name,_embedded.items.type,_embedded.items.path,_embedded.items.size,_embedded.items.modified,_embedded.total,_embedded.limit,_embedded.offset"
+                    fields = null // Retrieve all fields safely to prevent strict parsing/missing field issues
                 )
                 
                 val embedded = response.embedded
@@ -249,8 +266,30 @@ object YandexDiskManager {
                 hasMore = false
             }
         }
-        Log.d(TAG, "getAllFilesFromFolder: Completed. Total files found: ${items.size}")
+        
+        // Log brief summary of extensions for diagnostics without spamming
+        val extSummary = items.groupBy { it.name.substringAfterLast('.', "").lowercase() }
+            .mapValues { it.value.size }
+        Log.d(TAG, "getAllFilesFromFolder: Completed. Total files found: ${items.size}. Breakdown: $extSummary")
         return items
+    }
+
+    suspend fun downloadFileToTemp(context: Context, path: String, tempFile: File): Boolean = withContext(Dispatchers.IO) {
+        val token = getToken(context) ?: return@withContext false
+        val authHeader = "OAuth $token"
+        try {
+            val linkResponse = api.getDownloadLink(authHeader, path)
+            val responseBody = api.downloadFile(linkResponse.href)
+            tempFile.outputStream().use { output ->
+                responseBody.byteStream().use { input ->
+                    input.copyTo(output)
+                }
+            }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "downloadFileToTemp failed for path: $path", e)
+            false
+        }
     }
 
     private fun computeSha1(bytes: ByteArray): String {
@@ -268,11 +307,7 @@ object YandexDiskManager {
         val authHeader = "OAuth $token"
 
         try {
-            onProgress("Очистка кэша...")
-            // Clear JSON and room caches for a guaranteed fresh start
-            CloudFileCache.clearCache(context)
             val database = AppDatabase.getDatabase(context)
-            database.cloudFileDao().clearAll()
 
             onProgress("Поиск папки синхронизации...")
             val syncFolder = resolveCaseInsensitivePath(context, originalFolder)
@@ -305,6 +340,8 @@ object YandexDiskManager {
                     needsSha1.add(cloudBook)
                 }
             }
+            
+            Log.d(TAG, "calculateSyncStats: Cache hits = ${updatedCloudBooks.size}, Needs SHA-1 calculation = ${needsSha1.size}")
 
             if (needsSha1.isNotEmpty()) {
                 var processedCount = 0

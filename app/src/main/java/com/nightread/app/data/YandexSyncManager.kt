@@ -35,8 +35,9 @@ class YandexSyncManager(private val context: Context) {
             val sha1 = if (cached != null && cached.lastModified == item.modified) {
                 cached.sha1
             } else {
-                val tempFile = downloadTemp(item)
-                val s = Sha1Helper.computeSha1FromContent(tempFile)
+                val tempFile = File(context.cacheDir, "temp_${item.name}")
+                val downloadSuccess = YandexDiskManager.downloadFileToTemp(context, item.path ?: "", tempFile)
+                val s = if (downloadSuccess) Sha1Helper.computeSha1FromContent(tempFile) else null
                 tempFile.delete()
                 
                 if (s != null) {
@@ -63,9 +64,5 @@ class YandexSyncManager(private val context: Context) {
             duplicates = 0,
             cloudProgressItems = emptyList() // Added missing parameter
         )
-    }
-
-    private suspend fun downloadTemp(item: ResourceItem): File {
-        return File(context.cacheDir, "temp_${item.name}")
     }
 }

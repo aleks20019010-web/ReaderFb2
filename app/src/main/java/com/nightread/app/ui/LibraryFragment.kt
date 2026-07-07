@@ -195,9 +195,15 @@ class LibraryFragment : Fragment() {
     private fun startScan() {
         val ctx = context ?: return
         if (!isAdded) return
-        android.util.Log.d("LibraryFragment", "startScan: Starting local book scan on ViewModel")
-        viewModel.startLocalBookScan()
-        Toast.makeText(ctx, "Начато сканирование папок...", Toast.LENGTH_SHORT).show()
+        if (isSwipeRescanInProgress) {
+            android.util.Log.d("LibraryFragment", "startScan: Starting incremental book scan on ViewModel")
+            viewModel.startIncrementalBookScan()
+            Toast.makeText(ctx, "Быстрая проверка новых книг...", Toast.LENGTH_SHORT).show()
+        } else {
+            android.util.Log.d("LibraryFragment", "startScan: Starting local deep book scan on ViewModel")
+            viewModel.startLocalBookScan()
+            Toast.makeText(ctx, "Начато сканирование папок...", Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onCreateView(
@@ -628,7 +634,7 @@ class LibraryFragment : Fragment() {
             
             if (wasScanning) {
                 wasScanning = false
-                if (state.status.startsWith("Scan finished") || state.status.startsWith("No books")) {
+                if (state.status.isNotBlank()) {
                     context?.let { ctx ->
                         Toast.makeText(ctx, state.status, Toast.LENGTH_LONG).show()
                     }

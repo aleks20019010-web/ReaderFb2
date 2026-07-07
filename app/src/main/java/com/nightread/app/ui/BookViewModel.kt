@@ -718,6 +718,68 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun startIncrementalBookScan() {
+        if (isScanning) return
+        
+        isScanning = true
+        com.nightread.app.service.AutoDiscoveryService.isManualScanning = true
+        
+        val context = getApplication<android.app.Application>()
+        if (context == null) {
+            isScanning = false
+            com.nightread.app.service.AutoDiscoveryService.isManualScanning = false
+            android.util.Log.e("BookViewModel", "startIncrementalBookScan: Application Context is null")
+            return
+        }
+        
+        val db = database
+        if (db == null) {
+            isScanning = false
+            com.nightread.app.service.AutoDiscoveryService.isManualScanning = false
+            android.util.Log.e("BookViewModel", "startIncrementalBookScan: AppDatabase is null")
+            return
+        }
+        
+        val dao = try {
+            db.bookDao()
+        } catch (e: Exception) {
+            isScanning = false
+            com.nightread.app.service.AutoDiscoveryService.isManualScanning = false
+            android.util.Log.e("BookViewModel", "startIncrementalBookScan: Failed to obtain BookDao", e)
+            null
+        }
+        
+        if (dao == null) {
+            isScanning = false
+            com.nightread.app.service.AutoDiscoveryService.isManualScanning = false
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            if (!isActive) {
+                withContext(Dispatchers.Main) {
+                    isScanning = false
+                    com.nightread.app.service.AutoDiscoveryService.isManualScanning = false
+                }
+                return@launch
+            }
+            try {
+                val app = context as? com.nightread.app.MainApplication
+                val scanner = app?.bookScanner ?: com.nightread.app.service.NewBookScanner(context, dao).also { app?.bookScanner = it }
+                scanner.checkForNewBooks()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e("BookViewModel", "Failed to scan books incrementally", e)
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isScanning = false
+                    com.nightread.app.service.AutoDiscoveryService.isManualScanning = false
+                }
+            }
+        }
+    }
+
     private suspend fun scanDirectoryForBooks(rootPath: String) {
         withContext(Dispatchers.Main) {
             isScanning = true

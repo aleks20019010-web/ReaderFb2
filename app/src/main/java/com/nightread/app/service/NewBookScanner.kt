@@ -10,7 +10,10 @@ import android.util.Log
 import com.nightread.app.data.BookDao
 import com.nightread.app.data.BookEntity
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
@@ -253,6 +256,200 @@ class NewBookScanner(
         }
     }
 
+    suspend fun checkForNewBooks() = withContext(Dispatchers.IO) {
+        isBgScan = false
+        Log.d(TAG, "checkForNewBooks: Starting incremental book scanning sequence.")
+        
+        updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Быстрое сканирование..."))
+
+        try {
+            val paths = listOf(
+                Environment.getExternalStorageDirectory(),
+                File(Environment.getExternalStorageDirectory(), "Download"),
+                File(Environment.getExternalStorageDirectory(), "Documents"),
+                File(Environment.getExternalStorageDirectory(), "Books")
+            )
+
+            val filesToProcess = mutableListOf<File>()
+            val gatheredPaths = HashSet<String>()
+            for (path in paths) {
+                if (!kotlin.coroutines.coroutineContext.isActive) return@withContext
+                try {
+                    if (path.exists() && path.isDirectory && path.canRead()) {
+                        Log.d(TAG, "Checking path for gathering: ${path.absolutePath}")
+                        val tempFileList = mutableListOf<File>()
+                        gatherFilesRecursive(path, tempFileList, 0)
+                        for (file in tempFileList) {
+                            val canonical = file.canonicalPath
+                            if (!gatheredPaths.contains(canonical)) {
+                                gatheredPaths.add(canonical)
+                                filesToProcess.add(file)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking root path: ${path.absolutePath}", e)
+                }
+            }
+
+            val total = filesToProcess.size
+            Log.d(TAG, "checkForNewBooks: Total FB2/ZIP files gathered: $total")
+            
+            if (total == 0) {
+                updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Новых книг не найдено."))
+                return@withContext
+            }
+
+            // Get all books in the DB
+            val allBooksList = try {
+                bookDao.getAllBooks().first()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching books from DB", e)
+                emptyList<BookEntity>()
+            }
+
+            val booksByPath = allBooksList.filter { !it.filePath.isNullOrBlank() }.associateBy { it.filePath!! }
+            val sha1ToPathMap = allBooksList.associate { it.sha1 to it.filePath }.toMutableMap()
+            
+            val prefs = context.getSharedPreferences("book_scanner_cache", Context.MODE_PRIVATE)
+
+            val filesToScan = mutableListOf<File>()
+            var skippedCount = 0
+
+            for (file in filesToProcess) {
+                val absolutePath = file.absolutePath
+                val lastModifiedOnDisk = file.lastModified()
+                val sizeOnDisk = file.length()
+
+                val existingBook = booksByPath[absolutePath]
+                if (existingBook != null) {
+                    // Check if file size on disk is the same as stored in DB, and lastModified matches cache
+                    val cachedMod = prefs.getLong("mod_$absolutePath", 0L)
+                    val cachedSize = prefs.getLong("size_$absolutePath", 0L)
+
+                    if (cachedMod == lastModifiedOnDisk && cachedSize == sizeOnDisk && existingBook.fileSize == sizeOnDisk) {
+                        // File has not changed, skip it!
+                        skippedCount++
+                        continue
+                    } else if (cachedMod == 0L && existingBook.fileSize == sizeOnDisk) {
+                        // No cache yet, but size matches. Save cache and skip!
+                        prefs.edit().apply {
+                            putLong("mod_$absolutePath", lastModifiedOnDisk)
+                            putLong("size_$absolutePath", sizeOnDisk)
+                        }.apply()
+                        skippedCount++
+                        continue
+                    }
+                }
+                
+                // File is new or has been modified!
+                filesToScan.add(file)
+            }
+
+            Log.d(TAG, "checkForNewBooks: Filtered down from $total to ${filesToScan.size} files that need scanning. Skipped unmodified: $skippedCount")
+
+            if (filesToScan.isEmpty()) {
+                updateLocalAndGlobalState(ScannerState(
+                    isScanning = false,
+                    status = "Новых книг не найдено.",
+                    totalFiles = total,
+                    processedFiles = total,
+                    addedBooks = 0,
+                    skippedBooks = skippedCount
+                ))
+                return@withContext
+            }
+
+            updateLocalAndGlobalState(ScannerState(
+                isScanning = true,
+                status = "Найдено новых/измененных файлов: ${filesToScan.size}",
+                totalFiles = filesToScan.size,
+                processedFiles = 0,
+                addedBooks = 0,
+                skippedBooks = skippedCount
+            ))
+
+            val batchList = mutableListOf<BookEntity>()
+            var addedCount = 0
+            val batchSize = 5
+
+            for ((index, file) in filesToScan.withIndex()) {
+                if (!kotlin.coroutines.coroutineContext.isActive) return@withContext
+                val fileIndex = index + 1
+                
+                Log.d(TAG, "Incremental processing file [$fileIndex/${filesToScan.size}]: ${file.name}")
+                
+                updateLocalAndGlobalState(ScannerState(
+                    isScanning = true,
+                    status = "Обработка: ${file.name} ($fileIndex/${filesToScan.size})",
+                    totalFiles = filesToScan.size,
+                    processedFiles = fileIndex,
+                    addedBooks = addedCount,
+                    skippedBooks = skippedCount
+                ))
+
+                val success = withTimeoutOrNull(5000) {
+                    try {
+                        processFile(file, sha1ToPathMap, batchList) { added, skipped ->
+                            addedCount += added
+                            skippedCount += skipped
+                        }
+                        
+                        // Update cache
+                        prefs.edit().apply {
+                            putLong("mod_${file.absolutePath}", file.lastModified())
+                            putLong("size_${file.absolutePath}", file.length())
+                        }.apply()
+                        
+                        true
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error incremental processing for ${file.absolutePath}", e)
+                        false
+                    }
+                }
+
+                if (batchList.size >= batchSize) {
+                    bookDao.insertBooks(batchList)
+                    batchList.clear()
+                    
+                    updateLocalAndGlobalState(ScannerState(
+                        isScanning = true,
+                        status = "Сохранение книг... ($fileIndex/${filesToScan.size})",
+                        totalFiles = filesToScan.size,
+                        processedFiles = fileIndex,
+                        addedBooks = addedCount,
+                        skippedBooks = skippedCount
+                    ))
+                }
+            }
+
+            if (batchList.isNotEmpty()) {
+                bookDao.insertBooks(batchList)
+                batchList.clear()
+            }
+
+            val finalStatus = if (addedCount > 0) {
+                "Найдено новых книг: $addedCount."
+            } else {
+                "Новых книг не найдено."
+            }
+            Log.d(TAG, "checkForNewBooks completed: added=$addedCount, skipped=$skippedCount")
+
+            updateLocalAndGlobalState(ScannerState(
+                isScanning = false,
+                status = finalStatus,
+                totalFiles = total,
+                processedFiles = total,
+                addedBooks = addedCount,
+                skippedBooks = skippedCount
+            ))
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Critical error during checkForNewBooks", e)
+            updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Ошибка обновления: ${e.localizedMessage}"))
+        }
+    }
+
     private fun processFile(
         file: File,
         sha1ToPathMap: MutableMap<String, String>,
@@ -329,7 +526,8 @@ class NewBookScanner(
                     category = "Local",
                     filePath = file.absolutePath,
                     coverPath = coverPath,
-                    annotation = metadata.annotation
+                    annotation = metadata.annotation,
+                    fileSize = file.length()
                 )
                 batchList.add(book)
                 sha1ToPathMap[sha1] = file.absolutePath
@@ -411,7 +609,8 @@ class NewBookScanner(
                                             category = "Local",
                                             filePath = file.absolutePath,
                                             coverPath = coverPath,
-                                            annotation = metadata.annotation
+                                            annotation = metadata.annotation,
+                                            fileSize = file.length()
                                         )
                                         batchList.add(book)
                                         sha1ToPathMap[sha1] = file.absolutePath
