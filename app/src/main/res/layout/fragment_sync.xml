@@ -245,6 +245,42 @@
                                 android:textColor="@color/accent" />
                         </LinearLayout>
 
+                        <!-- Local Download Folder Selection -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="16dp">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Локальная папка для скачивания:"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="12sp" />
+                                <TextView
+                                    android:id="@+id/txtLocalDownloadFolder"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="По умолчанию (/Books)"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+                            <Button
+                                android:id="@+id/btnSelectLocalFolder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Выбрать"
+                                style="?attr/borderlessButtonStyle"
+                                android:textColor="@color/accent" />
+                        </LinearLayout>
+
                         <Button
                             android:id="@+id/btnSyncNow"
                             android:layout_width="match_parent"

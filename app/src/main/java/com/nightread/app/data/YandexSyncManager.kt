@@ -50,10 +50,30 @@ class YandexSyncManager(private val context: Context) {
 
     /**
      * Возвращает локальную папку для сохранения книг.
-     * Приоритет отдается общедоступной папке '/storage/emulated/0/Books'.
+     * Приоритет отдается выбранной пользователем папке через SAF.
+     * Если она недоступна, используется общедоступная папка '/storage/emulated/0/Books'.
      * Если запись невозможна или ограничена ОС, выполняется откат на безопасную папку приложения.
      */
     fun getLocalBooksDirectory(): File {
+        val customUriStr = SyncSettingsManager.getDownloadFolderUri(context)
+        if (customUriStr != null) {
+            try {
+                val uri = android.net.Uri.parse(customUriStr)
+                val path = SyncSettingsManager.resolveUriToPath(context, uri)
+                if (path != null) {
+                    val customDir = File(path)
+                    if (!customDir.exists()) {
+                        customDir.mkdirs()
+                    }
+                    if (customDir.exists() && customDir.canWrite()) {
+                        return customDir
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Cannot write directly to custom folder: ${e.message}. Using default fallback.")
+            }
+        }
+
         val externalBooksDir = File(Environment.getExternalStorageDirectory(), "Books")
         try {
             if (!externalBooksDir.exists()) {

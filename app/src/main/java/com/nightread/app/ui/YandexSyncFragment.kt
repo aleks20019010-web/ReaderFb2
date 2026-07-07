@@ -62,6 +62,9 @@ class YandexSyncFragment : Fragment() {
     private lateinit var btnSelectFolder: Button
     private lateinit var btnSyncNow: Button
     
+    private lateinit var txtLocalDownloadFolder: TextView
+    private lateinit var btnSelectLocalFolder: Button
+    
     // Элементы прогресса
     private lateinit var layoutSyncProgress: LinearLayout
     private lateinit var txtSyncStatus: TextView
@@ -78,6 +81,24 @@ class YandexSyncFragment : Fragment() {
             Toast.makeText(requireContext(), "Авторизация прошла успешно!", Toast.LENGTH_SHORT).show()
             updateUi()
             startForegroundSync()
+        }
+    }
+
+    private val selectLocalFolderLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            val context = requireContext()
+            try {
+                val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                context.contentResolver.takePersistableUriPermission(uri, takeFlags)
+                
+                com.nightread.app.data.SyncSettingsManager.setDownloadFolderUri(context, uri.toString())
+                updateLocalFolderDisplay()
+                Toast.makeText(context, "Локальная папка успешно изменена!", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error taking persistable permission for uri: $uri", e)
+                Toast.makeText(context, "Не удалось получить доступ к папке. Попробуйте другую.", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -102,6 +123,9 @@ class YandexSyncFragment : Fragment() {
         btnSyncNow = view.findViewById(R.id.btnSyncNow)
         txtSyncFolder = view.findViewById(R.id.txtSyncFolder)
         btnSelectFolder = view.findViewById(R.id.btnSelectFolder)
+        
+        txtLocalDownloadFolder = view.findViewById(R.id.txtLocalDownloadFolder)
+        btnSelectLocalFolder = view.findViewById(R.id.btnSelectLocalFolder)
         
         layoutSyncProgress = view.findViewById(R.id.layoutSyncProgress)
         txtSyncStatus = view.findViewById(R.id.txtSyncStatus)
@@ -131,6 +155,10 @@ class YandexSyncFragment : Fragment() {
 
         btnSelectFolder.setOnClickListener {
             showFolderSelectionDialog()
+        }
+
+        btnSelectLocalFolder.setOnClickListener {
+            selectLocalFolderLauncher.launch(null)
         }
 
         btnSyncNow.setOnClickListener {
@@ -201,6 +229,7 @@ class YandexSyncFragment : Fragment() {
             cardSync.visibility = View.GONE
             layoutSyncProgress.visibility = View.GONE
         }
+        updateLocalFolderDisplay()
     }
 
     private fun refreshLastSyncTime() {
@@ -260,6 +289,7 @@ class YandexSyncFragment : Fragment() {
                     layoutSyncProgress.visibility = View.VISIBLE
                     btnSyncNow.isEnabled = false
                     btnSelectFolder.isEnabled = false
+                    btnSelectLocalFolder.isEnabled = false
 
                     txtSyncStatus.text = state.statusText
                     
@@ -320,6 +350,7 @@ class YandexSyncFragment : Fragment() {
                     // Возвращаем стандартный UI
                     btnSyncNow.isEnabled = true
                     btnSelectFolder.isEnabled = true
+                    btnSelectLocalFolder.isEnabled = true
                     layoutSyncProgress.visibility = View.GONE
                 }
             }
@@ -357,6 +388,25 @@ class YandexSyncFragment : Fragment() {
             }
             builder.setNegativeButton("Отмена", null)
             builder.show()
+        }
+    }
+
+    private fun updateLocalFolderDisplay() {
+        if (!isAdded) return
+        val context = requireContext()
+        val displayName = com.nightread.app.data.SyncSettingsManager.getDownloadFolderDisplayName(context)
+        txtLocalDownloadFolder.text = displayName
+        
+        // Проверка доступности выбранной папки
+        if (com.nightread.app.data.SyncSettingsManager.getDownloadFolderUri(context) != null) {
+            if (!com.nightread.app.data.SyncSettingsManager.isFolderAccessible(context)) {
+                txtLocalDownloadFolder.setTextColor(0xFFFF4D4D.toInt()) // Red warning color
+                Toast.makeText(context, "Выбранная папка недоступна. Выберите папку заново.", Toast.LENGTH_LONG).show()
+            } else {
+                txtLocalDownloadFolder.setTextColor(resources.getColor(R.color.text_primary, null))
+            }
+        } else {
+            txtLocalDownloadFolder.setTextColor(resources.getColor(R.color.text_primary, null))
         }
     }
 }

@@ -3,7 +3,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="260dp"
+    android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="6dp"
     android:clickable="true"
@@ -12,24 +12,25 @@
     <com.google.android.material.card.MaterialCardView
         style="@style/CardViewStyle"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         app:strokeWidth="0dp"
         app:cardBackgroundColor="@color/bg_card"
         app:cardUseCompatPadding="false">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:foreground="?android:attr/selectableItemBackground">
 
-            <!-- Cover frame (top-aligned, takes fixed height of 165dp) -->
+            <!-- Cover frame (top-aligned, takes dynamic height with 2:3 ratio) -->
             <FrameLayout
                 android:id="@+id/coverContainer"
                 android:layout_width="0dp"
-                android:layout_height="165dp"
+                android:layout_height="0dp"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent">
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintDimensionRatio="2:3">
 
                 <!-- Gradient background (fallback) -->
                 <View
@@ -38,13 +39,12 @@
                     android:layout_height="match_parent"
                     android:background="#e94560" />
 
-                <!-- Loaded cover displayed ENTIRELY using fitCenter -->
+                <!-- Loaded cover displayed using centerCrop to fill card width -->
                 <ImageView
                     android:id="@+id/ivCover"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:scaleType="fitCenter"
-                    android:adjustViewBounds="true"
+                    android:scaleType="centerCrop"
                     android:contentDescription="Обложка книги" />
 
                 <!-- Semi-transparent gloss/glow overlay -->
@@ -62,76 +62,73 @@
                     android:contentDescription="Удалить" />
             </FrameLayout>
 
-            <!-- Book Title: max 2 lines, white (#FFFFFF), compact wrap_content -->
-            <TextView
-                android:id="@+id/tvBookTitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:gravity="top|start"
-                app:layout_constraintTop_toBottomOf="@id/coverContainer"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
-
-            <!-- Book Author: max 1 line, light-gray-purple (#D0C0E0), compact wrap_content -->
-            <TextView
-                android:id="@+id/tvBookAuthor"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="#D0C0E0"
-                android:textSize="11sp"
-                android:gravity="center_vertical|start"
-                app:layout_constraintTop_toBottomOf="@id/tvBookTitle"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
-
-            <!-- Book Series: hidden but present -->
-            <TextView
-                android:id="@+id/tvBookSeries"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="@color/text_secondary"
-                android:textSize="9sp"
-                android:gravity="center_vertical|start"
-                android:visibility="gone"
-                app:layout_constraintTop_toBottomOf="@id/tvBookAuthor"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
-
-            <!-- Single progress bar pinned to the bottom of the card -->
+            <!-- Single progress bar pinned to the bottom of the cover container -->
             <ProgressBar
                 android:id="@+id/pbReadingProgress"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="0dp"
                 android:layout_height="4dp"
-                android:layout_marginBottom="4dp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
                 android:progress="0"
                 android:max="100"
                 android:progressTint="@color/accent"
                 android:progressBackgroundTint="#20FFFFFF"
                 android:visibility="gone"
-                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintBottom_toBottomOf="@id/coverContainer"
+                app:layout_constraintStart_toStartOf="@id/coverContainer"
+                app:layout_constraintEnd_toEndOf="@id/coverContainer" />
+
+            <!-- Text block wrapper to keep heights uniform -->
+            <LinearLayout
+                android:id="@+id/textContainer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="6dp"
+                android:paddingBottom="8dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                app:layout_constraintTop_toBottomOf="@id/coverContainer"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <!-- Book Title: max 2 lines, white (#FFFFFF), fixed height equivalent -->
+                <TextView
+                    android:id="@+id/tvBookTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:lines="2"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:gravity="top|start" />
+
+                <!-- Book Author: max 1 line, light-gray-purple (#D0C0E0), fixed height equivalent -->
+                <TextView
+                    android:id="@+id/tvBookAuthor"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:lines="1"
+                    android:textColor="#D0C0E0"
+                    android:textSize="10sp"
+                    android:gravity="center_vertical|start" />
+
+                <!-- Book Series: hidden but present -->
+                <TextView
+                    android:id="@+id/tvBookSeries"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:ellipsize="end"
+                    android:lines="1"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="9sp"
+                    android:gravity="center_vertical|start"
+                    android:visibility="gone" />
+            </LinearLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>
