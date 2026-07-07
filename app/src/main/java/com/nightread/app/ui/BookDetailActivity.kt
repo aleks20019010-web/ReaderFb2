@@ -257,6 +257,7 @@ class BookDetailActivity : AppCompatActivity() {
 
                 // Annotation setup
                 setupAnnotation(book, db)
+                tvAnnotation.setOnClickListener { toggleAnnotation() }
 
                 // Language setup
                 val langCode = book.language ?: "ru"
