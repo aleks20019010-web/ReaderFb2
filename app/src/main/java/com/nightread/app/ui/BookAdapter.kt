@@ -88,9 +88,9 @@ class BookAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BookViewHolder {
         val layoutRes = if (viewType == VIEW_TYPE_GRID) {
-            R.layout.item_book_minimalist
+            R.layout.item_book_grid
         } else {
-            R.layout.item_book_detailed_list
+            R.layout.item_book_list
         }
         val view = LayoutInflater.from(parent.context).inflate(layoutRes, parent, false)
         return BookViewHolder(view)
@@ -163,6 +163,7 @@ class BookAdapter(
         private val tvBookTitle: TextView = itemView.findViewById(R.id.tvBookTitle)
         private val tvBookAuthor: TextView = itemView.findViewById(R.id.tvBookAuthor)
         private val tvBookSeries: TextView = itemView.findViewById(R.id.tvBookSeries)
+        private val tvBookAnnotation: TextView? = itemView.findViewById(R.id.tvBookAnnotation)
         private val ivCover: ImageView = itemView.findViewById(R.id.ivCover)
         private val vCoverBackground: View = itemView.findViewById(R.id.vCoverBackground)
         private val btnDelete: View = itemView.findViewById(R.id.btnDelete)
@@ -174,6 +175,15 @@ class BookAdapter(
             onDeleteBook: ((BookEntity) -> Unit)?
         ) {
             tvBookTitle.text = book.title
+
+            if (tvBookAnnotation != null) {
+                if (!book.annotation.isNullOrBlank()) {
+                    tvBookAnnotation.visibility = View.VISIBLE
+                    tvBookAnnotation.text = book.annotation
+                } else {
+                    tvBookAnnotation.visibility = View.GONE
+                }
+            }
             tvBookAuthor.text = book.author ?: "Неизвестен"
             tvBookAuthor.setOnClickListener {
                 val intent = Intent(itemView.context, AuthorBooksActivity::class.java).apply {
