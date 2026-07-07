@@ -18,7 +18,7 @@ import com.nightread.app.service.NewBookScanner
 import com.nightread.app.service.AutoDiscoveryWorker
 import com.nightread.app.service.AutoDiscoveryService
 import com.nightread.app.MainActivity
-import com.nightread.app.ui.ReaderActivity
+import com.nightread.app.ui.ReadingActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -179,7 +179,7 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun navigateToReading(book: BookEntity) {
-        val intent = Intent(this, ReaderActivity::class.java).apply {
+        val intent = Intent(this, ReadingActivity::class.java).apply {
             putExtra("BOOK_SHA1", book.sha1)
             putExtra("book_path", book.filePath)
         }

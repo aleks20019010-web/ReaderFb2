@@ -47,7 +47,7 @@
             android:exported="false"
             android:theme="@style/Theme.MyApplication" />
         <activity
-            android:name="com.nightread.app.ui.ReaderActivity"
+            android:name="com.nightread.app.ui.ReadingActivity"
             android:exported="false"
             android:theme="@style/Theme.MyApplication" />
 
