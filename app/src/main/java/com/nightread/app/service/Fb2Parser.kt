@@ -1,7 +1,5 @@
 package com.nightread.app.service
 
-import java.util.regex.Pattern
-
 object Fb2Parser {
     fun extractText(xmlContent: String): String {
         return try {
@@ -12,21 +10,21 @@ object Fb2Parser {
             } else {
                 xmlContent
             }
-
+            
             var text = contentToParse
-                .replace(Regex("<empty-line[^>]*>"), "\n\n")
+                .replace(Regex("<empty-line[^>]*>"), "\n")
                 .replace(Regex("<p[^>]*>"), "\n    ")
                 .replace(Regex("</p>"), "")
                 .replace(Regex("<v[^>]*>"), "\n")
                 .replace(Regex("</v>"), "")
-                .replace(Regex("<title[^>]*>"), "\n\n")
-                .replace(Regex("</title>"), "\n\n")
-                .replace(Regex("<subtitle[^>]*>"), "\n\n")
-                .replace(Regex("</subtitle>"), "\n\n")
-
+                .replace(Regex("<title[^>]*>"), "\n")
+                .replace(Regex("</title>"), "\n")
+                .replace(Regex("<subtitle[^>]*>"), "\n")
+                .replace(Regex("</subtitle>"), "\n")
+            
             // Strip remaining tags
             text = text.replace(Regex("<[^>]+>"), "")
-
+            
             // Decode entities
             text = text
                 .replace("&amp;", "&")
@@ -35,9 +33,9 @@ object Fb2Parser {
                 .replace("&quot;", "\"")
                 .replace("&apos;", "'")
                 .replace("&nbsp;", " ")
-
-            // Clean up multiple newlines
-            text.replace(Regex("\n{3,}"), "\n\n").trim()
+                
+            // Clean up multiple newlines to just one newline
+            text.replace(Regex("\n{2,}"), "\n").trim()
         } catch (e: Exception) {
             xmlContent
         }

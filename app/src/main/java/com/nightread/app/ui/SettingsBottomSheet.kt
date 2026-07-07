@@ -74,16 +74,9 @@ class SettingsBottomSheet : DialogFragment() {
         val weightOptions = listOf("Normal", "Medium", "Bold", "ExtraBold")
         val themeOptions = themeNames.keys.toList()
 
-        // Match current theme background for the bottom sheet
-        val (bgColor, contentColor) = when (selectedTheme) {
-            "light" -> Pair(Color(0xFFFFFFFF), Color(0xFF121212))
-            "dark" -> Pair(Color(0xFF1A1A1A), Color(0xFFE0E0E0))
-            "sepia" -> Pair(Color(0xFFF5F0E8), Color(0xFF2C2C2C))
-            "sepia_contrast" -> Pair(Color(0xFFF5E6C8), Color(0xFF1A1A1A))
-            "contrast" -> Pair(Color(0xFF000000), Color(0xFFFFFF00))
-            "beige" -> Pair(Color(0xFFF4ECD8), Color(0xFF3B2F1F))
-            else -> Pair(Color(0xFFF5F0E8), Color(0xFF2C2C2C))
-        }
+        val bgColor = Color(0xFF1A0D2A)
+        val contentColor = Color(0xFFE0E0E0)
+        val accentColor = Color(0xFF9B59B6)
 
         Column(
             modifier = Modifier
@@ -152,8 +145,8 @@ class SettingsBottomSheet : DialogFragment() {
                     valueRange = 14f..28f,
                     steps = 13,
                     colors = SliderDefaults.colors(
-                        thumbColor = contentColor,
-                        activeTrackColor = contentColor,
+                        thumbColor = accentColor,
+                        activeTrackColor = accentColor,
                         inactiveTrackColor = contentColor.copy(alpha = 0.24f)
                     )
                 )
@@ -201,8 +194,8 @@ class SettingsBottomSheet : DialogFragment() {
                     onValueChangeFinished = { SettingsManager.setLineSpacing(context, lineSpacing) },
                     valueRange = 1.0f..2.0f,
                     colors = SliderDefaults.colors(
-                        thumbColor = contentColor,
-                        activeTrackColor = contentColor,
+                        thumbColor = accentColor,
+                        activeTrackColor = accentColor,
                         inactiveTrackColor = contentColor.copy(alpha = 0.24f)
                     )
                 )
@@ -255,7 +248,7 @@ class SettingsBottomSheet : DialogFragment() {
                     },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = bgColor,
-                        checkedTrackColor = contentColor,
+                        checkedTrackColor = accentColor,
                         uncheckedThumbColor = contentColor,
                         uncheckedTrackColor = bgColor,
                         uncheckedBorderColor = contentColor

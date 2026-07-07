@@ -153,12 +153,8 @@ class ReadingActivity : AppCompatActivity() {
             try {
                 Log.d("READING_DEBUG", "Loading file: $filePath, size: ${file.length()}")
                 
-                var rawContent = withContext(Dispatchers.IO) {
+                bookContent = withContext(Dispatchers.IO) {
                     extractTextFromFile(file)
-                }
-                
-                bookContent = withContext(Dispatchers.Default) {
-                    preprocessTextAndHyphenate(rawContent)
                 }
 
                 if (bookContent.isEmpty()) {
@@ -179,10 +175,6 @@ class ReadingActivity : AppCompatActivity() {
                 finish()
             }
         }
-    }
-
-    private fun preprocessTextAndHyphenate(text: String): String {
-        return com.nightread.app.service.RussianHyphenator.hyphenate(text)
     }
 
     private suspend fun recalculatePages(targetCharOffset: Int = -1) {
@@ -224,7 +216,7 @@ class ReadingActivity : AppCompatActivity() {
 
         // Using display metrics logic inside splitter could be done, but we use match_parent.
         // Wait, PageSplitter doesn't account for padding unless we subtract it from availableWidth.
-        val paddingHorizontal = (26 * resources.displayMetrics.density).toInt() // 13dp each side
+        val paddingHorizontal = (32 * resources.displayMetrics.density).toInt() // 16dp each side
         val paddingVertical = (8 * resources.displayMetrics.density).toInt() + getTopInset() // 8dp bottom + top inset
         
         val availableWidth = width - paddingHorizontal
@@ -306,165 +298,3 @@ class ReadingActivity : AppCompatActivity() {
                     }
                 }
                 android.view.MotionEvent.ACTION_UP -> {
-                    if (isChangingBrightness) {
-                        isChangingBrightness = false
-                        return@setOnTouchListener true
-                    }
-                    
-                    val cornerSize = 80 * resources.displayMetrics.density
-                    if (x < cornerSize && y < cornerSize) {
-                        toggleNightMode()
-                        return@setOnTouchListener true
-                    }
-                    
-                    toggleBars()
-                }
-            }
-            true
-        }
-        
-        // Also add onPageChange callback
-        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                updateBottomBar(position)
-            }
-        })
-    }
-
-    private fun toggleBars() {
-        isBarsVisible = !isBarsVisible
-        topBar.visibility = if (isBarsVisible) View.VISIBLE else View.GONE
-        bottomBar.visibility = if (isBarsVisible) View.VISIBLE else View.GONE
-        if (isBarsVisible) {
-            showSystemBars()
-        } else {
-            hideSystemBars()
-        }
-    }
-
-    private fun toggleNightMode() {
-        isNightMode = !isNightMode
-        val newTheme = if (isNightMode) "dark" else SettingsManager.getPreviousTheme(this)
-        SettingsManager.setTheme(this, newTheme)
-    }
-
-    private fun setupSeekBar() {
-        seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser && splitResult != null) {
-                    val maxPages = splitResult!!.pages.size - 1
-                    val targetPage = (progress * maxPages / 100)
-                    viewPager.setCurrentItem(targetPage, false)
-                }
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-    }
-
-    private fun updateBottomBar(position: Int) {
-        val total = splitResult?.pages?.size ?: 1
-        tvPageInfo.text = "Стр. ${position + 1} из $total"
-        if (total > 1) {
-            seekBar.progress = (position * 100) / (total - 1)
-        } else {
-            seekBar.progress = 0
-        }
-    }
-
-    private fun hideSystemBars() {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowInsetsControllerCompat(window, window.decorView).let { controller ->
-            controller.hide(WindowInsetsCompat.Type.systemBars())
-            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
-    }
-
-    private fun showSystemBars() {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowInsetsControllerCompat(window, window.decorView).show(WindowInsetsCompat.Type.systemBars())
-    }
-
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        when (keyCode) {
-            KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                val next = viewPager.currentItem + 1
-                if (splitResult != null && next < splitResult!!.pages.size) {
-                    viewPager.setCurrentItem(next, true)
-                }
-                return true
-            }
-            KeyEvent.KEYCODE_VOLUME_UP -> {
-                val prev = viewPager.currentItem - 1
-                if (prev >= 0) {
-                    viewPager.setCurrentItem(prev, true)
-                }
-                return true
-            }
-        }
-        return super.onKeyDown(keyCode, event)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        saveProgress()
-    }
-
-    private fun saveProgress() {
-        if (sha1.isEmpty() || splitResult == null) return
-        val currentIdx = viewPager.currentItem
-        if (currentIdx < splitResult!!.offsets.size) {
-            val charOffset = splitResult!!.offsets[currentIdx]
-            lifecycleScope.launch(Dispatchers.IO) {
-                AppDatabase.getDatabase(this@ReadingActivity)
-                    .bookDao().updateProgressAndPage(sha1, charOffset, currentIdx, System.currentTimeMillis())
-            }
-        }
-    }
-
-    private fun extractTextFromFile(file: File): String {
-        val ext = file.extension.lowercase(Locale.ROOT)
-        return when (ext) {
-            "fb2", "xml" -> {
-                val xmlContent = readFb2WithEncoding(file)
-                Fb2Parser.extractText(xmlContent)
-            }
-            "zip" -> {
-                var content = ""
-                FileInputStream(file).use { fis ->
-                    ZipInputStream(fis).use { zis ->
-                        var entry = zis.nextEntry
-                        while (entry != null) {
-                            if (!entry.isDirectory && (entry.name.endsWith(".fb2") || entry.name.endsWith(".xml"))) {
-                                val bytes = zis.readBytes()
-                                val xmlContent = decodeFb2Bytes(bytes)
-                                content = Fb2Parser.extractText(xmlContent)
-                                break
-                            }
-                            entry = zis.nextEntry
-                        }
-                    }
-                }
-                content
-            }
-            "txt" -> file.readText(StandardCharsets.UTF_8)
-            else -> ""
-        }
-    }
-
-    private fun readFb2WithEncoding(file: File): String {
-        val bytes = file.readBytes()
-        return decodeFb2Bytes(bytes)
-    }
-
-    private fun decodeFb2Bytes(bytes: ByteArray): String {
-        val header = String(bytes, 0, minOf(bytes.size, 1024), StandardCharsets.ISO_8859_1)
-        val match = Regex("""<\?xml[^>]*encoding=["']([^"']+)["']""", RegexOption.IGNORE_CASE).find(header)
-        val charsetName = match?.groupValues?.get(1)?.trim() ?: "UTF-8"
-        return try {
-            String(bytes, java.nio.charset.Charset.forName(charsetName))
-        } catch (e: Exception) {
-            String(bytes, StandardCharsets.UTF_8)
-        }
-    }
-}
