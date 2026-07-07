@@ -17,6 +17,7 @@ object SettingsManager {
     const val KEY_LINE_SPACING = "line_spacing"
 
     const val KEY_AUTO_DISCOVERY = "auto_discovery"
+    const val KEY_AUTO_THEME = "auto_theme"
 
     private val _settingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val settingsChanged: SharedFlow<Unit> = _settingsChanged.asSharedFlow()
@@ -31,6 +32,7 @@ object SettingsManager {
     private var cachedFontWeight: String? = null
     private var cachedLineSpacing: Float? = null
     private var cachedAutoDiscovery: Boolean? = null
+    private var cachedAutoTheme: Boolean? = null
 
     private fun getPrefs(context: Context): SharedPreferences {
         if (prefs == null) {
@@ -57,6 +59,20 @@ object SettingsManager {
         notifyChanged()
     }
 
+    fun isAutoThemeEnabled(context: Context): Boolean {
+        if (cachedAutoTheme == null) {
+            cachedAutoTheme = getPrefs(context).getBoolean(KEY_AUTO_THEME, false)
+        }
+        return cachedAutoTheme!!
+    }
+
+    fun setAutoThemeEnabled(context: Context, enabled: Boolean) {
+        if (cachedAutoTheme == enabled) return
+        cachedAutoTheme = enabled
+        getPrefs(context).edit().putBoolean(KEY_AUTO_THEME, enabled).apply()
+        notifyChanged()
+    }
+
     fun getTheme(context: Context): String {
         if (cachedTheme == null) {
             cachedTheme = getPrefs(context).getString(KEY_THEME, "sepia") ?: "sepia"
@@ -65,6 +81,10 @@ object SettingsManager {
     }
 
     fun setTheme(context: Context, theme: String) {
+        if (cachedAutoTheme != false) {
+            cachedAutoTheme = false
+            getPrefs(context).edit().putBoolean(KEY_AUTO_THEME, false).apply()
+        }
         if (cachedTheme == theme) return
         cachedTheme = theme
         val prefs = getPrefs(context)

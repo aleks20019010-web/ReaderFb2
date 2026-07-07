@@ -46,6 +46,6 @@ jobs:
         clientSecret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         refreshToken: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
         folderId: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
-        filename: './app/build/outputs/apk/debug/app-debug.apk'
+        filename: 'app/build/outputs/apk/debug/app-debug.apk'
         name: 'ReaderFb2-debug.apk'
         overwrite: 'true'

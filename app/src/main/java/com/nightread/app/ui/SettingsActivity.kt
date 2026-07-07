@@ -72,6 +72,7 @@ class SettingsActivity : ComponentActivity() {
             "beige" to "Бежевый"
         )
         var selectedTheme by remember { mutableStateOf(SettingsManager.getTheme(context)) }
+        var autoThemeEnabled by remember { mutableStateOf(SettingsManager.isAutoThemeEnabled(context)) }
         
         // Font options
         val fontOptions = listOf("Roboto", "Times New Roman", "Georgia", "OpenDyslexic", "Monospace")
@@ -151,6 +152,42 @@ class SettingsActivity : ComponentActivity() {
                 item { Text("Настройки чтения", style = MaterialTheme.typography.titleMedium) }
                 
                 item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Авто-тема",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = "Светлая днем (6:00 - 21:00), темная ночью",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = autoThemeEnabled,
+                            onCheckedChange = { checked ->
+                                autoThemeEnabled = checked
+                                SettingsManager.setAutoThemeEnabled(context, checked)
+                                if (checked) {
+                                    com.nightread.app.service.ThemeUpdateReceiver.scheduleNextThemeAlarm(context)
+                                } else {
+                                    com.nightread.app.service.ThemeUpdateReceiver.cancelAlarm(context)
+                                }
+                                com.nightread.app.data.ThemeManager.applyTheme(context)
+                                selectedTheme = SettingsManager.getTheme(context)
+                            }
+                        )
+                    }
+                }
+
+                item {
                     SettingsDropdown(
                         label = "Тема оформления",
                         options = themeOptions,
@@ -158,6 +195,9 @@ class SettingsActivity : ComponentActivity() {
                         onOptionSelected = {
                             selectedTheme = it
                             SettingsManager.setTheme(context, it)
+                            autoThemeEnabled = false
+                            com.nightread.app.service.ThemeUpdateReceiver.cancelAlarm(context)
+                            com.nightread.app.data.ThemeManager.applyTheme(context)
                         },
                         displayMapper = { themeNames[it] ?: it }
                     )

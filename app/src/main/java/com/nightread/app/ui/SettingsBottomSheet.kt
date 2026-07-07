@@ -142,6 +142,8 @@ class SettingsBottomSheet : DialogFragment() {
                             onClick = {
                                 selectedTheme = themeKey
                                 SettingsManager.setTheme(context, themeKey)
+                                com.nightread.app.service.ThemeUpdateReceiver.cancelAlarm(context)
+                                com.nightread.app.data.ThemeManager.applyTheme(context)
                             },
                             bgColor = bgColor,
                             contentColor = contentColor

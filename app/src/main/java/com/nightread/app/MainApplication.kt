@@ -3,8 +3,10 @@ package com.nightread.app
 import android.app.Application
 import android.util.Log
 import com.nightread.app.data.SettingsManager
+import com.nightread.app.data.ThemeManager
 import com.nightread.app.service.AutoDiscoveryService
 import com.nightread.app.service.AutoDiscoveryWorker
+import com.nightread.app.service.ThemeUpdateReceiver
 
 class MainApplication : Application() {
     
@@ -13,6 +15,12 @@ class MainApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Log.d("MainApplication", "MainApplication onCreate: Initializing app.")
+        
+        // Apply theme immediately on startup
+        ThemeManager.applyTheme(this)
+        if (SettingsManager.isAutoThemeEnabled(this)) {
+            ThemeUpdateReceiver.scheduleNextThemeAlarm(this)
+        }
         
         if (SettingsManager.isAutoDiscoveryEnabled(this)) {
             AutoDiscoveryWorker.schedule(this)
