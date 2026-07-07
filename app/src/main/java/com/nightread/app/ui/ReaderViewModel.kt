@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.nightread.app.data.AppDatabase
 import com.nightread.app.data.BookEntity
+import com.nightread.app.data.SyncManager
+import com.nightread.app.data.SettingsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +16,11 @@ import kotlinx.coroutines.withContext
 
 class ReaderViewModel(application: Application) : AndroidViewModel(application) {
     private val bookDao = AppDatabase.getDatabase(application).bookDao()
+    private val noteDao = AppDatabase.getDatabase(application).noteDao()
+    private val repository = com.nightread.app.data.BookRepository(bookDao, noteDao)
+    private val syncManager = SyncManager(application)
     private val sharedPrefs = application.getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE)
+    private val appContext = application
 
     private val _bookState = MutableStateFlow<BookEntity?>(null)
     val bookState: StateFlow<BookEntity?> = _bookState.asStateFlow()
@@ -294,6 +300,15 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 bookDao.updateProgressAndPage(book.sha1, charOffset, pageIdx, System.currentTimeMillis())
+                
+                if (SettingsManager.isCloudSyncEnabled(appContext)) {
+                    val url = SettingsManager.getCloudSyncUrl(appContext)
+                    if (url.isNotEmpty()) {
+                        syncManager.syncWithCloud(repository, url) { log ->
+                            android.util.Log.d("ReaderViewModel", "Sync log: $log")
+                        }
+                    }
+                }
             }
         }
     }

@@ -189,10 +189,41 @@ class SettingsActivity : ComponentActivity() {
                 item { Text("Информация", style = MaterialTheme.typography.titleMedium) }
                 item { Text("Версия: 1.0.0\nРазработчик: NightRead Team\nКонтакты: support@nightread.com") }
                 
-                item { Spacer(modifier = Modifier.height(24.dp)) }
+                item { Text("Облачная синхронизация", style = MaterialTheme.typography.titleMedium) }
+                item {
+                    var cloudSyncEnabled by remember { mutableStateOf(SettingsManager.isCloudSyncEnabled(context)) }
+                    var cloudSyncUrl by remember { mutableStateOf(SettingsManager.getCloudSyncUrl(context)) }
 
-                // Existing Reading Settings Section
-                item { Text("Настройки чтения", style = MaterialTheme.typography.titleMedium) }
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Включить синхронизацию")
+                            Switch(
+                                checked = cloudSyncEnabled,
+                                onCheckedChange = { checked ->
+                                    cloudSyncEnabled = checked
+                                    SettingsManager.setCloudSyncEnabled(context, checked)
+                                }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = cloudSyncUrl,
+                            onValueChange = {
+                                cloudSyncUrl = it
+                                SettingsManager.setCloudSyncUrl(context, it)
+                            },
+                            label = { Text("URL облачного API") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                }
+
+                item { Spacer(modifier = Modifier.height(24.dp)) }
                 
                 item {
                     Row(

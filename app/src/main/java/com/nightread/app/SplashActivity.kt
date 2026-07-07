@@ -11,11 +11,14 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.nightread.app.data.AppDatabase
+import com.nightread.app.data.BookEntity
 import com.nightread.app.data.BookRepository
 import com.nightread.app.data.SettingsManager
 import com.nightread.app.service.NewBookScanner
 import com.nightread.app.service.AutoDiscoveryWorker
 import com.nightread.app.service.AutoDiscoveryService
+import com.nightread.app.MainActivity
+import com.nightread.app.ui.ReaderActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -83,11 +86,19 @@ class SplashActivity : AppCompatActivity() {
                 val repository = BookRepository(db.bookDao(), db.noteDao())
                 
                 var booksCount = 0
+                var lastReadBook: BookEntity? = null
                 try {
                     booksCount = withContext(Dispatchers.IO) {
                         repository.getBooksCount()
                     }
                     Log.d(TAG, "Database check: total books count = $booksCount")
+                    
+                    if (booksCount > 0) {
+                        lastReadBook = withContext(Dispatchers.IO) {
+                            db.bookDao().getLastReadBook()
+                        }
+                        Log.d(TAG, "Last read book: ${lastReadBook?.title}")
+                    }
                     
                     // Integrity check: if 0 books but cache has entries, reset cache.
                     val cacheCount = withContext(Dispatchers.IO) {
@@ -134,8 +145,12 @@ class SplashActivity : AppCompatActivity() {
                 // Cancel the watchdog
                 watchdogJob.cancel()
 
-                // Proceed to MainActivity
-                navigateToMain()
+                // Proceed to MainActivity or ReadingActivity
+                if (lastReadBook != null) {
+                    navigateToReading(lastReadBook)
+                } else {
+                    navigateToMain()
+                }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Initialization failed", e)
@@ -161,6 +176,15 @@ class SplashActivity : AppCompatActivity() {
             }
             delay(delayTime)
         }
+    }
+
+    private fun navigateToReading(book: BookEntity) {
+        val intent = Intent(this, ReaderActivity::class.java).apply {
+            putExtra("BOOK_SHA1", book.sha1)
+            putExtra("book_path", book.filePath)
+        }
+        startActivity(intent)
+        finish()
     }
 
     private fun navigateToMain() {

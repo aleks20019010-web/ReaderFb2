@@ -18,12 +18,14 @@ object SettingsManager {
 
     const val KEY_AUTO_DISCOVERY = "auto_discovery"
     const val KEY_AUTO_THEME = "auto_theme"
+    const val KEY_CLOUD_SYNC_URL = "cloud_sync_url"
+    const val KEY_CLOUD_SYNC_ENABLED = "cloud_sync_enabled"
 
     private val _settingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val settingsChanged: SharedFlow<Unit> = _settingsChanged.asSharedFlow()
-
+    
     private var prefs: SharedPreferences? = null
-
+    
     // Cache variables
     private var cachedTheme: String? = null
     private var cachedPrevTheme: String? = null
@@ -33,6 +35,8 @@ object SettingsManager {
     private var cachedLineSpacing: Float? = null
     private var cachedAutoDiscovery: Boolean? = null
     private var cachedAutoTheme: Boolean? = null
+    private var cachedCloudSyncUrl: String? = null
+    private var cachedCloudSyncEnabled: Boolean? = null
 
     private fun getPrefs(context: Context): SharedPreferences {
         if (prefs == null) {
@@ -70,6 +74,34 @@ object SettingsManager {
         if (cachedAutoTheme == enabled) return
         cachedAutoTheme = enabled
         getPrefs(context).edit().putBoolean(KEY_AUTO_THEME, enabled).apply()
+        notifyChanged()
+    }
+
+    fun isCloudSyncEnabled(context: Context): Boolean {
+        if (cachedCloudSyncEnabled == null) {
+            cachedCloudSyncEnabled = getPrefs(context).getBoolean(KEY_CLOUD_SYNC_ENABLED, false)
+        }
+        return cachedCloudSyncEnabled!!
+    }
+
+    fun setCloudSyncEnabled(context: Context, enabled: Boolean) {
+        if (cachedCloudSyncEnabled == enabled) return
+        cachedCloudSyncEnabled = enabled
+        getPrefs(context).edit().putBoolean(KEY_CLOUD_SYNC_ENABLED, enabled).apply()
+        notifyChanged()
+    }
+
+    fun getCloudSyncUrl(context: Context): String {
+        if (cachedCloudSyncUrl == null) {
+            cachedCloudSyncUrl = getPrefs(context).getString(KEY_CLOUD_SYNC_URL, "") ?: ""
+        }
+        return cachedCloudSyncUrl!!
+    }
+
+    fun setCloudSyncUrl(context: Context, url: String) {
+        if (cachedCloudSyncUrl == url) return
+        cachedCloudSyncUrl = url
+        getPrefs(context).edit().putString(KEY_CLOUD_SYNC_URL, url).apply()
         notifyChanged()
     }
 
