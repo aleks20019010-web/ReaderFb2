@@ -1,6 +1,7 @@
 package com.nightread.app.data
 
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -21,11 +22,46 @@ class YandexSyncManager(private val context: Context) {
         val originalFolder = YandexDiskManager.getSyncFolder(context)
         val syncFolder = YandexDiskManager.resolveCaseInsensitivePath(context, originalFolder)
         
-        val cloudFiles = YandexDiskManager.getAllFilesFromFolder(authHeader, syncFolder)
-            .filter {
-                val lowerName = it.name.lowercase()
-                lowerName.endsWith(".fb2") || lowerName.endsWith(".fb2.zip") || lowerName.endsWith(".epub")
+        Log.d("YandexSyncManager", "getSyncStats: Original folder='$originalFolder' resolved to='$syncFolder'")
+        if (syncFolder.contains("disk:")) {
+            Log.e("YandexSyncManager", "getSyncStats ERROR: Resolved path contains 'disk:' prefix!")
+        } else {
+            Log.d("YandexSyncManager", "getSyncStats: Verified path '$syncFolder' has no 'disk:' prefix.")
+        }
+
+        val maskedToken = if (token.length > 8) "${token.take(4)}...${token.takeLast(4)}" else "***"
+        Log.d("YandexSyncManager", "getSyncStats Auth Header: 'OAuth $maskedToken' (Length: ${token.length})")
+
+        val allCloudFiles = YandexDiskManager.getAllFilesFromFolder(context, authHeader, syncFolder)
+        
+        Log.d("YandexSyncManager", "getSyncStats: Retrieved ${allCloudFiles.size} files from disk.")
+        if (allCloudFiles.isNotEmpty()) {
+            Log.d("YandexSyncManager", "getSyncStats: Showing first 5 files from disk for extension check:")
+            allCloudFiles.take(5).forEachIndexed { idx, item ->
+                Log.d("YandexSyncManager", "  [$idx] Name: '${item.name}', Type: '${item.type}', Path: '${item.path}'")
             }
+        } else {
+            Log.d("YandexSyncManager", "getSyncStats: No files found in folder.")
+        }
+
+        val cloudFiles = allCloudFiles.filter {
+            val lowerName = it.name.lowercase()
+            val isFb2 = lowerName.endsWith(".fb2")
+            val isFb2Zip = lowerName.endsWith(".fb2.zip")
+            val isEpub = lowerName.endsWith(".epub")
+            val matches = isFb2 || isFb2Zip || isEpub
+            Log.v("YandexSyncManager", "File: '${it.name}' -> isFb2=$isFb2, isFb2Zip=$isFb2Zip, isEpub=$isEpub -> matches=$matches")
+            matches
+        }
+        val booksOnDisk = cloudFiles.size
+        Log.d("YandexSyncManager", "getSyncStats: Filtering complete. Found $booksOnDisk books after extension filter.")
+
+        if (cloudFiles.isNotEmpty()) {
+            Log.d("YandexSyncManager", "getSyncStats: First 5 MATCHED books:")
+            cloudFiles.take(5).forEachIndexed { idx, item ->
+                Log.d("YandexSyncManager", "  [$idx] Book Name: '${item.name}', Path: '${item.path}'")
+            }
+        }
         
         val toDownload = mutableListOf<CloudFileEntry>()
         val cloudSha1Set = mutableSetOf<String>()

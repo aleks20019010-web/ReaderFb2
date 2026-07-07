@@ -130,6 +130,9 @@ class SyncFragment : Fragment() {
             layoutStorage.visibility = View.VISIBLE
             cardSync.visibility = View.VISIBLE
 
+            val currentFolder = YandexDiskManager.getSyncFolder(context)
+            txtSyncFolder.text = "Папка: $currentFolder"
+
             // Fetch Disk info
             lifecycleScope.launch {
                 try {
@@ -179,7 +182,7 @@ class SyncFragment : Fragment() {
             pd.setCancelable(false)
             pd.show()
             
-            val folders = YandexDiskManager.getFolders(context, "disk:/")
+            val folders = YandexDiskManager.getFolders(context, "/")
             pd.dismiss()
             
             val folderNames = folders.map { it.name }.toMutableList()
@@ -188,7 +191,7 @@ class SyncFragment : Fragment() {
             val builder = android.app.AlertDialog.Builder(context)
             builder.setTitle("Выберите папку")
             builder.setItems(folderNames.toTypedArray()) { _, which ->
-                val selectedPath = if (which == 0) "disk:/" else folders[which - 1].path
+                val selectedPath = if (which == 0) "/" else folders[which - 1].path
                 YandexDiskManager.setSyncFolder(context, selectedPath)
                 updateUi()
             }

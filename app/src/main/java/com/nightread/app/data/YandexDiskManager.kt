@@ -24,14 +24,31 @@ import java.util.concurrent.TimeUnit
 object YandexDiskManager {
 
 
-    suspend fun getFolders(context: Context, path: String = "disk:/"): List<ResourceItem> {
+    suspend fun getFolders(context: Context, path: String = "/"): List<ResourceItem> {
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             val token = getToken(context) ?: return@withContext emptyList()
             val authHeader = "OAuth $token"
+            val cleanPath = normalizePath(path)
+            Log.d(TAG, "getFolders: Requesting path='$cleanPath'. Prefix 'disk:' removed.")
+            
+            val maskedToken = if (token.length > 8) "${token.take(4)}...${token.takeLast(4)}" else "***"
+            Log.d(TAG, "getFolders Auth Header: 'OAuth $maskedToken' (Length: ${token.length})")
+
             try {
-                val response = api.getResource(authHeader, path, limit = 500)
+                val response = api.getResource(authHeader, cleanPath, limit = 500)
+                Log.d(TAG, "getFolders API Response: Code 200 (Success) for path='$cleanPath'")
                 response.embedded?.items?.filter { it.type == "dir" } ?: emptyList()
+            } catch (e: retrofit2.HttpException) {
+                val code = e.code()
+                val errorBody = e.response()?.errorBody()?.string()
+                Log.e(TAG, "getFolders API Error: Code $code, Message: ${e.message()}, Body: $errorBody")
+                if (code == 401) {
+                    Log.e(TAG, "Token expired/invalid. Clearing token.")
+                    clearToken(context)
+                }
+                emptyList()
             } catch (e: Exception) {
+                Log.e(TAG, "getFolders Connection/Parsing Error: ${e.message}", e)
                 emptyList()
             }
         }
@@ -39,23 +56,23 @@ object YandexDiskManager {
 
     fun normalizePath(path: String): String {
         var p = path.trim()
-        if (p.isEmpty()) return "disk:/"
-        if (!p.startsWith("disk:/")) {
-            if (p.startsWith("/")) {
-                p = "disk:$p"
-            } else {
-                p = "disk:/$p"
-            }
+        if (p.startsWith("disk:")) {
+            p = p.substringAfter("disk:")
         }
-        while (p.endsWith("/") && p != "disk:/") {
+        if (p.isEmpty()) return "/"
+        if (!p.startsWith("/")) {
+            p = "/$p"
+        }
+        while (p.endsWith("/") && p != "/") {
             p = p.substring(0, p.length - 1)
         }
+        Log.d(TAG, "normalizePath: input='$path' -> normalized='$p'")
         return p
     }
 
     fun getSyncFolder(context: Context): String {
         val prefs = context.getSharedPreferences("yandex_sync", Context.MODE_PRIVATE)
-        val raw = prefs.getString("sync_folder", "disk:/Books") ?: "disk:/Books"
+        val raw = prefs.getString("sync_folder", "/Books") ?: "/Books"
         return normalizePath(raw)
     }
 
@@ -159,78 +176,96 @@ object YandexDiskManager {
         val token = getToken(context) ?: return path
         val authHeader = "OAuth $token"
         
-        if (checkPathExists(authHeader, path)) {
-            Log.d(TAG, "resolveCaseInsensitivePath: Path '$path' exists as-is.")
-            return path
+        val cleanPath = normalizePath(path)
+        Log.d(TAG, "resolveCaseInsensitivePath: input='$path' -> cleanPath='$cleanPath'")
+        if (checkPathExists(authHeader, cleanPath)) {
+            Log.d(TAG, "resolveCaseInsensitivePath: Path '$cleanPath' exists as-is.")
+            return cleanPath
         }
         
-        Log.d(TAG, "resolveCaseInsensitivePath: Path '$path' does not exist as-is. Resolving case-insensitively.")
-        if (!path.startsWith("disk:/")) return path
+        Log.d(TAG, "resolveCaseInsensitivePath: Path '$cleanPath' does not exist as-is. Resolving case-insensitively.")
+        val parts = cleanPath.split("/").filter { it.isNotEmpty() }
+        if (parts.isEmpty()) return "/"
         
-        val parts = path.substring("disk:/".length).split("/").filter { it.isNotEmpty() }
-        if (parts.isEmpty()) return "disk:/"
-        
-        var currentPath = "disk:/"
+        var currentPath = "/"
         for (part in parts) {
             try {
+                Log.d(TAG, "resolveCaseInsensitivePath: Resolving part '$part' in currentPath='$currentPath'")
                 val response = api.getResource(
                     token = authHeader,
                     path = currentPath,
                     limit = 500,
                     fields = "_embedded.items.name,_embedded.items.type,_embedded.items.path"
                 )
+                Log.d(TAG, "resolveCaseInsensitivePath API Response: Code 200 (OK)")
                 val dirs = response.embedded?.items?.filter { it.type == "dir" } ?: emptyList()
                 val matchingDir = dirs.find { it.name.equals(part, ignoreCase = true) }
                 if (matchingDir != null) {
-                    currentPath = matchingDir.path ?: "$currentPath/${matchingDir.name}"
+                    val rawMatchingPath = matchingDir.path ?: "$currentPath/${matchingDir.name}"
+                    currentPath = normalizePath(rawMatchingPath)
                 } else {
-                    currentPath = "$currentPath/$part"
+                    currentPath = if (currentPath == "/") "/$part" else "$currentPath/$part"
                 }
+            } catch (e: retrofit2.HttpException) {
+                Log.e(TAG, "resolveCaseInsensitivePath API Error: Code ${e.code()}, Body: ${e.response()?.errorBody()?.string()}")
+                if (e.code() == 401) {
+                    clearToken(context)
+                }
+                currentPath = if (currentPath == "/") "/$part" else "$currentPath/$part"
             } catch (e: Exception) {
-                Log.e(TAG, "resolveCaseInsensitivePath: Error resolving path part: $part in $currentPath", e)
-                currentPath = "$currentPath/$part"
+                Log.e(TAG, "resolveCaseInsensitivePath Error resolving path part: $part in $currentPath", e)
+                currentPath = if (currentPath == "/") "/$part" else "$currentPath/$part"
             }
         }
-        Log.d(TAG, "resolveCaseInsensitivePath: Resolved path from '$path' to '$currentPath'")
-        return currentPath
+        val finalPath = normalizePath(currentPath)
+        Log.d(TAG, "resolveCaseInsensitivePath: Resolved path from '$path' to '$finalPath'")
+        return finalPath
     }
 
     private suspend fun checkPathExists(authHeader: String, path: String): Boolean {
+        val cleanPath = normalizePath(path)
         return try {
-            api.getResource(authHeader, path, limit = 1, fields = "type")
+            Log.d(TAG, "checkPathExists: Checking cleanPath='$cleanPath'")
+            api.getResource(authHeader, cleanPath, limit = 1, fields = "type")
+            Log.d(TAG, "checkPathExists: Path '$cleanPath' exists (Code 200)")
             true
         } catch (e: Exception) {
+            Log.d(TAG, "checkPathExists: Path '$cleanPath' does not exist or failed: ${e.message}")
             false
         }
     }
 
     suspend fun getAllFilesFromFolder(
+        context: Context?,
         authHeader: String,
         path: String,
         onProgress: ((String) -> Unit)? = null
     ): List<ResourceItem> {
         val items = mutableListOf<ResourceItem>()
         var offset = 0
-        val limit = 500 // Faster fetching using larger page limits
+        val limit = 100 // Safe, standard limit that Yandex definitely supports
         var hasMore = true
         var page = 1
 
-        Log.d(TAG, "getAllFilesFromFolder: Starting listing for path='$path'")
+        val cleanPath = normalizePath(path)
+        Log.d(TAG, "getAllFilesFromFolder: Starting listing for path='$cleanPath'. Prefix 'disk:' removed.")
 
         while (hasMore) {
             try {
-                Log.d(TAG, "getAllFilesFromFolder: Page $page, offset $offset, limit $limit")
+                Log.d(TAG, "getAllFilesFromFolder: Page $page, requesting offset=$offset, limit=$limit for path='$cleanPath'")
                 val response = api.getResource(
                     token = authHeader,
-                    path = path,
+                    path = cleanPath,
                     limit = limit,
                     offset = offset,
-                    fields = null // Retrieve all fields safely to prevent strict parsing/missing field issues
+                    fields = null
                 )
                 
+                Log.d(TAG, "API Response for path='$cleanPath': Code 200 (OK)")
+
                 val embedded = response.embedded
                 val pageItems = embedded?.items ?: emptyList()
-                Log.d(TAG, "getAllFilesFromFolder: Page $page fetched, received ${pageItems.size} items from API.")
+                Log.d(TAG, "getAllFilesFromFolder: Page $page fetched, received ${pageItems.size} items from API (before filtering).")
 
                 if (pageItems.isEmpty()) {
                     Log.d(TAG, "getAllFilesFromFolder: Page $page is empty. Stopping pagination.")
@@ -238,11 +273,14 @@ object YandexDiskManager {
                 } else {
                     val fileItems = pageItems.filter { it.type == "file" }
                     items.addAll(fileItems)
-                    Log.d(TAG, "getAllFilesFromFolder: Added ${fileItems.size} files to list. Total gathered: ${items.size}")
+                    Log.d(TAG, "getAllFilesFromFolder: Added ${fileItems.size} files. Total gathered so far: ${items.size}")
 
                     val total = embedded?.total
+                    val returnedLimit = embedded?.limit ?: limit
+                    
+                    Log.d(TAG, "getAllFilesFromFolder: Pagination parameters in response: total=$total, limit=$returnedLimit, offset=${embedded?.offset}")
+
                     if (total != null) {
-                        Log.d(TAG, "getAllFilesFromFolder: Pagination status: offset=$offset, total=$total")
                         offset += pageItems.size
                         if (offset >= total) {
                             Log.d(TAG, "getAllFilesFromFolder: Offset $offset reached or exceeded total $total. Stopping pagination.")
@@ -251,9 +289,9 @@ object YandexDiskManager {
                             page++
                         }
                     } else {
-                        // Fallback pagination
-                        if (pageItems.size < limit) {
-                            Log.d(TAG, "getAllFilesFromFolder: Received less than limit $limit. Stopping pagination.")
+                        // Fallback pagination when total is not returned
+                        if (pageItems.size < returnedLimit) {
+                            Log.d(TAG, "getAllFilesFromFolder: Received ${pageItems.size} < limit $returnedLimit. Stopping pagination.")
                             hasMore = false
                         } else {
                             offset += pageItems.size
@@ -261,33 +299,48 @@ object YandexDiskManager {
                         }
                     }
                 }
+            } catch (e: retrofit2.HttpException) {
+                val code = e.code()
+                val errorBody = e.response()?.errorBody()?.string()
+                Log.e(TAG, "API Response Error: Code $code, Message: ${e.message()}, Body: $errorBody")
+                if (code == 401 && context != null) {
+                    Log.e(TAG, "API Token is invalid or expired! Clearing stored token.")
+                    clearToken(context)
+                }
+                hasMore = false
             } catch (e: Exception) {
-                Log.e(TAG, "getAllFilesFromFolder: Error fetching folder $path on page $page", e)
+                Log.e(TAG, "API Connection/Parsing Error: ${e.message}", e)
                 hasMore = false
             }
         }
         
-        // Log brief summary of extensions for diagnostics without spamming
-        val extSummary = items.groupBy { it.name.substringAfterLast('.', "").lowercase() }
-            .mapValues { it.value.size }
-        Log.d(TAG, "getAllFilesFromFolder: Completed. Total files found: ${items.size}. Breakdown: $extSummary")
+        Log.d(TAG, "getAllFilesFromFolder: Completed. Total files found: ${items.size}.")
         return items
     }
 
     suspend fun downloadFileToTemp(context: Context, path: String, tempFile: File): Boolean = withContext(Dispatchers.IO) {
         val token = getToken(context) ?: return@withContext false
         val authHeader = "OAuth $token"
+        val cleanPath = normalizePath(path)
         try {
-            val linkResponse = api.getDownloadLink(authHeader, path)
+            Log.d(TAG, "downloadFileToTemp: Downloading cleanPath='$cleanPath'")
+            val linkResponse = api.getDownloadLink(authHeader, cleanPath)
             val responseBody = api.downloadFile(linkResponse.href)
             tempFile.outputStream().use { output ->
                 responseBody.byteStream().use { input ->
                     input.copyTo(output)
                 }
             }
+            Log.d(TAG, "downloadFileToTemp successful for: $cleanPath")
             true
+        } catch (e: retrofit2.HttpException) {
+            Log.e(TAG, "downloadFileToTemp failed with HTTP error: Code ${e.code()}. Body: ${e.response()?.errorBody()?.string()}", e)
+            if (e.code() == 401) {
+                clearToken(context)
+            }
+            false
         } catch (e: Exception) {
-            Log.e(TAG, "downloadFileToTemp failed for path: $path", e)
+            Log.e(TAG, "downloadFileToTemp failed for path: $cleanPath", e)
             false
         }
     }
@@ -315,17 +368,50 @@ object YandexDiskManager {
                 setSyncFolder(context, syncFolder)
             }
 
+            Log.d(TAG, "calculateSyncStats: Original folder='$originalFolder' resolved to='$syncFolder'")
+            if (syncFolder.contains("disk:")) {
+                Log.e(TAG, "calculateSyncStats ERROR: Resolved path contains 'disk:' prefix!")
+            } else {
+                Log.d(TAG, "calculateSyncStats: Verified resolved path '$syncFolder' does not contain 'disk:' prefix.")
+            }
+
+            val maskedToken = if (token.length > 8) "${token.take(4)}...${token.takeLast(4)}" else "***"
+            Log.d(TAG, "calculateSyncStats Auth Header: 'OAuth $maskedToken' (Length: ${token.length})")
+
             onProgress("Подготовка облака...")
             initDirectories(authHeader, syncFolder)
 
             onProgress("Получение списка файлов с Яндекс Диска...")
-            val cloudItems = getAllFilesFromFolder(authHeader, syncFolder)
+            val cloudItems = getAllFilesFromFolder(context, authHeader, syncFolder)
+            
+            Log.d(TAG, "calculateSyncStats: Starting filtering of ${cloudItems.size} files.")
+            if (cloudItems.isNotEmpty()) {
+                Log.d(TAG, "calculateSyncStats: Showing first 5 files from disk for extension check:")
+                cloudItems.take(5).forEachIndexed { idx, item ->
+                    Log.d(TAG, "  [$idx] Name: '${item.name}', Type: '${item.type}', Path: '${item.path}'")
+                }
+            } else {
+                Log.d(TAG, "calculateSyncStats: No files found in folder.")
+            }
+
             val cloudBooks = cloudItems.filter {
                 val lowerName = it.name.lowercase()
-                lowerName.endsWith(".fb2") || lowerName.endsWith(".fb2.zip") || lowerName.endsWith(".epub")
+                val isFb2 = lowerName.endsWith(".fb2")
+                val isFb2Zip = lowerName.endsWith(".fb2.zip")
+                val isEpub = lowerName.endsWith(".epub")
+                val matches = isFb2 || isFb2Zip || isEpub
+                Log.v(TAG, "File: '${it.name}' -> isFb2=$isFb2, isFb2Zip=$isFb2Zip, isEpub=$isEpub -> matches=$matches")
+                matches
             }
             val booksOnDisk = cloudBooks.size
             Log.d(TAG, "calculateSyncStats: Found $booksOnDisk books out of ${cloudItems.size} files on disk.")
+
+            if (cloudBooks.isNotEmpty()) {
+                Log.d(TAG, "calculateSyncStats: First 5 MATCHED books:")
+                cloudBooks.take(5).forEachIndexed { idx, item ->
+                    Log.d(TAG, "  [$idx] Book Name: '${item.name}', Path: '${item.path}'")
+                }
+            }
 
             val cloudCache = CloudFileCache.loadCache(context)
             val updatedCloudBooks = mutableListOf<CloudFileEntry>()
@@ -357,7 +443,8 @@ object YandexDiskManager {
                         val deferreds = chunk.map { item ->
                             async {
                                 try {
-                                    val linkResponse = api.getDownloadLink(authHeader, item.path ?: "$syncFolder/${item.name}")
+                                    val cleanItemPath = normalizePath(item.path ?: "$syncFolder/${item.name}")
+                                    val linkResponse = api.getDownloadLink(authHeader, cleanItemPath)
                                     val responseBody = api.downloadFile(linkResponse.href)
                                     
                                     val tempFile = File(context.cacheDir, "temp_${item.name}")
@@ -394,8 +481,9 @@ object YandexDiskManager {
                                             val avgTimePerFile = elapsed / processedCount
                                             val remaining = totalToProcess - processedCount
                                             val remainingMs = remaining * avgTimePerFile
-                                            val remainingMinutes = remainingMs / 60000
-                                            val remainingSeconds = (remainingMs % 60000) / 1000
+                                            val remainingMsLong = remainingMs.toLong()
+                                            val remainingMinutes = remainingMsLong / 60000
+                                            val remainingSeconds = (remainingMsLong % 60000) / 1000
                                             val timeStr = if (remainingMinutes > 0) "$remainingMinutes мин" else "$remainingSeconds сек"
                                             onProgress("Анализ диска: $processedCount из $totalToProcess файлов обработано. Осталось примерно: $timeStr")
                                         }
@@ -406,7 +494,7 @@ object YandexDiskManager {
                         awaitAll(*deferreds.toTypedArray())
                     }
                 }
-CloudFileCache.saveCache(context, cloudCache)
+                CloudFileCache.saveCache(context, cloudCache)
             }
             
             val repository = BookRepository(database.bookDao(), database.noteDao())
@@ -420,7 +508,7 @@ CloudFileCache.saveCache(context, cloudCache)
 
             onProgress("Найдено ${toDownload.size} новых книг на диске, ${toUpload.size} книг нужно загрузить на диск")
 
-            val cloudProgressItems = getAllFilesFromFolder(authHeader, "$syncFolder/Progress")
+            val cloudProgressItems = getAllFilesFromFolder(context, authHeader, "$syncFolder/Progress")
 
             return@withContext SyncStats(
                 booksOnDisk = booksOnDisk,
@@ -454,12 +542,10 @@ CloudFileCache.saveCache(context, cloudCache)
             for ((index, cloudItem) in stats.toDownload.withIndex()) {
                 onProgress("Скачивание: ${index + 1} из $totalDownloads", index, totalDownloads)
                 try {
-                    val linkResponse = api.getDownloadLink(authHeader, "$syncFolder/${cloudItem.name}")
+                    val cleanPath = normalizePath("$syncFolder/${cloudItem.name}")
+                    val linkResponse = api.getDownloadLink(authHeader, cleanPath)
                     val responseBody = api.downloadFile(linkResponse.href)
                     
-                    // We must download it to cache first, compute SHA-1, then process it and save to books folder.
-                    // Wait, we already have the SHA-1 in the CloudFileEntry!
-                    // But we still need to extract the FB2 content.
                     val tempFile = File(context.cacheDir, "temp_download_${cloudItem.name}")
                     try {
                         tempFile.outputStream().use { output ->
@@ -477,7 +563,6 @@ CloudFileCache.saveCache(context, cloudCache)
                         val coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
                         val strippedContent = NewCoverExtractor.stripBinarySections(content)
                         
-                        // Now save it to permanent storage
                         val booksDir = File(context.filesDir, "books")
                         if (!booksDir.exists()) booksDir.mkdirs()
                         val localFile = File(booksDir, cloudItem.name)
@@ -518,13 +603,12 @@ CloudFileCache.saveCache(context, cloudCache)
                     val filename = "${localBook.sha1}$ext"
                     onProgress("Загрузка: ${index + 1} из $totalUploads", index, totalUploads)
                     try {
-                        val linkResponse = api.getUploadLink(authHeader, "$syncFolder/$filename")
+                        val cleanPath = normalizePath("$syncFolder/$filename")
+                        val linkResponse = api.getUploadLink(authHeader, cleanPath)
                         val fileBytes = localFile.readBytes()
                         api.uploadFile(linkResponse.href, fileBytes.toRequestBody("application/octet-stream".toMediaType()))
                         
-                        // Update cloud cache with this new uploaded file
                         val cloudCache = CloudFileCache.loadCache(context)
-                        // It won't have modified date exactly, but we can fake it or just let the next sync fetch it
                         cloudCache.entries[filename] = CloudFileEntry(
                             name = filename,
                             size = fileBytes.size.toLong(),
@@ -545,7 +629,8 @@ CloudFileCache.saveCache(context, cloudCache)
             for (progressItem in stats.cloudProgressItems) {
                 if (progressItem.name.endsWith(".json")) {
                     try {
-                        val linkResponse = api.getDownloadLink(authHeader, progressItem.path ?: "$syncFolder/Progress/${progressItem.name}")
+                        val cleanPath = normalizePath(progressItem.path ?: "$syncFolder/Progress/${progressItem.name}")
+                        val linkResponse = api.getDownloadLink(authHeader, cleanPath)
                         val body = api.downloadFile(linkResponse.href)
                         val jsonStr = body.string()
                         val cloudProgress = progressAdapter.fromJson(jsonStr)
@@ -585,7 +670,8 @@ CloudFileCache.saveCache(context, cloudCache)
                             lastReadTime = localBook.lastReadTime
                         )
                         val json = progressAdapter.toJson(payload)
-                        val link = api.getUploadLink(authHeader, "$syncFolder/Progress/$cloudProgressName")
+                        val cleanPath = normalizePath("$syncFolder/Progress/$cloudProgressName")
+                        val link = api.getUploadLink(authHeader, cleanPath)
                         api.uploadFile(link.href, json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType()))
                     } catch (e: Exception) {
                         Log.e(TAG, "Error pushing progress: ${localBook.title}", e)
@@ -617,7 +703,8 @@ CloudFileCache.saveCache(context, cloudCache)
             val progressAdapter = moshi.adapter(BookProgressPayload::class.java)
             val json = progressAdapter.toJson(payload)
             val cloudProgressName = "progress_$sha1.json"
-            val link = api.getUploadLink(authHeader, "$syncFolder/Progress/$cloudProgressName")
+            val cleanPath = normalizePath("$syncFolder/Progress/$cloudProgressName")
+            val link = api.getUploadLink(authHeader, cleanPath)
             api.uploadFile(link.href, json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType()))
             Log.d(TAG, "Direct push progress for book $sha1 successful.")
         } catch (e: Exception) {
