@@ -1,60 +1,42 @@
 package com.nightread.app.data
 
-import android.content.Context
-import com.squareup.moshi.JsonClass
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
-import java.io.File
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import androidx.room.Dao
+import androidx.room.Entity
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.PrimaryKey
+import androidx.room.Query
 
-@JsonClass(generateAdapter = true)
-data class CloudFileEntry(
-    val name: String,
-    val size: Long,
-    val modified: String,
-    val sha1: String
+/**
+ * Модель для кэширования информации о файлах в облаке (Яндекс Диск).
+ * Используется для быстрой проверки изменений и дедупликации по SHA-1 без скачивания файлов.
+ */
+@Entity(tableName = "cloud_file_cache")
+data class CloudFileEntity(
+    @PrimaryKey val path: String,       // Полный путь файла на Яндекс Диске (например, "/Books/MyBook.fb2")
+    val sha1: String,                   // SHA-1 хэш содержимого файла
+    val size: Long,                     // Размер файла в байтах
+    val lastModified: String            // Дата последнего изменения от API Яндекса
 )
 
-@JsonClass(generateAdapter = true)
-data class CloudCacheData(
-    val entries: MutableMap<String, CloudFileEntry> = mutableMapOf()
-)
+/**
+ * DAO для управления кэшем облачных файлов.
+ */
+@Dao
+interface CloudFileDao {
 
-object CloudFileCache {
-    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
-    private val adapter = moshi.adapter(CloudCacheData::class.java)
+    @Query("SELECT * FROM cloud_file_cache WHERE path = :path LIMIT 1")
+    suspend fun getByPath(path: String): CloudFileEntity?
 
-    private fun getCacheFile(context: Context): File {
-        return File(context.filesDir, "cloud_file_cache.json")
-    }
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(entity: CloudFileEntity)
 
-    suspend fun loadCache(context: Context): CloudCacheData = withContext(Dispatchers.IO) {
-        val file = getCacheFile(context)
-        if (!file.exists()) return@withContext CloudCacheData()
-        return@withContext try {
-            adapter.fromJson(file.readText()) ?: CloudCacheData()
-        } catch (e: Exception) {
-            CloudCacheData()
-        }
-    }
+    @Query("SELECT * FROM cloud_file_cache")
+    suspend fun getAll(): List<CloudFileEntity>
 
-    suspend fun saveCache(context: Context, data: CloudCacheData) = withContext(Dispatchers.IO) {
-        try {
-            getCacheFile(context).writeText(adapter.toJson(data))
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
+    @Query("DELETE FROM cloud_file_cache")
+    suspend fun clearAll()
 
-    suspend fun clearCache(context: Context) = withContext(Dispatchers.IO) {
-        try {
-            val file = getCacheFile(context)
-            if (file.exists()) {
-                file.delete()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
+    @Query("DELETE FROM cloud_file_cache WHERE path = :path")
+    suspend fun deleteByPath(path: String)
 }

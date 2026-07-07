@@ -3,6 +3,7 @@ package com.nightread.app.data
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.Environment
 import android.util.Log
 import com.nightread.app.service.NewCoverExtractor
 import com.nightread.app.service.NewFb2Parser
@@ -12,6 +13,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
@@ -19,13 +23,21 @@ import java.nio.charset.StandardCharsets
 
 /**
  * Менеджер синхронизации с Яндекс Диском.
- * Управляет проверкой подключения, подсчетом статистики и непосредственным выполнением синхронизации
- * с передачей подробного прогресса и оценкой оставшегося времени.
+ * Отвечает за:
+ * 1. Получение статистики синхронизации (toDownload, toUpload) с дедупликацией по SHA-1 и имени.
+ * 2. Пофайловое кэширование хэшей (SHA-1) файлов Яндекс Диска в локальной БД (CloudFileEntity / CloudFileDao).
+ * 3. Загрузку новых книг на диск с сохранением ОРИГИНАЛЬНОГО имени файла (пропуск при совпадении имени или SHA-1).
+ * 4. Скачивание новых книг с сохранением оригинальных названий файлов в папку Books.
+ * 5. Синхронизацию прогресса чтения.
  */
 class YandexSyncManager(private val context: Context) {
     private val database = AppDatabase.getDatabase(context)
     private val repository = BookRepository(database.bookDao(), database.noteDao())
     private val cloudFileDao = database.cloudFileDao()
+
+    companion object {
+        private const val TAG = "YandexSyncManager"
+    }
 
     /**
      * Проверяет наличие подключения к интернету.
@@ -37,7 +49,39 @@ class YandexSyncManager(private val context: Context) {
     }
 
     /**
-     * Приостанавливает выполнение корутины, если отсутствует интернет, и сообщает об этом в callback.
+     * Возвращает локальную папку для сохранения книг.
+     * Приоритет отдается общедоступной папке '/storage/emulated/0/Books'.
+     * Если запись невозможна или ограничена ОС, выполняется откат на безопасную папку приложения.
+     */
+    fun getLocalBooksDirectory(): File {
+        val externalBooksDir = File(Environment.getExternalStorageDirectory(), "Books")
+        try {
+            if (!externalBooksDir.exists()) {
+                externalBooksDir.mkdirs()
+            }
+            if (externalBooksDir.exists() && externalBooksDir.canWrite()) {
+                return externalBooksDir
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Cannot write directly to public Books folder: ${e.message}. Using safe fallback.")
+        }
+
+        // Откат 1: Внешняя директория приложения
+        val extFilesDir = context.getExternalFilesDir("Books")
+        if (extFilesDir != null && (extFilesDir.exists() || extFilesDir.mkdirs())) {
+            return extFilesDir
+        }
+
+        // Откат 2: Внутренний кэш приложения
+        val internalBooksDir = File(context.filesDir, "books")
+        if (!internalBooksDir.exists()) {
+            internalBooksDir.mkdirs()
+        }
+        return internalBooksDir
+    }
+
+    /**
+     * Ожидание подключения к интернету, если связь пропала во время работы.
      */
     private suspend fun ensureInternet(
         completed: Int,
@@ -50,7 +94,7 @@ class YandexSyncManager(private val context: Context) {
         while (!hasInternetConnection()) {
             currentCoroutineContext().ensureActive()
             onProgress(
-                "Отсутствует подключение к интернету. Ожидание сети...",
+                "Связь прервана. Ожидание подключения к сети...",
                 completed,
                 total,
                 stage,
@@ -58,35 +102,205 @@ class YandexSyncManager(private val context: Context) {
                 uploadedCount,
                 -1L
             )
-            delay(2000)
+            delay(3000)
         }
     }
 
     /**
-     * Запускает расчет статистики для синхронизации.
+     * Расчет статистики синхронизации. Сканирует файлы на Яндекс Диске,
+     * сопоставляет их с локальной БД, считает SHA-1 (с использованием кэша CloudFileDao)
+     * и определяет, какие книги скачать, а какие — загрузить.
      */
     suspend fun calculateSyncStats(onProgress: (status: String) -> Unit): SyncStats? = withContext(Dispatchers.IO) {
-        YandexDiskManager.calculateSyncStats(context, onProgress)
+        val originalFolder = YandexDiskManager.getSyncFolder(context)
+        val token = YandexDiskManager.getToken(context) ?: return@withContext null
+        val authHeader = "OAuth $token"
+
+        try {
+            onProgress("Поиск папки синхронизации на Яндекс Диске...")
+            val syncFolder = YandexDiskManager.resolveCaseInsensitivePath(context, originalFolder)
+            if (syncFolder != originalFolder) {
+                YandexDiskManager.setSyncFolder(context, syncFolder)
+            }
+
+            Log.d(TAG, "calculateSyncStats: Папка синхронизации: $syncFolder")
+            onProgress("Проверка директорий на диске...")
+            val progressFolder = "$syncFolder/Progress"
+            val pathsToCreate = listOf(syncFolder, progressFolder)
+            for (path in pathsToCreate) {
+                try {
+                    YandexDiskManager.api.createDirectory(authHeader, path)
+                } catch (e: Exception) {
+                    Log.d(TAG, "Папка уже существует: $path")
+                }
+            }
+
+            onProgress("Получение списка файлов из облака...")
+            val cloudItems = YandexDiskManager.getAllFilesFromFolder(context, authHeader, syncFolder)
+            
+            // Фильтруем только поддерживаемые форматы книг
+            val cloudBooks = cloudItems.filter {
+                val name = it.name.lowercase()
+                name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".epub")
+            }
+            val booksOnDisk = cloudBooks.size
+            Log.d(TAG, "Найдено книг на диске: $booksOnDisk")
+
+            onProgress("Анализ кэша SHA-1 файлов...")
+            val updatedCloudBooks = mutableListOf<CloudFileEntity>()
+            val needsSha1 = mutableListOf<ResourceItem>()
+
+            // Проверка кэша в локальной Room-БД
+            for (cloudBook in cloudBooks) {
+                val cleanPath = YandexDiskManager.normalizePath(cloudBook.path ?: "$syncFolder/${cloudBook.name}")
+                val cached = cloudFileDao.getByPath(cleanPath)
+                if (cached != null && cached.size == (cloudBook.size ?: 0L) && cached.lastModified == (cloudBook.modified ?: "")) {
+                    updatedCloudBooks.add(cached)
+                } else {
+                    needsSha1.add(cloudBook)
+                }
+            }
+
+            Log.d(TAG, "Хитов в кэше: ${updatedCloudBooks.size}, требуется рассчитать SHA-1: ${needsSha1.size}")
+
+            // Если есть новые или изменившиеся файлы на диске — вычисляем их хэши в фоне
+            if (needsSha1.isNotEmpty()) {
+                var processedCount = 0
+                val totalToProcess = needsSha1.size
+                val startTime = System.currentTimeMillis()
+                
+                // Ограничиваем параллельность, чтобы не перегружать сеть и API
+                val concurrencyLimit = 3
+                val chunks = needsSha1.chunked(concurrencyLimit)
+                
+                for (chunk in chunks) {
+                    coroutineScope {
+                        val deferreds = chunk.map { item ->
+                            async {
+                                try {
+                                    val cleanItemPath = YandexDiskManager.normalizePath(item.path ?: "$syncFolder/${item.name}")
+                                    val linkResponse = YandexDiskManager.api.getDownloadLink(authHeader, cleanItemPath)
+                                    val responseBody = YandexDiskManager.api.downloadFile(linkResponse.href)
+                                    
+                                    val tempFile = File(context.cacheDir, "temp_stat_${item.name}")
+                                    try {
+                                        tempFile.outputStream().use { output ->
+                                            responseBody.byteStream().use { input ->
+                                                input.copyTo(output)
+                                            }
+                                        }
+                                        val bytes = tempFile.readBytes()
+                                        val sha1 = computeSha1(bytes)
+                                        val entity = CloudFileEntity(
+                                            path = cleanItemPath,
+                                            sha1 = sha1,
+                                            size = item.size ?: 0L,
+                                            lastModified = item.modified ?: ""
+                                        )
+                                        cloudFileDao.insert(entity)
+                                        synchronized(updatedCloudBooks) {
+                                            updatedCloudBooks.add(entity)
+                                        }
+                                    } finally {
+                                        if (tempFile.exists()) tempFile.delete()
+                                    }
+                                } catch (e: retrofit2.HttpException) {
+                                    if (e.code() == 401) {
+                                        YandexDiskManager.clearToken(context)
+                                        Log.e(TAG, "Token expired during SHA1 calculation. Clearing token.")
+                                    }
+                                    Log.e(TAG, "HTTP Error calculating SHA1 for cloud file: ${item.name}", e)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error calculating SHA1 for cloud file: ${item.name}", e)
+                                } finally {
+                                    synchronized(this@YandexSyncManager) {
+                                        processedCount++
+                                        if (processedCount % 3 == 0 || processedCount == totalToProcess) {
+                                            val elapsed = System.currentTimeMillis() - startTime
+                                            val avgTime = elapsed / processedCount
+                                            val remaining = totalToProcess - processedCount
+                                            val remainingSecs = (remaining * avgTime) / 1000
+                                            val timeStr = if (remainingSecs > 60) "${remainingSecs / 60} мин ${remainingSecs % 60} сек" else "$remainingSecs сек"
+                                            onProgress("Индексация облака: $processedCount из $totalToProcess (осталось ~ $timeStr)")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        deferreds.awaitAll()
+                    }
+                }
+            }
+
+            // Получаем список всех локальных книг из базы данных
+            val localBooks = database.bookDao().getAllBooks().first()
+            val localSha1Set = localBooks.map { it.sha1 }.toSet()
+            val localNamesSet = localBooks.mapNotNull { it.filePath?.let { path -> File(path).name.lowercase() } }.toSet()
+
+            // 1. Книги для скачивания (есть в облаке, но нет локально по SHA-1)
+            val toDownload = updatedCloudBooks.filter { !localSha1Set.contains(it.sha1) }
+
+            // 2. Книги для загрузки (есть на устройстве, но нет в облаке ни по SHA-1, ни по оригинальному имени)
+            val cloudSha1Set = updatedCloudBooks.map { it.sha1 }.toSet()
+            val cloudNamesSet = updatedCloudBooks.map { File(it.path).name.lowercase() }.toSet()
+
+            val toUpload = localBooks.filter { localBook ->
+                val hasSha1InCloud = cloudSha1Set.contains(localBook.sha1)
+                
+                val localFileName = localBook.filePath?.let { File(it).name.lowercase() }
+                val hasNameInCloud = localFileName != null && cloudNamesSet.contains(localFileName)
+
+                if (hasSha1InCloud) {
+                    Log.d(TAG, "Книга '${localBook.title}' пропущена для загрузки: SHA-1 уже есть в облаке")
+                } else if (hasNameInCloud) {
+                    Log.d(TAG, "Книга '${localBook.title}' пропущена для загрузки: Файл с именем '$localFileName' уже есть в облаке")
+                }
+
+                !hasSha1InCloud && !hasNameInCloud
+            }
+
+            val duplicates = updatedCloudBooks.size - toDownload.size
+
+            onProgress("Найдено ${toDownload.size} новых книг на диске, ${toUpload.size} книг нужно загрузить на диск")
+
+            val cloudProgressItems = YandexDiskManager.getAllFilesFromFolder(context, authHeader, "$syncFolder/Progress")
+
+            return@withContext SyncStats(
+                booksOnDisk = booksOnDisk,
+                booksLocal = localBooks.size,
+                toDownload = toDownload,
+                toUpload = toUpload,
+                duplicates = duplicates,
+                cloudProgressItems = cloudProgressItems
+            )
+        } catch (e: retrofit2.HttpException) {
+            if (e.code() == 401) {
+                YandexDiskManager.clearToken(context)
+                Log.e(TAG, "Token expired during calculateSyncStats. Clearing token.")
+            }
+            Log.e(TAG, "HTTP error in calculateSyncStats", e)
+            return@withContext null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in calculateSyncStats", e)
+            return@withContext null
+        }
     }
 
     /**
-     * Выполняет синхронизацию (скачивание, загрузку и синхронизацию прогресса) с подробными отчетами.
+     * Выполняет синхронизацию (скачивание, загрузка, синхронизация прогресса).
      */
     suspend fun performSync(
         stats: SyncStats,
-        onProgress: (status: String, completed: Int, total: Int, stage: YandexSyncState.Stage, downloadedCount: Int, uploadedCount: Int, remainingSeconds: Long) -> Unit
+        onProgress: (status: String, completed: Int, total: Int, stage: YandexSyncState.Stage, downloaded: Int, uploaded: Int, remainingSeconds: Long) -> Unit
     ): Boolean = withContext(Dispatchers.IO) {
         val syncFolder = YandexDiskManager.getSyncFolder(context)
         val token = YandexDiskManager.getToken(context) ?: return@withContext false
         val authHeader = "OAuth $token"
         
-        val api = YandexDiskManager.api
-        val moshi = YandexDiskManager.moshi
-        val progressAdapter = moshi.adapter(BookProgressPayload::class.java)
+        val progressAdapter = YandexDiskManager.moshi.adapter(BookProgressPayload::class.java)
 
         val totalDownloads = stats.toDownload.size
         val totalUploads = stats.toUpload.size
-        // Всего задач: скачивание + загрузка + 1 (синхронизация прогресса)
         val totalTasks = totalDownloads + totalUploads + 1
         var completedTasks = 0
 
@@ -98,18 +312,21 @@ class YandexSyncManager(private val context: Context) {
             // 1. СКАЧИВАНИЕ КНИГ (DOWNLOAD)
             // ==========================================
             val downloadStartTime = System.currentTimeMillis()
+            val booksDirectory = getLocalBooksDirectory()
+            Log.d(TAG, "Локальная папка для скачивания книг: ${booksDirectory.absolutePath}")
+
             for ((index, cloudItem) in stats.toDownload.withIndex()) {
                 currentCoroutineContext().ensureActive()
                 ensureInternet(completedTasks, totalTasks, YandexSyncState.Stage.DOWNLOADING, downloadedCount, uploadedCount, onProgress)
 
-                // Расчет оставшегося времени скачивания
                 val elapsed = System.currentTimeMillis() - downloadStartTime
                 val avgTimePerFile = if (index > 0) elapsed / index else 0L
                 val remainingFiles = totalDownloads - index
                 val remainingSeconds = if (avgTimePerFile > 0) (remainingFiles * avgTimePerFile) / 1000 else -1L
 
+                val originalName = File(cloudItem.path).name
                 onProgress(
-                    "Скачивание: ${index + 1} из $totalDownloads",
+                    "Скачивание: $originalName (${index + 1} из $totalDownloads)",
                     completedTasks,
                     totalTasks,
                     YandexSyncState.Stage.DOWNLOADING,
@@ -119,11 +336,10 @@ class YandexSyncManager(private val context: Context) {
                 )
 
                 try {
-                    val cleanPath = YandexDiskManager.normalizePath("$syncFolder/${cloudItem.name}")
-                    val linkResponse = api.getDownloadLink(authHeader, cleanPath)
-                    val responseBody = api.downloadFile(linkResponse.href)
+                    val linkResponse = YandexDiskManager.api.getDownloadLink(authHeader, cloudItem.path)
+                    val responseBody = YandexDiskManager.api.downloadFile(linkResponse.href)
                     
-                    val tempFile = File(context.cacheDir, "temp_download_${cloudItem.name}")
+                    val tempFile = File(context.cacheDir, "temp_down_${originalName}")
                     try {
                         tempFile.outputStream().use { output ->
                             responseBody.byteStream().use { input ->
@@ -134,15 +350,13 @@ class YandexSyncManager(private val context: Context) {
                         val bytes = tempFile.readBytes()
                         val content = String(bytes, StandardCharsets.UTF_8)
                         
-                        val meta = NewFb2Parser.parse(content, cloudItem.name)
+                        val meta = NewFb2Parser.parse(content, originalName)
                         val sha1 = cloudItem.sha1
                         
                         val coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
                         val strippedContent = NewCoverExtractor.stripBinarySections(content)
                         
-                        val booksDir = File(context.filesDir, "books")
-                        if (!booksDir.exists()) booksDir.mkdirs()
-                        val localFile = File(booksDir, cloudItem.name)
+                        val localFile = File(booksDirectory, originalName)
                         tempFile.copyTo(localFile, overwrite = true)
                         
                         val newBook = BookEntity(
@@ -164,11 +378,12 @@ class YandexSyncManager(private val context: Context) {
                         )
                         repository.insertBook(newBook)
                         downloadedCount++
+                        Log.d(TAG, "Успешно скачана и импортирована книга: $originalName (SHA-1: $sha1)")
                     } finally {
                         if (tempFile.exists()) tempFile.delete()
                     }
                 } catch (e: Exception) {
-                    Log.e("YandexSyncManager", "Error downloading book: ${cloudItem.name}", e)
+                    Log.e(TAG, "Ошибка скачивания книги '$originalName'", e)
                 }
                 completedTasks++
             }
@@ -181,14 +396,16 @@ class YandexSyncManager(private val context: Context) {
                 currentCoroutineContext().ensureActive()
                 ensureInternet(completedTasks, totalTasks, YandexSyncState.Stage.UPLOADING, downloadedCount, uploadedCount, onProgress)
 
-                // Расчет оставшегося времени загрузки
                 val elapsed = System.currentTimeMillis() - uploadStartTime
                 val avgTimePerFile = if (index > 0) elapsed / index else 0L
                 val remainingFiles = totalUploads - index
                 val remainingSeconds = if (avgTimePerFile > 0) (remainingFiles * avgTimePerFile) / 1000 else -1L
 
+                val localFile = localBook.filePath?.let { File(it) }
+                val originalName = localFile?.name ?: "${localBook.title}.fb2"
+
                 onProgress(
-                    "Загрузка: ${index + 1} из $totalUploads",
+                    "Загрузка: $originalName (${index + 1} из $totalUploads)",
                     completedTasks,
                     totalTasks,
                     YandexSyncState.Stage.UPLOADING,
@@ -197,28 +414,31 @@ class YandexSyncManager(private val context: Context) {
                     remainingSeconds
                 )
 
-                val localFile = localBook.filePath?.let { File(it) }
                 if (localFile != null && localFile.exists()) {
-                    val ext = if (localFile.name.endsWith(".zip")) ".fb2.zip" else ".fb2"
-                    val filename = "${localBook.sha1}$ext"
                     try {
-                        val cleanPath = YandexDiskManager.normalizePath("$syncFolder/$filename")
-                        val linkResponse = api.getUploadLink(authHeader, cleanPath)
+                        val cleanPath = YandexDiskManager.normalizePath("$syncFolder/$originalName")
+                        val linkResponse = YandexDiskManager.api.getUploadLink(authHeader, cleanPath)
                         val fileBytes = localFile.readBytes()
-                        api.uploadFile(linkResponse.href, fileBytes.toRequestBody("application/octet-stream".toMediaType()))
-                        
-                        val cloudCache = CloudFileCache.loadCache(context)
-                        cloudCache.entries[filename] = CloudFileEntry(
-                            name = filename,
-                            size = fileBytes.size.toLong(),
-                            modified = "", // unknown until next scan
-                            sha1 = localBook.sha1
+                        YandexDiskManager.api.uploadFile(
+                            linkResponse.href,
+                            fileBytes.toRequestBody("application/octet-stream".toMediaType())
                         )
-                        CloudFileCache.saveCache(context, cloudCache)
+                        
+                        // Сохраняем в кэш
+                        val entity = CloudFileEntity(
+                            path = cleanPath,
+                            sha1 = localBook.sha1,
+                            size = fileBytes.size.toLong(),
+                            lastModified = "" // Обновится при следующем сканировании
+                        )
+                        cloudFileDao.insert(entity)
                         uploadedCount++
+                        Log.d(TAG, "Успешно загружена книга: $originalName")
                     } catch (e: Exception) {
-                        Log.e("YandexSyncManager", "Error uploading book: $filename", e)
+                        Log.e(TAG, "Ошибка загрузки книги '$originalName'", e)
                     }
+                } else {
+                    Log.w(TAG, "Файл книги не найден на устройстве для загрузки: ${localBook.title}")
                 }
                 completedTasks++
             }
@@ -245,8 +465,8 @@ class YandexSyncManager(private val context: Context) {
                 if (progressItem.name.endsWith(".json")) {
                     try {
                         val cleanPath = YandexDiskManager.normalizePath(progressItem.path ?: "$syncFolder/Progress/${progressItem.name}")
-                        val linkResponse = api.getDownloadLink(authHeader, cleanPath)
-                        val body = api.downloadFile(linkResponse.href)
+                        val linkResponse = YandexDiskManager.api.getDownloadLink(authHeader, cleanPath)
+                        val body = YandexDiskManager.api.downloadFile(linkResponse.href)
                         val jsonStr = body.string()
                         val cloudProgress = progressAdapter.fromJson(jsonStr)
                         if (cloudProgress != null) {
@@ -257,11 +477,12 @@ class YandexSyncManager(private val context: Context) {
                                         currentProgressChar = cloudProgress.currentProgressChar,
                                         lastReadTime = cloudProgress.lastReadTime
                                     ))
+                                    Log.d(TAG, "Обновлен локальный прогресс для книги: ${localBook.title}")
                                 }
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e("YandexSyncManager", "Error syncing progress file: ${progressItem.name}", e)
+                        Log.e(TAG, "Ошибка синхронизации прогресса: ${progressItem.name}", e)
                     }
                 }
             }
@@ -272,7 +493,7 @@ class YandexSyncManager(private val context: Context) {
                 currentCoroutineContext().ensureActive()
                 val cloudProgressName = "progress_${localBook.sha1}.json"
                 val matchingCloudProgress = stats.cloudProgressItems.find { it.name == cloudProgressName }
-                val shouldUploadProgress = matchingCloudProgress == null && localBook.currentProgressChar > 0 || matchingCloudProgress != null
+                val shouldUploadProgress = (matchingCloudProgress == null && localBook.currentProgressChar > 0) || matchingCloudProgress != null
 
                 if (shouldUploadProgress) {
                     try {
@@ -284,10 +505,13 @@ class YandexSyncManager(private val context: Context) {
                         )
                         val json = progressAdapter.toJson(payload)
                         val cleanPath = YandexDiskManager.normalizePath("$syncFolder/Progress/$cloudProgressName")
-                        val link = api.getUploadLink(authHeader, cleanPath)
-                        api.uploadFile(link.href, json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType()))
+                        val link = YandexDiskManager.api.getUploadLink(authHeader, cleanPath)
+                        YandexDiskManager.api.uploadFile(
+                            link.href,
+                            json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType())
+                        )
                     } catch (e: Exception) {
-                        Log.e("YandexSyncManager", "Error pushing progress: ${localBook.title}", e)
+                        Log.e(TAG, "Ошибка отправки прогресса для '${localBook.title}'", e)
                     }
                 }
             }
@@ -306,9 +530,15 @@ class YandexSyncManager(private val context: Context) {
             )
             true
         } catch (e: Exception) {
-            Log.e("YandexSyncManager", "Error during performSync", e)
+            Log.e(TAG, "Критическая ошибка при выполнении performSync", e)
             false
         }
+    }
+
+    private fun computeSha1(bytes: ByteArray): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-1")
+        val hash = digest.digest(bytes)
+        return hash.joinToString("") { "%02x".format(it) }
     }
 
     private fun getRandomGradientStartColor(): String {
