@@ -473,9 +473,16 @@ class ReadingActivity : AppCompatActivity() {
         val currentIdx = viewPager.currentItem
         if (currentIdx < splitResult!!.offsets.size) {
             val charOffset = splitResult!!.offsets[currentIdx]
-            lifecycleScope.launch(Dispatchers.IO) {
-                AppDatabase.getDatabase(this@ReadingActivity)
-                    .bookDao().updateProgressAndPage(sha1, charOffset, currentIdx, System.currentTimeMillis())
+            val totalChars = if (bookContent.isNotEmpty()) bookContent.length else 0
+            // Run on an independent scope so it completes even if the activity finishes or its lifecycleScope is cancelled
+            val saveScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+            saveScope.launch {
+                try {
+                    AppDatabase.getDatabase(this@ReadingActivity)
+                        .bookDao().updateProgressAndPage(sha1, charOffset, currentIdx, totalChars, System.currentTimeMillis())
+                } catch (e: Exception) {
+                    Log.e("READING_DEBUG", "Error saving progress in DB", e)
+                }
             }
         }
     }

@@ -65,8 +65,8 @@ class BookRepository(
         bookDao.updateProgress(sha1, charOffset, System.currentTimeMillis())
     }
 
-    suspend fun updateProgressAndPage(sha1: String, charOffset: Int, pageIndex: Int) {
-        bookDao.updateProgressAndPage(sha1, charOffset, pageIndex, System.currentTimeMillis())
+    suspend fun updateProgressAndPage(sha1: String, charOffset: Int, pageIndex: Int, totalChars: Int = 0) {
+        bookDao.updateProgressAndPage(sha1, charOffset, pageIndex, totalChars, System.currentTimeMillis())
     }
 
     suspend fun deleteBookBySha1(sha1: String) = bookDao.deleteBookBySha1(sha1)

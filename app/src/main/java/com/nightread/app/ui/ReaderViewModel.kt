@@ -299,7 +299,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                bookDao.updateProgressAndPage(book.sha1, charOffset, pageIdx, System.currentTimeMillis())
+                bookDao.updateProgressAndPage(book.sha1, charOffset, pageIdx, book.totalCharacters, System.currentTimeMillis())
                 
                 if (SettingsManager.isCloudSyncEnabled(appContext)) {
                     val url = SettingsManager.getCloudSyncUrl(appContext)

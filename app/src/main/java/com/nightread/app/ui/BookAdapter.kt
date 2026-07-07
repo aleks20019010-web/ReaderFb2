@@ -243,7 +243,12 @@ class BookAdapter(
 
             // Set reading progress
             val progressPercent = if (book.totalCharacters > 0) {
-                ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt().coerceIn(0, 100)
+                val calculated = ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt().coerceIn(0, 100)
+                if (calculated == 0 && (book.currentProgressChar > 0 || book.currentPageIndex > 0)) {
+                    1
+                } else {
+                    calculated
+                }
             } else {
                 0
             }
