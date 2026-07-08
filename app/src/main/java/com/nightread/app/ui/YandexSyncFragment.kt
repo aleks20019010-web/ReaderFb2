@@ -85,7 +85,7 @@ class YandexSyncFragment : Fragment() {
         if (result.resultCode == Activity.RESULT_OK) {
             Toast.makeText(requireContext(), "Авторизация прошла успешно!", Toast.LENGTH_SHORT).show()
             updateUi()
-            startForegroundSync()
+            runAnalysisAndShowReport()
         }
     }
 
@@ -172,7 +172,7 @@ class YandexSyncFragment : Fragment() {
         }
 
         btnSyncNow.setOnClickListener {
-            startForegroundSync()
+            runAnalysisAndShowReport()
         }
 
         btnCancelSync.setOnClickListener {
@@ -273,6 +273,58 @@ class YandexSyncFragment : Fragment() {
             context.startService(intent)
         }
         Toast.makeText(context, "Синхронизация запущена в фоновом режиме", Toast.LENGTH_SHORT).show()
+    }
+
+    /**
+     * Запускает предварительный анализ и отображает сводный отчет в диалоге.
+     */
+    private fun runAnalysisAndShowReport() {
+        val context = requireContext()
+        val syncManager = YandexSyncManager(context)
+
+        if (!syncManager.hasInternetConnection()) {
+            Toast.makeText(context, "Отсутствует подключение к интернету", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val progressDialog = android.app.ProgressDialog(context).apply {
+            setTitle("Анализ Яндекс Диска")
+            setMessage("Подготовка...")
+            setCancelable(false)
+            show()
+        }
+
+        lifecycleScope.launch {
+            try {
+                val report = withContext(Dispatchers.IO) {
+                    syncManager.analyzeAndReport { progressText ->
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            if (progressDialog.isShowing) {
+                                progressDialog.setMessage(progressText)
+                            }
+                        }
+                    }
+                }
+
+                progressDialog.dismiss()
+
+                if (isAdded) {
+                    if (report != null) {
+                        SyncReportDialog(context, report) {
+                            startForegroundSync()
+                        }.show()
+                    } else {
+                        Toast.makeText(context, "Не удалось выполнить анализ диска. Проверьте авторизацию.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Ошибка во время анализа", e)
+                progressDialog.dismiss()
+                if (isAdded) {
+                    Toast.makeText(context, "Ошибка анализа: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     /**

@@ -24,6 +24,18 @@ import java.io.File
 import java.nio.charset.StandardCharsets
 
 /**
+ * Отчет анализа синхронизации для подтверждения пользователем.
+ */
+data class SyncReport(
+    val booksOnDisk: Int,               // Всего книг в папке на Яндекс Диске
+    val booksLocal: Int,                // Всего книг в локальной БД
+    val duplicatesCount: Int,           // Книги, которые есть и на диске, и локально (совпадают по SHA-1)
+    val toDownload: List<CloudFileEntity>,  // Книги, которых нет локально (будут скачаны)
+    val toUpload: List<BookEntity>,          // Книги, которых нет в облаке (будут загружены)
+    val stats: SyncStats                // Ссылка на исходную статистику
+)
+
+/**
  * Менеджер синхронизации с Яндекс Диском.
  * Отвечает за:
  * 1. Получение статистики синхронизации (toDownload, toUpload) с дедупликацией по SHA-1 и имени.
@@ -399,7 +411,28 @@ class YandexSyncManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Error in calculateSyncStats", e)
             return@withContext null
+        } finally {
+            cleanupTempFiles()
         }
+    }
+
+    /**
+     * Анализирует файлы на диске и локально и готовит сводный отчет для пользователя.
+     */
+    suspend fun analyzeAndReport(onProgress: (status: String) -> Unit): SyncReport? = withContext(Dispatchers.IO) {
+        val stats = calculateSyncStats(onProgress) ?: return@withContext null
+        
+        val localSha1Set = database.bookDao().getAllSha1s().filter { it.isNotEmpty() }.toSet()
+        val duplicates = maxOf(0, localSha1Set.size - stats.toUpload.size)
+        
+        return@withContext SyncReport(
+            booksOnDisk = stats.booksOnDisk,
+            booksLocal = stats.booksLocal,
+            duplicatesCount = duplicates,
+            toDownload = stats.toDownload,
+            toUpload = stats.toUpload,
+            stats = stats
+        )
     }
 
     /**
@@ -692,6 +725,8 @@ class YandexSyncManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Критическая ошибка при выполнении performSync", e)
             false
+        } finally {
+            cleanupTempFiles()
         }
     }
 
@@ -768,5 +803,28 @@ class YandexSyncManager(private val context: Context) {
     private fun getRandomGradientEndColor(): String {
         val colors = listOf("#201A15", "#432818", "#3D348B", "#6F4E37", "#582F0E", "#6A4C93")
         return colors.random()
+    }
+
+    /**
+     * Очищает кэш временных файлов, оставшихся после операции синхронизации,
+     * чтобы не переполнять память устройства.
+     */
+    private fun cleanupTempFiles() {
+        try {
+            val cacheDir = context.cacheDir
+            if (cacheDir.exists() && cacheDir.isDirectory) {
+                val tempFiles = cacheDir.listFiles { _, name ->
+                    name.startsWith("temp_stat_") || name.startsWith("temp_down_")
+                }
+                tempFiles?.forEach { file ->
+                    if (file.exists()) {
+                        val deleted = file.delete()
+                        Log.d(TAG, "Cleanup temp file: ${file.name}, success: $deleted")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error cleaning up temporary files from cache", e)
+        }
     }
 }
