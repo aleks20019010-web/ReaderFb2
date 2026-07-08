@@ -247,7 +247,8 @@ class ReadingActivity : AppCompatActivity() {
 
         // Using display metrics logic inside splitter could be done, but we use match_parent.
         // Wait, PageSplitter doesn't account for padding unless we subtract it from availableWidth.
-        val paddingHorizontal = (26 * resources.displayMetrics.density).toInt() // 13dp each side
+        val extraHorizontalMargin = resources.getDimensionPixelSize(R.dimen.reader_horizontal_margin)
+        val paddingHorizontal = (26 * resources.displayMetrics.density).toInt() + (extraHorizontalMargin * 2)
         val paddingVertical = (8 * resources.displayMetrics.density).toInt() + getTopInset() // 8dp bottom + top inset
         
         val availableWidth = width - paddingHorizontal

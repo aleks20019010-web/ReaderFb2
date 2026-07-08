@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="6dp"
+    android:padding="@dimen/item_book_padding"
     android:clickable="true"
     android:focusable="true">
 
@@ -115,7 +115,7 @@
                     android:ellipsize="end"
                     android:lines="2"
                     android:textColor="#FFFFFF"
-                    android:textSize="12sp"
+                    android:textSize="@dimen/book_title_size"
                     android:textStyle="bold"
                     android:gravity="top|start" />
 
@@ -128,7 +128,7 @@
                     android:ellipsize="end"
                     android:lines="1"
                     android:textColor="#D0C0E0"
-                    android:textSize="10sp"
+                    android:textSize="@dimen/book_author_size"
                     android:gravity="center_vertical|start" />
 
                 <!-- Book Series: hidden but present -->

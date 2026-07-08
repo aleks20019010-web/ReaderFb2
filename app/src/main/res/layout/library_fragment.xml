@@ -25,7 +25,9 @@
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:background="@android:color/transparent"
-        android:animateLayoutChanges="true">
+        android:animateLayoutChanges="true"
+        android:layout_marginLeft="@dimen/library_horizontal_margin"
+        android:layout_marginRight="@dimen/library_horizontal_margin">
 
     <!-- Top Action Bar Header -->
     <RelativeLayout

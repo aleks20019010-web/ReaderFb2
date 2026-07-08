@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Default dimensions for phones -->
+    <dimen name="library_padding">6dp</dimen>
+    <dimen name="library_horizontal_margin">0dp</dimen>
+    <dimen name="item_book_padding">6dp</dimen>
+    <dimen name="book_title_size">12sp</dimen>
+    <dimen name="book_author_size">10sp</dimen>
+    <dimen name="reader_horizontal_margin">0dp</dimen>
+</resources>

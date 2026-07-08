@@ -440,7 +440,8 @@ class LibraryFragment : Fragment() {
             val spanCount = when {
                 widthDp >= 900 -> 5
                 widthDp >= 600 -> 4
-                else -> 3
+                widthDp >= 400 -> 3
+                else -> 2
             }
             val gridLayoutManager = GridLayoutManager(requireContext(), spanCount)
             rvBooks.layoutManager = gridLayoutManager
@@ -459,6 +460,11 @@ class LibraryFragment : Fragment() {
             btnToggleViewMode.setIconResource(R.drawable.ic_custom_grid)
             btnToggleViewMode.contentDescription = "Режим сетки"
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        applyViewMode()
     }
 
     private fun setupListeners() {
