@@ -24,11 +24,12 @@ object Sha1Helper {
 
     fun computeSha1FromContent(file: File): String? {
         return try {
-            if (file.name.endsWith(".zip")) {
+            val lowerName = file.name.lowercase()
+            if (lowerName.endsWith(".zip")) {
                 ZipInputStream(file.inputStream()).use { zip ->
                     var entry = zip.nextEntry
                     while (entry != null) {
-                        if (entry.name.endsWith(".fb2")) {
+                        if (entry.name.lowercase().endsWith(".fb2")) {
                             return computeSha1(zip)
                         }
                         entry = zip.nextEntry
