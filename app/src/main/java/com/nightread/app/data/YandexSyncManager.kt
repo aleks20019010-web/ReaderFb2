@@ -16,6 +16,8 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
@@ -189,20 +191,20 @@ class YandexSyncManager(private val context: Context) {
                 val totalToProcess = needsSha1.size
                 val startTime = System.currentTimeMillis()
                 
-                // Ограничиваем параллельность, чтобы не перегружать сеть и API
-                val concurrencyLimit = 3
-                val chunks = needsSha1.chunked(concurrencyLimit)
+                // Concurrency limit of 15 using Semaphore to prevent API throttling
+                val semaphore = kotlinx.coroutines.sync.Semaphore(15)
                 
-                for (chunk in chunks) {
-                    coroutineScope {
-                        val deferreds = chunk.map { item ->
-                            async {
+                coroutineScope {
+                    val deferreds = needsSha1.map { item ->
+                        async {
+                            semaphore.withPermit {
                                 try {
                                     val cleanItemPath = YandexDiskManager.normalizePath(item.path ?: "$syncFolder/${item.name}")
                                     val linkResponse = YandexDiskManager.api.getDownloadLink(authHeader, cleanItemPath)
                                     val responseBody = YandexDiskManager.api.downloadFile(linkResponse.href)
                                     
-                                    val tempFile = File(context.cacheDir, "temp_stat_${item.name}")
+                                    // Use highly unique temp files for safety in parallel downloads
+                                    val tempFile = File(context.cacheDir, "temp_stat_${System.nanoTime()}_${item.name}")
                                     try {
                                         tempFile.outputStream().use { output ->
                                             responseBody.byteStream().use { input ->
@@ -210,18 +212,22 @@ class YandexSyncManager(private val context: Context) {
                                             }
                                         }
                                         val bytes = tempFile.readBytes()
-                                        val content = extractContentFromBytes(bytes, item.name)
-                                        val sha1 = computeSha1(content.toByteArray(StandardCharsets.UTF_8))
-                                        
-                                        val entity = CloudFileEntity(
-                                            path = cleanItemPath,
-                                            sha1 = sha1,
-                                            size = item.size ?: 0L,
-                                            lastModified = item.modified ?: ""
-                                        )
-                                        cloudFileDao.insert(entity)
-                                        synchronized(updatedCloudBooks) {
-                                            updatedCloudBooks.add(entity)
+                                        val fb2Bytes = extractFb2Bytes(bytes, item.name)
+                                        if (fb2Bytes.isNotEmpty()) {
+                                            val sha1 = computeSha1(fb2Bytes)
+                                            
+                                            val entity = CloudFileEntity(
+                                                path = cleanItemPath,
+                                                sha1 = sha1,
+                                                size = item.size ?: 0L,
+                                                lastModified = item.modified ?: ""
+                                            )
+                                            cloudFileDao.insert(entity)
+                                            synchronized(updatedCloudBooks) {
+                                                updatedCloudBooks.add(entity)
+                                            }
+                                        } else {
+                                            Log.e(TAG, "Empty or missing FB2 in cloud file: ${item.name}")
                                         }
                                     } finally {
                                         if (tempFile.exists()) tempFile.delete()
@@ -237,20 +243,18 @@ class YandexSyncManager(private val context: Context) {
                                 } finally {
                                     synchronized(this@YandexSyncManager) {
                                         processedCount++
-                                        if (processedCount % 3 == 0 || processedCount == totalToProcess) {
-                                            val elapsed = System.currentTimeMillis() - startTime
-                                            val avgTime = elapsed / processedCount
-                                            val remaining = totalToProcess - processedCount
-                                            val remainingSecs = (remaining * avgTime) / 1000
-                                            val timeStr = if (remainingSecs > 60) "${remainingSecs / 60} мин ${remainingSecs % 60} сек" else "$remainingSecs сек"
-                                            onProgress("Индексация облака: $processedCount из $totalToProcess (осталось ~ $timeStr)")
-                                        }
+                                        val elapsed = System.currentTimeMillis() - startTime
+                                        val avgTime = if (processedCount > 0) elapsed / processedCount else 1L
+                                        val remaining = totalToProcess - processedCount
+                                        val remainingSecs = (remaining * avgTime) / 1000
+                                        val timeStr = if (remainingSecs > 60) "${remainingSecs / 60} мин ${remainingSecs % 60} сек" else "$remainingSecs сек"
+                                        onProgress("Индексация облака: $processedCount из $totalToProcess (осталось ~ $timeStr)")
                                     }
                                 }
                             }
                         }
-                        deferreds.awaitAll()
                     }
+                    deferreds.awaitAll()
                 }
             }
 
@@ -372,43 +376,49 @@ class YandexSyncManager(private val context: Context) {
                         }
                         
                         val bytes = tempFile.readBytes()
-                        val content = String(bytes, StandardCharsets.UTF_8)
-                        
-                        // Parse FB2 correctly to get metadata
-                        val meta = NewFb2Parser.parse(content, originalName)
-                        
-                        // SHA-1 from FB2 content
-                        val sha1 = computeSha1(content.toByteArray(StandardCharsets.UTF_8))
-                        
-                        val coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
-                        
-                        // Truncate annotation
-                        val truncatedAnnotation = meta.annotation?.take(500)
-                        
-                        val localFile = File(booksDirectory, originalName)
-                        tempFile.copyTo(localFile, overwrite = true)
-                        
-                        val newBook = BookEntity(
-                            sha1 = sha1,
-                            title = meta.title,
-                            author = meta.author,
-                            category = "Локальные",
-                            totalCharacters = content.length,
-                            coverGradientStart = getRandomGradientStartColor(),
-                            coverGradientEnd = getRandomGradientEndColor(),
-                            filePath = localFile.absolutePath,
-                            series = meta.series,
-                            seriesIndex = meta.seriesIndex,
-                            language = meta.language,
-                            annotation = truncatedAnnotation,
-                            fileSize = bytes.size.toLong(),
-                            coverPath = coverPath
-                        )
-                        if (repository.insertBookSafely(newBook)) {
-                            downloadedCount++
-                            Log.d(TAG, "Успешно скачана и импортирована книга: $originalName (SHA-1: $sha1)")
+                        val fb2Bytes = extractFb2Bytes(bytes, originalName)
+                        if (fb2Bytes.isNotEmpty()) {
+                            // Compute exact SHA-1 on the extracted fb2 content bytes
+                            val sha1 = computeSha1(fb2Bytes)
+                            
+                            // Decode fb2Bytes safely to String respecting XML and Russian Windows-1251 encoding
+                            val content = decodeBytesToString(fb2Bytes)
+                            
+                            // Parse FB2 correctly to get metadata
+                            val meta = NewFb2Parser.parse(content, originalName)
+                            
+                            val coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
+                            
+                            // Truncate annotation
+                            val truncatedAnnotation = meta.annotation?.take(500)
+                            
+                            val localFile = File(booksDirectory, originalName)
+                            tempFile.copyTo(localFile, overwrite = true)
+                            
+                            val newBook = BookEntity(
+                                sha1 = sha1,
+                                title = meta.title,
+                                author = meta.author,
+                                category = "Локальные",
+                                totalCharacters = content.length,
+                                coverGradientStart = getRandomGradientStartColor(),
+                                coverGradientEnd = getRandomGradientEndColor(),
+                                filePath = localFile.absolutePath,
+                                series = meta.series,
+                                seriesIndex = meta.seriesIndex,
+                                language = meta.language,
+                                annotation = truncatedAnnotation,
+                                fileSize = bytes.size.toLong(),
+                                coverPath = coverPath
+                            )
+                            if (repository.insertBookSafely(newBook)) {
+                                downloadedCount++
+                                Log.d(TAG, "Успешно скачана и импортирована книга: $originalName (SHA-1: $sha1)")
+                            } else {
+                                Log.e(TAG, "Ошибка вставки книги '$originalName' в базу")
+                            }
                         } else {
-                            Log.e(TAG, "Ошибка вставки книги '$originalName' в базу")
+                            Log.e(TAG, "Empty or missing FB2 content inside downloaded file: $originalName")
                         }
                     } finally {
                         if (tempFile.exists()) tempFile.delete()
@@ -570,6 +580,43 @@ class YandexSyncManager(private val context: Context) {
         val digest = java.security.MessageDigest.getInstance("SHA-1")
         val hash = digest.digest(bytes)
         return hash.joinToString("") { "%02x".format(it) }
+    }
+
+    private fun extractFb2Bytes(bytes: ByteArray, fileName: String): ByteArray {
+        return try {
+            val lowerName = fileName.lowercase()
+            if (lowerName.endsWith(".zip") || lowerName.endsWith(".fb2.zip")) {
+                java.util.zip.ZipInputStream(bytes.inputStream()).use { zis ->
+                    var entry = zis.nextEntry
+                    while (entry != null) {
+                        if (!entry.isDirectory && entry.name.lowercase().endsWith(".fb2")) {
+                            return zis.readBytes()
+                        }
+                        entry = zis.nextEntry
+                    }
+                }
+                byteArrayOf()
+            } else {
+                bytes
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting FB2 bytes from $fileName", e)
+            byteArrayOf()
+        }
+    }
+
+    private fun decodeBytesToString(bytes: ByteArray): String {
+        return try {
+            val prefixLen = minOf(bytes.size, 2048)
+            val prefix = String(bytes, 0, prefixLen, StandardCharsets.UTF_8)
+            if (prefix.contains("<?xml", ignoreCase = true) || prefix.contains("<fictionbook", ignoreCase = true)) {
+                String(bytes, StandardCharsets.UTF_8)
+            } else {
+                String(bytes, java.nio.charset.Charset.forName("windows-1251"))
+            }
+        } catch (e: Exception) {
+            String(bytes, StandardCharsets.UTF_8)
+        }
     }
     
     private fun extractContentFromBytes(bytes: ByteArray, fileName: String): String {

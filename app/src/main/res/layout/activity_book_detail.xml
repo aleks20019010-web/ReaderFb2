@@ -102,8 +102,25 @@
                 android:textSize="22sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="8dp"
                 tools:text="Орден Архитекторов" />
+
+            <!-- Book Series Banner -->
+            <TextView
+                android:id="@+id/tvSeriesBanner"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="15sp"
+                android:textColor="@color/accent"
+                android:textStyle="bold|italic"
+                android:paddingVertical="4dp"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                tools:text="Серия: Орден Архитекторов"
+                tools:visibility="visible" />
 
             <!-- Action Buttons Row -->
             <LinearLayout

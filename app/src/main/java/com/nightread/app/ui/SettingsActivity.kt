@@ -3,7 +3,7 @@ package com.nightread.app.ui
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.nightread.app.data.SettingsManager
 import com.nightread.app.ui.theme.MyApplicationTheme
 
-class SettingsActivity : ComponentActivity() {
+class SettingsActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -140,11 +140,10 @@ class SettingsActivity : ComponentActivity() {
                 item {
                     Button(
                         onClick = { 
-                            // Launch dialog here - this requires FragmentManager.
-                            // Since this is a Compose activity, I'll show a toast for now,
-                            // or create a Compose equivalent of the dialog.
-                            // Let's create a Compose equivalent to make it easy.
-                            Toast.makeText(context, "Функция в разработке", Toast.LENGTH_SHORT).show()
+                            CleanupDialogFragment().show(
+                                context.supportFragmentManager,
+                                "CleanupDialogFragment"
+                            )
                         }, 
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)

@@ -33,6 +33,7 @@ class BookDetailActivity : AppCompatActivity() {
     private lateinit var tvTitle: TextView
     private lateinit var tvAuthor: TextView
     private lateinit var tvSeries: TextView
+    private lateinit var tvSeriesBanner: TextView
     private lateinit var tvAnnotation: TextView
     private lateinit var tvLanguage: TextView
     private lateinit var tvProgress: TextView
@@ -80,6 +81,7 @@ class BookDetailActivity : AppCompatActivity() {
         tvTitle = findViewById(R.id.tvTitle)
         tvAuthor = findViewById(R.id.tvAuthor)
         tvSeries = findViewById(R.id.tvSeries)
+        tvSeriesBanner = findViewById(R.id.tvSeriesBanner)
         tvAnnotation = findViewById(R.id.tvAnnotation)
         tvReadMore = findViewById(R.id.tvReadMore)
         tvLanguage = findViewById(R.id.tvLanguage)
@@ -243,8 +245,20 @@ class BookDetailActivity : AppCompatActivity() {
                 if (!book.series.isNullOrEmpty()) {
                     llSeriesContainer.visibility = View.VISIBLE
                     val indexText = if (book.seriesIndex != null && book.seriesIndex > 0) " №${book.seriesIndex}" else ""
-                    tvSeries.text = "${book.series}$indexText"
+                    val displayText = "${book.series}$indexText"
+                    tvSeries.text = displayText
                     llSeriesContainer.setOnClickListener {
+                        val intent = Intent(this@BookDetailActivity, SeriesBooksActivity::class.java).apply {
+                            putExtra("SERIES_NAME", book.series)
+                        }
+                        startActivity(intent)
+                        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                    }
+
+                    // Series Banner Setup
+                    tvSeriesBanner.visibility = View.VISIBLE
+                    tvSeriesBanner.text = "Серия: $displayText"
+                    tvSeriesBanner.setOnClickListener {
                         val intent = Intent(this@BookDetailActivity, SeriesBooksActivity::class.java).apply {
                             putExtra("SERIES_NAME", book.series)
                         }
@@ -253,6 +267,7 @@ class BookDetailActivity : AppCompatActivity() {
                     }
                 } else {
                     llSeriesContainer.visibility = View.GONE
+                    tvSeriesBanner.visibility = View.GONE
                 }
 
                 // Annotation setup

@@ -46,6 +46,21 @@
                     android:adjustViewBounds="true"
                     android:contentDescription="Обложка книги" />
 
+                <!-- Cover letter fallback when no image exists -->
+                <TextView
+                    android:id="@+id/tvCoverLetter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:textColor="#FFFFFF"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    android:shadowColor="#80000000"
+                    android:shadowDx="2"
+                    android:shadowDy="2"
+                    android:shadowRadius="4" />
+
                 <!-- Semi-transparent gloss/glow overlay -->
                 <View
                     android:layout_width="match_parent"

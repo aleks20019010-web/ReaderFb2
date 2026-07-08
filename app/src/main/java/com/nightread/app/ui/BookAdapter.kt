@@ -25,6 +25,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
 import com.nightread.app.R
 import com.nightread.app.data.BookEntity
 import java.io.File
@@ -100,16 +101,10 @@ class BookAdapter(
         val book = books[position]
         holder.bind(book, onOpenBook, onDeleteBook)
         
-        // Staggered cascade animation for a premium Material 3 entry effect
-        holder.itemView.alpha = 0f
-        holder.itemView.translationY = 32f * holder.itemView.resources.displayMetrics.density
-        holder.itemView.animate()
-            .alpha(1f)
-            .translationY(0f)
-            .setDuration(350)
-            .setStartDelay((position % 12).toLong() * 30) // Cap the delay to keep interactions snappy
-            .setInterpolator(android.view.animation.DecelerateInterpolator())
-            .start()
+        // Safely cancel any active or pending animations on this recycled view to prevent transparent/blank cards
+        holder.itemView.animate().cancel()
+        holder.itemView.alpha = 1f
+        holder.itemView.translationY = 0f
     }
 
     override fun getItemCount(): Int = books.size
@@ -165,6 +160,7 @@ class BookAdapter(
         private val tvBookSeries: TextView = itemView.findViewById(R.id.tvBookSeries)
         private val tvBookAnnotation: TextView? = itemView.findViewById(R.id.tvBookAnnotation)
         private val ivCover: ImageView = itemView.findViewById(R.id.ivCover)
+        private val tvCoverLetter: TextView = itemView.findViewById(R.id.tvCoverLetter)
         private val vCoverBackground: View = itemView.findViewById(R.id.vCoverBackground)
         private val btnDelete: View = itemView.findViewById(R.id.btnDelete)
         private val pbReadingProgress: ProgressBar = itemView.findViewById(R.id.pbReadingProgress)
@@ -174,6 +170,7 @@ class BookAdapter(
             onOpenBook: (BookEntity) -> Unit,
             onDeleteBook: ((BookEntity) -> Unit)?
         ) {
+            android.util.Log.d("BookAdapter", "Binding book in ViewHolder: title='${book.title}', author='${book.author}', sha1='${book.sha1}', coverPath='${book.coverPath}'")
             tvBookTitle.text = book.title
 
             if (tvBookAnnotation != null) {
@@ -229,16 +226,25 @@ class BookAdapter(
             }
 
             // Load cover if present
-            if (book.coverPath != null && File(book.coverPath).exists()) {
+            val coverFile = if (!book.coverPath.isNullOrEmpty()) File(book.coverPath) else null
+            if (coverFile != null && coverFile.exists()) {
                 ivCover.visibility = View.VISIBLE
+                tvCoverLetter.visibility = View.GONE
                 try {
-                    val bitmap = BitmapFactory.decodeFile(book.coverPath)
-                    ivCover.setImageBitmap(bitmap)
+                    ivCover.load(coverFile) {
+                        crossfade(true)
+                    }
                 } catch (e: Exception) {
+                    android.util.Log.e("BookAdapter", "Error loading cover with Coil: ${e.message}")
                     ivCover.visibility = View.GONE
+                    tvCoverLetter.visibility = View.VISIBLE
+                    tvCoverLetter.text = if (!book.title.isNullOrEmpty()) book.title.trim().take(1).uppercase() else "?"
                 }
             } else {
+                ivCover.setImageDrawable(null)
                 ivCover.visibility = View.GONE
+                tvCoverLetter.visibility = View.VISIBLE
+                tvCoverLetter.text = if (!book.title.isNullOrEmpty()) book.title.trim().take(1).uppercase() else "?"
             }
 
             // Set reading progress
