@@ -1,67 +1,117 @@
 package com.nightread.app.ui
 
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.FrameLayout
+import android.widget.ImageButton
+import android.widget.SeekBar
+import android.widget.Spinner
+import android.widget.TextView
+import androidx.appcompat.widget.SwitchCompat
 import androidx.fragment.app.DialogFragment
+import com.nightread.app.R
 import com.nightread.app.data.SettingsManager
 
 class SettingsBottomSheet : DialogFragment() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Use custom style for dialog styling (dimming, floating window, etc.)
+        setStyle(STYLE_NORMAL, R.style.SettingsDialogStyle)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View {
-        return ComposeView(requireContext()).apply {
-            setContent {
-                SettingsBottomSheetContent()
-            }
-        }
+    ): View? {
+        // Inflate the compact XML layout
+        return inflater.inflate(R.layout.bottom_sheet_settings, container, false)
     }
 
-    override fun onStart() {
-        super.onStart()
-        dialog?.window?.let { window ->
-            window.setLayout(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.WRAP_CONTENT
-            )
-            window.setGravity(Gravity.BOTTOM)
-            window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-            window.setWindowAnimations(android.R.style.Animation_InputMethod)
-        }
-    }
-
-    @OptIn(ExperimentalMaterial3Api::class)
-    @Composable
-    fun SettingsBottomSheetContent() {
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
         val context = requireContext()
+
+        // Enable closing by tapping outside
+        dialog?.setCanceledOnTouchOutside(true)
+
+        // 1. Close Button
+        view.findViewById<ImageButton>(R.id.btnClose).setOnClickListener {
+            dismiss()
+        }
+
+        // 2. Font Selection (Spinner)
+        val fontOptions = listOf("Roboto", "Times New Roman", "Georgia", "Merriweather", "OpenDyslexic", "Monospace")
+        val spinnerFont = view.findViewById<Spinner>(R.id.spinnerFont)
+        val fontAdapter = ArrayAdapter(context, R.layout.spinner_item, fontOptions).apply {
+            setDropDownViewResource(R.layout.spinner_dropdown_item)
+        }
+        spinnerFont.adapter = fontAdapter
         
-        var selectedTheme by remember { mutableStateOf(SettingsManager.getTheme(context)) }
-        var selectedFont by remember { mutableStateOf(SettingsManager.getFontFamily(context)) }
-        var selectedWeight by remember { mutableStateOf(SettingsManager.getFontWeight(context)) }
-        var fontSize by remember { mutableStateOf(SettingsManager.getFontSize(context)) }
-        var lineSpacing by remember { mutableStateOf(SettingsManager.getLineSpacing(context)) }
+        val currentFont = SettingsManager.getFontFamily(context)
+        val fontIdx = fontOptions.indexOf(currentFont).coerceAtLeast(0)
+        spinnerFont.setSelection(fontIdx)
+        spinnerFont.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedFont = fontOptions[position]
+                if (selectedFont != SettingsManager.getFontFamily(context)) {
+                    SettingsManager.setFontFamily(context, selectedFont)
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        // 3. Font Size (SeekBar)
+        val tvFontSizeValue = view.findViewById<TextView>(R.id.tvFontSizeValue)
+        val seekBarFontSize = view.findViewById<SeekBar>(R.id.seekBarFontSize)
+        val currentFontSize = SettingsManager.getFontSize(context).toInt()
+        tvFontSizeValue.text = "$currentFontSize sp"
+        seekBarFontSize.progress = (currentFontSize - 14).coerceIn(0, 14)
+        seekBarFontSize.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val newSize = progress + 14
+                tvFontSizeValue.text = "$newSize sp"
+                if (fromUser) {
+                    SettingsManager.setFontSize(context, newSize.toFloat())
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        // 4. Font Weight (Spinner)
+        val weightOptions = listOf("Normal", "Medium", "Bold", "ExtraBold")
+        val spinnerWeight = view.findViewById<Spinner>(R.id.spinnerWeight)
+        val weightAdapter = ArrayAdapter(context, R.layout.spinner_item, weightOptions).apply {
+            setDropDownViewResource(R.layout.spinner_dropdown_item)
+        }
+        spinnerWeight.adapter = weightAdapter
         
+        val currentWeight = SettingsManager.getFontWeight(context)
+        val weightIdx = weightOptions.indexOf(currentWeight).coerceAtLeast(0)
+        spinnerWeight.setSelection(weightIdx)
+        spinnerWeight.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedWeight = weightOptions[position]
+                if (selectedWeight != SettingsManager.getFontWeight(context)) {
+                    SettingsManager.setFontWeight(context, selectedWeight)
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        // 5. Theme Selection (Spinner)
+        val themeKeys = listOf("light", "dark", "sepia", "sepia_contrast", "contrast", "beige")
         val themeNames = mapOf(
             "light" to "День",
             "dark" to "Ночь",
@@ -70,252 +120,238 @@ class SettingsBottomSheet : DialogFragment() {
             "contrast" to "Контраст",
             "beige" to "Бежевый"
         )
-        val fontOptions = listOf("Roboto", "Times New Roman", "Georgia", "Merriweather", "OpenDyslexic", "Monospace")
-        val weightOptions = listOf("Normal", "Medium", "Bold", "ExtraBold")
-        val themeOptions = themeNames.keys.toList()
-
-        val bgColor = Color(0xFF1A0D2A)
-        val contentColor = Color(0xFFE0E0E0)
-        val accentColor = Color(0xFF9B59B6)
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(bgColor, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .width(40.dp)
-                    .height(4.dp)
-                    .background(contentColor.copy(alpha = 0.3f), RoundedCornerShape(2.dp))
-                    .align(Alignment.CenterHorizontally)
-            )
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Настройки",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = contentColor
-                )
-                Text(
-                    text = "Закрыть",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = contentColor,
-                    modifier = Modifier
-                        .clickable { dismiss() }
-                        .padding(8.dp)
-                )
-            }
-
-            // 1. Font (Dropdown)
-            SettingsDropdown(
-                label = "Шрифт",
-                options = fontOptions,
-                selectedOption = selectedFont,
-                onOptionSelected = { 
-                    selectedFont = it
-                    SettingsManager.setFontFamily(context, it)
-                },
-                contentColor = contentColor,
-                bgColor = bgColor
-            )
-
-            // 2. Font Size (Slider)
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Размер шрифта", color = contentColor, fontWeight = FontWeight.Bold)
-                    Text("${fontSize.toInt()} sp", color = contentColor)
-                }
-                Slider(
-                    value = fontSize,
-                    onValueChange = { fontSize = it },
-                    onValueChangeFinished = { SettingsManager.setFontSize(context, fontSize) },
-                    valueRange = 14f..28f,
-                    steps = 13,
-                    colors = SliderDefaults.colors(
-                        thumbColor = accentColor,
-                        activeTrackColor = accentColor,
-                        inactiveTrackColor = contentColor.copy(alpha = 0.24f)
-                    )
-                )
-            }
-
-            // 3. Font Weight (Dropdown)
-            SettingsDropdown(
-                label = "Жирность",
-                options = weightOptions,
-                selectedOption = selectedWeight,
-                onOptionSelected = { 
-                    selectedWeight = it
-                    SettingsManager.setFontWeight(context, it)
-                },
-                contentColor = contentColor,
-                bgColor = bgColor
-            )
-
-            // 4. Theme (Dropdown)
-            SettingsDropdown(
-                label = "Тема",
-                options = themeOptions,
-                displayNames = themeNames,
-                selectedOption = selectedTheme,
-                onOptionSelected = { 
-                    selectedTheme = it
-                    SettingsManager.setTheme(context, it)
-                },
-                contentColor = contentColor,
-                bgColor = bgColor
-            )
-
-            // 5. Line Spacing (Slider)
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Межстрочный интервал", color = contentColor, fontWeight = FontWeight.Bold)
-                    Text(String.format("%.2f", lineSpacing), color = contentColor)
-                }
-                Slider(
-                    value = lineSpacing,
-                    onValueChange = { lineSpacing = it },
-                    onValueChangeFinished = { SettingsManager.setLineSpacing(context, lineSpacing) },
-                    valueRange = 1.0f..2.0f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = accentColor,
-                        activeTrackColor = accentColor,
-                        inactiveTrackColor = contentColor.copy(alpha = 0.24f)
-                    )
-                )
-            }
-            
-            var isAutoDiscovery by remember { mutableStateOf(SettingsManager.isAutoDiscoveryEnabled(context)) }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { 
-                        isAutoDiscovery = !isAutoDiscovery
-                        SettingsManager.setAutoDiscoveryEnabled(context, isAutoDiscovery)
-                        if (isAutoDiscovery) {
-                            com.nightread.app.service.AutoDiscoveryWorker.schedule(context)
-                            com.nightread.app.service.AutoDiscoveryService.start(context)
-                        } else {
-                            com.nightread.app.service.AutoDiscoveryWorker.cancel(context)
-                            com.nightread.app.service.AutoDiscoveryService.stop(context)
-                        }
-                    }
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Авто-обнаружение",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = contentColor
-                    )
-                    Text(
-                        text = "Отслеживание новых файлов fb2 и fb2.zip",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = contentColor.copy(alpha = 0.7f)
-                    )
-                }
-                Switch(
-                    checked = isAutoDiscovery,
-                    onCheckedChange = { 
-                        isAutoDiscovery = it
-                        SettingsManager.setAutoDiscoveryEnabled(context, isAutoDiscovery)
-                        if (isAutoDiscovery) {
-                            com.nightread.app.service.AutoDiscoveryWorker.schedule(context)
-                            com.nightread.app.service.AutoDiscoveryService.start(context)
-                        } else {
-                            com.nightread.app.service.AutoDiscoveryWorker.cancel(context)
-                            com.nightread.app.service.AutoDiscoveryService.stop(context)
-                        }
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = bgColor,
-                        checkedTrackColor = accentColor,
-                        uncheckedThumbColor = contentColor,
-                        uncheckedTrackColor = bgColor,
-                        uncheckedBorderColor = contentColor
-                    )
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
+        val themeDisplayNames = themeKeys.map { themeNames[it] ?: it }
+        val spinnerTheme = view.findViewById<Spinner>(R.id.spinnerTheme)
+        val themeAdapter = ArrayAdapter(context, R.layout.spinner_item, themeDisplayNames).apply {
+            setDropDownViewResource(R.layout.spinner_dropdown_item)
         }
+        spinnerTheme.adapter = themeAdapter
+        
+        val currentTheme = SettingsManager.getTheme(context)
+        val themeIdx = themeKeys.indexOf(currentTheme).coerceAtLeast(0)
+        spinnerTheme.setSelection(themeIdx)
+        spinnerTheme.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedKey = themeKeys[position]
+                if (selectedKey != SettingsManager.getTheme(context)) {
+                    SettingsManager.setTheme(context, selectedKey)
+                    applyThemeColors(selectedKey, this@SettingsBottomSheet.requireView())
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        // 6. Line Spacing (SeekBar)
+        val tvLineSpacingValue = view.findViewById<TextView>(R.id.tvLineSpacingValue)
+        val seekBarLineSpacing = view.findViewById<SeekBar>(R.id.seekBarLineSpacing)
+        val currentLineSpacing = SettingsManager.getLineSpacing(context)
+        tvLineSpacingValue.text = String.format("%.2f", currentLineSpacing)
+        seekBarLineSpacing.progress = (((currentLineSpacing - 1.0f) * 10).toInt()).coerceIn(0, 10)
+        seekBarLineSpacing.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val newSpacing = 1.0f + (progress / 10.0f)
+                tvLineSpacingValue.text = String.format("%.2f", newSpacing)
+                if (fromUser) {
+                    SettingsManager.setLineSpacing(context, newSpacing)
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        // 7. Auto-Discovery Switch
+        val switchAutoDiscovery = view.findViewById<SwitchCompat>(R.id.switchAutoDiscovery)
+        switchAutoDiscovery.isChecked = SettingsManager.isAutoDiscoveryEnabled(context)
+        switchAutoDiscovery.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != SettingsManager.isAutoDiscoveryEnabled(context)) {
+                SettingsManager.setAutoDiscoveryEnabled(context, isChecked)
+                if (isChecked) {
+                    com.nightread.app.service.AutoDiscoveryWorker.schedule(context)
+                    com.nightread.app.service.AutoDiscoveryService.start(context)
+                } else {
+                    com.nightread.app.service.AutoDiscoveryWorker.cancel(context)
+                    com.nightread.app.service.AutoDiscoveryService.stop(context)
+                }
+            }
+        }
+
+        // 8. Color Scheme Circle Buttons Hookup
+        val btnThemeLight = view.findViewById<FrameLayout>(R.id.btnThemeLight)
+        val btnThemeSepia = view.findViewById<FrameLayout>(R.id.btnThemeSepia)
+        val btnThemeDark = view.findViewById<FrameLayout>(R.id.btnThemeDark)
+
+        btnThemeLight.setOnClickListener {
+            if (SettingsManager.getTheme(context) != "light") {
+                SettingsManager.setTheme(context, "light")
+                val idx = themeKeys.indexOf("light").coerceAtLeast(0)
+                spinnerTheme.setSelection(idx)
+                applyThemeColors("light", view)
+            }
+        }
+
+        btnThemeSepia.setOnClickListener {
+            if (SettingsManager.getTheme(context) != "sepia") {
+                SettingsManager.setTheme(context, "sepia")
+                val idx = themeKeys.indexOf("sepia").coerceAtLeast(0)
+                spinnerTheme.setSelection(idx)
+                applyThemeColors("sepia", view)
+            }
+        }
+
+        btnThemeDark.setOnClickListener {
+            if (SettingsManager.getTheme(context) != "dark") {
+                SettingsManager.setTheme(context, "dark")
+                val idx = themeKeys.indexOf("dark").coerceAtLeast(0)
+                spinnerTheme.setSelection(idx)
+                applyThemeColors("dark", view)
+            }
+        }
+
+        // Apply initial colors based on current theme
+        applyThemeColors(currentTheme, view)
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
-    @Composable
-    fun SettingsDropdown(
-        label: String,
-        options: List<String>,
-        displayNames: Map<String, String>? = null,
-        selectedOption: String,
-        onOptionSelected: (String) -> Unit,
-        contentColor: Color,
-        bgColor: Color
-    ) {
-        var expanded by remember { mutableStateOf(false) }
+    private fun applyThemeColors(themeKey: String, rootView: View) {
+        val context = requireContext()
+        
+        // Define color scheme values
+        val cardBgHex: String
+        val itemBgHex: String
+        val accentHex: String
+        val textPrimaryHex: String
+        val textSecondaryHex: String
+        val dividerHex: String
 
-        Column {
-            Text(label, color = contentColor, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
-            ) {
-                OutlinedTextField(
-                    readOnly = true,
-                    value = displayNames?.get(selectedOption) ?: selectedOption,
-                    onValueChange = { },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(),
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = contentColor,
-                        unfocusedTextColor = contentColor,
-                        focusedBorderColor = contentColor,
-                        unfocusedBorderColor = contentColor.copy(alpha = 0.5f),
-                        focusedTrailingIconColor = contentColor,
-                        unfocusedTrailingIconColor = contentColor,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent
-                    )
-                )
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.background(bgColor)
-                ) {
-                    options.forEach { selectionOption ->
-                        DropdownMenuItem(
-                            text = { Text(displayNames?.get(selectionOption) ?: selectionOption, color = contentColor) },
-                            onClick = {
-                                onOptionSelected(selectionOption)
-                                expanded = false
-                            }
-                        )
-                    }
-                }
+        when (themeKey) {
+            "light", "beige" -> {
+                cardBgHex = "#FAF6F0"
+                itemBgHex = "#EFE9E2"
+                accentHex = "#D35400"
+                textPrimaryHex = "#2C3E50"
+                textSecondaryHex = "#7F8C8D"
+                dividerHex = "#E0D5C1"
             }
+            "sepia", "sepia_contrast" -> {
+                cardBgHex = "#F4ECD8"
+                itemBgHex = "#EADCB9"
+                accentHex = "#8E44AD"
+                textPrimaryHex = "#5B3A29"
+                textSecondaryHex = "#8F7365"
+                dividerHex = "#D5C5B5"
+            }
+            "contrast" -> {
+                cardBgHex = "#000000"
+                itemBgHex = "#1A1A1A"
+                accentHex = "#FFFFFF"
+                textPrimaryHex = "#FFFFFF"
+                textSecondaryHex = "#AAAAAA"
+                dividerHex = "#333333"
+            }
+            else -> { // "dark" or default
+                cardBgHex = "#1A0D2A"
+                itemBgHex = "#2A1A3E"
+                accentHex = "#9B59B6"
+                textPrimaryHex = "#E8D8F0"
+                textSecondaryHex = "#B8A0C8"
+                dividerHex = "#3A2A4E"
+            }
+        }
+
+        val cardBgColor = Color.parseColor(cardBgHex)
+        val itemBgColor = Color.parseColor(itemBgHex)
+        val accentColor = Color.parseColor(accentHex)
+        val textPrimaryColor = Color.parseColor(textPrimaryHex)
+        val textSecondaryColor = Color.parseColor(textSecondaryHex)
+        val dividerColor = Color.parseColor(dividerHex)
+
+        // 1. Root CardView background color morphing
+        val cardRoot = rootView.findViewById<androidx.cardview.widget.CardView>(R.id.settingsCardRoot)
+        cardRoot?.setCardBackgroundColor(cardBgColor)
+
+        // 2. Primary Titles and Text Values
+        rootView.findViewById<TextView>(R.id.tvSettingsTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvFontSizeValue)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvLineSpacingValue)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvAutoDiscoveryTitle)?.setTextColor(textPrimaryColor)
+
+        // 3. Secondary Labels and Descriptions
+        rootView.findViewById<TextView>(R.id.tvColorSchemeLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvFontLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvFontSizeLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvFontWeightLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvThemeLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvLineSpacingLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvAutoDiscoveryDesc)?.setTextColor(textSecondaryColor)
+
+        // 4. Content Dividers
+        rootView.findViewById<View>(R.id.dividerTop)?.setBackgroundColor(dividerColor)
+        rootView.findViewById<View>(R.id.dividerMiddle)?.setBackgroundColor(dividerColor)
+
+        // 5. Navigation/Close image button tinting
+        val btnClose = rootView.findViewById<ImageButton>(R.id.btnClose)
+        btnClose?.imageTintList = ColorStateList.valueOf(textPrimaryColor)
+
+        // 6. Font size & line spacing SeekBars coloring
+        val seekBarFontSize = rootView.findViewById<SeekBar>(R.id.seekBarFontSize)
+        val seekBarLineSpacing = rootView.findViewById<SeekBar>(R.id.seekBarLineSpacing)
+        seekBarFontSize?.progressTintList = ColorStateList.valueOf(accentColor)
+        seekBarFontSize?.thumbTintList = ColorStateList.valueOf(accentColor)
+        seekBarLineSpacing?.progressTintList = ColorStateList.valueOf(accentColor)
+        seekBarLineSpacing?.thumbTintList = ColorStateList.valueOf(accentColor)
+
+        // 7. Auto-discovery SwitchCompat coloring
+        val switchAutoDiscovery = rootView.findViewById<SwitchCompat>(R.id.switchAutoDiscovery)
+        switchAutoDiscovery?.trackTintList = ColorStateList.valueOf(accentColor)
+        switchAutoDiscovery?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
+
+        // 8. Custom Theme Circle selection ring highlights & colors
+        val ringLight = rootView.findViewById<View>(R.id.ringThemeLight)
+        val ringSepia = rootView.findViewById<View>(R.id.ringThemeSepia)
+        val ringDark = rootView.findViewById<View>(R.id.ringThemeDark)
+
+        val isLightActive = themeKey == "light" || themeKey == "beige"
+        val isSepiaActive = themeKey == "sepia" || themeKey == "sepia_contrast"
+        val isDarkActive = themeKey == "dark" || themeKey == "contrast"
+
+        ringLight?.visibility = if (isLightActive) View.VISIBLE else View.INVISIBLE
+        ringSepia?.visibility = if (isSepiaActive) View.VISIBLE else View.INVISIBLE
+        ringDark?.visibility = if (isDarkActive) View.VISIBLE else View.INVISIBLE
+
+        ringLight?.backgroundTintList = ColorStateList.valueOf(accentColor)
+        ringSepia?.backgroundTintList = ColorStateList.valueOf(accentColor)
+        ringDark?.backgroundTintList = ColorStateList.valueOf(accentColor)
+
+        // 9. Programmatic styled background drawable for the Spinners to prevent XML color collision
+        val spinnerBg = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 16f
+            setColor(itemBgColor)
+            setStroke(2, accentColor)
+        }
+        rootView.findViewById<Spinner>(R.id.spinnerFont)?.background = spinnerBg
+        rootView.findViewById<Spinner>(R.id.spinnerWeight)?.background = spinnerBg
+        rootView.findViewById<Spinner>(R.id.spinnerTheme)?.background = spinnerBg
+    }
+
+    override fun onStart() {
+        super.onStart()
+        dialog?.window?.let { window ->
+            val metrics = resources.displayMetrics
+            
+            // Width: 30% of screen size, height: wrap content but maximum 40% of screen height
+            val width = (metrics.widthPixels * 0.30).toInt().coerceAtLeast(300)
+
+            window.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT)
+            window.setGravity(Gravity.TOP or Gravity.END)
+
+            // Layout parameter offsets
+            val params = window.attributes
+            params.x = 24  // margin from right edge
+            params.y = 120 // margin from top edge (to avoid overlap with action bar/cutouts)
+            window.attributes = params
+
+            // Apply custom enter/exit slide animations from top-right
+            window.setWindowAnimations(R.style.SettingsDialogAnimation)
         }
     }
 }
