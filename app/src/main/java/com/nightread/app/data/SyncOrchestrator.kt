@@ -8,6 +8,10 @@ import com.nightread.app.service.NewFb2Parser
 import java.io.File
 import java.nio.charset.StandardCharsets
 
+/**
+ * Оркестратор синхронизации с Яндекс Диском.
+ * Отвечает за координацию шагов: получение списка файлов, сопоставление хэшей, скачивание и загрузку книг.
+ */
 class SyncOrchestrator(
     private val context: Context,
     private val cloudService: CloudFileService,
@@ -15,22 +19,31 @@ class SyncOrchestrator(
     private val cacheManager: SyncCacheManager,
     private val progressTracker: SyncProgressTracker
 ) {
-    private val TAG = "SyncOrchestrator"
+    private val TAG = "SYNC_ORCHESTRATOR"
     
     @Volatile
     var isCancelled: Boolean = false
 
     suspend fun sync() {
         isCancelled = false
-        val syncFolder = YandexDiskManager.getSyncFolder(context)
+        val syncFolder = try {
+            YandexDiskManager.getSyncFolder(context)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get sync folder path from YandexDiskManager", e)
+            throw Exception("Не удалось получить путь папки синхронизации: ${e.localizedMessage}", e)
+        }
+        
         Log.d(TAG, "Starting sync in folder: $syncFolder")
 
         val syncManager = YandexSyncManager(context)
         if (!syncManager.hasInternetConnection()) {
+            Log.e(TAG, "No internet connection during synchronization initialization.")
             throw Exception("Отсутствует подключение к интернету")
         }
+        
         val token = YandexDiskManager.getToken(context)
         if (token.isNullOrEmpty()) {
+            Log.e(TAG, "Yandex Disk token is empty or null.")
             throw Exception("Ошибка авторизации Яндекс Диска: отсутствует токен")
         }
 
@@ -41,7 +54,7 @@ class SyncOrchestrator(
             val cloudFiles = try {
                 cloudService.getFileList(syncFolder)
             } catch (e: Exception) {
-                Log.e("SYNC_ERROR", "Stage 1: Failed to retrieve file list from $syncFolder", e)
+                Log.e(TAG, "Stage 1: Failed to retrieve file list from $syncFolder", e)
                 throw Exception("Не удалось получить список файлов с Яндекс Диска: ${e.localizedMessage}", e)
             }
             Log.d(TAG, "Found ${cloudFiles.size} files in $syncFolder")
@@ -86,10 +99,14 @@ class SyncOrchestrator(
                                 }
                             }
                         } catch (e: Exception) {
-                            Log.e("SYNC_ERROR", "Error calculating SHA-1 for ${file.name}", e)
+                            Log.e(TAG, "Error calculating SHA-1 for ${file.name}", e)
                         } finally {
-                            if (tempFile.exists()) {
-                                tempFile.delete()
+                            try {
+                                if (tempFile.exists()) {
+                                    tempFile.delete()
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to delete temp SHA-1 file: ${tempFile.absolutePath}", e)
                             }
                         }
                     }
@@ -99,7 +116,7 @@ class SyncOrchestrator(
                         cloudSha1ToPath[sha1] = file.path
                     }
                 } catch (e: Exception) {
-                    Log.e("SYNC_ERROR", "Unexpected error processing file in Stage 2: ${file.name}", e)
+                    Log.e(TAG, "Unexpected error processing file in Stage 2: ${file.name}", e)
                 }
             }
 
@@ -113,7 +130,7 @@ class SyncOrchestrator(
             val localSha1s = try {
                 bookDao.getAllSha1s().toSet()
             } catch (e: Exception) {
-                Log.e("SYNC_ERROR", "Stage 3: Failed to retrieve local SHA-1 set from database", e)
+                Log.e(TAG, "Stage 3: Failed to retrieve local SHA-1 set from database", e)
                 throw Exception("Ошибка чтения локальной библиотеки при сопоставлении: ${e.localizedMessage}", e)
             }
             val cloudSha1s = cloudSha1Map.values.toSet()
@@ -129,7 +146,7 @@ class SyncOrchestrator(
                         toUploadBooks.add(book)
                     }
                 } catch (e: Exception) {
-                    Log.e("SYNC_ERROR", "Error looking up local book by SHA-1: $sha1", e)
+                    Log.e(TAG, "Error looking up local book by SHA-1: $sha1", e)
                 }
             }
 
@@ -171,19 +188,19 @@ class SyncOrchestrator(
                                 uploadedCount++
                                 // Cache the SHA-1 for the uploaded file by querying Yandex Disk's metadata
                                 try {
-                                    val token = YandexDiskManager.getToken(context)
-                                    if (token != null) {
-                                        val response = YandexDiskManager.api.getResource("OAuth $token", remotePath, limit = 1)
+                                    val tokenVal = YandexDiskManager.getToken(context)
+                                    if (tokenVal != null) {
+                                        val response = YandexDiskManager.api.getResource("OAuth $tokenVal", remotePath, limit = 1)
                                         val modified = response.modified ?: ""
                                         cacheManager.save(book.sha1 ?: "", remotePath, modified, localFile.length())
                                     }
                                 } catch (e: Exception) {
-                                    Log.e("SYNC_ERROR", "Error caching metadata after upload", e)
+                                    Log.e(TAG, "Error caching metadata after upload", e)
                                 }
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e("SYNC_ERROR", "Failed to upload book: ${book.title}", e)
+                        Log.e(TAG, "Failed to upload book: ${book.title}", e)
                     }
                     progressTracker.updateStats(
                         toUpload = toUploadBooks.size,
@@ -252,22 +269,26 @@ class SyncOrchestrator(
                                     downloadedCount++
                                     // Save to cache
                                     try {
-                                        val token = YandexDiskManager.getToken(context)
-                                        if (token != null) {
-                                            val response = YandexDiskManager.api.getResource("OAuth $token", remotePath, limit = 1)
+                                        val tokenVal = YandexDiskManager.getToken(context)
+                                        if (tokenVal != null) {
+                                            val response = YandexDiskManager.api.getResource("OAuth $tokenVal", remotePath, limit = 1)
                                             cacheManager.save(sha1, remotePath, response.modified ?: "", bytes.size.toLong())
                                         }
                                     } catch (e: Exception) {
-                                        Log.e("SYNC_ERROR", "Error caching after download", e)
+                                        Log.e(TAG, "Error caching after download", e)
                                     }
                                 }
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e("SYNC_ERROR", "Error downloading book: $remotePath", e)
+                        Log.e(TAG, "Error downloading book: $remotePath", e)
                     } finally {
-                        if (tempFile.exists()) {
-                            tempFile.delete()
+                        try {
+                            if (tempFile.exists()) {
+                                tempFile.delete()
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to delete temp downloaded file: ${tempFile.absolutePath}", e)
                         }
                     }
                     progressTracker.updateStats(

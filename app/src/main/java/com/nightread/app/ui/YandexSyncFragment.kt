@@ -383,6 +383,7 @@ class YandexSyncFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             YandexSyncState.state.collectLatest { state ->
                 if (!isAdded) return@collectLatest
+                val ctx = context ?: return@collectLatest
 
                 // Отображение диалога разрешения дубликатов
                 if (state.duplicatesToResolve != null && state.duplicatesToResolve.isNotEmpty()) {
@@ -432,8 +433,8 @@ class YandexSyncFragment : Fragment() {
                         progressIndividual.max = 100
                         progressIndividual.progress = filePercent
                         
-                        val transferredStr = Formatter.formatFileSize(requireContext(), state.currentFileBytesTransferred)
-                        val totalStr = Formatter.formatFileSize(requireContext(), state.currentFileTotalBytes)
+                        val transferredStr = Formatter.formatFileSize(ctx, state.currentFileBytesTransferred)
+                        val totalStr = Formatter.formatFileSize(ctx, state.currentFileTotalBytes)
                         txtIndividualProgressCount.text = "$transferredStr из $totalStr ($filePercent%)"
                     } else {
                         layoutIndividualProgress.visibility = View.GONE
@@ -464,7 +465,7 @@ class YandexSyncFragment : Fragment() {
                     if (state.finished) {
                         // Показываем отчет при завершении
                         if (state.success) {
-                            android.app.AlertDialog.Builder(requireContext())
+                            android.app.AlertDialog.Builder(ctx)
                                 .setTitle("Синхронизация завершена")
                                 .setMessage("Синхронизация с Яндекс Диском успешно выполнена!\n\n" +
                                         "Скачано новых книг: ${state.downloadedCount}\n" +
@@ -474,7 +475,7 @@ class YandexSyncFragment : Fragment() {
                         } else {
                             val errorMsg = state.error ?: "Неизвестная ошибка во время синхронизации."
                             if (errorMsg != "Синхронизация отменена") {
-                                Toast.makeText(requireContext(), errorMsg, Toast.LENGTH_LONG).show()
+                                Toast.makeText(ctx, errorMsg, Toast.LENGTH_LONG).show()
                             }
                         }
                         
