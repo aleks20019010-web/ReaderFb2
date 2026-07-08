@@ -169,6 +169,61 @@
                     android:layout_height="wrap_content"
                     android:text="Шрифт" />
 
+                <!-- Quick Font Selection Row -->
+                <LinearLayout
+                    android:id="@+id/layoutFontQuick"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="8dp"
+                    android:orientation="horizontal"
+                    android:weightSum="3">
+
+                    <!-- Sans Button -->
+                    <TextView
+                        android:id="@+id/btnFontSans"
+                        android:layout_width="0dp"
+                        android:layout_height="32dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="6dp"
+                        android:gravity="center"
+                        android:text="Sans-Serif"
+                        android:fontFamily="sans-serif"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:clickable="true"
+                        android:focusable="true" />
+
+                    <!-- Serif Button -->
+                    <TextView
+                        android:id="@+id/btnFontSerif"
+                        android:layout_width="0dp"
+                        android:layout_height="32dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="6dp"
+                        android:gravity="center"
+                        android:text="Serif"
+                        android:fontFamily="serif"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:clickable="true"
+                        android:focusable="true" />
+
+                    <!-- Monospace Button -->
+                    <TextView
+                        android:id="@+id/btnFontMono"
+                        android:layout_width="0dp"
+                        android:layout_height="32dp"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:text="Monospace"
+                        android:fontFamily="monospace"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:clickable="true"
+                        android:focusable="true" />
+                </LinearLayout>
+
                 <Spinner
                     android:id="@+id/spinnerFont"
                     style="@style/CompactSpinnerStyle"

@@ -66,9 +66,45 @@ class SettingsBottomSheet : DialogFragment() {
                 val selectedFont = fontOptions[position]
                 if (selectedFont != SettingsManager.getFontFamily(context)) {
                     SettingsManager.setFontFamily(context, selectedFont)
+                    applyThemeColors(SettingsManager.getTheme(context), this@SettingsBottomSheet.requireView())
                 }
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        // Quick Font Buttons Hookup
+        val btnFontSans = view.findViewById<TextView>(R.id.btnFontSans)
+        val btnFontSerif = view.findViewById<TextView>(R.id.btnFontSerif)
+        val btnFontMono = view.findViewById<TextView>(R.id.btnFontMono)
+
+        btnFontSans?.setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            if (SettingsManager.getFontFamily(context) != "Roboto") {
+                SettingsManager.setFontFamily(context, "Roboto")
+                val idx = fontOptions.indexOf("Roboto").coerceAtLeast(0)
+                spinnerFont.setSelection(idx)
+                applyThemeColors(SettingsManager.getTheme(context), view)
+            }
+        }
+
+        btnFontSerif?.setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            if (SettingsManager.getFontFamily(context) != "Georgia") {
+                SettingsManager.setFontFamily(context, "Georgia")
+                val idx = fontOptions.indexOf("Georgia").coerceAtLeast(0)
+                spinnerFont.setSelection(idx)
+                applyThemeColors(SettingsManager.getTheme(context), view)
+            }
+        }
+
+        btnFontMono?.setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            if (SettingsManager.getFontFamily(context) != "Monospace") {
+                SettingsManager.setFontFamily(context, "Monospace")
+                val idx = fontOptions.indexOf("Monospace").coerceAtLeast(0)
+                spinnerFont.setSelection(idx)
+                applyThemeColors(SettingsManager.getTheme(context), view)
+            }
         }
 
         // 3. Font Size (SeekBar)
@@ -77,12 +113,17 @@ class SettingsBottomSheet : DialogFragment() {
         val currentFontSize = SettingsManager.getFontSize(context).toInt()
         tvFontSizeValue.text = "$currentFontSize sp"
         seekBarFontSize.progress = (currentFontSize - 14).coerceIn(0, 14)
+        var lastFontSizeProgress = seekBarFontSize.progress
         seekBarFontSize.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 val newSize = progress + 14
                 tvFontSizeValue.text = "$newSize sp"
                 if (fromUser) {
                     SettingsManager.setFontSize(context, newSize.toFloat())
+                    if (progress != lastFontSizeProgress) {
+                        seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                        lastFontSizeProgress = progress
+                    }
                 }
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -147,12 +188,17 @@ class SettingsBottomSheet : DialogFragment() {
         val currentLineSpacing = SettingsManager.getLineSpacing(context)
         tvLineSpacingValue.text = String.format("%.2f", currentLineSpacing)
         seekBarLineSpacing.progress = (((currentLineSpacing - 1.0f) * 10).toInt()).coerceIn(0, 10)
+        var lastLineSpacingProgress = seekBarLineSpacing.progress
         seekBarLineSpacing.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 val newSpacing = 1.0f + (progress / 10.0f)
                 tvLineSpacingValue.text = String.format("%.2f", newSpacing)
                 if (fromUser) {
                     SettingsManager.setLineSpacing(context, newSpacing)
+                    if (progress != lastLineSpacingProgress) {
+                        seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                        lastLineSpacingProgress = progress
+                    }
                 }
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -181,6 +227,7 @@ class SettingsBottomSheet : DialogFragment() {
         val btnThemeDark = view.findViewById<FrameLayout>(R.id.btnThemeDark)
 
         btnThemeLight.setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
             if (SettingsManager.getTheme(context) != "light") {
                 SettingsManager.setTheme(context, "light")
                 val idx = themeKeys.indexOf("light").coerceAtLeast(0)
@@ -190,6 +237,7 @@ class SettingsBottomSheet : DialogFragment() {
         }
 
         btnThemeSepia.setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
             if (SettingsManager.getTheme(context) != "sepia") {
                 SettingsManager.setTheme(context, "sepia")
                 val idx = themeKeys.indexOf("sepia").coerceAtLeast(0)
@@ -199,6 +247,7 @@ class SettingsBottomSheet : DialogFragment() {
         }
 
         btnThemeDark.setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
             if (SettingsManager.getTheme(context) != "dark") {
                 SettingsManager.setTheme(context, "dark")
                 val idx = themeKeys.indexOf("dark").coerceAtLeast(0)
@@ -331,6 +380,38 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<Spinner>(R.id.spinnerFont)?.background = spinnerBg
         rootView.findViewById<Spinner>(R.id.spinnerWeight)?.background = spinnerBg
         rootView.findViewById<Spinner>(R.id.spinnerTheme)?.background = spinnerBg
+
+        // 10. Programmatic background and text colors for quick font switching buttons
+        val currentFont = SettingsManager.getFontFamily(context)
+        val isSansSelected = currentFont == "Roboto"
+        val isSerifSelected = currentFont == "Georgia" || currentFont == "Times New Roman" || currentFont == "Merriweather"
+        val isMonoSelected = currentFont == "Monospace"
+
+        val btnFontSans = rootView.findViewById<TextView>(R.id.btnFontSans)
+        val btnFontSerif = rootView.findViewById<TextView>(R.id.btnFontSerif)
+        val btnFontMono = rootView.findViewById<TextView>(R.id.btnFontMono)
+
+        fun createFontButtonBg(selected: Boolean): GradientDrawable {
+            return GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 16f
+                if (selected) {
+                    setColor(accentColor)
+                } else {
+                    setColor(itemBgColor)
+                    setStroke(2, dividerColor)
+                }
+            }
+        }
+
+        btnFontSans?.background = createFontButtonBg(isSansSelected)
+        btnFontSans?.setTextColor(if (isSansSelected) cardBgColor else textSecondaryColor)
+
+        btnFontSerif?.background = createFontButtonBg(isSerifSelected)
+        btnFontSerif?.setTextColor(if (isSerifSelected) cardBgColor else textSecondaryColor)
+
+        btnFontMono?.background = createFontButtonBg(isMonoSelected)
+        btnFontMono?.setTextColor(if (isMonoSelected) cardBgColor else textSecondaryColor)
     }
 
     override fun onStart() {
@@ -338,8 +419,8 @@ class SettingsBottomSheet : DialogFragment() {
         dialog?.window?.let { window ->
             val metrics = resources.displayMetrics
             
-            // Width: 30% of screen size, height: wrap content but maximum 40% of screen height
-            val width = (metrics.widthPixels * 0.30).toInt().coerceAtLeast(300)
+            // Width: 50% of screen size, height: wrap content but maximum 40% of screen height
+            val width = (metrics.widthPixels * 0.50).toInt().coerceAtLeast(300)
 
             window.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT)
             window.setGravity(Gravity.TOP or Gravity.END)
