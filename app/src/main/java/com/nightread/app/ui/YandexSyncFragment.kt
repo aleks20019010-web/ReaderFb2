@@ -85,7 +85,7 @@ class YandexSyncFragment : Fragment() {
         if (result.resultCode == Activity.RESULT_OK) {
             Toast.makeText(requireContext(), "Авторизация прошла успешно!", Toast.LENGTH_SHORT).show()
             updateUi()
-            runAnalysisAndShowReport()
+            startForegroundSync()
         }
     }
 
@@ -172,7 +172,7 @@ class YandexSyncFragment : Fragment() {
         }
 
         btnSyncNow.setOnClickListener {
-            runAnalysisAndShowReport()
+            startForegroundSync()
         }
 
         btnCancelSync.setOnClickListener {
@@ -363,7 +363,11 @@ class YandexSyncFragment : Fragment() {
 
                 if (state.isRunning) {
                     layoutSyncProgress.visibility = View.VISIBLE
-                    btnSyncNow.isEnabled = false
+                    btnSyncNow.text = "Отмена"
+                    btnSyncNow.isEnabled = true
+                    btnSyncNow.setOnClickListener {
+                        cancelForegroundSync()
+                    }
                     btnSelectFolder.isEnabled = false
                     btnSelectLocalFolder.isEnabled = false
 
@@ -444,7 +448,11 @@ class YandexSyncFragment : Fragment() {
                     }
 
                     // Возвращаем стандартный UI
+                    btnSyncNow.text = "Синхронизировать"
                     btnSyncNow.isEnabled = true
+                    btnSyncNow.setOnClickListener {
+                        startForegroundSync()
+                    }
                     btnSelectFolder.isEnabled = true
                     btnSelectLocalFolder.isEnabled = true
                     layoutSyncProgress.visibility = View.GONE
