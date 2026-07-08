@@ -78,8 +78,16 @@ class BookDetailActivity : AppCompatActivity() {
             view.setPadding(0, 0, 0, insets.bottom)
             // Top padding for AppBarLayout/Toolbar to align buttons directly under status bar
             appBarLayout?.setPadding(0, insets.top, 0, 0)
-            // Top padding for NestedScrollView so cover starts below the status bar
-            nestedScrollView?.setPadding(0, insets.top, 0, 0)
+            
+            // Get action bar height dynamically to ensure correct spacing
+            val tv = TypedValue()
+            var actionBarHeight = 0
+            if (theme.resolveAttribute(android.R.attr.actionBarSize, tv, true)) {
+                actionBarHeight = TypedValue.complexToDimensionPixelSize(tv.data, resources.displayMetrics)
+            }
+            
+            // Top padding for NestedScrollView so cover starts below the status bar and toolbar
+            nestedScrollView?.setPadding(0, insets.top + actionBarHeight, 0, 0)
             windowInsets
         }
 
