@@ -72,10 +72,14 @@ object NewFb2Parser {
                 if (lnMatch != null) lastName = lnMatch.groupValues[1].trim()
             }
 
-            val seriesMatch = Regex("<sequence[^>]*?name\\s*=\\s*\"([^\"]+?)\"", RegexOption.IGNORE_CASE).find(headerContent)
-            if (seriesMatch != null) {
-                series = seriesMatch.groupValues[1].trim()
-                val indexMatch = Regex("number\\s*=\\s*\"(\\d+?)\"", RegexOption.IGNORE_CASE).find(seriesMatch.value)
+            val sequenceMatch = Regex("<sequence\\s+([^>]+?)>", RegexOption.IGNORE_CASE).find(headerContent)
+            if (sequenceMatch != null) {
+                val sequenceAttributes = sequenceMatch.groupValues[1]
+                val nameMatch = Regex("name\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(sequenceAttributes)
+                if (nameMatch != null) {
+                    series = nameMatch.groupValues[1].trim()
+                }
+                val indexMatch = Regex("number\\s*=\\s*[\"'](\\d+)[\"']", RegexOption.IGNORE_CASE).find(sequenceAttributes)
                 if (indexMatch != null) {
                     seriesIndex = indexMatch.groupValues[1].toIntOrNull()
                 }

@@ -559,7 +559,10 @@ class NewBookScanner(
                     filePath = file.absolutePath,
                     coverPath = coverPath,
                     annotation = metadata.annotation,
-                    fileSize = file.length()
+                    fileSize = file.length(),
+                    series = metadata.series,
+                    seriesIndex = metadata.seriesIndex,
+                    language = metadata.language
                 )
                 batchList.add(book)
                 sha1ToPathMap[sha1] = file.absolutePath
@@ -642,7 +645,10 @@ class NewBookScanner(
                                             filePath = file.absolutePath,
                                             coverPath = coverPath,
                                             annotation = metadata.annotation,
-                                            fileSize = file.length()
+                                            fileSize = file.length(),
+                                            series = metadata.series,
+                                            seriesIndex = metadata.seriesIndex,
+                                            language = metadata.language
                                         )
                                         batchList.add(book)
                                         sha1ToPathMap[sha1] = file.absolutePath
