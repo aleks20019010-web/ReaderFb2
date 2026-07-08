@@ -379,9 +379,9 @@ class BookDetailActivity : AppCompatActivity() {
 
     private fun checkAnnotationLength() {
         tvAnnotation.post {
-            if (tvAnnotation.layout != null && tvAnnotation.layout.lineCount > 4) {
+            if (tvAnnotation.layout != null && tvAnnotation.layout.lineCount > 5) {
                 tvReadMore.visibility = View.VISIBLE
-                tvAnnotation.maxLines = 4
+                tvAnnotation.maxLines = 5
                 isAnnotationExpanded = false
             } else {
                 tvReadMore.visibility = View.GONE
@@ -390,8 +390,12 @@ class BookDetailActivity : AppCompatActivity() {
     }
 
     private fun toggleAnnotation() {
+        val parentLayout = findViewById<android.view.ViewGroup>(R.id.llAnnotationContainer) ?: tvAnnotation.parent as? android.view.ViewGroup
+        if (parentLayout != null) {
+            android.transition.TransitionManager.beginDelayedTransition(parentLayout)
+        }
         if (isAnnotationExpanded) {
-            tvAnnotation.maxLines = 4
+            tvAnnotation.maxLines = 5
             tvReadMore.text = "...читать далее"
         } else {
             tvAnnotation.maxLines = Integer.MAX_VALUE
