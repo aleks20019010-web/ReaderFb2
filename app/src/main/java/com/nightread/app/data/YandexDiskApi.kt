@@ -25,6 +25,8 @@ data class ResourceResponse(
     @Json(name = "type") val type: String,
     @Json(name = "name") val name: String,
     @Json(name = "path") val path: String,
+    @Json(name = "size") val size: Long? = null,
+    @Json(name = "modified") val modified: String? = null,
     @Json(name = "_embedded") val embedded: EmbeddedResources? = null
 )
 

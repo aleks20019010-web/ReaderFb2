@@ -20,7 +20,10 @@ data class YandexSyncState(
     val uploadedCount: Int = 0,
     val success: Boolean = false,
     val finished: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val currentFileName: String? = null,
+    val currentFileBytesTransferred: Long = 0L,
+    val currentFileTotalBytes: Long = 0L
 ) {
     enum class Stage {
         IDLE, PREPARING, SCANNING, DOWNLOADING, UPLOADING, PROGRESS_SYNC, COMPLETED, ERROR

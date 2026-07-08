@@ -15,6 +15,7 @@ import kotlinx.coroutines.coroutineScope
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
+import okio.buffer
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.io.File
@@ -345,6 +346,67 @@ object YandexDiskManager {
         }
     }
 
+    suspend fun uploadBook(context: Context, cleanPath: String, fileBytes: ByteArray, sha1: String): Boolean = withContext(Dispatchers.IO) {
+        val token = getToken(context) ?: return@withContext false
+        val authHeader = "OAuth $token"
+        try {
+            val originalName = File(cleanPath).name
+            val totalSize = fileBytes.size.toLong()
+            
+            YandexSyncState.update {
+                it.copy(
+                    currentFileName = originalName,
+                    currentFileBytesTransferred = 0L,
+                    currentFileTotalBytes = totalSize
+                )
+            }
+
+            val linkResponse = api.getUploadLink(authHeader, cleanPath)
+            
+            val baseBody = fileBytes.toRequestBody("application/octet-stream".toMediaType())
+            var lastUpdateBytes = 0L
+            val updateThreshold = 50 * 1024 // 50 KB
+            
+            val progressBody = ProgressRequestBody(baseBody) { bytesWritten, total ->
+                val currentTotal = if (total > 0) total else totalSize
+                if (bytesWritten - lastUpdateBytes >= updateThreshold || bytesWritten == currentTotal) {
+                    lastUpdateBytes = bytesWritten
+                    YandexSyncState.update {
+                        it.copy(
+                            currentFileBytesTransferred = bytesWritten,
+                            currentFileTotalBytes = currentTotal
+                        )
+                    }
+                }
+            }
+
+            api.uploadFile(linkResponse.href, progressBody)
+            
+            // Получаем метаданные загруженного файла для получения даты модификации
+            val metaResponse = api.getResource(authHeader, cleanPath, limit = 1)
+            val modified = metaResponse.modified ?: ""
+            
+            // Сохраняем в кэш
+            val db = AppDatabase.getDatabase(context)
+            val cache = CloudFileCache(db.cloudFileDao())
+            cache.save(sha1, cleanPath, modified, fileBytes.size.toLong())
+            
+            Log.d(TAG, "Uploaded book and cached SHA-1: $cleanPath")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error uploading book: $cleanPath", e)
+            false
+        } finally {
+            YandexSyncState.update {
+                it.copy(
+                    currentFileName = null,
+                    currentFileBytesTransferred = 0L,
+                    currentFileTotalBytes = 0L
+                )
+            }
+        }
+    }
+
     private fun computeSha1(bytes: ByteArray): String {
         val digest = java.security.MessageDigest.getInstance("SHA-1")
         val hash = digest.digest(bytes)
@@ -394,5 +456,35 @@ object YandexDiskManager {
     fun getLastSyncTimestamp(context: Context): Long {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getLong("last_sync_time", 0L)
+    }
+}
+
+class ProgressRequestBody(
+    private val delegate: okhttp3.RequestBody,
+    private val onProgress: (bytesWritten: Long, totalBytes: Long) -> Unit
+) : okhttp3.RequestBody() {
+
+    override fun contentType(): okhttp3.MediaType? = delegate.contentType()
+
+    override fun contentLength(): Long = try {
+        delegate.contentLength()
+    } catch (e: java.io.IOException) {
+        -1L
+    }
+
+    override fun writeTo(sink: okio.BufferedSink) {
+        val total = contentLength()
+        var bytesWritten = 0L
+        
+        val countingSink = object : okio.ForwardingSink(sink) {
+            override fun write(source: okio.Buffer, byteCount: Long) {
+                super.write(source, byteCount)
+                bytesWritten += byteCount
+                onProgress(bytesWritten, total)
+            }
+        }
+        val bufferedSink = countingSink.buffer()
+        delegate.writeTo(bufferedSink)
+        bufferedSink.flush()
     }
 }

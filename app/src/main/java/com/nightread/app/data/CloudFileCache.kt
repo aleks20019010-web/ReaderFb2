@@ -40,3 +40,28 @@ interface CloudFileDao {
     @Query("DELETE FROM cloud_file_cache WHERE path = :path")
     suspend fun deleteByPath(path: String)
 }
+
+/**
+ * Кэш для быстрого доступа к информации о файлах в облаке.
+ */
+class CloudFileCache(private val dao: CloudFileDao) {
+
+    suspend fun save(sha1: String, fileName: String, modified: String) {
+        save(sha1, fileName, modified, 0L)
+    }
+
+    suspend fun save(sha1: String, fileName: String, modified: String, size: Long) {
+        val entity = CloudFileEntity(
+            path = fileName,
+            sha1 = sha1,
+            size = size,
+            lastModified = modified
+        )
+        dao.insert(entity)
+    }
+
+    suspend fun getAllSha1s(): List<String> {
+        return dao.getAll().map { it.sha1 }
+    }
+}
+

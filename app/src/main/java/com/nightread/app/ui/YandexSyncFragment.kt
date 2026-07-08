@@ -73,6 +73,11 @@ class YandexSyncFragment : Fragment() {
     private lateinit var txtRemainingTime: TextView
     private lateinit var txtSyncStatsDetail: TextView
     private lateinit var btnCancelSync: Button
+
+    private lateinit var layoutIndividualProgress: LinearLayout
+    private lateinit var txtCurrentFileName: TextView
+    private lateinit var progressIndividual: ProgressBar
+    private lateinit var txtIndividualProgressCount: TextView
     
     private lateinit var txtLastSync: TextView
 
@@ -134,6 +139,11 @@ class YandexSyncFragment : Fragment() {
         txtRemainingTime = view.findViewById(R.id.txtRemainingTime)
         txtSyncStatsDetail = view.findViewById(R.id.txtSyncStatsDetail)
         btnCancelSync = view.findViewById(R.id.btnCancelSync)
+
+        layoutIndividualProgress = view.findViewById(R.id.layoutIndividualProgress)
+        txtCurrentFileName = view.findViewById(R.id.txtCurrentFileName)
+        progressIndividual = view.findViewById(R.id.progressIndividual)
+        txtIndividualProgressCount = view.findViewById(R.id.txtIndividualProgressCount)
         
         txtLastSync = view.findViewById(R.id.txtLastSync)
 
@@ -301,6 +311,26 @@ class YandexSyncFragment : Fragment() {
                         progressSync.max = state.total
                         progressSync.progress = state.completed
                         txtSyncProgressCount.text = "${state.completed} / ${state.total} (${state.percent}%)"
+                    }
+
+                    // Обновление индивидуального прогресса файла
+                    if (state.currentFileName != null) {
+                        layoutIndividualProgress.visibility = View.VISIBLE
+                        txtCurrentFileName.text = "Файл: ${state.currentFileName}"
+                        
+                        val filePercent = if (state.currentFileTotalBytes > 0) {
+                            ((state.currentFileBytesTransferred * 100) / state.currentFileTotalBytes).toInt()
+                        } else {
+                            0
+                        }
+                        progressIndividual.max = 100
+                        progressIndividual.progress = filePercent
+                        
+                        val transferredStr = Formatter.formatFileSize(requireContext(), state.currentFileBytesTransferred)
+                        val totalStr = Formatter.formatFileSize(requireContext(), state.currentFileTotalBytes)
+                        txtIndividualProgressCount.text = "$transferredStr из $totalStr ($filePercent%)"
+                    } else {
+                        layoutIndividualProgress.visibility = View.GONE
                     }
 
                     // Отображение оставшегося времени

@@ -36,6 +36,7 @@ class YandexSyncManager(private val context: Context) {
     private val database = AppDatabase.getDatabase(context)
     private val repository = BookRepository(database.bookDao(), database.noteDao())
     private val cloudFileDao = database.cloudFileDao()
+    private val cloudFileCache = CloudFileCache(cloudFileDao)
 
     companion object {
         private const val TAG = "YandexSyncManager"
@@ -169,13 +170,20 @@ class YandexSyncManager(private val context: Context) {
             Log.d(TAG, "Найдено книг на диске: $booksOnDisk")
 
             onProgress("Анализ кэша SHA-1 файлов...")
+            val cachedSha1s = cloudFileCache.getAllSha1s()
+            Log.d(TAG, "Количество SHA-1 в кэше: ${cachedSha1s.size}")
+
             val updatedCloudBooks = mutableListOf<CloudFileEntity>()
             val needsSha1 = mutableListOf<ResourceItem>()
+
+            // Прогружаем весь кэш из базы данных для быстрого сопоставления без лишних запросов в цикле
+            val allCachedEntities = cloudFileDao.getAll()
+            val cachedMap = allCachedEntities.associateBy { it.path }
 
             // Проверка кэша в локальной Room-БД
             for (cloudBook in cloudBooks) {
                 val cleanPath = YandexDiskManager.normalizePath(cloudBook.path ?: "$syncFolder/${cloudBook.name}")
-                val cached = cloudFileDao.getByPath(cleanPath)
+                val cached = cachedMap[cleanPath]
                 if (cached != null && cached.size == (cloudBook.size ?: 0L) && cached.lastModified == (cloudBook.modified ?: "")) {
                     updatedCloudBooks.add(cached)
                 } else {
@@ -216,13 +224,14 @@ class YandexSyncManager(private val context: Context) {
                                         if (fb2Bytes.isNotEmpty()) {
                                             val sha1 = computeSha1(fb2Bytes)
                                             
+                                            cloudFileCache.save(sha1, cleanItemPath, item.modified ?: "", item.size ?: 0L)
+                                            
                                             val entity = CloudFileEntity(
                                                 path = cleanItemPath,
                                                 sha1 = sha1,
                                                 size = item.size ?: 0L,
                                                 lastModified = item.modified ?: ""
                                             )
-                                            cloudFileDao.insert(entity)
                                             synchronized(updatedCloudBooks) {
                                                 updatedCloudBooks.add(entity)
                                             }
@@ -369,9 +378,36 @@ class YandexSyncManager(private val context: Context) {
                     
                     val tempFile = File(context.cacheDir, "temp_down_${originalName}")
                     try {
+                        val totalBytes = cloudItem.size
+                        YandexSyncState.update {
+                            it.copy(
+                                currentFileName = originalName,
+                                currentFileBytesTransferred = 0L,
+                                currentFileTotalBytes = totalBytes
+                            )
+                        }
+
                         tempFile.outputStream().use { output ->
                             responseBody.byteStream().use { input ->
-                                input.copyTo(output)
+                                val buffer = ByteArray(8192)
+                                var bytesRead: Int
+                                var bytesTransferred = 0L
+                                var lastUpdateBytes = 0L
+                                val updateThreshold = 50 * 1024 // 50 KB
+                                
+                                while (input.read(buffer).also { bytesRead = it } != -1) {
+                                    output.write(buffer, 0, bytesRead)
+                                    bytesTransferred += bytesRead
+                                    
+                                    if (bytesTransferred - lastUpdateBytes >= updateThreshold || bytesTransferred == totalBytes) {
+                                        lastUpdateBytes = bytesTransferred
+                                        YandexSyncState.update {
+                                            it.copy(
+                                                currentFileBytesTransferred = bytesTransferred
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                         
@@ -422,6 +458,13 @@ class YandexSyncManager(private val context: Context) {
                         }
                     } finally {
                         if (tempFile.exists()) tempFile.delete()
+                        YandexSyncState.update {
+                            it.copy(
+                                currentFileName = null,
+                                currentFileBytesTransferred = 0L,
+                                currentFileTotalBytes = 0L
+                            )
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Ошибка скачивания книги '$originalName'", e)
@@ -458,23 +501,14 @@ class YandexSyncManager(private val context: Context) {
                 if (localFile != null && localFile.exists()) {
                     try {
                         val cleanPath = YandexDiskManager.normalizePath("$syncFolder/$originalName")
-                        val linkResponse = YandexDiskManager.api.getUploadLink(authHeader, cleanPath)
                         val fileBytes = localFile.readBytes()
-                        YandexDiskManager.api.uploadFile(
-                            linkResponse.href,
-                            fileBytes.toRequestBody("application/octet-stream".toMediaType())
-                        )
-                        
-                        // Сохраняем в кэш
-                        val entity = CloudFileEntity(
-                            path = cleanPath,
-                            sha1 = localBook.sha1,
-                            size = fileBytes.size.toLong(),
-                            lastModified = "" // Обновится при следующем сканировании
-                        )
-                        cloudFileDao.insert(entity)
-                        uploadedCount++
-                        Log.d(TAG, "Успешно загружена книга: $originalName")
+                        val success = YandexDiskManager.uploadBook(context, cleanPath, fileBytes, localBook.sha1 ?: "")
+                        if (success) {
+                            uploadedCount++
+                            Log.d(TAG, "Успешно загружена книга: $originalName")
+                        } else {
+                            Log.e(TAG, "Ошибка загрузки книги '$originalName'")
+                        }
                     } catch (e: Exception) {
                         Log.e(TAG, "Ошибка загрузки книги '$originalName'", e)
                     }

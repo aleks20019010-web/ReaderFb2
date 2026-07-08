@@ -328,6 +328,45 @@
                                 android:textColor="@color/text_secondary"
                                 android:textSize="12sp" />
 
+                            <!-- NEW: Individual File Progress Section -->
+                            <LinearLayout
+                                android:id="@+id/layoutIndividualProgress"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:layout_marginTop="12dp"
+                                android:layout_marginBottom="4dp"
+                                android:visibility="gone">
+
+                                <TextView
+                                    android:id="@+id/txtCurrentFileName"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Файл: name.fb2"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="13sp"
+                                    android:textStyle="italic"
+                                    android:layout_marginBottom="4dp" />
+
+                                <ProgressBar
+                                    android:id="@+id/progressIndividual"
+                                    style="?android:attr/progressBarStyleHorizontal"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="6dp"
+                                    android:max="100"
+                                    android:progressTint="@color/accent"
+                                    android:progressBackgroundTint="@color/divider"
+                                    android:layout_marginBottom="4dp" />
+
+                                <TextView
+                                    android:id="@+id/txtIndividualProgressCount"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="0 Б / 0 Б"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+
                             <TextView
                                 android:id="@+id/txtRemainingTime"
                                 android:layout_width="wrap_content"
