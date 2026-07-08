@@ -584,7 +584,13 @@ class NewBookScanner(
                             val entryName = entry.name.lowercase()
                             if (!entry.isDirectory && entryName.endsWith(".fb2")) {
                                 val tempBytes = try {
-                                    zis.readBytes()
+                                    val buffer = java.io.ByteArrayOutputStream()
+                                    val data = ByteArray(8192)
+                                    var nRead: Int
+                                    while (zis.read(data, 0, data.size).also { nRead = it } != -1) {
+                                        buffer.write(data, 0, nRead)
+                                    }
+                                    buffer.toByteArray()
                                 } catch (e: SecurityException) {
                                     Log.e(TAG, "SecurityException reading zip entry: $entryName in ${file.absolutePath}", e)
                                     byteArrayOf()

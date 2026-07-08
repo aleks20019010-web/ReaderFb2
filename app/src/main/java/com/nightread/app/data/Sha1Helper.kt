@@ -17,7 +17,13 @@ object Sha1Helper {
     }
 
     fun computeSha1Stream(inputStream: InputStream): String {
-        return computeSha1(inputStream.readBytes())
+        val buffer = java.io.ByteArrayOutputStream()
+        val data = ByteArray(8192)
+        var nRead: Int
+        while (inputStream.read(data, 0, data.size).also { nRead = it } != -1) {
+            buffer.write(data, 0, nRead)
+        }
+        return computeSha1(buffer.toByteArray())
     }
 
     fun computeSha1FromContent(file: File): String? {
