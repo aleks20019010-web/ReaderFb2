@@ -498,7 +498,7 @@ class NewBookScanner(
 
                 val bytes = try {
                     file.inputStream().buffered().use { fis ->
-                        readLimitedBytes(fis, 25 * 1024 * 1024)
+                        fis.readBytes()
                     }
                 } catch (e: SecurityException) {
                     Log.e(TAG, "SecurityException reading file: ${file.absolutePath}", e)
@@ -584,8 +584,7 @@ class NewBookScanner(
                             val entryName = entry.name.lowercase()
                             if (!entry.isDirectory && entryName.endsWith(".fb2")) {
                                 val tempBytes = try {
-                                    // Protect against oversized files to avoid OutOfMemory
-                                    readLimitedBytes(zis, 25 * 1024 * 1024)
+                                    zis.readBytes()
                                 } catch (e: SecurityException) {
                                     Log.e(TAG, "SecurityException reading zip entry: $entryName in ${file.absolutePath}", e)
                                     byteArrayOf()

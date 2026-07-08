@@ -79,9 +79,11 @@ class SyncOrchestrator(
             for ((index, file) in filteredCloudFiles.withIndex()) {
                 if (isCancelled) return
                 progressTracker.updateProgress(index, filteredCloudFiles.size, "Анализ файлов: ${index + 1} из ${filteredCloudFiles.size}")
+                
+                val normalizedPath = YandexDiskManager.normalizePath(file.path)
 
                 try {
-                    val cached = cacheManager.getByPath(file.path)
+                    val cached = cacheManager.getByPath(normalizedPath)
                     var sha1: String? = null
 
                     if (cached != null && cached.lastModified == file.modified && cached.size == (file.size ?: 0L)) {
@@ -91,11 +93,11 @@ class SyncOrchestrator(
                         Log.d(TAG, "Downloading temporarily and extracting SHA-1 for ${file.name}")
                         val tempFile = File(context.cacheDir, "temp_sha_${System.currentTimeMillis()}_${file.name}")
                         try {
-                            val success = cloudService.downloadFile(file.path, tempFile)
+                            val success = cloudService.downloadFile(normalizedPath, tempFile)
                             if (success) {
                                 sha1 = sha1Extractor.extractSha1(tempFile)
                                 if (sha1 != null) {
-                                    cacheManager.save(sha1, file.path, file.modified ?: "", file.size ?: 0L)
+                                    cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
                                     Log.d(TAG, "Calculated and cached SHA-1 for ${file.name}: $sha1")
                                 }
                             }
@@ -113,8 +115,8 @@ class SyncOrchestrator(
                     }
 
                     if (sha1 != null) {
-                        cloudSha1Map[file.path] = sha1
-                        cloudSha1ToPath[sha1] = file.path
+                        cloudSha1Map[normalizedPath] = sha1
+                        cloudSha1ToPath[sha1] = normalizedPath
                     }
                 } catch (e: Exception) {
                 SyncErrorHandler.logError("SyncOrchestrator Stage 2", e, true)
@@ -145,6 +147,9 @@ class SyncOrchestrator(
                     val book = bookDao.getBookBySha1(sha1)
                     if (book != null) {
                         toUploadBooks.add(book)
+                        if (toUploadBooks.size <= 10) {
+                            Log.d(TAG, "Problematic book to upload (SHA-1): $sha1, title: ${book.title}")
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error looking up local book by SHA-1: $sha1", e)
@@ -152,6 +157,10 @@ class SyncOrchestrator(
             }
 
             val toDownloadPaths = toDownloadSha1s.mapNotNull { cloudSha1ToPath[it] }
+            
+            toDownloadSha1s.take(10).forEach { sha1 ->
+                Log.d(TAG, "Problematic book to download (SHA-1): $sha1, path: ${cloudSha1ToPath[sha1]}")
+            }
 
             progressTracker.updateStats(
                 toUpload = toUploadBooks.size,
@@ -193,7 +202,7 @@ class SyncOrchestrator(
                                     if (tokenVal != null) {
                                         val response = YandexDiskManager.api.getResource("OAuth $tokenVal", remotePath, limit = 1)
                                         val modified = response.modified ?: ""
-                                        cacheManager.save(book.sha1 ?: "", remotePath, modified, localFile.length())
+                                        cacheManager.save(book.sha1 ?: "", remotePath, modified, response.size ?: localFile.length())
                                     }
                                 } catch (e: Exception) {
                                     Log.e(TAG, "Error caching metadata after upload", e)
@@ -280,7 +289,7 @@ class SyncOrchestrator(
                                             val tokenVal = YandexDiskManager.getToken(context)
                                             if (tokenVal != null) {
                                                 val response = YandexDiskManager.api.getResource("OAuth $tokenVal", remotePath, limit = 1)
-                                                cacheManager.save(sha1, remotePath, response.modified ?: "", bytes.size.toLong())
+                                                cacheManager.save(sha1, remotePath, response.modified ?: "", response.size ?: bytes.size.toLong())
                                             }
                                         } catch (e: Exception) {
                                             Log.e(TAG, "Error caching after download", e)
