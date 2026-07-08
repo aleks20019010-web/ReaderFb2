@@ -82,10 +82,11 @@ class YandexSyncFragment : Fragment() {
     private lateinit var txtLastSync: TextView
 
     private val authLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (!isAdded) return@registerForActivityResult
+        val ctx = context ?: return@registerForActivityResult
         if (result.resultCode == Activity.RESULT_OK) {
-            Toast.makeText(requireContext(), "Авторизация прошла успешно!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, "Авторизация прошла успешно!", Toast.LENGTH_SHORT).show()
             updateUi()
-            startForegroundSync()
         }
     }
 
@@ -220,8 +221,9 @@ class YandexSyncFragment : Fragment() {
     }
 
     private fun updateUi() {
-        val context = requireContext()
-        val authorized = YandexDiskManager.isAuthorized(context)
+        if (!isAdded) return
+        val ctx = context ?: return
+        val authorized = YandexDiskManager.isAuthorized(ctx)
 
         if (authorized) {
             statusValue.text = "Подключено"
@@ -231,18 +233,18 @@ class YandexSyncFragment : Fragment() {
             layoutStorage.visibility = View.VISIBLE
             cardSync.visibility = View.VISIBLE
 
-            val currentFolder = YandexDiskManager.getSyncFolder(context)
+            val currentFolder = YandexDiskManager.getSyncFolder(ctx)
             txtSyncFolder.text = "Папка: $currentFolder"
 
             // Загрузка информации о диске
             lifecycleScope.launch {
                 try {
-                    val info = YandexDiskManager.getDiskInfo(context)
+                    val info = YandexDiskManager.getDiskInfo(ctx)
                     if (!isAdded) return@launch
                     txtUsername.text = "Пользователь: ${info.user?.displayName ?: info.user?.login ?: "Неизвестен"}"
                     
-                    val usedStr = Formatter.formatFileSize(context, info.usedSpace)
-                    val totalStr = Formatter.formatFileSize(context, info.totalSpace)
+                    val usedStr = Formatter.formatFileSize(ctx, info.usedSpace)
+                    val totalStr = Formatter.formatFileSize(ctx, info.totalSpace)
                     txtStorage.text = "Занято: $usedStr из $totalStr"
 
                     val percent = if (info.totalSpace > 0) {
@@ -271,7 +273,9 @@ class YandexSyncFragment : Fragment() {
     }
 
     private fun refreshLastSyncTime() {
-        val lastSync = YandexDiskManager.getLastSyncTimestamp(requireContext())
+        if (!isAdded) return
+        val ctx = context ?: return
+        val lastSync = YandexDiskManager.getLastSyncTimestamp(ctx)
         if (lastSync > 0L) {
             val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.getDefault())
             txtLastSync.text = "Последняя синхронизация: ${sdf.format(Date(lastSync))}"
@@ -611,15 +615,15 @@ class YandexSyncFragment : Fragment() {
 
     private fun updateLocalFolderDisplay() {
         if (!isAdded) return
-        val context = requireContext()
-        val displayName = com.nightread.app.data.SyncSettingsManager.getDownloadFolderDisplayName(context)
+        val ctx = context ?: return
+        val displayName = com.nightread.app.data.SyncSettingsManager.getDownloadFolderDisplayName(ctx)
         txtLocalDownloadFolder.text = displayName
         
         // Проверка доступности выбранной папки
-        if (com.nightread.app.data.SyncSettingsManager.getDownloadFolderUri(context) != null) {
-            if (!com.nightread.app.data.SyncSettingsManager.isFolderAccessible(context)) {
+        if (com.nightread.app.data.SyncSettingsManager.getDownloadFolderUri(ctx) != null) {
+            if (!com.nightread.app.data.SyncSettingsManager.isFolderAccessible(ctx)) {
                 txtLocalDownloadFolder.setTextColor(0xFFFF4D4D.toInt()) // Red warning color
-                Toast.makeText(context, "Выбранная папка недоступна. Выберите папку заново.", Toast.LENGTH_LONG).show()
+                Toast.makeText(ctx, "Выбранная папка недоступна. Выберите папку заново.", Toast.LENGTH_LONG).show()
             } else {
                 txtLocalDownloadFolder.setTextColor(resources.getColor(R.color.text_primary, null))
             }
