@@ -82,6 +82,7 @@ class ReadingActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         hideSystemBars()
+        updateSystemBarsColors()
 
         sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
         if (sha1.isEmpty()) {
@@ -114,6 +115,7 @@ class ReadingActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             SettingsManager.settingsChanged.collect {
+                updateSystemBarsColors()
                 // Check if layout-affecting settings changed
                 val newFontSize = SettingsManager.getFontSize(this@ReadingActivity)
                 val newFontFamily = SettingsManager.getFontFamily(this@ReadingActivity)
@@ -441,6 +443,37 @@ class ReadingActivity : AppCompatActivity() {
     private fun showSystemBars() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         WindowInsetsControllerCompat(window, window.decorView).show(WindowInsetsCompat.Type.systemBars())
+    }
+
+    private fun updateSystemBarsColors() {
+        val themeName = SettingsManager.getTheme(this)
+        val bgColor = when (themeName) {
+            "light" -> "#FFFFFF"
+            "dark" -> "#1A1A1A"
+            "sepia" -> "#F5F0E8"
+            "sepia_contrast" -> "#F5E6C8"
+            "contrast" -> "#000000"
+            "beige" -> "#F4ECD8"
+            else -> "#F5F0E8"
+        }
+        val parsedColor = android.graphics.Color.parseColor(bgColor)
+        
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
+        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
+        
+        window.statusBarColor = parsedColor
+        window.navigationBarColor = parsedColor
+
+        val isLightTheme = when (themeName) {
+            "light", "sepia", "sepia_contrast", "beige" -> true
+            else -> false
+        }
+        
+        WindowInsetsControllerCompat(window, window.decorView).let { controller ->
+            controller.isAppearanceLightStatusBars = isLightTheme
+            controller.isAppearanceLightNavigationBars = isLightTheme
+        }
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
