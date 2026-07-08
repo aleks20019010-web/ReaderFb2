@@ -82,6 +82,10 @@ class ReadingActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         hideSystemBars()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode = 
+                android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
         updateSystemBarsColors()
 
         sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
@@ -465,6 +469,10 @@ class ReadingActivity : AppCompatActivity() {
         
         window.statusBarColor = parsedColor
         window.navigationBarColor = parsedColor
+
+        // Ensure the root view and window background match the active page theme color
+        findViewById<android.view.View>(R.id.rootView)?.setBackgroundColor(parsedColor)
+        window.decorView.setBackgroundColor(parsedColor)
 
         val isLightTheme = when (themeName) {
             "light", "sepia", "sepia_contrast", "beige" -> true
