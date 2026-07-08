@@ -16,8 +16,11 @@ class MainApplication : Application() {
         super.onCreate()
         Log.d("MainApplication", "MainApplication onCreate: Initializing app.")
         
-        // Reset sync state if it was interrupted
+        // Reset sync state and cancel pending sync tasks if they were interrupted
         try {
+            // Cancel any pending sync work
+            androidx.work.WorkManager.getInstance(this).cancelAllWorkByTag("YandexSyncWork")
+            
             if (com.nightread.app.data.SyncSettingsManager.isSyncing(this)) {
                 Log.w("SYNC_ERROR", "Detected interrupted sync during application startup. Resetting flag and cleaning cache.")
                 com.nightread.app.data.SyncSettingsManager.setSyncing(this, false)
@@ -33,7 +36,7 @@ class MainApplication : Application() {
                 }
             }
         } catch (e: Exception) {
-            Log.e("SYNC_ERROR", "Error checking sync interruption on app startup", e)
+            Log.e("SYNC_ERROR", "Error during sync state cleanup on app startup", e)
         }
 
         // Apply theme immediately on startup

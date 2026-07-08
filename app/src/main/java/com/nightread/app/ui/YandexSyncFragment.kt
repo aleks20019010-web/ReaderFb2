@@ -289,27 +289,40 @@ class YandexSyncFragment : Fragment() {
      */
     private fun startForegroundSync() {
         val context = requireContext()
-        if (com.nightread.app.data.SyncSettingsManager.isSyncing(context) || com.nightread.app.data.YandexSyncState.state.value.isRunning) {
-            Toast.makeText(context, "Синхронизация уже выполняется!", Toast.LENGTH_SHORT).show()
-            return
+        try {
+            if (com.nightread.app.data.SyncSettingsManager.isSyncing(context) || com.nightread.app.data.YandexSyncState.state.value.isRunning) {
+                Toast.makeText(context, "Синхронизация уже выполняется!", Toast.LENGTH_SHORT).show()
+                return
+            }
+            
+            // Check for token
+            val token = YandexDiskManager.getToken(context)
+            if (token.isNullOrBlank()) {
+                Toast.makeText(context, "Ошибка: Авторизуйтесь на Яндекс Диске", Toast.LENGTH_LONG).show()
+                return
+            }
+
+            val syncManager = YandexSyncManager(context)
+
+            if (!syncManager.hasInternetConnection()) {
+                Toast.makeText(context, "Отсутствует подключение к интернету", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            val workRequest = androidx.work.OneTimeWorkRequestBuilder<com.nightread.app.service.SyncWorker>()
+                .addTag("YandexSyncWork")
+                .build()
+
+            androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
+                "YandexSyncUniqueWork",
+                androidx.work.ExistingWorkPolicy.REPLACE,
+                workRequest
+            )
+            Toast.makeText(context, "Синхронизация запущена в фоновом режиме", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.e("SYNC_UI", "Error starting sync", e)
+            Toast.makeText(context, "Ошибка при запуске синхронизации", Toast.LENGTH_LONG).show()
         }
-        val syncManager = YandexSyncManager(context)
-
-        if (!syncManager.hasInternetConnection()) {
-            Toast.makeText(context, "Отсутствует подключение к интернету", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val workRequest = androidx.work.OneTimeWorkRequestBuilder<com.nightread.app.service.SyncWorker>()
-            .addTag("YandexSyncWork")
-            .build()
-
-        androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
-            "YandexSyncUniqueWork",
-            androidx.work.ExistingWorkPolicy.REPLACE,
-            workRequest
-        )
-        Toast.makeText(context, "Синхронизация запущена в фоновом режиме", Toast.LENGTH_SHORT).show()
     }
 
     /**
