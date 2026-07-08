@@ -200,7 +200,7 @@ class YandexSyncManager(private val context: Context) {
                 val startTime = System.currentTimeMillis()
                 
                 // Concurrency limit of 15 using Semaphore to prevent API throttling
-                val semaphore = kotlinx.coroutines.sync.Semaphore(15)
+                val semaphore = Semaphore(15)
                 
                 coroutineScope {
                     val deferreds = needsSha1.map { item ->
@@ -219,11 +219,8 @@ class YandexSyncManager(private val context: Context) {
                                                 input.copyTo(output)
                                             }
                                         }
-                                        val bytes = tempFile.readBytes()
-                                        val fb2Bytes = extractFb2Bytes(bytes, item.name)
-                                        if (fb2Bytes.isNotEmpty()) {
-                                            val sha1 = computeSha1(fb2Bytes)
-                                            
+                                        val sha1 = Sha1Helper.computeSha1FromContent(tempFile)
+                                        if (sha1 != null && sha1.isNotEmpty()) {
                                             cloudFileCache.save(sha1, cleanItemPath, item.modified ?: "", item.size ?: 0L)
                                             
                                             val entity = CloudFileEntity(
@@ -355,31 +352,27 @@ class YandexSyncManager(private val context: Context) {
 
             // Получаем список всех локальных книг из базы данных
             val localBooks = database.bookDao().getAllBooks().first()
-            val localSha1Set = localBooks.filter { !it.sha1.isNullOrEmpty() }.map { it.sha1 }.toSet()
+            val localSha1Set = database.bookDao().getAllSha1s().filter { it.isNotEmpty() }.toSet()
+            val cloudSha1Set = updatedCloudBooks.map { it.sha1 }.filter { it.isNotEmpty() }.toSet()
             
             Log.d(TAG, "Локальных книг (по SHA-1): ${localSha1Set.size}")
-            Log.d(TAG, "Книг в облаке (по SHA-1): ${updatedCloudBooks.size}")
+            Log.d(TAG, "Книг в облаке (по SHA-1): ${cloudSha1Set.size}")
 
-            // 1. Книги для скачивания (есть в облаке, но нет локально по SHA-1)
-            val toDownload = updatedCloudBooks.filter { !localSha1Set.contains(it.sha1) }
+            // Сравнение по SHA-1:
+            // toUpload = localSha1 - cloudSha1 (книги, которых нет на диске)
+            val toUploadSha1s = localSha1Set - cloudSha1Set
+            
+            // toDownload = cloudSha1 - localSha1 (книги, которых нет локально)
+            val toDownloadSha1s = cloudSha1Set - localSha1Set
+
+            // 1. Книги для скачивания (берём по одной для каждого уникального SHA-1 из toDownload)
+            val cloudBooksBySha1 = updatedCloudBooks.associateBy { it.sha1 }
+            val toDownload = toDownloadSha1s.mapNotNull { cloudBooksBySha1[it] }
             Log.d(TAG, "Книг для скачивания (разница cloud - local): ${toDownload.size}")
 
-            // 2. Книги для загрузки (есть на устройстве, но нет в облаке по SHA-1)
-            val cloudSha1Set = updatedCloudBooks.map { it.sha1 }.toSet()
-            
-            val toUpload = localBooks.filter { localBook ->
-                if (localBook.sha1.isNullOrEmpty()) {
-                    Log.w(TAG, "Пропущена книга '${localBook.title}' для загрузки: отсутствует SHA-1")
-                    return@filter false
-                }
-                
-                val hasSha1InCloud = cloudSha1Set.contains(localBook.sha1)
-                if (hasSha1InCloud) {
-                    Log.d(TAG, "Книга '${localBook.title}' пропущена для загрузки: SHA-1 уже есть в облаке")
-                }
-                
-                !hasSha1InCloud
-            }
+            // 2. Книги для загрузки (берём по одной для каждого уникального SHA-1 из toUpload)
+            val localBooksBySha1 = localBooks.filter { !it.sha1.isNullOrEmpty() }.associateBy { it.sha1 }
+            val toUpload = toUploadSha1s.mapNotNull { localBooksBySha1[it] }
             Log.d(TAG, "Книг для загрузки (разница local - cloud): ${toUpload.size}")
 
             val duplicates = updatedCloudBooks.size - toDownload.size
@@ -536,6 +529,12 @@ class YandexSyncManager(private val context: Context) {
                             if (repository.insertBookSafely(newBook)) {
                                 downloadedCount++
                                 Log.d(TAG, "Успешно скачана и импортирована книга: $originalName (SHA-1: $sha1)")
+                                try {
+                                    cloudFileCache.save(sha1, cloudItem.path, cloudItem.lastModified, cloudItem.size)
+                                    Log.d(TAG, "Кэш SHA-1 обновлен для скачанной книги: $originalName")
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Ошибка сохранения SHA-1 в кэш для скачанной книги: $originalName", e)
+                                }
                             } else {
                                 Log.e(TAG, "Ошибка вставки книги '$originalName' в базу")
                             }

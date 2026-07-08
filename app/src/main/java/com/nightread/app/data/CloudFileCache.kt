@@ -63,5 +63,16 @@ class CloudFileCache(private val dao: CloudFileDao) {
     suspend fun getAllSha1s(): List<String> {
         return dao.getAll().map { it.sha1 }
     }
-}
 
+    suspend fun getByPath(path: String): CloudFileEntity? {
+        return dao.getByPath(path)
+    }
+
+    suspend fun deleteByPath(path: String) {
+        dao.deleteByPath(path)
+    }
+
+    suspend fun clear() {
+        dao.clearAll()
+    }
+}
