@@ -66,14 +66,20 @@ class BookDetailActivity : AppCompatActivity() {
         
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         val appBarLayout = toolbar.parent as? View
+        val nestedScrollView = findViewById<View>(R.id.nestedScrollView)
         
         val rootView = findViewById<View>(android.R.id.content)
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
-            val insets = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            val insets = windowInsets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.systemBars() or
+                androidx.core.view.WindowInsetsCompat.Type.displayCutout()
+            )
             // Bottom padding for content so it is not clipped by the navigation bar
             view.setPadding(0, 0, 0, insets.bottom)
             // Top padding for AppBarLayout/Toolbar to align buttons directly under status bar
             appBarLayout?.setPadding(0, insets.top, 0, 0)
+            // Top padding for NestedScrollView so cover starts below the status bar
+            nestedScrollView?.setPadding(0, insets.top, 0, 0)
             windowInsets
         }
 
