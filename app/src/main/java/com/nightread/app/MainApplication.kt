@@ -35,7 +35,7 @@ class MainApplication : Application() {
                     }
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("SYNC_ERROR", "Error during sync state cleanup on app startup", e)
         }
 

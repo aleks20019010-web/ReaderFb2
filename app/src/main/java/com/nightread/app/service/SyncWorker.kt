@@ -68,7 +68,7 @@ class SyncWorker(
 
             try {
                 setForeground(getForegroundInfo())
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e("SYNC_WORKER", "Не удалось запустить foreground режим для WorkManager", e)
             }
 
@@ -127,7 +127,7 @@ class SyncWorker(
                     Log.d("SYNC_WORKER", "SyncWorker cancelled", e)
                     stateRepo.updateState(false, "CANCELLED", 0)
                     Result.failure()
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     SyncErrorHandler.logError("SyncWorker", e, false)
                     stateRepo.updateState(false, "ERROR", 0, SyncErrorHandler.getUserFriendlyMessage(e))
                     Result.failure()
@@ -137,11 +137,11 @@ class SyncWorker(
                     fileManager.cleanup()
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             SyncErrorHandler.logError("SyncWorker Fatal", e, false)
             try {
                 com.nightread.app.data.SyncSettingsManager.setSyncing(context, false)
-            } catch (ex: Exception) {
+            } catch (ex: Throwable) {
                 Log.e("SYNC_WORKER", "Failed to reset syncing flag on fatal error", ex)
             }
             return Result.failure()
@@ -160,6 +160,11 @@ class SyncWorker(
             .setOnlyAlertOnce(true)
             .setProgress(100, 0, true)
             .build()
-        return ForegroundInfo(2002, notification)
+            
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            ForegroundInfo(2002, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            ForegroundInfo(2002, notification)
+        }
     }
 }

@@ -319,7 +319,7 @@ class YandexSyncFragment : Fragment() {
                 workRequest
             )
             Toast.makeText(context, "Синхронизация запущена в фоновом режиме", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("SYNC_UI", "Error starting sync", e)
             Toast.makeText(context, "Ошибка при запуске синхронизации", Toast.LENGTH_LONG).show()
         }
