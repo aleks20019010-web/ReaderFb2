@@ -42,26 +42,27 @@ class SyncWorker(
     override suspend fun doWork(): Result {
         Log.d("SYNC_WORKER", "SyncWorker: Начало выполнения фоновой синхронизации")
         val context = applicationContext
-        val networkChecker: SyncNetworkChecker
-        val fileManager: SyncFileManager
-        val stateRepo: SyncStateRepository
-
-        try {
-            networkChecker = SyncNetworkChecker(context)
-            fileManager = SyncFileManager(context)
-            stateRepo = SyncStateRepository(context)
-        } catch (e: Throwable) {
-            Log.e("SYNC_WORKER", "SyncWorker: Crash in initialization", e)
-            return Result.failure()
-        }
-
+        
+        // Предварительная проверка сети
+        val networkChecker = SyncNetworkChecker(context)
         if (!networkChecker.isConnected()) {
-            Log.e("SYNC_WORKER", "SyncWorker: Нет интернета")
+            Log.e("SYNC_WORKER", "SyncWorker: Нет интернета, синхронизация прервана")
             return Result.failure()
         }
+
+        // Предварительная проверка токена
+        val token = com.nightread.app.data.YandexDiskManager.getToken(context)
+        if (token.isNullOrBlank()) {
+            Log.e("SYNC_WORKER", "SyncWorker: Токен отсутствует, авторизуйтесь в приложении")
+            return Result.failure()
+        }
+
+        val fileManager = SyncFileManager(context)
+        val stateRepo = SyncStateRepository(context)
 
         try {
             stateRepo.updateState(true, "STARTED", 0)
+            
             // 2. Убедиться, что канал уведомлений создаётся до показа уведомления
             createNotificationChannel(context)
 
@@ -76,7 +77,7 @@ class SyncWorker(
                 val hasManageStorage = android.os.Environment.isExternalStorageManager()
                 val hasSaf = com.nightread.app.data.SyncSettingsManager.getDownloadFolderUri(context) != null
                 if (!hasManageStorage && !hasSaf) {
-                    Log.e("SYNC_WORKER", "Missing storage access permissions on Android 11+: MANAGE_EXTERNAL_STORAGE is not granted and SAF folder is not set.")
+                    Log.e("SYNC_WORKER", "Missing storage access permissions")
                     stateRepo.updateState(false, "ERROR", 0, "Missing permissions")
                     return Result.failure()
                 }
@@ -86,7 +87,7 @@ class SyncWorker(
                     android.Manifest.permission.READ_EXTERNAL_STORAGE
                 ) == android.content.pm.PackageManager.PERMISSION_GRANTED
                 if (!hasReadPermission) {
-                    Log.e("SYNC_WORKER", "Missing READ_EXTERNAL_STORAGE permission on Android 10 or below.")
+                    Log.e("SYNC_WORKER", "Missing READ_EXTERNAL_STORAGE permission")
                     stateRepo.updateState(false, "ERROR", 0, "Missing permissions")
                     return Result.failure()
                 }
@@ -94,7 +95,6 @@ class SyncWorker(
 
             return withContext(Dispatchers.IO) {
                 try {
-                    // Set the isSyncing flag before running synchronization
                     com.nightread.app.data.SyncSettingsManager.setSyncing(context, true)
 
                     val cloudService = CloudFileService(context)
@@ -111,7 +111,6 @@ class SyncWorker(
                         progressTracker
                     )
 
-                    // Подписываемся на отмену Coroutine Job для передачи сигнала отмены в оркестратор
                     val job = coroutineContext[Job]
                     job?.invokeOnCompletion {
                         if (job.isCancelled) {
@@ -133,7 +132,6 @@ class SyncWorker(
                     stateRepo.updateState(false, "ERROR", 0, SyncErrorHandler.getUserFriendlyMessage(e))
                     Result.failure()
                 } finally {
-                    // Reset isSyncing flag to false
                     com.nightread.app.data.SyncSettingsManager.setSyncing(context, false)
                     SyncCancellationManager.reset()
                     fileManager.cleanup()
@@ -141,7 +139,6 @@ class SyncWorker(
             }
         } catch (e: Exception) {
             SyncErrorHandler.logError("SyncWorker Fatal", e, false)
-            // Ensure flag is reset in case of fatal error
             try {
                 com.nightread.app.data.SyncSettingsManager.setSyncing(context, false)
             } catch (ex: Exception) {
