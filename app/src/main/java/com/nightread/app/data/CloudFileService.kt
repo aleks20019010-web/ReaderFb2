@@ -21,6 +21,8 @@ class CloudFileService(private val context: Context) {
         var hasMore = true
         var page = 1
 
+        Log.d(TAG, "Fetching file list for path: $cleanPath")
+
         while (hasMore) {
             try {
                 val response = api.getResource(
@@ -29,40 +31,44 @@ class CloudFileService(private val context: Context) {
                     limit = limit,
                     offset = offset
                 )
-
                 val embedded = response.embedded
                 val pageItems = embedded?.items ?: emptyList()
 
                 if (pageItems.isEmpty()) {
                     hasMore = false
                 } else {
-                    val fileItems = pageItems.filter { it.type == "file" }
-                    items.addAll(fileItems)
-
-                    val total = embedded?.total
-                    val returnedLimit = embedded?.limit ?: limit
-
-                    if (total != null) {
-                        offset += pageItems.size
-                        if (offset >= total) {
-                            hasMore = false
+                    val fileItems = pageItems.filter { item ->
+                        if (item.type == "file") {
+                            val name = item.name.lowercase()
+                            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip")
                         } else {
-                            page++
-                        }
-                    } else {
-                        if (pageItems.size < returnedLimit) {
-                            hasMore = false
-                        } else {
-                            offset += pageItems.size
-                            page++
+                            false
                         }
                     }
+                    
+                    items.addAll(fileItems)
+
+                    val total = embedded?.total ?: 0
+                    Log.d(TAG, "Page $page: received ${pageItems.size} items (${fileItems.size} supported files). Total items in folder: $total")
+
+                    val returnedLimit = embedded?.limit ?: limit
+                    offset += pageItems.size
+                    
+                    if (total > 0) {
+                        hasMore = offset < total
+                    } else {
+                        hasMore = pageItems.size >= returnedLimit
+                    }
+                    
+                    if (hasMore) page++
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching file list from path: $cleanPath", e)
                 hasMore = false
             }
         }
+        
+        Log.d(TAG, "Finished fetching file list. Total supported files found: ${items.size}")
         return items
     }
 

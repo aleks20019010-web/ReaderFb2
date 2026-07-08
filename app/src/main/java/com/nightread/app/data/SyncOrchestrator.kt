@@ -60,10 +60,10 @@ class SyncOrchestrator(
             }
             Log.d(TAG, "Found ${cloudFiles.size} files in $syncFolder")
 
-            // Filter for supported formats: .fb2 and .fb2.zip
+            // Filter for supported formats: .fb2, .fb2.zip and .zip
             val filteredCloudFiles = cloudFiles.filter {
                 val name = it.name.lowercase()
-                name.endsWith(".fb2") || name.endsWith(".fb2.zip")
+                name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip")
             }
             Log.d(TAG, "Filtered ${filteredCloudFiles.size} books to process")
 
@@ -431,7 +431,13 @@ class SyncOrchestrator(
                     var entry = zis.nextEntry
                     while (entry != null) {
                         if (!entry.isDirectory && entry.name.lowercase().endsWith(".fb2")) {
-                            return zis.readBytes()
+                            val buffer = java.io.ByteArrayOutputStream()
+                            val data = ByteArray(8192)
+                            var nRead: Int
+                            while (zis.read(data, 0, data.size).also { nRead = it } != -1) {
+                                buffer.write(data, 0, nRead)
+                            }
+                            return buffer.toByteArray()
                         }
                         entry = zis.nextEntry
                     }
