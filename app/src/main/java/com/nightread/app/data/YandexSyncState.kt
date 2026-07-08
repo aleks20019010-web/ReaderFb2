@@ -24,7 +24,8 @@ data class YandexSyncState(
     val currentFileName: String? = null,
     val currentFileBytesTransferred: Long = 0L,
     val currentFileTotalBytes: Long = 0L,
-    val duplicatesToResolve: List<DuplicateGroup>? = null
+    val duplicatesToResolve: List<DuplicateGroup>? = null,
+    val deletedDuplicatesCount: Int = 0
 ) {
     enum class Stage {
         IDLE, PREPARING, SCANNING, DOWNLOADING, UPLOADING, PROGRESS_SYNC, COMPLETED, ERROR

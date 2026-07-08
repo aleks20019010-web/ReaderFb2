@@ -253,7 +253,7 @@ class YandexSyncFragment : Fragment() {
     }
 
     /**
-     * Запуск фоновой синхронизации через Foreground Service.
+     * Запуск фоновой синхронизации через WorkManager.
      */
     private fun startForegroundSync() {
         val context = requireContext()
@@ -264,14 +264,15 @@ class YandexSyncFragment : Fragment() {
             return
         }
 
-        val intent = Intent(context, com.nightread.app.service.SyncService::class.java).apply {
-            action = com.nightread.app.service.SyncService.ACTION_START_SYNC
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
-        }
+        val workRequest = androidx.work.OneTimeWorkRequestBuilder<com.nightread.app.service.SyncWorker>()
+            .addTag("YandexSyncWork")
+            .build()
+
+        androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
+            "YandexSyncUniqueWork",
+            androidx.work.ExistingWorkPolicy.REPLACE,
+            workRequest
+        )
         Toast.makeText(context, "Синхронизация запущена в фоновом режиме", Toast.LENGTH_SHORT).show()
     }
 
@@ -328,14 +329,11 @@ class YandexSyncFragment : Fragment() {
     }
 
     /**
-     * Отмена фоновой синхронизации в Foreground Service.
+     * Отмена фоновой синхронизации в WorkManager.
      */
     private fun cancelForegroundSync() {
         val context = requireContext()
-        val intent = Intent(context, com.nightread.app.service.SyncService::class.java).apply {
-            action = com.nightread.app.service.SyncService.ACTION_STOP_SYNC
-        }
-        context.startService(intent)
+        androidx.work.WorkManager.getInstance(context).cancelUniqueWork("YandexSyncUniqueWork")
         Toast.makeText(context, "Запрос на отмену отправлен", Toast.LENGTH_SHORT).show()
     }
 

@@ -226,10 +226,16 @@ class YandexSyncManager(private val context: Context) {
                                     // Use highly unique temp files for safety in parallel downloads
                                     val tempFile = File(context.cacheDir, "temp_stat_${System.nanoTime()}_${item.name}")
                                     try {
+                                        synchronized(this@YandexSyncManager) {
+                                            onProgress("Загрузка временных файлов для анализа: ${processedCount + 1} из $totalToProcess")
+                                        }
                                         tempFile.outputStream().use { output ->
                                             responseBody.byteStream().use { input ->
                                                 input.copyTo(output)
                                             }
+                                        }
+                                        synchronized(this@YandexSyncManager) {
+                                            onProgress("Вычисление SHA-1: ${processedCount + 1} из $totalToProcess")
                                         }
                                         val sha1 = Sha1Helper.computeSha1FromContent(tempFile)
                                         if (sha1 != null && sha1.isNotEmpty()) {
@@ -266,7 +272,7 @@ class YandexSyncManager(private val context: Context) {
                                         val remaining = totalToProcess - processedCount
                                         val remainingSecs = (remaining * avgTime) / 1000
                                         val timeStr = if (remainingSecs > 60) "${remainingSecs / 60} мин ${remainingSecs % 60} сек" else "$remainingSecs сек"
-                                        onProgress("Индексация облака: $processedCount из $totalToProcess (осталось ~ $timeStr)")
+                                        onProgress("Загрузка временных файлов для анализа: $processedCount из $totalToProcess (осталось ~ $timeStr)")
                                     }
                                 }
                             }
@@ -275,6 +281,9 @@ class YandexSyncManager(private val context: Context) {
                     deferreds.awaitAll()
                 }
             }
+
+            onProgress("Очистка временных файлов...")
+            cleanupTempFiles()
 
             // ==========================================
             // ОБНАРУЖЕНИЕ ДУБЛИКАТОВ И ЗАПРОС У ПОЛЬЗОВАТЕЛЯ
@@ -340,7 +349,7 @@ class YandexSyncManager(private val context: Context) {
                 }
 
                 if (pathsToDelete.isNotEmpty()) {
-                    onProgress("Удаление выбранных дубликатов...")
+                    onProgress("Удаление дубликатов: ${pathsToDelete.size} файлов")
                     var deletedCount = 0
                     for (path in pathsToDelete) {
                         onProgress("Удаление дубликата: ${File(path).name}...")
@@ -349,6 +358,7 @@ class YandexSyncManager(private val context: Context) {
                             deletedCount++
                             // Обновляем кэш
                             cloudFileDao.deleteByPath(path)
+                            YandexSyncState.update { it.copy(deletedDuplicatesCount = deletedCount) }
                         }
                     }
                     Log.d(TAG, "Успешно удалено дубликатов: $deletedCount")
@@ -361,6 +371,8 @@ class YandexSyncManager(private val context: Context) {
                     updatedCloudBooks.removeAll { deletedPathsSet.contains(it.path) }
                 }
             }
+
+            onProgress("Сравнение с библиотекой...")
 
             // Получаем список всех локальных книг из базы данных
             val localBooks = database.bookDao().getAllBooks().first()
@@ -389,7 +401,7 @@ class YandexSyncManager(private val context: Context) {
 
             val duplicates = updatedCloudBooks.size - toDownload.size
 
-            onProgress("Найдено ${toDownload.size} новых книг на диске, ${toUpload.size} книг нужно загрузить на диск")
+            onProgress("К загрузке: ${toUpload.size} книг, к скачиванию: ${toDownload.size} книг")
 
             val cloudProgressItems = YandexDiskManager.getAllFilesFromFolder(context, authHeader, "$syncFolder/Progress")
 
@@ -475,7 +487,7 @@ class YandexSyncManager(private val context: Context) {
 
                 val originalName = File(cloudItem.path).name
                 onProgress(
-                    "Скачивание: $originalName (${index + 1} из $totalDownloads)",
+                    "Скачивание с диска: ${index + 1} из $totalDownloads",
                     completedTasks,
                     totalTasks,
                     YandexSyncState.Stage.DOWNLOADING,
@@ -607,7 +619,7 @@ class YandexSyncManager(private val context: Context) {
                 val originalName = localFile?.name ?: "${localBook.title}.fb2"
 
                 onProgress(
-                    "Загрузка: $originalName (${index + 1} из $totalUploads)",
+                    "Загрузка на диск: ${index + 1} из $totalUploads",
                     completedTasks,
                     totalTasks,
                     YandexSyncState.Stage.UPLOADING,
@@ -712,8 +724,9 @@ class YandexSyncManager(private val context: Context) {
             completedTasks++
             YandexDiskManager.saveSyncTimestamp(context)
             
+            val deletedCount = YandexSyncState.state.value.deletedDuplicatesCount
             onProgress(
-                "Синхронизация успешно завершена!",
+                "Синхронизация завершена! Загружено $uploadedCount, скачано $downloadedCount, удалено $deletedCount дубликатов",
                 completedTasks,
                 totalTasks,
                 YandexSyncState.Stage.COMPLETED,
