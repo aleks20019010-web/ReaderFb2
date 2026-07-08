@@ -63,14 +63,20 @@ class BookDetailActivity : AppCompatActivity() {
 
         // Handle WindowInsets for Edge-to-Edge immersion
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        
+        val toolbar = findViewById<Toolbar>(R.id.toolbar)
+        val appBarLayout = toolbar.parent as? View
+        
         val rootView = findViewById<View>(android.R.id.content)
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
             val insets = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-            view.setPadding(0, insets.top, 0, insets.bottom)
+            // Bottom padding for content so it is not clipped by the navigation bar
+            view.setPadding(0, 0, 0, insets.bottom)
+            // Top padding for AppBarLayout/Toolbar to align buttons directly under status bar
+            appBarLayout?.setPadding(0, insets.top, 0, 0)
             windowInsets
         }
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.setDisplayShowTitleEnabled(false)
