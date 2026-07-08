@@ -110,4 +110,11 @@ interface YandexDiskApi {
     suspend fun downloadFile(
         @Url url: String
     ): ResponseBody
+
+    @DELETE("v1/disk/resources")
+    suspend fun deleteResource(
+        @Header("Authorization") token: String,
+        @Query("path") path: String,
+        @Query("permanently") permanently: Boolean = true
+    ): Response<Unit>
 }

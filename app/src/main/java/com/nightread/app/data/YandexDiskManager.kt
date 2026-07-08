@@ -457,6 +457,26 @@ object YandexDiskManager {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getLong("last_sync_time", 0L)
     }
+
+    suspend fun deleteFile(context: Context, path: String): Boolean = withContext(Dispatchers.IO) {
+        val token = getToken(context) ?: return@withContext false
+        val authHeader = "OAuth $token"
+        val cleanPath = normalizePath(path)
+        try {
+            Log.d(TAG, "deleteFile: Deleting resource '$cleanPath'")
+            val response = api.deleteResource(authHeader, cleanPath, permanently = true)
+            if (response.isSuccessful) {
+                Log.d(TAG, "deleteFile successful: $cleanPath")
+                true
+            } else {
+                Log.e(TAG, "deleteFile failed with code: ${response.code()} for path: $cleanPath")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "deleteFile failed for path: $cleanPath", e)
+            false
+        }
+    }
 }
 
 class ProgressRequestBody(

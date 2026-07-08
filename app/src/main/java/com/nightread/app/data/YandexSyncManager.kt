@@ -267,6 +267,92 @@ class YandexSyncManager(private val context: Context) {
                 }
             }
 
+            // ==========================================
+            // ОБНАРУЖЕНИЕ ДУБЛИКАТОВ И ЗАПРОС У ПОЛЬЗОВАТЕЛЯ
+            // ==========================================
+            val duplicateGroups = mutableListOf<DuplicateGroup>()
+            val groupsBySha1 = updatedCloudBooks.groupBy { it.sha1 }
+            for ((sha1, entities) in groupsBySha1) {
+                if (entities.size > 1) {
+                    val localBook = database.bookDao().getBookBySha1(sha1)
+                    val bookTitle = localBook?.title ?: File(entities.first().path).name.substringBeforeLast(".")
+                    
+                    val scoredEntities = entities.map { entity ->
+                        val fileName = File(entity.path).name
+                        val nameWithoutExt = fileName.substringBeforeLast(".")
+                        var score = 0
+                        if (localBook != null && nameWithoutExt.equals(localBook.title, ignoreCase = true)) {
+                            score += 10
+                        }
+                        if (fileName.contains(sha1, ignoreCase = true)) {
+                            score += 5
+                        }
+                        entity to score
+                    }
+                    val sorted = scoredEntities.sortedWith(compareByDescending<Pair<CloudFileEntity, Int>> { it.second }.thenBy { it.first.path.length })
+                    val mainEntity = sorted.first().first
+                    
+                    val duplicateFiles = entities.map { entity ->
+                        DuplicateFile(
+                            filePath = entity.path,
+                            size = entity.size,
+                            isRecommended = (entity.path == mainEntity.path),
+                            isSelected = !(entity.path == mainEntity.path)
+                        )
+                    }
+                    duplicateGroups.add(DuplicateGroup(
+                        sha1 = sha1,
+                        title = bookTitle,
+                        author = localBook?.author ?: "Неизвестен",
+                        files = duplicateFiles
+                    ))
+                }
+            }
+
+            if (duplicateGroups.isNotEmpty()) {
+                Log.d(TAG, "Найдены дубликаты на Яндекс Диске. Запрос разрешения у пользователя...")
+                
+                val deferred = kotlinx.coroutines.CompletableDeferred<List<String>>()
+                YandexSyncState.duplicateResolution = deferred
+                
+                YandexSyncState.update {
+                    it.copy(
+                        duplicatesToResolve = duplicateGroups,
+                        statusText = "Найдены дубликаты на диске. Ожидание выбора..."
+                    )
+                }
+                
+                // Ждём, пока пользователь выберет файлы на удаление
+                val pathsToDelete = deferred.await()
+                YandexSyncState.duplicateResolution = null
+                
+                YandexSyncState.update {
+                    it.copy(duplicatesToResolve = null)
+                }
+
+                if (pathsToDelete.isNotEmpty()) {
+                    onProgress("Удаление выбранных дубликатов...")
+                    var deletedCount = 0
+                    for (path in pathsToDelete) {
+                        onProgress("Удаление дубликата: ${File(path).name}...")
+                        val success = YandexDiskManager.deleteFile(context, path)
+                        if (success) {
+                            deletedCount++
+                            // Обновляем кэш
+                            cloudFileDao.deleteByPath(path)
+                        }
+                    }
+                    Log.d(TAG, "Успешно удалено дубликатов: $deletedCount")
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(context, "Удалено дубликатов: $deletedCount", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                    
+                    // Обновляем список файлов в облаке, чтобы исключить удаленные
+                    val deletedPathsSet = pathsToDelete.toSet()
+                    updatedCloudBooks.removeAll { deletedPathsSet.contains(it.path) }
+                }
+            }
+
             // Получаем список всех локальных книг из базы данных
             val localBooks = database.bookDao().getAllBooks().first()
             val localSha1Set = localBooks.filter { !it.sha1.isNullOrEmpty() }.map { it.sha1 }.toSet()

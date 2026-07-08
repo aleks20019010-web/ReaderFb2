@@ -23,7 +23,8 @@ data class YandexSyncState(
     val error: String? = null,
     val currentFileName: String? = null,
     val currentFileBytesTransferred: Long = 0L,
-    val currentFileTotalBytes: Long = 0L
+    val currentFileTotalBytes: Long = 0L,
+    val duplicatesToResolve: List<DuplicateGroup>? = null
 ) {
     enum class Stage {
         IDLE, PREPARING, SCANNING, DOWNLOADING, UPLOADING, PROGRESS_SYNC, COMPLETED, ERROR
@@ -33,12 +34,15 @@ data class YandexSyncState(
         private val _state = MutableStateFlow(YandexSyncState())
         val state: StateFlow<YandexSyncState> = _state.asStateFlow()
 
+        var duplicateResolution: kotlinx.coroutines.CompletableDeferred<List<String>>? = null
+
         fun update(transform: (YandexSyncState) -> YandexSyncState) {
             _state.value = transform(_state.value)
         }
 
         fun reset() {
             _state.value = YandexSyncState()
+            duplicateResolution = null
         }
     }
 }

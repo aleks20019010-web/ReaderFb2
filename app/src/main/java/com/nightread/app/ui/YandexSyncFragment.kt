@@ -287,6 +287,9 @@ class YandexSyncFragment : Fragment() {
         Toast.makeText(context, "Запрос на отмену отправлен", Toast.LENGTH_SHORT).show()
     }
 
+    private var duplicatesDialogShowing = false
+    private var duplicatesDialog: android.app.AlertDialog? = null
+
     /**
      * Подписка на обновление состояния фоновой синхронизации в реальном времени.
      */
@@ -294,6 +297,19 @@ class YandexSyncFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             YandexSyncState.state.collectLatest { state ->
                 if (!isAdded) return@collectLatest
+
+                // Отображение диалога разрешения дубликатов
+                if (state.duplicatesToResolve != null && state.duplicatesToResolve.isNotEmpty()) {
+                    if (!duplicatesDialogShowing) {
+                        duplicatesDialogShowing = true
+                        showDuplicatesResolutionDialog(state.duplicatesToResolve)
+                    }
+                } else {
+                    if (duplicatesDialogShowing) {
+                        duplicatesDialog?.dismiss()
+                        duplicatesDialogShowing = false
+                    }
+                }
 
                 if (state.isRunning) {
                     layoutSyncProgress.visibility = View.VISIBLE
@@ -385,6 +401,88 @@ class YandexSyncFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun showDuplicatesResolutionDialog(groups: List<com.nightread.app.data.DuplicateGroup>) {
+        val context = requireContext()
+        
+        duplicatesDialog?.dismiss()
+
+        val container = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            val padding = (16 * resources.displayMetrics.density).toInt()
+            setPadding(padding, padding, padding, padding)
+        }
+
+        val scrollView = androidx.core.widget.NestedScrollView(context).apply {
+            addView(container)
+        }
+
+        val checkedPaths = mutableMapOf<String, android.widget.CheckBox>()
+
+        for (group in groups) {
+            val groupHeader = android.widget.TextView(context).apply {
+                text = "Книга: ${group.title}"
+                textSize = 16f
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                setTextColor(resources.getColor(R.color.accent, null))
+                val topMargin = (12 * resources.displayMetrics.density).toInt()
+                val bottomMargin = (4 * resources.displayMetrics.density).toInt()
+                setPadding(0, topMargin, 0, bottomMargin)
+            }
+            container.addView(groupHeader)
+
+            val shaText = android.widget.TextView(context).apply {
+                text = "SHA-1: ${group.sha1.take(10)}..."
+                textSize = 12f
+                setTextColor(resources.getColor(R.color.text_secondary, null))
+                setPadding(0, 0, 0, (4 * resources.displayMetrics.density).toInt())
+            }
+            container.addView(shaText)
+
+            for (file in group.files) {
+                val checkBox = android.widget.CheckBox(context).apply {
+                    val sizeStr = android.text.format.Formatter.formatFileSize(context, file.size)
+                    val label = if (file.isRecommended) " [Основной]" else " [Дубликат]"
+                    val fileName = java.io.File(file.filePath).name
+                    text = "$fileName ($sizeStr)$label"
+                    isChecked = !file.isRecommended // по умолчанию все дубликаты, кроме основного, отмечены
+                    setTextColor(resources.getColor(R.color.text_primary, null))
+                    
+                    if (file.isRecommended) {
+                        setTypeface(null, android.graphics.Typeface.ITALIC)
+                    }
+                }
+                checkedPaths[file.filePath] = checkBox
+                container.addView(checkBox)
+            }
+        }
+
+        duplicatesDialog = android.app.AlertDialog.Builder(context)
+            .setTitle("Обнаружены дубликаты книг")
+            .setView(scrollView)
+            .setCancelable(false)
+            .setPositiveButton("Удалить выбранные") { _, _ ->
+                val pathsToDelete = checkedPaths.filter { it.value.isChecked }.keys.toList()
+                com.nightread.app.data.YandexSyncState.duplicateResolution?.complete(pathsToDelete)
+                duplicatesDialogShowing = false
+            }
+            .setNegativeButton("Отмена") { dialog, _ ->
+                com.nightread.app.data.YandexSyncState.duplicateResolution?.complete(emptyList())
+                duplicatesDialogShowing = false
+                dialog.dismiss()
+            }
+            .setOnCancelListener {
+                com.nightread.app.data.YandexSyncState.duplicateResolution?.complete(emptyList())
+                duplicatesDialogShowing = false
+            }
+            .show()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        duplicatesDialog?.dismiss()
+        duplicatesDialog = null
     }
 
     private fun showFolderSelectionDialog() {
