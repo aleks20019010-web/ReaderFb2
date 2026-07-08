@@ -127,7 +127,7 @@
 
 
             <ProgressBar
-                android:id="@+id/pbReadingProgress"
+                android:id="@+id/pbReadingProgressList"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
                 android:layout_height="3dp"

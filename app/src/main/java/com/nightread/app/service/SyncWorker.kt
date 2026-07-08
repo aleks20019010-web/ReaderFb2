@@ -42,9 +42,18 @@ class SyncWorker(
     override suspend fun doWork(): Result {
         Log.d("SYNC_WORKER", "SyncWorker: Начало выполнения фоновой синхронизации")
         val context = applicationContext
-        val networkChecker = SyncNetworkChecker(context)
-        val fileManager = SyncFileManager(context)
-        val stateRepo = SyncStateRepository(context)
+        val networkChecker: SyncNetworkChecker
+        val fileManager: SyncFileManager
+        val stateRepo: SyncStateRepository
+
+        try {
+            networkChecker = SyncNetworkChecker(context)
+            fileManager = SyncFileManager(context)
+            stateRepo = SyncStateRepository(context)
+        } catch (e: Throwable) {
+            Log.e("SYNC_WORKER", "SyncWorker: Crash in initialization", e)
+            return Result.failure()
+        }
 
         if (!networkChecker.isConnected()) {
             Log.e("SYNC_WORKER", "SyncWorker: Нет интернета")
