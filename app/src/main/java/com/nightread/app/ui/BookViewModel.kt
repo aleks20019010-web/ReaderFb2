@@ -295,7 +295,13 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                                     val entryName = entry.name.lowercase()
                                     if (!entry.isDirectory && entryName.endsWith(".fb2")) {
                                         foundFb2 = true
-                                        bytesForSha1 = zis.readBytes()
+                                        val buffer = java.io.ByteArrayOutputStream()
+                                        val data = ByteArray(8192)
+                                        var nRead: Int
+                                        while (zis.read(data, 0, data.size).also { nRead = it } != -1) {
+                                            buffer.write(data, 0, nRead)
+                                        }
+                                        bytesForSha1 = buffer.toByteArray()
                                         break
                                     }
                                     entry = zis.nextEntry
@@ -324,6 +330,14 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 digest.update(finalBytesForSha1)
                 val computedSha1 = digest.digest().joinToString("") { String.format("%02x", it) }
                 
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    android.widget.Toast.makeText(
+                        context,
+                        "📖 Файл: $fileName\nSHA-1: $computedSha1\nРазмер: ${finalBytesForSha1.size} байт",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+
                 Log.d("BookScanner", "[MANUAL-SHA1] Calculated SHA-1: $computedSha1 for manual imported file: $fileName")
                 
                 // Query database directly to avoid any flow latency/cache duplication issues
