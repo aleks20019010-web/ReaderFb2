@@ -41,7 +41,6 @@ class BookDetailActivity : AppCompatActivity() {
     private lateinit var tvSha1: TextView
     private lateinit var tvReadMore: TextView
 
-    private lateinit var vCoverBackground: View
     private lateinit var ivCover: ImageView
     private lateinit var tvCoverLetter: TextView
 
@@ -89,7 +88,6 @@ class BookDetailActivity : AppCompatActivity() {
         tvFormatSize = findViewById(R.id.tvFormatSize)
         tvSha1 = findViewById(R.id.tvSha1)
 
-        vCoverBackground = findViewById(R.id.vCoverBackground)
         ivCover = findViewById(R.id.ivCover)
         tvCoverLetter = findViewById(R.id.tvCoverLetter)
 
@@ -323,13 +321,6 @@ class BookDetailActivity : AppCompatActivity() {
                 updateFavoriteIcon(book.isFavorite)
 
                 // Cover setup
-                val colors = intArrayOf(
-                    Color.parseColor(book.coverGradientStart),
-                    Color.parseColor(book.coverGradientEnd)
-                )
-                val gradient = GradientDrawable(GradientDrawable.Orientation.TL_BR, colors)
-                vCoverBackground.background = gradient
-
                 if (!book.coverPath.isNullOrEmpty() && File(book.coverPath).exists()) {
                     ivCover.load(File(book.coverPath))
                     tvCoverLetter.visibility = View.GONE

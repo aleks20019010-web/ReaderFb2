@@ -8,39 +8,10 @@
     android:background="@color/background"
     android:fitsSystemWindows="true">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/background"
-        app:elevation="0dp">
-
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@drawable/ic_arrow_back"
-            app:navigationIconTint="@color/text_primary">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnReadToolbar"
-                style="@style/Widget.Material3.Button.UnelevatedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginEnd="16dp"
-                android:text="ЧИТАТЬ"
-                android:textColor="@color/white"
-                app:backgroundTint="@color/accent"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                app:cornerRadius="8dp" />
-        </androidx.appcompat.widget.Toolbar>
-    </com.google.android.material.appbar.AppBarLayout>
-
+    <!-- 1. Scrollable Content (starts from y=0 under the floating transparent toolbar) -->
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior"
         android:fillViewport="true">
 
         <LinearLayout
@@ -49,17 +20,12 @@
             android:orientation="vertical"
             android:paddingBottom="32dp">
 
-            <!-- 1. Cover container -->
+            <!-- Cover container at the very top -->
             <FrameLayout
                 android:id="@+id/flCoverContainer"
                 android:layout_width="match_parent"
                 android:layout_height="340dp"
                 android:background="#1A0D2A">
-
-                <View
-                    android:id="@+id/vCoverBackground"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent" />
 
                 <ImageView
                     android:id="@+id/ivCover"
@@ -76,15 +42,9 @@
                     android:layout_gravity="center"
                     android:textSize="72sp"
                     android:textStyle="bold"
-                    android:textColor="#FFFFFF"
+                    android:textColor="#E8D8F0"
                     android:visibility="gone"
                     tools:text="О" />
-
-                <!-- Semi-transparent gloss/glow overlay -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/bg_cover_glow" />
             </FrameLayout>
 
             <!-- Text Content Container -->
@@ -93,9 +53,9 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:paddingHorizontal="20dp"
-                android:paddingTop="8dp">
+                android:paddingTop="16dp">
 
-                <!-- 2. Book Title -->
+                <!-- Book Title -->
                 <TextView
                     android:id="@+id/tvTitle"
                     android:layout_width="match_parent"
@@ -107,7 +67,7 @@
                     android:lineSpacingMultiplier="1.1"
                     tools:text="Орден Архитекторов" />
 
-                <!-- 3. Author Row -->
+                <!-- Author Row -->
                 <LinearLayout
                     android:id="@+id/llAuthorContainer"
                     android:layout_width="wrap_content"
@@ -129,7 +89,7 @@
                         tools:text="Олег Сапфир, Юрий Винокуров" />
                 </LinearLayout>
 
-                <!-- 4. Series Row (clickable, hidden if none) -->
+                <!-- Series Row (clickable, hidden if none) -->
                 <LinearLayout
                     android:id="@+id/llSeriesContainer"
                     android:layout_width="wrap_content"
@@ -204,7 +164,7 @@
                         android:focusable="true" />
                 </LinearLayout>
 
-                <!-- 5. Annotation Block -->
+                <!-- Annotation Block -->
                 <com.google.android.material.card.MaterialCardView
                     style="@style/CardViewStyle"
                     android:layout_width="match_parent"
@@ -285,7 +245,7 @@
                         android:orientation="vertical"
                         android:padding="16dp">
 
-                        <!-- 6. Language Block -->
+                        <!-- Language Block -->
                         <LinearLayout
                             android:id="@+id/llLanguageContainer"
                             android:layout_width="match_parent"
@@ -316,7 +276,7 @@
                             android:layout_height="1dp"
                             android:background="@color/divider" />
 
-                        <!-- 7. Bookmark and Last Read Block -->
+                        <!-- Bookmark and Last Read Block -->
                         <LinearLayout
                             android:id="@+id/llProgressContainer"
                             android:layout_width="match_parent"
@@ -347,7 +307,7 @@
                             android:layout_height="1dp"
                             android:background="@color/divider" />
 
-                        <!-- 8. Format and File Size Block -->
+                        <!-- Format and File Size Block -->
                         <LinearLayout
                             android:id="@+id/llFormatSizeContainer"
                             android:layout_width="match_parent"
@@ -378,7 +338,7 @@
                             android:layout_height="1dp"
                             android:background="@color/divider" />
 
-                        <!-- 9. SHA-1 Identifier Block -->
+                        <!-- SHA-1 Identifier Block -->
                         <LinearLayout
                             android:id="@+id/llSha1Container"
                             android:layout_width="match_parent"
@@ -427,4 +387,36 @@
             </LinearLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
+
+    <!-- 2. Floating Toolbar Overlay (Drawn AFTER NestedScrollView so it sits on top) -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@android:color/transparent"
+            app:navigationIcon="@drawable/btn_back_with_bg"
+            app:navigationIconTint="@null">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnReadToolbar"
+                style="@style/Widget.Material3.Button.UnelevatedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginEnd="16dp"
+                android:text="ЧИТАТЬ"
+                android:textColor="@color/white"
+                app:backgroundTint="@color/accent"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                app:cornerRadius="8dp" />
+        </androidx.appcompat.widget.Toolbar>
+    </com.google.android.material.appbar.AppBarLayout>
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
