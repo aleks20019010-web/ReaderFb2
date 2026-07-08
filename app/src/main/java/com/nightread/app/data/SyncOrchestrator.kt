@@ -249,35 +249,47 @@ class SyncOrchestrator(
                                 val localFile = File(booksDirectory, originalName)
                                 tempFile.copyTo(localFile, overwrite = true)
 
-                                val newBook = BookEntity(
-                                    sha1 = sha1,
-                                    title = meta.title,
-                                    author = meta.author,
-                                    category = "Локальные",
-                                    totalCharacters = content.length,
-                                    coverGradientStart = getRandomGradientStartColor(),
-                                    coverGradientEnd = getRandomGradientEndColor(),
-                                    filePath = localFile.absolutePath,
-                                    series = meta.series,
-                                    seriesIndex = meta.seriesIndex,
-                                    language = meta.language,
-                                    annotation = truncatedAnnotation,
-                                    fileSize = bytes.size.toLong(),
-                                    coverPath = coverPath
-                                )
+                                try {
+                                    val newBook = BookEntity(
+                                        sha1 = sha1,
+                                        title = meta.title,
+                                        author = meta.author ?: "Неизвестен",
+                                        category = "Локальные",
+                                        currentProgressChar = 0,
+                                        totalCharacters = content.length,
+                                        lastReadTime = System.currentTimeMillis(),
+                                        filePath = localFile.absolutePath,
+                                        series = meta.series,
+                                        seriesIndex = meta.seriesIndex,
+                                        language = meta.language ?: "ru",
+                                        fileSize = bytes.size.toLong(),
+                                        review = null,
+                                        isFavorite = false,
+                                        coverPath = coverPath,
+                                        annotation = truncatedAnnotation,
+                                        currentPageIndex = 0,
+                                        coverGradientStart = getRandomGradientStartColor(),
+                                        coverGradientEnd = getRandomGradientEndColor()
+                                    )
 
-                                if (repository.insertBookSafely(newBook)) {
-                                    downloadedCount++
-                                    // Save to cache
-                                    try {
-                                        val tokenVal = YandexDiskManager.getToken(context)
-                                        if (tokenVal != null) {
-                                            val response = YandexDiskManager.api.getResource("OAuth $tokenVal", remotePath, limit = 1)
-                                            cacheManager.save(sha1, remotePath, response.modified ?: "", bytes.size.toLong())
+                                    if (bookDao.insertBookSafely(newBook)) {
+                                        Log.d(TAG, "Successfully inserted book: ${meta.title} ($sha1)")
+                                        downloadedCount++
+                                        // Save to cache
+                                        try {
+                                            val tokenVal = YandexDiskManager.getToken(context)
+                                            if (tokenVal != null) {
+                                                val response = YandexDiskManager.api.getResource("OAuth $tokenVal", remotePath, limit = 1)
+                                                cacheManager.save(sha1, remotePath, response.modified ?: "", bytes.size.toLong())
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Error caching after download", e)
                                         }
-                                    } catch (e: Exception) {
-                                        Log.e(TAG, "Error caching after download", e)
+                                    } else {
+                                        Log.e(TAG, "Failed to insert book: ${meta.title} ($sha1)")
                                     }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Exception creating or inserting BookEntity for ${meta.title}", e)
                                 }
                             }
                         }
