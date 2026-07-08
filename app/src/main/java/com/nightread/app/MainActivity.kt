@@ -77,6 +77,12 @@ class MainActivity : AppCompatActivity() {
                 openLibraryFragment(lastFilter)
             }
         }
+
+        // Inform user if previous sync was interrupted
+        if (com.nightread.app.data.SyncSettingsManager.wasInterrupted(this)) {
+            com.nightread.app.data.SyncSettingsManager.setInterruptedFlag(this, false)
+            android.widget.Toast.makeText(this, "Предыдущая фоновая синхронизация была прервана", android.widget.Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun openLibraryFragment(filter: String) {

@@ -16,6 +16,25 @@ class MainApplication : Application() {
         super.onCreate()
         Log.d("MainApplication", "MainApplication onCreate: Initializing app.")
         
+        // Reset sync state if it was interrupted
+        try {
+            if (com.nightread.app.data.SyncSettingsManager.isSyncing(this)) {
+                Log.w("SYNC_ERROR", "Detected interrupted sync during application startup. Resetting flag and cleaning cache.")
+                com.nightread.app.data.SyncSettingsManager.setSyncing(this, false)
+                com.nightread.app.data.SyncSettingsManager.setInterruptedFlag(this, true)
+                
+                // Cleanup temporary files
+                val cacheDir = this.cacheDir
+                cacheDir.listFiles()?.forEach { file ->
+                    if (file.name.startsWith("temp_sha_") || file.name.startsWith("temp_down_")) {
+                        file.delete()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SYNC_ERROR", "Error checking sync interruption on app startup", e)
+        }
+
         // Apply theme immediately on startup
         ThemeManager.applyTheme(this)
         if (SettingsManager.isAutoThemeEnabled(this)) {

@@ -11,6 +11,40 @@ import java.io.File
 object SyncSettingsManager {
     private const val PREFS_NAME = "sync_settings_prefs"
     private const val KEY_DOWNLOAD_FOLDER_URI = "download_folder_uri"
+    private const val KEY_IS_SYNCING = "is_syncing"
+    private const val KEY_WAS_INTERRUPTED = "was_interrupted"
+
+    /**
+     * Возвращает true, если синхронизация запущена
+     */
+    fun isSyncing(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_IS_SYNCING, false)
+    }
+
+    /**
+     * Устанавливает флаг запущенной синхронизации
+     */
+    fun setSyncing(context: Context, syncing: Boolean) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_IS_SYNCING, syncing).apply()
+    }
+
+    /**
+     * Возвращает true, если предыдущая синхронизация была прервана из-за падения или завершения процесса
+     */
+    fun wasInterrupted(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_WAS_INTERRUPTED, false)
+    }
+
+    /**
+     * Устанавливает флаг прерванной синхронизации
+     */
+    fun setInterruptedFlag(context: Context, interrupted: Boolean) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_WAS_INTERRUPTED, interrupted).apply()
+    }
 
     /**
      * Возвращает URI выбранной локальной папки в виде строки

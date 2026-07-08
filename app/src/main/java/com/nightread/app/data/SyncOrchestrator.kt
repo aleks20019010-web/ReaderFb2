@@ -25,6 +25,15 @@ class SyncOrchestrator(
         val syncFolder = YandexDiskManager.getSyncFolder(context)
         Log.d(TAG, "Starting sync in folder: $syncFolder")
 
+        val syncManager = YandexSyncManager(context)
+        if (!syncManager.hasInternetConnection()) {
+            throw Exception("Отсутствует подключение к интернету")
+        }
+        val token = YandexDiskManager.getToken(context)
+        if (token.isNullOrEmpty()) {
+            throw Exception("Ошибка авторизации Яндекс Диска: отсутствует токен")
+        }
+
         try {
             // Stage 1: Получение списка файлов с диска
             progressTracker.startStage("Получение списка файлов", 0, "Получение списка файлов с диска...")

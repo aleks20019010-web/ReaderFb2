@@ -257,6 +257,10 @@ class YandexSyncFragment : Fragment() {
      */
     private fun startForegroundSync() {
         val context = requireContext()
+        if (com.nightread.app.data.SyncSettingsManager.isSyncing(context) || com.nightread.app.data.YandexSyncState.state.value.isRunning) {
+            Toast.makeText(context, "Синхронизация уже выполняется!", Toast.LENGTH_SHORT).show()
+            return
+        }
         val syncManager = YandexSyncManager(context)
 
         if (!syncManager.hasInternetConnection()) {

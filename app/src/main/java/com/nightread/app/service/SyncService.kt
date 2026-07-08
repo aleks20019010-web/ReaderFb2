@@ -77,14 +77,18 @@ class SyncService : Service() {
             orchestrator = orch
 
             try {
+                // Set the isSyncing flag before running synchronization
+                com.nightread.app.data.SyncSettingsManager.setSyncing(context, true)
                 withContext(Dispatchers.IO) {
                     orch.sync()
                 }
             } catch (e: CancellationException) {
                 Log.d(TAG, "SyncService sync cancelled")
             } catch (e: Exception) {
-                Log.e(TAG, "SyncService sync failed", e)
+                Log.e("SYNC_ERROR", "SyncService sync failed", e)
             } finally {
+                // Reset isSyncing flag to false
+                com.nightread.app.data.SyncSettingsManager.setSyncing(context, false)
                 stopSelf()
             }
         }
