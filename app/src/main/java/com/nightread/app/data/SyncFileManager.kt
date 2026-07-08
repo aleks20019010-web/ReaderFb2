@@ -9,7 +9,9 @@ import java.util.UUID
  * Управление временными файлами.
  */
 class SyncFileManager(private val context: Context) {
-    private const val TAG = "SYNC_FILE"
+    companion object {
+        private const val TAG = "SYNC_FILE"
+    }
 
     fun createTempFile(prefix: String): File {
         val file = File(context.cacheDir, "${prefix}_${UUID.randomUUID()}.tmp")

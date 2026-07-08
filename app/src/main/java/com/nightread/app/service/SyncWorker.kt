@@ -42,8 +42,17 @@ class SyncWorker(
     override suspend fun doWork(): Result {
         Log.d("SYNC_WORKER", "SyncWorker: Начало выполнения фоновой синхронизации")
         val context = applicationContext
+        val networkChecker = SyncNetworkChecker(context)
+        val fileManager = SyncFileManager(context)
+        val stateRepo = SyncStateRepository(context)
+
+        if (!networkChecker.isConnected()) {
+            Log.e("SYNC_WORKER", "SyncWorker: Нет интернета")
+            return Result.failure()
+        }
 
         try {
+            stateRepo.updateState(true, "STARTED", 0)
             // 2. Убедиться, что канал уведомлений создаётся до показа уведомления
             createNotificationChannel(context)
 
@@ -59,6 +68,7 @@ class SyncWorker(
                 val hasSaf = com.nightread.app.data.SyncSettingsManager.getDownloadFolderUri(context) != null
                 if (!hasManageStorage && !hasSaf) {
                     Log.e("SYNC_WORKER", "Missing storage access permissions on Android 11+: MANAGE_EXTERNAL_STORAGE is not granted and SAF folder is not set.")
+                    stateRepo.updateState(false, "ERROR", 0, "Missing permissions")
                     return Result.failure()
                 }
             } else {
@@ -68,6 +78,7 @@ class SyncWorker(
                 ) == android.content.pm.PackageManager.PERMISSION_GRANTED
                 if (!hasReadPermission) {
                     Log.e("SYNC_WORKER", "Missing READ_EXTERNAL_STORAGE permission on Android 10 or below.")
+                    stateRepo.updateState(false, "ERROR", 0, "Missing permissions")
                     return Result.failure()
                 }
             }
@@ -96,38 +107,31 @@ class SyncWorker(
                     job?.invokeOnCompletion {
                         if (job.isCancelled) {
                             orch.isCancelled = true
+                            SyncCancellationManager.setCancelled(true)
                             Log.d("SYNC_WORKER", "SyncWorker coroutine job was cancelled, cancelling orchestrator.")
                         }
                     }
 
                     orch.sync()
+                    stateRepo.updateState(false, "COMPLETED", 100)
                     Result.success()
                 } catch (e: CancellationException) {
                     Log.d("SYNC_WORKER", "SyncWorker cancelled", e)
+                    stateRepo.updateState(false, "CANCELLED", 0)
                     Result.failure()
                 } catch (e: Exception) {
-                    // Log all exceptions with full stack trace and SYNC_WORKER tag
-                    Log.e("SYNC_WORKER", "Exception occurred during background synchronization in SyncWorker inside withContext", e)
+                    SyncErrorHandler.logError("SyncWorker", e, false)
+                    stateRepo.updateState(false, "ERROR", 0, SyncErrorHandler.getUserFriendlyMessage(e))
                     Result.failure()
                 } finally {
                     // Reset isSyncing flag to false
                     com.nightread.app.data.SyncSettingsManager.setSyncing(context, false)
-
-                    // Cleanup temporary/leftover files
-                    try {
-                        val cacheDir = context.cacheDir
-                        cacheDir.listFiles()?.forEach { file ->
-                            if (file.name.startsWith("temp_sha_") || file.name.startsWith("temp_down_")) {
-                                file.delete()
-                            }
-                        }
-                    } catch (cleanupEx: Exception) {
-                        Log.e("SYNC_WORKER", "Failed to cleanup temporary files in SyncWorker finally block", cleanupEx)
-                    }
+                    SyncCancellationManager.reset()
+                    fileManager.cleanup()
                 }
             }
         } catch (e: Exception) {
-            Log.e("SYNC_WORKER", "Fatal error in SyncWorker.doWork() outside IO context", e)
+            SyncErrorHandler.logError("SyncWorker Fatal", e, false)
             // Ensure flag is reset in case of fatal error
             try {
                 com.nightread.app.data.SyncSettingsManager.setSyncing(context, false)

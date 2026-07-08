@@ -21,15 +21,16 @@ class SyncOrchestrator(
 ) {
     private val TAG = "SYNC_ORCHESTRATOR"
     
-    @Volatile
-    var isCancelled: Boolean = false
+    var isCancelled: Boolean
+        get() = SyncCancellationManager.isCancelled()
+        set(value) { SyncCancellationManager.setCancelled(value) }
 
     suspend fun sync() {
-        isCancelled = false
+        SyncCancellationManager.setCancelled(false)
         val syncFolder = try {
             YandexDiskManager.getSyncFolder(context)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to get sync folder path from YandexDiskManager", e)
+            SyncErrorHandler.logError("SyncOrchestrator", e, false)
             throw Exception("Не удалось получить путь папки синхронизации: ${e.localizedMessage}", e)
         }
         
@@ -37,13 +38,13 @@ class SyncOrchestrator(
 
         val syncManager = YandexSyncManager(context)
         if (!syncManager.hasInternetConnection()) {
-            Log.e(TAG, "No internet connection during synchronization initialization.")
+            SyncErrorHandler.logError("SyncOrchestrator Internet", Exception("No internet connection during synchronization initialization."), false)
             throw Exception("Отсутствует подключение к интернету")
         }
         
         val token = YandexDiskManager.getToken(context)
         if (token.isNullOrEmpty()) {
-            Log.e(TAG, "Yandex Disk token is empty or null.")
+            SyncErrorHandler.logError("SyncOrchestrator Token", Exception("Yandex Disk token is empty or null."), false)
             throw Exception("Ошибка авторизации Яндекс Диска: отсутствует токен")
         }
 
@@ -116,7 +117,7 @@ class SyncOrchestrator(
                         cloudSha1ToPath[sha1] = file.path
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Unexpected error processing file in Stage 2: ${file.name}", e)
+                SyncErrorHandler.logError("SyncOrchestrator Stage 2", e, true)
                 }
             }
 
@@ -200,7 +201,7 @@ class SyncOrchestrator(
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to upload book: ${book.title}", e)
+                    SyncErrorHandler.logError("SyncOrchestrator Upload", e, true)
                     }
                     progressTracker.updateStats(
                         toUpload = toUploadBooks.size,
@@ -281,7 +282,7 @@ class SyncOrchestrator(
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error downloading book: $remotePath", e)
+                        SyncErrorHandler.logError("SyncOrchestrator Download", e, true)
                     } finally {
                         try {
                             if (tempFile.exists()) {

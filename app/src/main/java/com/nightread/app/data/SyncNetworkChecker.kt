@@ -9,7 +9,9 @@ import android.util.Log
  * Проверка сетевого соединения.
  */
 class SyncNetworkChecker(private val context: Context) {
-    private const val TAG = "SYNC_NETWORK"
+    companion object {
+        private const val TAG = "SYNC_NETWORK"
+    }
 
     fun isConnected(): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
