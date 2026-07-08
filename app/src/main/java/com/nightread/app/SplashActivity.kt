@@ -75,6 +75,27 @@ class SplashActivity : AppCompatActivity() {
             try {
                 val startTime = System.currentTimeMillis()
 
+                // Step 0: Sync state verification
+                try {
+                    val context = applicationContext
+                    val isSyncingFlag = com.nightread.app.data.SyncSettingsManager.isSyncing(context)
+                    if (isSyncingFlag) {
+                        Log.d(TAG, "Syncing flag is currently true. Verifying background WorkManager status.")
+                        val workManager = androidx.work.WorkManager.getInstance(context)
+                        val workInfos = withContext(Dispatchers.IO) {
+                            workManager.getWorkInfosForUniqueWork("YandexSyncUniqueWork").get()
+                        }
+                        val isWorkerActive = workInfos.any { !it.state.isFinished }
+                        if (!isWorkerActive) {
+                            Log.w("SYNC_ERROR", "Found stale sync state on Splash screen: flag is true but Worker is inactive. Resetting flag.")
+                            com.nightread.app.data.SyncSettingsManager.setSyncing(context, false)
+                            com.nightread.app.data.YandexSyncState.reset()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("SYNC_ERROR", "Error verifying WorkManager status in SplashActivity", e)
+                }
+
                 // Step 1: Database preparation (0% -> 20%)
                 animateProgressTo(20, "Подготовка базы данных...", 400)
                 val db = withContext(Dispatchers.IO) {

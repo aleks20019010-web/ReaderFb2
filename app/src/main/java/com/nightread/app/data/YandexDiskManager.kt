@@ -154,7 +154,37 @@ object YandexDiskManager {
      */
     suspend fun getDiskInfo(context: Context): DiskInfoResponse = withContext(Dispatchers.IO) {
         val token = getToken(context) ?: throw IllegalStateException("Not authorized")
-        api.getDiskInfo("OAuth $token")
+        try {
+            api.getDiskInfo("OAuth $token")
+        } catch (e: retrofit2.HttpException) {
+            if (e.code() == 401) {
+                Log.e("AUTH_ERROR", "getDiskInfo: Token is invalid/expired. Clearing token.")
+                clearToken(context)
+            }
+            throw e
+        } catch (e: Exception) {
+            Log.e("AUTH_ERROR", "getDiskInfo: API call failed.", e)
+            throw e
+        }
+    }
+
+    /**
+     * Проверяет токен перед сохранением, запрашивая информацию о диске.
+     * Возвращает true, если токен валидный и подключение успешно.
+     * При ошибке логирует её и возвращает false.
+     */
+    suspend fun connect(context: Context, token: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val authHeader = "OAuth $token"
+            Log.d("AUTH_ERROR", "connect: Validating received token...")
+            api.getDiskInfo(authHeader)
+            saveToken(context, token)
+            Log.d("AUTH_ERROR", "connect: Token successfully validated and saved.")
+            true
+        } catch (e: Exception) {
+            Log.e("AUTH_ERROR", "connect: Validation failed for token. Token NOT saved.", e)
+            false
+        }
     }
 
     /**

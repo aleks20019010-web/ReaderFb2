@@ -6,6 +6,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.nightread.app.data.YandexDiskManager
 import com.yandex.authsdk.YandexAuthException
 import com.yandex.authsdk.YandexAuthLoginOptions
@@ -13,6 +14,7 @@ import com.yandex.authsdk.YandexAuthOptions
 import com.yandex.authsdk.YandexAuthSdk
 import com.yandex.authsdk.YandexAuthResult
 import com.yandex.authsdk.YandexAuthToken
+import kotlinx.coroutines.launch
 
 class YandexAuthActivity : AppCompatActivity() {
 
@@ -29,21 +31,34 @@ class YandexAuthActivity : AppCompatActivity() {
             val launcher = registerForActivityResult(sdk.contract) { result ->
                 when (result) {
                     is YandexAuthResult.Success -> {
-                        Log.d("YandexAuth", "Token received successfully")
-                        YandexDiskManager.saveToken(this, result.token.value)
-                        Toast.makeText(this, "Успешная авторизация в Яндекс Диске", Toast.LENGTH_SHORT).show()
-                        setResult(RESULT_OK)
+                        val tokenValue = result.token.value
+                        Log.d("AUTH_ERROR", "Token received successfully. Initiating validation check.")
+                        Toast.makeText(this, "Проверка подключения к Яндекс Диску...", Toast.LENGTH_SHORT).show()
+                        
+                        lifecycleScope.launch {
+                            val success = YandexDiskManager.connect(this@YandexAuthActivity, tokenValue)
+                            if (success) {
+                                Toast.makeText(this@YandexAuthActivity, "Успешная авторизация в Яндекс Диске", Toast.LENGTH_SHORT).show()
+                                setResult(RESULT_OK)
+                            } else {
+                                Log.e("AUTH_ERROR", "Yandex Disk verification check failed. Token was invalid or network error.")
+                                Toast.makeText(this@YandexAuthActivity, "Ошибка авторизации: недействительный токен или нет сети", Toast.LENGTH_LONG).show()
+                                setResult(RESULT_CANCELED)
+                            }
+                            finish()
+                        }
                     }
                     is YandexAuthResult.Failure -> {
-                        Log.e("YandexAuth", "Auth exception", result.exception)
+                        Log.e("AUTH_ERROR", "Auth SDK exception", result.exception)
                         Toast.makeText(this, "Ошибка авторизации: ${result.exception.message}", Toast.LENGTH_SHORT).show()
+                        finish()
                     }
                     is YandexAuthResult.Cancelled -> {
-                        Log.d("YandexAuth", "Auth canceled")
+                        Log.d("AUTH_ERROR", "Auth canceled by user")
                         Toast.makeText(this, "Авторизация отменена", Toast.LENGTH_SHORT).show()
+                        finish()
                     }
                 }
-                finish()
             }
             
             val loginOptions = YandexAuthLoginOptions()

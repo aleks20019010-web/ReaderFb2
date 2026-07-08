@@ -38,7 +38,12 @@ class SyncOrchestrator(
             // Stage 1: Получение списка файлов с диска
             progressTracker.startStage("Получение списка файлов", 0, "Получение списка файлов с диска...")
             if (isCancelled) return
-            val cloudFiles = cloudService.getFileList(syncFolder)
+            val cloudFiles = try {
+                cloudService.getFileList(syncFolder)
+            } catch (e: Exception) {
+                Log.e("SYNC_ERROR", "Stage 1: Failed to retrieve file list from $syncFolder", e)
+                throw Exception("Не удалось получить список файлов с Яндекс Диска: ${e.localizedMessage}", e)
+            }
             Log.d(TAG, "Found ${cloudFiles.size} files in $syncFolder")
 
             // Filter for supported formats: .fb2 and .fb2.zip
@@ -61,36 +66,40 @@ class SyncOrchestrator(
                 if (isCancelled) return
                 progressTracker.updateProgress(index, filteredCloudFiles.size, "Анализ файлов: ${index + 1} из ${filteredCloudFiles.size}")
 
-                val cached = cacheManager.getByPath(file.path)
-                var sha1: String? = null
+                try {
+                    val cached = cacheManager.getByPath(file.path)
+                    var sha1: String? = null
 
-                if (cached != null && cached.lastModified == file.modified && cached.size == (file.size ?: 0L)) {
-                    sha1 = cached.sha1
-                    Log.d(TAG, "Reusing cached SHA-1 for ${file.name}: $sha1")
-                } else {
-                    Log.d(TAG, "Downloading temporarily and extracting SHA-1 for ${file.name}")
-                    val tempFile = File(context.cacheDir, "temp_sha_${System.currentTimeMillis()}_${file.name}")
-                    try {
-                        val success = cloudService.downloadFile(file.path, tempFile)
-                        if (success) {
-                            sha1 = sha1Extractor.extractSha1(tempFile)
-                            if (sha1 != null) {
-                                cacheManager.save(sha1, file.path, file.modified ?: "", file.size ?: 0L)
-                                Log.d(TAG, "Calculated and cached SHA-1 for ${file.name}: $sha1")
+                    if (cached != null && cached.lastModified == file.modified && cached.size == (file.size ?: 0L)) {
+                        sha1 = cached.sha1
+                        Log.d(TAG, "Reusing cached SHA-1 for ${file.name}: $sha1")
+                    } else {
+                        Log.d(TAG, "Downloading temporarily and extracting SHA-1 for ${file.name}")
+                        val tempFile = File(context.cacheDir, "temp_sha_${System.currentTimeMillis()}_${file.name}")
+                        try {
+                            val success = cloudService.downloadFile(file.path, tempFile)
+                            if (success) {
+                                sha1 = sha1Extractor.extractSha1(tempFile)
+                                if (sha1 != null) {
+                                    cacheManager.save(sha1, file.path, file.modified ?: "", file.size ?: 0L)
+                                    Log.d(TAG, "Calculated and cached SHA-1 for ${file.name}: $sha1")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("SYNC_ERROR", "Error calculating SHA-1 for ${file.name}", e)
+                        } finally {
+                            if (tempFile.exists()) {
+                                tempFile.delete()
                             }
                         }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error calculating SHA-1 for ${file.name}", e)
-                    } finally {
-                        if (tempFile.exists()) {
-                            tempFile.delete()
-                        }
                     }
-                }
 
-                if (sha1 != null) {
-                    cloudSha1Map[file.path] = sha1
-                    cloudSha1ToPath[sha1] = file.path
+                    if (sha1 != null) {
+                        cloudSha1Map[file.path] = sha1
+                        cloudSha1ToPath[sha1] = file.path
+                    }
+                } catch (e: Exception) {
+                    Log.e("SYNC_ERROR", "Unexpected error processing file in Stage 2: ${file.name}", e)
                 }
             }
 
@@ -101,7 +110,12 @@ class SyncOrchestrator(
             val bookDao = db.bookDao()
             val repository = BookRepository(bookDao, db.noteDao())
             
-            val localSha1s = bookDao.getAllSha1s().toSet()
+            val localSha1s = try {
+                bookDao.getAllSha1s().toSet()
+            } catch (e: Exception) {
+                Log.e("SYNC_ERROR", "Stage 3: Failed to retrieve local SHA-1 set from database", e)
+                throw Exception("Ошибка чтения локальной библиотеки при сопоставлении: ${e.localizedMessage}", e)
+            }
             val cloudSha1s = cloudSha1Map.values.toSet()
 
             val toUploadSha1s = localSha1s - cloudSha1s
@@ -109,9 +123,13 @@ class SyncOrchestrator(
 
             val toUploadBooks = mutableListOf<BookEntity>()
             for (sha1 in toUploadSha1s) {
-                val book = bookDao.getBookBySha1(sha1)
-                if (book != null) {
-                    toUploadBooks.add(book)
+                try {
+                    val book = bookDao.getBookBySha1(sha1)
+                    if (book != null) {
+                        toUploadBooks.add(book)
+                    }
+                } catch (e: Exception) {
+                    Log.e("SYNC_ERROR", "Error looking up local book by SHA-1: $sha1", e)
                 }
             }
 
@@ -134,34 +152,38 @@ class SyncOrchestrator(
                     if (isCancelled) return
                     progressTracker.updateProgress(index, toUploadBooks.size, "Загрузка на диск: ${index + 1} из ${toUploadBooks.size}")
 
-                    val localFile = book.filePath?.let { File(it) }
-                    val originalName = localFile?.name ?: "${book.title}.fb2"
-                    if (localFile != null && localFile.exists()) {
-                        val remotePath = YandexDiskManager.normalizePath("$syncFolder/$originalName")
-                        
-                        YandexSyncState.update {
-                            it.copy(
-                                currentFileName = originalName,
-                                currentFileBytesTransferred = 0L,
-                                currentFileTotalBytes = localFile.length()
-                            )
-                        }
+                    try {
+                        val localFile = book.filePath?.let { File(it) }
+                        val originalName = localFile?.name ?: "${book.title}.fb2"
+                        if (localFile != null && localFile.exists()) {
+                            val remotePath = YandexDiskManager.normalizePath("$syncFolder/$originalName")
+                            
+                            YandexSyncState.update {
+                                it.copy(
+                                    currentFileName = originalName,
+                                    currentFileBytesTransferred = 0L,
+                                    currentFileTotalBytes = localFile.length()
+                                )
+                            }
 
-                        val success = cloudService.uploadFile(localFile, remotePath)
-                        if (success) {
-                            uploadedCount++
-                            // Cache the SHA-1 for the uploaded file by querying Yandex Disk's metadata
-                            try {
-                                val token = YandexDiskManager.getToken(context)
-                                if (token != null) {
-                                    val response = YandexDiskManager.api.getResource("OAuth $token", remotePath, limit = 1)
-                                    val modified = response.modified ?: ""
-                                    cacheManager.save(book.sha1 ?: "", remotePath, modified, localFile.length())
+                            val success = cloudService.uploadFile(localFile, remotePath)
+                            if (success) {
+                                uploadedCount++
+                                // Cache the SHA-1 for the uploaded file by querying Yandex Disk's metadata
+                                try {
+                                    val token = YandexDiskManager.getToken(context)
+                                    if (token != null) {
+                                        val response = YandexDiskManager.api.getResource("OAuth $token", remotePath, limit = 1)
+                                        val modified = response.modified ?: ""
+                                        cacheManager.save(book.sha1 ?: "", remotePath, modified, localFile.length())
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("SYNC_ERROR", "Error caching metadata after upload", e)
                                 }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error caching metadata after upload", e)
                             }
                         }
+                    } catch (e: Exception) {
+                        Log.e("SYNC_ERROR", "Failed to upload book: ${book.title}", e)
                     }
                     progressTracker.updateStats(
                         toUpload = toUploadBooks.size,
@@ -236,13 +258,13 @@ class SyncOrchestrator(
                                             cacheManager.save(sha1, remotePath, response.modified ?: "", bytes.size.toLong())
                                         }
                                     } catch (e: Exception) {
-                                        Log.e(TAG, "Error caching after download", e)
+                                        Log.e("SYNC_ERROR", "Error caching after download", e)
                                     }
                                 }
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error downloading book: $remotePath", e)
+                        Log.e("SYNC_ERROR", "Error downloading book: $remotePath", e)
                     } finally {
                         if (tempFile.exists()) {
                             tempFile.delete()

@@ -184,12 +184,39 @@ class YandexSyncFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        observeSyncState()
+        
+        val context = requireContext().applicationContext
+        val workManager = androidx.work.WorkManager.getInstance(context)
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                // Verify if the background sync job is actually active in WorkManager
+                val workInfos = withContext(Dispatchers.IO) {
+                    workManager.getWorkInfosForUniqueWork("YandexSyncUniqueWork").get()
+                }
+                val isWorkerActive = workInfos.any { !it.state.isFinished }
+                if (!isWorkerActive) {
+                    if (com.nightread.app.data.SyncSettingsManager.isSyncing(context) || com.nightread.app.data.YandexSyncState.state.value.isRunning) {
+                        Log.w("SYNC_FRAGMENT_ERROR", "Sync state mismatch detected on screen load: isSyncing is true but background Worker is inactive. Resetting stale state.")
+                        com.nightread.app.data.SyncSettingsManager.setSyncing(context, false)
+                        com.nightread.app.data.YandexSyncState.reset()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SYNC_FRAGMENT_ERROR", "Error during active WorkManager check in onViewCreated", e)
+            }
+            
+            // Safe initialization of progress state subscription
+            observeSyncState()
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        updateUi()
+        try {
+            updateUi()
+        } catch (e: Exception) {
+            Log.e("SYNC_FRAGMENT_ERROR", "Error inside onResume updateUi", e)
+        }
     }
 
     private fun updateUi() {
@@ -211,6 +238,7 @@ class YandexSyncFragment : Fragment() {
             lifecycleScope.launch {
                 try {
                     val info = YandexDiskManager.getDiskInfo(context)
+                    if (!isAdded) return@launch
                     txtUsername.text = "Пользователь: ${info.user?.displayName ?: info.user?.login ?: "Неизвестен"}"
                     
                     val usedStr = Formatter.formatFileSize(context, info.usedSpace)
@@ -224,7 +252,7 @@ class YandexSyncFragment : Fragment() {
                     }
                     progressStorage.progress = percent
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error loading disk info", e)
+                    Log.e("SYNC_FRAGMENT_ERROR", "Error loading disk info in updateUi", e)
                 }
             }
 

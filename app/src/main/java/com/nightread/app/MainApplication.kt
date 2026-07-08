@@ -22,6 +22,7 @@ class MainApplication : Application() {
                 Log.w("SYNC_ERROR", "Detected interrupted sync during application startup. Resetting flag and cleaning cache.")
                 com.nightread.app.data.SyncSettingsManager.setSyncing(this, false)
                 com.nightread.app.data.SyncSettingsManager.setInterruptedFlag(this, true)
+                com.nightread.app.data.YandexSyncState.reset()
                 
                 // Cleanup temporary files
                 val cacheDir = this.cacheDir
