@@ -35,3 +35,13 @@
 -keepclassmembers class * {
     @retrofit2.http.* *;
 }
+
+# Kotlin Parcelize
+-dontwarn kotlinx.parcelize.Parcelize
+-dontwarn kotlinx.parcelize.RawValue
+-dontwarn kotlinx.parcelize.WriteWith
+
+# Yandex SDK
+-dontwarn com.yandex.authsdk.**
+-keep class com.yandex.authsdk.** { *; }
+
