@@ -186,7 +186,7 @@ class SettingsActivity : FragmentActivity() {
                     }
                 }
                 item { Text("Информация", style = MaterialTheme.typography.titleMedium) }
-                item { Text("Версия: 2.1.2\nРазработчик: NightRead Team\nКонтакты: support@nightread.com") }
+                item { Text("Версия: ${com.nightread.app.BuildConfig.VERSION_NAME}\nРазработчик: NightRead Team\nКонтакты: support@nightread.com") }
 
                 item { Spacer(modifier = Modifier.height(16.dp)) }
 
