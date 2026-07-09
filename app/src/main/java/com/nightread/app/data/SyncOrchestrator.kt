@@ -5,6 +5,11 @@ import android.os.Environment
 import android.util.Log
 import com.nightread.app.service.NewCoverExtractor
 import com.nightread.app.service.NewFb2Parser
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.io.File
 import java.nio.charset.StandardCharsets
 
@@ -73,54 +78,68 @@ class SyncOrchestrator(
 
             // Stage 2: Анализ файлов с диска (вычисление или получение SHA-1 из кэша)
             progressTracker.startStage("Вычисление SHA-1", filteredCloudFiles.size, "Анализ файлов на диске...")
-            val cloudSha1Map = mutableMapOf<String, String>() // cloudPath -> sha1
-            val cloudSha1ToPath = mutableMapOf<String, String>() // sha1 -> cloudPath
+            val cloudSha1Map = java.util.concurrent.ConcurrentHashMap<String, String>() // cloudPath -> sha1
+            val cloudSha1ToPath = java.util.concurrent.ConcurrentHashMap<String, String>() // sha1 -> cloudPath
             
-            for ((index, file) in filteredCloudFiles.withIndex()) {
-                if (isCancelled) return
-                progressTracker.updateProgress(index, filteredCloudFiles.size, "Анализ файлов: ${index + 1} из ${filteredCloudFiles.size}")
-                
-                val normalizedPath = YandexDiskManager.normalizePath(file.path)
+            val processedCount = java.util.concurrent.atomic.AtomicInteger(0)
+            val semaphore = Semaphore(5)
 
-                try {
-                    val cached = cacheManager.getByPath(normalizedPath)
-                    var sha1: String? = null
+            coroutineScope {
+                val jobs = filteredCloudFiles.map { file ->
+                    async {
+                        semaphore.withPermit {
+                            if (isCancelled) return@async
+                            
+                            val normalizedPath = YandexDiskManager.normalizePath(file.path)
 
-                    if (cached != null && cached.lastModified == file.modified && cached.size == (file.size ?: 0L)) {
-                        sha1 = cached.sha1
-                        Log.d(TAG, "Reusing cached SHA-1 for ${file.name}: $sha1")
-                    } else {
-                        Log.d(TAG, "Downloading temporarily and extracting SHA-1 for ${file.name}")
-                        val tempFile = File(context.cacheDir, "temp_sha_${System.currentTimeMillis()}_${file.name}")
-                        try {
-                            val success = cloudService.downloadFile(normalizedPath, tempFile)
-                            if (success) {
-                                sha1 = sha1Extractor.extractSha1(tempFile)
-                                if (sha1 != null) {
-                                    cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
-                                    Log.d(TAG, "Calculated and cached SHA-1 for ${file.name}: $sha1")
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error calculating SHA-1 for ${file.name}", e)
-                        } finally {
                             try {
-                                if (tempFile.exists()) {
-                                    tempFile.delete()
+                                val cached = cacheManager.getByPath(normalizedPath)
+                                var sha1: String? = null
+
+                                if (cached != null && cached.lastModified == file.modified && cached.size == (file.size ?: 0L)) {
+                                    sha1 = cached.sha1
+                                    Log.d(TAG, "Reusing cached SHA-1 for ${file.name}: $sha1")
+                                } else {
+                                    Log.d(TAG, "Downloading temporarily and extracting SHA-1 for ${file.name}")
+                                    val tempFile = File(context.cacheDir, "temp_sha_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}_${file.name}")
+                                    try {
+                                        val success = cloudService.downloadFile(normalizedPath, tempFile)
+                                        if (success) {
+                                            sha1 = sha1Extractor.extractSha1(tempFile)
+                                            if (sha1 != null) {
+                                                cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
+                                                Log.d(TAG, "Calculated and cached SHA-1 for ${file.name}: $sha1")
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error calculating SHA-1 for ${file.name}", e)
+                                    } finally {
+                                        try {
+                                            if (tempFile.exists()) {
+                                                tempFile.delete()
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Failed to delete temp SHA-1 file: ${tempFile.absolutePath}", e)
+                                        }
+                                    }
+                                }
+
+                                if (sha1 != null) {
+                                    cloudSha1Map[normalizedPath] = sha1
+                                    cloudSha1ToPath[sha1] = normalizedPath
                                 }
                             } catch (e: Exception) {
-                                Log.e(TAG, "Failed to delete temp SHA-1 file: ${tempFile.absolutePath}", e)
+                                SyncErrorHandler.logError("SyncOrchestrator Stage 2", e, true)
+                            } finally {
+                                val processed = processedCount.incrementAndGet()
+                                synchronized(progressTracker) {
+                                    progressTracker.updateProgress(processed, filteredCloudFiles.size, "Анализ файлов: $processed из ${filteredCloudFiles.size}")
+                                }
                             }
                         }
                     }
-
-                    if (sha1 != null) {
-                        cloudSha1Map[normalizedPath] = sha1
-                        cloudSha1ToPath[sha1] = normalizedPath
-                    }
-                } catch (e: Exception) {
-                SyncErrorHandler.logError("SyncOrchestrator Stage 2", e, true)
                 }
+                jobs.awaitAll()
             }
 
             // Stage 3: Получение локальных SHA-1 и сравнение
@@ -172,52 +191,65 @@ class SyncOrchestrator(
             Log.d(TAG, "To upload: ${toUploadBooks.size}, To download: ${toDownloadPaths.size}")
 
             // Stage 4: Загрузка на диск (Upload)
-            var uploadedCount = 0
+            val uploadedCount = java.util.concurrent.atomic.AtomicInteger(0)
+            val uploadProcessedCount = java.util.concurrent.atomic.AtomicInteger(0)
             if (toUploadBooks.isNotEmpty()) {
                 progressTracker.startStage("Загрузка на диск", toUploadBooks.size, "Загрузка книг на Яндекс Диск...")
-                for ((index, book) in toUploadBooks.withIndex()) {
-                    if (isCancelled) return
-                    progressTracker.updateProgress(index, toUploadBooks.size, "Загрузка на диск: ${index + 1} из ${toUploadBooks.size}")
-
-                    try {
-                        val localFile = book.filePath?.let { File(it) }
-                        val originalName = localFile?.name ?: "${book.title}.fb2"
-                        if (localFile != null && localFile.exists()) {
-                            val remotePath = YandexDiskManager.normalizePath("$syncFolder/$originalName")
-                            
-                            YandexSyncState.update {
-                                it.copy(
-                                    currentFileName = originalName,
-                                    currentFileBytesTransferred = 0L,
-                                    currentFileTotalBytes = localFile.length()
-                                )
-                            }
-
-                            val success = cloudService.uploadFile(localFile, remotePath)
-                            if (success) {
-                                uploadedCount++
-                                // Cache the SHA-1 for the uploaded file by querying Yandex Disk's metadata
+                val semaphore = Semaphore(5)
+                coroutineScope {
+                    val jobs = toUploadBooks.map { book ->
+                        async {
+                            semaphore.withPermit {
+                                if (isCancelled) return@async
                                 try {
-                                    val tokenVal = YandexDiskManager.getToken(context)
-                                    if (tokenVal != null) {
-                                        val response = YandexDiskManager.api.getResource("OAuth $tokenVal", remotePath, limit = 1)
-                                        val modified = response.modified ?: ""
-                                        cacheManager.save(book.sha1 ?: "", remotePath, modified, response.size ?: localFile.length())
+                                    val localFile = book.filePath?.let { File(it) }
+                                    val originalName = localFile?.name ?: "${book.title}.fb2"
+                                    if (localFile != null && localFile.exists()) {
+                                        val remotePath = YandexDiskManager.normalizePath("$syncFolder/$originalName")
+                                        
+                                        YandexSyncState.update {
+                                            it.copy(
+                                                currentFileName = originalName,
+                                                currentFileBytesTransferred = 0L,
+                                                currentFileTotalBytes = localFile.length()
+                                            )
+                                        }
+
+                                        val success = cloudService.uploadFile(localFile, remotePath)
+                                        if (success) {
+                                            uploadedCount.incrementAndGet()
+                                            // Cache the SHA-1 for the uploaded file by querying Yandex Disk's metadata
+                                            try {
+                                                val tokenVal = YandexDiskManager.getToken(context)
+                                                if (tokenVal != null) {
+                                                    val response = YandexDiskManager.api.getResource("OAuth $tokenVal", remotePath, limit = 1)
+                                                    val modified = response.modified ?: ""
+                                                    cacheManager.save(book.sha1 ?: "", remotePath, modified, response.size ?: localFile.length())
+                                                }
+                                            } catch (e: Exception) {
+                                                Log.e(TAG, "Error caching metadata after upload", e)
+                                            }
+                                        }
                                     }
                                 } catch (e: Exception) {
-                                    Log.e(TAG, "Error caching metadata after upload", e)
+                                    SyncErrorHandler.logError("SyncOrchestrator Upload", e, true)
+                                } finally {
+                                    val processed = uploadProcessedCount.incrementAndGet()
+                                    val currentUploaded = uploadedCount.get()
+                                    synchronized(progressTracker) {
+                                        progressTracker.updateProgress(processed, toUploadBooks.size, "Загрузка на диск: $processed из ${toUploadBooks.size}")
+                                        progressTracker.updateStats(
+                                            toUpload = toUploadBooks.size,
+                                            toDownload = toDownloadPaths.size,
+                                            uploaded = currentUploaded,
+                                            downloaded = 0
+                                        )
+                                    }
                                 }
                             }
                         }
-                    } catch (e: Exception) {
-                    SyncErrorHandler.logError("SyncOrchestrator Upload", e, true)
                     }
-                    progressTracker.updateStats(
-                        toUpload = toUploadBooks.size,
-                        toDownload = toDownloadPaths.size,
-                        uploaded = uploadedCount,
-                        downloaded = 0
-                    )
+                    jobs.awaitAll()
                 }
             }
 
@@ -231,94 +263,110 @@ class SyncOrchestrator(
             }
 
             // Stage 5: Скачивание с диска (Download)
-            var downloadedCount = 0
+            val downloadedCount = java.util.concurrent.atomic.AtomicInteger(0)
+            val downloadProcessedCount = java.util.concurrent.atomic.AtomicInteger(0)
             val booksDirectory = getLocalBooksDirectory()
             Log.d(TAG, "Local download directory: ${booksDirectory.absolutePath}")
 
             if (toDownloadPaths.isNotEmpty()) {
                 progressTracker.startStage("Скачивание с диска", toDownloadPaths.size, "Скачивание новых книг...")
-                for ((index, remotePath) in toDownloadPaths.withIndex()) {
-                    if (isCancelled) return
-                    progressTracker.updateProgress(index, toDownloadPaths.size, "Скачивание с диска: ${index + 1} из ${toDownloadPaths.size}")
+                val semaphore = Semaphore(5)
+                coroutineScope {
+                    val jobs = toDownloadPaths.map { remotePath ->
+                        async {
+                            semaphore.withPermit {
+                                if (isCancelled) return@async
 
-                    val originalName = File(remotePath).name
-                    val tempFile = File(context.cacheDir, "temp_down_${originalName}")
-                    try {
-                        val success = cloudService.downloadFile(remotePath, tempFile)
-                        if (success && tempFile.exists()) {
-                            val bytes = tempFile.readBytes()
-                            val fb2Bytes = extractFb2Bytes(bytes, originalName)
-                            if (fb2Bytes.isNotEmpty()) {
-                                val sha1 = computeSha1(fb2Bytes)
-                                val content = decodeBytesToString(fb2Bytes)
-                                val meta = NewFb2Parser.parse(content, originalName)
-                                val coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
-                                val truncatedAnnotation = meta.annotation?.take(500)
-
-                                val localFile = File(booksDirectory, originalName)
-                                tempFile.copyTo(localFile, overwrite = true)
-
+                                val originalName = File(remotePath).name
+                                val tempFile = File(context.cacheDir, "temp_down_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}_$originalName")
                                 try {
-                                    val newBook = BookEntity(
-                                        sha1 = sha1,
-                                        title = meta.title,
-                                        author = meta.author ?: "Неизвестен",
-                                        category = "Локальные",
-                                        currentProgressChar = 0,
-                                        totalCharacters = content.length,
-                                        lastReadTime = System.currentTimeMillis(),
-                                        filePath = localFile.absolutePath,
-                                        series = meta.series,
-                                        seriesIndex = meta.seriesIndex,
-                                        language = meta.language ?: "ru",
-                                        fileSize = bytes.size.toLong(),
-                                        review = null,
-                                        isFavorite = false,
-                                        coverPath = coverPath,
-                                        annotation = truncatedAnnotation,
-                                        currentPageIndex = 0,
-                                        coverGradientStart = getRandomGradientStartColor(),
-                                        coverGradientEnd = getRandomGradientEndColor()
-                                    )
+                                    val success = cloudService.downloadFile(remotePath, tempFile)
+                                    if (success && tempFile.exists()) {
+                                        val bytes = tempFile.readBytes()
+                                        val fb2Bytes = extractFb2Bytes(bytes, originalName)
+                                        if (fb2Bytes.isNotEmpty()) {
+                                            val sha1 = computeSha1(fb2Bytes)
+                                            val content = decodeBytesToString(fb2Bytes)
+                                            val meta = NewFb2Parser.parse(content, originalName)
+                                            val coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
+                                            val truncatedAnnotation = meta.annotation?.take(500)
 
-                                    if (bookDao.insertBookSafely(newBook)) {
-                                        Log.d(TAG, "Successfully inserted book: ${meta.title} ($sha1)")
-                                        downloadedCount++
-                                        // Save to cache
-                                        try {
-                                            val tokenVal = YandexDiskManager.getToken(context)
-                                            if (tokenVal != null) {
-                                                val response = YandexDiskManager.api.getResource("OAuth $tokenVal", remotePath, limit = 1)
-                                                cacheManager.save(sha1, remotePath, response.modified ?: "", response.size ?: bytes.size.toLong())
+                                            val localFile = File(booksDirectory, originalName)
+                                            tempFile.copyTo(localFile, overwrite = true)
+
+                                            try {
+                                                val newBook = BookEntity(
+                                                    sha1 = sha1,
+                                                    title = meta.title,
+                                                    author = meta.author ?: "Неизвестен",
+                                                    category = "Локальные",
+                                                    currentProgressChar = 0,
+                                                    totalCharacters = content.length,
+                                                    lastReadTime = System.currentTimeMillis(),
+                                                    filePath = localFile.absolutePath,
+                                                    series = meta.series,
+                                                    seriesIndex = meta.seriesIndex,
+                                                    language = meta.language ?: "ru",
+                                                    fileSize = bytes.size.toLong(),
+                                                    review = null,
+                                                    isFavorite = false,
+                                                    coverPath = coverPath,
+                                                    annotation = truncatedAnnotation,
+                                                    currentPageIndex = 0,
+                                                    coverGradientStart = getRandomGradientStartColor(),
+                                                    coverGradientEnd = getRandomGradientEndColor()
+                                                )
+
+                                                val inserted = bookDao.insertBookSafely(newBook)
+
+                                                if (inserted) {
+                                                    Log.d(TAG, "Successfully inserted book: ${meta.title} ($sha1)")
+                                                    downloadedCount.incrementAndGet()
+                                                    // Save to cache
+                                                    try {
+                                                        val tokenVal = YandexDiskManager.getToken(context)
+                                                        if (tokenVal != null) {
+                                                            val response = YandexDiskManager.api.getResource("OAuth $tokenVal", remotePath, limit = 1)
+                                                            cacheManager.save(sha1, remotePath, response.modified ?: "", response.size ?: bytes.size.toLong())
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        Log.e(TAG, "Error caching after download", e)
+                                                    }
+                                                } else {
+                                                    Log.e(TAG, "Failed to insert book: ${meta.title} ($sha1)")
+                                                }
+                                            } catch (e: Exception) {
+                                                Log.e(TAG, "Exception creating or inserting BookEntity for ${meta.title}", e)
                                             }
-                                        } catch (e: Exception) {
-                                            Log.e(TAG, "Error caching after download", e)
                                         }
-                                    } else {
-                                        Log.e(TAG, "Failed to insert book: ${meta.title} ($sha1)")
                                     }
                                 } catch (e: Exception) {
-                                    Log.e(TAG, "Exception creating or inserting BookEntity for ${meta.title}", e)
+                                    SyncErrorHandler.logError("SyncOrchestrator Download", e, true)
+                                } finally {
+                                    try {
+                                        if (tempFile.exists()) {
+                                            tempFile.delete()
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Failed to delete temp downloaded file: ${tempFile.absolutePath}", e)
+                                    }
+                                    val processed = downloadProcessedCount.incrementAndGet()
+                                    val currentDownloaded = downloadedCount.get()
+                                    val currentUploaded = uploadedCount.get()
+                                    synchronized(progressTracker) {
+                                        progressTracker.updateProgress(processed, toDownloadPaths.size, "Скачивание с диска: $processed из ${toDownloadPaths.size}")
+                                        progressTracker.updateStats(
+                                            toUpload = toUploadBooks.size,
+                                            toDownload = toDownloadPaths.size,
+                                            uploaded = currentUploaded,
+                                            downloaded = currentDownloaded
+                                        )
+                                    }
                                 }
                             }
                         }
-                    } catch (e: Exception) {
-                        SyncErrorHandler.logError("SyncOrchestrator Download", e, true)
-                    } finally {
-                        try {
-                            if (tempFile.exists()) {
-                                tempFile.delete()
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to delete temp downloaded file: ${tempFile.absolutePath}", e)
-                        }
                     }
-                    progressTracker.updateStats(
-                        toUpload = toUploadBooks.size,
-                        toDownload = toDownloadPaths.size,
-                        uploaded = uploadedCount,
-                        downloaded = downloadedCount
-                    )
+                    jobs.awaitAll()
                 }
             }
 
@@ -343,7 +391,7 @@ class SyncOrchestrator(
             }
 
             // Finish
-            val finishMsg = "Синхронизация завершена! Загружено: $uploadedCount, скачано: $downloadedCount"
+            val finishMsg = "Синхронизация завершена! Загружено: ${uploadedCount.get()}, скачано: ${downloadedCount.get()}"
             progressTracker.finishStage("Завершено", finishMsg)
             progressTracker.showFinalNotification("Синхронизация завершена", finishMsg, true)
 
@@ -354,8 +402,8 @@ class SyncOrchestrator(
                     statusText = finishMsg,
                     finished = true,
                     success = true,
-                    downloadedCount = downloadedCount,
-                    uploadedCount = uploadedCount
+                    downloadedCount = downloadedCount.get(),
+                    uploadedCount = uploadedCount.get()
                 )
             }
             YandexDiskManager.saveSyncTimestamp(context)
