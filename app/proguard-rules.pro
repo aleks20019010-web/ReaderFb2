@@ -16,7 +16,7 @@
 # This prevents obfuscation, shrinking, or optimization of your custom code
 # =========================================================================
 -keep class com.nightread.app.** { *; }
--keepinterface com.nightread.app.** { *; }
+-keep interface com.nightread.app.** { *; }
 
 # =========================================================================
 # ROOM DATABASE RULES
@@ -51,7 +51,7 @@
 # MOSHI RULES
 # =========================================================================
 -keep class com.squareup.moshi.** { *; }
--keepinterface com.squareup.moshi.** { *; }
+-keep interface com.squareup.moshi.** { *; }
 -dontwarn com.squareup.moshi.**
 -keep @com.squareup.moshi.JsonClass class * { *; }
 -keepclassmembers class * {
