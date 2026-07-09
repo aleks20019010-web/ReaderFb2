@@ -18,8 +18,8 @@
         android:gravity="top|start"
         android:textAlignment="viewStart"
         android:includeFontPadding="false"
-        android:breakStrategy="balanced"
-        android:hyphenationFrequency="full"
+        android:breakStrategy="simple"
+        android:hyphenationFrequency="none"
         tools:targetApi="o"
         android:justificationMode="none"
         android:scrollHorizontally="false" />

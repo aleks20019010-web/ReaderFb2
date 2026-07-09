@@ -117,8 +117,8 @@ class PageFragment : Fragment() {
         textView.text = formatted
         
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            textView.breakStrategy = android.text.Layout.BREAK_STRATEGY_BALANCED
-            textView.hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
+            textView.breakStrategy = android.text.Layout.BREAK_STRATEGY_SIMPLE
+            textView.hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_NONE
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_NONE
