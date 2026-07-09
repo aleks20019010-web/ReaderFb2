@@ -13,12 +13,12 @@ object Fb2Parser {
             
             var text = contentToParse
                 .replace(Regex("<empty-line[^>]*>"), "\n")
+                .replace(Regex("<title[^>]*>"), "\n\u000C[CHAPTER]")
+                .replace(Regex("</title>"), "[/CHAPTER]\n")
                 .replace(Regex("<p[^>]*>"), "\n    ")
                 .replace(Regex("</p>"), "")
                 .replace(Regex("<v[^>]*>"), "\n    ")
                 .replace(Regex("</v>"), "")
-                .replace(Regex("<title[^>]*>"), "\n")
-                .replace(Regex("</title>"), "\n")
                 .replace(Regex("<subtitle[^>]*>"), "\n")
                 .replace(Regex("</subtitle>"), "\n")
             
@@ -34,10 +34,13 @@ object Fb2Parser {
                 .replace("&apos;", "'")
                 .replace("&nbsp;", " ")
                 
-            // Clean up multiple newlines to just one newline
-            // Replace multiple newlines (with optional whitespace) with a single newline
-            text = text.replace(Regex("(\\s*\\n\\s*)+"), "\n    ")
-            return text.trim()
+            // Clean up multiple newlines to just one newline, excluding FormFeed (\u000C)
+            text = text.replace(Regex("([ \\t\\r\\n]*\\n[ \\t\\r\\n]*)+"), "\n    ")
+            
+            // Clean up consecutive page breaks
+            text = text.replace(Regex("\\u000C+"), "\u000C")
+            
+            return text.trim().trim('\u000C').trim()
         } catch (e: Exception) {
             xmlContent
         }

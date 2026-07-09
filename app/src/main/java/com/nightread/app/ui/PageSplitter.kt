@@ -3,6 +3,14 @@ package com.nightread.app.ui
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
+import android.text.Spanned
+import android.text.SpannableStringBuilder
+import android.text.style.AbsoluteSizeSpan
+import android.text.style.StyleSpan
+import android.text.style.AlignmentSpan
+import android.text.style.ForegroundColorSpan
+import android.graphics.Color
+import android.graphics.Typeface
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -16,6 +24,78 @@ object PageSplitter {
         var offsets: MutableList<Int> = mutableListOf(),
         var isFinished: Boolean = false
     )
+
+    fun formatChapterSpans(text: CharSequence, basePaintSize: Float): CharSequence {
+        if (text.isEmpty() || !text.contains("[CHAPTER]")) return text
+        
+        val spannable = SpannableStringBuilder(text)
+        val str = spannable.toString()
+        var lastIdx = 0
+        
+        while (true) {
+            val startTag = str.indexOf("[CHAPTER]", lastIdx)
+            if (startTag == -1) break
+            
+            val endTag = str.indexOf("[/CHAPTER]", startTag)
+            if (endTag == -1) break
+            
+            // Hide [CHAPTER] tag
+            spannable.setSpan(
+                AbsoluteSizeSpan(0),
+                startTag,
+                startTag + "[CHAPTER]".length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            spannable.setSpan(
+                ForegroundColorSpan(Color.TRANSPARENT),
+                startTag,
+                startTag + "[CHAPTER]".length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            
+            // Hide [/CHAPTER] tag
+            spannable.setSpan(
+                AbsoluteSizeSpan(0),
+                endTag,
+                endTag + "[/CHAPTER]".length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            spannable.setSpan(
+                ForegroundColorSpan(Color.TRANSPARENT),
+                endTag,
+                endTag + "[/CHAPTER]".length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            
+            // Style chapter title text
+            val titleStart = startTag + "[CHAPTER]".length
+            val titleEnd = endTag
+            if (titleEnd > titleStart) {
+                spannable.setSpan(
+                    AbsoluteSizeSpan((basePaintSize * 1.3f).toInt()),
+                    titleStart,
+                    titleEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                spannable.setSpan(
+                    StyleSpan(Typeface.BOLD),
+                    titleStart,
+                    titleEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                spannable.setSpan(
+                    AlignmentSpan.Standard(Layout.Alignment.ALIGN_CENTER),
+                    titleStart,
+                    titleEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+            
+            lastIdx = endTag + "[/CHAPTER]".length
+        }
+        
+        return spannable
+    }
 
     /**
      * Finds the exact page containing the target character offset.
@@ -32,13 +112,15 @@ object PageSplitter {
     ): Pair<Int, String> = withContext(Dispatchers.Default) {
         if (text.isEmpty() || availableWidth <= 0 || availableHeight <= 0) return@withContext Pair(0, "Документ пуст.")
         
+        val formattedText = formatChapterSpans(text, paint.textSize)
+        
         // Find paragraph start
         var start = targetOffset
-        while (start > 0 && text[start - 1] != '\n' && text[start - 1] != '\u000C') {
+        while (start > 0 && formattedText[start - 1] != '\n' && formattedText[start - 1] != '\u000C') {
             start--
         }
         
-        val textLength = text.length
+        val textLength = formattedText.length
         val alignmentVal = when (alignment) {
             "left" -> Layout.Alignment.ALIGN_NORMAL
             "right" -> Layout.Alignment.ALIGN_OPPOSITE
@@ -47,7 +129,7 @@ object PageSplitter {
         }
         
         val tempLayout = StaticLayout.Builder.obtain(
-            text, start, (start + 8000).coerceAtMost(textLength), paint, availableWidth
+            formattedText, start, (start + 8000).coerceAtMost(textLength), paint, availableWidth
         )
             .setAlignment(alignmentVal)
             .setLineSpacing(0f, lineSpacing)
@@ -66,9 +148,7 @@ object PageSplitter {
         var end = tempLayout.getLineEnd(fitLineCount - 1)
         if (end <= start) end = (start + 1).coerceAtMost(textLength)
         
-        // Note: For true lazy loading we need to just paginate incrementally from the beginning
-        // But we will use the incremental progressive pagination to update the ViewPager.
-        return@withContext Pair(start, text.substring(start, end))
+        return@withContext Pair(start, formattedText.substring(start, end).toString())
     }
 
     suspend fun splitTextProgressive(
@@ -90,8 +170,9 @@ object PageSplitter {
             return@withContext
         }
 
+        val formattedText = formatChapterSpans(text, paint.textSize)
         var start = 0
-        val textLength = text.length
+        val textLength = formattedText.length
         val alignmentVal = when (alignment) {
             "left" -> Layout.Alignment.ALIGN_NORMAL
             "right" -> Layout.Alignment.ALIGN_OPPOSITE
@@ -111,7 +192,7 @@ object PageSplitter {
             while (true) {
                 measureEnd = (start + chunkSize).coerceAtMost(textLength)
                 tempLayout = StaticLayout.Builder.obtain(
-                    text, start, measureEnd, paint, availableWidth
+                    formattedText, start, measureEnd, paint, availableWidth
                 )
                     .setAlignment(alignmentVal)
                     .setLineSpacing(0f, lineSpacing)
@@ -150,7 +231,7 @@ object PageSplitter {
 
             var foundChapterBreakIdx = -1
             for (idx in start until end.coerceAtMost(textLength)) {
-                if (text[idx] == '\u000C') {
+                if (formattedText[idx] == '\u000C') {
                     foundChapterBreakIdx = idx
                     break
                 }
@@ -158,13 +239,13 @@ object PageSplitter {
 
             if (foundChapterBreakIdx != -1) {
                 end = foundChapterBreakIdx
-                result.pages.add(text.substring(start, end))
+                result.pages.add(formattedText.substring(start, end).toString())
                 start = foundChapterBreakIdx + 1
             } else {
                 if (end < textLength) {
                     var spaceIndex = -1
                     for (j in (end - 1) downTo (end - 100).coerceAtLeast(start)) {
-                        if (text[j].isWhitespace()) {
+                        if (formattedText[j].isWhitespace()) {
                             spaceIndex = j
                             break
                         }
@@ -173,7 +254,7 @@ object PageSplitter {
                         end = spaceIndex + 1
                     }
                 }
-                result.pages.add(text.substring(start, end))
+                result.pages.add(formattedText.substring(start, end).toString())
                 start = end
             }
 
@@ -181,7 +262,6 @@ object PageSplitter {
             // Report progress every 10 pages or on the first page
             if (pagesFound == 1 || pagesFound % 10 == 0) {
                 withContext(Dispatchers.Main) {
-                    // Send a copy so UI thread iterates safely
                     onProgress(PageResult(ArrayList(result.pages), ArrayList(result.offsets), false))
                 }
             }

@@ -122,6 +122,9 @@ class PageFragment : Fragment() {
 
         textView.setLineSpacing(0f, lineSpacingMultiplier)
         
+        val formatted = PageSplitter.formatChapterSpans(pageText, textView.textSize)
+        textView.text = formatted
+        
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             textView.breakStrategy = android.text.Layout.BREAK_STRATEGY_SIMPLE
             textView.hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_NONE
