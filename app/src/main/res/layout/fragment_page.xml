@@ -21,6 +21,6 @@
         android:breakStrategy="simple"
         android:hyphenationFrequency="none"
         tools:targetApi="o"
-        android:justificationMode="inter_word"
+        android:justificationMode="none"
         android:scrollHorizontally="false" />
 </FrameLayout>

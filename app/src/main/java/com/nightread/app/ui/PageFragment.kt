@@ -113,7 +113,8 @@ class PageFragment : Fragment() {
 
         textView.setLineSpacing(0f, lineSpacingMultiplier)
         
-        val formatted = PageSplitter.formatChapterSpans(pageText, textView.textSize)
+        val hyphenatedText = RussianHyphenator.hyphenate(pageText)
+        val formatted = PageSplitter.formatChapterSpans(hyphenatedText, textView.textSize)
         textView.text = formatted
         
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
@@ -121,7 +122,7 @@ class PageFragment : Fragment() {
             textView.hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_NONE
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_INTER_WORD
+            textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_NONE
         }
     }
 
