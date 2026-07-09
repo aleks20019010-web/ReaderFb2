@@ -80,6 +80,10 @@ android {
       signingConfig = signingConfigs.getByName("debug")
     }
     release {
+      // Сжатие и обфускация включены (оптимизируют сторонние библиотеки).
+      // Все классы приложения защищены правилами в proguard-rules.pro.
+      // Если вам нужно ПОЛНОСТЬЮ отключить сжатие и обфускацию для проверки:
+      // установите: isMinifyEnabled = false, isShrinkResources = false
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(
