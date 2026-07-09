@@ -161,7 +161,13 @@ class ReadingActivity : AppCompatActivity() {
                 lastLineSpacing = newLineSpacing
 
                 if (layoutChanged && bookContent.isNotEmpty() && splitResult != null) {
-                    recalculatePages()
+                    val currentIdx = viewPager.currentItem
+                    val targetOffset = if (currentIdx >= 0 && currentIdx < splitResult.offsets.size) {
+                        splitResult.offsets[currentIdx]
+                    } else {
+                        -1
+                    }
+                    recalculatePages(targetOffset)
                 }
             }
         }
@@ -260,6 +266,14 @@ private fun preprocessTextAndHyphenate(text: String): String {
     private suspend fun recalculatePages(targetCharOffset: Int = -1) {
         if (!kotlin.coroutines.coroutineContext.isActive) return
         
+        var resolvedCharOffset = targetCharOffset
+        if (resolvedCharOffset < 0 && splitResult != null) {
+            val currentIdx = viewPager.currentItem
+            if (currentIdx >= 0 && currentIdx < splitResult.offsets.size) {
+                resolvedCharOffset = splitResult.offsets[currentIdx]
+            }
+        }
+        
         val width = viewPager.width
         val height = viewPager.height
         if (width <= 0 || height <= 0) return
@@ -324,8 +338,8 @@ private fun preprocessTextAndHyphenate(text: String): String {
             }
             
             var targetPage = 0
-            if (targetCharOffset >= 0) {
-                targetPage = splitResult.offsets.indexOfLast { it <= targetCharOffset }.coerceAtLeast(0)
+            if (resolvedCharOffset >= 0) {
+                targetPage = splitResult.offsets.indexOfLast { it <= resolvedCharOffset }.coerceAtLeast(0)
             } else {
                 val currentIdx = viewPager.currentItem
                 val oldOffsets = splitResult.offsets
@@ -369,8 +383,8 @@ private fun preprocessTextAndHyphenate(text: String): String {
                     tvLoadingProgress.visibility = View.GONE
                     
                     var targetPage = 0
-                    if (targetCharOffset >= 0) {
-                        targetPage = result.offsets.indexOfLast { it <= targetCharOffset }.coerceAtLeast(0)
+                    if (resolvedCharOffset >= 0) {
+                        targetPage = result.offsets.indexOfLast { it <= resolvedCharOffset }.coerceAtLeast(0)
                     } else {
                         targetPage = 0
                     }
@@ -417,6 +431,7 @@ private fun preprocessTextAndHyphenate(text: String): String {
         viewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 updateBottomBar(position)
+                saveProgress()
             }
         })
     }

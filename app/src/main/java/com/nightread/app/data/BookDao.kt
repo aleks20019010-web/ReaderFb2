@@ -91,6 +91,9 @@ interface BookDao {
     @Query("DELETE FROM books")
     suspend fun deleteAllBooks()
 
+    @Query("SELECT * FROM books WHERE (currentProgressChar > 0 OR currentPageIndex > 0) AND (totalCharacters = 0 OR (currentProgressChar * 100 / totalCharacters) < 100) ORDER BY lastReadTime DESC")
+    fun getReadingBooks(): Flow<List<BookEntity>>
+
     @Query("DELETE FROM cloud_file_cache")
     suspend fun deleteAllScannedFiles()
 }

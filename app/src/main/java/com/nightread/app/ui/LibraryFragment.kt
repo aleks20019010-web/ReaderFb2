@@ -558,10 +558,16 @@ class LibraryFragment : Fragment() {
 
     private fun observeViewModel() {
         // Observe Books Stream
+        val booksFlow = if (filterType == "reading") {
+            viewModel.loadReadingBooks()
+        } else {
+            viewModel.searchedBooks
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             // Artificial delay to show shimmer for better UX as Room loads extremely fast
             kotlinx.coroutines.delay(800)
-            viewModel.searchedBooks.collectLatest { books ->
+            booksFlow.collectLatest { books ->
                 if (viewModel.scanState.value.isScanning && allBooksList.isNotEmpty()) {
                     val currentSha1s = allBooksList.map { it.sha1 }.toSet()
                     val newBooks = books.filter { it.sha1 !in currentSha1s }

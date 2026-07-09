@@ -94,6 +94,8 @@ class BookRepository(
         prefs.edit().clear().apply()
     }
 
+    fun getReadingBooks(): Flow<List<BookEntity>> = bookDao.getReadingBooks()
+
     fun getNotesForBook(bookSha1: String): Flow<List<NoteEntity>> = noteDao.getNotesForBook(bookSha1)
 
     suspend fun insertNote(note: NoteEntity): Long = noteDao.insertNote(note)
