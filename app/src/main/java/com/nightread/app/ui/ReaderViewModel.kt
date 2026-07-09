@@ -209,7 +209,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch(Dispatchers.Default) {
             // 1. Determine current reading position (character offset)
-            val currentOffset = if (pageStartOffsets.isNotEmpty() && _currentPage.value < pageStartOffsets.size) {
+            val currentOffset: Int = if (pageStartOffsets.isNotEmpty() && _currentPage.value < pageStartOffsets.size) {
                 pageStartOffsets[_currentPage.value]
             } else {
                 sharedPrefs.getInt("book_char_offset_${book.sha1}", book.currentProgressChar)
@@ -246,7 +246,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
             // 3. Find the best matching page in the new layout
             var newPageIndex = 0
-            for (i in offsets.indices) {
+            for (i in 0 until offsets.size) {
                 if (offsets[i] <= currentOffset) {
                     newPageIndex = i
                 } else {

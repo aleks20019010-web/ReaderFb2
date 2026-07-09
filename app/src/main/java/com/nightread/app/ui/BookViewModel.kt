@@ -27,10 +27,8 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     // Observables from Database with robust error catching
     val allBooks: StateFlow<List<BookEntity>> = repository.allBooks
         .catch { e ->
+            if (e is CancellationException) throw e
             Log.e("BookViewModel", "Exception loading books from database", e)
-            withContext(Dispatchers.Main) {
-                CustomToast.show(getApplication(), "Ошибка при чтении базы данных книг: ${e.localizedMessage}")
-            }
             emit(emptyList())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -64,7 +62,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
-     * Explicit helper to load books from database safely with try-catch and Toast reporting.
+     * Explicit helper to load books from database safely with try-catch.
      */
     fun loadBooks() {
         viewModelScope.launch {
@@ -76,9 +74,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 throw e
             } catch (e: Exception) {
                 Log.e("BookViewModel", "Critical error in loadBooks() during database fetch", e)
-                withContext(Dispatchers.Main) {
-                    CustomToast.show(getApplication(), "Ошибка загрузки списка книг: ${e.localizedMessage}")
-                }
             }
         }
     }

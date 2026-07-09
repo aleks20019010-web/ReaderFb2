@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginVertical="6dp"
+    android:padding="12dp"
+    android:elevation="1dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:background="@drawable/bg_glass_panel">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Left Indicator Icon -->
+        <ImageView
+            android:id="@+id/ivIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_bookmark_filled"
+            app:tint="#9B59B6"
+            android:contentDescription="Закладка" />
+
+        <!-- Middle Info: Page & Timestamp -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_toEndOf="@id/ivIcon"
+            android:layout_toStartOf="@id/btnDelete"
+            android:paddingHorizontal="10dp"
+            android:layout_centerVertical="true">
+
+            <TextView
+                android:id="@+id/tvPageNumber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#E8D8F0"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvTimestamp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#B8A0C8"
+                android:textSize="11sp"
+                android:layout_marginTop="1dp" />
+        </LinearLayout>
+
+        <!-- Right Delete Button -->
+        <ImageButton
+            android:id="@+id/btnDelete"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_delete"
+            app:tint="#E74C3C"
+            android:contentDescription="Удалить" />
+    </RelativeLayout>
+
+    <!-- Bottom snippet of text -->
+    <TextView
+        android:id="@+id/tvSnippet"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="#B8A0C8"
+        android:textSize="13sp"
+        android:fontFamily="sans-serif-italic"
+        android:padding="8dp"
+        android:lineSpacingMultiplier="1.1"
+        android:maxLines="2"
+        android:ellipsize="end" />
+
+</LinearLayout>

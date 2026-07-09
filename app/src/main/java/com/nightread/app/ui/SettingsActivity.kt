@@ -421,11 +421,11 @@ class SettingsActivity : FragmentActivity() {
                 DropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
-                    modifier = Modifier.fillMaxWidth(0.9f)
+                    modifier = Modifier.fillMaxWidth(0.9f).background(androidx.compose.ui.graphics.Color(0xFF2A1A3E))
                 ) {
                     options.forEach { option ->
                         DropdownMenuItem(
-                            text = { Text(text = displayMapper(option)) },
+                            text = { Text(text = displayMapper(option), color = androidx.compose.ui.graphics.Color(0xFFE8D8F0)) },
                             onClick = {
                                 onOptionSelected(option)
                                 expanded = false

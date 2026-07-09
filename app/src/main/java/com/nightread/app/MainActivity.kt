@@ -38,6 +38,8 @@ class MainActivity : AppCompatActivity() {
         navView.setNavigationItemSelectedListener { menuItem ->
             if (menuItem.itemId == R.id.nav_sync) {
                 openSyncFragment()
+            } else if (menuItem.itemId == R.id.nav_bookmarks) {
+                openBookmarksFragment()
             } else if (menuItem.itemId == R.id.nav_settings) {
                 // Open SettingsActivity
                 val intent = Intent(this, com.nightread.app.ui.SettingsActivity::class.java)
@@ -95,6 +97,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun openSyncFragment() {
         val fragment = com.nightread.app.ui.YandexSyncFragment.newInstance()
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .commit()
+    }
+
+    private fun openBookmarksFragment() {
+        val fragment = com.nightread.app.ui.BookmarksFragment.newInstance()
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()

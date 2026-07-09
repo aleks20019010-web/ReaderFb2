@@ -12,6 +12,7 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -42,11 +43,16 @@ class ReadingActivity : AppCompatActivity() {
     
     private lateinit var tvTitle: TextView
     private lateinit var btnSettings: ImageButton
+    private lateinit var btnBookmark: ImageButton
+    private lateinit var btnBookmarksList: ImageButton
+    private lateinit var fabBookmark: FloatingActionButton
 
     private var sha1: String = ""
     private var bookTitle: String = ""
     private var bookContent: String = ""
-    private var splitResult: PageSplitter.PageResult? = null
+    private var splitResult = PageSplitter.PageResult()
+    private var progressiveJob: kotlinx.coroutines.Job? = null
+    private var isSplittingFinished = false
     private var isBarsVisible = false
     private var isNightMode = false
     private lateinit var gestureDetector: android.view.GestureDetector
@@ -78,10 +84,28 @@ class ReadingActivity : AppCompatActivity() {
         
         tvTitle = findViewById(R.id.tvTitle)
         btnSettings = findViewById(R.id.btnSettings)
+        btnBookmark = findViewById(R.id.btnBookmark)
+        btnBookmark.setOnClickListener {
+            toggleBookmark()
+        }
+        btnBookmarksList = findViewById(R.id.btnBookmarksList)
+        btnBookmarksList.setOnClickListener {
+            if (sha1.isNotEmpty()) {
+                BookmarksListBottomSheet.newInstance(sha1).show(supportFragmentManager, "BookmarksList")
+            }
+        }
+        fabBookmark = findViewById(R.id.fabBookmark)
+        fabBookmark.setOnClickListener {
+            toggleBookmark()
+        }
         
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         hideSystemBars()
+        topBar.visibility = View.GONE
+        bottomBar.visibility = View.GONE
+        fabBookmark.visibility = View.GONE
+        isBarsVisible = false
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
             window.attributes.layoutInDisplayCutoutMode = 
                 android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
@@ -147,67 +171,88 @@ class ReadingActivity : AppCompatActivity() {
 
     private fun loadBook() {
         progressBar.visibility = View.VISIBLE
+        val tvLoadingProgress = findViewById<TextView>(R.id.tvLoadingProgress)
+        tvLoadingProgress.visibility = View.VISIBLE
+        tvLoadingProgress.text = "Загрузка книги..."
+
         lifecycleScope.launch {
             val db = AppDatabase.getDatabase(this@ReadingActivity)
             val book = withContext(Dispatchers.IO) {
                 db.bookDao().getBookBySha1(sha1)
             }
-
             if (book == null) {
                 CustomToast.show(this@ReadingActivity, "Книга не найдена в БД")
                 finish()
                 return@launch
             }
-
             bookTitle = book.title
             tvTitle.text = bookTitle
 
-            val filePath = book.filePath
-            if (filePath.isNullOrEmpty()) {
-                CustomToast.show(this@ReadingActivity, "Путь к файлу пуст")
-                finish()
-                return@launch
-            }
-
-            val file = File(filePath)
-            if (!file.exists()) {
-                CustomToast.show(this@ReadingActivity, "Файл не найден на диске")
-                finish()
-                return@launch
-            }
-
             try {
-                Log.d("READING_DEBUG", "Loading file: $filePath, size: ${file.length()}")
-                
-                var rawContent = withContext(Dispatchers.IO) {
-                    extractTextFromFile(file)
-                }
-                
-                bookContent = withContext(Dispatchers.Default) {
-                    preprocessTextAndHyphenate(rawContent)
-                }
-
-                if (bookContent.isEmpty()) {
-                    CustomToast.show(this@ReadingActivity, "Не удалось прочитать текст")
-                    finish()
-                    return@launch
+                if (BookCache.sha1 == sha1 && BookCache.content.isNotEmpty()) {
+                    tvLoadingProgress.text = "Книга загружена из кэша..."
+                    bookContent = BookCache.content
+                } else {
+                    val filePath = book.filePath
+                    if (filePath.isNullOrEmpty()) {
+                        CustomToast.show(this@ReadingActivity, "Путь к файлу пуст")
+                        finish()
+                        return@launch
+                    }
+                    val file = File(filePath)
+                    if (!file.exists()) {
+                        CustomToast.show(this@ReadingActivity, "Файл не найден на диске")
+                        finish()
+                        return@launch
+                    }
+                    tvLoadingProgress.text = "Чтение файла..."
+                    Log.d("READING_DEBUG", "Loading file: $filePath, size: ${file.length()}")
+                    
+                    var rawContent = withContext(Dispatchers.IO) {
+                        extractTextFromFile(file)
+                    }
+                    
+                    tvLoadingProgress.text = "Обработка текста..."
+                    bookContent = withContext(Dispatchers.Default) {
+                        preprocessTextAndHyphenate(rawContent)
+                    }
+                    
+                    if (bookContent.isEmpty()) {
+                        CustomToast.show(this@ReadingActivity, "Не удалось прочитать текст")
+                        finish()
+                        return@launch
+                    }
+                    
+                    BookCache.sha1 = sha1
+                    BookCache.content = bookContent
                 }
 
                 // Wait for view to be laid out
                 viewPager.post {
                     lifecycleScope.launch {
-                        recalculatePages(book.currentProgressChar)
+                        val targetOffset = intent.getIntExtra("TARGET_OFFSET", -1)
+                        if (targetOffset >= 0) {
+                            recalculatePages(targetOffset)
+                        } else {
+                            recalculatePages(book.currentProgressChar)
+                        }
                     }
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) {
+                    throw e
+                }
                 Log.e("READING_DEBUG", "Error loading book", e)
-                CustomToast.show(this@ReadingActivity, "Ошибка чтения файла")
-                finish()
+                if (bookContent.isNotEmpty() || (BookCache.sha1 == sha1 && BookCache.content.isNotEmpty())) {
+                    Log.d("READING_DEBUG", "Suppressed non-critical loading error because book content is already available.")
+                } else {
+                    CustomToast.show(this@ReadingActivity, "Ошибка чтения файла")
+                    finish()
+                }
             }
         }
     }
-
-    private fun preprocessTextAndHyphenate(text: String): String {
+private fun preprocessTextAndHyphenate(text: String): String {
         var processedText = text.replace(Regex("(\\s*\\n\\s*)+"), "\n    ")
         return com.nightread.app.service.RussianHyphenator.hyphenate(processedText).trim()
     }
@@ -220,11 +265,15 @@ class ReadingActivity : AppCompatActivity() {
         if (width <= 0 || height <= 0) return
 
         progressBar.visibility = View.VISIBLE
+        val tvLoadingProgress = findViewById<TextView>(R.id.tvLoadingProgress)
+        tvLoadingProgress.visibility = View.VISIBLE
+        tvLoadingProgress.text = "Разбивка на страницы..."
 
         val paint = TextPaint().apply {
             textSize = SettingsManager.getFontSize(this@ReadingActivity) * resources.displayMetrics.scaledDensity
             val family = SettingsManager.getFontFamily(this@ReadingActivity)
             val weight = SettingsManager.getFontWeight(this@ReadingActivity)
+
             val baseTypeface = when (family) {
                 "Roboto" -> android.graphics.Typeface.SANS_SERIF
                 "Times New Roman" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
@@ -234,66 +283,111 @@ class ReadingActivity : AppCompatActivity() {
                 "Monospace" -> android.graphics.Typeface.MONOSPACE
                 else -> android.graphics.Typeface.DEFAULT
             }
+
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                 val numericWeight = when (weight) {
                     "Normal" -> 400
                     "Medium" -> 500
                     "Bold" -> 700
-                    "ExtraBold" -> 900
+                    "ExtraBold" -> 800
                     else -> 400
                 }
                 typeface = android.graphics.Typeface.create(baseTypeface, numericWeight, false)
             } else {
-                val style = if (weight == "Bold" || weight == "ExtraBold") android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL
+                val style = when (weight) {
+                    "Bold", "ExtraBold" -> android.graphics.Typeface.BOLD
+                    else -> android.graphics.Typeface.NORMAL
+                }
                 typeface = android.graphics.Typeface.create(baseTypeface, style)
             }
         }
 
-        // Using display metrics logic inside splitter could be done, but we use match_parent.
-        // Wait, PageSplitter doesn't account for padding unless we subtract it from availableWidth.
-        val extraHorizontalMargin = resources.getDimensionPixelSize(R.dimen.reader_horizontal_margin)
+        val extraHorizontalMargin = 0
         val paddingHorizontal = (26 * resources.displayMetrics.density).toInt() + (extraHorizontalMargin * 2)
-        val paddingVertical = (8 * resources.displayMetrics.density).toInt() + getTopInset() // 8dp bottom + top inset
+        val paddingVertical = (8 * resources.displayMetrics.density).toInt() + getTopInset()
         
         val availableWidth = width - paddingHorizontal
         val availableHeight = height - paddingVertical
 
-        Log.d("READING_DEBUG", "Recalculating pages: w=$availableWidth, h=$availableHeight")
+        val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}"
+        if (BookCache.sha1 == sha1 && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {
+            splitResult = BookCache.splitResult!!
+            isSplittingFinished = true
+            tvLoadingProgress.visibility = View.GONE
+            progressBar.visibility = View.GONE
+            
+            if (viewPager.adapter == null) {
+                viewPager.adapter = ReaderPagerAdapter(this@ReadingActivity, splitResult.pages)
+            } else {
+                (viewPager.adapter as ReaderPagerAdapter).pages = splitResult.pages
+                viewPager.adapter?.notifyDataSetChanged()
+            }
+            
+            var targetPage = 0
+            if (targetCharOffset >= 0) {
+                targetPage = splitResult.offsets.indexOfLast { it <= targetCharOffset }.coerceAtLeast(0)
+            } else {
+                val currentIdx = viewPager.currentItem
+                val oldOffsets = splitResult.offsets
+                if (currentIdx < oldOffsets.size) {
+                    val offset = oldOffsets[currentIdx]
+                    targetPage = splitResult.offsets.indexOfLast { it <= offset }.coerceAtLeast(0)
+                }
+            }
+            if (targetPage < splitResult.pages.size) {
+                viewPager.setCurrentItem(targetPage, false)
+            }
+            updateBottomBar(targetPage)
+            showBarsWithAnimation(animateFab = true)
+            return
+        }
 
-        val result = PageSplitter.splitText(
-            text = bookContent,
-            availableWidth = availableWidth,
-            availableHeight = availableHeight,
-            paint = paint,
-            lineSpacing = SettingsManager.getLineSpacing(this@ReadingActivity),
-            alignment = "justify"
-        )
-        
-        if (!kotlin.coroutines.coroutineContext.isActive) return
+        progressiveJob?.cancel()
+        viewPager.adapter = ReaderPagerAdapter(this@ReadingActivity, splitResult.pages)
+        isSplittingFinished = false
+        var isFirstRender = true
 
-        splitResult = result
-        viewPager.adapter = ReaderPagerAdapter(this@ReadingActivity, result.pages)
-
-        var targetPage = 0
-        
-        if (targetCharOffset >= 0) {
-            targetPage = result.offsets.indexOfLast { it <= targetCharOffset }.coerceAtLeast(0)
-        } else {
-            // Find current offset if re-calculating
-            val currentIdx = viewPager.currentItem
-            val oldOffsets = splitResult?.offsets
-            if (oldOffsets != null && currentIdx < oldOffsets.size) {
-                val offset = oldOffsets[currentIdx]
-                targetPage = result.offsets.indexOfLast { it <= offset }.coerceAtLeast(0)
+        progressiveJob = lifecycleScope.launch {
+            PageSplitter.splitTextProgressive(
+                text = bookContent,
+                availableWidth = availableWidth,
+                availableHeight = availableHeight,
+                paint = paint,
+                lineSpacing = SettingsManager.getLineSpacing(this@ReadingActivity),
+                alignment = "justify"
+            ) { result ->
+                val oldCount = splitResult.pages.size
+                splitResult = result
+                isSplittingFinished = result.isFinished
+                
+                (viewPager.adapter as ReaderPagerAdapter).pages = result.pages
+                viewPager.adapter?.notifyDataSetChanged()
+                
+                if (isFirstRender && result.pages.isNotEmpty()) {
+                    isFirstRender = false
+                    progressBar.visibility = View.GONE
+                    tvLoadingProgress.visibility = View.GONE
+                    
+                    var targetPage = 0
+                    if (targetCharOffset >= 0) {
+                        targetPage = result.offsets.indexOfLast { it <= targetCharOffset }.coerceAtLeast(0)
+                    } else {
+                        targetPage = 0
+                    }
+                    if (targetPage < result.pages.size) {
+                        viewPager.setCurrentItem(targetPage, false)
+                    }
+                    updateBottomBar(targetPage)
+                    showBarsWithAnimation(animateFab = true)
+                } else if (result.isFinished) {
+                    BookCache.layoutKey = currentKey
+                    BookCache.splitResult = result
+                    updateBottomBar(viewPager.currentItem)
+                } else {
+                    updateBottomBar(viewPager.currentItem)
+                }
             }
         }
-        
-        if (targetPage < result.pages.size) {
-            viewPager.setCurrentItem(targetPage, false)
-        }
-        updateBottomBar(targetPage)
-        
-        progressBar.visibility = View.GONE
     }
 
     private fun getTopInset(): Int {
@@ -392,19 +486,63 @@ class ReadingActivity : AppCompatActivity() {
         
         bottomBar.getGlobalVisibleRect(rect)
         if (rect.contains(event.rawX.toInt(), event.rawY.toInt())) return true
+
+        fabBookmark.getGlobalVisibleRect(rect)
+        if (rect.contains(event.rawX.toInt(), event.rawY.toInt())) return true
         
         return false
     }
 
     private fun toggleBars() {
-        isBarsVisible = !isBarsVisible
-        topBar.visibility = if (isBarsVisible) View.VISIBLE else View.GONE
-        bottomBar.visibility = if (isBarsVisible) View.VISIBLE else View.GONE
         if (isBarsVisible) {
-            showSystemBars()
+            hideBarsWithAnimation()
         } else {
-            hideSystemBars()
+            showBarsWithAnimation(animateFab = true)
         }
+    }
+
+    private fun showBarsWithAnimation(animateFab: Boolean = true) {
+        if (isBarsVisible) return
+        isBarsVisible = true
+        
+        topBar.visibility = View.VISIBLE
+        bottomBar.visibility = View.VISIBLE
+        showSystemBars()
+        
+        if (animateFab) {
+            fabBookmark.visibility = View.VISIBLE
+            fabBookmark.scaleX = 0f
+            fabBookmark.scaleY = 0f
+            fabBookmark.animate()
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(400)
+                .setInterpolator(android.view.animation.OvershootInterpolator(1.2f))
+                .start()
+        } else {
+            fabBookmark.visibility = View.VISIBLE
+            fabBookmark.scaleX = 1f
+            fabBookmark.scaleY = 1f
+        }
+    }
+
+    private fun hideBarsWithAnimation() {
+        if (!isBarsVisible) return
+        isBarsVisible = false
+        
+        topBar.visibility = View.GONE
+        bottomBar.visibility = View.GONE
+        hideSystemBars()
+        
+        fabBookmark.animate()
+            .scaleX(0f)
+            .scaleY(0f)
+            .setDuration(250)
+            .setInterpolator(android.view.animation.AccelerateInterpolator())
+            .withEndAction {
+                fabBookmark.visibility = View.GONE
+            }
+            .start()
     }
 
     private fun toggleNightMode() {
@@ -428,12 +566,33 @@ class ReadingActivity : AppCompatActivity() {
     }
 
     private fun updateBottomBar(position: Int) {
-        val total = splitResult?.pages?.size ?: 1
-        tvPageInfo.text = "Стр. ${position + 1} из $total"
-        if (total > 1) {
-            seekBar.progress = (position * 100) / (total - 1)
+        val total = splitResult.pages.size
+        if (isSplittingFinished) {
+            tvPageInfo.text = "Стр. ${position + 1} из $total"
+            if (total > 1) {
+                seekBar.progress = (position * 100) / (total - 1)
+            } else {
+                seekBar.progress = 0
+            }
         } else {
+            tvPageInfo.text = "Стр. ${position + 1} из $total (загрузка...)"
             seekBar.progress = 0
+        }
+
+        if (sha1.isNotEmpty() && splitResult != null && position >= 0 && position < splitResult.offsets.size) {
+            val charOffset = splitResult.offsets[position]
+            lifecycleScope.launch(Dispatchers.IO) {
+                val db = com.nightread.app.data.BookmarkDatabase.getDatabase(this@ReadingActivity)
+                val exists = db.bookmarkDao().getBookmarkAtOffset(sha1, charOffset) != null
+                withContext(Dispatchers.Main) {
+                    btnBookmark.setImageResource(
+                        if (exists) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark
+                    )
+                    fabBookmark.setImageResource(
+                        if (exists) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark
+                    )
+                }
+            }
         }
     }
 
@@ -572,6 +731,58 @@ class ReadingActivity : AppCompatActivity() {
             String(bytes, java.nio.charset.Charset.forName(charsetName))
         } catch (e: Exception) {
             String(bytes, StandardCharsets.UTF_8)
+        }
+    }
+
+    fun jumpToBookmarkOffset(targetOffset: Int) {
+        lifecycleScope.launch {
+            if (isSplittingFinished) {
+                val targetPage = splitResult.offsets.indexOfLast { it <= targetOffset }.coerceAtLeast(0)
+                if (targetPage < splitResult.pages.size) {
+                    viewPager.setCurrentItem(targetPage, false)
+                }
+                updateBottomBar(targetPage)
+                showBarsWithAnimation(animateFab = true)
+            } else {
+                recalculatePages(targetOffset)
+            }
+        }
+    }
+
+    private fun toggleBookmark() {
+        if (sha1.isEmpty() || splitResult == null) return
+        val currentIdx = viewPager.currentItem
+        if (currentIdx >= 0 && currentIdx < splitResult.offsets.size && currentIdx < splitResult.pages.size) {
+            val charOffset = splitResult.offsets[currentIdx]
+            val pageText = splitResult.pages[currentIdx]
+            val snippet = if (pageText.length > 80) pageText.take(80) + "..." else pageText
+
+            lifecycleScope.launch(Dispatchers.IO) {
+                val db = com.nightread.app.data.BookmarkDatabase.getDatabase(this@ReadingActivity)
+                val existing = db.bookmarkDao().getBookmarkAtOffset(sha1, charOffset)
+                if (existing != null) {
+                    db.bookmarkDao().deleteBookmark(existing)
+                    withContext(Dispatchers.Main) {
+                        btnBookmark.setImageResource(R.drawable.ic_bookmark)
+                        fabBookmark.setImageResource(R.drawable.ic_bookmark)
+                        CustomToast.show(this@ReadingActivity, "Закладка удалена")
+                    }
+                } else {
+                    val newBookmark = com.nightread.app.data.BookmarkEntity(
+                        bookSha1 = sha1,
+                        bookTitle = bookTitle,
+                        charOffset = charOffset,
+                        pageIndex = currentIdx,
+                        snippet = snippet
+                    )
+                    db.bookmarkDao().insertBookmark(newBookmark)
+                    withContext(Dispatchers.Main) {
+                        btnBookmark.setImageResource(R.drawable.ic_bookmark_filled)
+                        fabBookmark.setImageResource(R.drawable.ic_bookmark_filled)
+                        CustomToast.show(this@ReadingActivity, "Закладка добавлена")
+                    }
+                }
+            }
         }
     }
 }

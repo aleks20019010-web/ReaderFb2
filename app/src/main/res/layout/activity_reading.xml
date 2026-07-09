@@ -66,6 +66,24 @@
                 android:text="" />
 
             <ImageButton
+                android:id="@+id/btnBookmark"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_bookmark"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="#FFFFFF"
+                android:contentDescription="Закладка"/>
+
+            <ImageButton
+                android:id="@+id/btnBookmarksList"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_bookmarks_list"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="#FFFFFF"
+                android:contentDescription="Список закладок"/>
+
+            <ImageButton
                 android:id="@+id/btnSettings"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
@@ -101,13 +119,41 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
         </LinearLayout>
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fabBookmark"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="110dp"
+            android:src="@drawable/ic_bookmark"
+            app:tint="#FFFFFF"
+            app:backgroundTint="@color/accent"
+            android:visibility="gone"
+            android:contentDescription="Закладка" />
     </FrameLayout>
 
-    <ProgressBar
-        android:id="@+id/progressBar"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:visibility="gone" />
+        android:orientation="vertical"
+        android:gravity="center">
 
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+            
+        <TextView
+            android:id="@+id/tvLoadingProgress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="#FFFFFF"
+            android:visibility="gone"
+            android:textSize="14sp" />
+    </LinearLayout>
 </FrameLayout>

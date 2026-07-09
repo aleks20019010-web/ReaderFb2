@@ -71,4 +71,14 @@
         <item name="android:paddingStart">6dp</item>
         <item name="android:paddingEnd">6dp</item>
     </style>
+
+    <style name="NightReadSpinnerItem" parent="Widget.AppCompat.TextView.SpinnerItem">
+        <item name="android:textColor">#E8D8F0</item>
+        <item name="android:background">#2A1A3E</item>
+    </style>
+    
+    <style name="NightReadSpinnerDropdown" parent="Widget.AppCompat.Spinner.DropDown">
+        <item name="android:popupBackground">#2A1A3E</item>
+    </style>
+
 </resources>
