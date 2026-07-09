@@ -28,11 +28,37 @@ android {
       keyAlias = "androiddebugkey"
       keyPassword = "android"
     }
+    create("release") {
+      // Path to release keystore (used in CI)
+      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "../release.keystore"
+      val storeFileObj = file(keystorePath)
+      if (storeFileObj.exists()) {
+        storeFile = storeFileObj
+        storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
+        keyAlias = System.getenv("KEY_ALIAS") ?: "androiddebugkey"
+        keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+      } else {
+        // Fallback to debug signature for safety in environments without secrets
+        storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
+    }
   }
 
   buildTypes {
     debug {
       signingConfig = signingConfigs.getByName("debug")
+    }
+    release {
+      isMinifyEnabled = true
+      isShrinkResources = true
+      proguardFiles(
+        getDefaultProguardFile("proguard-android-optimize.txt"),
+        "proguard-rules.pro"
+      )
+      signingConfig = signingConfigs.getByName("release")
     }
   }
   compileOptions {
@@ -48,7 +74,9 @@ android {
 
 androidComponents {
   beforeVariants { variantBuilder ->
-    if (variantBuilder.buildType == "release") {
+    val isCi = System.getenv("CI") == "true"
+    val forceRelease = System.getenv("ENABLE_RELEASE_BUILD") == "true"
+    if (variantBuilder.buildType == "release" && !isCi && !forceRelease) {
       variantBuilder.enable = false
     }
   }
