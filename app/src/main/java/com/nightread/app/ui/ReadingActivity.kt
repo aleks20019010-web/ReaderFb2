@@ -64,6 +64,7 @@ class ReadingActivity : AppCompatActivity() {
     private var lastFontFamily = ""
     private var lastFontWeight = ""
     private var lastLineSpacing = 0f
+    private var lastPageAnimation = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val savedBrightness = SettingsManager.getBrightness(this)
@@ -75,7 +76,7 @@ class ReadingActivity : AppCompatActivity() {
         setContentView(R.layout.activity_reading) // Actually we updated activity_reader.xml but wait, I didn't change setContentView name! Let me use activity_reader.
 
         viewPager = findViewById(R.id.viewPager)
-        viewPager.setPageTransformer(DepthPageTransformer())
+        updatePageTransformer()
         progressBar = findViewById(R.id.progressBar)
         topBar = findViewById(R.id.topBar)
         tvBrightness = findViewById(R.id.tvBrightness)
@@ -141,10 +142,12 @@ class ReadingActivity : AppCompatActivity() {
         lastFontFamily = SettingsManager.getFontFamily(this)
         lastFontWeight = SettingsManager.getFontWeight(this)
         lastLineSpacing = SettingsManager.getLineSpacing(this)
+        lastPageAnimation = SettingsManager.getPageAnimation(this)
 
         lifecycleScope.launch {
             SettingsManager.settingsChanged.collect {
                 updateSystemBarsColors()
+                updatePageTransformer()
                 // Check if layout-affecting settings changed
                 val newFontSize = SettingsManager.getFontSize(this@ReadingActivity)
                 val newFontFamily = SettingsManager.getFontFamily(this@ReadingActivity)
@@ -816,6 +819,21 @@ private fun preprocessTextAndHyphenate(text: String): String {
                 recalculatePages(targetOffset)
             }
         }
+    }
+
+    private fun updatePageTransformer() {
+        val animMode = SettingsManager.getPageAnimation(this)
+        if (animMode == lastPageAnimation) return
+        lastPageAnimation = animMode
+        
+        val transformer = when (animMode) {
+            "fade" -> FadePageTransformer()
+            "depth" -> DepthPageTransformer()
+            "zoom" -> ZoomOutPageTransformer()
+            "none" -> NoAnimationTransformer()
+            else -> SlidePageTransformer() // "slide"
+        }
+        viewPager.setPageTransformer(transformer)
     }
 
     private fun toggleBookmark() {

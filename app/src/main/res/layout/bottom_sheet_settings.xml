@@ -326,6 +326,28 @@
                     android:background="@drawable/spinner_dropdown_bg" />
             </LinearLayout>
 
+            <!-- Page Flip Animation Selection -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="6dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvAnimationLabel"
+                    style="@style/SettingsLabelStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Анимация листания" />
+
+                <Spinner
+                    android:id="@+id/spinnerAnimation"
+                    style="@style/CompactSpinnerStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:background="@drawable/spinner_dropdown_bg" />
+            </LinearLayout>
+
             <!-- Line Spacing -->
             <LinearLayout
                 android:layout_width="match_parent"

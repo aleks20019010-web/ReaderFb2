@@ -16,6 +16,7 @@ object SettingsManager {
     const val KEY_FONT_WEIGHT = "font_weight"
     const val KEY_LINE_SPACING = "line_spacing"
     const val KEY_BRIGHTNESS = "brightness"
+    const val KEY_PAGE_ANIMATION = "page_animation"
 
     const val KEY_AUTO_DISCOVERY = "auto_discovery"
     const val KEY_AUTO_THEME = "auto_theme"
@@ -37,6 +38,7 @@ object SettingsManager {
     private var cachedFontWeight: String? = null
     private var cachedLineSpacing: Float? = null
     private var cachedBrightness: Float? = null
+    private var cachedPageAnimation: String? = null
     private var cachedAutoDiscovery: Boolean? = null
     private var cachedAutoTheme: Boolean? = null
     private var cachedCloudSyncUrl: String? = null
@@ -246,6 +248,20 @@ object SettingsManager {
         if (cachedFirestoreUserId == userId) return
         cachedFirestoreUserId = userId
         getPrefs(context).edit().putString(KEY_FIRESTORE_USER_ID, userId).apply()
+        notifyChanged()
+    }
+
+    fun getPageAnimation(context: Context): String {
+        if (cachedPageAnimation == null) {
+            cachedPageAnimation = getPrefs(context).getString(KEY_PAGE_ANIMATION, "slide") ?: "slide"
+        }
+        return cachedPageAnimation!!
+    }
+
+    fun setPageAnimation(context: Context, mode: String) {
+        if (cachedPageAnimation == mode) return
+        cachedPageAnimation = mode
+        getPrefs(context).edit().putString(KEY_PAGE_ANIMATION, mode).apply()
         notifyChanged()
     }
 

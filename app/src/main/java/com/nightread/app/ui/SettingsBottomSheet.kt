@@ -208,6 +208,35 @@ class SettingsBottomSheet : DialogFragment() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        // 5b. Page Flip Animation Selection (Spinner)
+        val animKeys = listOf("slide", "fade", "depth", "zoom", "none")
+        val animNames = mapOf(
+            "slide" to "Стандартный (слайд)",
+            "fade" to "Fade (исчезновение)",
+            "depth" to "Depth (глубина)",
+            "zoom" to "Zoom Out (уменьшение)",
+            "none" to "Без анимации"
+        )
+        val animDisplayNames = animKeys.map { animNames[it] ?: it }
+        val spinnerAnimation = view.findViewById<Spinner>(R.id.spinnerAnimation)
+        val animAdapter = ArrayAdapter(context, R.layout.spinner_item, animDisplayNames).apply {
+            setDropDownViewResource(R.layout.spinner_dropdown_item)
+        }
+        spinnerAnimation.adapter = animAdapter
+
+        val currentAnim = SettingsManager.getPageAnimation(context)
+        val animIdx = animKeys.indexOf(currentAnim).coerceAtLeast(0)
+        spinnerAnimation.setSelection(animIdx)
+        spinnerAnimation.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedKey = animKeys[position]
+                if (selectedKey != SettingsManager.getPageAnimation(context)) {
+                    SettingsManager.setPageAnimation(context, selectedKey)
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
         // 6. Line Spacing (SeekBar)
         val tvLineSpacingValue = view.findViewById<TextView>(R.id.tvLineSpacingValue)
         val seekBarLineSpacing = view.findViewById<SeekBar>(R.id.seekBarLineSpacing)
