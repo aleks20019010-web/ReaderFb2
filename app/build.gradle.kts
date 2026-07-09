@@ -30,8 +30,12 @@ android {
     }
     create("release") {
       // Path to release keystore (used in CI)
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "../release.keystore"
-      val storeFileObj = file(keystorePath)
+      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "release.keystore"
+      val storeFileObj = if (file(keystorePath).isAbsolute) {
+        file(keystorePath)
+      } else {
+        rootProject.file(keystorePath)
+      }
       if (storeFileObj.exists()) {
         storeFile = storeFileObj
         storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
@@ -39,7 +43,12 @@ android {
         keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
       } else {
         // Fallback to debug signature for safety in environments without secrets
-        storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+        val debugKeystore = listOf(
+          file("${System.getProperty("user.home")}/.android/debug.keystore"),
+          rootProject.file("debug.keystore"),
+          file("debug.keystore")
+        ).firstOrNull { it.exists() } ?: file("${System.getProperty("user.home")}/.android/debug.keystore")
+        storeFile = debugKeystore
         storePassword = "android"
         keyAlias = "androiddebugkey"
         keyPassword = "android"
