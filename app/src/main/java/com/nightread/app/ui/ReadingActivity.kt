@@ -75,7 +75,7 @@ class ReadingActivity : AppCompatActivity() {
         setContentView(R.layout.activity_reading) // Actually we updated activity_reader.xml but wait, I didn't change setContentView name! Let me use activity_reader.
 
         viewPager = findViewById(R.id.viewPager)
-        viewPager.setPageTransformer(BookFlipPageTransformer())
+        viewPager.setPageTransformer(DepthPageTransformer())
         progressBar = findViewById(R.id.progressBar)
         topBar = findViewById(R.id.topBar)
         tvBrightness = findViewById(R.id.tvBrightness)

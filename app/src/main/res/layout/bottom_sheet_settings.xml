@@ -301,7 +301,7 @@
                     style="@style/CompactSeekBarStyle"
                     android:layout_width="match_parent"
                     android:layout_height="24dp"
-                    android:max="8" />
+                    android:max="16" />
             </LinearLayout>
 
             <!-- Theme Selection -->

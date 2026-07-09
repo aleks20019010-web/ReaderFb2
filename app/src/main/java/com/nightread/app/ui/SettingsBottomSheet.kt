@@ -137,13 +137,21 @@ class SettingsBottomSheet : DialogFragment() {
         fun getWeightLabel(weight: Int): String {
             return when (weight) {
                 100 -> "Сверхтонкий (100)"
+                150 -> "Ультратонкий (150)"
                 200 -> "Тонкий (200)"
+                250 -> "Очень легкий (250)"
                 300 -> "Легкий (300)"
+                350 -> "Книжный (350)"
                 400 -> "Обычный (400)"
+                450 -> "Литературный (450)"
                 500 -> "Средний (500)"
+                550 -> "Умеренно жирный (550)"
                 600 -> "Полужирный (600)"
+                650 -> "Плотный (650)"
                 700 -> "Жирный (700)"
+                750 -> "Очень жирный (750)"
                 800 -> "Сверхжирный (800)"
+                850 -> "Экстратяжелый (850)"
                 900 -> "Тяжелый (900)"
                 else -> "Обычный ($weight)"
             }
@@ -151,11 +159,11 @@ class SettingsBottomSheet : DialogFragment() {
 
         val currentWeight = SettingsManager.getFontWeightAsInt(context)
         tvFontWeightValue?.text = getWeightLabel(currentWeight)
-        seekBarFontWeight?.progress = ((currentWeight - 100) / 100).coerceIn(0, 8)
-        var lastFontWeightProgress = seekBarFontWeight?.progress ?: 3
+        seekBarFontWeight?.progress = ((currentWeight - 100) / 50).coerceIn(0, 16)
+        var lastFontWeightProgress = seekBarFontWeight?.progress ?: 6
         seekBarFontWeight?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val weightValue = (progress * 100) + 100
+                val weightValue = (progress * 50) + 100
                 tvFontWeightValue?.text = getWeightLabel(weightValue)
                 if (fromUser) {
                     SettingsManager.setFontWeight(context, weightValue.toString())
