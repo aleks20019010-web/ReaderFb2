@@ -6,7 +6,7 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Keep the line number information for debugging stack traces.
--keepattributes SourceFile,LineNumberTable,Signature,InnerClasses,EnclosingMethod,*Annotation*
+-keepattributes SourceFile,LineNumberTable,Signature,InnerClasses,EnclosingMethod,AnnotationDefault,RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,RuntimeVisibleTypeAnnotations,*Annotation*
 
 # Preserve the original source file name.
 -renamesourcefileattribute SourceFile
@@ -19,8 +19,12 @@
 -keep interface com.nightread.app.** { *; }
 
 # =========================================================================
-# ROOM DATABASE RULES
+# ROOM DATABASE & SQLITE RULES
 # =========================================================================
+-keep class androidx.room.** { *; }
+-dontwarn androidx.room.**
+-keep class androidx.sqlite.** { *; }
+-dontwarn androidx.sqlite.**
 -keep class * extends androidx.room.RoomDatabase {
     <init>(...);
 }
@@ -32,12 +36,12 @@
 -keepclassmembers class * extends androidx.room.RoomDatabase {
     @androidx.room.Database *;
 }
+-keep class com.nightread.app.data.**_Impl { *; }
 -dontwarn androidx.room.paging.**
 
 # =========================================================================
 # RETROFIT & OKHTTP RULES
 # =========================================================================
--keepattributes Signature, InnerClasses, EnclosingMethod, AnnotationDefault, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, RuntimeVisibleTypeAnnotations
 -keepclassmembers class * {
     @retrofit2.http.* *;
 }
@@ -48,7 +52,7 @@
 -dontwarn okio.**
 
 # =========================================================================
-# MOSHI RULES
+# MOSHI & KOTLIN REFLECTION RULES
 # =========================================================================
 -keep class com.squareup.moshi.** { *; }
 -keep interface com.squareup.moshi.** { *; }
@@ -57,11 +61,26 @@
 -keepclassmembers class * {
     @com.squareup.moshi.Json *;
 }
+-keep class *JsonAdapter { *; }
+-keep class * extends com.squareup.moshi.JsonAdapter { *; }
+-keep class kotlin.reflect.jvm.internal.** { *; }
+-keep class kotlin.reflect.** { *; }
+-dontwarn kotlin.reflect.**
+-keep class com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory { *; }
 
 # =========================================================================
-# WORKMANAGER & SERVICE RULES
+# WORKMANAGER & SERVICE & APP STARTUP RULES
 # =========================================================================
+-keep class androidx.work.** { *; }
+-dontwarn androidx.work.**
+-keep class androidx.startup.** { *; }
+-dontwarn androidx.startup.**
+-keep class androidx.work.impl.WorkManagerInitializer { *; }
+
 -keep class * extends androidx.work.ListenableWorker {
+    public <init>(android.content.Context, androidx.work.WorkerParameters);
+}
+-keepclassmembers class * extends androidx.work.ListenableWorker {
     public <init>(android.content.Context, androidx.work.WorkerParameters);
 }
 -keep class * extends android.app.Service { *; }
@@ -71,11 +90,11 @@
 # =========================================================================
 # YANDEX SDK
 # =========================================================================
--dontwarn com.yandex.authsdk.**
--keep class com.yandex.authsdk.** { *; }
+-dontwarn com.yandex.**
+-keep class com.yandex.** { *; }
 
 # =========================================================================
-# KOTLIN & COROUTINES
+# KOTLIN, METADATA & COROUTINES
 # =========================================================================
 -dontwarn kotlinx.coroutines.**
 -keep class kotlinx.coroutines.** { *; }
@@ -83,5 +102,5 @@
 -keep class * implements android.os.Parcelable {
     public static final android.os.Parcelable$Creator *;
 }
-
+-keep class kotlin.Metadata { *; }
 
