@@ -85,7 +85,7 @@ class YandexSyncFragment : Fragment() {
         if (!isAdded) return@registerForActivityResult
         val ctx = context ?: return@registerForActivityResult
         if (result.resultCode == Activity.RESULT_OK) {
-            Toast.makeText(ctx, "Авторизация прошла успешно!", Toast.LENGTH_SHORT).show()
+            CustomToast.show(ctx, "Авторизация прошла успешно!")
             updateUi()
         }
     }
@@ -100,10 +100,10 @@ class YandexSyncFragment : Fragment() {
                 
                 com.nightread.app.data.SyncSettingsManager.setDownloadFolderUri(context, uri.toString())
                 updateLocalFolderDisplay()
-                Toast.makeText(context, "Локальная папка успешно изменена!", Toast.LENGTH_SHORT).show()
+                CustomToast.show(context, "Локальная папка успешно изменена!")
             } catch (e: Exception) {
                 Log.e(TAG, "Error taking persistable permission for uri: $uri", e)
-                Toast.makeText(context, "Не удалось получить доступ к папке. Попробуйте другую.", Toast.LENGTH_LONG).show()
+                CustomToast.show(context, "Не удалось получить доступ к папке. Попробуйте другую.")
             }
         }
     }
@@ -160,7 +160,7 @@ class YandexSyncFragment : Fragment() {
 
         btnDisconnect.setOnClickListener {
             YandexDiskManager.clearToken(requireContext())
-            Toast.makeText(requireContext(), "Вы успешно вышли из аккаунта", Toast.LENGTH_SHORT).show()
+            CustomToast.show(requireContext(), "Вы успешно вышли из аккаунта")
             updateUi()
         }
 
@@ -291,21 +291,21 @@ class YandexSyncFragment : Fragment() {
         val context = requireContext()
         try {
             if (com.nightread.app.data.SyncSettingsManager.isSyncing(context) || com.nightread.app.data.YandexSyncState.state.value.isRunning) {
-                Toast.makeText(context, "Синхронизация уже выполняется!", Toast.LENGTH_SHORT).show()
+                CustomToast.show(context, "Синхронизация уже выполняется!")
                 return
             }
             
             // Check for token
             val token = YandexDiskManager.getToken(context)
             if (token.isNullOrBlank()) {
-                Toast.makeText(context, "Ошибка: Авторизуйтесь на Яндекс Диске", Toast.LENGTH_LONG).show()
+                CustomToast.show(context, "Ошибка: Авторизуйтесь на Яндекс Диске")
                 return
             }
 
             val syncManager = YandexSyncManager(context)
 
             if (!syncManager.hasInternetConnection()) {
-                Toast.makeText(context, "Отсутствует подключение к интернету", Toast.LENGTH_SHORT).show()
+                CustomToast.show(context, "Отсутствует подключение к интернету")
                 return
             }
 
@@ -318,10 +318,10 @@ class YandexSyncFragment : Fragment() {
                 androidx.work.ExistingWorkPolicy.REPLACE,
                 workRequest
             )
-            Toast.makeText(context, "Синхронизация запущена в фоновом режиме", Toast.LENGTH_SHORT).show()
+            CustomToast.show(context, "Синхронизация запущена в фоновом режиме")
         } catch (e: Throwable) {
             Log.e("SYNC_UI", "Error starting sync", e)
-            Toast.makeText(context, "Ошибка при запуске синхронизации", Toast.LENGTH_LONG).show()
+            CustomToast.show(context, "Ошибка при запуске синхронизации")
         }
     }
 
@@ -333,7 +333,7 @@ class YandexSyncFragment : Fragment() {
         val syncManager = YandexSyncManager(context)
 
         if (!syncManager.hasInternetConnection()) {
-            Toast.makeText(context, "Отсутствует подключение к интернету", Toast.LENGTH_SHORT).show()
+            CustomToast.show(context, "Отсутствует подключение к интернету")
             return
         }
 
@@ -364,14 +364,14 @@ class YandexSyncFragment : Fragment() {
                             startForegroundSync()
                         }.show()
                     } else {
-                        Toast.makeText(context, "Не удалось выполнить анализ диска. Проверьте авторизацию.", Toast.LENGTH_LONG).show()
+                        CustomToast.show(context, "Не удалось выполнить анализ диска. Проверьте авторизацию.")
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Ошибка во время анализа", e)
                 progressDialog.dismiss()
                 if (isAdded) {
-                    Toast.makeText(context, "Ошибка анализа: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    CustomToast.show(context, "Ошибка анализа: ${e.localizedMessage}")
                 }
             }
         }
@@ -383,7 +383,7 @@ class YandexSyncFragment : Fragment() {
     private fun cancelForegroundSync() {
         val context = requireContext()
         androidx.work.WorkManager.getInstance(context).cancelUniqueWork("YandexSyncUniqueWork")
-        Toast.makeText(context, "Запрос на отмену отправлен", Toast.LENGTH_SHORT).show()
+        CustomToast.show(context, "Запрос на отмену отправлен")
     }
 
     private var duplicatesDialogShowing = false
@@ -455,16 +455,22 @@ class YandexSyncFragment : Fragment() {
 
                     // Отображение оставшегося времени
                     if (state.remainingTimeSeconds >= 0L) {
-                        val mins = state.remainingTimeSeconds / 60
-                        val secs = state.remainingTimeSeconds % 60
-                        val timeStr = if (mins > 0) "${mins}м ${secs}с" else "${secs}с"
-                        txtRemainingTime.text = "Примерное оставшееся время: $timeStr"
+                        val timeStr = if (state.remainingTimeSeconds < 30L) {
+                            "Меньше минуты"
+                        } else if (state.remainingTimeSeconds < 60L) {
+                            "Меньше минуты"
+                        } else {
+                            val mins = state.remainingTimeSeconds / 60
+                            val secs = state.remainingTimeSeconds % 60
+                            if (secs > 0) "${mins} мин ${secs} сек" else "${mins} мин"
+                        }
+                        txtRemainingTime.text = "Оставшееся время: $timeStr"
                         txtRemainingTime.visibility = View.VISIBLE
                     } else {
                         if (state.stage == YandexSyncState.Stage.PROGRESS_SYNC) {
                             txtRemainingTime.text = "Обмен прогрессом чтения..."
                         } else {
-                            txtRemainingTime.text = "Оставшееся время: расчет..."
+                            txtRemainingTime.text = "Оставшееся время: Расчёт..."
                         }
                         txtRemainingTime.visibility = View.VISIBLE
                     }
@@ -488,7 +494,7 @@ class YandexSyncFragment : Fragment() {
                         } else {
                             val errorMsg = state.error ?: "Неизвестная ошибка во время синхронизации."
                             if (errorMsg != "Синхронизация отменена") {
-                                Toast.makeText(ctx, errorMsg, Toast.LENGTH_LONG).show()
+                                CustomToast.show(ctx, errorMsg)
                             }
                         }
                         
@@ -597,7 +603,7 @@ class YandexSyncFragment : Fragment() {
         val context = requireContext()
         val syncManager = YandexSyncManager(context)
         if (!syncManager.hasInternetConnection()) {
-            Toast.makeText(context, "Отсутствует подключение к интернету", Toast.LENGTH_SHORT).show()
+            CustomToast.show(context, "Отсутствует подключение к интернету")
             return
         }
 
@@ -637,7 +643,7 @@ class YandexSyncFragment : Fragment() {
         if (com.nightread.app.data.SyncSettingsManager.getDownloadFolderUri(ctx) != null) {
             if (!com.nightread.app.data.SyncSettingsManager.isFolderAccessible(ctx)) {
                 txtLocalDownloadFolder.setTextColor(0xFFFF4D4D.toInt()) // Red warning color
-                Toast.makeText(ctx, "Выбранная папка недоступна. Выберите папку заново.", Toast.LENGTH_LONG).show()
+                CustomToast.show(ctx, "Выбранная папка недоступна. Выберите папку заново.")
             } else {
                 txtLocalDownloadFolder.setTextColor(resources.getColor(R.color.text_primary, null))
             }

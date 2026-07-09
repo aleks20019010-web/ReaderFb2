@@ -90,7 +90,7 @@ class ReadingActivity : AppCompatActivity() {
 
         sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
         if (sha1.isEmpty()) {
-            Toast.makeText(this, "Книга не найдена", Toast.LENGTH_SHORT).show()
+            CustomToast.show(this, "Книга не найдена")
             finish()
             return
         }
@@ -154,7 +154,7 @@ class ReadingActivity : AppCompatActivity() {
             }
 
             if (book == null) {
-                Toast.makeText(this@ReadingActivity, "Книга не найдена в БД", Toast.LENGTH_SHORT).show()
+                CustomToast.show(this@ReadingActivity, "Книга не найдена в БД")
                 finish()
                 return@launch
             }
@@ -164,14 +164,14 @@ class ReadingActivity : AppCompatActivity() {
 
             val filePath = book.filePath
             if (filePath.isNullOrEmpty()) {
-                Toast.makeText(this@ReadingActivity, "Путь к файлу пуст", Toast.LENGTH_SHORT).show()
+                CustomToast.show(this@ReadingActivity, "Путь к файлу пуст")
                 finish()
                 return@launch
             }
 
             val file = File(filePath)
             if (!file.exists()) {
-                Toast.makeText(this@ReadingActivity, "Файл не найден на диске", Toast.LENGTH_SHORT).show()
+                CustomToast.show(this@ReadingActivity, "Файл не найден на диске")
                 finish()
                 return@launch
             }
@@ -188,7 +188,7 @@ class ReadingActivity : AppCompatActivity() {
                 }
 
                 if (bookContent.isEmpty()) {
-                    Toast.makeText(this@ReadingActivity, "Не удалось прочитать текст", Toast.LENGTH_SHORT).show()
+                    CustomToast.show(this@ReadingActivity, "Не удалось прочитать текст")
                     finish()
                     return@launch
                 }
@@ -201,7 +201,7 @@ class ReadingActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 Log.e("READING_DEBUG", "Error loading book", e)
-                Toast.makeText(this@ReadingActivity, "Ошибка чтения файла", Toast.LENGTH_SHORT).show()
+                CustomToast.show(this@ReadingActivity, "Ошибка чтения файла")
                 finish()
             }
         }

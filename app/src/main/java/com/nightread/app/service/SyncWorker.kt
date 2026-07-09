@@ -43,6 +43,35 @@ class SyncWorker(
         Log.d("SYNC_WORKER", "SyncWorker: Начало выполнения фоновой синхронизации")
         val context = applicationContext
         
+        val isAuto = inputData.getBoolean("is_auto", false)
+        if (isAuto) {
+            // 1. Проверяем, идет ли уже ручная синхронизация
+            val workManager = androidx.work.WorkManager.getInstance(context)
+            val manualWorkInfos = try {
+                workManager.getWorkInfosForUniqueWork("YandexSyncUniqueWork").get()
+            } catch (e: Exception) {
+                emptyList()
+            }
+            val isManualRunning = manualWorkInfos.any { it.state == androidx.work.WorkInfo.State.RUNNING }
+            if (isManualRunning || com.nightread.app.data.SyncSettingsManager.isSyncing(context)) {
+                Log.d("SYNC_WORKER", "SyncWorker: Ручная синхронизация уже выполняется, пропускаем авто-синхронизацию")
+                return Result.success()
+            }
+
+            // 2. Проверяем наличие книг в базе данных
+            val db = com.nightread.app.data.AppDatabase.getDatabase(context)
+            val bookDao = db.bookDao()
+            val hasBooks = try {
+                bookDao.getAllSha1s().isNotEmpty()
+            } catch (e: Exception) {
+                false
+            }
+            if (!hasBooks) {
+                Log.d("SYNC_WORKER", "SyncWorker: В базе данных нет книг, пропускаем авто-синхронизацию")
+                return Result.success()
+            }
+        }
+
         // Предварительная проверка сети
         val networkChecker = SyncNetworkChecker(context)
         if (!networkChecker.isConnected()) {

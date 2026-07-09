@@ -33,16 +33,16 @@ class YandexAuthActivity : AppCompatActivity() {
                     is YandexAuthResult.Success -> {
                         val tokenValue = result.token.value
                         Log.d("AUTH_ERROR", "Token received successfully. Initiating validation check.")
-                        Toast.makeText(this, "Проверка подключения к Яндекс Диску...", Toast.LENGTH_SHORT).show()
+                        CustomToast.show(this, "Проверка подключения к Яндекс Диску...")
                         
                         lifecycleScope.launch {
                             val success = YandexDiskManager.connect(this@YandexAuthActivity, tokenValue)
                             if (success) {
-                                Toast.makeText(this@YandexAuthActivity, "Успешная авторизация в Яндекс Диске", Toast.LENGTH_SHORT).show()
+                                CustomToast.show(this@YandexAuthActivity, "Успешная авторизация в Яндекс Диске")
                                 setResult(RESULT_OK)
                             } else {
                                 Log.e("AUTH_ERROR", "Yandex Disk verification check failed. Token was invalid or network error.")
-                                Toast.makeText(this@YandexAuthActivity, "Ошибка авторизации: недействительный токен или нет сети", Toast.LENGTH_LONG).show()
+                                CustomToast.show(this@YandexAuthActivity, "Ошибка авторизации: недействительный токен или нет сети")
                                 setResult(RESULT_CANCELED)
                             }
                             finish()
@@ -50,12 +50,12 @@ class YandexAuthActivity : AppCompatActivity() {
                     }
                     is YandexAuthResult.Failure -> {
                         Log.e("AUTH_ERROR", "Auth SDK exception", result.exception)
-                        Toast.makeText(this, "Ошибка авторизации: ${result.exception.message}", Toast.LENGTH_SHORT).show()
+                        CustomToast.show(this, "Ошибка авторизации: ${result.exception.message}")
                         finish()
                     }
                     is YandexAuthResult.Cancelled -> {
                         Log.d("AUTH_ERROR", "Auth canceled by user")
-                        Toast.makeText(this, "Авторизация отменена", Toast.LENGTH_SHORT).show()
+                        CustomToast.show(this, "Авторизация отменена")
                         finish()
                     }
                 }
@@ -65,7 +65,7 @@ class YandexAuthActivity : AppCompatActivity() {
             launcher.launch(loginOptions)
         } catch (e: Exception) {
             Log.e("YandexAuthActivity", "Error initializing Yandex Auth SDK", e)
-            Toast.makeText(this, "Ошибка авторизации Яндекса", Toast.LENGTH_SHORT).show()
+            CustomToast.show(this, "Ошибка авторизации Яндекса")
             finish()
         }
     }

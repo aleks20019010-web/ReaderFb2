@@ -138,7 +138,7 @@ class CleanupDialogFragment : DialogFragment() {
     private fun performCleanup() {
         val filesToDelete = duplicateGroups.flatMap { it.files }.filter { it.isSelected }
         if (filesToDelete.isEmpty()) {
-            Toast.makeText(requireContext(), "Ничего не выбрано для удаления", Toast.LENGTH_SHORT).show()
+            CustomToast.show(requireContext(), "Ничего не выбрано для удаления")
             return
         }
 
@@ -167,18 +167,17 @@ class CleanupDialogFragment : DialogFragment() {
                 
                 // Format size
                 val sizeStr = formatSize(result.second)
-                Toast.makeText(
+                CustomToast.show(
                     requireContext(),
-                    "Успешно удалено: ${result.first} файлов. Освобождено: $sizeStr",
-                    Toast.LENGTH_LONG
-                ).show()
+                    "Успешно удалено: ${result.first} файлов. Освобождено: $sizeStr"
+                )
                 
                 dismiss()
             } catch (e: Exception) {
                 layoutProgress.visibility = View.GONE
                 rvDuplicates.visibility = View.VISIBLE
                 btnDeleteSelected.isEnabled = true
-                Toast.makeText(requireContext(), "Ошибка при удалении: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                CustomToast.show(requireContext(), "Ошибка при удалении: ${e.localizedMessage}")
             }
         }
     }
@@ -264,11 +263,10 @@ class CleanupDialogFragment : DialogFragment() {
                             val otherSelectedCount = item.group.files.filter { it != item.file }.count { it.isSelected }
                             if (otherSelectedCount == item.group.files.size - 1) {
                                 // Reverting check
-                                Toast.makeText(
+                                CustomToast.show(
                                     buttonView.context,
-                                    "Нельзя удалить все копии книги! Сохраните хотя бы одну.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                    "Нельзя удалить все копии книги! Сохраните хотя бы одну."
+                                )
                                 buttonView.isChecked = false
                             } else {
                                 item.file.isSelected = true

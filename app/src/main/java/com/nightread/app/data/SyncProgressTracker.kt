@@ -31,11 +31,50 @@ class SyncProgressTracker(private val context: Context) {
     private val channelId = "yandex_sync_channel"
     private val notificationId = 2002
 
+    private var stageStartTime: Long = 0L
+    private var timer: java.util.Timer? = null
+
     init {
         createNotificationChannel()
+        startTimer()
+    }
+
+    private fun startTimer() {
+        timer?.cancel()
+        timer = java.util.Timer().apply {
+            scheduleAtFixedRate(object : java.util.TimerTask() {
+                override fun run() {
+                    val currentState = YandexSyncState.state.value
+                    if (currentState.isRunning && !currentState.finished && !currentState.success) {
+                        val elapsedMs = System.currentTimeMillis() - stageStartTime
+                        val total = currentState.total
+                        val completed = currentState.completed
+                        val remaining = total - completed
+                        
+                        var remainingTime = -1L
+                        if (completed > 0 && elapsedMs > 1000L && remaining >= 0 && total > 0) {
+                            val speed = completed.toDouble() / elapsedMs // files per ms
+                            if (speed > 0) {
+                                remainingTime = (remaining / speed / 1000.0).toLong()
+                            }
+                        }
+                        
+                        YandexSyncState.update {
+                            it.copy(remainingTimeSeconds = remainingTime)
+                        }
+                    }
+                }
+            }, 1000L, 1000L)
+        }
+    }
+
+    private fun cancelTimer() {
+        timer?.cancel()
+        timer = null
     }
 
     fun startStage(stageName: String, total: Int = 0, msg: String = "") {
+        stageStartTime = System.currentTimeMillis()
         _state.value = _state.value.copy(
             stage = stageName,
             totalFiles = total,
@@ -104,6 +143,7 @@ class SyncProgressTracker(private val context: Context) {
     }
 
     fun showFinalNotification(title: String, text: String, success: Boolean) {
+        cancelTimer()
         val notification = NotificationCompat.Builder(context, channelId)
             .setContentTitle(title)
             .setContentText(text)

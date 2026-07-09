@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.nightread.app.ui.LibraryFragment
+import com.nightread.app.ui.CustomToast
 import com.google.android.material.navigation.NavigationView
 
 class MainActivity : AppCompatActivity() {
@@ -81,7 +82,7 @@ class MainActivity : AppCompatActivity() {
         // Inform user if previous sync was interrupted
         if (com.nightread.app.data.SyncSettingsManager.wasInterrupted(this)) {
             com.nightread.app.data.SyncSettingsManager.setInterruptedFlag(this, false)
-            android.widget.Toast.makeText(this, "Предыдущая фоновая синхронизация была прервана", android.widget.Toast.LENGTH_LONG).show()
+            CustomToast.show(this, "Предыдущая фоновая синхронизация была прервана")
         }
     }
 

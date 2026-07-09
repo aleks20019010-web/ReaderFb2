@@ -363,7 +363,7 @@ class YandexSyncManager(private val context: Context) {
                     }
                     Log.d(TAG, "Успешно удалено дубликатов: $deletedCount")
                     withContext(Dispatchers.Main) {
-                        android.widget.Toast.makeText(context, "Удалено дубликатов: $deletedCount", android.widget.Toast.LENGTH_LONG).show()
+                        com.nightread.app.ui.CustomToast.show(context, "Удалено дубликатов: $deletedCount")
                     }
                     
                     // Обновляем список файлов в облаке, чтобы исключить удаленные

@@ -29,7 +29,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         .catch { e ->
             Log.e("BookViewModel", "Exception loading books from database", e)
             withContext(Dispatchers.Main) {
-                android.widget.Toast.makeText(getApplication(), "Ошибка при чтении базы данных книг: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+                CustomToast.show(getApplication(), "Ошибка при чтении базы данных книг: ${e.localizedMessage}")
             }
             emit(emptyList())
         }
@@ -77,7 +77,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 Log.e("BookViewModel", "Critical error in loadBooks() during database fetch", e)
                 withContext(Dispatchers.Main) {
-                    android.widget.Toast.makeText(getApplication(), "Ошибка загрузки списка книг: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+                    CustomToast.show(getApplication(), "Ошибка загрузки списка книг: ${e.localizedMessage}")
                 }
             }
         }
@@ -330,13 +330,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 digest.update(finalBytesForSha1)
                 val computedSha1 = digest.digest().joinToString("") { String.format("%02x", it) }
                 
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    android.widget.Toast.makeText(
-                        context,
-                        "📖 Файл: $fileName\nSHA-1: $computedSha1\nРазмер: ${finalBytesForSha1.size} байт",
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                }
+
 
                 Log.d("BookScanner", "[MANUAL-SHA1] Calculated SHA-1: $computedSha1 for manual imported file: $fileName")
                 

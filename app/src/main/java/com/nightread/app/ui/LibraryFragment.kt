@@ -105,7 +105,7 @@ class LibraryFragment : Fragment() {
     ) { uri: Uri? ->
         uri?.let {
             viewModel.importBookFromUri(it, requireContext()) { success, message ->
-                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                CustomToast.show(requireContext(), message)
             }
         }
     }
@@ -117,7 +117,7 @@ class LibraryFragment : Fragment() {
             startScan()
         } else {
             context?.let { ctx ->
-                Toast.makeText(ctx, "Необходимо разрешение для поиска книг", Toast.LENGTH_SHORT).show()
+                CustomToast.show(ctx, "Необходимо разрешение для поиска книг")
             }
         }
     }
@@ -130,7 +130,7 @@ class LibraryFragment : Fragment() {
                 startScan()
             } else {
                 context?.let { ctx ->
-                    Toast.makeText(ctx, "Необходимо разрешение для поиска книг", Toast.LENGTH_SHORT).show()
+                    CustomToast.show(ctx, "Необходимо разрешение для поиска книг")
                 }
             }
         }
@@ -200,11 +200,11 @@ class LibraryFragment : Fragment() {
         if (isSwipeRescanInProgress) {
             android.util.Log.d("LibraryFragment", "startScan: Starting incremental book scan on ViewModel")
             viewModel.startIncrementalBookScan()
-            Toast.makeText(ctx, "Быстрая проверка новых книг...", Toast.LENGTH_SHORT).show()
+            CustomToast.show(ctx, "Быстрая проверка новых книг...")
         } else {
             android.util.Log.d("LibraryFragment", "startScan: Starting local deep book scan on ViewModel")
             viewModel.startLocalBookScan()
-            Toast.makeText(ctx, "Начато сканирование папок...", Toast.LENGTH_SHORT).show()
+            CustomToast.show(ctx, "Начато сканирование папок...")
         }
     }
 
@@ -540,7 +540,7 @@ class LibraryFragment : Fragment() {
         // Swipe refresh layout manual scan trigger
         swipeRefresh.setOnRefreshListener {
             if (viewModel.scanState.value.isScanning) {
-                Toast.makeText(requireContext(), "Сканирование уже выполняется", Toast.LENGTH_SHORT).show()
+                CustomToast.show(requireContext(), "Сканирование уже выполняется")
                 swipeRefresh.isRefreshing = false
             } else {
                 isSwipeRescanInProgress = true
@@ -653,7 +653,7 @@ class LibraryFragment : Fragment() {
                 wasScanning = false
                 if (state.status.isNotBlank()) {
                     context?.let { ctx ->
-                        Toast.makeText(ctx, state.status, Toast.LENGTH_LONG).show()
+                        CustomToast.show(ctx, state.status)
                     }
                 }
             }
@@ -681,7 +681,7 @@ class LibraryFragment : Fragment() {
             
             if (state.status.startsWith("Error", ignoreCase = true) || state.status.startsWith("Ошибка", ignoreCase = true)) {
                 context?.let { ctx ->
-                    Toast.makeText(ctx, state.status, Toast.LENGTH_LONG).show()
+                    CustomToast.show(ctx, state.status)
                 }
             }
         }
@@ -887,7 +887,7 @@ class LibraryFragment : Fragment() {
             .setMessage("Вы уверены, что хотите удалить книгу \"${book.title}\" из библиотеки?")
             .setPositiveButton("Удалить") { _, _ ->
                 viewModel.deleteBook(book.sha1)
-                Toast.makeText(requireContext(), "Книга удалена", Toast.LENGTH_SHORT).show()
+                CustomToast.show(requireContext(), "Книга удалена")
             }
             .setNegativeButton("Отмена") { _, _ ->
                 val pos = adapter.getPositionOfBook(book)

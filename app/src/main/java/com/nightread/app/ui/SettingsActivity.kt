@@ -57,7 +57,7 @@ class SettingsActivity : FragmentActivity() {
         ) { uri ->
             uri?.let {
                 viewModel.importBookFromUri(it, context) { success, message ->
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                    CustomToast.show(context, message)
                 }
             }
         }
@@ -157,7 +157,7 @@ class SettingsActivity : FragmentActivity() {
                     Button(
                         onClick = { 
                             viewModel.clearScanCache()
-                            Toast.makeText(context, "Кэш сканирования успешно сброшен", Toast.LENGTH_SHORT).show()
+                            CustomToast.show(context, "Кэш сканирования успешно сброшен")
                         }, 
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
@@ -174,7 +174,7 @@ class SettingsActivity : FragmentActivity() {
                                 .setPositiveButton("Удалить всё") { _, _ ->
                                     viewModel.clearLibrary()
                                     viewModel.cancelAllScanningTasks()
-                                    Toast.makeText(context, "Библиотека полностью очищена", Toast.LENGTH_SHORT).show()
+                                    CustomToast.show(context, "Библиотека полностью очищена")
                                 }
                                 .setNegativeButton("Отмена", null)
                                 .show()
@@ -186,39 +186,87 @@ class SettingsActivity : FragmentActivity() {
                     }
                 }
                 item { Text("Информация", style = MaterialTheme.typography.titleMedium) }
-                item { Text("Версия: 1.0.0\nРазработчик: NightRead Team\nКонтакты: support@nightread.com") }
-                
-                item { Text("Облачная синхронизация", style = MaterialTheme.typography.titleMedium) }
-                item {
-                    var cloudSyncEnabled by remember { mutableStateOf(SettingsManager.isCloudSyncEnabled(context)) }
-                    var cloudSyncUrl by remember { mutableStateOf(SettingsManager.getCloudSyncUrl(context)) }
+                item { Text("Версия: 2.1.2\nРазработчик: NightRead Team\nКонтакты: support@nightread.com") }
 
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+
+                item { Text("Авто-синхронизация", style = MaterialTheme.typography.titleMedium) }
+                item {
+                    var autoSyncEnabled by remember { mutableStateOf(com.nightread.app.service.AutoSyncManager.isAutoSyncEnabled(context)) }
+                    var autoSyncInterval by remember { mutableStateOf(com.nightread.app.service.AutoSyncManager.getInterval(context)) }
+                    var autoSyncTime by remember { mutableStateOf(com.nightread.app.service.AutoSyncManager.getStartTime(context)) }
+                    var wifiOnly by remember { mutableStateOf(com.nightread.app.service.AutoSyncManager.isWifiOnly(context)) }
+
+                    val intervalOptions = listOf("6_HOURS", "12_HOURS", "1_DAY", "3_DAYS")
+                    val intervalNames = mapOf(
+                        "6_HOURS" to "Каждые 6 часов",
+                        "12_HOURS" to "Каждые 12 часов",
+                        "1_DAY" to "Каждый день",
+                        "3_DAYS" to "Каждые 3 дня"
+                    )
+
+                    val timeOptions = listOf("00:00", "06:00", "12:00", "18:00")
+                    val timeNames = mapOf(
+                        "00:00" to "В 00:00",
+                        "06:00" to "В 06:00",
+                        "12:00" to "В 12:00",
+                        "18:00" to "В 18:00"
+                    )
+
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Включить синхронизацию")
+                            Text("Включить авто-синхронизацию")
                             Switch(
-                                checked = cloudSyncEnabled,
+                                checked = autoSyncEnabled,
                                 onCheckedChange = { checked ->
-                                    cloudSyncEnabled = checked
-                                    SettingsManager.setCloudSyncEnabled(context, checked)
+                                    autoSyncEnabled = checked
+                                    com.nightread.app.service.AutoSyncManager.setAutoSyncEnabled(context, checked)
                                 }
                             )
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = cloudSyncUrl,
-                            onValueChange = {
-                                cloudSyncUrl = it
-                                SettingsManager.setCloudSyncUrl(context, it)
-                            },
-                            label = { Text("URL облачного API") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
+
+                        if (autoSyncEnabled) {
+                            SettingsDropdown(
+                                label = "Интервал синхронизации",
+                                options = intervalOptions,
+                                selectedOption = autoSyncInterval,
+                                onOptionSelected = {
+                                    autoSyncInterval = it
+                                    com.nightread.app.service.AutoSyncManager.setInterval(context, it)
+                                },
+                                displayMapper = { intervalNames[it] ?: it }
+                            )
+
+                            SettingsDropdown(
+                                label = "Время запуска",
+                                options = timeOptions,
+                                selectedOption = autoSyncTime,
+                                onOptionSelected = {
+                                    autoSyncTime = it
+                                    com.nightread.app.service.AutoSyncManager.setStartTime(context, it)
+                                },
+                                displayMapper = { timeNames[it] ?: it }
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Только при подключении к Wi-Fi")
+                                Switch(
+                                    checked = wifiOnly,
+                                    onCheckedChange = { checked ->
+                                        wifiOnly = checked
+                                        com.nightread.app.service.AutoSyncManager.setWifiOnly(context, checked)
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
 
