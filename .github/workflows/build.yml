@@ -33,11 +33,20 @@ jobs:
         fi
     - name: Build Debug APK
       run: gradle assembleDebug
+    - name: Extract Version Name
+      id: get_version
+      run: |
+        VERSION_NAME=$(grep "versionName =" app/build.gradle.kts | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
+        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
     - name: Get SHA-256 from debug.keystore
       run: |
         keytool -list -v -keystore ~/.android/debug.keystore \
           -alias androiddebugkey -storepass android -keypass android \
           | grep "SHA256"
+    - name: Rename Debug APK
+      run: |
+        VERSION_NAME="${{ steps.get_version.outputs.VERSION_NAME }}"
+        cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/NightRead-debug-v$VERSION_NAME.apk"
     - name: Upload to Google Drive
       uses: logickoder/g-drive-upload@main
       with:
@@ -46,6 +55,6 @@ jobs:
         clientSecret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         refreshToken: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
         folderId: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
-        filename: 'app/build/outputs/apk/debug/app-debug.apk'
-        name: 'ReaderFb2-debug.apk'
+        filename: "app/build/outputs/apk/debug/NightRead-debug-v${{ steps.get_version.outputs.VERSION_NAME }}.apk"
+        name: "NightRead-debug-v${{ steps.get_version.outputs.VERSION_NAME }}.apk"
         overwrite: 'true'
