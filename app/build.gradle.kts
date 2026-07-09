@@ -15,7 +15,7 @@ android {
     applicationId = "com.nightread.app"
     minSdk = 24
     targetSdk = 36
-    versionCode = 4
+    versionCode = 5
     versionName = "2.1.3"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -31,11 +31,27 @@ android {
     create("release") {
       // Path to release keystore (used in CI)
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "release.keystore"
+      println("--- SIGNING CONFIG DEBUG ---")
+      println("System.getenv(\"KEYSTORE_PATH\") = ${System.getenv("KEYSTORE_PATH")}")
+      println("System.getenv(\"KEYSTORE_PASSWORD\") is empty = ${System.getenv("KEYSTORE_PASSWORD").isNullOrEmpty()}")
+      println("System.getenv(\"KEY_ALIAS\") = ${System.getenv("KEY_ALIAS")}")
+      
       val storeFileObj = if (file(keystorePath).isAbsolute) {
         file(keystorePath)
       } else {
         rootProject.file(keystorePath)
       }
+      println("Resolved storeFileObj path = ${storeFileObj.absolutePath}")
+      println("Resolved storeFileObj exists = ${storeFileObj.exists()}")
+      
+      // Let's also list files in root directory to see if release.keystore is there
+      try {
+        val rootFiles = rootProject.projectDir.listFiles()?.map { it.name } ?: emptyList()
+        println("Root project files: $rootFiles")
+      } catch (e: Exception) {
+        println("Error listing root project files: ${e.message}")
+      }
+
       if (storeFileObj.exists()) {
         storeFile = storeFileObj
         storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
@@ -48,11 +64,14 @@ android {
           rootProject.file("debug.keystore"),
           file("debug.keystore")
         ).firstOrNull { it.exists() } ?: file("${System.getProperty("user.home")}/.android/debug.keystore")
+        println("Fallback debugKeystore path = ${debugKeystore.absolutePath}")
+        println("Fallback debugKeystore exists = ${debugKeystore.exists()}")
         storeFile = debugKeystore
         storePassword = "android"
         keyAlias = "androiddebugkey"
         keyPassword = "android"
       }
+      println("--- END SIGNING CONFIG DEBUG ---")
     }
   }
 

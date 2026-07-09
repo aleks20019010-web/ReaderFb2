@@ -39,12 +39,12 @@ jobs:
             echo "ERROR: KEYSTORE_BASE64 is missing from GitHub Secrets!"
             exit 1
           fi
-          echo "$KEYSTORE_BASE64" | base64 --decode > release.keystore
+          echo "$KEYSTORE_BASE64" | base64 --decode > "${{ github.workspace }}/release.keystore"
 
       - name: Build Release APK
         env:
           ENABLE_RELEASE_BUILD: "true"
-          KEYSTORE_PATH: "release.keystore"
+          KEYSTORE_PATH: "${{ github.workspace }}/release.keystore"
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
