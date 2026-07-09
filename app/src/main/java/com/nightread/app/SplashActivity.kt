@@ -102,6 +102,11 @@ class SplashActivity : AppCompatActivity() {
                     AppDatabase.getDatabase(applicationContext)
                 }
 
+                // Run safe clean-up for lastReadTime on existing unread books
+                withContext(Dispatchers.IO) {
+                    db.bookDao().resetUnreadBooksLastReadTime()
+                }
+
                 // Step 2: Query library book count (20% -> 50%)
                 animateProgressTo(50, "Проверка книг в библиотеке...", 400)
                 val repository = BookRepository(db.bookDao(), db.noteDao())
