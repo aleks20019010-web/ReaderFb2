@@ -306,10 +306,10 @@ class ReadingActivity : AppCompatActivity() {
             }
         }
     }
-private fun preprocessTextAndHyphenate(text: String): String {
+    private fun preprocessTextAndHyphenate(text: String): String {
         var processedText = text.replace(Regex("([ \\t\\r\\n]*\\n[ \\t\\r\\n]*)+"), "\n    ")
         processedText = processedText.trim().trim('\u000C').trim()
-        return com.nightread.app.service.RussianHyphenator.hyphenate(processedText)
+        return com.nightread.app.ui.RussianHyphenator.hyphenate(processedText)
     }
 
     private suspend fun recalculatePages(targetCharOffset: Int = -1) {
