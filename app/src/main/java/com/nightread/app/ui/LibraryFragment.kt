@@ -728,7 +728,7 @@ class LibraryFragment : Fragment() {
         filtered = when (filterType) {
             "reading" -> filtered.filter { book -> 
                 val percent = if (book.totalCharacters > 0) ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt() else 0
-                (book.currentProgressChar > 0 || book.currentPageIndex > 0) && percent < 100
+                (book.lastReadTime > 0 || book.currentProgressChar > 0 || book.currentPageIndex > 0) && percent < 100
             }
             "read" -> filtered.filter { book -> 
                 val percent = if (book.totalCharacters > 0) ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt() else 0

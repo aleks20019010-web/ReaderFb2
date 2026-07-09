@@ -194,6 +194,11 @@ class ReadingActivity : AppCompatActivity() {
             bookTitle = book.title
             tvTitle.text = bookTitle
 
+            // Update lastReadTime immediately when opening the book
+            withContext(Dispatchers.IO) {
+                db.bookDao().updateProgress(sha1, book.currentProgressChar, System.currentTimeMillis())
+            }
+
             try {
                 if (BookCache.sha1 == sha1 && BookCache.content.isNotEmpty()) {
                     tvLoadingProgress.text = "Книга загружена из кэша..."
@@ -393,12 +398,19 @@ private fun preprocessTextAndHyphenate(text: String): String {
                     }
                     updateBottomBar(targetPage)
                     showBarsWithAnimation(animateFab = true)
-                } else if (result.isFinished) {
+                } else {
+                    if (resolvedCharOffset >= 0 && result.pages.isNotEmpty()) {
+                        val targetPage = result.offsets.indexOfLast { it <= resolvedCharOffset }.coerceAtLeast(0)
+                        if (targetPage < result.pages.size && viewPager.currentItem != targetPage) {
+                            viewPager.setCurrentItem(targetPage, false)
+                        }
+                    }
+                    updateBottomBar(viewPager.currentItem)
+                }
+
+                if (result.isFinished) {
                     BookCache.layoutKey = currentKey
                     BookCache.splitResult = result
-                    updateBottomBar(viewPager.currentItem)
-                } else {
-                    updateBottomBar(viewPager.currentItem)
                 }
             }
         }

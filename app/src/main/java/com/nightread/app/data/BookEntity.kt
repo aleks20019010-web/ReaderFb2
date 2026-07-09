@@ -13,7 +13,7 @@ data class BookEntity(
     val category: String = "Классика",
     val currentProgressChar: Int = 0,
     val totalCharacters: Int = 0,
-    val lastReadTime: Long = System.currentTimeMillis(),
+    val lastReadTime: Long = 0L,
     val filePath: String? = null,
     val series: String? = null,
     val language: String? = "ru",
