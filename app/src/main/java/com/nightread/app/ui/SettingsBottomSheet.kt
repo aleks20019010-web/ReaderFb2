@@ -130,26 +130,44 @@ class SettingsBottomSheet : DialogFragment() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        // 4. Font Weight (Spinner)
-        val weightOptions = listOf("Normal", "Medium", "Bold", "ExtraBold")
-        val spinnerWeight = view.findViewById<Spinner>(R.id.spinnerWeight)
-        val weightAdapter = ArrayAdapter(context, R.layout.spinner_item, weightOptions).apply {
-            setDropDownViewResource(R.layout.spinner_dropdown_item)
-        }
-        spinnerWeight.adapter = weightAdapter
+        // 4. Font Weight (SeekBar)
+        val tvFontWeightValue = view.findViewById<TextView>(R.id.tvFontWeightValue)
+        val seekBarFontWeight = view.findViewById<SeekBar>(R.id.seekBarFontWeight)
         
-        val currentWeight = SettingsManager.getFontWeight(context)
-        val weightIdx = weightOptions.indexOf(currentWeight).coerceAtLeast(0)
-        spinnerWeight.setSelection(weightIdx)
-        spinnerWeight.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val selectedWeight = weightOptions[position]
-                if (selectedWeight != SettingsManager.getFontWeight(context)) {
-                    SettingsManager.setFontWeight(context, selectedWeight)
+        fun getWeightLabel(weight: Int): String {
+            return when (weight) {
+                100 -> "Сверхтонкий (100)"
+                200 -> "Тонкий (200)"
+                300 -> "Легкий (300)"
+                400 -> "Обычный (400)"
+                500 -> "Средний (500)"
+                600 -> "Полужирный (600)"
+                700 -> "Жирный (700)"
+                800 -> "Сверхжирный (800)"
+                900 -> "Тяжелый (900)"
+                else -> "Обычный ($weight)"
+            }
+        }
+
+        val currentWeight = SettingsManager.getFontWeightAsInt(context)
+        tvFontWeightValue?.text = getWeightLabel(currentWeight)
+        seekBarFontWeight?.progress = ((currentWeight - 100) / 100).coerceIn(0, 8)
+        var lastFontWeightProgress = seekBarFontWeight?.progress ?: 3
+        seekBarFontWeight?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val weightValue = (progress * 100) + 100
+                tvFontWeightValue?.text = getWeightLabel(weightValue)
+                if (fromUser) {
+                    SettingsManager.setFontWeight(context, weightValue.toString())
+                    if (progress != lastFontWeightProgress) {
+                        seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                        lastFontWeightProgress = progress
+                    }
                 }
             }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
 
         // 5. Theme Selection (Spinner)
         val themeKeys = listOf("light", "dark", "sepia", "sepia_contrast", "contrast", "beige")
@@ -320,6 +338,7 @@ class SettingsBottomSheet : DialogFragment() {
         // 2. Primary Titles and Text Values
         rootView.findViewById<TextView>(R.id.tvSettingsTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvFontSizeValue)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvFontWeightValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvLineSpacingValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoDiscoveryTitle)?.setTextColor(textPrimaryColor)
 
@@ -340,11 +359,14 @@ class SettingsBottomSheet : DialogFragment() {
         val btnClose = rootView.findViewById<ImageButton>(R.id.btnClose)
         btnClose?.imageTintList = ColorStateList.valueOf(textPrimaryColor)
 
-        // 6. Font size & line spacing SeekBars coloring
+        // 6. Font size, font weight & line spacing SeekBars coloring
         val seekBarFontSize = rootView.findViewById<SeekBar>(R.id.seekBarFontSize)
+        val seekBarFontWeight = rootView.findViewById<SeekBar>(R.id.seekBarFontWeight)
         val seekBarLineSpacing = rootView.findViewById<SeekBar>(R.id.seekBarLineSpacing)
         seekBarFontSize?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarFontSize?.thumbTintList = ColorStateList.valueOf(accentColor)
+        seekBarFontWeight?.progressTintList = ColorStateList.valueOf(accentColor)
+        seekBarFontWeight?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarLineSpacing?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarLineSpacing?.thumbTintList = ColorStateList.valueOf(accentColor)
 
@@ -378,7 +400,6 @@ class SettingsBottomSheet : DialogFragment() {
             setStroke(2, accentColor)
         }
         rootView.findViewById<Spinner>(R.id.spinnerFont)?.background = spinnerBg
-        rootView.findViewById<Spinner>(R.id.spinnerWeight)?.background = spinnerBg
         rootView.findViewById<Spinner>(R.id.spinnerTheme)?.background = spinnerBg
 
         // 10. Programmatic background and text colors for quick font switching buttons

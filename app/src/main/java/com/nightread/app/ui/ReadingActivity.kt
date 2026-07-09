@@ -75,6 +75,7 @@ class ReadingActivity : AppCompatActivity() {
         setContentView(R.layout.activity_reading) // Actually we updated activity_reader.xml but wait, I didn't change setContentView name! Let me use activity_reader.
 
         viewPager = findViewById(R.id.viewPager)
+        viewPager.setPageTransformer(BookFlipPageTransformer())
         progressBar = findViewById(R.id.progressBar)
         topBar = findViewById(R.id.topBar)
         tvBrightness = findViewById(R.id.tvBrightness)
@@ -152,7 +153,6 @@ class ReadingActivity : AppCompatActivity() {
                 
                 val layoutChanged = newFontSize != lastFontSize || 
                                    newFontFamily != lastFontFamily || 
-                                   newFontWeight != lastFontWeight || 
                                    newLineSpacing != lastLineSpacing
 
                 lastFontSize = newFontSize
@@ -245,7 +245,47 @@ class ReadingActivity : AppCompatActivity() {
                         if (targetOffset >= 0) {
                             recalculatePages(targetOffset)
                         } else {
-                            recalculatePages(book.currentProgressChar)
+                            val localOffset = book.currentProgressChar
+                            var fsOffset = -1
+                            var fsPageIndex = -1
+                            
+                            try {
+                                if (com.nightread.app.data.FirestoreSyncManager.isSyncEnabled(this@ReadingActivity)) {
+                                    val firestoreData = com.nightread.app.data.FirestoreSyncManager.retrieveProgress(this@ReadingActivity, sha1)
+                                    if (firestoreData != null) {
+                                        val offset = (firestoreData["charOffset"] as? Number)?.toInt() ?: -1
+                                        val pageIdx = (firestoreData["pageIndex"] as? Number)?.toInt() ?: -1
+                                        val fsTimestamp = (firestoreData["lastReadTime"] as? Number)?.toLong() ?: 0L
+                                        
+                                        if (offset >= 0 && fsTimestamp > book.lastReadTime) {
+                                            fsOffset = offset
+                                            fsPageIndex = pageIdx
+                                        }
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e("READING_DEBUG", "Error fetching Firestore progress", e)
+                            }
+
+                            if (fsOffset >= 0) {
+                                androidx.appcompat.app.AlertDialog.Builder(this@ReadingActivity)
+                                    .setTitle("Синхронизация прогресса")
+                                    .setMessage("Найден более свежий прогресс чтения из облака (Страница ${fsPageIndex + 1}). Хотите перейти к нему?")
+                                    .setPositiveButton("Да") { _, _ ->
+                                        lifecycleScope.launch {
+                                            recalculatePages(fsOffset)
+                                        }
+                                    }
+                                    .setNegativeButton("Нет") { _, _ ->
+                                        lifecycleScope.launch {
+                                            recalculatePages(localOffset)
+                                        }
+                                    }
+                                    .setCancelable(false)
+                                    .show()
+                            } else {
+                                recalculatePages(localOffset)
+                            }
                         }
                     }
                 }
@@ -292,7 +332,7 @@ private fun preprocessTextAndHyphenate(text: String): String {
         val paint = TextPaint().apply {
             textSize = SettingsManager.getFontSize(this@ReadingActivity) * resources.displayMetrics.scaledDensity
             val family = SettingsManager.getFontFamily(this@ReadingActivity)
-            val weight = SettingsManager.getFontWeight(this@ReadingActivity)
+            val numericWeight = SettingsManager.getFontWeightAsInt(this@ReadingActivity)
 
             val baseTypeface = when (family) {
                 "Roboto" -> android.graphics.Typeface.SANS_SERIF
@@ -305,19 +345,9 @@ private fun preprocessTextAndHyphenate(text: String): String {
             }
 
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                val numericWeight = when (weight) {
-                    "Normal" -> 400
-                    "Medium" -> 500
-                    "Bold" -> 700
-                    "ExtraBold" -> 800
-                    else -> 400
-                }
                 typeface = android.graphics.Typeface.create(baseTypeface, numericWeight, false)
             } else {
-                val style = when (weight) {
-                    "Bold", "ExtraBold" -> android.graphics.Typeface.BOLD
-                    else -> android.graphics.Typeface.NORMAL
-                }
+                val style = if (numericWeight >= 600) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL
                 typeface = android.graphics.Typeface.create(baseTypeface, style)
             }
         }
@@ -709,8 +739,19 @@ private fun preprocessTextAndHyphenate(text: String): String {
                 try {
                     AppDatabase.getDatabase(this@ReadingActivity)
                         .bookDao().updateProgressAndPage(sha1, charOffset, currentIdx, totalChars, System.currentTimeMillis())
+                    
+                    if (com.nightread.app.data.FirestoreSyncManager.isSyncEnabled(this@ReadingActivity)) {
+                        com.nightread.app.data.FirestoreSyncManager.saveProgress(
+                            context = this@ReadingActivity,
+                            sha1 = sha1,
+                            title = bookTitle,
+                            pageIndex = currentIdx,
+                            charOffset = charOffset,
+                            totalCharacters = totalChars
+                        )
+                    }
                 } catch (e: Exception) {
-                    Log.e("READING_DEBUG", "Error saving progress in DB", e)
+                    Log.e("READING_DEBUG", "Error saving progress in DB or Firestore", e)
                 }
             }
         }

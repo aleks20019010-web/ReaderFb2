@@ -179,8 +179,10 @@ class BookDetailActivity : AppCompatActivity() {
     private fun updateFavoriteIcon(isFav: Boolean) {
         if (isFav) {
             ivFavorite.setImageResource(android.R.drawable.btn_star_big_on)
+            ivFavorite.setColorFilter(Color.parseColor("#FFD700"))
         } else {
             ivFavorite.setImageResource(android.R.drawable.btn_star_big_off)
+            ivFavorite.setColorFilter(Color.parseColor("#8E8E93"))
         }
     }
 

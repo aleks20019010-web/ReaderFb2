@@ -82,6 +82,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         return repository.getReadingBooks()
     }
 
+    fun loadFavoriteBooks(): Flow<List<BookEntity>> {
+        return repository.getFavoriteBooks()
+    }
+
     // UI Navigation & Preferences State
     var currentTab by mutableStateOf(0) // 0 = Shelf, 1 = Reader, 2 = Notes, 3 = Sync/Settings
     var selectedBook by mutableStateOf<BookEntity?>(null)

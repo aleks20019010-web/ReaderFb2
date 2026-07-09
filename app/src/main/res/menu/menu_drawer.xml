@@ -18,6 +18,10 @@
             android:icon="@drawable/ic_bookmark"
             android:title="Закладки" />
         <item
+            android:id="@+id/nav_favorites"
+            android:icon="@android:drawable/btn_star_big_on"
+            android:title="Избранное" />
+        <item
             android:id="@+id/nav_sync"
             android:icon="@android:drawable/stat_notify_sync"
             android:title="Синхронизация" />

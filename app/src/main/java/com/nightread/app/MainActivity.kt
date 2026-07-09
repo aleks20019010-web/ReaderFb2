@@ -40,6 +40,9 @@ class MainActivity : AppCompatActivity() {
                 openSyncFragment()
             } else if (menuItem.itemId == R.id.nav_bookmarks) {
                 openBookmarksFragment()
+            } else if (menuItem.itemId == R.id.nav_favorites) {
+                val intent = Intent(this, com.nightread.app.ui.FavoriteBooksActivity::class.java)
+                startActivity(intent)
             } else if (menuItem.itemId == R.id.nav_settings) {
                 // Open SettingsActivity
                 val intent = Intent(this, com.nightread.app.ui.SettingsActivity::class.java)

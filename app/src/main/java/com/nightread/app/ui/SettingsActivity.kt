@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -263,6 +264,105 @@ class SettingsActivity : FragmentActivity() {
                                     onCheckedChange = { checked ->
                                         wifiOnly = checked
                                         com.nightread.app.service.AutoSyncManager.setWifiOnly(context, checked)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item { Spacer(modifier = Modifier.height(24.dp)) }
+
+                item { Text("Синхронизация прогресса (Firestore)", style = MaterialTheme.typography.titleMedium) }
+                item {
+                    var firestoreSyncEnabled by remember { mutableStateOf(com.nightread.app.data.SettingsManager.isFirestoreSyncEnabled(context)) }
+                    var firestoreUserId by remember { mutableStateOf(com.nightread.app.data.SettingsManager.getFirestoreUserId(context)) }
+                    if (firestoreUserId.isEmpty()) {
+                        firestoreUserId = com.nightread.app.data.FirestoreSyncManager.getUserId(context)
+                    }
+
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Включить облачный прогресс")
+                                Text(
+                                    "Сохраняет и восстанавливает текущую страницу каждой книги",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = firestoreSyncEnabled,
+                                onCheckedChange = { checked ->
+                                    firestoreSyncEnabled = checked
+                                    com.nightread.app.data.SettingsManager.setFirestoreSyncEnabled(context, checked)
+                                }
+                            )
+                        }
+
+                        if (firestoreSyncEnabled) {
+                            var showEditDialog by remember { mutableStateOf(false) }
+                            
+                            OutlinedTextField(
+                                value = firestoreUserId,
+                                onValueChange = { /* Read only, click to edit */ },
+                                label = { Text("Идентификатор синхронизации (Sync ID)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                readOnly = true,
+                                trailingIcon = {
+                                    IconButton(onClick = { showEditDialog = true }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Изменить"
+                                        )
+                                    }
+                                }
+                            )
+                            
+                            Text(
+                                "Используйте один и тот же Sync ID на всех ваших устройствах, чтобы автоматически синхронизировать прогресс чтения между ними.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            if (showEditDialog) {
+                                var tempId by remember { mutableStateOf(firestoreUserId) }
+                                AlertDialog(
+                                    onDismissRequest = { showEditDialog = false },
+                                    title = { Text("Изменить Sync ID") },
+                                    text = {
+                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Text("Введите идентификатор для синхронизации с другими устройствами:")
+                                            OutlinedTextField(
+                                                value = tempId,
+                                                onValueChange = { tempId = it.trim() },
+                                                label = { Text("Sync ID") },
+                                                singleLine = true,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                        }
+                                    },
+                                    confirmButton = {
+                                        Button(
+                                            onClick = {
+                                                if (tempId.isNotEmpty()) {
+                                                    firestoreUserId = tempId
+                                                    com.nightread.app.data.SettingsManager.setFirestoreUserId(context, tempId)
+                                                }
+                                                showEditDialog = false
+                                            }
+                                        ) {
+                                            Text("Сохранить")
+                                        }
+                                    },
+                                    dismissButton = {
+                                        TextButton(onClick = { showEditDialog = false }) {
+                                            Text("Отмена")
+                                        }
                                     }
                                 )
                             }

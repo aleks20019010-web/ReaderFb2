@@ -21,6 +21,8 @@ object SettingsManager {
     const val KEY_AUTO_THEME = "auto_theme"
     const val KEY_CLOUD_SYNC_URL = "cloud_sync_url"
     const val KEY_CLOUD_SYNC_ENABLED = "cloud_sync_enabled"
+    const val KEY_FIRESTORE_SYNC_ENABLED = "firestore_sync_enabled"
+    const val KEY_FIRESTORE_USER_ID = "firestore_user_id"
 
     private val _settingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val settingsChanged: SharedFlow<Unit> = _settingsChanged.asSharedFlow()
@@ -39,6 +41,8 @@ object SettingsManager {
     private var cachedAutoTheme: Boolean? = null
     private var cachedCloudSyncUrl: String? = null
     private var cachedCloudSyncEnabled: Boolean? = null
+    private var cachedFirestoreSyncEnabled: Boolean? = null
+    private var cachedFirestoreUserId: String? = null
 
     private fun getPrefs(context: Context): SharedPreferences {
         if (prefs == null) {
@@ -167,9 +171,20 @@ object SettingsManager {
 
     fun getFontWeight(context: Context): String {
         if (cachedFontWeight == null) {
-            cachedFontWeight = getPrefs(context).getString(KEY_FONT_WEIGHT, "Normal") ?: "Normal"
+            cachedFontWeight = getPrefs(context).getString(KEY_FONT_WEIGHT, "400") ?: "400"
         }
         return cachedFontWeight!!
+    }
+
+    fun getFontWeightAsInt(context: Context): Int {
+        val weightStr = getFontWeight(context)
+        return weightStr.toIntOrNull() ?: when (weightStr) {
+            "Normal" -> 400
+            "Medium" -> 500
+            "Bold" -> 700
+            "ExtraBold" -> 800
+            else -> 400
+        }
     }
 
     fun setFontWeight(context: Context, weight: String) {
@@ -204,6 +219,34 @@ object SettingsManager {
         cachedBrightness = brightness
         getPrefs(context).edit().putFloat(KEY_BRIGHTNESS, brightness).apply()
         // notifyChanged() // Usually brightness doesn't need a UI redraw, handled directly
+    }
+
+    fun isFirestoreSyncEnabled(context: Context): Boolean {
+        if (cachedFirestoreSyncEnabled == null) {
+            cachedFirestoreSyncEnabled = getPrefs(context).getBoolean(KEY_FIRESTORE_SYNC_ENABLED, true)
+        }
+        return cachedFirestoreSyncEnabled!!
+    }
+
+    fun setFirestoreSyncEnabled(context: Context, enabled: Boolean) {
+        if (cachedFirestoreSyncEnabled == enabled) return
+        cachedFirestoreSyncEnabled = enabled
+        getPrefs(context).edit().putBoolean(KEY_FIRESTORE_SYNC_ENABLED, enabled).apply()
+        notifyChanged()
+    }
+
+    fun getFirestoreUserId(context: Context): String {
+        if (cachedFirestoreUserId == null) {
+            cachedFirestoreUserId = getPrefs(context).getString(KEY_FIRESTORE_USER_ID, "") ?: ""
+        }
+        return cachedFirestoreUserId!!
+    }
+
+    fun setFirestoreUserId(context: Context, userId: String) {
+        if (cachedFirestoreUserId == userId) return
+        cachedFirestoreUserId = userId
+        getPrefs(context).edit().putString(KEY_FIRESTORE_USER_ID, userId).apply()
+        notifyChanged()
     }
 
 }

@@ -94,6 +94,9 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE lastReadTime > 0 AND (totalCharacters = 0 OR (currentProgressChar * 100 / totalCharacters) < 100) ORDER BY lastReadTime DESC")
     fun getReadingBooks(): Flow<List<BookEntity>>
 
+    @Query("SELECT * FROM books WHERE isFavorite = 1 ORDER BY title ASC")
+    fun getFavoriteBooks(): Flow<List<BookEntity>>
+
     @Query("UPDATE books SET lastReadTime = 0 WHERE currentProgressChar = 0 AND currentPageIndex = 0 AND lastReadTime > 0")
     suspend fun resetUnreadBooksLastReadTime()
 

@@ -102,19 +102,10 @@ class PageFragment : Fragment() {
             else -> android.graphics.Typeface.DEFAULT
         }
         
-        val style = when (fontWeight) {
-            "Bold" -> android.graphics.Typeface.BOLD
-            else -> android.graphics.Typeface.NORMAL
-        }
+        val numericWeight = SettingsManager.getFontWeightAsInt(context)
+        val style = if (numericWeight >= 600) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-            val numericWeight = when (fontWeight) {
-                "Normal" -> 400
-                "Medium" -> 500
-                "Bold" -> 700
-                "ExtraBold" -> 900
-                else -> 400
-            }
             textView.typeface = android.graphics.Typeface.create(baseTypeface, numericWeight, false)
         } else {
             textView.typeface = android.graphics.Typeface.create(baseTypeface, style)
