@@ -252,18 +252,6 @@ object PageSplitter {
                 result.pages.add(formattedText.subSequence(start, end))
                 start = foundChapterBreakIdx + 1
             } else {
-                if (end < textLength) {
-                    var spaceIndex = -1
-                    for (j in (end - 1) downTo (end - 100).coerceAtLeast(start)) {
-                        if (formattedText[j].isWhitespace()) {
-                            spaceIndex = j
-                            break
-                        }
-                    }
-                    if (spaceIndex > start) {
-                        end = spaceIndex + 1
-                    }
-                }
                 result.pages.add(formattedText.subSequence(start, end))
                 start = end
             }

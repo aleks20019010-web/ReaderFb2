@@ -1,8 +1,11 @@
 import sys
 
 content = open('app/src/main/java/com/nightread/app/data/SettingsManager.kt').read()
+cached_var = "    private var cachedPageAnimation: String? = null\n    private var cachedHyphenationEnabled: Boolean? = null"
+content = content.replace("    private var cachedPageAnimation: String? = null", cached_var)
 
-bad_chunk = """            fun isHyphenationEnabled(context: Context): Boolean {
+methods = """
+    fun isHyphenationEnabled(context: Context): Boolean {
         if (cachedHyphenationEnabled == null) {
             cachedHyphenationEnabled = getPrefs(context).getBoolean(KEY_HYPHENATION_ENABLED, true)
         }
@@ -16,10 +19,5 @@ bad_chunk = """            fun isHyphenationEnabled(context: Context): Boolean {
         notifyChanged()
     }
 }"""
-content = content.replace(bad_chunk, "")
-
-# also add the constant
-constant = '    private const val KEY_FONT_WEIGHT = "font_weight"\n    private const val KEY_HYPHENATION_ENABLED = "hyphenation_enabled"'
-content = content.replace('    private const val KEY_FONT_WEIGHT = "font_weight"', constant)
-
+content = content.replace("}", methods, 1) # This might replace the wrong bracket.
 open('app/src/main/java/com/nightread/app/data/SettingsManager.kt', 'w').write(content)

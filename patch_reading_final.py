@@ -2,10 +2,7 @@ import sys
 
 content = open('app/src/main/java/com/nightread/app/ui/ReadingActivity.kt').read()
 
-# 1. Remove preprocessTextAndHyphenate from loadBook
-content = content.replace("preprocessTextAndHyphenate(rawContent)", "rawContent.trim().trim('\\u000C').trim()")
-
-# 2. Fix recalculatePages
+# 1. Update recalculatePages
 old_recalc_start = """    private suspend fun recalculatePages(targetCharOffset: Int = -1) {
         if (!kotlin.coroutines.coroutineContext.isActive) return
         
@@ -19,12 +16,15 @@ old_recalc_start = """    private suspend fun recalculatePages(targetCharOffset:
         
         val width = viewPager.width
         val height = viewPager.height
-        
-        if (width == 0 || height == 0) return
+        if (width <= 0 || height <= 0) return
 
-        if (!::paint.isInitialized) {
-            paint = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-            paint.textSize = SettingsManager.getFontSize(this@ReadingActivity) * resources.displayMetrics.density
+        progressBar.visibility = View.VISIBLE
+        val tvLoadingProgress = findViewById<TextView>(R.id.tvLoadingProgress)
+        tvLoadingProgress.visibility = View.VISIBLE
+        tvLoadingProgress.text = "Разбивка на страницы..."
+
+        val paint = TextPaint().apply {
+            textSize = SettingsManager.getFontSize(this@ReadingActivity) * resources.displayMetrics.density
             val family = SettingsManager.getFontFamily(this@ReadingActivity)
             val numericWeight = SettingsManager.getFontWeightAsInt(this@ReadingActivity)
             typeface = FontUtils.createTypeface(family, numericWeight)
@@ -36,23 +36,7 @@ old_recalc_start = """    private suspend fun recalculatePages(targetCharOffset:
         val availableHeight = height - paddingVertical
 
         val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getFontWeightAsInt(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}"
-        if (BookCache.sha1 == sha1 && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {
-            splitResult = BookCache.splitResult!!
-            isSplittingFinished = true
-            displayPages(resolvedCharOffset)
-            return
-        }
-
-        isFirstRender = true
-        progressiveJob = lifecycleScope.launch {
-            PageSplitter.splitTextProgressive(
-                text = bookContent,
-                availableWidth = availableWidth,
-                availableHeight = availableHeight,
-                paint = paint,
-                lineSpacing = SettingsManager.getLineSpacing(this@ReadingActivity),
-                alignment = "justify"
-            ) { result ->"""
+        if (BookCache.sha1 == sha1 && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {"""
 
 new_recalc_start = """    private suspend fun recalculatePages(targetCharOffset: Int = -1) {
         if (!kotlin.coroutines.coroutineContext.isActive) return
@@ -65,43 +49,52 @@ new_recalc_start = """    private suspend fun recalculatePages(targetCharOffset:
             }
         }
         
-        val paddingHorizontal = (26 * resources.displayMetrics.density).toInt()
-        val paddingVertical = (8 * resources.displayMetrics.density).toInt() + getTopInset()
-
         val width = viewPager.width
         val height = viewPager.height
-        
-        val availableWidth = width - paddingHorizontal
-        val availableHeight = height - paddingVertical
+        if (width <= 0 || height <= 0) return
 
-        if (width <= 0 || height <= 0 || availableWidth <= 0 || availableHeight <= 0) return
+        progressBar.visibility = View.VISIBLE
+        val tvLoadingProgress = findViewById<TextView>(R.id.tvLoadingProgress)
+        tvLoadingProgress.visibility = View.VISIBLE
+        tvLoadingProgress.text = "Разбивка на страницы..."
 
-        if (!::paint.isInitialized) {
-            paint = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-            paint.textSize = SettingsManager.getFontSize(this@ReadingActivity) * resources.displayMetrics.density
+        val paint = TextPaint().apply {
+            textSize = SettingsManager.getFontSize(this@ReadingActivity) * resources.displayMetrics.density
             val family = SettingsManager.getFontFamily(this@ReadingActivity)
             val numericWeight = SettingsManager.getFontWeightAsInt(this@ReadingActivity)
             typeface = FontUtils.createTypeface(family, numericWeight)
         }
 
+        val paddingHorizontal = (16 * resources.displayMetrics.density).toInt() * 2
+        val paddingVertical = (8 * resources.displayMetrics.density).toInt() + getTopInset()
+        
+        val availableWidth = width - paddingHorizontal
+        val availableHeight = height - paddingVertical
+
         val hyphenationEnabled = com.nightread.app.data.SettingsManager.isHyphenationEnabled(this@ReadingActivity)
         val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getFontWeightAsInt(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}_hyphen=$hyphenationEnabled"
-        
-        if (BookCache.sha1 == sha1 && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {
-            splitResult = BookCache.splitResult!!
-            isSplittingFinished = true
-            displayPages(resolvedCharOffset)
-            return
-        }
+        if (BookCache.sha1 == sha1 && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {"""
 
-        val textToSplit = if (hyphenationEnabled) {
+content = content.replace(old_recalc_start, new_recalc_start)
+
+# 2. Update progressiveJob launch to apply hyphenation if needed
+old_launch = """        progressiveJob = lifecycleScope.launch {
+            PageSplitter.splitTextProgressive(
+                text = bookContent,
+                availableWidth = availableWidth,
+                availableHeight = availableHeight,
+                paint = paint,
+                lineSpacing = SettingsManager.getLineSpacing(this@ReadingActivity),
+                alignment = "justify"
+            ) { result ->"""
+
+new_launch = """        val textToSplit = if (hyphenationEnabled) {
             com.nightread.app.ui.HyphenationPatterns.load("ru")
             com.nightread.app.ui.HyphenatorHelper.hyphenate(bookContent)
         } else {
             bookContent
         }
 
-        isFirstRender = true
         progressiveJob = lifecycleScope.launch {
             PageSplitter.splitTextProgressive(
                 text = textToSplit,
@@ -112,7 +105,7 @@ new_recalc_start = """    private suspend fun recalculatePages(targetCharOffset:
                 alignment = "justify"
             ) { result ->"""
 
-content = content.replace(old_recalc_start, new_recalc_start)
+content = content.replace(old_launch, new_launch)
 
 # 3. Clean up the unused preprocessTextAndHyphenate function
 unused_func = """    private fun preprocessTextAndHyphenate(text: String): String {
@@ -124,7 +117,8 @@ unused_func = """    private fun preprocessTextAndHyphenate(text: String): Strin
         Log.d("ReadingActivity", "preprocessTextAndHyphenate: original text length: ${text.length}, processed length: ${result.length}, contains $hyphensInResult soft hyphens.")
         Log.d("ReadingActivity", "Sample: ${result.take(200)}")
         return result
-    }"""
+    }
+"""
 content = content.replace(unused_func, "")
 
 open('app/src/main/java/com/nightread/app/ui/ReadingActivity.kt', 'w').write(content)

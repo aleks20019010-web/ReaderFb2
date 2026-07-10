@@ -231,7 +231,7 @@ class ReadingActivity : AppCompatActivity() {
                     
                     tvLoadingProgress.text = "Обработка текста..."
                     bookContent = withContext(Dispatchers.Default) {
-                        preprocessTextAndHyphenate(rawContent)
+                        rawContent.trim().trim('\u000C').trim()
                     }
                     
                     if (bookContent.isEmpty()) {
@@ -347,12 +347,14 @@ class ReadingActivity : AppCompatActivity() {
             typeface = FontUtils.createTypeface(family, numericWeight)
         }
 
+        val paddingHorizontal = (16 * resources.displayMetrics.density).toInt() * 2
         val paddingVertical = (8 * resources.displayMetrics.density).toInt() + getTopInset()
         
-        val availableWidth = width
+        val availableWidth = width - paddingHorizontal
         val availableHeight = height - paddingVertical
 
-        val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getFontWeightAsInt(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}"
+        val hyphenationEnabled = com.nightread.app.data.SettingsManager.isHyphenationEnabled(this@ReadingActivity)
+        val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getFontWeightAsInt(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}_hyphen=$hyphenationEnabled"
         if (BookCache.sha1 == sha1 && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {
             splitResult = BookCache.splitResult!!
             isSplittingFinished = true
@@ -390,9 +392,16 @@ class ReadingActivity : AppCompatActivity() {
         isSplittingFinished = false
         var isFirstRender = true
 
+        val textToSplit = if (hyphenationEnabled) {
+            com.nightread.app.ui.HyphenationPatterns.load("ru")
+            com.nightread.app.ui.HyphenatorHelper.hyphenate(bookContent)
+        } else {
+            bookContent
+        }
+
         progressiveJob = lifecycleScope.launch {
             PageSplitter.splitTextProgressive(
-                text = bookContent,
+                text = textToSplit,
                 availableWidth = availableWidth,
                 availableHeight = availableHeight,
                 paint = paint,

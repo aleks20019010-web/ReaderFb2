@@ -14,6 +14,7 @@ object SettingsManager {
     const val KEY_FONT_SIZE = "font_size"
     const val KEY_FONT_FAMILY = "font_family"
     const val KEY_FONT_WEIGHT = "font_weight"
+    const val KEY_HYPHENATION_ENABLED = "hyphenation_enabled"
     const val KEY_LINE_SPACING = "line_spacing"
     const val KEY_BRIGHTNESS = "brightness"
     const val KEY_PAGE_ANIMATION = "page_animation"
@@ -39,6 +40,7 @@ object SettingsManager {
     private var cachedLineSpacing: Float? = null
     private var cachedBrightness: Float? = null
     private var cachedPageAnimation: String? = null
+    private var cachedHyphenationEnabled: Boolean? = null
     private var cachedAutoDiscovery: Boolean? = null
     private var cachedAutoTheme: Boolean? = null
     private var cachedCloudSyncUrl: String? = null
@@ -49,7 +51,21 @@ object SettingsManager {
     private fun getPrefs(context: Context): SharedPreferences {
         if (prefs == null) {
             prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        
+    fun isHyphenationEnabled(context: Context): Boolean {
+        if (cachedHyphenationEnabled == null) {
+            cachedHyphenationEnabled = getPrefs(context).getBoolean(KEY_HYPHENATION_ENABLED, true)
         }
+        return cachedHyphenationEnabled!!
+    }
+
+    fun setHyphenationEnabled(context: Context, enabled: Boolean) {
+        if (cachedHyphenationEnabled == enabled) return
+        cachedHyphenationEnabled = enabled
+        getPrefs(context).edit().putBoolean(KEY_HYPHENATION_ENABLED, enabled).apply()
+        notifyChanged()
+    }
+}
         return prefs!!
     }
 
@@ -265,5 +281,18 @@ object SettingsManager {
         notifyChanged()
     }
 
-}
 
+    fun isHyphenationEnabled(context: Context): Boolean {
+        if (cachedHyphenationEnabled == null) {
+            cachedHyphenationEnabled = getPrefs(context).getBoolean(KEY_HYPHENATION_ENABLED, true)
+        }
+        return cachedHyphenationEnabled!!
+    }
+
+    fun setHyphenationEnabled(context: Context, enabled: Boolean) {
+        if (cachedHyphenationEnabled == enabled) return
+        cachedHyphenationEnabled = enabled
+        getPrefs(context).edit().putBoolean(KEY_HYPHENATION_ENABLED, enabled).apply()
+        notifyChanged()
+    }
+}
