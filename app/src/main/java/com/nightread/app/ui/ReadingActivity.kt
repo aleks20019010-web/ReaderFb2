@@ -347,9 +347,10 @@ class ReadingActivity : AppCompatActivity() {
             typeface = FontUtils.createTypeface(family, numericWeight)
         }
 
-        // Minimal paddings: 8dp
-        val paddingHorizontal = (8 * resources.displayMetrics.density).toInt() * 2
-        val paddingVertical = (8 * resources.displayMetrics.density).toInt() + getTopInset()
+        // Match padding in PageFragment: 16dp left + 16dp right = 32dp
+        val paddingHorizontal = (32 * resources.displayMetrics.density).toInt()
+        // Match padding in PageFragment: 8dp top + 8dp bottom = 16dp + topInset
+        val paddingVertical = (16 * resources.displayMetrics.density).toInt() + getTopInset()
         
         val availableWidth = width - paddingHorizontal
         val availableHeight = height - paddingVertical

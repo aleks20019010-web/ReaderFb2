@@ -1,4 +1,6 @@
-package com.nightread.app.ui
+import sys
+
+content = """package com.nightread.app.ui
 
 import android.util.Log
 
@@ -42,20 +44,23 @@ object HyphenatorHelper {
         var oldRes = ""
         while (res != oldRes) {
             oldRes = res
-            res = res.replace(Regex("($v)($c$v)"), "$1­$2")
-            res = res.replace(Regex("($v$c)($c$v)"), "$1­$2")
-            res = res.replace(Regex("($v$c)($c$c$v)"), "$1­$2")
-            res = res.replace(Regex("($v$s)($c$v)"), "$1­$2")
+            res = res.replace(Regex("($v)($c$v)"), "$1\u00AD$2")
+            res = res.replace(Regex("($v$c)($c$v)"), "$1\u00AD$2")
+            res = res.replace(Regex("($v$c)($c$c$v)"), "$1\u00AD$2")
+            res = res.replace(Regex("($v$s)($c$v)"), "$1\u00AD$2")
         }
         
         // Ensure no hyphen at the very beginning or after 1 character
-        if (res.startsWith("­")) res = res.substring(1)
-        if (res.length > 1 && res[1] == '­') res = res[0].toString() + res.substring(2)
+        if (res.startsWith("\u00AD")) res = res.substring(1)
+        if (res.length > 1 && res[1] == '\u00AD') res = res[0].toString() + res.substring(2)
         
         // Ensure no hyphen at the very end or before 1 character
-        if (res.endsWith("­")) res = res.substring(0, res.length - 1)
-        if (res.length > 2 && res[res.length - 2] == '­') res = res.substring(0, res.length - 2) + res.substring(res.length - 1)
+        if (res.endsWith("\u00AD")) res = res.substring(0, res.length - 1)
+        if (res.length > 2 && res[res.length - 2] == '\u00AD') res = res.substring(0, res.length - 2) + res.substring(res.length - 1)
 
         return res
     }
 }
+"""
+
+open('app/src/main/java/com/nightread/app/ui/HyphenatorHelper.kt', 'w').write(content)

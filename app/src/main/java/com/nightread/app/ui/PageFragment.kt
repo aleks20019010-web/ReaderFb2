@@ -44,6 +44,20 @@ class PageFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        val textView = view.findViewById<TextView>(R.id.textView)
+        ViewCompat.setOnApplyWindowInsetsListener(textView) { v, windowInsets ->
+            val displayCutoutInsets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
+            val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
+            
+            val dp8 = (8 * v.resources.displayMetrics.density).toInt()
+            val dp16 = (16 * v.resources.displayMetrics.density).toInt()
+            
+            v.setPadding(dp16, dp8 + topInset, dp16, dp8)
+            windowInsets
+        }
+        view.requestApplyInsets()
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 SettingsManager.settingsChanged.collect {
@@ -90,7 +104,7 @@ class PageFragment : Fragment() {
             textView.hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_NONE
+            textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_INTER_WORD
         }
     }
 
