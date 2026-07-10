@@ -82,7 +82,6 @@ class BookAdapter(
 
     val newlyAddedSha1s = mutableSetOf<String>()
     private var isGridView: Boolean = true
-    private var lastAnimatedPosition = -1
 
     override fun getItemViewType(position: Int): Int {
         return if (isGridView) VIEW_TYPE_GRID else VIEW_TYPE_LIST
@@ -102,32 +101,9 @@ class BookAdapter(
         val book = books[position]
         holder.bind(book, onOpenBook, onDeleteBook)
         
-        setAnimation(holder.itemView, position)
+        holder.itemView.animate().cancel(); holder.itemView.alpha = 1f; holder.itemView.translationY = 0f
     }
 
-    private fun setAnimation(viewToAnimate: View, position: Int) {
-        if (position > lastAnimatedPosition) {
-            viewToAnimate.animate().cancel()
-            viewToAnimate.alpha = 0f
-            viewToAnimate.translationY = 100f
-            
-            val delay = (position * 60L).coerceAtMost(600L)
-            
-            viewToAnimate.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setInterpolator(android.view.animation.DecelerateInterpolator(2.0f))
-                .setDuration(450)
-                .setStartDelay(delay)
-                .start()
-                
-            lastAnimatedPosition = position
-        } else {
-            viewToAnimate.animate().cancel()
-            viewToAnimate.alpha = 1f
-            viewToAnimate.translationY = 0f
-        }
-    }
 
     override fun getItemCount(): Int = books.size
 
@@ -137,9 +113,6 @@ class BookAdapter(
     }
 
     fun updateData(newBooks: List<BookEntity>) {
-        if (this.books != newBooks) {
-            lastAnimatedPosition = -1
-        }
         val diffCallback = object : DiffUtil.Callback() {
             override fun getOldListSize() = books.size
             override fun getNewListSize() = newBooks.size

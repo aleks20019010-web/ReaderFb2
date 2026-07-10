@@ -23,5 +23,6 @@ data class BookEntity(
     val coverPath: String? = null,
     val seriesIndex: Int? = null,
     val annotation: String? = null,
-    val currentPageIndex: Int = 0
+    val currentPageIndex: Int = 0,
+    val isNew: Boolean = false
 )

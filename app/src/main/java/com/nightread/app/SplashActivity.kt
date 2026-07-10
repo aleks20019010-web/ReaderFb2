@@ -171,8 +171,13 @@ class SplashActivity : AppCompatActivity() {
                 // Cancel the watchdog
                 watchdogJob.cancel()
 
-                // Proceed to MainActivity or ReadingActivity
-                if (lastReadBook != null) {
+                // Check if onboarding is completed
+                val isOnboardingCompleted = com.nightread.app.data.SettingsManager.isOnboardingCompleted(applicationContext)
+
+                // Proceed to MainActivity, ReadingActivity, or OnboardingActivity
+                if (!isOnboardingCompleted) {
+                    navigateToOnboarding()
+                } else if (lastReadBook != null) {
                     navigateToReading(lastReadBook)
                 } else {
                     navigateToMain()
@@ -211,6 +216,18 @@ class SplashActivity : AppCompatActivity() {
         }
         startActivity(intent)
         finish()
+    }
+
+    private fun navigateToOnboarding() {
+        val intent = Intent(this, com.nightread.app.ui.OnboardingActivity::class.java)
+        startActivity(intent)
+        finish()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, android.R.anim.fade_in, android.R.anim.fade_out)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        }
     }
 
     private fun navigateToMain() {

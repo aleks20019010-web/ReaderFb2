@@ -127,6 +127,14 @@ class SettingsActivity : FragmentActivity() {
                     }
                 }
                 item {
+                    Button(onClick = {
+                        val intent = android.content.Intent(context, com.nightread.app.ui.OnboardingActivity::class.java)
+                        context.startActivity(intent)
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Обучение")
+                    }
+                }
+                item {
                     Button(onClick = { 
                         val intent = Intent(context, com.nightread.app.MainActivity::class.java).apply {
                             putExtra("OPEN_SYNC", true)
@@ -193,6 +201,7 @@ class SettingsActivity : FragmentActivity() {
 
                 item { Text("Авто-синхронизация", style = MaterialTheme.typography.titleMedium) }
                 item {
+                    val isOnboardingCompleted = remember { SettingsManager.isOnboardingCompleted(context) }
                     var autoSyncEnabled by remember { mutableStateOf(com.nightread.app.service.AutoSyncManager.isAutoSyncEnabled(context)) }
                     var autoSyncInterval by remember { mutableStateOf(com.nightread.app.service.AutoSyncManager.getInterval(context)) }
                     var autoSyncTime by remember { mutableStateOf(com.nightread.app.service.AutoSyncManager.getStartTime(context)) }
@@ -226,7 +235,8 @@ class SettingsActivity : FragmentActivity() {
                                 onCheckedChange = { checked ->
                                     autoSyncEnabled = checked
                                     com.nightread.app.service.AutoSyncManager.setAutoSyncEnabled(context, checked)
-                                }
+                                },
+                                enabled = isOnboardingCompleted
                             )
                         }
 

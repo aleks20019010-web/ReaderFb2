@@ -102,4 +102,13 @@ interface BookDao {
 
     @Query("DELETE FROM cloud_file_cache")
     suspend fun deleteAllScannedFiles()
+
+    @Query("SELECT * FROM books WHERE isNew = 1 ORDER BY title ASC")
+    suspend fun getNewBooks(): List<BookEntity>
+
+    @Query("SELECT * FROM books WHERE isNew = 1 ORDER BY title ASC")
+    fun getNewBooksFlow(): Flow<List<BookEntity>>
+
+    @Query("UPDATE books SET isNew = 0 WHERE isNew = 1")
+    suspend fun clearNewBooksFlag()
 }

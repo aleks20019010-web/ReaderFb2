@@ -95,6 +95,10 @@
             android:name=".service.ThemeUpdateReceiver"
             android:exported="false" />
 
-    </application>
+            <activity
+            android:name=".ui.OnboardingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MyApplication" />
+</application>
 
 </manifest>

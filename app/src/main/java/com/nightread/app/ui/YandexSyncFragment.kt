@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.text.format.Formatter
 import android.util.Log
 import android.view.LayoutInflater
+import com.nightread.app.data.SettingsManager
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -170,6 +171,16 @@ class YandexSyncFragment : Fragment() {
 
         btnSelectLocalFolder.setOnClickListener {
             selectLocalFolderLauncher.launch(null)
+        }
+
+        
+        val isOnboardingCompleted = SettingsManager.isOnboardingCompleted(requireContext())
+        if (!isOnboardingCompleted) {
+            btnSyncNow.isEnabled = false
+            btnSyncNow.alpha = 0.5f
+        } else {
+            btnSyncNow.isEnabled = true
+            btnSyncNow.alpha = 1.0f
         }
 
         btnSyncNow.setOnClickListener {
@@ -506,7 +517,17 @@ class YandexSyncFragment : Fragment() {
                     // Возвращаем стандартный UI
                     btnSyncNow.text = "Синхронизировать"
                     btnSyncNow.isEnabled = true
-                    btnSyncNow.setOnClickListener {
+                    
+        val isOnboardingCompleted = SettingsManager.isOnboardingCompleted(requireContext())
+        if (!isOnboardingCompleted) {
+            btnSyncNow.isEnabled = false
+            btnSyncNow.alpha = 0.5f
+        } else {
+            btnSyncNow.isEnabled = true
+            btnSyncNow.alpha = 1.0f
+        }
+
+        btnSyncNow.setOnClickListener {
                         startForegroundSync()
                     }
                     btnSelectFolder.isEnabled = true

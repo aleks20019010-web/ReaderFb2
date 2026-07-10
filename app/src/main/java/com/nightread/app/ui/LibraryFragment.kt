@@ -1,5 +1,6 @@
 package com.nightread.app.ui
 
+import com.nightread.app.data.SettingsManager
 import android.view.ViewGroup
 
 import android.animation.AnimatorSet
@@ -11,6 +12,11 @@ import android.graphics.Canvas
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Animatable
 import android.net.Uri
+import kotlinx.coroutines.withContext
+import com.nightread.app.data.AppDatabase
+import android.os.Handler
+import android.os.Looper
+import android.widget.LinearLayout
 import android.os.Bundle
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.CancellationException
@@ -92,6 +98,12 @@ class LibraryFragment : Fragment() {
     private lateinit var rvBooks: RecyclerView
     private lateinit var layoutEmptyState: View
     private lateinit var tvEmptyStateTitle: TextView
+    private lateinit var layoutNewBooksBanner: LinearLayout
+    private lateinit var tvNewBooksCount: TextView
+    private lateinit var btnShowNewBooks: TextView
+    private lateinit var btnCloseNewBooks: ImageView
+    private val hideBannerHandler = Handler(Looper.getMainLooper())
+    private val hideBannerRunnable = Runnable { layoutNewBooksBanner.visibility = View.GONE }
     private lateinit var tvEmptyStateDesc: TextView
     private lateinit var btnEmptyStateScan: com.google.android.material.button.MaterialButton
     private lateinit var btnRecoverLibrary: com.google.android.material.button.MaterialButton
@@ -258,6 +270,20 @@ class LibraryFragment : Fragment() {
         rvBooks = view.findViewById(R.id.rvBooks)
         layoutEmptyState = view.findViewById(R.id.layoutEmptyState)
         tvEmptyStateTitle = view.findViewById(R.id.tvEmptyStateTitle)
+        layoutNewBooksBanner = view.findViewById<LinearLayout>(R.id.layoutNewBooksBanner)
+        tvNewBooksCount = view.findViewById<TextView>(R.id.tvNewBooksCount)
+        btnShowNewBooks = view.findViewById<TextView>(R.id.btnShowNewBooks)
+        btnCloseNewBooks = view.findViewById<android.widget.ImageView>(R.id.btnCloseNewBooks)
+
+        btnShowNewBooks.setOnClickListener {
+            layoutNewBooksBanner.visibility = View.GONE
+            startActivity(android.content.Intent(requireContext(), NewBooksActivity::class.java))
+        }
+
+        btnCloseNewBooks.setOnClickListener {
+            layoutNewBooksBanner.visibility = View.GONE
+            hideBannerHandler.removeCallbacks(hideBannerRunnable)
+        }
         tvEmptyStateDesc = view.findViewById(R.id.tvEmptyStateDesc)
         btnEmptyStateScan = view.findViewById(R.id.btnEmptyStateScan)
         btnRecoverLibrary = view.findViewById(R.id.btnRecoverLibrary)
@@ -518,6 +544,21 @@ class LibraryFragment : Fragment() {
 
         // Compact Auto-Scan action
         setBounceAnimation(btnAutoScan)
+        
+        // Onboarding block check
+        val isOnboardingCompleted = SettingsManager.isOnboardingCompleted(requireContext())
+        if (!isOnboardingCompleted) {
+            btnAutoScan.isEnabled = false
+            btnAutoScan.alpha = 0.5f
+            btnImport.isEnabled = false
+            btnImport.alpha = 0.5f
+        } else {
+            btnAutoScan.isEnabled = true
+            btnAutoScan.alpha = 1.0f
+            btnImport.isEnabled = true
+            btnImport.alpha = 1.0f
+        }
+
         btnAutoScan.setOnClickListener {
             checkPermissionsAndScan()
         }
@@ -662,7 +703,23 @@ class LibraryFragment : Fragment() {
                         CustomToast.show(ctx, state.status)
                     }
                 }
+                // Check new books count
+                lifecycleScope.launch {
+                    val db = AppDatabase.getDatabase(requireContext())
+                    val newBooks = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        db.bookDao().getNewBooks()
+                    }
+                    if (newBooks.isNotEmpty()) {
+                        layoutNewBooksBanner.visibility = View.VISIBLE
+                        tvNewBooksCount.text = "Найдено новых книг: ${newBooks.size}"
+                        hideBannerHandler.removeCallbacks(hideBannerRunnable)
+                        hideBannerHandler.postDelayed(hideBannerRunnable, 10000)
+                    } else {
+                        layoutNewBooksBanner.visibility = View.GONE
+                    }
+                }
             }
+
             if (state.status.isBlank()) {
                 layoutScanProgress.visibility = View.GONE
             }
