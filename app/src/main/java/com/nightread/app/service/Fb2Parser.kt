@@ -21,6 +21,7 @@ object Fb2Parser {
                 .replace(Regex("</v>"), "")
                 .replace(Regex("<subtitle[^>]*>"), "\n")
                 .replace(Regex("</subtitle>"), "\n")
+                .replace(Regex("<hyphen[^>]*>"), "\u00AD")
             
             // Strip remaining tags
             text = text.replace(Regex("<[^>]+>"), "")
@@ -40,7 +41,9 @@ object Fb2Parser {
             // Clean up consecutive page breaks
             text = text.replace(Regex("\\u000C+"), "\u000C")
             
-            return text.trim().trim('\u000C').trim()
+            val finalResult = text.trim().trim('\u000C').trim()
+            android.util.Log.d("Fb2Parser", "extractText finished. Contains soft hyphens: ${finalResult.contains('\u00AD')} (count: ${finalResult.count { it == '\u00AD' }})")
+            return finalResult
         } catch (e: Exception) {
             xmlContent
         }
