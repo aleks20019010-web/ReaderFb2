@@ -6,6 +6,11 @@ import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.activity.OnBackPressedCallback
+import com.nightread.app.ui.AISettingsFragment
+import com.nightread.app.ui.BookmarksFragment
+import com.nightread.app.ui.RecommendationsFragment
+import com.nightread.app.ui.YandexSyncFragment
 import com.nightread.app.ui.LibraryFragment
 import com.nightread.app.ui.CustomToast
 import com.google.android.material.navigation.NavigationView
@@ -21,6 +26,23 @@ class MainActivity : AppCompatActivity() {
 
         drawerLayout = findViewById(R.id.drawer_layout)
         navView = findViewById(R.id.nav_view)
+
+        // Handle back press
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                } else {
+                    val currentFragment = supportFragmentManager.findFragmentById(R.id.fragment_container)
+                    if (currentFragment !is LibraryFragment) {
+                        openLibraryFragment("all")
+                        navView.setCheckedItem(R.id.nav_library)
+                    } else {
+                        finish()
+                    }
+                }
+            }
+        })
 
         // Handle WindowInsets for Edge-to-Edge
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -40,11 +62,17 @@ class MainActivity : AppCompatActivity() {
                 openSyncFragment()
             } else if (menuItem.itemId == R.id.nav_ai) {
                 openAiFragment()
+            } else if (menuItem.itemId == R.id.nav_tags) {
+                openTagsFragment()
+            } else if (menuItem.itemId == R.id.nav_compare) {
+                com.nightread.app.ui.CompareBooksBottomSheet().show(supportFragmentManager, "CompareBooks")
             } else if (menuItem.itemId == R.id.nav_bookmarks) {
                 openBookmarksFragment()
             } else if (menuItem.itemId == R.id.nav_favorites) {
                 val intent = Intent(this, com.nightread.app.ui.FavoriteBooksActivity::class.java)
                 startActivity(intent)
+            } else if (menuItem.itemId == R.id.nav_recommendations) {
+                openRecommendationsFragment()
             } else if (menuItem.itemId == R.id.nav_settings) {
                 // Open SettingsActivity
                 val intent = Intent(this, com.nightread.app.ui.SettingsActivity::class.java)
@@ -119,6 +147,20 @@ class MainActivity : AppCompatActivity() {
 
     private fun openBookmarksFragment() {
         val fragment = com.nightread.app.ui.BookmarksFragment.newInstance()
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .commit()
+    }
+
+    private fun openRecommendationsFragment() {
+        val fragment = com.nightread.app.ui.RecommendationsFragment()
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .commit()
+    }
+
+    private fun openTagsFragment() {
+        val fragment = com.nightread.app.ui.TagsFilterFragment()
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()

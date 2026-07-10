@@ -84,6 +84,36 @@
                 android:contentDescription="Список закладок"/>
 
             <ImageButton
+                android:id="@+id/btnChaptersList"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@android:drawable/ic_menu_sort_by_size"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="#FFFFFF"
+                android:contentDescription="Оглавление (AI)"
+                android:visibility="gone"/>
+
+            <ImageButton
+                android:id="@+id/btnSmartSearch"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@android:drawable/ic_menu_search"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="#FFFFFF"
+                android:contentDescription="Умный поиск"
+                android:visibility="gone"/>
+
+            <ImageButton
+                android:id="@+id/btnQA"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@android:drawable/ic_menu_help"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="#FFFFFF"
+                android:contentDescription="Задать вопрос книге"
+                android:visibility="gone"/>
+
+            <ImageButton
                 android:id="@+id/btnSettings"
                 android:layout_width="48dp"
                 android:layout_height="48dp"

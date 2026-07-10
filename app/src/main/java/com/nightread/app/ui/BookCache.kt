@@ -16,4 +16,8 @@ object BookCache {
         hyphenatedContent = null
         isHyphenated = null
     }
+
+    fun getCachedText(targetSha1: String): String? {
+        return if (sha1 == targetSha1) content else null
+    }
 }

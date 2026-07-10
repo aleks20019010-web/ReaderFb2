@@ -29,6 +29,7 @@ object SettingsManager {
     const val KEY_AI_ENABLED = "ai_enabled"
     const val KEY_AI_MODEL_PATH = "ai_model_path"
     const val KEY_AI_MODEL_ID = "ai_model_id"
+    const val KEY_AI_AUTO_LOAD = "ai_auto_load"
 
     private val _settingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val settingsChanged: SharedFlow<Unit> = _settingsChanged.asSharedFlow()
@@ -56,35 +57,7 @@ object SettingsManager {
     private fun getPrefs(context: Context): SharedPreferences {
         if (prefs == null) {
             prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        
-    fun isHyphenationEnabled(context: Context): Boolean {
-        if (cachedHyphenationEnabled == null) {
-            cachedHyphenationEnabled = getPrefs(context).getBoolean(KEY_HYPHENATION_ENABLED, true)
         }
-        return cachedHyphenationEnabled!!
-    }
-
-    fun setHyphenationEnabled(context: Context, enabled: Boolean) {
-        if (cachedHyphenationEnabled == enabled) return
-        cachedHyphenationEnabled = enabled
-        getPrefs(context).edit().putBoolean(KEY_HYPHENATION_ENABLED, enabled).apply()
-        notifyChanged()
-    }
-
-    fun isOnboardingCompleted(context: Context): Boolean {
-        if (cachedOnboardingCompleted == null) {
-            cachedOnboardingCompleted = getPrefs(context).getBoolean(KEY_ONBOARDING_COMPLETED, false)
-        }
-        return cachedOnboardingCompleted!!
-    }
-
-    fun setOnboardingCompleted(context: Context, completed: Boolean) {
-        if (cachedOnboardingCompleted == completed) return
-        cachedOnboardingCompleted = completed
-        getPrefs(context).edit().putBoolean(KEY_ONBOARDING_COMPLETED, completed).apply()
-        notifyChanged()
-    }
-}
         return prefs!!
     }
 
@@ -244,6 +217,7 @@ object SettingsManager {
         getPrefs(context).edit().putFloat(KEY_LINE_SPACING, spacing).apply()
         notifyChanged()
     }
+
     fun getBrightness(context: Context): Float {
         if (cachedBrightness == null) {
             cachedBrightness = getPrefs(context).getFloat(KEY_BRIGHTNESS, -1f)
@@ -255,7 +229,6 @@ object SettingsManager {
         if (cachedBrightness == brightness) return
         cachedBrightness = brightness
         getPrefs(context).edit().putFloat(KEY_BRIGHTNESS, brightness).apply()
-        // notifyChanged() // Usually brightness doesn't need a UI redraw, handled directly
     }
 
     fun isFirestoreSyncEnabled(context: Context): Boolean {
@@ -300,7 +273,6 @@ object SettingsManager {
         notifyChanged()
     }
 
-
     fun isHyphenationEnabled(context: Context): Boolean {
         if (cachedHyphenationEnabled == null) {
             cachedHyphenationEnabled = getPrefs(context).getBoolean(KEY_HYPHENATION_ENABLED, true)
@@ -328,12 +300,22 @@ object SettingsManager {
         getPrefs(context).edit().putBoolean(KEY_ONBOARDING_COMPLETED, completed).apply()
         notifyChanged()
     }
+
     fun isAiEnabled(context: Context): Boolean {
         return getPrefs(context).getBoolean(KEY_AI_ENABLED, false)
     }
 
     fun setAiEnabled(context: Context, enabled: Boolean) {
         getPrefs(context).edit().putBoolean(KEY_AI_ENABLED, enabled).apply()
+        notifyChanged()
+    }
+
+    fun isAiAutoLoad(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_AI_AUTO_LOAD, true)
+    }
+
+    fun setAiAutoLoad(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_AI_AUTO_LOAD, enabled).apply()
         notifyChanged()
     }
 

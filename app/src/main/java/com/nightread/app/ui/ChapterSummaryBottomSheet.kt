@@ -42,7 +42,7 @@ class ChapterSummaryBottomSheet : BottomSheetDialogFragment() {
         btnClose.setOnClickListener { dismiss() }
 
         lifecycleScope.launch {
-            val summary = LocalAIManager.summarizeChapter(chapterText)
+            val summary = LocalAIManager.summarizeChapter(requireContext(), chapterText)
             tvSummary.text = summary
             progressBar.visibility = View.GONE
         }

@@ -48,6 +48,9 @@ class ReadingActivity : AppCompatActivity() {
     private lateinit var btnSettings: ImageButton
     private lateinit var btnBookmark: ImageButton
     private lateinit var btnBookmarksList: ImageButton
+    private lateinit var btnChaptersList: ImageButton
+    private lateinit var btnSmartSearch: ImageButton
+    private lateinit var btnQA: ImageButton
     private lateinit var fabBookmark: FloatingActionButton
 
     private var sha1: String = ""
@@ -89,6 +92,21 @@ class ReadingActivity : AppCompatActivity() {
         btnSummarizeChapter = findViewById(R.id.btnSummarizeChapter)
         btnSummarizeChapter.setOnClickListener {
             showAiSummary()
+        }
+        
+        btnSmartSearch = findViewById(R.id.btnSmartSearch)
+        btnSmartSearch.setOnClickListener {
+            showSmartSearchDialog()
+        }
+
+        btnQA = findViewById(R.id.btnQA)
+        btnQA.setOnClickListener {
+            showQADialog()
+        }
+
+        btnChaptersList = findViewById(R.id.btnChaptersList)
+        btnChaptersList.setOnClickListener {
+            showChaptersDialog()
         }
         
         tvTitle = findViewById(R.id.tvTitle)
@@ -641,12 +659,50 @@ class ReadingActivity : AppCompatActivity() {
             .show(supportFragmentManager, "ChapterSummary")
     }
 
-    private fun updateAiButtonsVisibility() {
-        if (SettingsManager.isAiEnabled(this) && com.nightread.app.service.LocalAIManager.isLoaded()) {
-            btnSummarizeChapter.visibility = View.VISIBLE
-        } else {
-            btnSummarizeChapter.visibility = View.GONE
+    private fun showSmartSearchDialog() {
+        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+        builder.setTitle("Умный поиск (смысловой)")
+        
+        val input = android.widget.EditText(this)
+        input.hint = "Введите запрос (например: поиск меча)"
+        val padding = (24 * resources.displayMetrics.density).toInt()
+        val container = android.widget.FrameLayout(this)
+        container.setPadding(padding, (8 * resources.displayMetrics.density).toInt(), padding, 0)
+        container.addView(input)
+        builder.setView(container)
+
+        builder.setPositiveButton("Искать") { _, _ ->
+            val query = input.text.toString()
+            if (query.isNotEmpty()) {
+                SmartSearchBottomSheet.newInstance(query, bookContent).apply {
+                    setOnResultClickListener { offset ->
+                        jumpToBookmarkOffset(offset)
+                    }
+                }.show(supportFragmentManager, "SmartSearch")
+            }
         }
+        builder.setNegativeButton("Отмена", null)
+        builder.show()
+    }
+
+    private fun showChaptersDialog() {
+        ChapterListBottomSheet.newInstance(sha1, bookContent).apply {
+            setOnChapterClickListener { offset ->
+                jumpToBookmarkOffset(offset)
+            }
+        }.show(supportFragmentManager, "ChapterList")
+    }
+
+    private fun showQADialog() {
+        QABottomSheet().show(supportFragmentManager, "QA")
+    }
+
+    private fun updateAiButtonsVisibility() {
+        val aiEnabled = SettingsManager.isAiEnabled(this) && com.nightread.app.service.LocalAIManager.isModelLoaded
+        btnSummarizeChapter.visibility = if (aiEnabled) View.VISIBLE else View.GONE
+        btnSmartSearch.visibility = if (aiEnabled) View.VISIBLE else View.GONE
+        btnChaptersList.visibility = if (aiEnabled) View.VISIBLE else View.GONE
+        btnQA.visibility = if (aiEnabled) View.VISIBLE else View.GONE
     }
 
     override fun onResume() {

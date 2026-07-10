@@ -12,14 +12,14 @@ import com.nightread.app.R
 import com.nightread.app.service.LocalAIManager
 import kotlinx.coroutines.launch
 
-class WordExplanationBottomSheet : BottomSheetDialogFragment() {
+class TermExplanationBottomSheet : BottomSheetDialogFragment() {
 
-    private var word: String = ""
+    private var term: String = ""
     private var contextSnippet: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        word = arguments?.getString(ARG_WORD) ?: ""
+        term = arguments?.getString(ARG_TERM) ?: ""
         contextSnippet = arguments?.getString(ARG_CONTEXT) ?: ""
     }
 
@@ -28,38 +28,38 @@ class WordExplanationBottomSheet : BottomSheetDialogFragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        return inflater.inflate(R.layout.dialog_ai_explanation, container, false)
+        return inflater.inflate(R.layout.dialog_term_explanation, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val tvWord = view.findViewById<TextView>(R.id.tvWord)
+        val tvTerm = view.findViewById<TextView>(R.id.tvTerm)
         val tvExplanation = view.findViewById<TextView>(R.id.tvExplanation)
         val progressBar = view.findViewById<ProgressBar>(R.id.progressBar)
         val btnOk = view.findViewById<View>(R.id.btnOk)
 
-        tvWord.text = "Объяснение слова: $word"
-        tvExplanation.text = "AI анализирует контекст..."
+        tvTerm.text = term
+        tvExplanation.text = "Анализируем термин в контексте..."
         progressBar.visibility = View.VISIBLE
 
         btnOk.setOnClickListener { dismiss() }
 
         lifecycleScope.launch {
-            val explanation = LocalAIManager.explainWord(requireContext(), word, contextSnippet)
+            val explanation = LocalAIManager.explainTerm(requireContext(), term, contextSnippet)
             tvExplanation.text = explanation
             progressBar.visibility = View.GONE
         }
     }
 
     companion object {
-        private const val ARG_WORD = "arg_word"
+        private const val ARG_TERM = "arg_term"
         private const val ARG_CONTEXT = "arg_context"
 
-        fun newInstance(word: String, contextSnippet: String): WordExplanationBottomSheet {
-            val fragment = WordExplanationBottomSheet()
+        fun newInstance(term: String, contextSnippet: String): TermExplanationBottomSheet {
+            val fragment = TermExplanationBottomSheet()
             fragment.arguments = Bundle().apply {
-                putString(ARG_WORD, word)
+                putString(ARG_TERM, term)
                 putString(ARG_CONTEXT, contextSnippet)
             }
             return fragment

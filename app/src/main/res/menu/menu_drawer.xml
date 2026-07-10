@@ -22,6 +22,18 @@
             android:icon="@android:drawable/btn_star_big_on"
             android:title="Избранное" />
         <item
+            android:id="@+id/nav_recommendations"
+            android:icon="@android:drawable/ic_menu_compass"
+            android:title="Рекомендации" />
+        <item
+            android:id="@+id/nav_tags"
+            android:icon="@android:drawable/ic_menu_gallery"
+            android:title="AI Теги" />
+        <item
+            android:id="@+id/nav_compare"
+            android:icon="@android:drawable/ic_menu_slideshow"
+            android:title="AI Сравнение" />
+        <item
             android:id="@+id/nav_sync"
             android:icon="@android:drawable/stat_notify_sync"
             android:title="Синхронизация" />

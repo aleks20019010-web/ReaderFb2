@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.work.*
 import com.nightread.app.R
@@ -16,6 +17,7 @@ import com.nightread.app.data.SettingsManager
 import com.nightread.app.databinding.FragmentAiSettingsBinding
 import com.nightread.app.service.LocalAIManager
 import com.nightread.app.service.ModelDownloadWorker
+import kotlinx.coroutines.launch
 import java.io.File
 import java.util.*
 
@@ -43,31 +45,67 @@ class AISettingsFragment : Fragment() {
         if (!modelsDir.exists()) modelsDir.mkdirs()
 
         setupToolbar()
-        setupSwitch()
+        setupSwitches()
         setupRecyclerView()
+        updateStatus()
         
         observeDownloads()
     }
 
     private fun setupToolbar() {
         binding.toolbar.setNavigationOnClickListener {
-            requireActivity().onBackPressed()
+            requireActivity().onBackPressedDispatcher.onBackPressed()
         }
     }
 
-    private fun setupSwitch() {
+    private fun setupSwitches() {
         binding.switchAiEnabled.isChecked = SettingsManager.isAiEnabled(requireContext())
         binding.switchAiEnabled.setOnCheckedChangeListener { _, isChecked ->
             SettingsManager.setAiEnabled(requireContext(), isChecked)
             if (!isChecked) {
                 LocalAIManager.unloadModel()
+                updateStatus()
             } else {
-                val activePath = SettingsManager.getAiModelPath(requireContext())
-                if (activePath != null && File(activePath).exists()) {
-                    // Load in background
-                    // LocalAIManager.loadModel(activePath)
+                triggerModelLoad()
+            }
+        }
+
+        binding.switchAutoLoad.isChecked = SettingsManager.isAiAutoLoad(requireContext())
+        binding.switchAutoLoad.setOnCheckedChangeListener { _, isChecked ->
+            SettingsManager.setAiAutoLoad(requireContext(), isChecked)
+        }
+    }
+
+    private fun triggerModelLoad() {
+        val activePath = SettingsManager.getAiModelPath(requireContext())
+        if (activePath != null && File(activePath).exists()) {
+            binding.tvAiStatus.text = "Загрузка..."
+            binding.tvAiStatus.setTextColor(resources.getColor(R.color.text_secondary))
+            
+            lifecycleScope.launch {
+                val success = LocalAIManager.loadModel(requireContext(), activePath)
+                if (isAdded) {
+                    updateStatus()
+                    if (!success) {
+                        Toast.makeText(requireContext(), "Ошибка загрузки модели", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
+        } else {
+            updateStatus()
+        }
+    }
+
+    private fun updateStatus() {
+        if (!SettingsManager.isAiEnabled(requireContext())) {
+            binding.tvAiStatus.text = "Отключен"
+            binding.tvAiStatus.setTextColor(resources.getColor(R.color.text_secondary))
+        } else if (LocalAIManager.isModelLoaded) {
+            binding.tvAiStatus.text = "Активен (Модель загружена)"
+            binding.tvAiStatus.setTextColor(resources.getColor(R.color.accent))
+        } else {
+            binding.tvAiStatus.text = "Ожидание (Модель не загружена)"
+            binding.tvAiStatus.setTextColor(resources.getColor(R.color.text_secondary))
         }
     }
 
@@ -93,14 +131,15 @@ class AISettingsFragment : Fragment() {
             .setConstraints(constraints)
             .setInputData(workDataOf(
                 "MODEL_URL" to model.url,
-                "MODEL_FILENAME" to model.fileName
+                "MODEL_FILENAME" to model.fileName,
+                "MODEL_NAME" to model.name
             ))
             .addTag("download_${model.id}")
             .build()
 
         WorkManager.getInstance(requireContext()).enqueueUniqueWork(
             "download_${model.id}",
-            ExistingWorkPolicy.KEEP,
+            ExistingWorkPolicy.REPLACE,
             downloadRequest
         )
         
@@ -149,6 +188,11 @@ class AISettingsFragment : Fragment() {
                         val progress = workInfo.progress.getInt("PROGRESS", 0)
                         adapter.updateProgress(model.id, progress)
                     } else if (workInfo.state == WorkInfo.State.SUCCEEDED) {
+                        val filePath = workInfo.outputData.getString("FILE_PATH")
+                        if (filePath != null && SettingsManager.getAiModelId(requireContext()) == null) {
+                            SettingsManager.setAiModelId(requireContext(), model.id)
+                            SettingsManager.setAiModelPath(requireContext(), filePath)
+                        }
                         adapter.notifyDataSetChanged()
                     } else if (workInfo.state == WorkInfo.State.FAILED) {
                         Toast.makeText(requireContext(), "Ошибка при скачивании ${model.name}", Toast.LENGTH_SHORT).show()

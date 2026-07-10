@@ -24,5 +24,9 @@ data class BookEntity(
     val seriesIndex: Int? = null,
     val annotation: String? = null,
     val currentPageIndex: Int = 0,
-    val isNew: Boolean = false
+    val isNew: Boolean = false,
+    val summary: String? = null,
+    val characters: String? = null,
+    val chapterDescriptions: String? = null,
+    val tags: String? = null
 )

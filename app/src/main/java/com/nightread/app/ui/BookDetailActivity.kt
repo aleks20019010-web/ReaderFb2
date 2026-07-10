@@ -43,6 +43,9 @@ class BookDetailActivity : AppCompatActivity() {
     private lateinit var tvSha1: TextView
     private lateinit var tvReadMore: TextView
     private lateinit var btnAiAnnotation: android.view.View
+    private lateinit var cardAiFeatures: android.view.View
+    private lateinit var btnBookSummary: android.view.View
+    private lateinit var btnAnalyzeCharacters: android.view.View
 
     private lateinit var ivCover: ImageView
     private lateinit var tvCoverLetter: TextView
@@ -110,6 +113,13 @@ class BookDetailActivity : AppCompatActivity() {
         btnAiAnnotation.setOnClickListener {
             generateAiAnnotation()
         }
+        cardAiFeatures = findViewById(R.id.cardAiFeatures)
+        btnBookSummary = findViewById(R.id.btnBookSummary)
+        btnAnalyzeCharacters = findViewById(R.id.btnAnalyzeCharacters)
+        
+        btnBookSummary.setOnClickListener { showBookSummary() }
+        btnAnalyzeCharacters.setOnClickListener { showCharacters() }
+        
         tvLanguage = findViewById(R.id.tvLanguage)
         tvProgress = findViewById(R.id.tvProgress)
         tvFormatSize = findViewById(R.id.tvFormatSize)
@@ -256,7 +266,8 @@ class BookDetailActivity : AppCompatActivity() {
             if (book != null) {
                 currentBook = book
                 tvTitle.text = book.title
-
+                updateAiVisibility()
+                
                 // Author setup
                 val authorName = book.author ?: "Неизвестен"
                 tvAuthor.text = authorName
@@ -417,7 +428,7 @@ class BookDetailActivity : AppCompatActivity() {
         lifecycleScope.launch {
             // В реальности здесь мы бы передали первые страницы книги для анализа
             val contextSnippet = "Начальные страницы книги: ${book.title} от ${book.author}..." 
-            val annotation = com.nightread.app.service.LocalAIManager.generateAnnotation(contextSnippet)
+            val annotation = com.nightread.app.service.LocalAIManager.generateAnnotation(this@BookDetailActivity, book.title, contextSnippet)
             
             tvAnnotation.text = annotation
             btnAiAnnotation.isEnabled = true
@@ -428,6 +439,45 @@ class BookDetailActivity : AppCompatActivity() {
             withContext(Dispatchers.IO) {
                 AppDatabase.getDatabase(this@BookDetailActivity).bookDao().updateBook(book.copy(annotation = annotation))
             }
+        }
+    }
+
+    private fun showBookSummary() {
+        val sha1 = bookSha1 ?: return
+        lifecycleScope.launch {
+            val content = getBookContentSnippet()
+            BookSummaryBottomSheet.newInstance(sha1, content).show(supportFragmentManager, "BookSummary")
+        }
+    }
+
+    private fun showCharacters() {
+        val sha1 = bookSha1 ?: return
+        lifecycleScope.launch {
+            val content = getBookContentSnippet()
+            CharactersBottomSheet.newInstance(sha1, content).show(supportFragmentManager, "Characters")
+        }
+    }
+
+    private suspend fun getBookContentSnippet(): String = withContext(Dispatchers.IO) {
+        val path = currentBook?.filePath ?: return@withContext ""
+        val file = File(path)
+        if (!file.exists()) return@withContext ""
+        try {
+            // Read first 50KB as a snippet for AI
+            val bytes = file.inputStream().use { it.readBytes().take(50000).toByteArray() }
+            String(bytes)
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    private fun updateAiVisibility() {
+        val aiEnabled = SettingsManager.isAiEnabled(this) && LocalAIManager.isModelLoaded
+        cardAiFeatures.visibility = if (aiEnabled) View.VISIBLE else View.GONE
+        if (currentBook?.annotation.isNullOrEmpty() || currentBook?.annotation == "Аннотация отсутствует") {
+            btnAiAnnotation.visibility = if (aiEnabled) View.VISIBLE else View.GONE
+        } else {
+            btnAiAnnotation.visibility = View.GONE
         }
     }
 

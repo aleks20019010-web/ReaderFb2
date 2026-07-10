@@ -117,8 +117,8 @@ class PageFragment : Fragment() {
                 val word = extractWordAt(textView, lastTouchX, lastTouchY)
                 if (word.isNotEmpty()) {
                     val contextSnippet = extractContextAround(textView, lastTouchX, lastTouchY)
-                    WordExplanationBottomSheet.newInstance(word, contextSnippet)
-                        .show(childFragmentManager, "WordExplanation")
+                    TermExplanationBottomSheet.newInstance(word, contextSnippet)
+                        .show(childFragmentManager, "TermExplanation")
                     true
                 } else {
                     false
