@@ -341,7 +341,7 @@ class ReadingActivity : AppCompatActivity() {
         tvLoadingProgress.text = "Разбивка на страницы..."
 
         val paint = TextPaint().apply {
-            textSize = SettingsManager.getFontSize(this@ReadingActivity) * resources.displayMetrics.density
+            textSize = SettingsManager.getFontSize(this@ReadingActivity) * resources.displayMetrics.scaledDensity
             val family = SettingsManager.getFontFamily(this@ReadingActivity)
             val numericWeight = SettingsManager.getFontWeightAsInt(this@ReadingActivity)
             typeface = FontUtils.createTypeface(family, numericWeight)
@@ -408,7 +408,7 @@ class ReadingActivity : AppCompatActivity() {
                 availableHeight = availableHeight,
                 paint = paint,
                 lineSpacing = SettingsManager.getLineSpacing(this@ReadingActivity),
-                alignment = "left"
+                alignment = "justify"
             ) { result ->
                 val oldCount = splitResult.pages.size
                 splitResult = result

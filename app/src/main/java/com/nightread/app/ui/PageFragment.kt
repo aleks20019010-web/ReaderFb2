@@ -104,7 +104,7 @@ class PageFragment : Fragment() {
             textView.hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_NONE
+            textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_INTER_WORD
         }
     }
 
