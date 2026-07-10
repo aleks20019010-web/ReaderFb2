@@ -22,6 +22,7 @@ import com.nightread.app.R
 import com.nightread.app.data.AppDatabase
 import com.nightread.app.data.SettingsManager
 import com.nightread.app.service.Fb2Parser
+import com.nightread.app.service.LocalAIManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.collectLatest
@@ -41,6 +42,7 @@ class ReadingActivity : AppCompatActivity() {
     private lateinit var bottomBar: LinearLayout
     private lateinit var tvPageInfo: TextView
     private lateinit var seekBar: SeekBar
+    private lateinit var btnSummarizeChapter: android.view.View
     
     private lateinit var tvTitle: TextView
     private lateinit var btnSettings: ImageButton
@@ -84,6 +86,10 @@ class ReadingActivity : AppCompatActivity() {
         bottomBar = findViewById(R.id.bottomBar)
         tvPageInfo = findViewById(R.id.tvPageInfo)
         seekBar = findViewById(R.id.seekBar)
+        btnSummarizeChapter = findViewById(R.id.btnSummarizeChapter)
+        btnSummarizeChapter.setOnClickListener {
+            showAiSummary()
+        }
         
         tvTitle = findViewById(R.id.tvTitle)
         btnSettings = findViewById(R.id.btnSettings)
@@ -601,6 +607,51 @@ class ReadingActivity : AppCompatActivity() {
         if (rect.contains(event.rawX.toInt(), event.rawY.toInt())) return true
         
         return false
+    }
+
+    private fun showAiSummary() {
+        if (splitResult == null || viewPager.currentItem >= splitResult.offsets.size) return
+        
+        val currentOffset = splitResult.offsets[viewPager.currentItem]
+        
+        // Поиск начала главы: ищем два и более переноса строки назад
+        var chapterStart = 0
+        val searchStart = (currentOffset - 1).coerceAtLeast(0)
+        for (i in searchStart downTo 0) {
+            if (i + 1 < bookContent.length && bookContent[i] == '\n' && bookContent[i+1] == '\n') {
+                chapterStart = i + 2
+                break
+            }
+        }
+        
+        // Поиск конца главы: ищем два и более переноса строки вперед
+        var chapterEnd = bookContent.length
+        for (i in currentOffset until bookContent.length) {
+            if (i + 1 < bookContent.length && bookContent[i] == '\n' && bookContent[i+1] == '\n') {
+                chapterEnd = i
+                break
+            }
+        }
+        
+        // Ограничиваем размер текста для AI
+        val length = (chapterEnd - chapterStart).coerceIn(100, 10000)
+        val textForAi = bookContent.substring(chapterStart, (chapterStart + length).coerceAtMost(bookContent.length))
+        
+        ChapterSummaryBottomSheet.newInstance(textForAi)
+            .show(supportFragmentManager, "ChapterSummary")
+    }
+
+    private fun updateAiButtonsVisibility() {
+        if (SettingsManager.isAiEnabled(this) && com.nightread.app.service.LocalAIManager.isLoaded()) {
+            btnSummarizeChapter.visibility = View.VISIBLE
+        } else {
+            btnSummarizeChapter.visibility = View.GONE
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateAiButtonsVisibility()
     }
 
     private fun toggleBars() {

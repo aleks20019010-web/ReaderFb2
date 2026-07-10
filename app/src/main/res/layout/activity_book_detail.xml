@@ -202,6 +202,16 @@
                             android:maxLines="5"
                             tools:text="Я был величайшим Магом Земли в своем мире. Глава целого Ордена. Ордена Архитекторов. Но, чем старше ста..." />
 
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnAiAnnotation"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="Сгенерировать аннотацию (AI)"
+                            app:icon="@android:drawable/ic_menu_info_details"
+                            android:visibility="gone" />
+
                         <TextView
                             android:id="@+id/tvReadMore"
                             android:layout_width="wrap_content"

@@ -26,6 +26,9 @@ object SettingsManager {
     const val KEY_CLOUD_SYNC_ENABLED = "cloud_sync_enabled"
     const val KEY_FIRESTORE_SYNC_ENABLED = "firestore_sync_enabled"
     const val KEY_FIRESTORE_USER_ID = "firestore_user_id"
+    const val KEY_AI_ENABLED = "ai_enabled"
+    const val KEY_AI_MODEL_PATH = "ai_model_path"
+    const val KEY_AI_MODEL_ID = "ai_model_id"
 
     private val _settingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val settingsChanged: SharedFlow<Unit> = _settingsChanged.asSharedFlow()
@@ -324,5 +327,29 @@ object SettingsManager {
         cachedOnboardingCompleted = completed
         getPrefs(context).edit().putBoolean(KEY_ONBOARDING_COMPLETED, completed).apply()
         notifyChanged()
+    }
+    fun isAiEnabled(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_AI_ENABLED, false)
+    }
+
+    fun setAiEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_AI_ENABLED, enabled).apply()
+        notifyChanged()
+    }
+
+    fun getAiModelPath(context: Context): String? {
+        return getPrefs(context).getString(KEY_AI_MODEL_PATH, null)
+    }
+
+    fun setAiModelPath(context: Context, path: String?) {
+        getPrefs(context).edit().putString(KEY_AI_MODEL_PATH, path).apply()
+    }
+
+    fun getAiModelId(context: Context): String? {
+        return getPrefs(context).getString(KEY_AI_MODEL_ID, null)
+    }
+
+    fun setAiModelId(context: Context, id: String?) {
+        getPrefs(context).edit().putString(KEY_AI_MODEL_ID, id).apply()
     }
 }

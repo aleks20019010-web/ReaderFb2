@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
+import android.widget.ProgressBar
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
@@ -16,6 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.nightread.app.R
 import com.nightread.app.data.SettingsManager
+import com.nightread.app.service.LocalAIManager
 import kotlinx.coroutines.launch
 
 class PageFragment : Fragment() {
@@ -99,6 +101,33 @@ class PageFragment : Fragment() {
         android.util.Log.d("PageFragment", "updateStyle: setting text. contains soft hyphens: ${pageText.contains('\u00AD')} (count: ${pageText.count { it == '\u00AD' }})")
         textView.text = pageText
         
+        var lastTouchX = 0f
+        var lastTouchY = 0f
+
+        textView.setOnTouchListener { _, event ->
+            if (event.action == android.view.MotionEvent.ACTION_DOWN) {
+                lastTouchX = event.x
+                lastTouchY = event.y
+            }
+            false
+        }
+
+        textView.setOnLongClickListener {
+            if (SettingsManager.isAiEnabled(requireContext()) && LocalAIManager.isLoaded()) {
+                val word = extractWordAt(textView, lastTouchX, lastTouchY)
+                if (word.isNotEmpty()) {
+                    val contextSnippet = extractContextAround(textView, lastTouchX, lastTouchY)
+                    WordExplanationBottomSheet.newInstance(word, contextSnippet)
+                        .show(childFragmentManager, "WordExplanation")
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             textView.breakStrategy = android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY
             textView.hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
@@ -106,6 +135,32 @@ class PageFragment : Fragment() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_INTER_WORD
         }
+    }
+
+    private fun extractWordAt(textView: TextView, x: Float, y: Float): String {
+        val offset = textView.getOffsetForPosition(x, y)
+        val text = textView.text.toString()
+        if (offset < 0 || offset >= text.length) return ""
+
+        var start = offset
+        while (start > 0 && text[start - 1].isLetterOrDigit()) {
+            start--
+        }
+        var end = offset
+        while (end < text.length && text[end].isLetterOrDigit()) {
+            end++
+        }
+        return text.substring(start, end)
+    }
+
+    private fun extractContextAround(textView: TextView, x: Float, y: Float): String {
+        val offset = textView.getOffsetForPosition(x, y)
+        val text = textView.text.toString()
+        if (offset < 0 || offset >= text.length) return ""
+
+        val start = (offset - 100).coerceAtLeast(0)
+        val end = (offset + 100).coerceAtMost(text.length)
+        return text.substring(start, end)
     }
 
     companion object {

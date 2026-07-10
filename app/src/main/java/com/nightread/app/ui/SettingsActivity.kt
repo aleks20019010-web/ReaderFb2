@@ -137,6 +137,18 @@ class SettingsActivity : FragmentActivity() {
                 item {
                     Button(onClick = { 
                         val intent = Intent(context, com.nightread.app.MainActivity::class.java).apply {
+                            putExtra("OPEN_AI", true)
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        }
+                        context.startActivity(intent)
+                        context.finish()
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Локальный AI")
+                    }
+                }
+                item {
+                    Button(onClick = { 
+                        val intent = Intent(context, com.nightread.app.MainActivity::class.java).apply {
                             putExtra("OPEN_SYNC", true)
                             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                         }

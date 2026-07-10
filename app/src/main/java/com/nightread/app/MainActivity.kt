@@ -38,6 +38,8 @@ class MainActivity : AppCompatActivity() {
         navView.setNavigationItemSelectedListener { menuItem ->
             if (menuItem.itemId == R.id.nav_sync) {
                 openSyncFragment()
+            } else if (menuItem.itemId == R.id.nav_ai) {
+                openAiFragment()
             } else if (menuItem.itemId == R.id.nav_bookmarks) {
                 openBookmarksFragment()
             } else if (menuItem.itemId == R.id.nav_favorites) {
@@ -79,6 +81,9 @@ class MainActivity : AppCompatActivity() {
             if (intent.getBooleanExtra("OPEN_SYNC", false)) {
                 openSyncFragment()
                 navView.setCheckedItem(R.id.nav_sync)
+            } else if (intent.getBooleanExtra("OPEN_AI", false)) {
+                openAiFragment()
+                navView.setCheckedItem(R.id.nav_ai)
             } else {
                 openLibraryFragment(lastFilter)
             }
@@ -100,6 +105,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun openSyncFragment() {
         val fragment = com.nightread.app.ui.YandexSyncFragment.newInstance()
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .commit()
+    }
+
+    private fun openAiFragment() {
+        val fragment = com.nightread.app.ui.AISettingsFragment()
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()

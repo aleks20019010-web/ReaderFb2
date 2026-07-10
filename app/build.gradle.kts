@@ -23,7 +23,13 @@ android {
 
   signingConfigs {
     getByName("debug") {
-      storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+      val debugKeystore = listOf(
+        file("${System.getProperty("user.home")}/.android/debug.keystore"),
+        rootProject.file("debug.keystore"),
+        file("debug.keystore")
+      ).firstOrNull { it.exists() } ?: file("${System.getProperty("user.home")}/.android/debug.keystore")
+      
+      storeFile = debugKeystore
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"
@@ -100,6 +106,7 @@ android {
   buildFeatures {
     compose = true
     buildConfig = true
+    viewBinding = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
 }
