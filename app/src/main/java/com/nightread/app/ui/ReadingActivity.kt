@@ -455,8 +455,15 @@ class ReadingActivity : AppCompatActivity() {
                 splitResult = result
                 isSplittingFinished = result.isFinished
                 
-                (viewPager.adapter as ReaderPagerAdapter).pages = result.pages
-                viewPager.adapter?.notifyDataSetChanged()
+                val adapter = viewPager.adapter as ReaderPagerAdapter
+                adapter.pages = result.pages
+                val newCount = result.pages.size
+                
+                if (isFirstRender) {
+                    adapter.notifyDataSetChanged()
+                } else if (newCount > oldCount) {
+                    adapter.notifyItemRangeInserted(oldCount, newCount - oldCount)
+                }
                 
                 if (isFirstRender && result.pages.isNotEmpty()) {
                     isFirstRender = false
