@@ -1,16 +1,8 @@
 package com.nightread.app.ui
 
-import android.text.Layout
-import android.text.StaticLayout
-import android.text.TextPaint
-import android.text.Spanned
-import android.text.SpannableStringBuilder
-import android.text.style.AbsoluteSizeSpan
-import android.text.style.StyleSpan
-import android.text.style.AlignmentSpan
-import android.text.style.ForegroundColorSpan
 import android.graphics.Color
 import android.graphics.Typeface
+import android.text.*
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,21 +17,25 @@ object PageSplitter {
         var isFinished: Boolean = false
     )
 
+    /**
+     * Обрабатывает теги [CHAPTER]...[/CHAPTER]: скрывает сами теги,
+     * а текст между ними делает заголовком (жирный, крупнее, по центру).
+     */
     fun formatChapterSpans(text: CharSequence, basePaintSize: Float): CharSequence {
         if (text.isEmpty() || !text.contains("[CHAPTER]")) return text
-        
+
         val spannable = SpannableStringBuilder(text)
         val str = spannable.toString()
         var lastIdx = 0
-        
+
         while (true) {
             val startTag = str.indexOf("[CHAPTER]", lastIdx)
             if (startTag == -1) break
-            
+
             val endTag = str.indexOf("[/CHAPTER]", startTag)
             if (endTag == -1) break
-            
-            // Hide [CHAPTER] tag
+
+            // Скрываем [CHAPTER]
             spannable.setSpan(
                 AbsoluteSizeSpan(0),
                 startTag,
@@ -52,8 +48,8 @@ object PageSplitter {
                 startTag + "[CHAPTER]".length,
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
             )
-            
-            // Hide [/CHAPTER] tag
+
+            // Скрываем [/CHAPTER]
             spannable.setSpan(
                 AbsoluteSizeSpan(0),
                 endTag,
@@ -66,8 +62,8 @@ object PageSplitter {
                 endTag + "[/CHAPTER]".length,
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
             )
-            
-            // Style chapter title text
+
+            // Стилизуем заголовок главы
             val titleStart = startTag + "[CHAPTER]".length
             val titleEnd = endTag
             if (titleEnd > titleStart) {
@@ -90,16 +86,16 @@ object PageSplitter {
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
             }
-            
+
             lastIdx = endTag + "[/CHAPTER]".length
         }
-        
+
         return spannable
     }
 
     /**
-     * Finds the exact page containing the target character offset.
-     * This is useful for immediately jumping to a page before full pagination completes.
+     * Находит страницу, содержащую targetOffset.
+     * Используется, например, для быстрого перехода к позиции чтения.
      */
     suspend fun getPageForOffset(
         text: CharSequence,
@@ -108,39 +104,46 @@ object PageSplitter {
         availableHeight: Int,
         paint: TextPaint,
         lineSpacing: Float,
-        alignment: String = "justify"
+        alignment: String = "justify",
+        hyphenationEnabled: Boolean = false
     ): Pair<Int, CharSequence> = withContext(Dispatchers.Default) {
-        if (text.isEmpty() || availableWidth <= 0 || availableHeight <= 0) return@withContext Pair(0, "Документ пуст.")
-        
-        val containsSoftHyphen = text.contains('\u00AD')
-        Log.d(TAG, "splitText: text contains soft hyphens: $containsSoftHyphen (count: ${text.count { it == '\u00AD' }})")
-        
-        val formattedText = text
-        
-        // Find paragraph start
+        if (text.isEmpty() || availableWidth <= 0 || availableHeight <= 0) {
+            return@withContext Pair(0, "Документ пуст.")
+        }
+
         var start = targetOffset
-        while (start > 0 && formattedText[start - 1] != '\n' && formattedText[start - 1] != '\u000C') {
+        // Ищем начало текущего абзаца (до ближайшего \n или \u000C)
+        while (start > 0 && text[start - 1] != '\n' && text[start - 1] != '\u000C') {
             start--
         }
-        
-        val textLength = formattedText.length
+
+        val textLength = text.length
         val alignmentVal = when (alignment) {
             "left" -> Layout.Alignment.ALIGN_NORMAL
             "right" -> Layout.Alignment.ALIGN_OPPOSITE
             "center" -> Layout.Alignment.ALIGN_CENTER
             else -> Layout.Alignment.ALIGN_NORMAL
         }
-        
+
+        // Строим макет только для куска текста, чтобы найти, сколько строк влезает
         val tempLayout = StaticLayout.Builder.obtain(
-            formattedText, start, (start + 8000).coerceAtMost(textLength), paint, availableWidth
+            text,
+            start,
+            (start + 8000).coerceAtMost(textLength),
+            paint,
+            availableWidth
         )
             .setAlignment(alignmentVal)
             .setLineSpacing(0f, lineSpacing)
             .setIncludePad(false)
-            .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_BALANCED)
-            .setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_FULL)
+            .setBreakStrategy(Layout.BREAK_STRATEGY_BALANCED)
+            // Ключевое исправление: переносы включаются только если hyphenationEnabled == true
+            .setHyphenationFrequency(
+                if (hyphenationEnabled) Layout.HYPHENATION_FREQUENCY_FULL
+                else Layout.HYPHENATION_FREQUENCY_NONE
+            )
             .build()
-            
+
         var fitLineCount = 0
         for (i in 0 until tempLayout.lineCount) {
             if (tempLayout.getLineBottom(i) <= availableHeight) {
@@ -150,12 +153,17 @@ object PageSplitter {
             }
         }
         if (fitLineCount == 0) fitLineCount = 1
+
         var end = tempLayout.getLineEnd(fitLineCount - 1)
         if (end <= start) end = (start + 1).coerceAtMost(textLength)
-        
-        return@withContext Pair(start, formattedText.subSequence(start, end))
+
+        return@withContext Pair(start, text.subSequence(start, end))
     }
 
+    /**
+     * Прогрессивная разбивка текста на страницы.
+     * Возвращает результат через onProgress, чтобы UI мог показывать прогресс.
+     */
     suspend fun splitTextProgressive(
         text: CharSequence,
         availableWidth: Int,
@@ -163,10 +171,11 @@ object PageSplitter {
         paint: TextPaint,
         lineSpacing: Float,
         alignment: String = "justify",
+        hyphenationEnabled: Boolean = false,
         onProgress: (PageResult) -> Unit
     ) = withContext(Dispatchers.Default) {
         val result = PageResult()
-        
+
         if (text.isEmpty() || availableWidth <= 0 || availableHeight <= 0) {
             result.pages.add("Документ пуст.")
             result.offsets.add(0)
@@ -175,12 +184,10 @@ object PageSplitter {
             return@withContext
         }
 
-        val containsSoftHyphen = text.contains('\u00AD')
-        Log.d(TAG, "splitTextProgressive: text contains soft hyphens: $containsSoftHyphen (count: ${text.count { it == '\u00AD' }})")
-
-        val formattedText = text
+        val formattedText = text // Если нужна предварительная обработка — делай её до вызова этого метода
         var start = 0
         val textLength = formattedText.length
+
         val alignmentVal = when (alignment) {
             "left" -> Layout.Alignment.ALIGN_NORMAL
             "right" -> Layout.Alignment.ALIGN_OPPOSITE
@@ -189,24 +196,35 @@ object PageSplitter {
         }
 
         var pagesFound = 0
+
         while (start < textLength) {
             if (!isActive) return@withContext
+
             result.offsets.add(start)
 
             var chunkSize = 8000
             var tempLayout: StaticLayout
             var measureEnd: Int
 
+            // Увеличиваем кусок текста, пока он целиком влезает по высоте
             while (true) {
                 measureEnd = (start + chunkSize).coerceAtMost(textLength)
                 tempLayout = StaticLayout.Builder.obtain(
-                    formattedText, start, measureEnd, paint, availableWidth
+                    formattedText,
+                    start,
+                    measureEnd,
+                    paint,
+                    availableWidth
                 )
                     .setAlignment(alignmentVal)
                     .setLineSpacing(0f, lineSpacing)
                     .setIncludePad(false)
-                    .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_BALANCED)
-                    .setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_FULL)
+                    .setBreakStrategy(Layout.BREAK_STRATEGY_BALANCED)
+                    // Переносы управляются флагом hyphenationEnabled
+                    .setHyphenationFrequency(
+                        if (hyphenationEnabled) Layout.HYPHENATION_FREQUENCY_FULL
+                        else Layout.HYPHENATION_FREQUENCY_NONE
+                    )
                     .build()
 
                 var fitsAll = true
@@ -224,6 +242,7 @@ object PageSplitter {
                 }
             }
 
+            // Считаем, сколько строк реально влезает в availableHeight
             var fitLineCount = 0
             for (i in 0 until tempLayout.lineCount) {
                 if (tempLayout.getLineBottom(i) <= availableHeight) {
@@ -232,13 +251,14 @@ object PageSplitter {
                     break
                 }
             }
-
             if (fitLineCount == 0) fitLineCount = 1
+
             var end = tempLayout.getLineEnd(fitLineCount - 1)
             if (end <= start) {
                 end = (start + 1).coerceAtMost(textLength)
             }
 
+            // Если внутри куска есть разрыв главы (\u000C), обрезаем страницу ровно перед ним
             var foundChapterBreakIdx = -1
             for (idx in start until end.coerceAtMost(textLength)) {
                 if (formattedText[idx] == '\u000C') {
@@ -257,7 +277,8 @@ object PageSplitter {
             }
 
             pagesFound++
-            // Report progress every 10 pages or on the first page
+
+            // Отчитываемся о прогрессе каждые 10 страниц или на первой странице
             if (pagesFound == 1 || pagesFound % 10 == 0) {
                 withContext(Dispatchers.Main) {
                     onProgress(PageResult(ArrayList(result.pages), ArrayList(result.offsets), false))
@@ -271,20 +292,34 @@ object PageSplitter {
         }
     }
 
+    /**
+     * Синхронная (по факту — корутинная) разбивка без прогресса.
+     * Просто оборачивает splitTextProgressive.
+     */
     suspend fun splitText(
         text: CharSequence,
         availableWidth: Int,
         availableHeight: Int,
         paint: TextPaint,
         lineSpacing: Float,
-        alignment: String = "justify"
+        alignment: String = "justify",
+        hyphenationEnabled: Boolean = false
     ): PageResult {
         var finalResult = PageResult()
-        splitTextProgressive(text, availableWidth, availableHeight, paint, lineSpacing, alignment) {
-            if (it.isFinished) {
-                finalResult = it
+        splitTextProgressive(
+            text = text,
+            availableWidth = availableWidth,
+            availableHeight = availableHeight,
+            paint = paint,
+            lineSpacing = lineSpacing,
+            alignment = alignment,
+            hyphenationEnabled = hyphenationEnabled,
+            onProgress = { result ->
+                if (result.isFinished) {
+                    finalResult = result
+                }
             }
-        }
+        )
         return finalResult
     }
 }
