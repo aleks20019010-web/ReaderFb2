@@ -137,7 +137,7 @@ object PageSplitter {
             .setAlignment(alignmentVal)
             .setLineSpacing(0f, lineSpacing)
             .setIncludePad(false)
-            .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_SIMPLE)
+            .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY)
             .setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_NONE)
             .build()
             
@@ -205,7 +205,7 @@ object PageSplitter {
                     .setAlignment(alignmentVal)
                     .setLineSpacing(0f, lineSpacing)
                     .setIncludePad(false)
-                    .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_SIMPLE)
+                    .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY)
                     .setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_NONE)
                     .build()
 
