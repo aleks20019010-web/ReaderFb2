@@ -139,6 +139,7 @@ object PageSplitter {
             .setIncludePad(false)
             .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_BALANCED)
             .setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_FULL)
+            
             .build()
             
         var fitLineCount = 0

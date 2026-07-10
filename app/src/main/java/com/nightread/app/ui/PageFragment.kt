@@ -53,7 +53,7 @@ class PageFragment : Fragment() {
             val dp8 = (8 * v.resources.displayMetrics.density).toInt()
             val dp16 = (16 * v.resources.displayMetrics.density).toInt()
             
-            v.setPadding(dp16, dp8 + topInset, dp16, dp8)
+            v.setPadding(dp16, dp8 + topInset, dp16, 0)
             windowInsets
         }
         view.requestApplyInsets()
@@ -104,7 +104,7 @@ class PageFragment : Fragment() {
             textView.hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_INTER_WORD
+            textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_NONE
         }
     }
 
