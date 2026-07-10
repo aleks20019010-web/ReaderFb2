@@ -112,6 +112,9 @@ object PageSplitter {
     ): Pair<Int, String> = withContext(Dispatchers.Default) {
         if (text.isEmpty() || availableWidth <= 0 || availableHeight <= 0) return@withContext Pair(0, "Документ пуст.")
         
+        val containsSoftHyphen = text.contains('\u00AD')
+        Log.d(TAG, "splitText: text contains soft hyphens: $containsSoftHyphen (count: ${text.count { it == '\u00AD' }})")
+        
         val formattedText = formatChapterSpans(text, paint.textSize)
         
         // Find paragraph start
@@ -171,6 +174,9 @@ object PageSplitter {
             withContext(Dispatchers.Main) { onProgress(result) }
             return@withContext
         }
+
+        val containsSoftHyphen = text.contains('\u00AD')
+        Log.d(TAG, "splitTextProgressive: text contains soft hyphens: $containsSoftHyphen (count: ${text.count { it == '\u00AD' }})")
 
         val formattedText = formatChapterSpans(text, paint.textSize)
         var start = 0

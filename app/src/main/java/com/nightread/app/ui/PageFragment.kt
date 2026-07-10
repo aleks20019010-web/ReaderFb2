@@ -114,6 +114,7 @@ class PageFragment : Fragment() {
         textView.setLineSpacing(0f, lineSpacingMultiplier)
         
         val formatted = PageSplitter.formatChapterSpans(pageText, textView.textSize)
+        android.util.Log.d("PageFragment", "updateStyle: setting text. contains soft hyphens: ${formatted.contains('\u00AD')} (count: ${formatted.count { it == '\u00AD' }})")
         textView.text = formatted
         
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {

@@ -1,12 +1,12 @@
 package com.nightread.app.ui
 
+import android.util.Log
+
 object RussianHyphenator {
     private val VOWELS = setOf(
         'а', 'е', 'ё', 'и', 'о', 'у', 'ы', 'э', 'ю', 'я',
         'А', 'Е', 'Ё', 'И', 'О', 'У', 'Ы', 'Э', 'Ю', 'Я'
     )
-
-    private val SPECIAL = setOf('ь', 'ъ', 'Ь', 'Ъ')
 
     /**
      * Inserts soft hyphens (\u00AD) into Russian words inside the given text.
@@ -14,83 +14,78 @@ object RussianHyphenator {
     fun hyphenate(text: String): String {
         val sb = java.lang.StringBuilder()
         var i = 0
+        var wordCount = 0
+        var totalHyphens = 0
+        val sampleWords = mutableListOf<String>()
+
         while (i < text.length) {
-            if (text[i].isLetter()) {
+            if (text[i].isLetterOrDigit()) {
                 val start = i
-                while (i < text.length && text[i].isLetter()) {
+                while (i < text.length && text[i].isLetterOrDigit()) {
                     i++
                 }
                 val word = text.substring(start, i)
-                sb.append(hyphenateWord(word))
+                val hyphenated = hyphenateWord(word)
+                if (hyphenated != word) {
+                    val hyphenCount = hyphenated.count { it == '\u00AD' }
+                    totalHyphens += hyphenCount
+                    if (sampleWords.size < 5) {
+                        sampleWords.add("$word -> ${hyphenated.replace("\u00AD", "[SHY]")}")
+                    }
+                }
+                wordCount++
+                sb.append(hyphenated)
             } else {
                 sb.append(text[i])
                 i++
             }
         }
+        
+        Log.d("RussianHyphenator", "hyphenate: processed $wordCount words, inserted $totalHyphens soft hyphens.")
+        if (sampleWords.isNotEmpty()) {
+            Log.d("RussianHyphenator", "Sample processed words: ${sampleWords.joinToString(", ")}")
+        }
         return sb.toString()
     }
 
     private fun hyphenateWord(word: String): String {
-        if (word.length <= 4) return word // don't hyphenate short words
+        // Rule 1: Do not hyphenate words shorter than 4 characters
+        if (word.length < 4) return word
 
-        // Count vowels first using primitive array to avoid boxed ArrayList allocation
-        val vowelIndices = IntArray(word.length)
-        var vowelCount = 0
+        // Rule 2: Do not hyphenate abbreviations (all letters uppercase)
+        if (word.all { it.isUpperCase() }) return word
+
+        // Rule 3: Do not hyphenate words with digits
+        if (word.any { it.isDigit() }) return word
+
+        // Find indices of all Russian/Cyrillic vowels in the word
+        val vowelIndices = mutableListOf<Int>()
         for (idx in word.indices) {
             if (word[idx] in VOWELS) {
-                vowelIndices[vowelCount++] = idx
+                vowelIndices.add(idx)
             }
         }
 
-        // If less than 2 vowels, no hyphenation is possible
-        if (vowelCount < 2) return word
+        // If there is only one vowel or no vowels, no hyphenation is possible
+        if (vowelIndices.size <= 1) return word
 
         val result = java.lang.StringBuilder()
-        var lastHyphenIndex = 0
+        var lastCut = 0
+        
+        // Insert soft hyphen (\u00AD) after each vowel except the last one
+        for (vIdx in 0 until vowelIndices.size - 1) {
+            val vowelPos = vowelIndices[vIdx]
 
-        // We can place hyphens between vowels, but keeping rules in mind
-        for (vIdx in 0 until vowelCount - 1) {
-            val v1 = vowelIndices[vIdx]
-            val v2 = vowelIndices[vIdx + 1]
-
-            // Try to find a good hyphenation point between v1 and v2
-            var hyphenPos = -1
-
-            val dist = v2 - v1
-            if (dist == 1) {
-                // Two vowels side by side: e.g. "иг-ра" or "по-эт". We can hyphenate right between them
-                hyphenPos = v1 + 1
-            } else if (dist == 2) {
-                // One consonant between vowels: e.g. "мо-ло-ко". Hyphen is right after the first vowel
-                // unless the consonant is й or followed by special char
-                val midChar = word[v1 + 1]
-                if (midChar !in SPECIAL && midChar.lowercaseChar() != 'й') {
-                    hyphenPos = v1 + 1
-                }
-            } else {
-                // Multiple consonants between vowels: e.g. "сест-ра", "кар-та", "пись-мо"
-                // Check for special characters: ь, ъ, й after v1
-                val charAfterV1 = word[v1 + 1]
-                if (charAfterV1 in SPECIAL || charAfterV1.lowercaseChar() == 'й') {
-                    // Hyphenate after ь/ъ/й: e.g. "пись-мо", "май-ка"
-                    hyphenPos = v1 + 2
-                } else {
-                    // Standard split: hyphenate before the last consonant in the cluster
-                    // e.g. "сест-ра", "кар-ти-на"
-                    hyphenPos = v2 - 1
-                }
-            }
-
-            // Apply rules: 
-            // 1. Cannot leave a single letter at the beginning (hyphenPos > 1)
-            // 2. Cannot move a single letter to the next line (hyphenPos < word.length - 1)
-            if (hyphenPos in 2..(word.length - 2)) {
-                result.append(word.substring(lastHyphenIndex, hyphenPos))
+            // Apply rule: Cannot leave a single letter at the beginning (hyphen index >= 1)
+            // and cannot move a single letter to the next line (suffix length >= 2)
+            if (vowelPos in 1..(word.length - 3)) {
+                result.append(word.substring(lastCut, vowelPos + 1))
                 result.append('\u00AD') // Soft hyphen
-                lastHyphenIndex = hyphenPos
+                lastCut = vowelPos + 1
             }
         }
-        result.append(word.substring(lastHyphenIndex))
+        result.append(word.substring(lastCut))
         return result.toString()
     }
 }
+
