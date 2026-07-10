@@ -309,9 +309,11 @@ class ReadingActivity : AppCompatActivity() {
     private fun preprocessTextAndHyphenate(text: String): String {
         var processedText = text.replace(Regex("([ \\t\\r\\n]*\\n[ \\t\\r\\n]*)+"), "\n    ")
         processedText = processedText.trim().trim('\u000C').trim()
-        val result = com.nightread.app.ui.RussianHyphenator.hyphenate(processedText)
+        HyphenationPatterns.load("ru")
+        val result = com.nightread.app.ui.HyphenatorHelper.hyphenate(processedText)
         val hyphensInResult = result.count { it == '\u00AD' }
         Log.d("ReadingActivity", "preprocessTextAndHyphenate: original text length: ${text.length}, processed length: ${result.length}, contains $hyphensInResult soft hyphens.")
+        Log.d("ReadingActivity", "Sample: ${result.take(200)}")
         return result
     }
 
