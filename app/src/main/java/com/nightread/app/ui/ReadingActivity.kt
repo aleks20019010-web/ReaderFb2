@@ -338,7 +338,7 @@ class ReadingActivity : AppCompatActivity() {
         tvLoadingProgress.text = "Разбивка на страницы..."
 
         val paint = TextPaint().apply {
-            textSize = SettingsManager.getFontSize(this@ReadingActivity) * resources.displayMetrics.scaledDensity
+            textSize = SettingsManager.getFontSize(this@ReadingActivity) * resources.displayMetrics.density
             val family = SettingsManager.getFontFamily(this@ReadingActivity)
             val numericWeight = SettingsManager.getFontWeightAsInt(this@ReadingActivity)
 
