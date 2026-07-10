@@ -2,17 +2,20 @@ package com.nightread.app.service
 
 import android.content.Context
 import android.util.Log
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import java.io.File
+import org.nehuatl.llamacpp.LlamaHelper
 
 /**
  * Класс для работы с локальной LLM через библиотеку llama.cpp.
- * Ожидается наличие скомпилированной нативной библиотеки libllama.so в jniLibs.
  */
 class LocalLLM private constructor(context: Context) {
 
-    private var modelHandle: Long = 0
+    private val appContext = context.applicationContext
+    private var llamaHelperInstance: LlamaHelper? = null
+    private val sharedFlow = MutableSharedFlow<LlamaHelper.LLMEvent>()
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var isLoaded = false
 
     companion object {
@@ -24,28 +27,13 @@ class LocalLLM private constructor(context: Context) {
                 instance ?: LocalLLM(context.applicationContext).also { instance = it }
             }
         }
-
-        init {
-            try {
-                System.loadLibrary("llama")
-                Log.i("LocalLLM", "Нативная библиотека llama успешно загружена")
-            } catch (e: UnsatisfiedLinkError) {
-                Log.e("LocalLLM", "Не удалось загрузить нативную библиотеку llama. Убедитесь, что .so файлы добавлены в проект.", e)
-            }
-        }
     }
-
-    // --- Нативные методы ---
-    
-    private external fun nativeInitContext(modelPath: String): Long
-    private external fun nativeGenerate(handle: Long, prompt: String, threads: Int, maxTokens: Int): String
-    private external fun nativeReleaseContext(handle: Long)
 
     /**
      * Загружает модель GGUF по указанному пути.
      */
-    suspend fun loadModel(path: String): Boolean = withContext(Dispatchers.IO) {
-        if (isLoaded && modelHandle != 0L) return@withContext true
+    suspend fun loadModel(path: String): Boolean = withContext(Dispatchers.Main) {
+        if (isLoaded && llamaHelperInstance != null) return@withContext true
         
         val file = File(path)
         if (!file.exists()) {
@@ -53,40 +41,99 @@ class LocalLLM private constructor(context: Context) {
             return@withContext false
         }
 
-        return@withContext try {
-            modelHandle = nativeInitContext(path)
-            isLoaded = modelHandle != 0L
-            if (isLoaded) {
-                Log.i("LocalLLM", "Модель загружена успешно. Handle: $modelHandle")
-            } else {
-                Log.e("LocalLLM", "Ошибка при инициализации контекста модели (nativeInitContext вернул 0)")
+        return@withContext suspendCancellableCoroutine { continuation ->
+            try {
+                Log.i("LocalLLM", "Инициализация модели: $path")
+                val helper = LlamaHelper(appContext.contentResolver, scope, sharedFlow)
+                
+                var resumed = false
+                val job = scope.launch {
+                    sharedFlow.collect { event ->
+                        if (event is LlamaHelper.LLMEvent.Error) {
+                            Log.e("LocalLLM", "Ошибка при загрузке модели: ${event.message}")
+                            if (!resumed) {
+                                resumed = true
+                                isLoaded = false
+                                llamaHelperInstance = null
+                                continuation.resume(false) { }
+                            }
+                            this.cancel()
+                        }
+                    }
+                }
+
+                helper.load(path, 2048, "") { handle ->
+                    Log.i("LocalLLM", "Модель загружена успешно. Handle: $handle")
+                    job.cancel()
+                    if (!resumed) {
+                        resumed = true
+                        isLoaded = true
+                        llamaHelperInstance = helper
+                        continuation.resume(true) { }
+                    }
+                }
+
+                continuation.invokeOnCancellation {
+                    job.cancel()
+                }
+
+            } catch (e: Exception) {
+                Log.e("LocalLLM", "Критическая ошибка при загрузке модели", e)
+                isLoaded = false
+                llamaHelperInstance = null
+                continuation.resume(false) { }
             }
-            isLoaded
-        } catch (e: Exception) {
-            Log.e("LocalLLM", "Критическая ошибка при загрузке модели", e)
-            false
-        } catch (e: UnsatisfiedLinkError) {
-            Log.e("LocalLLM", "Нативный метод nativeInitContext не найден (библиотека не загружена?)")
-            false
         }
     }
 
     /**
      * Генерирует ответ на основе промпта.
      */
-    suspend fun generate(prompt: String, maxTokens: Int = 200): String = withContext(Dispatchers.IO) {
-        if (!isLoaded || modelHandle == 0L) {
-            return@withContext "Ошибка: Модель не загружена. Проверьте настройки AI."
-        }
+    suspend fun generate(prompt: String, maxTokens: Int = 200): String = withContext(Dispatchers.Main) {
+        val helper = llamaHelperInstance ?: return@withContext "Ошибка: Модель не загружена. Проверьте настройки AI."
 
-        return@withContext try {
-            val threads = Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
-            nativeGenerate(modelHandle, prompt, threads, maxTokens)
-        } catch (e: Exception) {
-            Log.e("LocalLLM", "Ошибка при генерации текста", e)
-            "Ошибка во время работы AI."
-        } catch (e: UnsatisfiedLinkError) {
-            "Ошибка: Нативные методы AI недоступны."
+        return@withContext suspendCancellableCoroutine { continuation ->
+            val job = scope.launch {
+                try {
+                    sharedFlow.collect { event ->
+                        when (event) {
+                            is LlamaHelper.LLMEvent.Done -> {
+                                if (continuation.isActive) {
+                                    continuation.resume(event.fullText) { }
+                                }
+                                this.cancel()
+                            }
+                            is LlamaHelper.LLMEvent.Error -> {
+                                if (continuation.isActive) {
+                                    continuation.resume("Ошибка во время работы AI: ${event.message}") { }
+                                }
+                                this.cancel()
+                            }
+                            else -> {
+                                // Do nothing for Ongoing/Loaded/Started
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    if (continuation.isActive) {
+                        continuation.resume("Ошибка во время сбора ответов: ${e.message}") { }
+                    }
+                }
+            }
+
+            try {
+                helper.predict(prompt, "", false)
+            } catch (e: Exception) {
+                job.cancel()
+                if (continuation.isActive) {
+                    continuation.resume("Ошибка при запуске генерации: ${e.message}") { }
+                }
+            }
+
+            continuation.invokeOnCancellation {
+                job.cancel()
+                helper.stopPrediction()
+            }
         }
     }
 
@@ -94,15 +141,9 @@ class LocalLLM private constructor(context: Context) {
      * Освобождает ресурсы модели.
      */
     fun release() {
-        if (modelHandle != 0L) {
-            try {
-                nativeReleaseContext(modelHandle)
-            } catch (e: Exception) {
-                Log.e("LocalLLM", "Ошибка при освобождении контекста", e)
-            }
-            modelHandle = 0L
-            isLoaded = false
-        }
+        llamaHelperInstance?.release()
+        llamaHelperInstance = null
+        isLoaded = false
     }
 
     fun isModelLoaded(): Boolean = isLoaded

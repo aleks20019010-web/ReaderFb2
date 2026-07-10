@@ -4,9 +4,12 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
+import android.widget.EditText
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.nightread.app.R
 import com.nightread.app.data.BookEntity
@@ -59,23 +62,46 @@ class CompareBooksBottomSheet : BottomSheetDialogFragment() {
     private fun showBookPicker(index: Int) {
         lifecycleScope.launch {
             val books = bookRepository.allBooks.first()
-            val titles = books.map { it.title }.toTypedArray()
+            if (books.isEmpty()) {
+                AiToast.show(requireContext(), "Библиотека пуста. Добавьте книги для сравнения.", ToastType.WARNING)
+                return@launch
+            }
 
-            AlertDialog.Builder(requireContext(), R.style.Theme_NightRead_Dialog)
-                .setTitle("Выберите книгу")
-                .setItems(titles) { _, which ->
-                    val selectedBook = books[which]
-                    if (index == 1) {
-                        book1 = selectedBook
-                        binding.tvTitle1.text = selectedBook.title
-                        // In a real app we'd load the cover using Coil
-                    } else {
-                        book2 = selectedBook
-                        binding.tvTitle2.text = selectedBook.title
-                    }
-                    checkComparisonReady()
+            val context = requireContext()
+            val dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_book_picker, null)
+            val etSearch = dialogView.findViewById<EditText>(R.id.etSearch)
+            val rvBooks = dialogView.findViewById<RecyclerView>(R.id.rvBooks)
+
+            var dialog: AlertDialog? = null
+
+            val adapter = BookPickerAdapter(books) { selectedBook ->
+                if (index == 1) {
+                    book1 = selectedBook
+                    binding.tvTitle1.text = selectedBook.title
+                } else {
+                    book2 = selectedBook
+                    binding.tvTitle2.text = selectedBook.title
                 }
-                .show()
+                checkComparisonReady()
+                dialog?.dismiss()
+            }
+
+            rvBooks.layoutManager = LinearLayoutManager(context)
+            rvBooks.adapter = adapter
+
+            dialog = AlertDialog.Builder(context, R.style.Theme_NightRead_Dialog)
+                .setView(dialogView)
+                .create()
+
+            etSearch.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    adapter.filter(s?.toString() ?: "")
+                }
+                override fun afterTextChanged(s: android.text.Editable?) {}
+            })
+
+            dialog.show()
         }
     }
 
@@ -141,7 +167,7 @@ class CompareBooksBottomSheet : BottomSheetDialogFragment() {
         val b2 = book2 ?: return
 
         if (!LocalAIManager.isModelLoaded) {
-            Toast.makeText(requireContext(), "Загрузите модель AI в настройках", Toast.LENGTH_LONG).show()
+            AiToast.show(requireContext(), "Загрузите модель AI в настройках", ToastType.WARNING)
             return
         }
 
@@ -160,7 +186,7 @@ class CompareBooksBottomSheet : BottomSheetDialogFragment() {
                 binding.tvComparisonResult.text = result
                 binding.scrollViewResult.visibility = View.VISIBLE
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
+                AiToast.show(requireContext(), "Ошибка: ${e.message}", ToastType.ERROR)
             } finally {
                 binding.progressBar.visibility = View.GONE
                 binding.btnCompare.isEnabled = true
@@ -171,5 +197,46 @@ class CompareBooksBottomSheet : BottomSheetDialogFragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private class BookPickerAdapter(
+        private var books: List<BookEntity>,
+        private val onItemClick: (BookEntity) -> Unit
+    ) : RecyclerView.Adapter<BookPickerAdapter.ViewHolder>() {
+
+        private var filteredBooks = books
+
+        class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val tvTitle: TextView = view.findViewById(R.id.tvBookTitle)
+            val tvAuthor: TextView = view.findViewById(R.id.tvBookAuthor)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_book_picker, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val book = filteredBooks[position]
+            holder.tvTitle.text = book.title
+            holder.tvAuthor.text = book.author ?: "Неизвестный автор"
+            holder.itemView.setOnClickListener { onItemClick(book) }
+        }
+
+        override fun getItemCount(): Int = filteredBooks.size
+
+        fun filter(query: String) {
+            filteredBooks = if (query.isEmpty()) {
+                books
+            } else {
+                val lowerQuery = query.lowercase(Locale.ROOT)
+                books.filter {
+                    it.title.lowercase(Locale.ROOT).contains(lowerQuery) ||
+                            (it.author?.lowercase(Locale.ROOT)?.contains(lowerQuery) ?: false)
+                }
+            }
+            notifyDataSetChanged()
+        }
     }
 }

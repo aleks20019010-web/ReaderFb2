@@ -15,7 +15,7 @@ val AVAILABLE_AI_MODELS = listOf(
         name = "Gemma 2B IT",
         sizeStr = "~1.5 ГБ",
         description = "Быстрая базовая модель",
-        url = "https://huggingface.co/google/gemma-2b-it-GGUF/resolve/main/gemma-2b-it.Q4_K_M.gguf",
+        url = "https://huggingface.co/lmstudio-community/gemma-2b-it-GGUF/resolve/main/gemma-2b-it-Q4_K_M.gguf",
         fileName = "gemma_2b.gguf"
     ),
     AiModel(
@@ -31,7 +31,7 @@ val AVAILABLE_AI_MODELS = listOf(
         name = "Llama 3.2 3B Instruct",
         sizeStr = "~2 ГБ",
         description = "Качественная и точная модель",
-        url = "https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct-GGUF/resolve/main/llama-3.2-3b-instruct-q4_k_m.gguf",
+        url = "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
         fileName = "llama3.2_3b.gguf"
     )
 )
