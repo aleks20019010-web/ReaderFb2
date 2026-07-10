@@ -15,7 +15,7 @@ import java.io.File
 class ModelListAdapter(
     private val models: List<AiModel>,
     private val modelsDir: File,
-    private val activeModelId: String?,
+    var activeModelId: String?,
     private val onDownloadClick: (AiModel) -> Unit,
     private val onDeleteClick: (AiModel) -> Unit,
     private val onSelectClick: (AiModel) -> Unit

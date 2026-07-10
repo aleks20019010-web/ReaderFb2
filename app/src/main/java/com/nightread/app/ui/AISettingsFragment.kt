@@ -178,6 +178,7 @@ class AISettingsFragment : Fragment() {
                 SettingsManager.setAiModelId(requireContext(), null)
                 SettingsManager.setAiModelPath(requireContext(), null)
                 LocalAIManager.unloadModel()
+                adapter.activeModelId = null
             }
             adapter.notifyDataSetChanged()
             updateStatus()
@@ -190,6 +191,7 @@ class AISettingsFragment : Fragment() {
         if (file.exists()) {
             SettingsManager.setAiModelId(requireContext(), model.id)
             SettingsManager.setAiModelPath(requireContext(), file.absolutePath)
+            adapter.activeModelId = model.id
             
             adapter.notifyDataSetChanged() // Refresh to show active status
             
@@ -219,6 +221,7 @@ class AISettingsFragment : Fragment() {
                         if (filePath != null && SettingsManager.getAiModelId(requireContext()) == null) {
                             SettingsManager.setAiModelId(requireContext(), model.id)
                             SettingsManager.setAiModelPath(requireContext(), filePath)
+                            adapter.activeModelId = model.id
                         }
                         adapter.notifyDataSetChanged()
                         updateStatus()

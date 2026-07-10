@@ -33,37 +33,63 @@ class LocalLLM private constructor(context: Context) {
      * Загружает модель GGUF по указанному пути.
      */
     suspend fun loadModel(path: String): Boolean = withContext(Dispatchers.Main) {
-        if (isLoaded && llamaHelperInstance != null) return@withContext true
+        if (isLoaded && llamaHelperInstance != null) {
+            Log.i("LocalLLM", "Модель уже загружена.")
+            return@withContext true
+        }
         
         val file = File(path)
         if (!file.exists()) {
-            Log.e("LocalLLM", "Файл модели не найден: $path")
+            Log.e("LocalLLM", "[ОШИБКА] Файл модели не найден: $path")
             return@withContext false
         }
 
+        val fileSizeMb = file.length() / (1024 * 1024)
+        val runtime = Runtime.getRuntime()
+        val maxMemoryMb = runtime.maxMemory() / (1024 * 1024)
+        val totalMemoryMb = runtime.totalMemory() / (1024 * 1024)
+        val freeMemoryMb = runtime.freeMemory() / (1024 * 1024)
+        val allocatedMemoryMb = totalMemoryMb - freeMemoryMb
+        val availableHeapMb = maxMemoryMb - allocatedMemoryMb
+
+        Log.i("LocalLLM", "=== Диагностика перед загрузкой модели ===")
+        Log.i("LocalLLM", "Путь к модели: $path")
+        Log.i("LocalLLM", "Размер файла модели: $fileSizeMb MB")
+        Log.i("LocalLLM", "Максимальная JVM память (maxMemory): $maxMemoryMb MB")
+        Log.i("LocalLLM", "Выделенная JVM память (totalMemory): $totalMemoryMb MB")
+        Log.i("LocalLLM", "Свободная JVM память (freeMemory): $freeMemoryMb MB")
+        Log.i("LocalLLM", "Фактически занятая JVM память: $allocatedMemoryMb MB")
+        Log.i("LocalLLM", "Доступная память в куче (heap): $availableHeapMb MB")
+        Log.i("LocalLLM", "Вызывается LlamaHelper инициализация...")
+
         return@withContext suspendCancellableCoroutine { continuation ->
+            var resumed = false
             try {
-                Log.i("LocalLLM", "Инициализация модели: $path")
+                Log.i("LocalLLM", "Создание инстанса LlamaHelper...")
                 val helper = LlamaHelper(appContext.contentResolver, scope, sharedFlow)
                 
-                var resumed = false
                 val job = scope.launch {
-                    sharedFlow.collect { event ->
-                        if (event is LlamaHelper.LLMEvent.Error) {
-                            Log.e("LocalLLM", "Ошибка при загрузке модели: ${event.message}")
-                            if (!resumed) {
-                                resumed = true
-                                isLoaded = false
-                                llamaHelperInstance = null
-                                continuation.resume(false) { }
+                    try {
+                        sharedFlow.collect { event ->
+                            if (event is LlamaHelper.LLMEvent.Error) {
+                                Log.e("LocalLLM", "[ОШИБКА] Событие ошибки при загрузке модели: ${event.message}")
+                                if (!resumed) {
+                                    resumed = true
+                                    isLoaded = false
+                                    llamaHelperInstance = null
+                                    continuation.resume(false) { }
+                                }
+                                this.cancel()
                             }
-                            this.cancel()
                         }
+                    } catch (t: Throwable) {
+                        Log.e("LocalLLM", "[ОШИБКА] Ошибка при сборе событий sharedFlow", t)
                     }
                 }
 
+                Log.i("LocalLLM", "Вызов helper.load() для файла...")
                 helper.load(path, 2048, "") { handle ->
-                    Log.i("LocalLLM", "Модель загружена успешно. Handle: $handle")
+                    Log.i("LocalLLM", "[УСПЕХ] Модель загружена успешно. Дескриптор (Handle): $handle")
                     job.cancel()
                     if (!resumed) {
                         resumed = true
@@ -74,14 +100,34 @@ class LocalLLM private constructor(context: Context) {
                 }
 
                 continuation.invokeOnCancellation {
+                    Log.w("LocalLLM", "Загрузка модели была отменена.")
                     job.cancel()
                 }
 
-            } catch (e: Exception) {
-                Log.e("LocalLLM", "Критическая ошибка при загрузке модели", e)
+            } catch (e: OutOfMemoryError) {
+                Log.e("LocalLLM", "[КРИТИЧЕСКАЯ ОШИБКА] Недостаточно памяти (OutOfMemoryError) при загрузке модели AI!", e)
                 isLoaded = false
                 llamaHelperInstance = null
-                continuation.resume(false) { }
+                if (!resumed) {
+                    resumed = true
+                    continuation.resume(false) { }
+                }
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e("LocalLLM", "[КРИТИЧЕСКАЯ ОШИБКА] Ошибка загрузки нативной библиотеки JNI (UnsatisfiedLinkError)!", e)
+                isLoaded = false
+                llamaHelperInstance = null
+                if (!resumed) {
+                    resumed = true
+                    continuation.resume(false) { }
+                }
+            } catch (e: Throwable) {
+                Log.e("LocalLLM", "[КРИТИЧЕСКАЯ ОШИБКА] Исключение во время загрузки модели: ${e.javaClass.simpleName} - ${e.message}", e)
+                isLoaded = false
+                llamaHelperInstance = null
+                if (!resumed) {
+                    resumed = true
+                    continuation.resume(false) { }
+                }
             }
         }
     }
