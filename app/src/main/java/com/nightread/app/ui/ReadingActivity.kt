@@ -91,22 +91,22 @@ class ReadingActivity : AppCompatActivity() {
         seekBar = findViewById(R.id.seekBar)
         btnSummarizeChapter = findViewById(R.id.btnSummarizeChapter)
         btnSummarizeChapter.setOnClickListener {
-            showAiSummary()
+            ensureModelLoaded { showAiSummary() }
         }
         
         btnSmartSearch = findViewById(R.id.btnSmartSearch)
         btnSmartSearch.setOnClickListener {
-            showSmartSearchDialog()
+            ensureModelLoaded { showSmartSearchDialog() }
         }
 
         btnQA = findViewById(R.id.btnQA)
         btnQA.setOnClickListener {
-            showQADialog()
+            ensureModelLoaded { showQADialog() }
         }
 
         btnChaptersList = findViewById(R.id.btnChaptersList)
         btnChaptersList.setOnClickListener {
-            showChaptersDialog()
+            ensureModelLoaded { showChaptersDialog() }
         }
         
         tvTitle = findViewById(R.id.tvTitle)
@@ -674,15 +674,21 @@ class ReadingActivity : AppCompatActivity() {
         builder.setPositiveButton("Искать") { _, _ ->
             val query = input.text.toString()
             if (query.isNotEmpty()) {
-                SmartSearchBottomSheet.newInstance(query, bookContent).apply {
-                    setOnResultClickListener { offset ->
-                        jumpToBookmarkOffset(offset)
-                    }
-                }.show(supportFragmentManager, "SmartSearch")
+                performSmartSearch(query)
             }
         }
         builder.setNegativeButton("Отмена", null)
         builder.show()
+    }
+
+    fun performSmartSearch(query: String) {
+        ensureModelLoaded {
+            SmartSearchBottomSheet.newInstance(query, bookContent).apply {
+                setOnResultClickListener { offset ->
+                    jumpToBookmarkOffset(offset)
+                }
+            }.show(supportFragmentManager, "SmartSearch")
+        }
     }
 
     private fun showChaptersDialog() {
@@ -697,8 +703,41 @@ class ReadingActivity : AppCompatActivity() {
         QABottomSheet().show(supportFragmentManager, "QA")
     }
 
+    private fun ensureModelLoaded(onSuccess: () -> Unit) {
+        if (com.nightread.app.service.LocalAIManager.isModelLoaded) {
+            onSuccess()
+        } else {
+            if (com.nightread.app.service.LocalAIManager.isModelAvailable(this)) {
+                androidx.appcompat.app.AlertDialog.Builder(this, R.style.Theme_NightRead_Dialog)
+                    .setTitle("Модель не загружена")
+                    .setMessage("Модель скачана, но не загружена. Загрузить сейчас?")
+                    .setPositiveButton("Загрузить") { _, _ ->
+                        progressBar.visibility = View.VISIBLE
+                        lifecycleScope.launch {
+                            val activePath = SettingsManager.getAiModelPath(this@ReadingActivity)
+                            val success = if (activePath != null) {
+                                com.nightread.app.service.LocalAIManager.loadModel(this@ReadingActivity, activePath)
+                            } else false
+                            progressBar.visibility = View.GONE
+                            if (success) {
+                                Toast.makeText(this@ReadingActivity, "Модель успешно загружена", Toast.LENGTH_SHORT).show()
+                                updateAiButtonsVisibility()
+                                onSuccess()
+                            } else {
+                                Toast.makeText(this@ReadingActivity, "Не удалось загрузить модель", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                    .setNegativeButton("Отмена", null)
+                    .show()
+            } else {
+                Toast.makeText(this, "Скачайте модель AI в настройках", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun updateAiButtonsVisibility() {
-        val aiEnabled = SettingsManager.isAiEnabled(this) && com.nightread.app.service.LocalAIManager.isModelLoaded
+        val aiEnabled = SettingsManager.isAiEnabled(this)
         btnSummarizeChapter.visibility = if (aiEnabled) View.VISIBLE else View.GONE
         btnSmartSearch.visibility = if (aiEnabled) View.VISIBLE else View.GONE
         btnChaptersList.visibility = if (aiEnabled) View.VISIBLE else View.GONE

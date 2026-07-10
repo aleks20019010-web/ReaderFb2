@@ -19,6 +19,7 @@ import com.nightread.app.R
 import com.nightread.app.data.SettingsManager
 import com.nightread.app.service.LocalAIManager
 import kotlinx.coroutines.launch
+import android.widget.Toast
 
 class PageFragment : Fragment() {
     private var pageText: CharSequence = ""
@@ -104,6 +105,10 @@ class PageFragment : Fragment() {
         var lastTouchX = 0f
         var lastTouchY = 0f
 
+        textView.isLongClickable = true
+        textView.setTextIsSelectable(false)
+        textView.customSelectionActionModeCallback = null
+
         textView.setOnTouchListener { _, event ->
             if (event.action == android.view.MotionEvent.ACTION_DOWN) {
                 lastTouchX = event.x
@@ -113,16 +118,12 @@ class PageFragment : Fragment() {
         }
 
         textView.setOnLongClickListener {
-            if (SettingsManager.isAiEnabled(requireContext()) && LocalAIManager.isLoaded()) {
-                val word = extractWordAt(textView, lastTouchX, lastTouchY)
-                if (word.isNotEmpty()) {
-                    val contextSnippet = extractContextAround(textView, lastTouchX, lastTouchY)
-                    TermExplanationBottomSheet.newInstance(word, contextSnippet)
-                        .show(childFragmentManager, "TermExplanation")
-                    true
-                } else {
-                    false
-                }
+            val word = extractWordAt(textView, lastTouchX, lastTouchY).trim()
+            if (word.isNotEmpty()) {
+                val contextSnippet = extractContextAround(textView, lastTouchX, lastTouchY).trim()
+                WordActionBottomSheet.newInstance(word, contextSnippet)
+                    .show(childFragmentManager, "WordAction")
+                true
             } else {
                 false
             }

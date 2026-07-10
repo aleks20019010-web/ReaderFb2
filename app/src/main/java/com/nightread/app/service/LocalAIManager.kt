@@ -2,6 +2,7 @@ package com.nightread.app.service
 
 import android.content.Context
 import android.util.Log
+import com.nightread.app.data.SettingsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -49,10 +50,26 @@ object LocalAIManager {
 
     fun isLoaded(): Boolean = isModelLoaded
 
+    fun isModelAvailable(context: Context): Boolean {
+        val path = SettingsManager.getAiModelPath(context) ?: return false
+        return File(path).exists()
+    }
+
+    fun isModelReady(context: Context): Boolean {
+        return isModelAvailable(context) && isLoaded()
+    }
+
     suspend fun explainWord(context: Context, word: String, contextText: String): String = withContext(Dispatchers.IO) {
         if (!isModelLoaded) return@withContext "Для работы AI необходимо скачать и загрузить модель."
         
         val prompt = AIPrompts.getWordExplanationPrompt(word, contextText)
+        return@withContext getLLM(context).generate(prompt, maxTokens = 150)
+    }
+
+    suspend fun translateWord(context: Context, word: String, contextText: String): String = withContext(Dispatchers.IO) {
+        if (!isModelLoaded) return@withContext "Для работы AI необходимо скачать и загрузить модель."
+        
+        val prompt = AIPrompts.getWordTranslationPrompt(word, contextText)
         return@withContext getLLM(context).generate(prompt, maxTokens = 150)
     }
 

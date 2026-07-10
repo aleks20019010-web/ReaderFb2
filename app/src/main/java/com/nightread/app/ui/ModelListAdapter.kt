@@ -9,6 +9,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.nightread.app.R
 import com.nightread.app.data.AiModel
+import com.nightread.app.service.LocalAIManager
 import java.io.File
 
 class ModelListAdapter(
@@ -52,7 +53,11 @@ class ModelListAdapter(
             
             if (isActive) {
                 holder.tvStatus.visibility = View.VISIBLE
-                holder.tvStatus.text = "Активная модель"
+                if (LocalAIManager.isModelLoaded) {
+                    holder.tvStatus.text = "Модель загружена"
+                } else {
+                    holder.tvStatus.text = "Модель не загружена"
+                }
                 holder.btnAction.text = "Выбрано"
                 holder.btnAction.isEnabled = false
             } else {
@@ -70,6 +75,8 @@ class ModelListAdapter(
             if (progress != null && progress < 100) {
                 holder.pbDownload.visibility = View.VISIBLE
                 holder.pbDownload.progress = progress
+                holder.tvStatus.visibility = View.VISIBLE
+                holder.tvStatus.text = "Скачивание: $progress%"
                 holder.btnAction.text = "Скачивание..."
                 holder.btnAction.isEnabled = false
             } else {

@@ -11,14 +11,6 @@ data class AiModel(
 
 val AVAILABLE_AI_MODELS = listOf(
     AiModel(
-        id = "gemma-2b",
-        name = "Gemma 2B IT",
-        sizeStr = "~1.5 ГБ",
-        description = "Быстрая базовая модель",
-        url = "https://huggingface.co/lmstudio-community/gemma-2b-it-GGUF/resolve/main/gemma-2b-it-Q4_K_M.gguf",
-        fileName = "gemma_2b.gguf"
-    ),
-    AiModel(
         id = "qwen-1.5b",
         name = "Qwen2.5 1.5B Instruct",
         sizeStr = "~1.1 ГБ",

@@ -47,6 +47,11 @@ class AISettingsFragment : Fragment() {
         setupToolbar()
         setupSwitches()
         setupRecyclerView()
+        
+        binding.btnLoadModel.setOnClickListener {
+            triggerModelLoad()
+        }
+        
         updateStatus()
         
         observeDownloads()
@@ -81,12 +86,17 @@ class AISettingsFragment : Fragment() {
         if (activePath != null && File(activePath).exists()) {
             binding.tvAiStatus.text = "Загрузка..."
             binding.tvAiStatus.setTextColor(resources.getColor(R.color.text_secondary))
+            binding.btnLoadModel.isEnabled = false
             
             lifecycleScope.launch {
                 val success = LocalAIManager.loadModel(requireContext(), activePath)
                 if (isAdded) {
+                    binding.btnLoadModel.isEnabled = true
                     updateStatus()
-                    if (!success) {
+                    adapter.notifyDataSetChanged()
+                    if (success) {
+                        Toast.makeText(requireContext(), "Модель успешно загружена", Toast.LENGTH_SHORT).show()
+                    } else {
                         Toast.makeText(requireContext(), "Ошибка загрузки модели", Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -97,15 +107,29 @@ class AISettingsFragment : Fragment() {
     }
 
     private fun updateStatus() {
-        if (!SettingsManager.isAiEnabled(requireContext())) {
+        if (!isAdded) return
+        val isEnabled = SettingsManager.isAiEnabled(requireContext())
+        val isAvailable = LocalAIManager.isModelAvailable(requireContext())
+        val isLoaded = LocalAIManager.isModelLoaded
+
+        if (!isEnabled) {
             binding.tvAiStatus.text = "Отключен"
             binding.tvAiStatus.setTextColor(resources.getColor(R.color.text_secondary))
-        } else if (LocalAIManager.isModelLoaded) {
-            binding.tvAiStatus.text = "Активен (Модель загружена)"
+            binding.btnLoadModel.visibility = View.GONE
+        } else if (isLoaded) {
+            binding.tvAiStatus.text = "Модель загружена"
             binding.tvAiStatus.setTextColor(resources.getColor(R.color.accent))
+            binding.btnLoadModel.visibility = View.GONE
         } else {
-            binding.tvAiStatus.text = "Ожидание (Модель не загружена)"
-            binding.tvAiStatus.setTextColor(resources.getColor(R.color.text_secondary))
+            if (isAvailable) {
+                binding.tvAiStatus.text = "Модель не загружена"
+                binding.tvAiStatus.setTextColor(resources.getColor(R.color.text_secondary))
+                binding.btnLoadModel.visibility = View.VISIBLE
+            } else {
+                binding.tvAiStatus.text = "Модель не скачана"
+                binding.tvAiStatus.setTextColor(resources.getColor(R.color.text_secondary))
+                binding.btnLoadModel.visibility = View.GONE
+            }
         }
     }
 
@@ -156,6 +180,7 @@ class AISettingsFragment : Fragment() {
                 LocalAIManager.unloadModel()
             }
             adapter.notifyDataSetChanged()
+            updateStatus()
             Toast.makeText(requireContext(), "Модель удалена", Toast.LENGTH_SHORT).show()
         }
     }
@@ -166,12 +191,13 @@ class AISettingsFragment : Fragment() {
             SettingsManager.setAiModelId(requireContext(), model.id)
             SettingsManager.setAiModelPath(requireContext(), file.absolutePath)
             
-            Toast.makeText(requireContext(), "Модель выбрана и будет загружена", Toast.LENGTH_SHORT).show()
             adapter.notifyDataSetChanged() // Refresh to show active status
             
             // Trigger load if AI is enabled
             if (SettingsManager.isAiEnabled(requireContext())) {
-                // In a real app we'd show a loading indicator
+                triggerModelLoad()
+            } else {
+                updateStatus()
             }
         }
     }
@@ -187,6 +213,7 @@ class AISettingsFragment : Fragment() {
                     if (workInfo.state == WorkInfo.State.RUNNING) {
                         val progress = workInfo.progress.getInt("PROGRESS", 0)
                         adapter.updateProgress(model.id, progress)
+                        updateStatus()
                     } else if (workInfo.state == WorkInfo.State.SUCCEEDED) {
                         val filePath = workInfo.outputData.getString("FILE_PATH")
                         if (filePath != null && SettingsManager.getAiModelId(requireContext()) == null) {
@@ -194,9 +221,11 @@ class AISettingsFragment : Fragment() {
                             SettingsManager.setAiModelPath(requireContext(), filePath)
                         }
                         adapter.notifyDataSetChanged()
+                        updateStatus()
                     } else if (workInfo.state == WorkInfo.State.FAILED) {
                         Toast.makeText(requireContext(), "Ошибка при скачивании ${model.name}", Toast.LENGTH_SHORT).show()
                         adapter.notifyDataSetChanged()
+                        updateStatus()
                     }
                 })
         }

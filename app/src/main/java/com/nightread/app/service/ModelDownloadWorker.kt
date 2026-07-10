@@ -91,6 +91,26 @@ class ModelDownloadWorker(
                 tempFile.renameTo(outputFile)
             }
 
+            setProgress(workDataOf("PROGRESS" to 100))
+
+            // Set this model as selected/active if none is selected yet
+            val currentPath = com.nightread.app.data.SettingsManager.getAiModelPath(applicationContext)
+            if (currentPath == null) {
+                val matchedModel = com.nightread.app.data.AVAILABLE_AI_MODELS.find { it.fileName == modelFileName }
+                if (matchedModel != null) {
+                    com.nightread.app.data.SettingsManager.setAiModelId(applicationContext, matchedModel.id)
+                }
+                com.nightread.app.data.SettingsManager.setAiModelPath(applicationContext, outputFile.absolutePath)
+            }
+
+            // Automatically load model after download
+            try {
+                Log.i("ModelDownloadWorker", "Auto-loading downloaded model: ${outputFile.absolutePath}")
+                LocalAIManager.loadModel(applicationContext, outputFile.absolutePath)
+            } catch (e: Exception) {
+                Log.e("ModelDownloadWorker", "Failed to auto-load model after download", e)
+            }
+
             ModelNotificationHelper.showFinishedNotification(applicationContext, modelName, notificationId)
             return@withContext Result.success(workDataOf("FILE_PATH" to outputFile.absolutePath))
         } catch (e: Exception) {

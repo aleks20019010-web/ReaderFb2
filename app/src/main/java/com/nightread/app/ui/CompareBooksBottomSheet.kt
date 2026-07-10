@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.nightread.app.R
+import com.nightread.app.data.SettingsManager
 import com.nightread.app.data.BookEntity
 import com.nightread.app.data.BookRepository
 import com.nightread.app.databinding.BottomSheetCompareBooksBinding
@@ -167,7 +168,34 @@ class CompareBooksBottomSheet : BottomSheetDialogFragment() {
         val b2 = book2 ?: return
 
         if (!LocalAIManager.isModelLoaded) {
-            AiToast.show(requireContext(), "Загрузите модель AI в настройках", ToastType.WARNING)
+            if (LocalAIManager.isModelAvailable(requireContext())) {
+                AlertDialog.Builder(requireContext(), R.style.Theme_NightRead_Dialog)
+                    .setTitle("Модель не загружена")
+                    .setMessage("Модель скачана, но не загружена. Загрузить сейчас?")
+                    .setPositiveButton("Загрузить") { _, _ ->
+                        binding.progressBar.visibility = View.VISIBLE
+                        binding.btnCompare.isEnabled = false
+                        lifecycleScope.launch {
+                            val activePath = SettingsManager.getAiModelPath(requireContext())
+                            val success = if (activePath != null) {
+                                LocalAIManager.loadModel(requireContext(), activePath)
+                            } else false
+                            
+                            binding.progressBar.visibility = View.GONE
+                            binding.btnCompare.isEnabled = true
+                            if (success) {
+                                AiToast.show(requireContext(), "Модель успешно загружена", ToastType.INFO)
+                                startComparison() // retry comparison
+                            } else {
+                                AiToast.show(requireContext(), "Не удалось загрузить модель", ToastType.ERROR)
+                            }
+                        }
+                    }
+                    .setNegativeButton("Отмена", null)
+                    .show()
+            } else {
+                AiToast.show(requireContext(), "Скачайте модель AI в настройках", ToastType.WARNING)
+            }
             return
         }
 

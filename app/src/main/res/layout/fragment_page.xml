@@ -23,6 +23,6 @@
         tools:targetApi="o"
         android:justificationMode="none"
         android:lineSpacingExtra="0dp"
-        android:textIsSelectable="true"
+        android:textIsSelectable="false"
         android:scrollHorizontally="false" />
 </FrameLayout>
