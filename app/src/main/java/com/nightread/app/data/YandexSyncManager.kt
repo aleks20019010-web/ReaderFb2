@@ -541,32 +541,64 @@ class YandexSyncManager(private val context: Context) {
                             // Compute exact SHA-1 on the extracted fb2 content bytes
                             val sha1 = computeSha1(fb2Bytes)
                             
-                            // Decode fb2Bytes safely to String respecting XML and Russian Windows-1251 encoding
-                            val content = decodeBytesToString(fb2Bytes)
+                            val titleText: String
+                            val authorText: String
+                            val seriesText: String?
+                            val seriesIdx: Int?
+                            val langText: String?
+                            var coverPath: String? = null
+                            val truncatedAnnotation: String?
                             
-                            // Parse FB2 correctly to get metadata
-                            val meta = NewFb2Parser.parse(content, originalName)
-                            
-                            val coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
-                            
-                            // Truncate annotation
-                            val truncatedAnnotation = meta.annotation?.take(500)
+                            if (originalName.lowercase().endsWith(".epub")) {
+                                val meta = com.nightread.app.service.NewEpubParser.parse(tempFile, originalName.substringBeforeLast("."))
+                                if (meta != null) {
+                                    titleText = meta.title
+                                    authorText = meta.author
+                                    seriesText = meta.series
+                                    seriesIdx = meta.seriesIndex
+                                    langText = meta.language
+                                    truncatedAnnotation = meta.annotation?.take(500)
+                                    val coverBytes = com.nightread.app.service.NewEpubParser.extractCover(tempFile)
+                                    if (coverBytes != null) {
+                                        coverPath = com.nightread.app.service.NewCoverExtractor.saveCoverBytes(coverBytes, sha1, context)
+                                    }
+                                } else {
+                                    titleText = originalName.substringBeforeLast(".")
+                                    authorText = "Unknown Author"
+                                    seriesText = null
+                                    seriesIdx = null
+                                    langText = null
+                                    truncatedAnnotation = null
+                                }
+                            } else {
+                                // Decode fb2Bytes safely to String respecting XML and Russian Windows-1251 encoding
+                                val content = decodeBytesToString(fb2Bytes)
+                                // Parse FB2 correctly to get metadata
+                                val meta = NewFb2Parser.parse(content, originalName)
+                                titleText = meta.title
+                                authorText = meta.author
+                                seriesText = meta.series
+                                seriesIdx = meta.seriesIndex
+                                langText = meta.language
+                                truncatedAnnotation = meta.annotation?.take(500)
+                                coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
+                            }
                             
                             val localFile = File(booksDirectory, originalName)
                             tempFile.copyTo(localFile, overwrite = true)
                             
                             val newBook = BookEntity(
                                 sha1 = sha1,
-                                title = meta.title,
-                                author = meta.author,
+                                title = titleText,
+                                author = authorText,
                                 category = "Локальные",
-                                totalCharacters = content.length,
+                                
                                 coverGradientStart = getRandomGradientStartColor(),
                                 coverGradientEnd = getRandomGradientEndColor(),
                                 filePath = localFile.absolutePath,
-                                series = meta.series,
-                                seriesIndex = meta.seriesIndex,
-                                language = meta.language,
+                                series = seriesText,
+                                seriesIndex = seriesIdx,
+                                language = langText,
                                 annotation = truncatedAnnotation,
                                 fileSize = bytes.size.toLong(),
                                 coverPath = coverPath

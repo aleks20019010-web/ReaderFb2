@@ -65,10 +65,10 @@ class SyncOrchestrator(
             }
             Log.d(TAG, "Found ${cloudFiles.size} files in $syncFolder")
 
-            // Filter for supported formats: .fb2, .fb2.zip and .zip
+            // Filter for supported formats: .fb2, .fb2.zip, .zip and .epub
             val filteredCloudFiles = cloudFiles.filter {
                 val name = it.name.lowercase()
-                name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip")
+                name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip") || name.endsWith(".epub")
             }
             Log.d(TAG, "Filtered ${filteredCloudFiles.size} books to process")
 
@@ -301,7 +301,7 @@ class SyncOrchestrator(
                                                     author = meta.author ?: "Неизвестен",
                                                     category = "Локальные",
                                                     currentProgressChar = 0,
-                                                    totalCharacters = content.length,
+                                                    
                                                     lastReadTime = System.currentTimeMillis(),
                                                     filePath = localFile.absolutePath,
                                                     series = meta.series,

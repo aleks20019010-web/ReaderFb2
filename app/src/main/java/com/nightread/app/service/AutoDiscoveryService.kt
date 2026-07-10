@@ -64,7 +64,7 @@ class AutoDiscoveryService : Service() {
                     override fun onEvent(event: Int, pathString: String?) {
                         if (pathString != null) {
                             val file = File(path, pathString)
-                            if (file.isFile && (file.extension.equals("fb2", true) || file.extension.equals("zip", true))) {
+                            if (file.isFile && (file.extension.equals("fb2", true) || file.extension.equals("zip", true) || file.extension.equals("epub", true))) {
                                 Log.d("AutoDiscoveryService", "New file detected: ${file.absolutePath}")
                                 handleNewFile(file)
                             }

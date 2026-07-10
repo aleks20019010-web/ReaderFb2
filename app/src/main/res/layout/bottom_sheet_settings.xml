@@ -418,7 +418,7 @@
                         android:id="@+id/tvAutoDiscoveryDesc"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Поиск fb2 в фоне"
+                        android:text="Поиск книг в фоне"
                         android:textColor="#B8A0C8"
                         android:textSize="10sp" />
                 </LinearLayout>

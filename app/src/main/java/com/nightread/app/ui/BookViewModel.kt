@@ -359,7 +359,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 
                 var parsedTitle = fileName.substringBeforeLast(".")
                 var parsedAuthor = "Неизвестен"
-                var parsedContent = ""
+                var parsedContent = "EPUB content"
                 var parsedSeries: String? = null
                 var parsedSeriesIndex: Int? = null
                 var parsedLanguage: String? = "ru"
@@ -387,10 +387,21 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     parsedLanguage = parsed.language
                     parsedAnnotation = parsed.annotation
                 } else if (ext == "epub") {
-                    val (title, content) = parseEpub(localFile)
-                    parsedTitle = title
-                    parsedAuthor = "Локальный EPUB"
-                    parsedContent = content
+                    val meta = com.nightread.app.service.NewEpubParser.parse(localFile, fileName.substringBeforeLast("."))
+                    if (meta != null) {
+                        parsedTitle = meta.title
+                        parsedAuthor = meta.author
+                        parsedContent = com.nightread.app.service.NewEpubParser.extractText(localFile)
+                        parsedSeries = meta.series
+                        parsedSeriesIndex = meta.seriesIndex
+                        parsedLanguage = meta.language
+                        parsedAnnotation = meta.annotation
+                    } else {
+                        val (title, content) = parseEpub(localFile)
+                        parsedTitle = title
+                        parsedAuthor = "Локальный EPUB"
+                        parsedContent = content
+                    }
                 } else {
                     parsedContent = decodeBytesToString(bytes)
                     parsedAuthor = "Локальный TXT"
@@ -925,7 +936,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
                         var parsedTitle = file.nameWithoutExtension
                         var parsedAuthor = "Неизвестен"
-                        var parsedContent = ""
+                        var parsedContent = "EPUB content"
                         var parsedSeries: String? = null
                         var parsedLanguage: String? = "ru"
                         
@@ -1057,7 +1068,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             var entry = zis.nextEntry
                             while (entry != null) {
                                 val entryName = entry.name.lowercase()
-                                if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".fb2.xml"))) {
+                                if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".fb2.xml") || entryName.endsWith(".epub"))) {
                                     android.util.Log.d(TAG, "Found FB2 entry in ZIP: ${entry.name} (size: ${entry.size})")
                                     fb2Found = true
                                     
@@ -1440,6 +1451,11 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             entry = zis.nextEntry
                         }
                     }
+                }
+            } else if (ext == "epub") {
+                val coverBytes = com.nightread.app.service.NewEpubParser.extractCover(file)
+                if (coverBytes != null) {
+                    bitmap = android.graphics.BitmapFactory.decodeByteArray(coverBytes, 0, coverBytes.size)
                 }
             } else if (ext == "epub") {
                 bitmap = extractCoverFromEpub(file)

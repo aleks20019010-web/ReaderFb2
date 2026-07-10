@@ -97,6 +97,25 @@ object NewCoverExtractor {
         }
     }
 
+    fun saveCoverBytes(imageBytes: ByteArray, sha1: String, context: Context?): String? {
+        if (context == null) return null
+        try {
+            if (imageBytes.isEmpty()) return null
+            
+            val coverDir = File(context.filesDir, "covers")
+            if (!coverDir.exists()) coverDir.mkdirs()
+            
+            val coverFile = File(coverDir, "cover_$sha1.jpg")
+            FileOutputStream(coverFile).use { fos ->
+                fos.write(imageBytes)
+            }
+            return coverFile.absolutePath
+        } catch (e: Exception) {
+            Log.e("NewCoverExtractor", "Error saving cover bytes for $sha1", e)
+            return null
+        }
+    }
+
     /**
      * Fast non-regex removal of binary sections from FB2 content.
      */
