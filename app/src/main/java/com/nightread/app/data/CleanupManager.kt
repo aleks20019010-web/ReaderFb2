@@ -167,7 +167,7 @@ class CleanupManager(
                 gatherFilesRecursive(file, list, depth + 1)
             } else {
                 val ext = file.extension.lowercase()
-                if (ext == "fb2" || ext == "zip" || ext == "epub") {
+                if (ext == "fb2" || ext == "zip") {
                     if (file.length() > 0 && file.length() < 30 * 1024 * 1024) {
                         list.add(file)
                     }

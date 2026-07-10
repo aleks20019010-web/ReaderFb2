@@ -40,7 +40,7 @@ class CloudFileService(private val context: Context) {
                     val fileItems = pageItems.filter { item ->
                         if (item.type == "file") {
                             val name = item.name.lowercase()
-                            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip") || name.endsWith(".epub")
+                            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip")
                         } else {
                             false
                         }

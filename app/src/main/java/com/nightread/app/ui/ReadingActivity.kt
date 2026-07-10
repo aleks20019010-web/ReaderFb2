@@ -812,9 +812,6 @@ class ReadingActivity : AppCompatActivity() {
     private fun extractTextFromFile(file: File): String {
         val ext = file.extension.lowercase(Locale.ROOT)
         return when (ext) {
-            "epub" -> {
-                com.nightread.app.service.NewEpubParser.extractText(file)
-            }
             "fb2", "xml" -> {
                 val xmlContent = readFb2WithEncoding(file)
                 Fb2Parser.extractText(xmlContent)

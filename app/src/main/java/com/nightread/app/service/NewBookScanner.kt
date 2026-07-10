@@ -571,64 +571,6 @@ class NewBookScanner(
             } catch (e: Throwable) {
                 Log.e(TAG, "Error handling fb2 file: ${file.absolutePath}", e)
             }
-        } else if (ext == "epub") {
-            try {
-                if (!file.exists() || !file.canRead()) {
-                    Log.w(TAG, "File does not exist or is not readable: ${file.absolutePath}")
-                    return
-                }
-
-                val bytes = try {
-                    file.inputStream().buffered().use { fis ->
-                        fis.readBytes()
-                    }
-                } catch (e: Exception) { return }
-
-                if (bytes.isEmpty()) return
-                
-                val sha1 = computeSha1(bytes)
-                if (sha1ToPathMap.containsKey(sha1)) {
-                    val existingPath = sha1ToPathMap[sha1]
-                    if (existingPath != file.absolutePath) {
-                        try {
-                            kotlinx.coroutines.runBlocking {
-                                bookDao.updateFilePath(sha1, file.absolutePath)
-                            }
-                            sha1ToPathMap[sha1] = file.absolutePath
-                        } catch (ex: Exception) { }
-                    }
-                    onStatsUpdated(0, 1)
-                    return
-                }
-
-                val metadata = NewEpubParser.parse(file, file.nameWithoutExtension) ?: return
-                val resolvedTitle = resolveRussianTitle(metadata.title, file.nameWithoutExtension)
-                
-                val coverBytes = NewEpubParser.extractCover(file)
-                val coverPath = if (coverBytes != null) NewCoverExtractor.saveCoverBytes(coverBytes, sha1, context) else null
-
-                val book = BookEntity(
-                    sha1 = sha1,
-                    title = resolvedTitle,
-                    author = metadata.author,
-                    coverGradientStart = getRandomGradientStartColor(),
-                    coverGradientEnd = getRandomGradientEndColor(),
-                    category = "Local",
-                    filePath = file.absolutePath,
-                    coverPath = coverPath,
-                    annotation = metadata.annotation,
-                    fileSize = file.length(),
-                    series = metadata.series,
-                    seriesIndex = metadata.seriesIndex,
-                    language = metadata.language,
-                    isNew = true
-                )
-                batchList.add(book)
-                sha1ToPathMap[sha1] = file.absolutePath
-                onStatsUpdated(1, 0)
-            } catch (e: Throwable) {
-                Log.e(TAG, "Error handling epub file: ${file.absolutePath}", e)
-            }
         } else if (ext == "zip") {
             try {
                 if (!file.exists() || !file.canRead()) {
@@ -787,7 +729,7 @@ class NewBookScanner(
                     gatherFilesRecursive(file, list, depth + 1)
                 } else {
                     val ext = file.extension.lowercase()
-                    if (ext == "fb2" || ext == "zip" || ext == "epub") {
+                    if (ext == "fb2" || ext == "zip") {
                         if (file.length() > 0 && file.length() < 30 * 1024 * 1024) {
                             list.add(file)
                         } else {

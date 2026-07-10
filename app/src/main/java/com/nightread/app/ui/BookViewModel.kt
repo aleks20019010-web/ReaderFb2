@@ -359,7 +359,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 
                 var parsedTitle = fileName.substringBeforeLast(".")
                 var parsedAuthor = "Неизвестен"
-                var parsedContent = "EPUB content"
+                var parsedContent = ""
                 var parsedSeries: String? = null
                 var parsedSeriesIndex: Int? = null
                 var parsedLanguage: String? = "ru"
@@ -386,22 +386,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     parsedSeriesIndex = parsed.seriesIndex
                     parsedLanguage = parsed.language
                     parsedAnnotation = parsed.annotation
-                } else if (ext == "epub") {
-                    val meta = com.nightread.app.service.NewEpubParser.parse(localFile, fileName.substringBeforeLast("."))
-                    if (meta != null) {
-                        parsedTitle = meta.title
-                        parsedAuthor = meta.author
-                        parsedContent = com.nightread.app.service.NewEpubParser.extractText(localFile)
-                        parsedSeries = meta.series
-                        parsedSeriesIndex = meta.seriesIndex
-                        parsedLanguage = meta.language
-                        parsedAnnotation = meta.annotation
-                    } else {
-                        val (title, content) = parseEpub(localFile)
-                        parsedTitle = title
-                        parsedAuthor = "Локальный EPUB"
-                        parsedContent = content
-                    }
                 } else {
                     parsedContent = decodeBytesToString(bytes)
                     parsedAuthor = "Локальный TXT"
@@ -891,7 +875,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                                 traverse(file)
                             } else {
                                 val ext = file.extension.lowercase()
-                                if (ext == "txt" || ext == "fb2" || ext == "epub" || ext == "zip") {
+                                if (ext == "txt" || ext == "fb2" || ext == "zip") {
                                     // Exclude files >= 30MB to prevent memory crashes
                                     if (file.length() < 30 * 1024 * 1024 && file.length() > 0) {
                                         filesToProcess.add(file)
@@ -913,7 +897,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 
                 if (filesToProcess.isEmpty()) {
                     withContext(Dispatchers.Main) {
-                        scanProgressText = "Книг (*.txt, *.fb2, *.epub, *.zip) не найдено в $rootPath"
+                        scanProgressText = "Книг (*.txt, *.fb2, *.zip) не найдено в $rootPath"
                     }
                     return@withContext
                 }
@@ -936,7 +920,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
                         var parsedTitle = file.nameWithoutExtension
                         var parsedAuthor = "Неизвестен"
-                        var parsedContent = "EPUB content"
+                        var parsedContent = ""
                         var parsedSeries: String? = null
                         var parsedLanguage: String? = "ru"
                         
@@ -954,11 +938,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             parsedContent = parsed.content
                             parsedSeries = parsed.series
                             parsedLanguage = parsed.language
-                        } else if (ext == "epub") {
-                            val (title, content) = parseEpub(file)
-                            parsedTitle = title
-                            parsedAuthor = "Локальный EPUB"
-                            parsedContent = content
                         } else {
                             parsedContent = readTextFile(file)
                             parsedAuthor = "Локальный TXT"
@@ -1068,7 +1047,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             var entry = zis.nextEntry
                             while (entry != null) {
                                 val entryName = entry.name.lowercase()
-                                if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".fb2.xml") || entryName.endsWith(".epub"))) {
+                                if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".fb2.xml"))) {
                                     android.util.Log.d(TAG, "Found FB2 entry in ZIP: ${entry.name} (size: ${entry.size})")
                                     fb2Found = true
                                     
@@ -1097,7 +1076,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 else -> {
-                    // Treat other files (epub, txt, etc.) or unknown types by reading directly
+                    // Treat other files (txt, etc.) or unknown types by reading directly
                     android.util.Log.d(TAG, "Reading directly from file format: $ext")
                     java.io.FileInputStream(file).use { fis ->
                         computeSha1FromStream(fis)
@@ -1219,35 +1198,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         return parseFb2DetailedText(rawText, file.nameWithoutExtension)
     }
 
-    private fun parseEpub(file: java.io.File): Pair<String, String> {
-        val content = readEpubText(file)
-        val title = file.nameWithoutExtension
-        return Pair(title, content)
-    }
 
-    private fun readEpubText(file: java.io.File): String {
-        val sb = java.lang.StringBuilder()
-        try {
-            java.io.FileInputStream(file).use { fis ->
-                java.util.zip.ZipInputStream(fis).use { zis ->
-                    var entry = zis.nextEntry
-                    while (entry != null) {
-                        if (entry.name.endsWith(".html") || entry.name.endsWith(".xhtml")) {
-                            val content = zis.bufferedReader(java.nio.charset.StandardCharsets.UTF_8).readText()
-                            val textOnly = content.replace("<[^>]*>".toRegex(), " ")
-                            sb.append(textOnly).append("\n\n")
-                        }
-                        entry = zis.nextEntry
-                    }
-                }
-            }
-        } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return sb.toString().replace("\\s+".toRegex(), " ").trim()
-    }
 
     fun extractCoverFromFb2(fb2Content: String): android.graphics.Bitmap? {
         try {
@@ -1383,32 +1334,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         return null
     }
 
-    fun extractCoverFromEpub(epubFile: java.io.File): android.graphics.Bitmap? {
-        try {
-            java.io.FileInputStream(epubFile).use { fis ->
-                java.util.zip.ZipInputStream(fis).use { zis ->
-                    var entry = zis.nextEntry
-                    while (entry != null) {
-                        val name = entry.name.lowercase()
-                        if (!entry.isDirectory && (name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png"))) {
-                            if (name.contains("cover")) {
-                                val bytes = zis.readBytes()
-                                if (bytes.isNotEmpty()) {
-                                    return android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                                }
-                            }
-                        }
-                        entry = zis.nextEntry
-                    }
-                }
-            }
-        } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-            android.util.Log.e("BookScanner", "Error extracting EPUB cover", e)
-        }
-        return null
-    }
 
     fun saveCoverToCache(context: android.content.Context, sha1: String, bitmap: android.graphics.Bitmap): String? {
         return try {
@@ -1452,13 +1377,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
-            } else if (ext == "epub") {
-                val coverBytes = com.nightread.app.service.NewEpubParser.extractCover(file)
-                if (coverBytes != null) {
-                    bitmap = android.graphics.BitmapFactory.decodeByteArray(coverBytes, 0, coverBytes.size)
-                }
-            } else if (ext == "epub") {
-                bitmap = extractCoverFromEpub(file)
             }
             
             if (bitmap != null) {

@@ -1,0 +1,47 @@
+app/src/main/java/com/nightread/app/data/SyncOrchestrator.kt:68:            // Filter for supported formats: .fb2, .fb2.zip, .zip and .epub
+app/src/main/java/com/nightread/app/data/SyncOrchestrator.kt:71:                name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip") || name.endsWith(".epub")
+app/src/main/java/com/nightread/app/data/CloudFileService.kt:43:                            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip") || name.endsWith(".epub")
+app/src/main/java/com/nightread/app/data/CleanupManager.kt:170:                if (ext == "fb2" || ext == "zip" || ext == "epub") {
+app/src/main/java/com/nightread/app/data/YandexSyncManager.kt:179:                name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".epub")
+app/src/main/java/com/nightread/app/data/YandexSyncManager.kt:552:                            if (originalName.lowercase().endsWith(".epub")) {
+app/src/main/java/com/nightread/app/data/YandexSyncManager.kt:553:                                val meta = com.nightread.app.service.NewEpubParser.parse(tempFile, originalName.substringBeforeLast("."))
+app/src/main/java/com/nightread/app/data/YandexSyncManager.kt:561:                                    val coverBytes = com.nightread.app.service.NewEpubParser.extractCover(tempFile)
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:362:                var parsedContent = "EPUB content"
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:389:                } else if (ext == "epub") {
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:390:                    val meta = com.nightread.app.service.NewEpubParser.parse(localFile, fileName.substringBeforeLast("."))
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:394:                        parsedContent = com.nightread.app.service.NewEpubParser.extractText(localFile)
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:400:                        val (title, content) = parseEpub(localFile)
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:402:                        parsedAuthor = "Локальный EPUB"
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:894:                                if (ext == "txt" || ext == "fb2" || ext == "epub" || ext == "zip") {
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:916:                        scanProgressText = "Книг (*.txt, *.fb2, *.epub, *.zip) не найдено в $rootPath"
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:939:                        var parsedContent = "EPUB content"
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:957:                        } else if (ext == "epub") {
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:958:                            val (title, content) = parseEpub(file)
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:960:                            parsedAuthor = "Локальный EPUB"
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:1071:                                if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".fb2.xml") || entryName.endsWith(".epub"))) {
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:1100:                    // Treat other files (epub, txt, etc.) or unknown types by reading directly
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:1222:    private fun parseEpub(file: java.io.File): Pair<String, String> {
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:1223:        val content = readEpubText(file)
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:1228:    private fun readEpubText(file: java.io.File): String {
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:1386:    fun extractCoverFromEpub(epubFile: java.io.File): android.graphics.Bitmap? {
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:1388:            java.io.FileInputStream(epubFile).use { fis ->
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:1408:            android.util.Log.e("BookScanner", "Error extracting EPUB cover", e)
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:1455:            } else if (ext == "epub") {
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:1456:                val coverBytes = com.nightread.app.service.NewEpubParser.extractCover(file)
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:1460:            } else if (ext == "epub") {
+app/src/main/java/com/nightread/app/ui/BookViewModel.kt:1461:                bitmap = extractCoverFromEpub(file)
+app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:815:            "epub" -> {
+app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:816:                com.nightread.app.service.NewEpubParser.extractText(file)
+app/src/main/java/com/nightread/app/service/AutoDiscoveryService.kt:54:            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+app/src/main/java/com/nightread/app/service/AutoDiscoveryService.kt:55:            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+app/src/main/java/com/nightread/app/service/AutoDiscoveryService.kt:67:                            if (file.isFile && (file.extension.equals("fb2", true) || file.extension.equals("zip", true) || file.extension.equals("epub", true))) {
+app/src/main/java/com/nightread/app/service/NewBookScanner.kt:574:        } else if (ext == "epub") {
+app/src/main/java/com/nightread/app/service/NewBookScanner.kt:604:                val metadata = NewEpubParser.parse(file, file.nameWithoutExtension) ?: return
+app/src/main/java/com/nightread/app/service/NewBookScanner.kt:607:                val coverBytes = NewEpubParser.extractCover(file)
+app/src/main/java/com/nightread/app/service/NewBookScanner.kt:630:                Log.e(TAG, "Error handling epub file: ${file.absolutePath}", e)
+app/src/main/java/com/nightread/app/service/NewBookScanner.kt:790:                    if (ext == "fb2" || ext == "zip" || ext == "epub") {
+app/src/main/java/com/nightread/app/service/NewEpubParser.kt:7:object NewEpubParser {
+app/src/main/java/com/nightread/app/service/NewEpubParser.kt:8:    private const val TAG = "NewEpubParser"
+app/src/main/java/com/nightread/app/service/NewEpubParser.kt:51:            Log.e(TAG, "Error parsing epub: ${file.absolutePath}", e)
+app/src/main/java/com/nightread/app/service/NewEpubParser.kt:105:            Log.e(TAG, "Error extracting text from epub: ${file.absolutePath}", e)
+app/src/main/java/com/nightread/app/service/NewEpubParser.kt:193:            Log.e(TAG, "Error extracting cover from epub: ${file.absolutePath}", e)

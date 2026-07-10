@@ -176,7 +176,7 @@ class YandexSyncManager(private val context: Context) {
             // Фильтруем только поддерживаемые форматы книг
             val cloudBooks = cloudItems.filter {
                 val name = it.name.lowercase()
-                name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".epub")
+                name.endsWith(".fb2") || name.endsWith(".fb2.zip")
             }
             val booksOnDisk = cloudBooks.size
             Log.d(TAG, "Найдено книг на диске: $booksOnDisk")
@@ -549,40 +549,17 @@ class YandexSyncManager(private val context: Context) {
                             var coverPath: String? = null
                             val truncatedAnnotation: String?
                             
-                            if (originalName.lowercase().endsWith(".epub")) {
-                                val meta = com.nightread.app.service.NewEpubParser.parse(tempFile, originalName.substringBeforeLast("."))
-                                if (meta != null) {
-                                    titleText = meta.title
-                                    authorText = meta.author
-                                    seriesText = meta.series
-                                    seriesIdx = meta.seriesIndex
-                                    langText = meta.language
-                                    truncatedAnnotation = meta.annotation?.take(500)
-                                    val coverBytes = com.nightread.app.service.NewEpubParser.extractCover(tempFile)
-                                    if (coverBytes != null) {
-                                        coverPath = com.nightread.app.service.NewCoverExtractor.saveCoverBytes(coverBytes, sha1, context)
-                                    }
-                                } else {
-                                    titleText = originalName.substringBeforeLast(".")
-                                    authorText = "Unknown Author"
-                                    seriesText = null
-                                    seriesIdx = null
-                                    langText = null
-                                    truncatedAnnotation = null
-                                }
-                            } else {
-                                // Decode fb2Bytes safely to String respecting XML and Russian Windows-1251 encoding
-                                val content = decodeBytesToString(fb2Bytes)
-                                // Parse FB2 correctly to get metadata
-                                val meta = NewFb2Parser.parse(content, originalName)
-                                titleText = meta.title
-                                authorText = meta.author
-                                seriesText = meta.series
-                                seriesIdx = meta.seriesIndex
-                                langText = meta.language
-                                truncatedAnnotation = meta.annotation?.take(500)
-                                coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
-                            }
+                            // Decode fb2Bytes safely to String respecting XML and Russian Windows-1251 encoding
+                            val content = decodeBytesToString(fb2Bytes)
+                            // Parse FB2 correctly to get metadata
+                            val meta = NewFb2Parser.parse(content, originalName)
+                            titleText = meta.title
+                            authorText = meta.author
+                            seriesText = meta.series
+                            seriesIdx = meta.seriesIndex
+                            langText = meta.language
+                            truncatedAnnotation = meta.annotation?.take(500)
+                            coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
                             
                             val localFile = File(booksDirectory, originalName)
                             tempFile.copyTo(localFile, overwrite = true)
