@@ -72,7 +72,7 @@ object PageSplitter {
             val titleEnd = endTag
             if (titleEnd > titleStart) {
                 spannable.setSpan(
-                    AbsoluteSizeSpan((basePaintSize * 1.3f).toInt()),
+                    AbsoluteSizeSpan((basePaintSize * 1.5f).toInt()),
                     titleStart,
                     titleEnd,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -83,10 +83,14 @@ object PageSplitter {
                     titleEnd,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
+                var alignStart = startTag
+                if (alignStart > 0 && spannable[alignStart - 1] == '') {
+                    alignStart--
+                }
                 spannable.setSpan(
                     AlignmentSpan.Standard(Layout.Alignment.ALIGN_CENTER),
-                    titleStart,
-                    titleEnd,
+                    alignStart,
+                    endTag + "[/CHAPTER]".length,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
             }
@@ -115,7 +119,7 @@ object PageSplitter {
         val containsSoftHyphen = text.contains('\u00AD')
         Log.d(TAG, "splitText: text contains soft hyphens: $containsSoftHyphen (count: ${text.count { it == '\u00AD' }})")
         
-        val formattedText = text
+        val formattedText = formatChapterSpans(text, paint.textSize)
         
         // Find paragraph start
         var start = targetOffset
@@ -179,7 +183,7 @@ object PageSplitter {
         val containsSoftHyphen = text.contains('\u00AD')
         Log.d(TAG, "splitTextProgressive: text contains soft hyphens: $containsSoftHyphen (count: ${text.count { it == '\u00AD' }})")
 
-        val formattedText = text
+        val formattedText = formatChapterSpans(text, paint.textSize)
         var start = 0
         val textLength = formattedText.length
         val alignmentVal = when (alignment) {

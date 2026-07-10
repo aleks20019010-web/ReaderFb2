@@ -24,6 +24,7 @@ import com.nightread.app.data.SettingsManager
 import com.nightread.app.service.Fb2Parser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -145,7 +146,7 @@ class ReadingActivity : AppCompatActivity() {
         lastPageAnimation = SettingsManager.getPageAnimation(this)
 
         lifecycleScope.launch {
-            SettingsManager.settingsChanged.collect {
+            SettingsManager.settingsChanged.collectLatest {
                 updateSystemBarsColors()
                 updatePageTransformer()
                 // Check if layout-affecting settings changed
@@ -158,6 +159,10 @@ class ReadingActivity : AppCompatActivity() {
                                    newFontFamily != lastFontFamily || 
                                    newFontWeight != lastFontWeight ||
                                    newLineSpacing != lastLineSpacing
+
+                if (layoutChanged) {
+                    kotlinx.coroutines.delay(300) // Debounce fast slider changes
+                }
 
                 android.util.Log.d("ReadingActivity", "Settings changed. Layout changed: $layoutChanged")
 
@@ -231,7 +236,7 @@ class ReadingActivity : AppCompatActivity() {
             }
 
             try {
-                if (false && BookCache.sha1 == sha1 && BookCache.content.isNotEmpty()) {
+                if (false && false && BookCache.sha1 == sha1 && BookCache.content.isNotEmpty()) {
                     tvLoadingProgress.text = "Книга загружена из кэша..."
                     bookContent = BookCache.content
                 } else {
@@ -420,9 +425,20 @@ class ReadingActivity : AppCompatActivity() {
         var isFirstRender = true
 
         val textToSplit = if (hyphenationEnabled) {
-            com.nightread.app.ui.HyphenationPatterns.load("ru")
-            com.nightread.app.ui.HyphenatorHelper.hyphenate(bookContent)
+            if (BookCache.sha1 == this.sha1 && BookCache.isHyphenated == true && BookCache.hyphenatedContent != null) {
+                BookCache.hyphenatedContent!!
+            } else {
+                val hyphenated = withContext(Dispatchers.Default) {
+                    com.nightread.app.ui.HyphenationPatterns.load("ru")
+                    com.nightread.app.ui.HyphenatorHelper.hyphenate(bookContent)
+                }
+                BookCache.hyphenatedContent = hyphenated
+                BookCache.isHyphenated = true
+                hyphenated
+            }
         } else {
+            BookCache.isHyphenated = false
+            BookCache.hyphenatedContent = null
             bookContent
         }
 
