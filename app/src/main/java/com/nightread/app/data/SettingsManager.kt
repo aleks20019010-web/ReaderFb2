@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 
 object SettingsManager {
     private const val PREFS_NAME = "reader_prefs"
-    
+
     const val KEY_THEME = "theme"
     const val KEY_PREVIOUS_THEME = "previous_theme"
     const val KEY_FONT_SIZE = "font_size"
@@ -28,9 +28,9 @@ object SettingsManager {
 
     private val _settingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val settingsChanged: SharedFlow<Unit> = _settingsChanged.asSharedFlow()
-    
+
     private var prefs: SharedPreferences? = null
-    
+
     // Cache variables
     private var cachedTheme: String? = null
     private var cachedPrevTheme: String? = null
@@ -51,21 +51,7 @@ object SettingsManager {
     private fun getPrefs(context: Context): SharedPreferences {
         if (prefs == null) {
             prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        
-    fun isHyphenationEnabled(context: Context): Boolean {
-        if (cachedHyphenationEnabled == null) {
-            cachedHyphenationEnabled = getPrefs(context).getBoolean(KEY_HYPHENATION_ENABLED, true)
         }
-        return cachedHyphenationEnabled!!
-    }
-
-    fun setHyphenationEnabled(context: Context, enabled: Boolean) {
-        if (cachedHyphenationEnabled == enabled) return
-        cachedHyphenationEnabled = enabled
-        getPrefs(context).edit().putBoolean(KEY_HYPHENATION_ENABLED, enabled).apply()
-        notifyChanged()
-    }
-}
         return prefs!!
     }
 
@@ -225,6 +211,7 @@ object SettingsManager {
         getPrefs(context).edit().putFloat(KEY_LINE_SPACING, spacing).apply()
         notifyChanged()
     }
+
     fun getBrightness(context: Context): Float {
         if (cachedBrightness == null) {
             cachedBrightness = getPrefs(context).getFloat(KEY_BRIGHTNESS, -1f)
@@ -236,7 +223,6 @@ object SettingsManager {
         if (cachedBrightness == brightness) return
         cachedBrightness = brightness
         getPrefs(context).edit().putFloat(KEY_BRIGHTNESS, brightness).apply()
-        // notifyChanged() // Usually brightness doesn't need a UI redraw, handled directly
     }
 
     fun isFirestoreSyncEnabled(context: Context): Boolean {
@@ -280,7 +266,6 @@ object SettingsManager {
         getPrefs(context).edit().putString(KEY_PAGE_ANIMATION, mode).apply()
         notifyChanged()
     }
-
 
     fun isHyphenationEnabled(context: Context): Boolean {
         if (cachedHyphenationEnabled == null) {
