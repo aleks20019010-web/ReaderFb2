@@ -20,7 +20,7 @@ object PageSplitter {
     private const val TAG = "PageSplitter"
 
     data class PageResult(
-        var pages: MutableList<String> = mutableListOf(),
+        var pages: MutableList<CharSequence> = mutableListOf(),
         var offsets: MutableList<Int> = mutableListOf(),
         var isFinished: Boolean = false
     )
@@ -102,20 +102,20 @@ object PageSplitter {
      * This is useful for immediately jumping to a page before full pagination completes.
      */
     suspend fun getPageForOffset(
-        text: String,
+        text: CharSequence,
         targetOffset: Int,
         availableWidth: Int,
         availableHeight: Int,
         paint: TextPaint,
         lineSpacing: Float,
         alignment: String = "justify"
-    ): Pair<Int, String> = withContext(Dispatchers.Default) {
+    ): Pair<Int, CharSequence> = withContext(Dispatchers.Default) {
         if (text.isEmpty() || availableWidth <= 0 || availableHeight <= 0) return@withContext Pair(0, "Документ пуст.")
         
         val containsSoftHyphen = text.contains('\u00AD')
         Log.d(TAG, "splitText: text contains soft hyphens: $containsSoftHyphen (count: ${text.count { it == '\u00AD' }})")
         
-        val formattedText = formatChapterSpans(text, paint.textSize)
+        val formattedText = text
         
         // Find paragraph start
         var start = targetOffset
@@ -153,11 +153,11 @@ object PageSplitter {
         var end = tempLayout.getLineEnd(fitLineCount - 1)
         if (end <= start) end = (start + 1).coerceAtMost(textLength)
         
-        return@withContext Pair(start, formattedText.substring(start, end).toString())
+        return@withContext Pair(start, formattedText.subSequence(start, end))
     }
 
     suspend fun splitTextProgressive(
-        text: String,
+        text: CharSequence,
         availableWidth: Int,
         availableHeight: Int,
         paint: TextPaint,
@@ -178,7 +178,7 @@ object PageSplitter {
         val containsSoftHyphen = text.contains('\u00AD')
         Log.d(TAG, "splitTextProgressive: text contains soft hyphens: $containsSoftHyphen (count: ${text.count { it == '\u00AD' }})")
 
-        val formattedText = formatChapterSpans(text, paint.textSize)
+        val formattedText = text
         var start = 0
         val textLength = formattedText.length
         val alignmentVal = when (alignment) {
@@ -249,7 +249,7 @@ object PageSplitter {
 
             if (foundChapterBreakIdx != -1) {
                 end = foundChapterBreakIdx
-                result.pages.add(formattedText.substring(start, end).toString())
+                result.pages.add(formattedText.subSequence(start, end))
                 start = foundChapterBreakIdx + 1
             } else {
                 if (end < textLength) {
@@ -264,7 +264,7 @@ object PageSplitter {
                         end = spaceIndex + 1
                     }
                 }
-                result.pages.add(formattedText.substring(start, end).toString())
+                result.pages.add(formattedText.subSequence(start, end))
                 start = end
             }
 
@@ -284,7 +284,7 @@ object PageSplitter {
     }
 
     suspend fun splitText(
-        text: String,
+        text: CharSequence,
         availableWidth: Int,
         availableHeight: Int,
         paint: TextPaint,

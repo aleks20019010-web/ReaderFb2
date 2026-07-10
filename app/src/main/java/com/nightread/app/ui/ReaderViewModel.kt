@@ -25,8 +25,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private val _bookState = MutableStateFlow<BookEntity?>(null)
     val bookState: StateFlow<BookEntity?> = _bookState.asStateFlow()
 
-    private val _pagesState = MutableStateFlow<List<String>>(emptyList())
-    val pagesState: StateFlow<List<String>> = _pagesState.asStateFlow()
+    private val _pagesState = MutableStateFlow<List<CharSequence>>(emptyList())
+    val pagesState: StateFlow<List<CharSequence>> = _pagesState.asStateFlow()
 
     private val _currentPage = MutableStateFlow(0)
     val currentPage: StateFlow<Int> = _currentPage.asStateFlow()

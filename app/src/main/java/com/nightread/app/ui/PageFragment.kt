@@ -19,11 +19,11 @@ import com.nightread.app.data.SettingsManager
 import kotlinx.coroutines.launch
 
 class PageFragment : Fragment() {
-    private var pageText: String = ""
+    private var pageText: CharSequence = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        pageText = arguments?.getString("PAGE_TEXT") ?: ""
+        pageText = arguments?.getCharSequence("PAGE_TEXT") ?: ""
     }
 
     @Suppress("WrongConstant")
@@ -32,25 +32,11 @@ class PageFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        val context = requireContext()
         val view = inflater.inflate(R.layout.fragment_page, container, false)
         val root = view.findViewById<FrameLayout>(R.id.rootContainer)
         val textView = view.findViewById<TextView>(R.id.textView)
         
-        textView.text = pageText
-
         updateStyle(root, textView)
-
-        // Dynamic padding adjustment under display cutout / camera notch
-        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
-            val displayCutoutInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
-            val statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
-            val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
-            
-            // Set top padding dynamically, keep left, right, bottom from XML
-            textView.setPadding(textView.paddingLeft, topInset, textView.paddingRight, textView.paddingBottom)
-            insets
-        }
 
         return view
     }
@@ -75,7 +61,7 @@ class PageFragment : Fragment() {
         val fontSize = SettingsManager.getFontSize(context)
         val themeName = SettingsManager.getTheme(context)
         val fontFamily = SettingsManager.getFontFamily(context)
-        val fontWeight = SettingsManager.getFontWeight(context)
+        val numericWeight = SettingsManager.getFontWeightAsInt(context)
         val lineSpacingMultiplier = SettingsManager.getLineSpacing(context)
         
         val (bgColor, textColor) = when (themeName) {
@@ -92,30 +78,12 @@ class PageFragment : Fragment() {
         textView.textSize = fontSize
         textView.setTextColor(Color.parseColor(textColor))
         
-        val baseTypeface = when (fontFamily) {
-            "Roboto" -> android.graphics.Typeface.SANS_SERIF
-            "Times New Roman" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
-            "Georgia" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
-            "Merriweather" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
-            "OpenDyslexic" -> android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.NORMAL)
-            "Monospace" -> android.graphics.Typeface.MONOSPACE
-            else -> android.graphics.Typeface.DEFAULT
-        }
-        
-        val numericWeight = SettingsManager.getFontWeightAsInt(context)
-        val style = if (numericWeight >= 600) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-            textView.typeface = android.graphics.Typeface.create(baseTypeface, numericWeight, false)
-        } else {
-            textView.typeface = android.graphics.Typeface.create(baseTypeface, style)
-        }
+        textView.typeface = FontUtils.createTypeface(fontFamily, numericWeight)
 
         textView.setLineSpacing(0f, lineSpacingMultiplier)
         
-        val formatted = PageSplitter.formatChapterSpans(pageText, textView.textSize)
-        android.util.Log.d("PageFragment", "updateStyle: setting text. contains soft hyphens: ${formatted.contains('\u00AD')} (count: ${formatted.count { it == '\u00AD' }})")
-        textView.text = formatted
+        android.util.Log.d("PageFragment", "updateStyle: setting text. contains soft hyphens: ${pageText.contains('\u00AD')} (count: ${pageText.count { it == '\u00AD' }})")
+        textView.text = pageText
         
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             textView.breakStrategy = android.text.Layout.BREAK_STRATEGY_BALANCED
@@ -127,10 +95,10 @@ class PageFragment : Fragment() {
     }
 
     companion object {
-        fun newInstance(pageText: String): PageFragment {
+        fun newInstance(pageText: CharSequence): PageFragment {
             val fragment = PageFragment()
             val args = Bundle().apply {
-                putString("PAGE_TEXT", pageText)
+                putCharSequence("PAGE_TEXT", pageText)
             }
             fragment.arguments = args
             return fragment

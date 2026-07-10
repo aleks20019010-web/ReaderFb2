@@ -156,7 +156,10 @@ class ReadingActivity : AppCompatActivity() {
                 
                 val layoutChanged = newFontSize != lastFontSize || 
                                    newFontFamily != lastFontFamily || 
+                                   newFontWeight != lastFontWeight ||
                                    newLineSpacing != lastLineSpacing
+
+                android.util.Log.d("ReadingActivity", "Settings changed. Layout changed: $layoutChanged")
 
                 lastFontSize = newFontSize
                 lastFontFamily = newFontFamily
@@ -341,33 +344,15 @@ class ReadingActivity : AppCompatActivity() {
             textSize = SettingsManager.getFontSize(this@ReadingActivity) * resources.displayMetrics.density
             val family = SettingsManager.getFontFamily(this@ReadingActivity)
             val numericWeight = SettingsManager.getFontWeightAsInt(this@ReadingActivity)
-
-            val baseTypeface = when (family) {
-                "Roboto" -> android.graphics.Typeface.SANS_SERIF
-                "Times New Roman" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
-                "Georgia" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
-                "Merriweather" -> android.graphics.Typeface.create("serif", android.graphics.Typeface.NORMAL)
-                "OpenDyslexic" -> android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.NORMAL)
-                "Monospace" -> android.graphics.Typeface.MONOSPACE
-                else -> android.graphics.Typeface.DEFAULT
-            }
-
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                typeface = android.graphics.Typeface.create(baseTypeface, numericWeight, false)
-            } else {
-                val style = if (numericWeight >= 600) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL
-                typeface = android.graphics.Typeface.create(baseTypeface, style)
-            }
+            typeface = FontUtils.createTypeface(family, numericWeight)
         }
 
-        val extraHorizontalMargin = 0
-        val paddingHorizontal = (26 * resources.displayMetrics.density).toInt() + (extraHorizontalMargin * 2)
         val paddingVertical = (8 * resources.displayMetrics.density).toInt() + getTopInset()
         
-        val availableWidth = width - paddingHorizontal
+        val availableWidth = width
         val availableHeight = height - paddingVertical
 
-        val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}"
+        val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getFontWeightAsInt(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}"
         if (BookCache.sha1 == sha1 && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {
             splitResult = BookCache.splitResult!!
             isSplittingFinished = true
@@ -847,7 +832,7 @@ class ReadingActivity : AppCompatActivity() {
         if (currentIdx >= 0 && currentIdx < splitResult.offsets.size && currentIdx < splitResult.pages.size) {
             val charOffset = splitResult.offsets[currentIdx]
             val pageText = splitResult.pages[currentIdx]
-            val snippet = if (pageText.length > 80) pageText.take(80) + "..." else pageText
+            val snippet = if (pageText.length > 80) pageText.take(80).toString() + "..." else pageText.toString()
 
             lifecycleScope.launch(Dispatchers.IO) {
                 val db = com.nightread.app.data.BookmarkDatabase.getDatabase(this@ReadingActivity)
