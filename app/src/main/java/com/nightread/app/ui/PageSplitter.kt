@@ -137,7 +137,7 @@ object PageSplitter {
             .setAlignment(alignmentVal)
             .setLineSpacing(0f, lineSpacing)
             .setIncludePad(false)
-            .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_BALANCED)
+            .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY)
             .setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_FULL)
             
             .build()
@@ -206,8 +206,9 @@ object PageSplitter {
                     .setAlignment(alignmentVal)
                     .setLineSpacing(0f, lineSpacing)
                     .setIncludePad(false)
-                    .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_BALANCED)
+                    .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY)
                     .setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_FULL)
+                    .apply { if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) { setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD) } }
                     .build()
 
                 var fitsAll = true

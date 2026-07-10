@@ -179,6 +179,31 @@ class ReadingActivity : AppCompatActivity() {
         }
 
         loadBook()
+        
+        var lastWidth = 0
+        var lastHeight = 0
+        viewPager.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            val w = right - left
+            val h = bottom - top
+            if (w > 0 && h > 0 && (w != lastWidth || h != lastHeight) && lastWidth != 0 && lastHeight != 0) {
+                lastWidth = w
+                lastHeight = h
+                if (bookContent.isNotEmpty() && isSplittingFinished) {
+                    val currentIdx = viewPager.currentItem
+                    val targetOffset = if (currentIdx >= 0 && currentIdx < splitResult.offsets.size) {
+                        splitResult.offsets[currentIdx]
+                    } else {
+                        -1
+                    }
+                    lifecycleScope.launch {
+                        recalculatePages(targetOffset)
+                    }
+                }
+            } else if (w > 0 && h > 0) {
+                lastWidth = w
+                lastHeight = h
+            }
+        }
     }
 
     private fun loadBook() {
@@ -206,7 +231,7 @@ class ReadingActivity : AppCompatActivity() {
             }
 
             try {
-                if (BookCache.sha1 == sha1 && BookCache.content.isNotEmpty()) {
+                if (false && BookCache.sha1 == sha1 && BookCache.content.isNotEmpty()) {
                     tvLoadingProgress.text = "Книга загружена из кэша..."
                     bookContent = BookCache.content
                 } else {
@@ -408,7 +433,7 @@ class ReadingActivity : AppCompatActivity() {
                 availableHeight = availableHeight,
                 paint = paint,
                 lineSpacing = SettingsManager.getLineSpacing(this@ReadingActivity),
-                alignment = "justify"
+                alignment = "left"
             ) { result ->
                 val oldCount = splitResult.pages.size
                 splitResult = result
@@ -452,9 +477,9 @@ class ReadingActivity : AppCompatActivity() {
     }
 
     private fun getTopInset(): Int {
-        val insets = WindowInsetsCompat.toWindowInsetsCompat(window.decorView.rootWindowInsets, window.decorView)
-        val displayCutoutInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
-        val statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+        val insets = androidx.core.view.ViewCompat.getRootWindowInsets(window.decorView) ?: return 0
+        val displayCutoutInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.displayCutout())
+        val statusBarInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars())
         return maxOf(statusBarInsets.top, displayCutoutInsets.top)
     }
 

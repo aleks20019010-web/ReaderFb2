@@ -100,7 +100,7 @@ class PageFragment : Fragment() {
         textView.text = pageText
         
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            textView.breakStrategy = android.text.Layout.BREAK_STRATEGY_BALANCED
+            textView.breakStrategy = android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY
             textView.hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
