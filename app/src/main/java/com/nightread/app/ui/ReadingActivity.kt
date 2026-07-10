@@ -241,6 +241,14 @@ class ReadingActivity : AppCompatActivity() {
         tvLoadingProgress.visibility = View.VISIBLE
         tvLoadingProgress.text = "Загрузка книги..."
 
+        // Check cache before loading
+        if (BookCache.sha1 != sha1) {
+            Log.i("READING_DEBUG", "SHA-1 mismatch: Cache has '${BookCache.sha1}', opening '$sha1'. Clearing BookCache.")
+            BookCache.clear()
+        } else {
+            Log.i("READING_DEBUG", "SHA-1 matches cache: '$sha1'. Reusing BookCache.")
+        }
+
         lifecycleScope.launch {
             val db = AppDatabase.getDatabase(this@ReadingActivity)
             val book = withContext(Dispatchers.IO) {
@@ -260,8 +268,9 @@ class ReadingActivity : AppCompatActivity() {
             }
 
             try {
-                if (false && false && BookCache.sha1 == sha1 && BookCache.content.isNotEmpty()) {
+                if (BookCache.sha1 == sha1 && BookCache.content.isNotEmpty()) {
                     tvLoadingProgress.text = "Книга загружена из кэша..."
+                    Log.i("READING_DEBUG", "Reusing cached book content for SHA-1: $sha1")
                     bookContent = BookCache.content
                 } else {
                     val filePath = book.filePath
@@ -296,6 +305,7 @@ class ReadingActivity : AppCompatActivity() {
                     
                     BookCache.sha1 = sha1
                     BookCache.content = bookContent
+                    Log.i("READING_DEBUG", "Successfully loaded book from disk and updated BookCache for SHA-1: $sha1")
                 }
 
                 // Wait for view to be laid out
