@@ -18,9 +18,10 @@
         android:gravity="top|start"
         android:textAlignment="viewStart"
         android:includeFontPadding="false"
-        android:breakStrategy="simple"
-        android:hyphenationFrequency="none"
+        android:breakStrategy="balanced"
+        android:hyphenationFrequency="full"
         tools:targetApi="o"
         android:justificationMode="none"
+        android:lineSpacingExtra="0dp"
         android:scrollHorizontally="false" />
 </FrameLayout>
