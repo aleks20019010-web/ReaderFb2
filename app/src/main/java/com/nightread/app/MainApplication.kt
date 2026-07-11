@@ -2,6 +2,7 @@ package com.nightread.app
 
 import android.app.Application
 import android.util.Log
+import android.content.Context
 import com.nightread.app.data.SettingsManager
 import com.nightread.app.data.ThemeManager
 import com.nightread.app.service.AutoDiscoveryService
@@ -10,6 +11,8 @@ import com.nightread.app.service.ThemeUpdateReceiver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.PrintWriter
+import java.io.StringWriter
 
 class MainApplication : Application() {
     
@@ -17,6 +20,29 @@ class MainApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            try {
+                val sw = StringWriter()
+                val pw = PrintWriter(sw)
+                throwable.printStackTrace(pw)
+                val crashLog = sw.toString()
+                
+                val prefs = getSharedPreferences("crash_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putString("last_crash", crashLog).commit()
+            } catch (e: Exception) {
+                // Ignore
+            }
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
+
+        val prefs = getSharedPreferences("crash_prefs", Context.MODE_PRIVATE)
+        if (prefs.contains("last_crash")) {
+            // If there's a crash, we might want to skip heavy initialization to allow SplashActivity to show it.
+            return
+        }
+
         Log.d("MainApplication", "MainApplication onCreate: Initializing app.")
         
         // Reset sync state and cancel pending sync tasks if they were interrupted

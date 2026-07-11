@@ -37,6 +37,31 @@ class SplashActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        val prefs = getSharedPreferences("crash_prefs", android.content.Context.MODE_PRIVATE)
+        val lastCrash = prefs.getString("last_crash", null)
+        if (lastCrash != null) {
+            prefs.edit().remove("last_crash").apply()
+            
+            setContentView(R.layout.activity_splash)
+            tvStatus = findViewById(R.id.tv_status)
+            tvStatus.text = "Критическая ошибка"
+            
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Приложение было закрыто из-за ошибки")
+                .setMessage(lastCrash)
+                .setPositiveButton("Скопировать") { _, _ ->
+                    val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("Crash log", lastCrash)
+                    clipboard.setPrimaryClip(clip)
+                    finish()
+                }
+                .setNegativeButton("Закрыть") { _, _ -> finish() }
+                .setCancelable(false)
+                .show()
+            return
+        }
+
         setContentView(R.layout.activity_splash)
 
         // Enable Edge-to-Edge feel
