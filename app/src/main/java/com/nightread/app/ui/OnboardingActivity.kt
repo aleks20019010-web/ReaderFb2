@@ -96,10 +96,10 @@ class OnboardingActivity : AppCompatActivity() {
         layoutParams.setMargins(8, 0, 8, 0)
 
         for (i in indicators.indices) {
-            indicators[i] = ImageView(applicationContext)
+            indicators[i] = ImageView(this)
             indicators[i]?.setImageDrawable(
                 ContextCompat.getDrawable(
-                    applicationContext,
+                    this,
                     R.drawable.indicator_inactive
                 )
             )
@@ -115,14 +115,14 @@ class OnboardingActivity : AppCompatActivity() {
             if (i == index) {
                 imageView.setImageDrawable(
                     ContextCompat.getDrawable(
-                        applicationContext,
+                        this,
                         R.drawable.indicator_active
                     )
                 )
             } else {
                 imageView.setImageDrawable(
                     ContextCompat.getDrawable(
-                        applicationContext,
+                        this,
                         R.drawable.indicator_inactive
                     )
                 )

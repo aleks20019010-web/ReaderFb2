@@ -118,9 +118,7 @@ android {
 
 androidComponents {
   beforeVariants { variantBuilder ->
-    val isCi = System.getenv("CI") == "true"
-    val forceRelease = System.getenv("ENABLE_RELEASE_BUILD") == "true"
-    if (variantBuilder.buildType == "release" && !isCi && !forceRelease) {
+    if (variantBuilder.buildType == "release") {
       variantBuilder.enable = false
     }
   }

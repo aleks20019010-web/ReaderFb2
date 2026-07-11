@@ -39,8 +39,7 @@ class MainApplication : Application() {
 
         val prefs = getSharedPreferences("crash_prefs", Context.MODE_PRIVATE)
         if (prefs.contains("last_crash")) {
-            // If there's a crash, we might want to skip heavy initialization to allow SplashActivity to show it.
-            return
+            // If there's a crash, we still want to initialize essentials like ThemeManager
         }
 
         Log.d("MainApplication", "MainApplication onCreate: Initializing app.")

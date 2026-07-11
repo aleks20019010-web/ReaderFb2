@@ -1,0 +1,647 @@
+Initialized native services in: /opt/gradle/.gradle/native
+Initialized jansi services in: /opt/gradle/.gradle/native
+Removing 0 daemon stop events from registry
+Previous Daemon (320) stopped at Sat Jul 11 19:58:01 UTC 2026 other compatible daemons were started and after being idle for 0 minutes and not recently used
+Starting a Gradle Daemon, 2 busy and 1 stopped Daemons could not be reused, use --status for details
+Starting process 'Gradle build daemon'. Working directory: /opt/gradle/.gradle/daemon/9.3.1 Command: /usr/lib/jvm/temurin-21-jdk-amd64/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-opens=java.base/java.nio.charset=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.xml/javax.xml.namespace=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED -Xmx4g -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant -cp /opt/gradle/gradle-9.3.1/lib/gradle-daemon-main-9.3.1.jar -javaagent:/opt/gradle/gradle-9.3.1/lib/agents/gradle-instrumentation-agent-9.3.1.jar org.gradle.launcher.daemon.bootstrap.GradleDaemon 9.3.1
+Successfully started process 'Gradle build daemon'
+An attempt to start the daemon took 3.907 secs.
+The client will now receive all logging from the daemon (pid: 1138). The daemon log file: /opt/gradle/.gradle/daemon/9.3.1/daemon-1138.out.log
+Starting build in new daemon [memory: 4 GiB]
+Using 4 worker leases.
+Operational build model parameters: {requiresToolingModels=false, parallelProjectExecution=true, configureOnDemand=false, configurationCache=true, configurationCacheParallelStore=false, configurationCacheParallelLoad=true, isolatedProjects=false, parallelProjectConfiguration=false, intermediateModelCache=false, parallelToolingApiActions=true, invalidateCoupledProjects=false, modelAsProjectDependency=false, resilientModelBuilding=false}
+Received JVM installation metadata from '/usr/lib/jvm/temurin-21-jdk-amd64': {JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64, JAVA_VERSION=21.0.11, JAVA_VENDOR=Eclipse Adoptium, RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=21.0.11+10-LTS, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=21.0.11+10-LTS, VM_VENDOR=Eclipse Adoptium, OS_ARCH=amd64}
+Encryption key source: default Gradle keystore (pkcs12)
+Calculating task graph as no cached configuration is available for tasks: :app:testDebugUnitTest --tests com.nightread.app.OnboardingActivityTest
+Watching the file system is configured to be enabled if available
+Unable to list file systems to check whether they can be watched. Disabling watching. Reason: Could not query file systems: could not open mount file (errno 2: No such file or directory)
+File system watching is inactive
+Starting Build
+Resolved plugin [id: 'org.gradle.toolchains.foojay-resolver-convention', version: '1.0.0']
+Settings evaluated using settings file '/app/applet/settings.gradle.kts'.
+Using local directory build cache for the root build (location = /opt/gradle/.gradle/caches/build-cache-1, remove unused entries = after 7 days).
+Projects loaded. Root project using build file '/app/applet/build.gradle.kts'.
+Included projects: [root project 'My Application', project ':app']
+
+> Configure project :
+Evaluating root project 'My Application' using build file '/app/applet/build.gradle.kts'.
+Resolved plugin [id: 'com.android.application', version: '9.1.1', apply: false]
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.compose', version: '2.2.10', apply: false]
+Resolved plugin [id: 'com.google.devtools.ksp', version: '2.3.5', apply: false]
+Resolved plugin [id: 'io.github.takahirom.roborazzi', version: '1.59.0', apply: false]
+Resolved plugin [id: 'com.google.android.libraries.mapsplatform.secrets-gradle-plugin', version: '2.0.1', apply: false]
+
+> Configure project :app
+Evaluating project ':app' using build file '/app/applet/app/build.gradle.kts'.
+Resolved plugin [id: 'com.android.application', version: '9.1.1']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.compose', version: '2.2.10']
+Resolved plugin [id: 'com.google.devtools.ksp', version: '2.3.5']
+Resolved plugin [id: 'io.github.takahirom.roborazzi', version: '1.59.0']
+Resolved plugin [id: 'com.google.android.libraries.mapsplatform.secrets-gradle-plugin', version: '2.0.1']
+Build 6257c5a7-c665-4df5-adec-dec8ca7bc73c is started
+Using default execution profile
+--- SIGNING CONFIG DEBUG ---
+System.getenv("KEYSTORE_PATH") = null
+System.getenv("KEYSTORE_PASSWORD") is empty = true
+System.getenv("KEY_ALIAS") = null
+Resolved storeFileObj path = /app/applet/app/release.keystore
+Resolved storeFileObj exists = false
+Root project files: [fix_imports.sh, app, temp_reading.txt, ResizePng.class, fix_night_colors2.sh, build.gradle.kts, test.bin, ResizePng.java, gradle, epub_search2.txt, log.txt, assets, app_crash_log.txt, test_log.txt, test2.sh, gradlew, gradlew.bat, patch_intent.sh, debug.keystore.base64, patch_manifest_new_books.py, test_sha1.kt, test_main.txt, fix_colors.sh, fix_constructor.sh, TestJKS.class, update_reading.sh, my-upload-key.jks, GenerateStars.java, patch.txt, patch_lib_swipe.sh, epub_search.txt, patch_splitter.sh, patch_library_fragment_kt.py, metadata.json, out3.txt, TestP12.class, dummy.sh, patch_yandex.kt, patch_reader.sh, fix_swipe.sh, fix_scanner_imports.sh, out2.txt, test_onboarding.txt, patch_scanner.sh, test.sh, .github, empty.jks, patch_reading.sh, service_log.txt, fix_night_colors.sh, patch_library_fragment_xml.py, fix_lib.sh, GenerateStars.class, temp_reading_tail.txt, update_library_fragment.sh, patch_bookadapter.sh, patch_animator.sh, fix_scanner.sh, .gitignore, out1.txt, patch_vm.sh, .env.example, fix_grid.sh, test_auth.kt, TestP12.java, TestJKS.java, test_db.kt, settings.gradle.kts, gradle.properties, err.txt, test3.kt, .build-outputs, debug.keystore, .gradle, splash_test_log.txt, .kotlin, build, onboarding_test_log.txt]
+Fallback debugKeystore path = /app/applet/debug.keystore
+Fallback debugKeystore exists = true
+--- END SIGNING CONFIG DEBUG ---
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+All projects evaluated.
+Task path ':app:testDebugUnitTest' matched project ':app'
+Task name matched 'testDebugUnitTest'
+Selected primary task 'testDebugUnitTest' from project :app
+Adding -Xuse-inline-scopes-numbers Kotlin compiler flag for task :app:compileDebugKotlin
+Tasks to be executed: [task ':app:preBuild', task ':app:preDebugBuild', task ':app:dataBindingMergeDependencyArtifactsDebug', task ':app:generateDebugResources', task ':app:mergeDebugResources', task ':app:packageDebugResources', task ':app:processDebugNavigationResources', task ':app:parseDebugLocalResources', task ':app:dataBindingGenBaseClassesDebug', task ':app:generateDebugBuildConfig', task ':app:generateDebugRFile', task ':app:kspDebugKotlin', task ':app:compileDebugKotlin', task ':app:javaPreCompileDebug', task ':app:compileDebugJavaWithJavac', task ':app:checkDebugAarMetadata', task ':app:mapDebugSourceSetPaths', task ':app:compileDebugNavigationResources', task ':app:createDebugCompatibleScreenManifests', task ':app:extractDeepLinksDebug', task ':app:processDebugMainManifest', task ':app:processDebugManifest', task ':app:processDebugManifestForPackage', task ':app:processDebugResources', task ':app:bundleDebugClassesToRuntimeJar', task ':app:bundleDebugClassesToCompileJar', task ':app:kspDebugUnitTestKotlin', task ':app:preDebugUnitTestBuild', task ':app:compileDebugUnitTestKotlin', task ':app:javaPreCompileDebugUnitTest', task ':app:compileDebugUnitTestJavaWithJavac', task ':app:generateDebugAssets', task ':app:mergeDebugAssets', task ':app:packageDebugUnitTestForUnitTest', task ':app:processDebugUnitTestManifest', task ':app:generateDebugUnitTestConfig', task ':app:processDebugJavaRes', task ':app:processDebugUnitTestJavaRes', task ':app:testDebugUnitTest', task ':app:finalizeTestRoborazziDebug']
+Tasks that were excluded: []
+Roborazzi: Set output dir file collection to test task
+Roborazzi: Set output dir /app/applet/app/build/intermediates/roborazzi to test task
+Roborazzi: Set output dir /app/applet/app/build/test-results/roborazzi/debug/results to test task
+Roborazzi: Set output file /app/applet/app/build/test-results/roborazzi/debug/results-summary.json to test task
+Roborazzi: Set output file /app/applet/app/build/reports/roborazzi/debug/index.html to test task
+Build 6257c5a7-c665-4df5-adec-dec8ca7bc73c is closed
+Using local directory build cache for the root build (location = /opt/gradle/.gradle/caches/build-cache-1, remove unused entries = after 7 days).
+Ignoring listeners of task graph ready event, as this build (:) has already executed work.
+Resolve mutations for :app:preBuild (Thread[#75,Execution worker,5,main]) started.
+Resolve mutations for :app:generateDebugAssets (Thread[#77,Execution worker Thread 3,5,main]) started.
+:app:generateDebugAssets (Thread[#77,Execution worker Thread 3,5,main]) started.
+:app:preBuild (Thread[#75,Execution worker,5,main]) started.
+
+> Task :app:generateDebugAssets UP-TO-DATE
+Skipping task ':app:generateDebugAssets' as it has no actions.
+
+> Task :app:preBuild UP-TO-DATE
+Skipping task ':app:preBuild' as it has no actions.
+Resolve mutations for :app:preDebugBuild (Thread[#77,Execution worker Thread 3,5,main]) started.
+Resolve mutations for :app:preDebugUnitTestBuild (Thread[#74,included builds,5,main]) started.
+:app:preDebugBuild (Thread[#77,Execution worker Thread 3,5,main]) started.
+:app:preDebugUnitTestBuild (Thread[#74,included builds,5,main]) started.
+
+> Task :app:preDebugBuild UP-TO-DATE
+Skipping task ':app:preDebugBuild' as it has no actions.
+
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+Skipping task ':app:preDebugUnitTestBuild' as it has no actions.
+Resolve mutations for :app:dataBindingMergeDependencyArtifactsDebug (Thread[#74,included builds,5,main]) started.
+Resolve mutations for :app:generateDebugResources (Thread[#75,Execution worker,5,main]) started.
+Resolve mutations for :app:processDebugNavigationResources (Thread[#77,Execution worker Thread 3,5,main]) started.
+Resolve mutations for :app:generateDebugBuildConfig (Thread[#76,Execution worker Thread 2,5,main]) started.
+:app:generateDebugResources (Thread[#76,Execution worker Thread 2,5,main]) started.
+:app:generateDebugBuildConfig (Thread[#75,Execution worker,5,main]) started.
+:app:dataBindingMergeDependencyArtifactsDebug (Thread[#74,included builds,5,main]) started.
+:app:processDebugNavigationResources (Thread[#77,Execution worker Thread 3,5,main]) started.
+
+> Task :app:generateDebugResources UP-TO-DATE
+Build cache key for task ':app:generateDebugResources' is 1f7fb52a7e1a51c55e3e7c8e7ce30bd5
+Skipping task ':app:generateDebugResources' as it is up-to-date.
+
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+Build cache key for task ':app:generateDebugBuildConfig' is e989286bd4e4e2e3df84a8de740c8b97
+Skipping task ':app:generateDebugBuildConfig' as it is up-to-date.
+Resolve mutations for :app:mergeDebugResources (Thread[#76,Execution worker Thread 2,5,main]) started.
+Resolve mutations for :app:packageDebugResources (Thread[#75,Execution worker,5,main]) started.
+:app:mergeDebugResources (Thread[#76,Execution worker Thread 2,5,main]) started.
+:app:packageDebugResources (Thread[#75,Execution worker,5,main]) started.
+
+> Task :app:packageDebugResources UP-TO-DATE
+Build cache key for task ':app:packageDebugResources' is 4300f5a758319c824ba36bbe049c98a4
+Skipping task ':app:packageDebugResources' as it is up-to-date.
+Resolve mutations for :app:javaPreCompileDebug (Thread[#75,Execution worker,5,main]) started.
+:app:javaPreCompileDebug (Thread[#75,Execution worker,5,main]) started.
+
+> Task :app:javaPreCompileDebug UP-TO-DATE
+Build cache key for task ':app:javaPreCompileDebug' is ff107d85fb1107104dd67d9ddec387ec
+Skipping task ':app:javaPreCompileDebug' as it is up-to-date.
+Resolve mutations for :app:checkDebugAarMetadata (Thread[#75,Execution worker,5,main]) started.
+:app:checkDebugAarMetadata (Thread[#75,Execution worker,5,main]) started.
+
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+Caching disabled for task ':app:checkDebugAarMetadata' because:
+  Caching has been disabled for the task
+Skipping task ':app:checkDebugAarMetadata' as it is up-to-date.
+Resolve mutations for :app:mapDebugSourceSetPaths (Thread[#75,Execution worker,5,main]) started.
+:app:mapDebugSourceSetPaths (Thread[#75,Execution worker,5,main]) started.
+
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+Caching disabled for task ':app:mapDebugSourceSetPaths' because:
+  Caching has been disabled for the task
+Skipping task ':app:mapDebugSourceSetPaths' as it is up-to-date.
+Resolve mutations for :app:createDebugCompatibleScreenManifests (Thread[#75,Execution worker,5,main]) started.
+:app:createDebugCompatibleScreenManifests (Thread[#75,Execution worker,5,main]) started.
+
+> Task :app:mergeDebugResources UP-TO-DATE
+Build cache key for task ':app:mergeDebugResources' is 23903f2755428534b3160b8993905243
+Skipping task ':app:mergeDebugResources' as it is up-to-date.
+Resolve mutations for :app:extractDeepLinksDebug (Thread[#76,Execution worker Thread 2,5,main]) started.
+:app:extractDeepLinksDebug (Thread[#76,Execution worker Thread 2,5,main]) started.
+
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+Caching disabled for task ':app:createDebugCompatibleScreenManifests' because:
+  Caching has been disabled for the task
+Skipping task ':app:createDebugCompatibleScreenManifests' as it is up-to-date.
+Resolve mutations for :app:javaPreCompileDebugUnitTest (Thread[#75,Execution worker,5,main]) started.
+:app:javaPreCompileDebugUnitTest (Thread[#75,Execution worker,5,main]) started.
+
+> Task :app:javaPreCompileDebugUnitTest UP-TO-DATE
+Build cache key for task ':app:javaPreCompileDebugUnitTest' is 9da436ba6bebbc93122e9047ad645e14
+Skipping task ':app:javaPreCompileDebugUnitTest' as it is up-to-date.
+Resolve mutations for :app:mergeDebugAssets (Thread[#75,Execution worker,5,main]) started.
+
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+Build cache key for task ':app:extractDeepLinksDebug' is 654b80c25596310a613b287efdfb6901
+Skipping task ':app:extractDeepLinksDebug' as it is up-to-date.
+Resolve mutations for :app:processDebugMainManifest (Thread[#76,Execution worker Thread 2,5,main]) started.
+:app:mergeDebugAssets (Thread[#75,Execution worker,5,main]) started.
+:app:processDebugMainManifest (Thread[#76,Execution worker Thread 2,5,main]) started.
+
+> Task :app:processDebugNavigationResources UP-TO-DATE
+Build cache key for task ':app:processDebugNavigationResources' is c2f4ffa0f0baf158832579b608f2ebed
+Skipping task ':app:processDebugNavigationResources' as it is up-to-date.
+Resolve mutations for :app:parseDebugLocalResources (Thread[#77,Execution worker Thread 3,5,main]) started.
+:app:parseDebugLocalResources (Thread[#77,Execution worker Thread 3,5,main]) started.
+
+> Task :app:dataBindingMergeDependencyArtifactsDebug UP-TO-DATE
+Caching disabled for task ':app:dataBindingMergeDependencyArtifactsDebug' because:
+  Caching has been disabled for the task
+Skipping task ':app:dataBindingMergeDependencyArtifactsDebug' as it is up-to-date.
+Resolve mutations for :app:compileDebugNavigationResources (Thread[#74,included builds,5,main]) started.
+:app:compileDebugNavigationResources (Thread[#74,included builds,5,main]) started.
+
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+Build cache key for task ':app:compileDebugNavigationResources' is 87add9860e243ac198fae064a16771f1
+Skipping task ':app:compileDebugNavigationResources' as it is up-to-date.
+work action resolve navigation.json (project :app) (Thread[#74,included builds,5,main]) started.
+
+> Task :app:parseDebugLocalResources UP-TO-DATE
+Build cache key for task ':app:parseDebugLocalResources' is d1a16f54c0db3ca65dfa0593a3188f5e
+Skipping task ':app:parseDebugLocalResources' as it is up-to-date.
+Resolve mutations for :app:dataBindingGenBaseClassesDebug (Thread[#77,Execution worker Thread 3,5,main]) started.
+:app:dataBindingGenBaseClassesDebug (Thread[#77,Execution worker Thread 3,5,main]) started.
+Resolve mutations for :app:generateDebugRFile (Thread[#74,included builds,5,main]) started.
+:app:generateDebugRFile (Thread[#74,included builds,5,main]) started.
+
+> Task :app:generateDebugRFile UP-TO-DATE
+Build cache key for task ':app:generateDebugRFile' is b1f585533172c03a5952dba1f6a126c0
+Skipping task ':app:generateDebugRFile' as it is up-to-date.
+
+> Task :app:mergeDebugAssets UP-TO-DATE
+Caching disabled for task ':app:mergeDebugAssets' because:
+  Simple merging task
+Skipping task ':app:mergeDebugAssets' as it is up-to-date.
+
+> Task :app:dataBindingGenBaseClassesDebug UP-TO-DATE
+Build cache key for task ':app:dataBindingGenBaseClassesDebug' is ac5170c7deda36183f70181a2415aad2
+Skipping task ':app:dataBindingGenBaseClassesDebug' as it is up-to-date.
+Resolve mutations for :app:kspDebugKotlin (Thread[#77,Execution worker Thread 3,5,main]) started.
+:app:kspDebugKotlin (Thread[#77,Execution worker Thread 3,5,main]) started.
+
+> Task :app:processDebugMainManifest UP-TO-DATE
+Build cache key for task ':app:processDebugMainManifest' is 1f3f517490edae1415b303b546963cc9
+Skipping task ':app:processDebugMainManifest' as it is up-to-date.
+Resolve mutations for :app:processDebugManifest (Thread[#76,Execution worker Thread 2,5,main]) started.
+:app:processDebugManifest (Thread[#76,Execution worker Thread 2,5,main]) started.
+
+> Task :app:processDebugManifest UP-TO-DATE
+Build cache key for task ':app:processDebugManifest' is 3b71ad215f7c154b6d482623102c359d
+Skipping task ':app:processDebugManifest' as it is up-to-date.
+Resolve mutations for :app:processDebugManifestForPackage (Thread[#76,Execution worker Thread 2,5,main]) started.
+:app:processDebugManifestForPackage (Thread[#76,Execution worker Thread 2,5,main]) started.
+
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+Build cache key for task ':app:processDebugManifestForPackage' is b3ff52589e3d4a689d2de49bdd64c8f1
+Skipping task ':app:processDebugManifestForPackage' as it is up-to-date.
+Resolve mutations for :app:processDebugResources (Thread[#76,Execution worker Thread 2,5,main]) started.
+:app:processDebugResources (Thread[#76,Execution worker Thread 2,5,main]) started.
+Resolve mutations for :app:processDebugUnitTestManifest (Thread[#75,Execution worker,5,main]) started.
+:app:processDebugUnitTestManifest (Thread[#75,Execution worker,5,main]) started.
+
+> Task :app:kspDebugKotlin UP-TO-DATE
+Build cache key for task ':app:kspDebugKotlin' is 39db2bd8bb482f44ecbc9d761bd140df
+Skipping task ':app:kspDebugKotlin' as it is up-to-date.
+Resolve mutations for :app:compileDebugKotlin (Thread[#77,Execution worker Thread 3,5,main]) started.
+:app:compileDebugKotlin (Thread[#77,Execution worker Thread 3,5,main]) started.
+
+> Task :app:processDebugResources UP-TO-DATE
+Build cache key for task ':app:processDebugResources' is 31aa9e67c95466cb51f16471f87302b3
+Skipping task ':app:processDebugResources' as it is up-to-date.
+Resolve mutations for :app:packageDebugUnitTestForUnitTest (Thread[#76,Execution worker Thread 2,5,main]) started.
+:app:packageDebugUnitTestForUnitTest (Thread[#76,Execution worker Thread 2,5,main]) started.
+
+> Task :app:packageDebugUnitTestForUnitTest UP-TO-DATE
+Caching disabled for task ':app:packageDebugUnitTestForUnitTest' because:
+  Simple merging task
+Skipping task ':app:packageDebugUnitTestForUnitTest' as it is up-to-date.
+
+> Task :app:processDebugUnitTestManifest UP-TO-DATE
+Caching disabled for task ':app:processDebugUnitTestManifest' because:
+  Caching has been disabled for the task
+Skipping task ':app:processDebugUnitTestManifest' as it is up-to-date.
+Resolve mutations for :app:generateDebugUnitTestConfig (Thread[#75,Execution worker,5,main]) started.
+:app:generateDebugUnitTestConfig (Thread[#75,Execution worker,5,main]) started.
+
+> Task :app:generateDebugUnitTestConfig UP-TO-DATE
+Caching disabled for task ':app:generateDebugUnitTestConfig' because:
+  Caching has been disabled for the task
+Skipping task ':app:generateDebugUnitTestConfig' as it is up-to-date.
+
+> Task :app:compileDebugKotlin
+file or directory '/app/applet/app/src/main/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/main/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/main/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+Build cache key for task ':app:compileDebugKotlin' is 23ba06b5cda422bf400b3871d5a6a33c
+Task ':app:compileDebugKotlin' is not up-to-date because:
+  Output property 'destinationDirectory' file /app/applet/app/build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes/META-INF has been removed.
+  Output property 'destinationDirectory' file /app/applet/app/build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes/META-INF/app.kotlin_module has been removed.
+  Output property 'destinationDirectory' file /app/applet/app/build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes/com has been removed.
+  and more...
+The input changes require a full rebuild for incremental task ':app:compileDebugKotlin'.
+file or directory '/app/applet/app/src/main/kotlin', not found
+file or directory '/app/applet/app/src/main/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/kotlin', not found
+file or directory '/app/applet/app/src/debug/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/build/generated/ksp/debug/java', not found
+file or directory '/app/applet/app/src/main/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/main/kotlin', not found
+file or directory '/app/applet/app/src/main/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/kotlin', not found
+file or directory '/app/applet/app/src/debug/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/build/generated/ksp/debug/java', not found
+file or directory '/app/applet/app/src/main/kotlin', not found
+file or directory '/app/applet/app/src/main/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/kotlin', not found
+file or directory '/app/applet/app/src/debug/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/build/generated/ksp/debug/java', not found
+file or directory '/app/applet/app/src/main/kotlin', not found
+file or directory '/app/applet/app/src/main/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/kotlin', not found
+file or directory '/app/applet/app/src/debug/kotlin', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/src/debug/java', not found
+file or directory '/app/applet/app/build/generated/ksp/debug/java', not found
+Kotlin source files: /app/applet/app/src/main/java/com/nightread/app/ui/PageFragment.kt, /app/applet/app/src/main/java/com/nightread/app/ui/SyncReportDialog.kt, /app/applet/app/src/main/java/com/nightread/app/ui/AuthorBooksActivity.kt, /app/applet/app/src/main/java/com/nightread/app/ui/OnboardingActivity.kt, /app/applet/app/src/main/java/com/nightread/app/ui/BookCache.kt, /app/applet/app/src/main/java/com/nightread/app/ui/PageSplitter.kt, /app/applet/app/src/main/java/com/nightread/app/ui/FontUtils.kt, /app/applet/app/src/main/java/com/nightread/app/ui/WordActionBottomSheet.kt, /app/applet/app/src/main/java/com/nightread/app/ui/theme/Type.kt, /app/applet/app/src/main/java/com/nightread/app/ui/theme/Theme.kt, /app/applet/app/src/main/java/com/nightread/app/ui/theme/Color.kt, /app/applet/app/src/main/java/com/nightread/app/ui/NewBooksActivity.kt, /app/applet/app/src/main/java/com/nightread/app/ui/SlidePageTransformer.kt, /app/applet/app/src/main/java/com/nightread/app/ui/BookViewModel.kt, /app/applet/app/src/main/java/com/nightread/app/ui/YandexAuthActivity.kt, /app/applet/app/src/main/java/com/nightread/app/ui/ReaderComposeScreen.kt, /app/applet/app/src/main/java/com/nightread/app/ui/BookDetailActivity.kt, /app/applet/app/src/main/java/com/nightread/app/ui/BrightnessHelper.kt, /app/applet/app/src/main/java/com/nightread/app/ui/BookmarksFragment.kt, /app/applet/app/src/main/java/com/nightread/app/ui/BookBookmarkAdapter.kt, /app/applet/app/src/main/java/com/nightread/app/ui/SettingsActivity.kt, /app/applet/app/src/main/java/com/nightread/app/ui/NoAnimationTransformer.kt, /app/applet/app/src/main/java/com/nightread/app/ui/SeriesBooksActivity.kt, /app/applet/app/src/main/java/com/nightread/app/ui/HighlightItemAnimator.kt, /app/applet/app/src/main/java/com/nightread/app/ui/DepthPageTransformer.kt, /app/applet/app/src/main/java/com/nightread/app/ui/ReaderViewModel.kt, /app/applet/app/src/main/java/com/nightread/app/ui/BookAdapter.kt, /app/applet/app/src/main/java/com/nightread/app/ui/ReadingActivity.kt, /app/applet/app/src/main/java/com/nightread/app/ui/FavoriteBooksActivity.kt, /app/applet/app/src/main/java/com/nightread/app/ui/CleanupDialogFragment.kt, /app/applet/app/src/main/java/com/nightread/app/ui/FadePageTransformer.kt, /app/applet/app/src/main/java/com/nightread/app/ui/TextureBackgroundView.kt, /app/applet/app/src/main/java/com/nightread/app/ui/CustomToast.kt, /app/applet/app/src/main/java/com/nightread/app/ui/HyphenatorHelper.kt, /app/applet/app/src/main/java/com/nightread/app/ui/BookPagerAdapter.kt, /app/applet/app/src/main/java/com/nightread/app/ui/SettingsBottomSheet.kt, /app/applet/app/src/main/java/com/nightread/app/ui/BookmarkAdapter.kt, /app/applet/app/src/main/java/com/nightread/app/ui/BookmarksListBottomSheet.kt, /app/applet/app/src/main/java/com/nightread/app/ui/ReaderPagerAdapter.kt, /app/applet/app/src/main/java/com/nightread/app/ui/LibraryFragment.kt, /app/applet/app/src/main/java/com/nightread/app/ui/YandexSyncFragment.kt, /app/applet/app/src/main/java/com/nightread/app/ui/ChapterListBottomSheet.kt, /app/applet/app/src/main/java/com/nightread/app/ui/ZoomOutPageTransformer.kt, /app/applet/app/src/main/java/com/nightread/app/data/NoteEntity.kt, /app/applet/app/src/main/java/com/nightread/app/data/AppDatabase.kt, /app/applet/app/src/main/java/com/nightread/app/data/SyncSettingsManager.kt, /app/applet/app/src/main/java/com/nightread/app/data/NoteDao.kt, /app/applet/app/src/main/java/com/nightread/app/data/CleanupManager.kt, /app/applet/app/src/main/java/com/nightread/app/data/SyncNetworkChecker.kt, /app/applet/app/src/main/java/com/nightread/app/data/SyncCancellationManager.kt, /app/applet/app/src/main/java/com/nightread/app/data/ThemeManager.kt, /app/applet/app/src/main/java/com/nightread/app/data/SyncStateRepository.kt, /app/applet/app/src/main/java/com/nightread/app/data/CloudFileService.kt, /app/applet/app/src/main/java/com/nightread/app/data/SyncErrorHandler.kt, /app/applet/app/src/main/java/com/nightread/app/data/BookEntity.kt, /app/applet/app/src/main/java/com/nightread/app/data/SyncManager.kt, /app/applet/app/src/main/java/com/nightread/app/data/CloudCache.kt, /app/applet/app/src/main/java/com/nightread/app/data/YandexSyncManager.kt, /app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt, /app/applet/app/src/main/java/com/nightread/app/data/Sha1Extractor.kt, /app/applet/app/src/main/java/com/nightread/app/data/Sha1Helper.kt, /app/applet/app/src/main/java/com/nightread/app/data/YandexSyncState.kt, /app/applet/app/src/main/java/com/nightread/app/data/BookmarkDao.kt, /app/applet/app/src/main/java/com/nightread/app/data/CloudFileCache.kt, /app/applet/app/src/main/java/com/nightread/app/data/BookDao.kt, /app/applet/app/src/main/java/com/nightread/app/data/YandexDiskManager.kt, /app/applet/app/src/main/java/com/nightread/app/data/SettingsManager.kt, /app/applet/app/src/main/java/com/nightread/app/data/GeminiService.kt, /app/applet/app/src/main/java/com/nightread/app/data/BookmarkDatabase.kt, /app/applet/app/src/main/java/com/nightread/app/data/BookmarkEntity.kt, /app/applet/app/src/main/java/com/nightread/app/data/SyncProgressTracker.kt, /app/applet/app/src/main/java/com/nightread/app/data/BookRepository.kt, /app/applet/app/src/main/java/com/nightread/app/data/SyncCacheManager.kt, /app/applet/app/src/main/java/com/nightread/app/data/SyncScope.kt, /app/applet/app/src/main/java/com/nightread/app/data/SyncStats.kt, /app/applet/app/src/main/java/com/nightread/app/data/SyncResultReporter.kt, /app/applet/app/src/main/java/com/nightread/app/data/SyncFileManager.kt, /app/applet/app/src/main/java/com/nightread/app/data/ThemeHelper.kt, /app/applet/app/src/main/java/com/nightread/app/data/SyncOrchestrator.kt, /app/applet/app/src/main/java/com/nightread/app/service/ThemeUpdateReceiver.kt, /app/applet/app/src/main/java/com/nightread/app/service/AutoDiscoveryWorker.kt, /app/applet/app/src/main/java/com/nightread/app/service/TitleHelper.kt, /app/applet/app/src/main/java/com/nightread/app/service/NewFb2Parser.kt, /app/applet/app/src/main/java/com/nightread/app/service/Fb2Parser.kt, /app/applet/app/src/main/java/com/nightread/app/service/AutoSyncManager.kt, /app/applet/app/src/main/java/com/nightread/app/service/NewBookScanState.kt, /app/applet/app/src/main/java/com/nightread/app/service/AutoDiscoveryService.kt, /app/applet/app/src/main/java/com/nightread/app/service/ScanNotificationHelper.kt, /app/applet/app/src/main/java/com/nightread/app/service/SyncService.kt, /app/applet/app/src/main/java/com/nightread/app/service/NewCoverExtractor.kt, /app/applet/app/src/main/java/com/nightread/app/service/BookScanWorker.kt, /app/applet/app/src/main/java/com/nightread/app/service/SyncWorker.kt, /app/applet/app/src/main/java/com/nightread/app/service/NewBookScanner.kt, /app/applet/app/src/main/java/com/nightread/app/SplashActivity.kt, /app/applet/app/src/main/java/com/nightread/app/MainApplication.kt, /app/applet/app/src/main/java/com/nightread/app/MainActivity.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/BookDao_Impl.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/NoteDao_Impl.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/CloudFileDao_Impl.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/BookmarkDao_Impl.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/AppDatabase_Impl.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/BookmarkDatabase_Impl.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/UserInfoJsonAdapter.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/DiskInfoResponseJsonAdapter.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/ResourceResponseJsonAdapter.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/EmbeddedResourcesJsonAdapter.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/ResourceItemJsonAdapter.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/LinkResponseJsonAdapter.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/BookProgressPayloadJsonAdapter.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/GeminiPartJsonAdapter.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/GeminiContentJsonAdapter.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/GeminiRequestJsonAdapter.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/GeminiCandidateJsonAdapter.kt, /app/applet/app/build/generated/ksp/debug/kotlin/com/nightread/app/data/GeminiResponseJsonAdapter.kt
+Java source files: /app/applet/app/build/generated/source/buildConfig/debug/com/nightread/app/BuildConfig.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ActivityAuthorBooksBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ActivityBookDetailBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ActivityFavoriteBooksBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ActivityMainBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ActivityNewBooksBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ActivityOnboardingBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ActivityReaderBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ActivityReadingBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ActivitySeriesBooksBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ActivitySplashBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/BottomSheetBookmarksListBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/BottomSheetSettingsBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/CustomToastBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/DialogBookPickerBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/DialogChapterListBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/DialogCharactersBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/DialogCleanupBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/DialogTermExplanationBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/DialogWordActionBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/FragmentBookmarksBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/FragmentPageBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/FragmentSyncBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemBookBookmarkBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemBookDetailedListBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemBookGridBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemBookListBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemBookMinimalistBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemBookPickerBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemBookShimmerBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemBookmarkBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemChapterBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemCharacterBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemContinueReadingBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemDuplicateFileBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemDuplicateGroupBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemOnboardingBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ItemSeriesHeaderBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/LayoutShimmerLibraryBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/LibraryFragmentBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/ScanStatusLayoutBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/SettingsFragmentBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/SpinnerDropdownItemBinding.java, /app/applet/app/build/generated/data_binding_base_class_source_out/debug/out/com/nightread/app/databinding/SpinnerItemBinding.java
+Script source files: 
+Script file extensions: 
+Using Kotlin/JVM incremental compilation
+[KOTLIN] Kotlin compilation 'jdkHome' argument: /usr/lib/jvm/temurin-21-jdk-amd64
+Finished executing kotlin compiler using IN_PROCESS strategy
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/AppDatabase.kt:25:18 'fun fallbackToDestructiveMigration(): RoomDatabase.Builder<AppDatabase>' is deprecated. Replace by overloaded version with parameter to indicate if all tables should be dropped or not.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/BookmarkDatabase.kt:23:18 'fun fallbackToDestructiveMigration(): RoomDatabase.Builder<BookmarkDatabase>' is deprecated. Replace by overloaded version with parameter to indicate if all tables should be dropped or not.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/GeminiService.kt:18:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/GeminiService.kt:23:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/GeminiService.kt:28:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/GeminiService.kt:33:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/GeminiService.kt:38:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/SyncManager.kt:64:40 'val connectionInfo: WifiInfo!' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/SyncManager.kt:65:38 'val ipAddress: Int' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/SyncManager.kt:66:23 'static fun formatIpAddress(p0: Int): String!' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:12:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:13:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:18:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:19:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:20:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:25:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:26:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:27:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:28:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:29:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:30:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:35:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:36:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:37:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:38:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:43:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:44:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:45:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:46:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:47:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:48:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:49:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:54:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:55:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:56:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:61:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:62:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:63:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/data/YandexDiskApi.kt:64:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to property.
+- To opt in to applying to both value parameter and property, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///app/applet/app/src/main/java/com/nightread/app/service/AutoDiscoveryService.kt:63:41 'constructor(p0: String!, p1: Int): FileObserver' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/BookAdapter.kt:189:52 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/BookAdapter.kt:202:52 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/BookDetailActivity.kt:152:13 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/BookDetailActivity.kt:264:21 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/BookDetailActivity.kt:278:25 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/BookDetailActivity.kt:289:25 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/BookDetailActivity.kt:315:68 'constructor(p0: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/BookViewModel.kt:712:13 Condition is always 'false'.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/BookViewModel.kt:720:13 Condition is always 'false'.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/BookViewModel.kt:775:13 Condition is always 'false'.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/BookViewModel.kt:783:13 Condition is always 'false'.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/BookmarksFragment.kt:54:27 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/BookmarksListBottomSheet.kt:117:43 'val adapterPosition: Int' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/CustomToast.kt:22:21 'var view: View?' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/HighlightItemAnimator.kt:18:49 'val adapterPosition: Int' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/HighlightItemAnimator.kt:19:17 Condition is always 'true'.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/LibraryFragment.kt:364:43 'val adapterPosition: Int' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/LibraryFragment.kt:367:25 Condition is always 'true'.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReaderComposeScreen.kt:237:47 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReaderComposeScreen.kt:422:22 'fun Modifier.menuAnchor(): Modifier' is deprecated. Use overload that takes MenuAnchorType and enabled parameters.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:180:66 Condition is always 'true'.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:334:39 Condition is always 'true'.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:351:101 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:672:33 Condition is always 'true'.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:697:34 Condition is always 'true'.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:741:67 'static field FLAG_TRANSLUCENT_STATUS: Int' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:742:67 'static field FLAG_TRANSLUCENT_NAVIGATION: Int' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:744:16 'var statusBarColor: Int' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:745:16 'var navigationBarColor: Int' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:766:21 Condition is always 'true'.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:788:31 Condition is always 'false'.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/ReadingActivity.kt:883:31 Condition is always 'false'.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/YandexSyncFragment.kt:351:42 'constructor(p0: Context!): ProgressDialog' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/YandexSyncFragment.kt:353:13 'fun setMessage(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/YandexSyncFragment.kt:364:48 'fun setMessage(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/YandexSyncFragment.kt:632:34 'constructor(p0: Context!): ProgressDialog' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/nightread/app/ui/YandexSyncFragment.kt:633:16 'fun setMessage(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+Invalidating in-memory cache of /app/applet/.gradle/9.3.1/fileHashes/fileHashes.bin
+Invalidating in-memory cache of /app/applet/.gradle/9.3.1/fileHashes/resourceHashesCache.bin
+Invalidating in-memory cache of /opt/gradle/.gradle/caches/journal-1/file-access.bin
+Stored cache entry for task ':app:compileDebugKotlin' with cache key 23ba06b5cda422bf400b3871d5a6a33c
+Invalidating in-memory cache of /app/applet/.gradle/9.3.1/executionHistory/executionHistory.bin
+Invalidating in-memory cache of /app/applet/.gradle/buildOutputCleanup/outputFiles.bin
+Resolve mutations for :app:compileDebugJavaWithJavac (Thread[#77,Execution worker Thread 3,5,main]) started.
+Resolve mutations for :app:processDebugJavaRes (Thread[#76,Execution worker Thread 2,5,main]) started.
+:app:processDebugJavaRes (Thread[#76,Execution worker Thread 2,5,main]) started.
+:app:compileDebugJavaWithJavac (Thread[#77,Execution worker Thread 3,5,main]) started.
+
+> Task :app:processDebugJavaRes UP-TO-DATE
+file or directory '/app/applet/app/src/main/resources', not found
+file or directory '/app/applet/app/src/debug/resources', not found
+Caching disabled for task ':app:processDebugJavaRes' because:
+  Caching has been disabled for the task
+Skipping task ':app:processDebugJavaRes' as it is up-to-date.
+work action resolve out (project :app) (Thread[#76,Execution worker Thread 2,5,main]) started.
+
+> Task :app:compileDebugJavaWithJavac UP-TO-DATE
+Build cache key for task ':app:compileDebugJavaWithJavac' is 4597e163350d584c4a40ff52ba443aab
+Skipping task ':app:compileDebugJavaWithJavac' as it is up-to-date.
+No compile result for :app:compileDebugJavaWithJavac
+Resolve mutations for :app:bundleDebugClassesToRuntimeJar (Thread[#77,Execution worker Thread 3,5,main]) started.
+Resolve mutations for :app:bundleDebugClassesToCompileJar (Thread[#76,Execution worker Thread 2,5,main]) started.
+:app:bundleDebugClassesToRuntimeJar (Thread[#77,Execution worker Thread 3,5,main]) started.
+:app:bundleDebugClassesToCompileJar (Thread[#76,Execution worker Thread 2,5,main]) started.
+
+> Task :app:bundleDebugClassesToCompileJar UP-TO-DATE
+Caching disabled for task ':app:bundleDebugClassesToCompileJar' because:
+  Caching has been disabled for the task
+Skipping task ':app:bundleDebugClassesToCompileJar' as it is up-to-date.
+work action resolve classes.jar (project :app) (Thread[#76,Execution worker Thread 2,5,main]) started.
+
+> Task :app:bundleDebugClassesToRuntimeJar UP-TO-DATE
+Caching disabled for task ':app:bundleDebugClassesToRuntimeJar' because:
+  Caching has been disabled for the task
+Skipping task ':app:bundleDebugClassesToRuntimeJar' as it is up-to-date.
+Resolve mutations for :app:kspDebugUnitTestKotlin (Thread[#76,Execution worker Thread 2,5,main]) started.
+work action resolve classes.jar (project :app) (Thread[#77,Execution worker Thread 3,5,main]) started.
+:app:kspDebugUnitTestKotlin (Thread[#76,Execution worker Thread 2,5,main]) started.
+
+> Task :app:kspDebugUnitTestKotlin UP-TO-DATE
+Invalidating in-memory cache of /opt/gradle/.gradle/caches/9.3.1/fileHashes/kotlinDslCompileAvoidanceClasspathHashCache.bin
+Invalidating in-memory cache of /opt/gradle/.gradle/caches/9.3.1/fileHashes/fileHashes.bin
+Invalidating in-memory cache of /opt/gradle/.gradle/caches/9.3.1/fileHashes/resourceHashesCache.bin
+Build cache key for task ':app:kspDebugUnitTestKotlin' is a9519e2c7105e165ba7ae2b794d157eb
+Skipping task ':app:kspDebugUnitTestKotlin' as it is up-to-date.
+Resolve mutations for :app:compileDebugUnitTestKotlin (Thread[#76,Execution worker Thread 2,5,main]) started.
+:app:compileDebugUnitTestKotlin (Thread[#76,Execution worker Thread 2,5,main]) started.
+
+> Task :app:compileDebugUnitTestKotlin UP-TO-DATE
+file or directory '/app/applet/app/src/test/kotlin', not found
+file or directory '/app/applet/app/src/testDebug/java', not found
+file or directory '/app/applet/app/src/testDebug/kotlin', not found
+file or directory '/app/applet/app/src/testDebug/java', not found
+file or directory '/app/applet/app/src/test/kotlin', not found
+file or directory '/app/applet/app/src/testDebug/java', not found
+file or directory '/app/applet/app/src/testDebug/kotlin', not found
+file or directory '/app/applet/app/src/testDebug/java', not found
+file or directory '/app/applet/app/src/test/kotlin', not found
+file or directory '/app/applet/app/src/testDebug/java', not found
+file or directory '/app/applet/app/src/testDebug/kotlin', not found
+file or directory '/app/applet/app/src/testDebug/java', not found
+Build cache key for task ':app:compileDebugUnitTestKotlin' is b66164be5ba3bd6332960a63a119f1b1
+Skipping task ':app:compileDebugUnitTestKotlin' as it is up-to-date.
+Resolve mutations for :app:compileDebugUnitTestJavaWithJavac (Thread[#76,Execution worker Thread 2,5,main]) started.
+Resolve mutations for :app:processDebugUnitTestJavaRes (Thread[#74,included builds,5,main]) started.
+:app:processDebugUnitTestJavaRes (Thread[#74,included builds,5,main]) started.
+:app:compileDebugUnitTestJavaWithJavac (Thread[#76,Execution worker Thread 2,5,main]) started.
+
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+Skipping task ':app:compileDebugUnitTestJavaWithJavac' as it has no source files and no previous output files.
+
+> Task :app:processDebugUnitTestJavaRes UP-TO-DATE
+file or directory '/app/applet/app/src/test/resources', not found
+file or directory '/app/applet/app/src/testDebug/resources', not found
+Caching disabled for task ':app:processDebugUnitTestJavaRes' because:
+  Caching has been disabled for the task
+Skipping task ':app:processDebugUnitTestJavaRes' as it is up-to-date.
+Resolve mutations for :app:testDebugUnitTest (Thread[#74,included builds,5,main]) started.
+:app:testDebugUnitTest (Thread[#74,included builds,5,main]) started.
+Gradle Test Executor 1 started executing tests.
+
+> Task :app:testDebugUnitTest
+Build cache key for task ':app:testDebugUnitTest' is b077c95f80b4441795390368d71e5ed9
+Task ':app:testDebugUnitTest' is not up-to-date because:
+  Value of input property 'filter.commandLineIncludePatterns' has changed for task ':app:testDebugUnitTest'
+file or directory '/app/applet/app/build/generated/ksp/debugUnitTest/resources', not found
+file or directory '/app/applet/app/build/generated/ksp/debugUnitTest/classes', not found
+file or directory '/app/applet/app/build/intermediates/javac/debugUnitTest/compileDebugUnitTestJavaWithJavac/classes', not found
+Starting process 'Gradle Test Executor 1'. Working directory: /app/applet/app Command: /usr/lib/jvm/temurin-21-jdk-amd64/bin/java -Djava.awt.headless=true -Djava.library.path=/usr/java/packages/lib:/usr/lib64:/lib64:/lib:/usr/lib:/app/applet/app/src/testDebug/jniLibs:/app/applet/app/src/test/jniLibs -Dorg.gradle.internal.worker.tmpdir=/app/applet/app/build/tmp/testDebugUnitTest/work --add-opens=java.base/java.io=ALL-UNNAMED @/opt/gradle/.gradle/.tmp/gradle-worker-classpath9246047118263134986txt -Xmx512m -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant -ea worker.org.gradle.process.internal.worker.GradleWorkerMain 'Gradle Test Executor 1'
+Successfully started process 'Gradle Test Executor 1'
+
+Gradle Test Executor 1 finished executing tests.
+
+> Task :app:testDebugUnitTest
+Generating HTML test report...
+Finished generating test html results (0.037 secs) into: /app/applet/app/build/reports/tests/testDebugUnitTest
+Finished generating test XML results (0.007 secs) into: /app/applet/app/build/test-results/testDebugUnitTest
+Stored cache entry for task ':app:testDebugUnitTest' with cache key b077c95f80b4441795390368d71e5ed9
+Resolve mutations for :app:finalizeTestRoborazziDebug (Thread[#74,included builds,5,main]) started.
+:app:finalizeTestRoborazziDebug (Thread[#74,included builds,5,main]) started.
+
+> Task :app:finalizeTestRoborazziDebug SKIPPED
+Roborazzi: roborazziTestFinalizer.onlyIf doesRoborazziRun false
+Skipping task ':app:finalizeTestRoborazziDebug' as task onlyIf 'Task satisfies onlyIf spec' is false.
+Build ac6f82c1-4ea8-4e64-bafd-42ccbc8edf74 is started
+Build ac6f82c1-4ea8-4e64-bafd-42ccbc8edf74 is closed
+
+See the complete report at file:///app/applet/build/reports/configuration-cache/1dobp9t3esyz1mnvaususcoed/38sxxfz18g882buwoxkhha874/configuration-cache-report.html
+
+BUILD SUCCESSFUL in 3m 16s
+34 actionable tasks: 2 executed, 32 up-to-date
+Configuration cache entry stored.
