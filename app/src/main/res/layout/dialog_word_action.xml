@@ -33,63 +33,7 @@
         android:background="#3A2A4E"
         android:layout_marginBottom="8dp" />
 
-    <!-- Explain option -->
-    <LinearLayout
-        android:id="@+id/btnExplain"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingHorizontal="24dp"
-        android:paddingVertical="14dp"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true"
-        android:gravity="center_vertical">
 
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_word_explain"
-            android:contentDescription="Объяснить слово"
-            app:tint="@color/accent" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:text="Объяснить слово (AI)"
-            android:textSize="16sp"
-            android:textColor="@color/text_primary" />
-    </LinearLayout>
-
-    <!-- Translate option -->
-    <LinearLayout
-        android:id="@+id/btnTranslate"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingHorizontal="24dp"
-        android:paddingVertical="14dp"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true"
-        android:gravity="center_vertical">
-
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_word_translate"
-            android:contentDescription="Перевести слово"
-            app:tint="@color/accent" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:text="Перевести слово (AI)"
-            android:textSize="16sp"
-            android:textColor="@color/text_primary" />
-    </LinearLayout>
 
     <!-- Find in Book option -->
     <LinearLayout

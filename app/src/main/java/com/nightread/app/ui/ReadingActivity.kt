@@ -22,7 +22,6 @@ import com.nightread.app.R
 import com.nightread.app.data.AppDatabase
 import com.nightread.app.data.SettingsManager
 import com.nightread.app.service.Fb2Parser
-import com.nightread.app.service.LocalAIManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.collectLatest
@@ -42,15 +41,12 @@ class ReadingActivity : AppCompatActivity() {
     private lateinit var bottomBar: LinearLayout
     private lateinit var tvPageInfo: TextView
     private lateinit var seekBar: SeekBar
-    private lateinit var btnSummarizeChapter: android.view.View
     
     private lateinit var tvTitle: TextView
     private lateinit var btnSettings: ImageButton
     private lateinit var btnBookmark: ImageButton
     private lateinit var btnBookmarksList: ImageButton
     private lateinit var btnChaptersList: ImageButton
-    private lateinit var btnSmartSearch: ImageButton
-    private lateinit var btnQA: ImageButton
     private lateinit var fabBookmark: FloatingActionButton
 
     private var sha1: String = ""
@@ -89,24 +85,9 @@ class ReadingActivity : AppCompatActivity() {
         bottomBar = findViewById(R.id.bottomBar)
         tvPageInfo = findViewById(R.id.tvPageInfo)
         seekBar = findViewById(R.id.seekBar)
-        btnSummarizeChapter = findViewById(R.id.btnSummarizeChapter)
-        btnSummarizeChapter.setOnClickListener {
-            ensureModelLoaded { showAiSummary() }
-        }
-        
-        btnSmartSearch = findViewById(R.id.btnSmartSearch)
-        btnSmartSearch.setOnClickListener {
-            ensureModelLoaded { showSmartSearchDialog() }
-        }
-
-        btnQA = findViewById(R.id.btnQA)
-        btnQA.setOnClickListener {
-            ensureModelLoaded { showQADialog() }
-        }
-
         btnChaptersList = findViewById(R.id.btnChaptersList)
         btnChaptersList.setOnClickListener {
-            ensureModelLoaded { showChaptersDialog() }
+            showChaptersDialog()
         }
         
         tvTitle = findViewById(R.id.tvTitle)
@@ -637,67 +618,13 @@ class ReadingActivity : AppCompatActivity() {
         return false
     }
 
-    private fun showAiSummary() {
-        if (splitResult == null || viewPager.currentItem >= splitResult.offsets.size) return
-        
-        val currentOffset = splitResult.offsets[viewPager.currentItem]
-        
-        // Поиск начала главы: ищем два и более переноса строки назад
-        var chapterStart = 0
-        val searchStart = (currentOffset - 1).coerceAtLeast(0)
-        for (i in searchStart downTo 0) {
-            if (i + 1 < bookContent.length && bookContent[i] == '\n' && bookContent[i+1] == '\n') {
-                chapterStart = i + 2
-                break
-            }
-        }
-        
-        // Поиск конца главы: ищем два и более переноса строки вперед
-        var chapterEnd = bookContent.length
-        for (i in currentOffset until bookContent.length) {
-            if (i + 1 < bookContent.length && bookContent[i] == '\n' && bookContent[i+1] == '\n') {
-                chapterEnd = i
-                break
-            }
-        }
-        
-        // Ограничиваем размер текста для AI
-        val length = (chapterEnd - chapterStart).coerceIn(100, 10000)
-        val textForAi = bookContent.substring(chapterStart, (chapterStart + length).coerceAtMost(bookContent.length))
-        
-        ChapterSummaryBottomSheet.newInstance(textForAi)
-            .show(supportFragmentManager, "ChapterSummary")
-    }
-
-    private fun showSmartSearchDialog() {
-        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
-        builder.setTitle("Умный поиск (смысловой)")
-        
-        val input = android.widget.EditText(this)
-        input.hint = "Введите запрос (например: поиск меча)"
-        val padding = (24 * resources.displayMetrics.density).toInt()
-        val container = android.widget.FrameLayout(this)
-        container.setPadding(padding, (8 * resources.displayMetrics.density).toInt(), padding, 0)
-        container.addView(input)
-        builder.setView(container)
-
-        builder.setPositiveButton("Искать") { _, _ ->
-            val query = input.text.toString()
-            if (query.isNotEmpty()) {
-                performSmartSearch(query)
-            }
-        }
-        builder.setNegativeButton("Отмена", null)
-        builder.show()
-    }
-
     fun performSmartSearch(query: String) {
-        ensureModelLoaded {
-            SmartSearchBottomSheet.newInstance(query, bookContent).apply {
-                setOnResultClickListener { offset ->
-                    jumpToBookmarkOffset(offset)
-                }
-            }.show(supportFragmentManager, "SmartSearch")
+        val index = bookContent.indexOf(query, ignoreCase = true)
+        if (index != -1) {
+            jumpToBookmarkOffset(index)
+            Toast.makeText(this, "Найдено в книге", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Текст не найден", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -709,49 +636,8 @@ class ReadingActivity : AppCompatActivity() {
         }.show(supportFragmentManager, "ChapterList")
     }
 
-    private fun showQADialog() {
-        QABottomSheet().show(supportFragmentManager, "QA")
-    }
-
-    private fun ensureModelLoaded(onSuccess: () -> Unit) {
-        if (com.nightread.app.service.LocalAIManager.isModelLoaded) {
-            onSuccess()
-        } else {
-            if (com.nightread.app.service.LocalAIManager.isModelAvailable(this)) {
-                androidx.appcompat.app.AlertDialog.Builder(this, R.style.Theme_NightRead_Dialog)
-                    .setTitle("Модель не загружена")
-                    .setMessage("Модель скачана, но не загружена. Загрузить сейчас?")
-                    .setPositiveButton("Загрузить") { _, _ ->
-                        progressBar.visibility = View.VISIBLE
-                        lifecycleScope.launch {
-                            val activePath = SettingsManager.getAiModelPath(this@ReadingActivity)
-                            val success = if (activePath != null) {
-                                com.nightread.app.service.LocalAIManager.loadModel(this@ReadingActivity, activePath)
-                            } else false
-                            progressBar.visibility = View.GONE
-                            if (success) {
-                                Toast.makeText(this@ReadingActivity, "Модель успешно загружена", Toast.LENGTH_SHORT).show()
-                                updateAiButtonsVisibility()
-                                onSuccess()
-                            } else {
-                                Toast.makeText(this@ReadingActivity, "Не удалось загрузить модель", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-                    .setNegativeButton("Отмена", null)
-                    .show()
-            } else {
-                Toast.makeText(this, "Скачайте модель AI в настройках", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
     private fun updateAiButtonsVisibility() {
-        val aiEnabled = SettingsManager.isAiEnabled(this)
-        btnSummarizeChapter.visibility = if (aiEnabled) View.VISIBLE else View.GONE
-        btnSmartSearch.visibility = if (aiEnabled) View.VISIBLE else View.GONE
-        btnChaptersList.visibility = if (aiEnabled) View.VISIBLE else View.GONE
-        btnQA.visibility = if (aiEnabled) View.VISIBLE else View.GONE
+        btnChaptersList.visibility = View.VISIBLE
     }
 
     override fun onResume() {

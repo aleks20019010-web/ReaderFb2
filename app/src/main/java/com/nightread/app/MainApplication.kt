@@ -47,23 +47,5 @@ class MainApplication : Application() {
         if (SettingsManager.isAutoThemeEnabled(this)) {
             ThemeUpdateReceiver.scheduleNextThemeAlarm(this)
         }
-
-        // Auto-load AI model if configured and enabled
-        if (SettingsManager.isAiEnabled(this) && SettingsManager.isAiAutoLoad(this)) {
-            val activePath = SettingsManager.getAiModelPath(this)
-            if (activePath != null && java.io.File(activePath).exists()) {
-                Log.i("MainApplication", "Found downloaded AI model, initiating asynchronous loading...")
-                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                    try {
-                        com.nightread.app.service.LocalAIManager.loadModel(this@MainApplication, activePath)
-                        Log.i("MainApplication", "Asynchronous AI model loading complete.")
-                    } catch (e: Exception) {
-                        Log.e("MainApplication", "Failed to auto-load AI model at startup", e)
-                    }
-                }
-            } else {
-                Log.i("MainApplication", "AI model path is not set or file does not exist.")
-            }
-        }
     }
 }

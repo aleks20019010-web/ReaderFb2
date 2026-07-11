@@ -21,7 +21,6 @@ import com.nightread.app.R
 import com.nightread.app.data.AppDatabase
 import com.nightread.app.data.BookEntity
 import com.nightread.app.data.SettingsManager
-import com.nightread.app.service.LocalAIManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -42,10 +41,6 @@ class BookDetailActivity : AppCompatActivity() {
     private lateinit var tvFormatSize: TextView
     private lateinit var tvSha1: TextView
     private lateinit var tvReadMore: TextView
-    private lateinit var btnAiAnnotation: android.view.View
-    private lateinit var cardAiFeatures: android.view.View
-    private lateinit var btnBookSummary: android.view.View
-    private lateinit var btnAnalyzeCharacters: android.view.View
 
     private lateinit var ivCover: ImageView
     private lateinit var tvCoverLetter: TextView
@@ -109,16 +104,6 @@ class BookDetailActivity : AppCompatActivity() {
         tvSeriesBanner = findViewById(R.id.tvSeriesBanner)
         tvAnnotation = findViewById(R.id.tvAnnotation)
         tvReadMore = findViewById(R.id.tvReadMore)
-        btnAiAnnotation = findViewById(R.id.btnAiAnnotation)
-        btnAiAnnotation.setOnClickListener {
-            generateAiAnnotation()
-        }
-        cardAiFeatures = findViewById(R.id.cardAiFeatures)
-        btnBookSummary = findViewById(R.id.btnBookSummary)
-        btnAnalyzeCharacters = findViewById(R.id.btnAnalyzeCharacters)
-        
-        btnBookSummary.setOnClickListener { showBookSummary() }
-        btnAnalyzeCharacters.setOnClickListener { showCharacters() }
         
         tvLanguage = findViewById(R.id.tvLanguage)
         tvProgress = findViewById(R.id.tvProgress)
@@ -380,13 +365,12 @@ class BookDetailActivity : AppCompatActivity() {
 
     private fun setupAnnotation(book: BookEntity, db: AppDatabase) {
         val dbAnnotation = book.annotation
-        
-        val isAiAvailable = SettingsManager.isAiEnabled(this) && com.nightread.app.service.LocalAIManager.isLoaded()
+        val btnAiAnno = findViewById<View>(R.id.btnAiAnnotation)
         
         // If there's an annotation stored in the entity, display it
         if (!dbAnnotation.isNullOrEmpty() && dbAnnotation != "Аннотация отсутствует") {
             tvAnnotation.text = dbAnnotation
-            btnAiAnnotation.visibility = View.GONE
+            btnAiAnno?.visibility = View.GONE
             checkAnnotationLength()
         } else if (!book.filePath.isNullOrEmpty() && File(book.filePath).exists()) {
             tvAnnotation.text = "Загрузка аннотации..."
@@ -395,7 +379,7 @@ class BookDetailActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     if (!fileAnnotation.isNullOrEmpty()) {
                         tvAnnotation.text = fileAnnotation
-                        btnAiAnnotation.visibility = View.GONE
+                        btnAiAnno?.visibility = View.GONE
                         checkAnnotationLength()
                         // Persist it back to database
                         launch(Dispatchers.IO) {
@@ -404,81 +388,20 @@ class BookDetailActivity : AppCompatActivity() {
                     } else {
                         tvAnnotation.text = "Аннотация отсутствует"
                         tvReadMore.visibility = View.GONE
-                        if (isAiAvailable) {
-                            btnAiAnnotation.visibility = View.VISIBLE
-                        }
+                        btnAiAnno?.visibility = View.GONE
                     }
                 }
             }
         } else {
             tvAnnotation.text = "Аннотация отсутствует"
             tvReadMore.visibility = View.GONE
-            if (isAiAvailable) {
-                btnAiAnnotation.visibility = View.VISIBLE
-            }
-        }
-    }
-
-    private fun generateAiAnnotation() {
-        val book = currentBook ?: return
-        
-        btnAiAnnotation.isEnabled = false
-        tvAnnotation.text = "AI генерирует аннотацию..."
-        
-        lifecycleScope.launch {
-            // В реальности здесь мы бы передали первые страницы книги для анализа
-            val contextSnippet = "Начальные страницы книги: ${book.title} от ${book.author}..." 
-            val annotation = com.nightread.app.service.LocalAIManager.generateAnnotation(this@BookDetailActivity, book.title, contextSnippet)
-            
-            tvAnnotation.text = annotation
-            btnAiAnnotation.isEnabled = true
-            btnAiAnnotation.visibility = View.GONE
-            checkAnnotationLength()
-            
-            // Сохранение в БД
-            withContext(Dispatchers.IO) {
-                AppDatabase.getDatabase(this@BookDetailActivity).bookDao().updateBook(book.copy(annotation = annotation))
-            }
-        }
-    }
-
-    private fun showBookSummary() {
-        val sha1 = bookSha1 ?: return
-        lifecycleScope.launch {
-            val content = getBookContentSnippet()
-            BookSummaryBottomSheet.newInstance(sha1, content).show(supportFragmentManager, "BookSummary")
-        }
-    }
-
-    private fun showCharacters() {
-        val sha1 = bookSha1 ?: return
-        lifecycleScope.launch {
-            val content = getBookContentSnippet()
-            CharactersBottomSheet.newInstance(sha1, content).show(supportFragmentManager, "Characters")
-        }
-    }
-
-    private suspend fun getBookContentSnippet(): String = withContext(Dispatchers.IO) {
-        val path = currentBook?.filePath ?: return@withContext ""
-        val file = File(path)
-        if (!file.exists()) return@withContext ""
-        try {
-            // Read first 50KB as a snippet for AI
-            val bytes = file.inputStream().use { it.readBytes().take(50000).toByteArray() }
-            String(bytes)
-        } catch (e: Exception) {
-            ""
+            btnAiAnno?.visibility = View.GONE
         }
     }
 
     private fun updateAiVisibility() {
-        val aiEnabled = SettingsManager.isAiEnabled(this) && LocalAIManager.isModelLoaded
-        cardAiFeatures.visibility = if (aiEnabled) View.VISIBLE else View.GONE
-        if (currentBook?.annotation.isNullOrEmpty() || currentBook?.annotation == "Аннотация отсутствует") {
-            btnAiAnnotation.visibility = if (aiEnabled) View.VISIBLE else View.GONE
-        } else {
-            btnAiAnnotation.visibility = View.GONE
-        }
+        findViewById<View>(R.id.cardAiFeatures)?.visibility = View.GONE
+        findViewById<View>(R.id.btnAiAnnotation)?.visibility = View.GONE
     }
 
     private fun checkAnnotationLength() {

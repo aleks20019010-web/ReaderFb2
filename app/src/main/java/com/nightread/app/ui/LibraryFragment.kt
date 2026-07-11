@@ -795,20 +795,9 @@ class LibraryFragment : Fragment() {
         }
 
         if (currentSearchQuery.isNotBlank()) {
-            val isAiAvailable = SettingsManager.isAiEnabled(requireContext()) && com.nightread.app.service.LocalAIManager.isLoaded()
             filtered = filtered.filter { book ->
-                val basicMatch = book.title.contains(currentSearchQuery, ignoreCase = true) ||
+                book.title.contains(currentSearchQuery, ignoreCase = true) ||
                         (book.author ?: "").contains(currentSearchQuery, ignoreCase = true)
-                
-                if (basicMatch) {
-                    true
-                } else if (isAiAvailable) {
-                    // Smart search simulation for now as searchMorphology is suspend
-                    // In a real app we would use a pre-calculated search index or a suspend filter
-                    false 
-                } else {
-                    false
-                }
             }
         }
         return filtered

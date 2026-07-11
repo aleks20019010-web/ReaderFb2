@@ -38,18 +38,6 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
         val tvSelectedWord = view.findViewById<TextView>(R.id.tvSelectedWord)
         tvSelectedWord.text = word
 
-        view.findViewById<View>(R.id.btnExplain).setOnClickListener {
-            WordExplanationBottomSheet.newInstance(word, contextSnippet)
-                .show(parentFragmentManager, "WordExplanation")
-            dismiss()
-        }
-
-        view.findViewById<View>(R.id.btnTranslate).setOnClickListener {
-            WordTranslationBottomSheet.newInstance(word, contextSnippet)
-                .show(parentFragmentManager, "WordTranslation")
-            dismiss()
-        }
-
         view.findViewById<View>(R.id.btnFind).setOnClickListener {
             val readingActivity = activity as? ReadingActivity
             if (readingActivity != null) {

@@ -17,7 +17,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.nightread.app.R
 import com.nightread.app.data.SettingsManager
-import com.nightread.app.service.LocalAIManager
 import kotlinx.coroutines.launch
 import android.widget.Toast
 

@@ -11,6 +11,15 @@ object HyphenationPatterns {
 object HyphenatorHelper {
     private const val TAG = "HyphenatorHelper"
 
+    private const val v = "[аеёиоуыэюяАЕЁИОУЫЭЮЯ]"
+    private const val c = "[бвгджзклмнпрстфхцчшщБВГДЖЗКЛМНПРСТФХЦЧШЩ]"
+    private const val s = "[йьъЙЬЪ]"
+
+    private val regex1 = Regex("($v)($c$v)")
+    private val regex2 = Regex("($v$c)($c$v)")
+    private val regex3 = Regex("($v$c)($c$c$v)")
+    private val regex4 = Regex("($v$s)($c$v)")
+
     fun hyphenate(text: String): String {
         val sb = StringBuilder(text.length + text.length / 5)
         var i = 0
@@ -35,17 +44,13 @@ object HyphenatorHelper {
         if (word.all { it.isUpperCase() }) return word
 
         var res = word
-        val v = "[аеёиоуыэюяАЕЁИОУЫЭЮЯ]"
-        val c = "[бвгджзклмнпрстфхцчшщБВГДЖЗКЛМНПРСТФХЦЧШЩ]"
-        val s = "[йьъЙЬЪ]"
-
         var oldRes = ""
         while (res != oldRes) {
             oldRes = res
-            res = res.replace(Regex("($v)($c$v)"), "$1­$2")
-            res = res.replace(Regex("($v$c)($c$v)"), "$1­$2")
-            res = res.replace(Regex("($v$c)($c$c$v)"), "$1­$2")
-            res = res.replace(Regex("($v$s)($c$v)"), "$1­$2")
+            res = regex1.replace(res, "$1\u00AD$2")
+            res = regex2.replace(res, "$1\u00AD$2")
+            res = regex3.replace(res, "$1\u00AD$2")
+            res = regex4.replace(res, "$1\u00AD$2")
         }
         
         // Ensure no hyphen at the very beginning or after 1 character

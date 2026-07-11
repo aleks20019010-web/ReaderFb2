@@ -12,7 +12,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.nightread.app.R
 import com.nightread.app.data.AppDatabase
-import com.nightread.app.service.LocalAIManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -76,29 +75,11 @@ class ChapterListBottomSheet : BottomSheetDialogFragment() {
                 chapterTexts.add(bookContent.substring(lastPos).take(5000))
             }
 
-            if (book?.chapterDescriptions != null) {
-                val descriptions = parseDescriptions(book.chapterDescriptions!!)
-                rvChapters.adapter = ChapterAdapter(chapterOffsets, descriptions) { offset ->
-                    onChapterClick?.invoke(offset)
-                    dismiss()
-                }
-                progressBar.visibility = View.GONE
-            } else {
-                progressBar.visibility = View.VISIBLE
-                val descriptions = LocalAIManager.generateChapterDescriptions(requireContext(), chapterTexts)
-                rvChapters.adapter = ChapterAdapter(chapterOffsets, descriptions) { offset ->
-                    onChapterClick?.invoke(offset)
-                    dismiss()
-                }
-                progressBar.visibility = View.GONE
-                
-                if (book != null) {
-                    val serialized = serializeDescriptions(descriptions)
-                    withContext(Dispatchers.IO) {
-                        db.bookDao().updateBook(book.copy(chapterDescriptions = serialized))
-                    }
-                }
+            rvChapters.adapter = ChapterAdapter(chapterOffsets, emptyList()) { offset ->
+                onChapterClick?.invoke(offset)
+                dismiss()
             }
+            progressBar.visibility = View.GONE
         }
     }
 
@@ -107,22 +88,11 @@ class ChapterListBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun parseDescriptions(json: String): List<String> {
-        return try {
-            val array = JSONArray(json)
-            val list = mutableListOf<String>()
-            for (i in 0 until array.length()) {
-                list.add(array.getString(i))
-            }
-            list
-        } catch (e: Exception) {
-            emptyList()
-        }
+        return emptyList()
     }
 
     private fun serializeDescriptions(list: List<String>): String {
-        val array = JSONArray()
-        list.forEach { array.put(it) }
-        return array.toString()
+        return ""
     }
 
     private class ChapterAdapter(
@@ -145,7 +115,7 @@ class ChapterListBottomSheet : BottomSheetDialogFragment() {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val offset = offsets[position]
             holder.tvTitle.text = "Глава ${position + 1}"
-            holder.tvDesc.text = if (position < descriptions.size) descriptions[position] else "Нет описания"
+            holder.tvDesc.visibility = View.GONE
             holder.itemView.setOnClickListener { onClick(offset) }
         }
 

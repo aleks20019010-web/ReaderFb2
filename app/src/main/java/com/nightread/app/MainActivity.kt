@@ -7,9 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.activity.OnBackPressedCallback
-import com.nightread.app.ui.AISettingsFragment
 import com.nightread.app.ui.BookmarksFragment
-import com.nightread.app.ui.RecommendationsFragment
 import com.nightread.app.ui.YandexSyncFragment
 import com.nightread.app.ui.LibraryFragment
 import com.nightread.app.ui.CustomToast
@@ -56,23 +54,16 @@ class MainActivity : AppCompatActivity() {
             windowInsets
         }
 
-        // Setup Navigation logic
         navView.setNavigationItemSelectedListener { menuItem ->
             if (menuItem.itemId == R.id.nav_sync) {
                 openSyncFragment()
-            } else if (menuItem.itemId == R.id.nav_ai) {
-                openAiFragment()
             } else if (menuItem.itemId == R.id.nav_tags) {
                 openTagsFragment()
-            } else if (menuItem.itemId == R.id.nav_compare) {
-                com.nightread.app.ui.CompareBooksBottomSheet().show(supportFragmentManager, "CompareBooks")
             } else if (menuItem.itemId == R.id.nav_bookmarks) {
                 openBookmarksFragment()
             } else if (menuItem.itemId == R.id.nav_favorites) {
                 val intent = Intent(this, com.nightread.app.ui.FavoriteBooksActivity::class.java)
                 startActivity(intent)
-            } else if (menuItem.itemId == R.id.nav_recommendations) {
-                openRecommendationsFragment()
             } else if (menuItem.itemId == R.id.nav_settings) {
                 // Open SettingsActivity
                 val intent = Intent(this, com.nightread.app.ui.SettingsActivity::class.java)
@@ -109,9 +100,6 @@ class MainActivity : AppCompatActivity() {
             if (intent.getBooleanExtra("OPEN_SYNC", false)) {
                 openSyncFragment()
                 navView.setCheckedItem(R.id.nav_sync)
-            } else if (intent.getBooleanExtra("OPEN_AI", false)) {
-                openAiFragment()
-                navView.setCheckedItem(R.id.nav_ai)
             } else {
                 openLibraryFragment(lastFilter)
             }
@@ -138,22 +126,8 @@ class MainActivity : AppCompatActivity() {
             .commit()
     }
 
-    private fun openAiFragment() {
-        val fragment = com.nightread.app.ui.AISettingsFragment()
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, fragment)
-            .commit()
-    }
-
     private fun openBookmarksFragment() {
         val fragment = com.nightread.app.ui.BookmarksFragment.newInstance()
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, fragment)
-            .commit()
-    }
-
-    private fun openRecommendationsFragment() {
-        val fragment = com.nightread.app.ui.RecommendationsFragment()
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()

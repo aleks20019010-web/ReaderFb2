@@ -198,7 +198,7 @@ object PageSplitter {
             if (!isActive) return@withContext
             result.offsets.add(start)
 
-            var chunkSize = 8000
+            var chunkSize = 3000
             var tempLayout: StaticLayout
             var measureEnd: Int
 
