@@ -45,7 +45,7 @@ class SettingsActivity : FragmentActivity() {
                 Box(modifier = Modifier.fillMaxSize()) {
                     
                         Image(
-                            painter = painterResource(id = com.nightread.app.R.drawable.bg_main_drawable),
+                            painter = painterResource(id = com.nightread.app.R.drawable.bg_starry_night),
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
