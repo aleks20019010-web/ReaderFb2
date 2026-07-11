@@ -41,7 +41,6 @@ class SettingsActivity : FragmentActivity() {
         
         setContent {
             MyApplicationTheme {
-                val isDark = isSystemInDarkTheme() || SettingsManager.getTheme(this) == "dark"
                 Box(modifier = Modifier.fillMaxSize()) {
                     
                         Image(
@@ -84,15 +83,6 @@ class SettingsActivity : FragmentActivity() {
             }
         }
 
-        // Theme states (Existing)
-        val themeOptions = listOf("light", "dark")
-        val themeNames = mapOf(
-            "light" to "День",
-            "dark" to "Ночь"
-        )
-        var selectedTheme by remember { mutableStateOf(SettingsManager.getTheme(context)) }
-        var autoThemeEnabled by remember { mutableStateOf(SettingsManager.isAutoThemeEnabled(context)) }
-        
         // Font options
         val fontOptions = listOf("Roboto", "Times New Roman", "Georgia", "OpenDyslexic", "Monospace")
         var selectedFont by remember { mutableStateOf(SettingsManager.getFontFamily(context)) }
@@ -118,13 +108,13 @@ class SettingsActivity : FragmentActivity() {
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = if (selectedTheme == "dark") Color.Transparent else MaterialTheme.colorScheme.surfaceVariant,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
                         titleContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
             },
-            containerColor = if (selectedTheme == "dark") Color.Transparent else MaterialTheme.colorScheme.background
+            containerColor = MaterialTheme.colorScheme.background
         ) { paddingValues ->
             LazyColumn(
                 modifier = Modifier
@@ -218,57 +208,6 @@ class SettingsActivity : FragmentActivity() {
                 item { Text("Версия: ${com.nightread.app.BuildConfig.VERSION_NAME}\nРазработчик: NightRead Team\nКонтакты: support@nightread.com") }
 
                 item { Spacer(modifier = Modifier.height(24.dp)) }
-                
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Авто-тема",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Text(
-                                text = "Светлая днем (6:00 - 21:00), темная ночью",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = autoThemeEnabled,
-                            onCheckedChange = { checked ->
-                                autoThemeEnabled = checked
-                                SettingsManager.setAutoThemeEnabled(context, checked)
-                                if (checked) {
-                                    com.nightread.app.service.ThemeUpdateReceiver.scheduleNextThemeAlarm(context)
-                                } else {
-                                    com.nightread.app.service.ThemeUpdateReceiver.cancelAlarm(context)
-                                }
-                                com.nightread.app.data.ThemeManager.applyTheme(context)
-                                selectedTheme = SettingsManager.getTheme(context)
-                            }
-                        )
-                    }
-                }
-
-                item {
-                    SettingsDropdown(
-                        label = "Тема оформления",
-                        options = themeOptions,
-                        selectedOption = selectedTheme,
-                        onOptionSelected = {
-                            selectedTheme = it
-                            SettingsManager.setTheme(context, it)
-                            com.nightread.app.data.ThemeManager.applyTheme(context)
-                        },
-                        enabled = !autoThemeEnabled,
-                        displayMapper = { themeNames[it] ?: it }
-                    )
-                }
 
                 item {
                     SettingsDropdown(

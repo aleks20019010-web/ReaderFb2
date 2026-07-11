@@ -12,21 +12,7 @@ object ThemeHelper {
     }
 
     fun applyTheme(context: Context) {
-        val autoTheme = SettingsManager.isAutoThemeEnabled(context)
-        val targetMode = if (autoTheme) {
-            if (shouldBeNightMode()) {
-                AppCompatDelegate.MODE_NIGHT_YES
-            } else {
-                AppCompatDelegate.MODE_NIGHT_NO
-            }
-        } else {
-            val theme = SettingsManager.getTheme(context)
-            if (theme == "dark") {
-                AppCompatDelegate.MODE_NIGHT_YES
-            } else {
-                AppCompatDelegate.MODE_NIGHT_NO
-            }
-        }
+        val targetMode = AppCompatDelegate.MODE_NIGHT_NO
         
         if (AppCompatDelegate.getDefaultNightMode() != targetMode) {
             AppCompatDelegate.setDefaultNightMode(targetMode)

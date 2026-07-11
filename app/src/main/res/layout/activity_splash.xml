@@ -28,14 +28,14 @@
             android:layout_height="96dp"
             app:cardCornerRadius="24dp"
             app:cardElevation="4dp"
-            app:cardBackgroundColor="@color/bg_card">
-
+            app:cardBackgroundColor="@android:color/transparent">
+            
             <ImageView
                 android:id="@+id/iv_logo"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:src="@drawable/ic_book_icon"
-                android:scaleType="centerCrop"
+                android:src="@mipmap/ic_launcher"
+                android:scaleType="fitCenter"
                 android:contentDescription="NightRead Logo" />
         </androidx.cardview.widget.CardView>
 
