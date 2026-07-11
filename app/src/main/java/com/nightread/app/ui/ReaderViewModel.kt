@@ -238,7 +238,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 availableHeight = availableHeight,
                 paint = paint,
                 lineSpacing = lineSpacing,
-                alignment = alignment
+                alignment = alignment,
+                isHyphenationEnabled = SettingsManager.isHyphenationEnabled(appContext)
             )
 
             val pages = result.pages
@@ -300,15 +301,6 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 bookDao.updateProgressAndPage(book.sha1, charOffset, pageIdx, book.totalCharacters, System.currentTimeMillis())
-                
-                if (SettingsManager.isCloudSyncEnabled(appContext)) {
-                    val url = SettingsManager.getCloudSyncUrl(appContext)
-                    if (url.isNotEmpty()) {
-                        syncManager.syncWithCloud(repository, url) { log ->
-                            android.util.Log.d("ReaderViewModel", "Sync log: $log")
-                        }
-                    }
-                }
             }
         }
     }

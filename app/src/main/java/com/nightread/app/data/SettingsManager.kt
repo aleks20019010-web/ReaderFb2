@@ -22,10 +22,6 @@ object SettingsManager {
 
     const val KEY_AUTO_DISCOVERY = "auto_discovery"
     const val KEY_AUTO_THEME = "auto_theme"
-    const val KEY_CLOUD_SYNC_URL = "cloud_sync_url"
-    const val KEY_CLOUD_SYNC_ENABLED = "cloud_sync_enabled"
-    const val KEY_FIRESTORE_SYNC_ENABLED = "firestore_sync_enabled"
-    const val KEY_FIRESTORE_USER_ID = "firestore_user_id"
     const val KEY_AI_ENABLED = "ai_enabled"
     const val KEY_AI_MODEL_PATH = "ai_model_path"
     const val KEY_AI_MODEL_ID = "ai_model_id"
@@ -49,10 +45,6 @@ object SettingsManager {
     private var cachedOnboardingCompleted: Boolean? = null 
     private var cachedAutoDiscovery: Boolean? = null
     private var cachedAutoTheme: Boolean? = null
-    private var cachedCloudSyncUrl: String? = null
-    private var cachedCloudSyncEnabled: Boolean? = null
-    private var cachedFirestoreSyncEnabled: Boolean? = null
-    private var cachedFirestoreUserId: String? = null
 
     private fun getPrefs(context: Context): SharedPreferences {
         if (prefs == null) {
@@ -90,34 +82,6 @@ object SettingsManager {
         if (cachedAutoTheme == enabled) return
         cachedAutoTheme = enabled
         getPrefs(context).edit().putBoolean(KEY_AUTO_THEME, enabled).apply()
-        notifyChanged()
-    }
-
-    fun isCloudSyncEnabled(context: Context): Boolean {
-        if (cachedCloudSyncEnabled == null) {
-            cachedCloudSyncEnabled = getPrefs(context).getBoolean(KEY_CLOUD_SYNC_ENABLED, false)
-        }
-        return cachedCloudSyncEnabled!!
-    }
-
-    fun setCloudSyncEnabled(context: Context, enabled: Boolean) {
-        if (cachedCloudSyncEnabled == enabled) return
-        cachedCloudSyncEnabled = enabled
-        getPrefs(context).edit().putBoolean(KEY_CLOUD_SYNC_ENABLED, enabled).apply()
-        notifyChanged()
-    }
-
-    fun getCloudSyncUrl(context: Context): String {
-        if (cachedCloudSyncUrl == null) {
-            cachedCloudSyncUrl = getPrefs(context).getString(KEY_CLOUD_SYNC_URL, "") ?: ""
-        }
-        return cachedCloudSyncUrl!!
-    }
-
-    fun setCloudSyncUrl(context: Context, url: String) {
-        if (cachedCloudSyncUrl == url) return
-        cachedCloudSyncUrl = url
-        getPrefs(context).edit().putString(KEY_CLOUD_SYNC_URL, url).apply()
         notifyChanged()
     }
 
@@ -229,34 +193,6 @@ object SettingsManager {
         if (cachedBrightness == brightness) return
         cachedBrightness = brightness
         getPrefs(context).edit().putFloat(KEY_BRIGHTNESS, brightness).apply()
-    }
-
-    fun isFirestoreSyncEnabled(context: Context): Boolean {
-        if (cachedFirestoreSyncEnabled == null) {
-            cachedFirestoreSyncEnabled = getPrefs(context).getBoolean(KEY_FIRESTORE_SYNC_ENABLED, true)
-        }
-        return cachedFirestoreSyncEnabled!!
-    }
-
-    fun setFirestoreSyncEnabled(context: Context, enabled: Boolean) {
-        if (cachedFirestoreSyncEnabled == enabled) return
-        cachedFirestoreSyncEnabled = enabled
-        getPrefs(context).edit().putBoolean(KEY_FIRESTORE_SYNC_ENABLED, enabled).apply()
-        notifyChanged()
-    }
-
-    fun getFirestoreUserId(context: Context): String {
-        if (cachedFirestoreUserId == null) {
-            cachedFirestoreUserId = getPrefs(context).getString(KEY_FIRESTORE_USER_ID, "") ?: ""
-        }
-        return cachedFirestoreUserId!!
-    }
-
-    fun setFirestoreUserId(context: Context, userId: String) {
-        if (cachedFirestoreUserId == userId) return
-        cachedFirestoreUserId = userId
-        getPrefs(context).edit().putString(KEY_FIRESTORE_USER_ID, userId).apply()
-        notifyChanged()
     }
 
     fun getPageAnimation(context: Context): String {

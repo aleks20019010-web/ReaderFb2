@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Theme.MyApplication" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Primary brand color. -->
@@ -34,8 +34,8 @@
         <!-- Status Bar and Navigation Bar Colors for Purple Fog Theme -->
         <item name="android:statusBarColor">@color/bg_gradient_start</item>
         <item name="android:navigationBarColor">@color/bg_gradient_end</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
 
         <item name="colorControlHighlight">#4D9B59B6</item>
         <item name="colorControlActivated">@color/accent</item>

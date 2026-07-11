@@ -69,17 +69,13 @@ object FirestoreSyncManager {
 
     // Get a unique user/device ID
     fun getUserId(context: Context): String {
-        // First try to get custom user ID from SettingsManager, or fallback to ANDROID_ID
-        val customId = SettingsManager.getFirestoreUserId(context)
-        if (customId.isNotEmpty()) return customId
-
         val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
         return if (!androidId.isNullOrEmpty()) androidId else "device_anonymous"
     }
 
     // Check if Firestore sync is enabled in settings
     fun isSyncEnabled(context: Context): Boolean {
-        return SettingsManager.isFirestoreSyncEnabled(context)
+        return false
     }
 
     // Save reading progress for a book to Firestore

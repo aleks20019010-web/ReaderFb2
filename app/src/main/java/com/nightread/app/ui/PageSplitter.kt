@@ -112,7 +112,8 @@ object PageSplitter {
         availableHeight: Int,
         paint: TextPaint,
         lineSpacing: Float,
-        alignment: String = "justify"
+        alignment: String = "justify",
+        isHyphenationEnabled: Boolean = false
     ): Pair<Int, CharSequence> = withContext(Dispatchers.Default) {
         if (text.isEmpty() || availableWidth <= 0 || availableHeight <= 0) return@withContext Pair(0, "Документ пуст.")
         
@@ -135,15 +136,17 @@ object PageSplitter {
             else -> Layout.Alignment.ALIGN_NORMAL
         }
         
+        val strategy = if (isHyphenationEnabled) android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY else android.text.Layout.BREAK_STRATEGY_SIMPLE
+        val frequency = if (isHyphenationEnabled) android.text.Layout.HYPHENATION_FREQUENCY_FULL else android.text.Layout.HYPHENATION_FREQUENCY_NONE
+
         val tempLayout = StaticLayout.Builder.obtain(
             formattedText, start, (start + 8000).coerceAtMost(textLength), paint, availableWidth
         )
             .setAlignment(alignmentVal)
             .setLineSpacing(0f, lineSpacing)
             .setIncludePad(false)
-            .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY)
-            .setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_FULL)
-            
+            .setBreakStrategy(strategy)
+            .setHyphenationFrequency(frequency)
             .build()
             
         var fitLineCount = 0
@@ -168,6 +171,7 @@ object PageSplitter {
         paint: TextPaint,
         lineSpacing: Float,
         alignment: String = "justify",
+        isHyphenationEnabled: Boolean = false,
         onProgress: (PageResult) -> Unit
     ) = withContext(Dispatchers.Default) {
         val result = PageResult()
@@ -193,6 +197,9 @@ object PageSplitter {
             else -> Layout.Alignment.ALIGN_NORMAL
         }
 
+        val strategy = if (isHyphenationEnabled) android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY else android.text.Layout.BREAK_STRATEGY_SIMPLE
+        val frequency = if (isHyphenationEnabled) android.text.Layout.HYPHENATION_FREQUENCY_FULL else android.text.Layout.HYPHENATION_FREQUENCY_NONE
+
         var pagesFound = 0
         while (start < textLength) {
             if (!isActive) return@withContext
@@ -210,8 +217,8 @@ object PageSplitter {
                     .setAlignment(alignmentVal)
                     .setLineSpacing(0f, lineSpacing)
                     .setIncludePad(false)
-                    .setBreakStrategy(android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY)
-                    .setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_FULL)
+                    .setBreakStrategy(strategy)
+                    .setHyphenationFrequency(frequency)
                     .apply { if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) { setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD) } }
                     .build()
 
@@ -283,10 +290,11 @@ object PageSplitter {
         availableHeight: Int,
         paint: TextPaint,
         lineSpacing: Float,
-        alignment: String = "justify"
+        alignment: String = "justify",
+        isHyphenationEnabled: Boolean = false
     ): PageResult {
         var finalResult = PageResult()
-        splitTextProgressive(text, availableWidth, availableHeight, paint, lineSpacing, alignment) {
+        splitTextProgressive(text, availableWidth, availableHeight, paint, lineSpacing, alignment, isHyphenationEnabled) {
             if (it.isFinished) {
                 finalResult = it
             }

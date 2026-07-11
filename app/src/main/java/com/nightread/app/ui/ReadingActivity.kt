@@ -464,7 +464,8 @@ class ReadingActivity : AppCompatActivity() {
                 availableHeight = availableHeight,
                 paint = paint,
                 lineSpacing = SettingsManager.getLineSpacing(this@ReadingActivity),
-                alignment = "left"
+                alignment = "left",
+                isHyphenationEnabled = SettingsManager.isHyphenationEnabled(this@ReadingActivity)
             ) { result ->
                 val oldCount = splitResult.pages.size
                 splitResult = result
