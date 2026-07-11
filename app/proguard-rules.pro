@@ -104,3 +104,22 @@
 }
 -keep class kotlin.Metadata { *; }
 
+# =========================================================================
+# LLAMA.CPP / AI LOCAL LLM RULES
+# =========================================================================
+# Keep all classes and interfaces in the llamacpp packages to prevent JNI errors
+-keep class org.nehuatl.llamacpp.** { *; }
+-keep interface org.nehuatl.llamacpp.** { *; }
+-keep class io.github.ljcamargo.** { *; }
+-keep interface io.github.ljcamargo.** { *; }
+
+# Do not warn about missing references in the llama.cpp library
+-dontwarn org.nehuatl.llamacpp.**
+-dontwarn io.github.ljcamargo.**
+
+# Keep all native methods and their class definitions intact for JNI linking
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+

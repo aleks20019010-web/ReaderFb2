@@ -19,6 +19,7 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setStyle(STYLE_NORMAL, R.style.DarkPurpleBottomSheetDialog)
         word = arguments?.getString(ARG_WORD) ?: ""
         contextSnippet = arguments?.getString(ARG_CONTEXT) ?: ""
     }

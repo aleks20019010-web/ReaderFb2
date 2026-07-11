@@ -6,7 +6,7 @@
     android:orientation="vertical"
     android:paddingTop="12dp"
     android:paddingBottom="24dp"
-    android:background="@color/bg_main">
+    android:background="@drawable/bg_dark_purple_bottom_sheet">
 
     <!-- Drag handle in M3 style -->
     <View
@@ -14,7 +14,7 @@
         android:layout_height="4dp"
         android:layout_gravity="center_horizontal"
         android:layout_marginBottom="16dp"
-        android:background="@color/divider" />
+        android:background="#4D9B59B6" />
 
     <TextView
         android:id="@+id/tvSelectedWord"
@@ -24,13 +24,13 @@
         android:layout_marginBottom="16dp"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="@color/text_primary"
+        android:textColor="#9B59B6"
         android:text="Выбранное слово" />
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@color/divider"
+        android:background="#3A2A4E"
         android:layout_marginBottom="8dp" />
 
     <!-- Explain option -->

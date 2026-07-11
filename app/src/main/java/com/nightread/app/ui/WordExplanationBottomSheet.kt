@@ -19,6 +19,7 @@ class WordExplanationBottomSheet : BottomSheetDialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setStyle(STYLE_NORMAL, R.style.DarkPurpleBottomSheetDialog)
         word = arguments?.getString(ARG_WORD) ?: ""
         contextSnippet = arguments?.getString(ARG_CONTEXT) ?: ""
     }
@@ -28,7 +29,7 @@ class WordExplanationBottomSheet : BottomSheetDialogFragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        return inflater.inflate(R.layout.dialog_ai_explanation, container, false)
+        return inflater.inflate(R.layout.bottom_sheet_ai_word, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -40,7 +41,7 @@ class WordExplanationBottomSheet : BottomSheetDialogFragment() {
         val btnOk = view.findViewById<View>(R.id.btnOk)
 
         tvWord.text = "Объяснение слова: $word"
-        tvExplanation.text = "AI анализирует контекст..."
+        tvExplanation.text = "AI думает..."
         progressBar.visibility = View.VISIBLE
 
         btnOk.setOnClickListener { dismiss() }
