@@ -124,15 +124,6 @@ class SettingsActivity : BaseActivity() {
                     }
                 }
                 item {
-                    Button(onClick = {
-                        val intent = android.content.Intent(context, com.nightread.app.ui.OnboardingActivity::class.java)
-                        context.startActivity(intent)
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Обучение")
-                    }
-                }
-
-                item {
                     Button(onClick = { 
                         val intent = Intent(context, com.nightread.app.MainActivity::class.java).apply {
                             putExtra("OPEN_SYNC", true)

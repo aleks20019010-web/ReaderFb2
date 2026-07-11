@@ -1,150 +1,110 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="@dimen/item_book_padding"
-    android:clickable="true"
-    android:focusable="true">
+    android:layout_margin="6dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp"
+    app:strokeWidth="0dp"
+    app:cardBackgroundColor="@android:color/transparent">
 
-    <com.google.android.material.card.MaterialCardView
-        style="@style/CardViewStyle"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:strokeWidth="0dp"
-        app:cardBackgroundColor="@color/bg_card"
-        app:cardUseCompatPadding="false">
+        android:foreground="?android:attr/selectableItemBackground">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:foreground="?android:attr/selectableItemBackground">
+        <!-- Cover container with 2:3 ratio -->
+        <FrameLayout
+            android:id="@+id/coverContainer"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintDimensionRatio="2:3">
 
-            <!-- Cover frame (top-aligned, takes dynamic height with 2:3 ratio) -->
-            <FrameLayout
-                android:id="@+id/coverContainer"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintDimensionRatio="2:3">
+            <!-- Fallback background gradient -->
+            <View
+                android:id="@+id/vCoverBackground"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#1A1A2E" />
 
-                <!-- Gradient background (fallback) -->
-                <View
-                    android:id="@+id/vCoverBackground"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="#e94560" />
+            <!-- Cover Image: takes full card -->
+            <ImageView
+                android:id="@+id/ivCover"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:contentDescription="Обложка книги" />
 
-                <!-- Loaded cover displayed using centerCrop to fill card width -->
-                <ImageView
-                    android:id="@+id/ivCover"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
-                    android:contentDescription="Обложка книги" />
+            <!-- Cover letter fallback -->
+            <TextView
+                android:id="@+id/tvCoverLetter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textColor="#FFFFFF"
+                android:textSize="36sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
 
-                <!-- Cover letter fallback when no image exists -->
-                <TextView
-                    android:id="@+id/tvCoverLetter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:textColor="#FFFFFF"
-                    android:textSize="36sp"
-                    android:textStyle="bold"
-                    android:visibility="gone"
-                    android:shadowColor="#80000000"
-                    android:shadowDx="2"
-                    android:shadowDy="2"
-                    android:shadowRadius="4" />
+            <!-- Overlay for text readability (bottom gradient) -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_book_card_overlay" />
 
-                <!-- Semi-transparent gloss/glow overlay -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/bg_cover_glow" />
-
-                <!-- Hidden/Dummy delete button to keep logic happy -->
-                <ImageButton
-                    android:id="@+id/btnDelete"
-                    android:layout_width="1dp"
-                    android:layout_height="1dp"
-                    android:visibility="gone"
-                    android:contentDescription="Удалить" />
-            </FrameLayout>
-
-            <!-- Single progress bar pinned to the bottom of the cover container -->
-            <ProgressBar
-                android:id="@+id/pbReadingProgress"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="0dp"
-                android:layout_height="4dp"
-                android:progress="0"
-                android:max="100"
-                android:progressTint="@color/accent"
-                android:progressBackgroundTint="#20FFFFFF"
-                android:visibility="gone"
-                app:layout_constraintBottom_toBottomOf="@id/coverContainer"
-                app:layout_constraintStart_toStartOf="@id/coverContainer"
-                app:layout_constraintEnd_toEndOf="@id/coverContainer" />
-
-            <!-- Text block wrapper to keep heights uniform -->
+            <!-- Text container overlaid on bottom of cover -->
             <LinearLayout
                 android:id="@+id/textContainer"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
                 android:orientation="vertical"
-                android:paddingTop="6dp"
-                android:paddingBottom="8dp"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                app:layout_constraintTop_toBottomOf="@id/coverContainer"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent">
+                android:padding="10dp"
+                android:background="#88000000">
 
-                <!-- Book Title: max 2 lines, dynamic color, fixed height equivalent -->
                 <TextView
                     android:id="@+id/tvBookTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
-                    android:lines="2"
-                    android:textColor="@color/text_primary"
-                    android:textSize="@dimen/book_title_size"
-                    android:textStyle="bold"
-                    android:gravity="top|start" />
+                    android:maxLines="2"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
 
-                <!-- Book Author: max 1 line, dynamic color, fixed height equivalent -->
                 <TextView
                     android:id="@+id/tvBookAuthor"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:ellipsize="end"
-                    android:lines="1"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="@dimen/book_author_size"
-                    android:gravity="center_vertical|start" />
-
-                <!-- Book Series: hidden but present -->
-                <TextView
-                    android:id="@+id/tvBookSeries"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="1dp"
-                    android:ellipsize="end"
-                    android:lines="1"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="9sp"
-                    android:gravity="center_vertical|start"
-                    android:visibility="gone" />
+                    android:maxLines="1"
+                    android:textColor="#E8D8F0"
+                    android:textSize="12sp" />
+                
+                <!-- Hidden components for compatibility with existing adapter logic -->
+                <TextView android:id="@+id/tvBookSeries" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                <ImageButton android:id="@+id/btnDelete" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
             </LinearLayout>
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
-    </com.google.android.material.card.MaterialCardView>
-</LinearLayout>
+            <!-- Progress bar at the very bottom -->
+            <ProgressBar
+                android:id="@+id/pbReadingProgress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_gravity="bottom"
+                android:progress="0"
+                android:max="100"
+                android:progressTint="@color/accent"
+                android:progressBackgroundTint="#20FFFFFF"
+                android:visibility="gone" />
+        </FrameLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>

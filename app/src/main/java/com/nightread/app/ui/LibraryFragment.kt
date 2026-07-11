@@ -545,19 +545,10 @@ class LibraryFragment : Fragment() {
         // Compact Auto-Scan action
         setBounceAnimation(btnAutoScan)
         
-        // Onboarding block check
-        val isOnboardingCompleted = SettingsManager.isOnboardingCompleted(requireContext())
-        if (!isOnboardingCompleted) {
-            btnAutoScan.isEnabled = false
-            btnAutoScan.alpha = 0.5f
-            btnImport.isEnabled = false
-            btnImport.alpha = 0.5f
-        } else {
-            btnAutoScan.isEnabled = true
-            btnAutoScan.alpha = 1.0f
-            btnImport.isEnabled = true
-            btnImport.alpha = 1.0f
-        }
+        btnAutoScan.isEnabled = true
+        btnAutoScan.alpha = 1.0f
+        btnImport.isEnabled = true
+        btnImport.alpha = 1.0f
 
         btnAutoScan.setOnClickListener {
             checkPermissionsAndScan()
