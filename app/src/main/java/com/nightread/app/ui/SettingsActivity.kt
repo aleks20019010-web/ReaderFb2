@@ -45,10 +45,15 @@ class SettingsActivity : FragmentActivity() {
                 Box(modifier = Modifier.fillMaxSize()) {
                     if (isDark) {
                         Image(
-                            painter = painterResource(id = com.nightread.app.R.drawable.bg_forest_gradient),
+                            painter = painterResource(id = com.nightread.app.R.drawable.bg_starry_night),
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(0x66000000))
                         )
                     }
                     Surface(
