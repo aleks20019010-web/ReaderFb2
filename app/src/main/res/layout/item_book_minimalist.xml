@@ -63,7 +63,7 @@
                     android:backgroundTint="#80000000"
                     android:src="@android:drawable/ic_menu_close_clear_cancel"
                     android:contentDescription="Удалить"
-                    android:tint="@android:color/white"
+                    app:tint="@android:color/white"
                     android:padding="4dp" />
             </FrameLayout>
 
