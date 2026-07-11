@@ -2,14 +2,14 @@
 <resources>
     <!-- Purple Fog theme palette (Day) -->
     <color name="bg_main">#F5F0F8</color>
-    <color name="bg_card">#FFFFFF</color>
+    <color name="bg_card">#33000000</color>
     <color name="bg_gradient_start">#F5F0F8</color>
     <color name="bg_gradient_end">#FFFFFF</color>
     
-    <color name="text_primary">#2A1A36</color>
-    <color name="text_secondary">#6A5A7A</color>
-    <color name="text_title">#2A1A36</color>
-    <color name="text_author">#6A5A7A</color>
+    <color name="text_primary">#F5F0F8</color>
+    <color name="text_secondary">#D0C8D8</color>
+    <color name="text_title">#FFFFFF</color>
+    <color name="text_author">#D0C8D8</color>
     
     <!-- Reading Themes Colors -->
     <color name="reading_day_bg">#FFFFFF</color>
@@ -26,11 +26,11 @@
     
     <color name="shadow">#D0C8D8</color>
     <color name="divider">#E0D8E8</color>
-    <color name="bg_panel">#FFFFFF</color>
+    <color name="bg_panel">#1A000000</color>
     
     <color name="btn_bg">#9B59B6</color>
     <color name="btn_text">#FFFFFF</color>
-    <color name="icon_tint">#2A1A36</color>
+    <color name="icon_tint">#FFFFFF</color>
     <color name="accent_light">#E0D8E8</color>
 
     <!-- Material 3 Light Theme Colors mapping -->

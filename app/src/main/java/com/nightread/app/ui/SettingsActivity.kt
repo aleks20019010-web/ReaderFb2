@@ -43,7 +43,7 @@ class SettingsActivity : FragmentActivity() {
             MyApplicationTheme {
                 val isDark = isSystemInDarkTheme() || SettingsManager.getTheme(this) == "dark"
                 Box(modifier = Modifier.fillMaxSize()) {
-                    if (isDark) {
+                    
                         Image(
                             painter = painterResource(id = com.nightread.app.R.drawable.bg_starry_night),
                             contentDescription = null,
@@ -55,10 +55,9 @@ class SettingsActivity : FragmentActivity() {
                                 .fillMaxSize()
                                 .background(Color(0x66000000))
                         )
-                    }
                     Surface(
                         modifier = Modifier.fillMaxSize(),
-                        color = if (isDark) Color.Transparent else MaterialTheme.colorScheme.background
+                        color = Color.Transparent
                     ) {
                         SettingsScreen(
                             onBack = { finish() }

@@ -2,7 +2,7 @@
 <resources>
     <!-- Purple Fog theme palette (Night) -->
     <color name="bg_main">#1A0D2A</color>
-    <color name="bg_card">#2A1A3E</color>
+    <color name="bg_card">#33000000</color>
     <color name="bg_gradient_start">#1A0D2A</color>
     <color name="bg_gradient_end">#2A1A3E</color>
     
@@ -26,7 +26,7 @@
     
     <color name="shadow">#2A1A3E</color>
     <color name="divider">#3A2A4E</color>
-    <color name="bg_panel">#2A1A3E</color>
+    <color name="bg_panel">#1A000000</color>
     
     <color name="btn_bg">#9B59B6</color>
     <color name="btn_text">#FFFFFF</color>

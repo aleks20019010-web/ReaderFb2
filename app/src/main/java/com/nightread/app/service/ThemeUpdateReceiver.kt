@@ -62,11 +62,33 @@ class ThemeUpdateReceiver : BroadcastReceiver() {
             Log.d("ThemeUpdateReceiver", "Scheduling next theme alarm for: ${targetCalendar.time}")
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    targetCalendar.timeInMillis,
-                    pendingIntent
-                )
+                try {
+                    val canSchedule = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        alarmManager.canScheduleExactAlarms()
+                    } else {
+                        true
+                    }
+                    if (canSchedule) {
+                        alarmManager.setExactAndAllowWhileIdle(
+                            AlarmManager.RTC_WAKEUP,
+                            targetCalendar.timeInMillis,
+                            pendingIntent
+                        )
+                    } else {
+                        alarmManager.set(
+                            AlarmManager.RTC_WAKEUP,
+                            targetCalendar.timeInMillis,
+                            pendingIntent
+                        )
+                    }
+                } catch (e: SecurityException) {
+                    Log.e("ThemeUpdateReceiver", "SecurityException scheduling exact alarm", e)
+                    alarmManager.set(
+                        AlarmManager.RTC_WAKEUP,
+                        targetCalendar.timeInMillis,
+                        pendingIntent
+                    )
+                }
             } else {
                 alarmManager.setExact(
                     AlarmManager.RTC_WAKEUP,
