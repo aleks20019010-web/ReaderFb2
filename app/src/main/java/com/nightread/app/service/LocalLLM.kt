@@ -88,14 +88,24 @@ class LocalLLM private constructor(context: Context) {
                     }
                 }
 
-                val finalPath = if (path.startsWith("content://") || path.startsWith("file://")) {
+                val finalPath = if (path.startsWith("content://")) {
                     path
                 } else {
                     try {
-                        android.net.Uri.fromFile(File(path)).toString()
+                        val fileObj = File(path)
+                        androidx.core.content.FileProvider.getUriForFile(
+                            appContext,
+                            "com.nightread.app.fileprovider",
+                            fileObj
+                        ).toString()
                     } catch (e: Exception) {
-                        Log.e("LocalLLM", "[ПРЕДУПРЕЖДЕНИЕ] Ошибка преобразования пути в Uri, используем исходный путь", e)
-                        path
+                        Log.e("LocalLLM", "[ПРЕДУПРЕЖДЕНИЕ] Ошибка получения FileProvider URI, пробуем file:// URI", e)
+                        try {
+                            android.net.Uri.fromFile(File(path)).toString()
+                        } catch (e2: Exception) {
+                            Log.e("LocalLLM", "[ПРЕДУПРЕЖДЕНИЕ] Ошибка преобразования пути в file:// Uri, используем исходный путь", e2)
+                            path
+                        }
                     }
                 }
 
