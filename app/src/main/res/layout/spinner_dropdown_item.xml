@@ -8,4 +8,4 @@
     android:textColor="#E8D8F0"
     android:textSize="13sp"
     android:padding="8dp"
-    android:background="#1A0D2A" />
+    android:background="@color/bg_card" />

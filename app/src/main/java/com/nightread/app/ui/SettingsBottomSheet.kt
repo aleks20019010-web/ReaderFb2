@@ -66,7 +66,7 @@ class SettingsBottomSheet : DialogFragment() {
                 val selectedFont = fontOptions[position]
                 if (selectedFont != SettingsManager.getFontFamily(context)) {
                     SettingsManager.setFontFamily(context, selectedFont)
-                    applyThemeColors(SettingsManager.getTheme(context), this@SettingsBottomSheet.requireView())
+                    applyThemeColors(SettingsManager.getReadingTheme(context), this@SettingsBottomSheet.requireView())
                 }
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -83,7 +83,7 @@ class SettingsBottomSheet : DialogFragment() {
                 SettingsManager.setFontFamily(context, "Roboto")
                 val idx = fontOptions.indexOf("Roboto").coerceAtLeast(0)
                 spinnerFont.setSelection(idx)
-                applyThemeColors(SettingsManager.getTheme(context), view)
+                applyThemeColors(SettingsManager.getReadingTheme(context), view)
             }
         }
 
@@ -93,7 +93,7 @@ class SettingsBottomSheet : DialogFragment() {
                 SettingsManager.setFontFamily(context, "Georgia")
                 val idx = fontOptions.indexOf("Georgia").coerceAtLeast(0)
                 spinnerFont.setSelection(idx)
-                applyThemeColors(SettingsManager.getTheme(context), view)
+                applyThemeColors(SettingsManager.getReadingTheme(context), view)
             }
         }
 
@@ -103,7 +103,7 @@ class SettingsBottomSheet : DialogFragment() {
                 SettingsManager.setFontFamily(context, "Monospace")
                 val idx = fontOptions.indexOf("Monospace").coerceAtLeast(0)
                 spinnerFont.setSelection(idx)
-                applyThemeColors(SettingsManager.getTheme(context), view)
+                applyThemeColors(SettingsManager.getReadingTheme(context), view)
             }
         }
 
@@ -178,10 +178,12 @@ class SettingsBottomSheet : DialogFragment() {
         })
 
         // 5. Theme Selection (Spinner)
-        val themeKeys = listOf("light", "dark")
+        val themeKeys = listOf("light", "dark", "sepia", "sepia_contrast")
         val themeNames = mapOf(
             "light" to "День",
-            "dark" to "Ночь"
+            "dark" to "Ночь",
+            "sepia" to "Сепия",
+            "sepia_contrast" to "Сепия контраст"
         )
         val themeDisplayNames = themeKeys.map { themeNames[it] ?: it }
         val spinnerTheme = view.findViewById<Spinner>(R.id.spinnerTheme)
@@ -190,24 +192,23 @@ class SettingsBottomSheet : DialogFragment() {
         }
         spinnerTheme.adapter = themeAdapter
         
-        val currentTheme = SettingsManager.getTheme(context)
+        val currentTheme = SettingsManager.getReadingTheme(context)
         val themeIdx = themeKeys.indexOf(currentTheme).coerceAtLeast(0)
         spinnerTheme.setSelection(themeIdx)
         spinnerTheme.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 val selectedKey = themeKeys[position]
-                if (selectedKey != SettingsManager.getTheme(context)) {
-                    SettingsManager.setTheme(context, selectedKey)
+                if (selectedKey != SettingsManager.getReadingTheme(context)) {
+                    SettingsManager.setReadingTheme(context, selectedKey)
                     applyThemeColors(selectedKey, this@SettingsBottomSheet.requireView())
                 }
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        // Disable theme selection in spinner if Auto-Theme is enabled
-        val isAutoTheme = SettingsManager.isAutoThemeEnabled(context)
-        spinnerTheme.isEnabled = !isAutoTheme
-        spinnerTheme.alpha = if (isAutoTheme) 0.5f else 1.0f
+        // Keep reading themes active and independent of app's auto-theme
+        spinnerTheme.isEnabled = true
+        spinnerTheme.alpha = 1.0f
 
         // 5b. Page Flip Animation Selection (Spinner)
         val animKeys = listOf("slide", "fade", "depth", "zoom", "none")
@@ -282,28 +283,39 @@ class SettingsBottomSheet : DialogFragment() {
         val btnThemeSepia = view.findViewById<FrameLayout>(R.id.btnThemeSepia)
         val btnThemeDark = view.findViewById<FrameLayout>(R.id.btnThemeDark)
 
-        btnThemeSepia.visibility = View.GONE
+        btnThemeSepia.visibility = View.VISIBLE
 
-        val isAutoThemeActive = SettingsManager.isAutoThemeEnabled(context)
-        btnThemeLight.isEnabled = !isAutoThemeActive
-        btnThemeLight.alpha = if (isAutoThemeActive) 0.5f else 1.0f
-        btnThemeDark.isEnabled = !isAutoThemeActive
-        btnThemeDark.alpha = if (isAutoThemeActive) 0.5f else 1.0f
+        btnThemeLight.isEnabled = true
+        btnThemeLight.alpha = 1.0f
+        btnThemeSepia.isEnabled = true
+        btnThemeSepia.alpha = 1.0f
+        btnThemeDark.isEnabled = true
+        btnThemeDark.alpha = 1.0f
 
         btnThemeLight.setOnClickListener {
             it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
-            if (SettingsManager.getTheme(context) != "light") {
-                SettingsManager.setTheme(context, "light")
+            if (SettingsManager.getReadingTheme(context) != "light") {
+                SettingsManager.setReadingTheme(context, "light")
                 val idx = themeKeys.indexOf("light").coerceAtLeast(0)
                 spinnerTheme.setSelection(idx)
                 applyThemeColors("light", view)
             }
         }
 
+        btnThemeSepia.setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            if (SettingsManager.getReadingTheme(context) != "sepia") {
+                SettingsManager.setReadingTheme(context, "sepia")
+                val idx = themeKeys.indexOf("sepia").coerceAtLeast(0)
+                spinnerTheme.setSelection(idx)
+                applyThemeColors("sepia", view)
+            }
+        }
+
         btnThemeDark.setOnClickListener {
             it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
-            if (SettingsManager.getTheme(context) != "dark") {
-                SettingsManager.setTheme(context, "dark")
+            if (SettingsManager.getReadingTheme(context) != "dark") {
+                SettingsManager.setReadingTheme(context, "dark")
                 val idx = themeKeys.indexOf("dark").coerceAtLeast(0)
                 spinnerTheme.setSelection(idx)
                 applyThemeColors("dark", view)

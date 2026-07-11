@@ -725,7 +725,7 @@ class ReadingActivity : AppCompatActivity() {
     }
 
     private fun updateSystemBarsColors() {
-        val themeName = SettingsManager.getTheme(this)
+        val themeName = SettingsManager.getReadingTheme(this)
         val bgColor = when (themeName) {
             "light" -> "#FFFFFF"
             "dark" -> "#1A1A1A"

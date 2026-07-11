@@ -4,13 +4,13 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
-    android:background="#1A0D2A">
+    android:background="@drawable/bg_main_drawable">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="#1A0D2A"
+        android:background="@android:color/transparent"
         app:titleTextColor="#E8D8F0"
         app:title="Новые книги" />
 

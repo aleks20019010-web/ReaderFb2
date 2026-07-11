@@ -19,6 +19,7 @@ object SettingsManager {
     const val KEY_LINE_SPACING = "line_spacing"
     const val KEY_BRIGHTNESS = "brightness"
     const val KEY_PAGE_ANIMATION = "page_animation"
+    const val KEY_READING_THEME = "reading_theme"
 
     const val KEY_AUTO_DISCOVERY = "auto_discovery"
     const val KEY_AUTO_THEME = "auto_theme"
@@ -43,6 +44,7 @@ object SettingsManager {
     private var cachedBrightness: Float? = null
     private var cachedPageAnimation: String? = null
     private var cachedHyphenationEnabled: Boolean? = null
+    private var cachedReadingTheme: String? = null
     private var cachedOnboardingCompleted: Boolean? = null 
     private var cachedAutoDiscovery: Boolean? = null
     private var cachedAutoTheme: Boolean? = null
@@ -274,5 +276,19 @@ object SettingsManager {
 
     fun setLastReadBookSha1(context: Context, sha1: String?) {
         getPrefs(context).edit().putString(KEY_LAST_READ_BOOK_SHA1, sha1).apply()
+    }
+
+    fun getReadingTheme(context: Context): String {
+        if (cachedReadingTheme == null) {
+            cachedReadingTheme = getPrefs(context).getString(KEY_READING_THEME, "sepia") ?: "sepia"
+        }
+        return cachedReadingTheme!!
+    }
+
+    fun setReadingTheme(context: Context, theme: String) {
+        if (cachedReadingTheme == theme) return
+        cachedReadingTheme = theme
+        getPrefs(context).edit().putString(KEY_READING_THEME, theme).apply()
+        notifyChanged()
     }
 }

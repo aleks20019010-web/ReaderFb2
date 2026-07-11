@@ -28,6 +28,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nightread.app.data.SettingsManager
 import com.nightread.app.ui.theme.MyApplicationTheme
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.isSystemInDarkTheme
 
 class SettingsActivity : FragmentActivity() {
 
@@ -36,13 +41,24 @@ class SettingsActivity : FragmentActivity() {
         
         setContent {
             MyApplicationTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    SettingsScreen(
-                        onBack = { finish() }
-                    )
+                val isDark = isSystemInDarkTheme() || SettingsManager.getTheme(this) == "dark"
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (isDark) {
+                        Image(
+                            painter = painterResource(id = com.nightread.app.R.drawable.bg_forest_gradient),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = if (isDark) Color.Transparent else MaterialTheme.colorScheme.background
+                    ) {
+                        SettingsScreen(
+                            onBack = { finish() }
+                        )
+                    }
                 }
             }
         }
@@ -98,12 +114,13 @@ class SettingsActivity : FragmentActivity() {
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        containerColor = if (selectedTheme == "dark") Color.Transparent else MaterialTheme.colorScheme.surfaceVariant,
                         titleContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
-            }
+            },
+            containerColor = if (selectedTheme == "dark") Color.Transparent else MaterialTheme.colorScheme.background
         ) { paddingValues ->
             LazyColumn(
                 modifier = Modifier

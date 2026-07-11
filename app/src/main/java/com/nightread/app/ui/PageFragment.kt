@@ -75,7 +75,7 @@ class PageFragment : Fragment() {
     private fun updateStyle(root: FrameLayout, textView: TextView) {
         val context = requireContext()
         val fontSize = SettingsManager.getFontSize(context)
-        val themeName = SettingsManager.getTheme(context)
+        val themeName = SettingsManager.getReadingTheme(context)
         val fontFamily = SettingsManager.getFontFamily(context)
         val numericWeight = SettingsManager.getFontWeightAsInt(context)
         val lineSpacingMultiplier = SettingsManager.getLineSpacing(context)

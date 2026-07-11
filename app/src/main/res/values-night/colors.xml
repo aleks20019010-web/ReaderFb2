@@ -8,6 +8,18 @@
     
     <color name="text_primary">#E8D8F0</color>
     <color name="text_secondary">#B8A0C8</color>
+    <color name="text_title">#E8D8F0</color>
+    <color name="text_author">#B8A0C8</color>
+    
+    <!-- Reading Themes Colors -->
+    <color name="reading_day_bg">#FFFFFF</color>
+    <color name="reading_day_text">#121212</color>
+    <color name="reading_night_bg">#1A1A1A</color>
+    <color name="reading_night_text">#E0E0E0</color>
+    <color name="reading_sepia_bg">#F5F0E8</color>
+    <color name="reading_sepia_text">#2C2C2C</color>
+    <color name="reading_sepia_contrast_bg">#F5E6C8</color>
+    <color name="reading_sepia_contrast_text">#1A1A1A</color>
     
     <color name="accent">#9B59B6</color>
     <color name="accent_hover">#7D3C98</color>
