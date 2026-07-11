@@ -36,7 +36,7 @@ class SyncReportDialog(
         val rootLayout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(padding16, padding16, padding16, padding16)
-            setBackgroundColor(context.resources.getColor(R.color.bg_panel, null))
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
         }
 
         // Заголовок
@@ -272,5 +272,6 @@ class SyncReportDialog(
             .create()
 
         dialog?.show()
+        dialog?.applyStarryBackground()
     }
 }

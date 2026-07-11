@@ -18,7 +18,7 @@ import com.nightread.app.MainActivity
 import com.nightread.app.R
 import com.nightread.app.data.SettingsManager
 
-class OnboardingActivity : AppCompatActivity() {
+class OnboardingActivity : BaseActivity() {
 
     private lateinit var viewPager: ViewPager2
     private lateinit var btnNext: MaterialButton

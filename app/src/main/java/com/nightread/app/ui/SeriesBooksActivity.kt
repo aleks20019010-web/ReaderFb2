@@ -11,7 +11,7 @@ import com.nightread.app.R
 import com.nightread.app.data.AppDatabase
 import kotlinx.coroutines.launch
 
-class SeriesBooksActivity : AppCompatActivity() {
+class SeriesBooksActivity : BaseActivity() {
 
     private lateinit var rvBooks: RecyclerView
     private lateinit var adapter: BookAdapter

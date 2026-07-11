@@ -13,7 +13,7 @@ import com.nightread.app.R
 import com.nightread.app.data.AppDatabase
 import kotlinx.coroutines.launch
 
-class FavoriteBooksActivity : AppCompatActivity() {
+class FavoriteBooksActivity : BaseActivity() {
 
     private lateinit var rvBooks: RecyclerView
     private lateinit var tvEmpty: TextView

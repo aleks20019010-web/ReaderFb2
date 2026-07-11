@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:endColor="#102542"
+                android:startColor="#0D061E"
+                android:type="linear" />
+        </shape>
+    </item>
+    <!-- We can't easily add random stars in pure XML without assets, 
+         but we can add some 'sparkles' using a tiled bitmap if we had one.
+         For now, the gradient will provide the color consistency. -->
+</layer-list>

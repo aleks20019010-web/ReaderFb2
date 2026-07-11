@@ -682,7 +682,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 val textResponse = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
 
                 viewModelScope.launch(Dispatchers.Main) {
-            if (!isActive) return@launch
+                    if (!isActive) return@launch
                     aiLoading = false
                     if (textResponse != null) {
                         aiResult = textResponse
@@ -694,7 +694,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 throw e
             } catch (e: Exception) {
                 viewModelScope.launch(Dispatchers.Main) {
-            if (!isActive) return@launch
+                    if (!isActive) return@launch
                     aiLoading = false
                     aiError = "Ошибка соединения: ${e.localizedMessage}"
                 }

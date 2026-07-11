@@ -26,7 +26,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class SplashActivity : AppCompatActivity() {
+import com.nightread.app.ui.BaseActivity
+
+class SplashActivity : BaseActivity() {
 
     private val TAG = "SplashActivity"
 

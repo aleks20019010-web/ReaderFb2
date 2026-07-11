@@ -192,6 +192,7 @@ class CleanupDialogFragment : DialogFragment() {
 
     override fun onStart() {
         super.onStart()
+        dialog?.applyStarryBackground()
         dialog?.window?.apply {
             setLayout(
                 ViewGroup.LayoutParams.MATCH_PARENT,

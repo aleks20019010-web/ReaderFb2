@@ -29,6 +29,11 @@ class ChapterListBottomSheet : BottomSheetDialogFragment() {
         bookContent = arguments?.getString(ARG_BOOK_CONTENT) ?: ""
     }
 
+    override fun onStart() {
+        super.onStart()
+        dialog?.applyStarryBackground()
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,

@@ -136,7 +136,7 @@ object PageSplitter {
             else -> Layout.Alignment.ALIGN_NORMAL
         }
         
-        val strategy = if (isHyphenationEnabled) android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY else android.text.Layout.BREAK_STRATEGY_SIMPLE
+        val strategy = if (isHyphenationEnabled) android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY else android.graphics.text.LineBreaker.BREAK_STRATEGY_SIMPLE
         val frequency = if (isHyphenationEnabled) android.text.Layout.HYPHENATION_FREQUENCY_FULL else android.text.Layout.HYPHENATION_FREQUENCY_NONE
 
         val tempLayout = StaticLayout.Builder.obtain(
@@ -197,7 +197,7 @@ object PageSplitter {
             else -> Layout.Alignment.ALIGN_NORMAL
         }
 
-        val strategy = if (isHyphenationEnabled) android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY else android.text.Layout.BREAK_STRATEGY_SIMPLE
+        val strategy = if (isHyphenationEnabled) android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY else android.graphics.text.LineBreaker.BREAK_STRATEGY_SIMPLE
         val frequency = if (isHyphenationEnabled) android.text.Layout.HYPHENATION_FREQUENCY_FULL else android.text.Layout.HYPHENATION_FREQUENCY_NONE
 
         var pagesFound = 0
@@ -219,7 +219,7 @@ object PageSplitter {
                     .setIncludePad(false)
                     .setBreakStrategy(strategy)
                     .setHyphenationFrequency(frequency)
-                    .apply { if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) { setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD) } }
+                    .apply { if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) { setJustificationMode(android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD) } }
                     .build()
 
                 var fitsAll = true

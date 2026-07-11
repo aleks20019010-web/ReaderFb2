@@ -34,7 +34,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.isSystemInDarkTheme
 
-class SettingsActivity : FragmentActivity() {
+class SettingsActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,18 +42,6 @@ class SettingsActivity : FragmentActivity() {
         setContent {
             MyApplicationTheme {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    
-                        Image(
-                            painter = painterResource(id = com.nightread.app.R.drawable.bg_starry_night),
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color(0x66000000))
-                        )
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = Color.Transparent

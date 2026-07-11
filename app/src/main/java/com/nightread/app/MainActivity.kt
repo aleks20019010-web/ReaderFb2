@@ -7,13 +7,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.activity.OnBackPressedCallback
+import com.nightread.app.ui.BaseActivity
 import com.nightread.app.ui.BookmarksFragment
 import com.nightread.app.ui.YandexSyncFragment
 import com.nightread.app.ui.LibraryFragment
 import com.nightread.app.ui.CustomToast
 import com.google.android.material.navigation.NavigationView
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity() {
 
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var navView: NavigationView

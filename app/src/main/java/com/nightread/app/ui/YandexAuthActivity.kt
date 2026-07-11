@@ -16,7 +16,7 @@ import com.yandex.authsdk.YandexAuthResult
 import com.yandex.authsdk.YandexAuthToken
 import kotlinx.coroutines.launch
 
-class YandexAuthActivity : AppCompatActivity() {
+class YandexAuthActivity : BaseActivity() {
 
     private lateinit var sdk: YandexAuthSdk
 

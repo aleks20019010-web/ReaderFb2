@@ -29,7 +29,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class BookDetailActivity : AppCompatActivity() {
+class BookDetailActivity : BaseActivity() {
 
     private lateinit var tvTitle: TextView
     private lateinit var tvAuthor: TextView

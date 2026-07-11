@@ -24,6 +24,11 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
         contextSnippet = arguments?.getString(ARG_CONTEXT) ?: ""
     }
 
+    override fun onStart() {
+        super.onStart()
+        dialog?.applyStarryBackground()
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,

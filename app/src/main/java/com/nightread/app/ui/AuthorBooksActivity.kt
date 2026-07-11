@@ -14,7 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class AuthorBooksActivity : AppCompatActivity() {
+class AuthorBooksActivity : BaseActivity() {
 
     private lateinit var rvBooks: RecyclerView
     private lateinit var adapter: BookAdapter

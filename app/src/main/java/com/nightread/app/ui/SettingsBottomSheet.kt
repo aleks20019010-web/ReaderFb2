@@ -485,6 +485,7 @@ class SettingsBottomSheet : DialogFragment() {
 
     override fun onStart() {
         super.onStart()
+        dialog?.applyStarryBackground()
         dialog?.window?.let { window ->
             val metrics = resources.displayMetrics
             
