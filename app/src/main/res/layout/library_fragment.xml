@@ -113,67 +113,44 @@
             <!-- Toggle Grid/List View Mode -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnToggleViewMode"
-                style="@style/Widget.Material3.Button.IconButton.Filled"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                style="@style/HeaderIconButtonStyle"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_marginEnd="4dp"
                 app:icon="@drawable/ic_custom_list"
                 app:iconSize="20dp"
-                app:iconTint="@color/icon_tint"
-                app:backgroundTint="@color/bg_panel"
-                app:cornerRadius="20dp"
-                app:elevation="2dp"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
                 android:contentDescription="Режим списка" />
 
             <!-- Search Toggle -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSearchToggle"
-                style="@style/Widget.Material3.Button.IconButton.Filled"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                style="@style/HeaderIconButtonStyle"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_marginEnd="4dp"
                 app:icon="@drawable/ic_custom_search"
                 app:iconSize="20dp"
-                app:iconTint="@color/icon_tint"
-                app:backgroundTint="@color/bg_panel"
-                app:cornerRadius="20dp"
-                app:elevation="2dp"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
                 android:contentDescription="Поиск" />
 
             <!-- Manual Import -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnImport"
-                style="@style/Widget.Material3.Button.IconButton.Filled"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                style="@style/HeaderIconButtonStyle"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_marginEnd="4dp"
                 app:icon="@drawable/ic_custom_import"
                 app:iconSize="20dp"
-                app:iconTint="@color/icon_tint"
-                app:backgroundTint="@color/bg_panel"
-                app:cornerRadius="20dp"
-                app:elevation="2dp"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
                 android:contentDescription="Импорт" />
 
             <!-- Auto Scan -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnAutoScan"
-                style="@style/Widget.Material3.Button.IconButton.Filled"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                style="@style/HeaderIconButtonStyle"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 app:icon="@drawable/ic_custom_scan"
                 app:iconSize="20dp"
-                app:iconTint="#FFFFFF"
-                app:backgroundTint="@color/accent"
-                app:cornerRadius="20dp"
-                app:elevation="4dp"
-                android:clickable="true"
                 android:contentDescription="Автосканирование" />
 
         </LinearLayout>
