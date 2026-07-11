@@ -1,0 +1,487 @@
+Initialized native services in: /opt/gradle/.gradle/native
+Initialized jansi services in: /opt/gradle/.gradle/native
+The client will now receive all logging from the daemon (pid: 548). The daemon log file: /opt/gradle/.gradle/daemon/9.3.1/daemon-548.out.log
+Starting 2nd build in daemon [uptime: 58.023 secs, performance: 99%, GC rate: 0.00/s, heap usage: 0% of 4 GiB]
+Using 4 worker leases.
+Operational build model parameters: {requiresToolingModels=false, parallelProjectExecution=true, configureOnDemand=false, configurationCache=true, configurationCacheParallelStore=false, configurationCacheParallelLoad=true, isolatedProjects=false, parallelProjectConfiguration=false, intermediateModelCache=false, parallelToolingApiActions=true, invalidateCoupledProjects=false, modelAsProjectDependency=false, resilientModelBuilding=false}
+Invalidating in-memory cache of /app/applet/.gradle/buildOutputCleanup/outputFiles.bin
+Encryption key source: default Gradle keystore (pkcs12)
+Calculating task graph as configuration cache cannot be reused because directory '.' has changed.
+Watching the file system is configured to be enabled if available
+Unable to list file systems to check whether they can be watched. Disabling watching. Reason: Could not query file systems: could not open mount file (errno 2: No such file or directory)
+File system watching is inactive
+Starting Build
+Resolved plugin [id: 'org.gradle.toolchains.foojay-resolver-convention', version: '1.0.0']
+Settings evaluated using settings file '/app/applet/settings.gradle.kts'.
+Using local directory build cache for the root build (location = /opt/gradle/.gradle/caches/build-cache-1, remove unused entries = after 7 days).
+Projects loaded. Root project using build file '/app/applet/build.gradle.kts'.
+Included projects: [root project 'My Application', project ':app']
+
+> Configure project :
+Evaluating root project 'My Application' using build file '/app/applet/build.gradle.kts'.
+Resolved plugin [id: 'com.android.application', version: '9.1.1', apply: false]
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.compose', version: '2.2.10', apply: false]
+Resolved plugin [id: 'com.google.devtools.ksp', version: '2.3.5', apply: false]
+Resolved plugin [id: 'io.github.takahirom.roborazzi', version: '1.59.0', apply: false]
+Resolved plugin [id: 'com.google.android.libraries.mapsplatform.secrets-gradle-plugin', version: '2.0.1', apply: false]
+
+> Configure project :app
+Evaluating project ':app' using build file '/app/applet/app/build.gradle.kts'.
+Resolved plugin [id: 'com.android.application', version: '9.1.1']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.compose', version: '2.2.10']
+Resolved plugin [id: 'com.google.devtools.ksp', version: '2.3.5']
+Resolved plugin [id: 'io.github.takahirom.roborazzi', version: '1.59.0']
+Resolved plugin [id: 'com.google.android.libraries.mapsplatform.secrets-gradle-plugin', version: '2.0.1']
+Build 9c9e87df-e148-4872-8548-449693777818 is started
+Using default execution profile
+--- SIGNING CONFIG DEBUG ---
+System.getenv("KEYSTORE_PATH") = null
+System.getenv("KEYSTORE_PASSWORD") is empty = true
+System.getenv("KEY_ALIAS") = null
+Resolved storeFileObj path = /app/applet/app/release.keystore
+Resolved storeFileObj exists = false
+Root project files: [.github, app, patch_library_fragment_kt.py, out2.txt, test2.sh, test_db.kt, patch_reader.sh, .gitignore, patch_animator.sh, TestP12.java, patch_intent.sh, ResizePng.class, ResizePng.java, build.gradle.kts, gradle.properties, patch_vm.sh, test_sha1.kt, epub_search.txt, fix_scanner_imports.sh, gradle, gradlew.bat, patch_manifest_new_books.py, patch_bookadapter.sh, fix_grid.sh, epub_search2.txt, temp_reading.txt, fix_night_colors.sh, test3.kt, TestJKS.java, fix_scanner.sh, test.bin, patch_splitter.sh, patch_reading.sh, settings.gradle.kts, test.sh, err.txt, TestP12.class, fix_constructor.sh, out1.txt, gradlew, TestJKS.class, dummy.sh, metadata.json, empty.jks, update_reading.sh, out3.txt, temp_reading_tail.txt, patch_scanner.sh, patch_library_fragment_xml.py, test_auth.kt, patch_yandex.kt, fix_colors.sh, assets, update_library_fragment.sh, patch.txt, my-upload-key.jks, .env.example, fix_night_colors2.sh, patch_lib_swipe.sh, fix_lib.sh, debug.keystore.base64, fix_swipe.sh, fix_imports.sh, .build-outputs, debug.keystore, .gradle, .kotlin, build, log.txt]
+Fallback debugKeystore path = /app/applet/debug.keystore
+Fallback debugKeystore exists = true
+--- END SIGNING CONFIG DEBUG ---
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+All projects evaluated.
+Task path ':app:assembleRelease' matched project ':app'
+Task name matched 'assembleRelease'
+Selected primary task 'assembleRelease' from project :app
+Tasks to be executed: [task ':app:preBuild', task ':app:preReleaseBuild', task ':app:mergeReleaseJniLibFolders', task ':app:mergeReleaseNativeLibs', task ':app:stripReleaseDebugSymbols', task ':app:extractReleaseNativeSymbolTables', task ':app:mergeReleaseNativeDebugMetadata', task ':app:checkReleaseDuplicateClasses', task ':app:dataBindingMergeDependencyArtifactsRelease', task ':app:generateReleaseResources', task ':app:mergeReleaseResources', task ':app:packageReleaseResources', task ':app:processReleaseNavigationResources', task ':app:parseReleaseLocalResources', task ':app:dataBindingGenBaseClassesRelease', task ':app:generateReleaseBuildConfig', task ':app:generateReleaseRFile', task ':app:kspReleaseKotlin', task ':app:compileReleaseKotlin', task ':app:javaPreCompileRelease', task ':app:compileReleaseJavaWithJavac', task ':app:mergeReleaseArtProfile', task ':app:checkReleaseAarMetadata', task ':app:mapReleaseSourceSetPaths', task ':app:compileReleaseNavigationResources', task ':app:createReleaseCompatibleScreenManifests', task ':app:extractDeepLinksRelease', task ':app:processReleaseMainManifest', task ':app:processReleaseManifest', task ':app:processReleaseManifestForPackage', task ':app:processReleaseResources', task ':app:expandReleaseArtProfileWildcards', task ':app:extractProguardFiles', task ':app:mergeReleaseGeneratedProguardFiles', task ':app:processReleaseJavaRes', task ':app:mergeReleaseJavaResource', task ':app:mergeReleaseStartupProfile', task ':app:minifyReleaseWithR8', task ':app:compileReleaseArtProfile', task ':app:generateReleaseAssets', task ':app:mergeReleaseAssets', task ':app:compressReleaseAssets', task ':app:extractReleaseVersionControlInfo', task ':app:generateReleaseLintVitalReportModel', task ':app:lintVitalAnalyzeRelease', task ':app:lintVitalReportRelease', task ':app:lintVitalRelease', task ':app:convertShrunkResourcesToBinaryRelease', task ':app:optimizeReleaseResources', task ':app:collectReleaseDependencies', task ':app:sdkReleaseDependencyData', task ':app:validateSigningRelease', task ':app:writeReleaseAppMetadata', task ':app:writeReleaseSigningConfigVersions', task ':app:packageRelease', task ':app:createReleaseApkListingFileRedirect', task ':app:assembleRelease']
+Tasks that were excluded: []
+Adding -Xuse-inline-scopes-numbers Kotlin compiler flag for task :app:compileDebugKotlin
+Build 9c9e87df-e148-4872-8548-449693777818 is closed
+Using local directory build cache for the root build (location = /opt/gradle/.gradle/caches/build-cache-1, remove unused entries = after 7 days).
+Ignoring listeners of task graph ready event, as this build (:) has already executed work.
+Resolve mutations for :app:preBuild (Thread[#122,included builds,5,main]) started.
+:app:preBuild (Thread[#122,included builds,5,main]) started.
+Resolve mutations for :app:generateReleaseAssets (Thread[#123,Execution worker,5,main]) started.
+:app:generateReleaseAssets (Thread[#123,Execution worker,5,main]) started.
+Invalidating in-memory cache of /app/applet/.gradle/9.3.1/executionHistory/executionHistory.bin
+
+> Task :app:preBuild UP-TO-DATE
+Skipping task ':app:preBuild' as it has no actions.
+Resolve mutations for :app:preReleaseBuild (Thread[#122,included builds,5,main]) started.
+:app:preReleaseBuild (Thread[#122,included builds,5,main]) started.
+
+> Task :app:preReleaseBuild UP-TO-DATE
+Skipping task ':app:preReleaseBuild' as it has no actions.
+Resolve mutations for :app:mergeReleaseJniLibFolders (Thread[#122,included builds,5,main]) started.
+:app:mergeReleaseJniLibFolders (Thread[#122,included builds,5,main]) started.
+Resolve mutations for :app:dataBindingMergeDependencyArtifactsRelease (Thread[#125,Execution worker Thread 3,5,main]) started.
+Resolve mutations for :app:checkReleaseDuplicateClasses (Thread[#124,Execution worker Thread 2,5,main]) started.
+
+> Task :app:generateReleaseAssets UP-TO-DATE
+Skipping task ':app:generateReleaseAssets' as it has no actions.
+Resolve mutations for :app:generateReleaseResources (Thread[#123,Execution worker,5,main]) started.
+:app:checkReleaseDuplicateClasses (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:dataBindingMergeDependencyArtifactsRelease (Thread[#125,Execution worker Thread 3,5,main]) started.
+:app:generateReleaseResources (Thread[#123,Execution worker,5,main]) started.
+
+> Task :app:generateReleaseResources FROM-CACHE
+Build cache key for task ':app:generateReleaseResources' is 907e1b23f906431868af16dffa1b319f
+Task ':app:generateReleaseResources' is not up-to-date because:
+  Output property 'validationReportFile' file /app/applet/app/build/intermediates/nested_resources_validation_report/release/generateReleaseResources/nestedResourcesValidationReport.txt has been removed.
+Loaded cache entry for task ':app:generateReleaseResources' with cache key 907e1b23f906431868af16dffa1b319f
+Resolve mutations for :app:mergeReleaseResources (Thread[#123,Execution worker,5,main]) started.
+:app:mergeReleaseResources (Thread[#123,Execution worker,5,main]) started.
+
+> Task :app:mergeReleaseJniLibFolders
+Caching disabled for task ':app:mergeReleaseJniLibFolders' because:
+  Simple merging task
+Task ':app:mergeReleaseJniLibFolders' is not up-to-date because:
+  Output property 'outputDir' file /app/applet/app/build/intermediates/merged_jni_libs/release/mergeReleaseJniLibFolders/out has been removed.
+The input changes require a full rebuild for incremental task ':app:mergeReleaseJniLibFolders'.
+Resolve mutations for :app:mergeReleaseNativeLibs (Thread[#122,included builds,5,main]) started.
+:app:mergeReleaseNativeLibs (Thread[#122,included builds,5,main]) started.
+
+> Task :app:checkReleaseDuplicateClasses
+Caching disabled for task ':app:checkReleaseDuplicateClasses' because:
+  Caching has been disabled for the task
+Task ':app:checkReleaseDuplicateClasses' is not up-to-date because:
+  Output property 'dummyOutputDirectory' file /app/applet/app/build/intermediates/duplicate_classes_check/release/checkReleaseDuplicateClasses has been removed.
+Resolve mutations for :app:packageReleaseResources (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:packageReleaseResources (Thread[#124,Execution worker Thread 2,5,main]) started.
+
+> Task :app:dataBindingMergeDependencyArtifactsRelease
+Caching disabled for task ':app:dataBindingMergeDependencyArtifactsRelease' because:
+  Caching has been disabled for the task
+Task ':app:dataBindingMergeDependencyArtifactsRelease' is not up-to-date because:
+  Output property 'outFolder' file /app/applet/app/build/intermediates/data_binding_dependency_artifacts/release/dataBindingMergeDependencyArtifactsRelease has been removed.
+Resolve mutations for :app:processReleaseNavigationResources (Thread[#125,Execution worker Thread 3,5,main]) started.
+:app:processReleaseNavigationResources (Thread[#125,Execution worker Thread 3,5,main]) started.
+
+> Task :app:mergeReleaseResources
+Build cache key for task ':app:mergeReleaseResources' is 46ad1ccf186845ea703f57a45d56548d
+Task ':app:mergeReleaseResources' is not up-to-date because:
+  Output property 'blameLogOutputFolder' file /app/applet/app/build/intermediates/merged_res_blame_folder/release/mergeReleaseResources/out has been removed.
+  Output property 'blameLogOutputFolder' file /app/applet/app/build/intermediates/merged_res_blame_folder/release/mergeReleaseResources/out/multi-v2 has been removed.
+  Output property 'blameLogOutputFolder' file /app/applet/app/build/intermediates/merged_res_blame_folder/release/mergeReleaseResources/out/multi-v2/mergeReleaseResources.json has been removed.
+  and more...
+
+> Task :app:packageReleaseResources FROM-CACHE
+Build cache key for task ':app:packageReleaseResources' is bbba7c74fd0ebc13674f72c8fd59dd4e
+Task ':app:packageReleaseResources' is not up-to-date because:
+  Output property 'dataBindingLayoutInfoOutFolder' file /app/applet/app/build/intermediates/data_binding_layout_info_type_package/release/packageReleaseResources/out has been removed.
+  Output property 'dataBindingLayoutInfoOutFolder' file /app/applet/app/build/intermediates/data_binding_layout_info_type_package/release/packageReleaseResources/out/activity_author_books-layout.xml has been removed.
+  Output property 'dataBindingLayoutInfoOutFolder' file /app/applet/app/build/intermediates/data_binding_layout_info_type_package/release/packageReleaseResources/out/activity_book_detail-layout.xml has been removed.
+  and more...
+Loaded cache entry for task ':app:packageReleaseResources' with cache key bbba7c74fd0ebc13674f72c8fd59dd4e
+Resolve mutations for :app:generateReleaseBuildConfig (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:generateReleaseBuildConfig (Thread[#124,Execution worker Thread 2,5,main]) started.
+
+> Task :app:generateReleaseBuildConfig FROM-CACHE
+Build cache key for task ':app:generateReleaseBuildConfig' is aa46ba51caba1661e5f81f6065cbda9e
+Task ':app:generateReleaseBuildConfig' is not up-to-date because:
+  Output property 'sourceOutputDir' file /app/applet/app/build/generated/source/buildConfig/release has been removed.
+  Output property 'sourceOutputDir' file /app/applet/app/build/generated/source/buildConfig/release/com has been removed.
+  Output property 'sourceOutputDir' file /app/applet/app/build/generated/source/buildConfig/release/com/nightread has been removed.
+  and more...
+Loaded cache entry for task ':app:generateReleaseBuildConfig' with cache key aa46ba51caba1661e5f81f6065cbda9e
+Resolve mutations for :app:javaPreCompileRelease (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:javaPreCompileRelease (Thread[#124,Execution worker Thread 2,5,main]) started.
+
+> Task :app:javaPreCompileRelease FROM-CACHE
+Build cache key for task ':app:javaPreCompileRelease' is ff107d85fb1107104dd67d9ddec387ec
+Task ':app:javaPreCompileRelease' is not up-to-date because:
+  Output property 'annotationProcessorListFile' file /app/applet/app/build/intermediates/annotation_processor_list/release/javaPreCompileRelease/annotationProcessors.json has been removed.
+Loaded cache entry for task ':app:javaPreCompileRelease' with cache key ff107d85fb1107104dd67d9ddec387ec
+Resolve mutations for :app:mergeReleaseArtProfile (Thread[#124,Execution worker Thread 2,5,main]) started.
+
+> Task :app:processReleaseNavigationResources FROM-CACHE
+Build cache key for task ':app:processReleaseNavigationResources' is 78f9345af42e71b23ca1871cf2e0d88c
+Task ':app:processReleaseNavigationResources' is not up-to-date because:
+  Output property 'outputDir' file /app/applet/app/build/generated/updated_navigation_xml/release has been removed.
+Loaded cache entry for task ':app:processReleaseNavigationResources' with cache key 78f9345af42e71b23ca1871cf2e0d88c
+Resolve mutations for :app:parseReleaseLocalResources (Thread[#125,Execution worker Thread 3,5,main]) started.
+:app:mergeReleaseArtProfile (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:parseReleaseLocalResources (Thread[#125,Execution worker Thread 3,5,main]) started.
+
+> Task :app:parseReleaseLocalResources FROM-CACHE
+Build cache key for task ':app:parseReleaseLocalResources' is 1a79385e037e199dd41e7e821cfb2425
+Task ':app:parseReleaseLocalResources' is not up-to-date because:
+  Output property 'librarySymbolsFile' file /app/applet/app/build/intermediates/local_only_symbol_list/release/parseReleaseLocalResources/R-def.txt has been removed.
+Loaded cache entry for task ':app:parseReleaseLocalResources' with cache key 1a79385e037e199dd41e7e821cfb2425
+Resolve mutations for :app:generateReleaseRFile (Thread[#125,Execution worker Thread 3,5,main]) started.
+:app:generateReleaseRFile (Thread[#125,Execution worker Thread 3,5,main]) started.
+
+> Task :app:generateReleaseRFile FROM-CACHE
+Build cache key for task ':app:generateReleaseRFile' is b11c5f09fb1ce1b9fa46c360ac3b329f
+Task ':app:generateReleaseRFile' is not up-to-date because:
+  Output property 'RClassOutputJar' file /app/applet/app/build/intermediates/compile_r_class_jar/release/generateReleaseRFile/R.jar has been removed.
+  Output property 'symbolsWithPackageNameOutputFile' file /app/applet/app/build/intermediates/symbol_list_with_package_name/release/generateReleaseRFile/package-aware-r.txt has been removed.
+  Output property 'textSymbolOutputFileProperty' file /app/applet/app/build/intermediates/compile_symbol_list/release/generateReleaseRFile/R.txt has been removed.
+Loaded cache entry for task ':app:generateReleaseRFile' with cache key b11c5f09fb1ce1b9fa46c360ac3b329f
+Resolve mutations for :app:checkReleaseAarMetadata (Thread[#125,Execution worker Thread 3,5,main]) started.
+:app:checkReleaseAarMetadata (Thread[#125,Execution worker Thread 3,5,main]) started.
+
+> Task :app:mergeReleaseArtProfile
+Caching disabled for task ':app:mergeReleaseArtProfile' because:
+  Simple merging task
+Task ':app:mergeReleaseArtProfile' is not up-to-date because:
+  Output property 'outputFile' file /app/applet/app/build/intermediates/merged_art_profile/release/mergeReleaseArtProfile/baseline-prof.txt has been removed.
+file or directory '/app/applet/app/src/main/baselineProfiles', not found
+file or directory '/app/applet/app/src/release/baselineProfiles', not found
+Resolve mutations for :app:mapReleaseSourceSetPaths (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:mapReleaseSourceSetPaths (Thread[#124,Execution worker Thread 2,5,main]) started.
+
+> Task :app:checkReleaseAarMetadata
+Caching disabled for task ':app:checkReleaseAarMetadata' because:
+  Caching has been disabled for the task
+Task ':app:checkReleaseAarMetadata' is not up-to-date because:
+  Output property 'dummyOutputDirectory' file /app/applet/app/build/intermediates/aar_metadata_check/release/checkReleaseAarMetadata has been removed.
+Resolve mutations for :app:createReleaseCompatibleScreenManifests (Thread[#125,Execution worker Thread 3,5,main]) started.
+:app:createReleaseCompatibleScreenManifests (Thread[#125,Execution worker Thread 3,5,main]) started.
+
+> Task :app:mergeReleaseResources FROM-CACHE
+Loaded cache entry for task ':app:mergeReleaseResources' with cache key 46ad1ccf186845ea703f57a45d56548d
+Resolve mutations for :app:dataBindingGenBaseClassesRelease (Thread[#123,Execution worker,5,main]) started.
+:app:dataBindingGenBaseClassesRelease (Thread[#123,Execution worker,5,main]) started.
+
+> Task :app:createReleaseCompatibleScreenManifests
+Caching disabled for task ':app:createReleaseCompatibleScreenManifests' because:
+  Caching has been disabled for the task
+Task ':app:createReleaseCompatibleScreenManifests' is not up-to-date because:
+  Output property 'outputFolder' file /app/applet/app/build/intermediates/compatible_screen_manifest/release/createReleaseCompatibleScreenManifests has been removed.
+  Output property 'outputFolder' file /app/applet/app/build/intermediates/compatible_screen_manifest/release/createReleaseCompatibleScreenManifests/output-metadata.json has been removed.
+Resolve mutations for :app:extractDeepLinksRelease (Thread[#125,Execution worker Thread 3,5,main]) started.
+:app:extractDeepLinksRelease (Thread[#125,Execution worker Thread 3,5,main]) started.
+
+> Task :app:mapReleaseSourceSetPaths
+Caching disabled for task ':app:mapReleaseSourceSetPaths' because:
+  Caching has been disabled for the task
+Task ':app:mapReleaseSourceSetPaths' is not up-to-date because:
+  Output property 'filepathMappingFile' file /app/applet/app/build/intermediates/android_res_source_set_path_map/release/mapReleaseSourceSetPaths/file-map.txt has been removed.
+Resolve mutations for :app:compileReleaseNavigationResources (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:compileReleaseNavigationResources (Thread[#124,Execution worker Thread 2,5,main]) started.
+
+> Task :app:extractDeepLinksRelease FROM-CACHE
+Build cache key for task ':app:extractDeepLinksRelease' is 654b80c25596310a613b287efdfb6901
+Task ':app:extractDeepLinksRelease' is not up-to-date because:
+  Output property 'navigationJson' file /app/applet/app/build/intermediates/navigation_json/release/extractDeepLinksRelease/navigation.json has been removed.
+Loaded cache entry for task ':app:extractDeepLinksRelease' with cache key 654b80c25596310a613b287efdfb6901
+
+> Task :app:compileReleaseNavigationResources FROM-CACHE
+Build cache key for task ':app:compileReleaseNavigationResources' is 87add9860e243ac198fae064a16771f1
+Task ':app:compileReleaseNavigationResources' is not up-to-date because:
+  Output property 'outputDir' file /app/applet/app/build/intermediates/compiled_navigation_res/release/compileReleaseNavigationResources has been removed.
+Loaded cache entry for task ':app:compileReleaseNavigationResources' with cache key 87add9860e243ac198fae064a16771f1
+Resolve mutations for :app:processReleaseMainManifest (Thread[#125,Execution worker Thread 3,5,main]) started.
+Resolve mutations for :app:extractProguardFiles (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:extractProguardFiles (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:processReleaseMainManifest (Thread[#125,Execution worker Thread 3,5,main]) started.
+
+> Task :app:extractProguardFiles
+Caching disabled for task ':app:extractProguardFiles' because:
+  Fast task
+Task ':app:extractProguardFiles' is not up-to-date because:
+  Output property 'proguardFilesDir' file /app/applet/app/build/intermediates/default_proguard_files/global has been removed.
+  Output property 'proguardFilesDir' file /app/applet/app/build/intermediates/default_proguard_files/global/proguard-android-optimize.txt-9.1.1 has been removed.
+  Output property 'proguardFilesDir' file /app/applet/app/build/intermediates/default_proguard_files/global/proguard-android.txt-9.1.1 has been removed.
+Resolve mutations for :app:mergeReleaseStartupProfile (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:mergeReleaseStartupProfile (Thread[#124,Execution worker Thread 2,5,main]) started.
+
+> Task :app:mergeReleaseStartupProfile UP-TO-DATE
+Caching disabled for task ':app:mergeReleaseStartupProfile' because:
+  Simple merging task
+Skipping task ':app:mergeReleaseStartupProfile' as it is up-to-date.
+Resolve mutations for :app:mergeReleaseAssets (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:mergeReleaseAssets (Thread[#124,Execution worker Thread 2,5,main]) started.
+
+> Task :app:mergeReleaseNativeLibs
+Caching disabled for task ':app:mergeReleaseNativeLibs' because:
+  Caching has been disabled for the task
+Task ':app:mergeReleaseNativeLibs' is not up-to-date because:
+  Output property 'outputDir' file /app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out has been removed.
+  Output property 'outputDir' file /app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib has been removed.
+  Output property 'outputDir' file /app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a has been removed.
+  and more...
+Resolve mutations for :app:stripReleaseDebugSymbols (Thread[#122,included builds,5,main]) started.
+:app:stripReleaseDebugSymbols (Thread[#122,included builds,5,main]) started.
+
+> Task :app:mergeReleaseAssets
+Caching disabled for task ':app:mergeReleaseAssets' because:
+  Simple merging task
+Task ':app:mergeReleaseAssets' is not up-to-date because:
+  Output property 'outputDir' file /app/applet/app/build/intermediates/assets/release/mergeReleaseAssets has been removed.
+The input changes require a full rebuild for incremental task ':app:mergeReleaseAssets'.
+Resolve mutations for :app:compressReleaseAssets (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:compressReleaseAssets (Thread[#124,Execution worker Thread 2,5,main]) started.
+
+> Task :app:compressReleaseAssets FROM-CACHE
+Build cache key for task ':app:compressReleaseAssets' is a6f96ac2d1c8366373ab146ade28d7ed
+Task ':app:compressReleaseAssets' is not up-to-date because:
+  Output property 'outputDir' file /app/applet/app/build/intermediates/compressed_assets/release/compressReleaseAssets/out has been removed.
+Loaded cache entry for task ':app:compressReleaseAssets' with cache key a6f96ac2d1c8366373ab146ade28d7ed
+Resolve mutations for :app:extractReleaseVersionControlInfo (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:extractReleaseVersionControlInfo (Thread[#124,Execution worker Thread 2,5,main]) started.
+
+> Task :app:dataBindingGenBaseClassesRelease FROM-CACHE
+Build cache key for task ':app:dataBindingGenBaseClassesRelease' is 5774ab1d2586e8a96f743b0aa6a0e41c
+Task ':app:dataBindingGenBaseClassesRelease' is not up-to-date because:
+  Output property 'classInfoBundleDir' file /app/applet/app/build/intermediates/data_binding_base_class_log_artifact/release/dataBindingGenBaseClassesRelease/out has been removed.
+  Output property 'classInfoBundleDir' file /app/applet/app/build/intermediates/data_binding_base_class_log_artifact/release/dataBindingGenBaseClassesRelease/out/com.nightread.app-binding_classes.json has been removed.
+  Output property 'logOutFolder' file /app/applet/app/build/intermediates/incremental/dataBindingGenBaseClassesRelease has been removed.
+  and more...
+Loaded cache entry for task ':app:dataBindingGenBaseClassesRelease' with cache key 5774ab1d2586e8a96f743b0aa6a0e41c
+Resolve mutations for :app:kspReleaseKotlin (Thread[#123,Execution worker,5,main]) started.
+:app:kspReleaseKotlin (Thread[#123,Execution worker,5,main]) started.
+
+> Task :app:extractReleaseVersionControlInfo
+Caching disabled for task ':app:extractReleaseVersionControlInfo' because:
+  Caching has been disabled for the task
+Task ':app:extractReleaseVersionControlInfo' is not up-to-date because:
+  Output property 'vcInfoFile' file /app/applet/app/build/intermediates/version_control_info_file/release/extractReleaseVersionControlInfo/version-control-info.textproto has been removed.
+Resolve mutations for :app:collectReleaseDependencies (Thread[#124,Execution worker Thread 2,5,main]) started.
+:app:collectReleaseDependencies (Thread[#124,Execution worker Thread 2,5,main]) started.
+
+> Task :app:stripReleaseDebugSymbols
+Caching disabled for task ':app:stripReleaseDebugSymbols' because:
+  Caching has been disabled for the task
+Task ':app:stripReleaseDebugSymbols' is not up-to-date because:
+  Output property 'outputDir' file /app/applet/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out has been removed.
+  Output property 'outputDir' file /app/applet/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib has been removed.
+  Output property 'outputDir' file /app/applet/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a has been removed.
+  and more...
+The input changes require a full rebuild for incremental task ':app:stripReleaseDebugSymbols'.
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_v8.so' due to missing strip tool for ABI 'arm64-v8a'. Packaging it as is.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_v8_2.so' due to missing strip tool for ABI 'arm64-v8a'. Packaging it as is.
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_v8_2_dotprod.so' due to missing strip tool for ABI 'arm64-v8a'. Packaging it as is.
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_v8_2_dotprod_i8mm.so' due to missing strip tool for ABI 'arm64-v8a'. Packaging it as is.
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_v8_2_i8mm.so' due to missing strip tool for ABI 'arm64-v8a'. Packaging it as is.
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/armeabi-v7a/libandroidx.graphics.path.so' due to missing strip tool for ABI 'armeabi-v7a'. Packaging it as is.
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/armeabi-v7a/libdatastore_shared_counter.so' due to missing strip tool for ABI 'armeabi-v7a'. Packaging it as is.
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86/libandroidx.graphics.path.so' due to missing strip tool for ABI 'x86'. Packaging it as is.
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86/libdatastore_shared_counter.so' due to missing strip tool for ABI 'x86'. Packaging it as is.
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86_64/libandroidx.graphics.path.so' due to missing strip tool for ABI 'x86_64'. Packaging it as is.
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86_64/libdatastore_shared_counter.so' due to missing strip tool for ABI 'x86_64'. Packaging it as is.
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86_64/librnllama_x86_64.so' due to missing strip tool for ABI 'x86_64'. Packaging it as is.
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86_64/librnllama.so' due to missing strip tool for ABI 'x86_64'. Packaging it as is.
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama.so' due to missing strip tool for ABI 'arm64-v8a'. Packaging it as is.
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/libandroidx.graphics.path.so' due to missing strip tool for ABI 'arm64-v8a'. Packaging it as is.
+C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+C/C++: android.ndkPath from module build.gradle is not set
+C/C++: ndk.dir in local.properties is not set
+C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+C/C++: sdkFolder is /opt/android/sdk
+C/C++: NDK side-by-side folder from sdkFolder /opt/android/sdk/ndk does not exist
+C/C++: Folder /opt/android/sdk/ndk/28.2.13676358 does not exist. Ignoring.
+C/C++: Folder /opt/android/sdk/ndk-bundle does not exist. Ignoring.
+Unable to strip library '/app/applet/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/libdatastore_shared_counter.so' due to missing strip tool for ABI 'arm64-v8a'. Packaging it as is.
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so, libdatastore_shared_counter.so, librnllama.so, librnllama_v8.so, librnllama_v8_2.so, librnllama_v8_2_dotprod.so, librnllama_v8_2_dotprod_i8mm.so, librnllama_v8_2_i8mm.so, librnllama_x86_64.so. Run with --info option to learn more.
+Resolve mutations for :app:extractReleaseNativeSymbolTables (Thread[#122,included builds,5,main]) started.
+:app:extractReleaseNativeSymbolTables (Thread[#122,included builds,5,main]) started.
+
+> Task :app:extractReleaseNativeSymbolTables FROM-CACHE
+Build cache key for task ':app:extractReleaseNativeSymbolTables' is 09992c374e369df41b140fc92fb8065d
+Task ':app:extractReleaseNativeSymbolTables' is not up-to-date because:
+  Output property 'outputDir' file /app/applet/app/build/intermediates/native_symbol_tables/release/extractReleaseNativeSymbolTables/out has been removed.
+Loaded cache entry for task ':app:extractReleaseNativeSymbolTables' with cache key 09992c374e369df41b140fc92fb8065d
+Resolve mutations for :app:mergeReleaseNativeDebugMetadata (Thread[#122,included builds,5,main]) started.
+:app:mergeReleaseNativeDebugMetadata (Thread[#122,included builds,5,main]) started.
+
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+Skipping task ':app:mergeReleaseNativeDebugMetadata' as it has no source files and no previous output files.
+Resolve mutations for :app:validateSigningRelease (Thread[#122,included builds,5,main]) started.
+:app:validateSigningRelease (Thread[#122,included builds,5,main]) started.
+
+> Task :app:validateSigningRelease
+Caching disabled for task ':app:validateSigningRelease' because:
+  Caching has been disabled for the task
+Task ':app:validateSigningRelease' is not up-to-date because:
+  Output property 'dummyOutputDirectory' file /app/applet/app/build/intermediates/validate_signing_config/release/validateSigningRelease has been removed.
+Resolve mutations for :app:writeReleaseAppMetadata (Thread[#122,included builds,5,main]) started.
+:app:writeReleaseAppMetadata (Thread[#122,included builds,5,main]) started.
+
+> Task :app:writeReleaseAppMetadata
+Caching disabled for task ':app:writeReleaseAppMetadata' because:
+  Caching has been disabled for the task
+Task ':app:writeReleaseAppMetadata' is not up-to-date because:
+  Output property 'outputFile' file /app/applet/app/build/intermediates/app_metadata/release/writeReleaseAppMetadata/app-metadata.properties has been removed.
+Resolve mutations for :app:writeReleaseSigningConfigVersions (Thread[#122,included builds,5,main]) started.
+:app:writeReleaseSigningConfigVersions (Thread[#122,included builds,5,main]) started.
