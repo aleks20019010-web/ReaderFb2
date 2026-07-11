@@ -57,8 +57,6 @@ class MainActivity : AppCompatActivity() {
         navView.setNavigationItemSelectedListener { menuItem ->
             if (menuItem.itemId == R.id.nav_sync) {
                 openSyncFragment()
-            } else if (menuItem.itemId == R.id.nav_tags) {
-                openTagsFragment()
             } else if (menuItem.itemId == R.id.nav_bookmarks) {
                 openBookmarksFragment()
             } else if (menuItem.itemId == R.id.nav_favorites) {
@@ -133,13 +131,7 @@ class MainActivity : AppCompatActivity() {
             .commit()
     }
 
-    private fun openTagsFragment() {
-        val fragment = com.nightread.app.ui.TagsFilterFragment()
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, fragment)
-            .commit()
-    }
-    
+
     fun openDrawer() {
         drawerLayout.openDrawer(GravityCompat.START)
     }

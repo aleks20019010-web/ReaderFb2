@@ -75,6 +75,10 @@ class BookRepository(
         bookDao.getBooksCount()
     }
 
+    suspend fun getLastReadBook(): BookEntity? = withContext(Dispatchers.IO) {
+        bookDao.getLastReadBook()
+    }
+
     suspend fun deleteAllBooks() = bookDao.deleteAllBooks()
 
     suspend fun clearLibrary() = withContext(Dispatchers.IO) {

@@ -22,6 +22,7 @@ object SettingsManager {
 
     const val KEY_AUTO_DISCOVERY = "auto_discovery"
     const val KEY_AUTO_THEME = "auto_theme"
+    const val KEY_LAST_READ_BOOK_SHA1 = "last_read_book_sha1"
     const val KEY_AI_ENABLED = "ai_enabled"
     const val KEY_AI_MODEL_PATH = "ai_model_path"
     const val KEY_AI_MODEL_ID = "ai_model_id"
@@ -73,7 +74,7 @@ object SettingsManager {
 
     fun isAutoThemeEnabled(context: Context): Boolean {
         if (cachedAutoTheme == null) {
-            cachedAutoTheme = getPrefs(context).getBoolean(KEY_AUTO_THEME, false)
+            cachedAutoTheme = getPrefs(context).getBoolean(KEY_AUTO_THEME, true)
         }
         return cachedAutoTheme!!
     }
@@ -87,16 +88,12 @@ object SettingsManager {
 
     fun getTheme(context: Context): String {
         if (cachedTheme == null) {
-            cachedTheme = getPrefs(context).getString(KEY_THEME, "sepia") ?: "sepia"
+            cachedTheme = getPrefs(context).getString(KEY_THEME, "light") ?: "light"
         }
         return cachedTheme!!
     }
 
     fun setTheme(context: Context, theme: String) {
-        if (cachedAutoTheme != false) {
-            cachedAutoTheme = false
-            getPrefs(context).edit().putBoolean(KEY_AUTO_THEME, false).apply()
-        }
         if (cachedTheme == theme) return
         cachedTheme = theme
         val prefs = getPrefs(context)
@@ -110,7 +107,7 @@ object SettingsManager {
 
     fun getPreviousTheme(context: Context): String {
         if (cachedPrevTheme == null) {
-            cachedPrevTheme = getPrefs(context).getString(KEY_PREVIOUS_THEME, "sepia") ?: "sepia"
+            cachedPrevTheme = getPrefs(context).getString(KEY_PREVIOUS_THEME, "light") ?: "light"
         }
         return cachedPrevTheme!!
     }
@@ -269,5 +266,13 @@ object SettingsManager {
 
     fun setAiModelId(context: Context, id: String?) {
         getPrefs(context).edit().putString(KEY_AI_MODEL_ID, id).apply()
+    }
+
+    fun getLastReadBookSha1(context: Context): String? {
+        return getPrefs(context).getString(KEY_LAST_READ_BOOK_SHA1, null)
+    }
+
+    fun setLastReadBookSha1(context: Context, sha1: String?) {
+        getPrefs(context).edit().putString(KEY_LAST_READ_BOOK_SHA1, sha1).apply()
     }
 }

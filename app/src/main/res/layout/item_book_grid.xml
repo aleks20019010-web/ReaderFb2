@@ -107,19 +107,19 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent">
 
-                <!-- Book Title: max 2 lines, white (#FFFFFF), fixed height equivalent -->
+                <!-- Book Title: max 2 lines, dynamic color, fixed height equivalent -->
                 <TextView
                     android:id="@+id/tvBookTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:lines="2"
-                    android:textColor="#FFFFFF"
+                    android:textColor="@color/text_primary"
                     android:textSize="@dimen/book_title_size"
                     android:textStyle="bold"
                     android:gravity="top|start" />
 
-                <!-- Book Author: max 1 line, light-gray-purple (#D0C0E0), fixed height equivalent -->
+                <!-- Book Author: max 1 line, dynamic color, fixed height equivalent -->
                 <TextView
                     android:id="@+id/tvBookAuthor"
                     android:layout_width="match_parent"
@@ -127,7 +127,7 @@
                     android:layout_marginTop="2dp"
                     android:ellipsize="end"
                     android:lines="1"
-                    android:textColor="#D0C0E0"
+                    android:textColor="@color/text_secondary"
                     android:textSize="@dimen/book_author_size"
                     android:gravity="center_vertical|start" />
 

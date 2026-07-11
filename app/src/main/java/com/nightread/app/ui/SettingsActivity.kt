@@ -23,6 +23,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nightread.app.data.SettingsManager
@@ -64,13 +65,10 @@ class SettingsActivity : FragmentActivity() {
         }
 
         // Theme states (Existing)
-        val themeOptions = listOf("light", "dark", "sepia", "contrast", "beige")
+        val themeOptions = listOf("light", "dark")
         val themeNames = mapOf(
             "light" to "День",
-            "dark" to "Ночь",
-            "sepia" to "Сепия",
-            "contrast" to "Контраст",
-            "beige" to "Бежевый"
+            "dark" to "Ночь"
         )
         var selectedTheme by remember { mutableStateOf(SettingsManager.getTheme(context)) }
         var autoThemeEnabled by remember { mutableStateOf(SettingsManager.isAutoThemeEnabled(context)) }
@@ -134,18 +132,7 @@ class SettingsActivity : FragmentActivity() {
                         Text("Обучение")
                     }
                 }
-                item {
-                    Button(onClick = { 
-                        val intent = Intent(context, com.nightread.app.MainActivity::class.java).apply {
-                            putExtra("OPEN_AI", true)
-                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        }
-                        context.startActivity(intent)
-                        context.finish()
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Локальный AI")
-                    }
-                }
+
                 item {
                     Button(onClick = { 
                         val intent = Intent(context, com.nightread.app.MainActivity::class.java).apply {
@@ -255,10 +242,9 @@ class SettingsActivity : FragmentActivity() {
                         onOptionSelected = {
                             selectedTheme = it
                             SettingsManager.setTheme(context, it)
-                            autoThemeEnabled = false
-                            com.nightread.app.service.ThemeUpdateReceiver.cancelAlarm(context)
                             com.nightread.app.data.ThemeManager.applyTheme(context)
                         },
+                        enabled = !autoThemeEnabled,
                         displayMapper = { themeNames[it] ?: it }
                     )
                 }
@@ -326,23 +312,24 @@ class SettingsActivity : FragmentActivity() {
         options: List<T>,
         selectedOption: T,
         onOptionSelected: (T) -> Unit,
+        enabled: Boolean = true,
         displayMapper: (T) -> String = { it.toString() }
     ) {
         var expanded by remember { mutableStateOf(false) }
         
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.5f)) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
-                    .clickable { expanded = true }
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+                    .border(1.dp, if (enabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                    .clickable(enabled = enabled) { expanded = true }
+                    .background(if (enabled) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Row(

@@ -103,19 +103,17 @@ class ChapterListBottomSheet : BottomSheetDialogFragment() {
 
         class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val tvTitle: TextView = view.findViewById(R.id.tvChapterTitle)
-            val tvDesc: TextView = view.findViewById(R.id.tvAiDescription)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val view = LayoutInflater.from(parent.context)
-                .inflate(R.layout.item_chapter_with_ai, parent, false)
+                .inflate(R.layout.item_chapter, parent, false)
             return ViewHolder(view)
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val offset = offsets[position]
             holder.tvTitle.text = "Глава ${position + 1}"
-            holder.tvDesc.visibility = View.GONE
             holder.itemView.setOnClickListener { onClick(offset) }
         }
 

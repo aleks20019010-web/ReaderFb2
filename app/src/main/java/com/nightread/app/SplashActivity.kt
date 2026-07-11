@@ -119,11 +119,12 @@ class SplashActivity : AppCompatActivity() {
                     }
                     Log.d(TAG, "Database check: total books count = $booksCount")
                     
-                    if (booksCount > 0) {
+                    val savedSha1 = SettingsManager.getLastReadBookSha1(applicationContext)
+                    if (!savedSha1.isNullOrEmpty()) {
                         lastReadBook = withContext(Dispatchers.IO) {
-                            db.bookDao().getLastReadBook()
+                            repository.getBookBySha1(savedSha1)
                         }
-                        Log.d(TAG, "Last read book: ${lastReadBook?.title}")
+                        Log.d(TAG, "Last read book from SharedPreferences: ${lastReadBook?.title} (SHA-1: $savedSha1)")
                     }
                     
                     // Integrity check: if 0 books but cache has entries, reset cache.

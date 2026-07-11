@@ -101,32 +101,9 @@ class PageFragment : Fragment() {
         android.util.Log.d("PageFragment", "updateStyle: setting text. contains soft hyphens: ${pageText.contains('\u00AD')} (count: ${pageText.count { it == '\u00AD' }})")
         textView.text = pageText
         
-        var lastTouchX = 0f
-        var lastTouchY = 0f
-
         textView.isLongClickable = true
-        textView.setTextIsSelectable(false)
+        textView.setTextIsSelectable(true)
         textView.customSelectionActionModeCallback = null
-
-        textView.setOnTouchListener { _, event ->
-            if (event.action == android.view.MotionEvent.ACTION_DOWN) {
-                lastTouchX = event.x
-                lastTouchY = event.y
-            }
-            false
-        }
-
-        textView.setOnLongClickListener {
-            val word = extractWordAt(textView, lastTouchX, lastTouchY).trim()
-            if (word.isNotEmpty()) {
-                val contextSnippet = extractContextAround(textView, lastTouchX, lastTouchY).trim()
-                WordActionBottomSheet.newInstance(word, contextSnippet)
-                    .show(childFragmentManager, "WordAction")
-                true
-            } else {
-                false
-            }
-        }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             textView.breakStrategy = android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY
@@ -135,32 +112,6 @@ class PageFragment : Fragment() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_INTER_WORD
         }
-    }
-
-    private fun extractWordAt(textView: TextView, x: Float, y: Float): String {
-        val offset = textView.getOffsetForPosition(x, y)
-        val text = textView.text.toString()
-        if (offset < 0 || offset >= text.length) return ""
-
-        var start = offset
-        while (start > 0 && text[start - 1].isLetterOrDigit()) {
-            start--
-        }
-        var end = offset
-        while (end < text.length && text[end].isLetterOrDigit()) {
-            end++
-        }
-        return text.substring(start, end)
-    }
-
-    private fun extractContextAround(textView: TextView, x: Float, y: Float): String {
-        val offset = textView.getOffsetForPosition(x, y)
-        val text = textView.text.toString()
-        if (offset < 0 || offset >= text.length) return ""
-
-        val start = (offset - 100).coerceAtLeast(0)
-        val end = (offset + 100).coerceAtMost(text.length)
-        return text.substring(start, end)
     }
 
     companion object {

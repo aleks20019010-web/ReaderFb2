@@ -126,6 +126,7 @@ class ReadingActivity : AppCompatActivity() {
             finish()
             return
         }
+        SettingsManager.setLastReadBookSha1(this, sha1)
 
         
         onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
@@ -297,46 +298,7 @@ class ReadingActivity : AppCompatActivity() {
                             recalculatePages(targetOffset)
                         } else {
                             val localOffset = book.currentProgressChar
-                            var fsOffset = -1
-                            var fsPageIndex = -1
-                            
-                            try {
-                                if (com.nightread.app.data.FirestoreSyncManager.isSyncEnabled(this@ReadingActivity)) {
-                                    val firestoreData = com.nightread.app.data.FirestoreSyncManager.retrieveProgress(this@ReadingActivity, sha1)
-                                    if (firestoreData != null) {
-                                        val offset = (firestoreData["charOffset"] as? Number)?.toInt() ?: -1
-                                        val pageIdx = (firestoreData["pageIndex"] as? Number)?.toInt() ?: -1
-                                        val fsTimestamp = (firestoreData["lastReadTime"] as? Number)?.toLong() ?: 0L
-                                        
-                                        if (offset >= 0 && fsTimestamp > book.lastReadTime) {
-                                            fsOffset = offset
-                                            fsPageIndex = pageIdx
-                                        }
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                Log.e("READING_DEBUG", "Error fetching Firestore progress", e)
-                            }
-
-                            if (fsOffset >= 0) {
-                                androidx.appcompat.app.AlertDialog.Builder(this@ReadingActivity)
-                                    .setTitle("Синхронизация прогресса")
-                                    .setMessage("Найден более свежий прогресс чтения из облака (Страница ${fsPageIndex + 1}). Хотите перейти к нему?")
-                                    .setPositiveButton("Да") { _, _ ->
-                                        lifecycleScope.launch {
-                                            recalculatePages(fsOffset)
-                                        }
-                                    }
-                                    .setNegativeButton("Нет") { _, _ ->
-                                        lifecycleScope.launch {
-                                            recalculatePages(localOffset)
-                                        }
-                                    }
-                                    .setCancelable(false)
-                                    .show()
-                            } else {
-                                recalculatePages(localOffset)
-                            }
+                            recalculatePages(localOffset)
                         }
                     }
                 }
@@ -834,19 +796,8 @@ class ReadingActivity : AppCompatActivity() {
                 try {
                     AppDatabase.getDatabase(this@ReadingActivity)
                         .bookDao().updateProgressAndPage(sha1, charOffset, currentIdx, totalChars, System.currentTimeMillis())
-                    
-                    if (com.nightread.app.data.FirestoreSyncManager.isSyncEnabled(this@ReadingActivity)) {
-                        com.nightread.app.data.FirestoreSyncManager.saveProgress(
-                            context = this@ReadingActivity,
-                            sha1 = sha1,
-                            title = bookTitle,
-                            pageIndex = currentIdx,
-                            charOffset = charOffset,
-                            totalCharacters = totalChars
-                        )
-                    }
                 } catch (e: Exception) {
-                    Log.e("READING_DEBUG", "Error saving progress in DB or Firestore", e)
+                    Log.e("READING_DEBUG", "Error saving progress in DB", e)
                 }
             }
         }

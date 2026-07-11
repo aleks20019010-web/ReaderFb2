@@ -89,14 +89,14 @@
                 android:orientation="vertical"
                 android:gravity="center_vertical">
 
-                <!-- Book Title: White #FFFFFF, size 16sp, bold, max 2 lines -->
+                <!-- Book Title: dynamic color, size 16sp, bold, max 2 lines -->
                 <TextView
                     android:id="@+id/tvBookTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:maxLines="2"
-                    android:textColor="#FFFFFF"
+                    android:textColor="@color/text_primary"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
@@ -104,28 +104,28 @@
                     android:layout_width="match_parent"
                     android:layout_height="3dp" />
 
-                <!-- Book Author: Light gray purple #D0C0E0, size 14sp, max 1 line -->
+                <!-- Book Author: dynamic color, size 14sp, max 1 line -->
                 <TextView
                     android:id="@+id/tvBookAuthor"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:textColor="#D0C0E0"
+                    android:textColor="@color/text_secondary"
                     android:textSize="14sp" />
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="4dp" />
 
-                <!-- Book Annotation: Pale purple #B8A0C8, size 13sp, max 3 lines with ellipsize -->
+                <!-- Book Annotation: dynamic color, size 13sp, max 3 lines with ellipsize -->
                 <TextView
                     android:id="@+id/tvBookAnnotation"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:maxLines="3"
-                    android:textColor="#B8A0C8"
+                    android:textColor="@color/text_secondary"
                     android:textSize="13sp" />
 
                 <View
