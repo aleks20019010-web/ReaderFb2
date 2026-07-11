@@ -7,18 +7,7 @@
     android:viewportHeight="108">
     
     <!-- Glowing aura behind the book -->
-    <path android:pathData="M 54 54 m -36 0 a 36 36 0 1 1 72 0 a 36 36 0 1 1 -72 0">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:centerX="54"
-                android:centerY="54"
-                android:gradientRadius="36"
-                android:type="radial">
-                <item android:offset="0.0" android:color="#998A2BE2" /> <!-- Deep purple glow -->
-                <item android:offset="1.0" android:color="#008A2BE2" />
-            </gradient>
-        </aapt:attr>
-    </path>
+    <path android:pathData="M 54 54 m -36 0 a 36 36 0 1 1 72 0 a 36 36 0 1 1 -72 0" android:fillColor="#4D8A2BE2" />
 
     <group
         android:scaleX="2.0"

@@ -90,8 +90,8 @@ android {
       // Все классы приложения защищены правилами в proguard-rules.pro.
       // Если вам нужно ПОЛНОСТЬЮ отключить сжатие и обфускацию для проверки:
       // установите: isMinifyEnabled = false, isShrinkResources = false
-      isMinifyEnabled = true
-      isShrinkResources = true
+      isMinifyEnabled = false
+      isShrinkResources = false
       proguardFiles(
         getDefaultProguardFile("proguard-android-optimize.txt"),
         "proguard-rules.pro"
