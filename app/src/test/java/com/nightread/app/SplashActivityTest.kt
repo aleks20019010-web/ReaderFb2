@@ -2,14 +2,14 @@ package com.nightread.app
 
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 import org.robolectric.Robolectric
-import com.nightread.app.SplashActivity
+import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class SplashActivityTest {
     @Test
-    fun testActivityStarts() {
-        Robolectric.buildActivity(SplashActivity::class.java).create().start().resume().visible()
+    fun testSplashActivityStarts() {
+        val activity = Robolectric.buildActivity(SplashActivity::class.java).create().start().resume().get()
+        assert(activity != null)
     }
 }
