@@ -71,6 +71,7 @@ class LocalLLM private constructor(context: Context) {
                 val job = scope.launch {
                     try {
                         sharedFlow.collect { event ->
+                            Log.i("LocalLLM", "[СОБЫТИЕ] Получено событие от LlamaHelper: ${event.javaClass.simpleName} ($event)")
                             if (event is LlamaHelper.LLMEvent.Error) {
                                 Log.e("LocalLLM", "[ОШИБКА] Событие ошибки при загрузке модели: ${event.message}")
                                 if (!resumed) {
@@ -87,15 +88,37 @@ class LocalLLM private constructor(context: Context) {
                     }
                 }
 
-                Log.i("LocalLLM", "Вызов helper.load() для файла...")
-                helper.load(path, 2048, "") { handle ->
-                    Log.i("LocalLLM", "[УСПЕХ] Модель загружена успешно. Дескриптор (Handle): $handle")
+                val finalPath = if (path.startsWith("content://") || path.startsWith("file://")) {
+                    path
+                } else {
+                    try {
+                        android.net.Uri.fromFile(File(path)).toString()
+                    } catch (e: Exception) {
+                        Log.e("LocalLLM", "[ПРЕДУПРЕЖДЕНИЕ] Ошибка преобразования пути в Uri, используем исходный путь", e)
+                        path
+                    }
+                }
+
+                Log.i("LocalLLM", "Вызов helper.load() для пути: $finalPath (исходный путь: $path)")
+                try {
+                    helper.load(finalPath, 2048, "") { handle ->
+                        Log.i("LocalLLM", "[УСПЕХ] Модель загружена успешно. Дескриптор (Handle): $handle")
+                        job.cancel()
+                        if (!resumed) {
+                            resumed = true
+                            isLoaded = true
+                            llamaHelperInstance = helper
+                            continuation.resume(true) { }
+                        }
+                    }
+                } catch (t: Throwable) {
+                    Log.e("LocalLLM", "[ОШИБКА] Исключение непосредственно при вызове helper.load()", t)
                     job.cancel()
                     if (!resumed) {
                         resumed = true
-                        isLoaded = true
-                        llamaHelperInstance = helper
-                        continuation.resume(true) { }
+                        isLoaded = false
+                        llamaHelperInstance = null
+                        continuation.resume(false) { }
                     }
                 }
 
