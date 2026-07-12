@@ -3,6 +3,7 @@ package com.nightread.app.ui
 object BookCache {
     var sha1: String = ""
     var content: String = ""
+    var notes: Map<String, String> = emptyMap()
     var layoutKey: String = ""
     var splitResult: PageSplitter.PageResult? = null
     var hyphenatedContent: CharSequence? = null
@@ -11,6 +12,7 @@ object BookCache {
     fun clear() {
         sha1 = ""
         content = ""
+        notes = emptyMap()
         layoutKey = ""
         splitResult = null
         hyphenatedContent = null

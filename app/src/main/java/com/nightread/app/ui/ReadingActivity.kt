@@ -3,6 +3,11 @@ package com.nightread.app.ui
 import android.os.Bundle
 import android.text.TextPaint
 import android.util.Log
+import com.nightread.app.service.BookParser
+import com.nightread.app.service.EpubParser
+import com.nightread.app.service.MobiParser
+import com.nightread.app.service.TxtParser
+import com.nightread.app.ui.NoteBottomSheet
 import android.view.KeyEvent
 import android.view.View
 import android.widget.ImageButton
@@ -52,6 +57,7 @@ class ReadingActivity : AppCompatActivity() {
     private var sha1: String = ""
     private var bookTitle: String = ""
     private var bookContent: String = ""
+    private var bookNotes: Map<String, String> = emptyMap()
     private var splitResult = PageSplitter.PageResult()
     private var progressiveJob: kotlinx.coroutines.Job? = null
     private var isSplittingFinished = false
@@ -254,6 +260,7 @@ class ReadingActivity : AppCompatActivity() {
                     tvLoadingProgress.text = "Книга загружена из кэша..."
                     Log.i("READING_DEBUG", "Reusing cached book content for SHA-1: $sha1")
                     bookContent = BookCache.content
+                    bookNotes = BookCache.notes
                 } else {
                     val filePath = book.filePath
                     if (filePath.isNullOrEmpty()) {
@@ -270,14 +277,15 @@ class ReadingActivity : AppCompatActivity() {
                     tvLoadingProgress.text = "Чтение файла..."
                     Log.d("READING_DEBUG", "Loading file: $filePath, size: ${file.length()}")
                     
-                    var rawContent = withContext(Dispatchers.IO) {
-                        extractTextFromFile(file)
+                    val parsedBook = withContext(Dispatchers.IO) {
+                        parseBookFile(file)
                     }
                     
                     tvLoadingProgress.text = "Обработка текста..."
                     bookContent = withContext(Dispatchers.Default) {
-                        rawContent.trim().trim('\u000C').trim()
+                        parsedBook.content.trim().trim('\u000C').trim()
                     }
+                    bookNotes = parsedBook.notes
                     
                     if (bookContent.isEmpty()) {
                         CustomToast.show(this@ReadingActivity, "Не удалось прочитать текст")
@@ -287,6 +295,7 @@ class ReadingActivity : AppCompatActivity() {
                     
                     BookCache.sha1 = sha1
                     BookCache.content = bookContent
+                    BookCache.notes = bookNotes
                     Log.i("READING_DEBUG", "Successfully loaded book from disk and updated BookCache for SHA-1: $sha1")
                 }
 
@@ -920,5 +929,73 @@ class ReadingActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun parseBookFile(file: File): BookParser.ParsedBook {
+        val ext = file.extension.lowercase(Locale.ROOT)
+        return when (ext) {
+            "fb2", "xml" -> {
+                Fb2Parser.parse(file, file.nameWithoutExtension)
+            }
+            "epub" -> {
+                EpubParser.parse(file, file.nameWithoutExtension)
+            }
+            "mobi", "azw3" -> {
+                MobiParser.parse(file, file.nameWithoutExtension)
+            }
+            "txt" -> {
+                TxtParser.parse(file, file.nameWithoutExtension)
+            }
+            "zip" -> {
+                var parsed = BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
+                try {
+                    FileInputStream(file).use { fis ->
+                        ZipInputStream(fis).use { zis ->
+                            var entry = zis.nextEntry
+                            while (entry != null) {
+                                if (!entry.isDirectory && (entry.name.endsWith(".fb2") || entry.name.endsWith(".xml"))) {
+                                    val tempFile = File.createTempFile("zip_fb2", ".fb2")
+                                    tempFile.deleteOnExit()
+                                    tempFile.outputStream().use { fos ->
+                                        zis.copyTo(fos)
+                                    }
+                                    parsed = Fb2Parser.parse(tempFile, file.nameWithoutExtension)
+                                    tempFile.delete()
+                                    break
+                                }
+                                entry = zis.nextEntry
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("ReadingActivity", "Error parsing zipped FB2", e)
+                }
+                parsed
+            }
+            else -> BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
+        }
+    }
+
+    fun showFootnote(noteId: String) {
+        val noteText = bookNotes[noteId] ?: "Текст сноски не найден."
+        
+        // Save current page and offset
+        val savedPage = viewPager.currentItem
+        val savedCharOffset = if (savedPage in splitResult.offsets.indices) {
+            splitResult.offsets[savedPage]
+        } else {
+            0
+        }
+        
+        Log.d("ReadingActivity", "Saved position before showing footnote: page $savedPage, offset $savedCharOffset")
+        
+        val bottomSheet = NoteBottomSheet.newInstance(noteId, noteText)
+        bottomSheet.setOnDismissListener {
+            Log.d("ReadingActivity", "Restoring position after closing footnote: page $savedPage, offset $savedCharOffset")
+            if (viewPager.currentItem != savedPage) {
+                viewPager.setCurrentItem(savedPage, false)
+            }
+        }
+        bottomSheet.show(supportFragmentManager, "NoteBottomSheet")
     }
 }

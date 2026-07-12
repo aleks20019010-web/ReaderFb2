@@ -99,7 +99,12 @@ class PageFragment : Fragment() {
         textView.setLineSpacing(0f, lineSpacingMultiplier)
         
         android.util.Log.d("PageFragment", "updateStyle: setting text. contains soft hyphens: ${pageText.contains('\u00AD')} (count: ${pageText.count { it == '\u00AD' }})")
-        textView.text = pageText
+        val formattedTextWithClicks = PageSplitter.formatAllSpans(pageText, textView.textSize) { noteId ->
+            val readingActivity = activity as? ReadingActivity
+            readingActivity?.showFootnote(noteId)
+        }
+        textView.text = formattedTextWithClicks
+        textView.movementMethod = android.text.method.LinkMovementMethod.getInstance()
         
         textView.isLongClickable = true
         textView.setTextIsSelectable(true)

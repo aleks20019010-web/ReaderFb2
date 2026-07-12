@@ -9,8 +9,12 @@ import android.text.style.AbsoluteSizeSpan
 import android.text.style.StyleSpan
 import android.text.style.AlignmentSpan
 import android.text.style.ForegroundColorSpan
+import android.text.style.LeadingMarginSpan
+import android.text.style.SuperscriptSpan
+import android.text.style.RelativeSizeSpan
 import android.graphics.Color
 import android.graphics.Typeface
+import android.view.View
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,86 +29,144 @@ object PageSplitter {
         var isFinished: Boolean = false
     )
 
-    fun formatChapterSpans(text: CharSequence, basePaintSize: Float): CharSequence {
-        if (text.isEmpty() || !text.contains("[CHAPTER]")) return text
+    fun formatAllSpans(
+        text: CharSequence,
+        basePaintSize: Float,
+        onNoteClick: ((String) -> Unit)? = null
+    ): CharSequence {
+        if (text.isEmpty()) return text
         
         val spannable = SpannableStringBuilder(text)
         val str = spannable.toString()
-        var lastIdx = 0
         
+        // 1. Format [CHAPTER]...[/CHAPTER]
+        var lastIdx = 0
         while (true) {
             val startTag = str.indexOf("[CHAPTER]", lastIdx)
             if (startTag == -1) break
-            
             val endTag = str.indexOf("[/CHAPTER]", startTag)
             if (endTag == -1) break
             
-            // Hide [CHAPTER] tag
-            spannable.setSpan(
-                AbsoluteSizeSpan(0),
-                startTag,
-                startTag + "[CHAPTER]".length,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-            spannable.setSpan(
-                ForegroundColorSpan(Color.TRANSPARENT),
-                startTag,
-                startTag + "[CHAPTER]".length,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
+            // Hide [CHAPTER]
+            spannable.setSpan(AbsoluteSizeSpan(0), startTag, startTag + "[CHAPTER]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), startTag, startTag + "[CHAPTER]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             
-            // Hide [/CHAPTER] tag
-            spannable.setSpan(
-                AbsoluteSizeSpan(0),
-                endTag,
-                endTag + "[/CHAPTER]".length,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-            spannable.setSpan(
-                ForegroundColorSpan(Color.TRANSPARENT),
-                endTag,
-                endTag + "[/CHAPTER]".length,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
+            // Hide [/CHAPTER]
+            spannable.setSpan(AbsoluteSizeSpan(0), endTag, endTag + "[/CHAPTER]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), endTag, endTag + "[/CHAPTER]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             
-            // Style chapter title text
             val titleStart = startTag + "[CHAPTER]".length
             val titleEnd = endTag
             if (titleEnd > titleStart) {
-                spannable.setSpan(
-                    AbsoluteSizeSpan((basePaintSize * 1.5f).toInt()),
-                    titleStart,
-                    titleEnd,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-                spannable.setSpan(
-                    StyleSpan(Typeface.BOLD),
-                    titleStart,
-                    titleEnd,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
+                spannable.setSpan(AbsoluteSizeSpan((basePaintSize * 1.5f).toInt()), titleStart, titleEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                spannable.setSpan(StyleSpan(Typeface.BOLD), titleStart, titleEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 var alignStart = startTag
-                if (alignStart > 0 && spannable[alignStart - 1] == '') {
+                if (alignStart > 0 && spannable[alignStart - 1] == '\u000C') {
                     alignStart--
                 }
-                spannable.setSpan(
-                    AlignmentSpan.Standard(Layout.Alignment.ALIGN_CENTER),
-                    alignStart,
-                    endTag + "[/CHAPTER]".length,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
+                spannable.setSpan(AlignmentSpan.Standard(Layout.Alignment.ALIGN_CENTER), alignStart, endTag + "[/CHAPTER]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
-            
             lastIdx = endTag + "[/CHAPTER]".length
+        }
+        
+        // 2. Format [CITE]...[/CITE]
+        lastIdx = 0
+        while (true) {
+            val startTag = str.indexOf("[CITE]", lastIdx)
+            if (startTag == -1) break
+            val endTag = str.indexOf("[/CITE]", startTag)
+            if (endTag == -1) break
+            
+            // Hide tags
+            spannable.setSpan(AbsoluteSizeSpan(0), startTag, startTag + "[CITE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), startTag, startTag + "[CITE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(AbsoluteSizeSpan(0), endTag, endTag + "[/CITE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), endTag, endTag + "[/CITE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            
+            val contentStart = startTag + "[CITE]".length
+            val contentEnd = endTag
+            if (contentEnd > contentStart) {
+                spannable.setSpan(StyleSpan(Typeface.ITALIC), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                spannable.setSpan(LeadingMarginSpan.Standard(60), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            lastIdx = endTag + "[/CITE]".length
+        }
+
+        // 3. Format [SUP]...[/SUP]
+        lastIdx = 0
+        while (true) {
+            val startTag = str.indexOf("[SUP]", lastIdx)
+            if (startTag == -1) break
+            val endTag = str.indexOf("[/SUP]", startTag)
+            if (endTag == -1) break
+            
+            // Hide tags
+            spannable.setSpan(AbsoluteSizeSpan(0), startTag, startTag + "[SUP]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), startTag, startTag + "[SUP]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(AbsoluteSizeSpan(0), endTag, endTag + "[/SUP]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), endTag, endTag + "[/SUP]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            
+            val contentStart = startTag + "[SUP]".length
+            val contentEnd = endTag
+            if (contentEnd > contentStart) {
+                spannable.setSpan(SuperscriptSpan(), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                spannable.setSpan(RelativeSizeSpan(0.7f), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            lastIdx = endTag + "[/SUP]".length
+        }
+
+        // 4. Format [NOTE:note_id]...[/NOTE]
+        lastIdx = 0
+        val noteRegex = Regex("""\[NOTE:([^\]]+)\]""")
+        while (true) {
+            val match = noteRegex.find(str, lastIdx) ?: break
+            val startTag = match.range.first
+            val startTagEnd = match.range.last + 1
+            val noteId = match.groupValues[1]
+            
+            val endTag = str.indexOf("[/NOTE]", startTagEnd)
+            if (endTag == -1) break
+            
+            // Hide tags
+            spannable.setSpan(AbsoluteSizeSpan(0), startTag, startTagEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), startTag, startTagEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(AbsoluteSizeSpan(0), endTag, endTag + "[/NOTE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), endTag, endTag + "[/NOTE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            
+            val contentStart = startTagEnd
+            val contentEnd = endTag
+            if (contentEnd > contentStart) {
+                spannable.setSpan(SuperscriptSpan(), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                spannable.setSpan(RelativeSizeSpan(0.7f), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                
+                if (onNoteClick != null) {
+                    spannable.setSpan(
+                        object : android.text.style.ClickableSpan() {
+                            override fun onClick(widget: View) {
+                                onNoteClick(noteId)
+                            }
+                            override fun updateDrawState(ds: android.text.TextPaint) {
+                                super.updateDrawState(ds)
+                                ds.isUnderlineText = false
+                                ds.color = Color.parseColor("#9B59B6")
+                            }
+                        },
+                        contentStart,
+                        contentEnd,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
+            }
+            lastIdx = endTag + "[/NOTE]".length
         }
         
         return spannable
     }
 
-    /**
-     * Finds the exact page containing the target character offset.
-     * This is useful for immediately jumping to a page before full pagination completes.
-     */
+    fun formatChapterSpans(text: CharSequence, basePaintSize: Float): CharSequence {
+        return formatAllSpans(text, basePaintSize, null)
+    }
+
     suspend fun getPageForOffset(
         text: CharSequence,
         targetOffset: Int,
@@ -122,7 +184,6 @@ object PageSplitter {
         
         val formattedText = formatChapterSpans(text, paint.textSize)
         
-        // Find paragraph start
         var start = targetOffset
         while (start > 0 && formattedText[start - 1] != '\n' && formattedText[start - 1] != '\u000C') {
             start--
@@ -270,7 +331,6 @@ object PageSplitter {
             }
 
             pagesFound++
-            // Report progress every 10 pages or on the first page
             if (pagesFound == 1 || pagesFound % 10 == 0) {
                 withContext(Dispatchers.Main) {
                     onProgress(PageResult(ArrayList(result.pages), ArrayList(result.offsets), false))

@@ -63,6 +63,16 @@ class MainActivity : BaseActivity() {
             } else if (menuItem.itemId == R.id.nav_favorites) {
                 val intent = Intent(this, com.nightread.app.ui.FavoriteBooksActivity::class.java)
                 startActivity(intent)
+            } else if (menuItem.itemId == R.id.nav_new_books) {
+                val intent = Intent(this, com.nightread.app.ui.NewBooksActivity::class.java).apply {
+                    putExtra("from_menu", true)
+                }
+                startActivity(intent)
+            } else if (menuItem.itemId == R.id.nav_want_to_read) {
+                val intent = Intent(this, com.nightread.app.ui.WantToReadActivity::class.java).apply {
+                    putExtra("from_menu", true)
+                }
+                startActivity(intent)
             } else if (menuItem.itemId == R.id.nav_settings) {
                 // Open SettingsActivity
                 val intent = Intent(this, com.nightread.app.ui.SettingsActivity::class.java)
@@ -135,5 +145,21 @@ class MainActivity : BaseActivity() {
 
     fun openDrawer() {
         drawerLayout.openDrawer(GravityCompat.START)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (intent.getBooleanExtra("OPEN_DRAWER", false)) {
+            intent.removeExtra("OPEN_DRAWER")
+            openDrawer()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra("OPEN_DRAWER", false)) {
+            openDrawer()
+        }
     }
 }

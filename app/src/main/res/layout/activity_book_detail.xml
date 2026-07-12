@@ -142,6 +142,18 @@
                         android:layout_marginEnd="16dp" />
 
                     <ImageView
+                        android:id="@+id/ivWantToRead"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:padding="12dp"
+                        android:src="@drawable/ic_pin"
+                        android:contentDescription="Хочу прочитать"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:layout_marginEnd="16dp" />
+
+                    <ImageView
                         android:id="@+id/ivShare"
                         android:layout_width="48dp"
                         android:layout_height="48dp"

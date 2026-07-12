@@ -75,6 +75,21 @@
             android:name="com.nightread.app.ui.FavoriteBooksActivity"
             android:exported="false"
             android:theme="@style/Theme.MyApplication" />
+
+        <activity
+            android:name="com.nightread.app.ui.NewBooksActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MyApplication" />
+
+        <activity
+            android:name="com.nightread.app.ui.WantToReadActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MyApplication" />
+
+        <activity
+            android:name="com.nightread.app.ui.ScanResultActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MyApplication" />
             
         <service 
             android:name=".service.AutoDiscoveryService"

@@ -3,6 +3,8 @@ package com.nightread.app.ui
 import android.content.Intent
 import android.os.Bundle
 import android.view.MenuItem
+import android.view.View
+import android.widget.LinearLayout
 import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -10,26 +12,30 @@ import androidx.recyclerview.widget.RecyclerView
 import com.nightread.app.R
 import com.nightread.app.data.AppDatabase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class NewBooksActivity : BaseActivity() {
+class WantToReadActivity : BaseActivity() {
 
-    private lateinit var rvNewBooks: RecyclerView
+    private lateinit var rvWantToRead: RecyclerView
+    private lateinit var layoutEmptyState: LinearLayout
     private lateinit var adapter: BookAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_new_books)
+        setContentView(R.layout.activity_want_to_read)
 
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.setDisplayShowHomeEnabled(true)
-        supportActionBar?.title = "Новые поступления"
+        supportActionBar?.title = "Хочу прочитать"
 
-        rvNewBooks = findViewById(R.id.rvNewBooks)
-        rvNewBooks.layoutManager = GridLayoutManager(this, 3)
+        rvWantToRead = findViewById(R.id.rvWantToRead)
+        layoutEmptyState = findViewById(R.id.layoutEmptyState)
+        
+        rvWantToRead.layoutManager = GridLayoutManager(this, 3)
 
         adapter = BookAdapter(
             books = emptyList(),
@@ -38,20 +44,34 @@ class NewBooksActivity : BaseActivity() {
                     putExtra("BOOK_SHA1", book.sha1)
                 }
                 startActivity(intent)
+            },
+            onDeleteBook = { book ->
+                lifecycleScope.launch {
+                    val db = AppDatabase.getDatabase(this@WantToReadActivity)
+                    withContext(Dispatchers.IO) {
+                        db.bookDao().updateWantToRead(book.sha1, false)
+                    }
+                }
             }
         )
-        rvNewBooks.adapter = adapter
+        rvWantToRead.adapter = adapter
 
-        loadNewBooks()
+        observeWantToReadBooks()
     }
 
-    private fun loadNewBooks() {
+    private fun observeWantToReadBooks() {
         lifecycleScope.launch {
-            val db = AppDatabase.getDatabase(this@NewBooksActivity)
-            val recentlyAdded = withContext(Dispatchers.IO) {
-                db.bookDao().getRecentlyAddedBooks()
+            val db = AppDatabase.getDatabase(this@WantToReadActivity)
+            db.bookDao().getWantToReadBooks().collectLatest { books ->
+                adapter.updateData(books)
+                if (books.isEmpty()) {
+                    layoutEmptyState.visibility = View.VISIBLE
+                    rvWantToRead.visibility = View.GONE
+                } else {
+                    layoutEmptyState.visibility = View.GONE
+                    rvWantToRead.visibility = View.VISIBLE
+                }
             }
-            adapter.updateData(recentlyAdded)
         }
     }
 

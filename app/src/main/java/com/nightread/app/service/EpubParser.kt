@@ -5,7 +5,7 @@ import java.io.File
 import java.nio.charset.StandardCharsets
 import java.util.zip.ZipFile
 
-object EpubParser {
+object EpubParser : BookParser {
     private const val TAG = "EpubParser"
 
     data class EpubMetadata(
@@ -14,8 +14,20 @@ object EpubParser {
         val content: String,
         val language: String?,
         val annotation: String?,
-        val coverBytes: ByteArray?
+        val coverBytes: ByteArray?,
+        val notes: Map<String, String> = emptyMap()
     )
+
+    override fun parse(file: File, defaultTitle: String): BookParser.ParsedBook {
+        val metadata = parseEpub(file, defaultTitle)
+        return BookParser.ParsedBook(
+            title = metadata.title,
+            author = metadata.author,
+            content = metadata.content,
+            notes = metadata.notes,
+            coverBytes = metadata.coverBytes
+        )
+    }
 
     fun parseEpub(file: File, defaultTitle: String): EpubMetadata {
         var zipFile: ZipFile? = null
@@ -79,6 +91,8 @@ object EpubParser {
             
             // 5. Read all spine HTML chapters and parse them to plain text with chapter markers
             val textBuilder = StringBuilder()
+            val notesMap = mutableMapOf<String, String>()
+            
             for (idref in spineIds) {
                 // Support case-insensitive key matching in manifestItems fallback
                 val href = manifestItems[idref] 
@@ -92,7 +106,7 @@ object EpubParser {
                     stream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
                 }
                 
-                val pageText = parseHtmlToText(htmlContent)
+                val pageText = parseHtmlToText(htmlContent, notesMap)
                 if (pageText.isNotBlank()) {
                     if (textBuilder.isNotEmpty()) {
                         textBuilder.append("\n")
@@ -151,7 +165,8 @@ object EpubParser {
                 content = textBuilder.toString(),
                 language = language,
                 annotation = annotation,
-                coverBytes = coverBytes
+                coverBytes = coverBytes,
+                notes = notesMap
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing EPUB: ${file.absolutePath}", e)
@@ -272,8 +287,23 @@ object EpubParser {
             .replace("&ndash;", "–")
     }
 
-    private fun parseHtmlToText(html: String): String {
+    private fun extractNotesFromHtml(html: String, notesMap: MutableMap<String, String>) {
+        val regex = Regex("""<([a-zA-Z0-9]+)[^>]*id=["']([^"']+)["'][^>]*>(.*?)</\1>""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+        for (match in regex.findAll(html)) {
+            val id = match.groupValues[2]
+            var innerText = match.groupValues[3]
+            innerText = innerText.replace(Regex("<[^>]+>"), " ")
+            innerText = decodeHtmlEntities(innerText).trim()
+            if (innerText.isNotEmpty()) {
+                notesMap[id] = innerText
+            }
+        }
+    }
+
+    private fun parseHtmlToText(html: String, notesMap: MutableMap<String, String>): String {
         try {
+            extractNotesFromHtml(html, notesMap)
+
             var cleanHtml = html
             val headStart = cleanHtml.indexOf("<head", ignoreCase = true)
             val headEnd = cleanHtml.indexOf("</head>", ignoreCase = true)
@@ -284,6 +314,22 @@ object EpubParser {
             cleanHtml = cleanHtml.replace(Regex("<style[^>]*>.*?</style>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
             cleanHtml = cleanHtml.replace(Regex("<script[^>]*>.*?</script>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
             
+            cleanHtml = cleanHtml
+                .replace(Regex("<blockquote[^>]*>", RegexOption.IGNORE_CASE), "\n[CITE]")
+                .replace(Regex("</blockquote>", RegexOption.IGNORE_CASE), "[/CITE]\n")
+                .replace(Regex("<cite[^>]*>", RegexOption.IGNORE_CASE), "\n[CITE]")
+                .replace(Regex("</cite>", RegexOption.IGNORE_CASE), "[/CITE]\n")
+                .replace(Regex("<sup[^>]*>", RegexOption.IGNORE_CASE), "[SUP]")
+                .replace(Regex("</sup>", RegexOption.IGNORE_CASE), "[/SUP]")
+
+            // Format note links: <a href="...#note_id">1</a>
+            val noteLinkRegex = Regex("""<a[^>]*(?:href|l:href)=["']([^"']*#)([^"']+)["'][^>]*>(.*?)</a>""", RegexOption.IGNORE_CASE)
+            cleanHtml = noteLinkRegex.replace(cleanHtml) { matchResult ->
+                val noteId = matchResult.groupValues[2]
+                val linkText = matchResult.groupValues[3].replace(Regex("<[^>]+>"), "")
+                "[NOTE:$noteId]$linkText[/NOTE]"
+            }
+
             cleanHtml = cleanHtml
                 .replace(Regex("<h[1-3][^>]*>", RegexOption.IGNORE_CASE), "\n\u000C[CHAPTER]")
                 .replace(Regex("</h[1-3]>", RegexOption.IGNORE_CASE), "[/CHAPTER]\n")

@@ -28,6 +28,7 @@ object SettingsManager {
     const val KEY_AI_MODEL_PATH = "ai_model_path"
     const val KEY_AI_MODEL_ID = "ai_model_id"
     const val KEY_AI_AUTO_LOAD = "ai_auto_load"
+    const val KEY_SHOW_ALL_FORMATS = "show_all_formats"
 
     private val _settingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val settingsChanged: SharedFlow<Unit> = _settingsChanged.asSharedFlow()
@@ -48,6 +49,7 @@ object SettingsManager {
     private var cachedOnboardingCompleted: Boolean? = null 
     private var cachedAutoDiscovery: Boolean? = null
     private var cachedAutoTheme: Boolean? = null
+    private var cachedShowAllFormats: Boolean? = null
 
     private fun getPrefs(context: Context): SharedPreferences {
         if (prefs == null) {
@@ -289,6 +291,20 @@ object SettingsManager {
         if (cachedReadingTheme == theme) return
         cachedReadingTheme = theme
         getPrefs(context).edit().putString(KEY_READING_THEME, theme).apply()
+        notifyChanged()
+    }
+
+    fun isShowAllFormatsEnabled(context: Context): Boolean {
+        if (cachedShowAllFormats == null) {
+            cachedShowAllFormats = getPrefs(context).getBoolean(KEY_SHOW_ALL_FORMATS, false)
+        }
+        return cachedShowAllFormats!!
+    }
+
+    fun setShowAllFormatsEnabled(context: Context, enabled: Boolean) {
+        if (cachedShowAllFormats == enabled) return
+        cachedShowAllFormats = enabled
+        getPrefs(context).edit().putBoolean(KEY_SHOW_ALL_FORMATS, enabled).apply()
         notifyChanged()
     }
 }

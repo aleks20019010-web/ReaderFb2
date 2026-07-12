@@ -277,7 +277,7 @@ class LibraryFragment : Fragment() {
 
         btnShowNewBooks.setOnClickListener {
             layoutNewBooksBanner.visibility = View.GONE
-            startActivity(android.content.Intent(requireContext(), NewBooksActivity::class.java))
+            startActivity(android.content.Intent(requireContext(), ScanResultActivity::class.java))
         }
 
         btnCloseNewBooks.setOnClickListener {
@@ -773,6 +773,11 @@ class LibraryFragment : Fragment() {
     private fun applyFilters(books: List<BookEntity>): List<BookEntity> {
         var filtered = books
         
+        val showAllFormats = context?.let { SettingsManager.isShowAllFormatsEnabled(it) } ?: false
+        if (!showAllFormats) {
+            filtered = viewModel.repository.filterBooksByFormat(filtered, false)
+        }
+
         filtered = when (filterType) {
             "reading" -> filtered.filter { book -> 
                 val percent = if (book.totalCharacters > 0) ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt() else 0
@@ -1002,5 +1007,10 @@ class LibraryFragment : Fragment() {
             }
             .setNegativeButton("Отмена", null)
             .show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        filterAndApplyBooks()
     }
 }

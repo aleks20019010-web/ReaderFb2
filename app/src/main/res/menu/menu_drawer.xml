@@ -21,6 +21,14 @@
             android:id="@+id/nav_favorites"
             android:icon="@android:drawable/btn_star_big_on"
             android:title="Избранное" />
+        <item
+            android:id="@+id/nav_new_books"
+            android:icon="@drawable/ic_book_new"
+            android:title="Новые книги" />
+        <item
+            android:id="@+id/nav_want_to_read"
+            android:icon="@drawable/ic_pin"
+            android:title="Хочу прочитать" />
 
         <item
             android:id="@+id/nav_sync"

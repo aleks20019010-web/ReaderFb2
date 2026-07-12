@@ -28,5 +28,7 @@ data class BookEntity(
     val summary: String? = null,
     val characters: String? = null,
     val chapterDescriptions: String? = null,
-    val tags: String? = null
+    val tags: String? = null,
+    val isWantToRead: Boolean = false,
+    val dateAdded: Long = System.currentTimeMillis()
 )

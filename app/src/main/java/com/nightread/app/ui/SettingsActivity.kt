@@ -150,6 +150,47 @@ class SettingsActivity : BaseActivity() {
                     }
                 }
                 
+                item { Text("Настройки библиотеки", style = MaterialTheme.typography.titleMedium) }
+                item {
+                    var showAllFormats by remember { mutableStateOf(SettingsManager.isShowAllFormatsEnabled(context)) }
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Показывать все форматы",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Отображать в библиотеке EPUB, MOBI, PDF, DJVU и другие форматы",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Switch(
+                                checked = showAllFormats,
+                                onCheckedChange = { checked ->
+                                    showAllFormats = checked
+                                    SettingsManager.setShowAllFormatsEnabled(context, checked)
+                                }
+                            )
+                        }
+                    }
+                }
+                
                 item { Text("Очистка и восстановление", style = MaterialTheme.typography.titleMedium) }
                 item { 
                     Button(
@@ -184,7 +225,7 @@ class SettingsActivity : BaseActivity() {
                     }
                 }
                 item { Text("Информация", style = MaterialTheme.typography.titleMedium) }
-                item { Text("Версия: ${com.nightread.app.BuildConfig.VERSION_NAME}\nРазработчик: NightRead Team\nКонтакты: support@nightread.com") }
+                item { Text("Версия: ${com.nightread.app.BuildConfig.VERSION_NAME}") }
 
                 item { Spacer(modifier = Modifier.height(24.dp)) }
 

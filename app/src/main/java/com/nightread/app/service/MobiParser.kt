@@ -5,7 +5,7 @@ import java.io.File
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 
-object MobiParser {
+object MobiParser : BookParser {
     private const val TAG = "MobiParser"
 
     data class MobiMetadata(
@@ -14,8 +14,20 @@ object MobiParser {
         val content: String,
         val language: String?,
         val annotation: String?,
-        val coverBytes: ByteArray?
+        val coverBytes: ByteArray?,
+        val notes: Map<String, String> = emptyMap()
     )
+
+    override fun parse(file: File, defaultTitle: String): BookParser.ParsedBook {
+        val metadata = parseMobi(file, defaultTitle)
+        return BookParser.ParsedBook(
+            title = metadata.title,
+            author = metadata.author,
+            content = metadata.content,
+            notes = metadata.notes,
+            coverBytes = metadata.coverBytes
+        )
+    }
 
     fun parseMobi(file: File, defaultTitle: String): MobiMetadata {
         try {
@@ -156,9 +168,9 @@ object MobiParser {
                 contentBuilder.append(text)
             }
 
-            // Simple HTML-to-text cleaning
-            val rawContent = contentBuilder.toString()
-            val cleanContent = parseHtmlToText(rawContent)
+            val rawHtml = contentBuilder.toString()
+            val notesMap = mutableMapOf<String, String>()
+            val cleanContent = parseHtmlToText(rawHtml, notesMap)
 
             return MobiMetadata(
                 title = title.ifEmpty { defaultTitle },
@@ -166,7 +178,8 @@ object MobiParser {
                 content = cleanContent,
                 language = language,
                 annotation = annotation,
-                coverBytes = coverBytes
+                coverBytes = coverBytes,
+                notes = notesMap
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing MOBI file: ${file.absolutePath}", e)
@@ -291,33 +304,66 @@ object MobiParser {
         return outBytes.copyOf(outSize)
     }
 
-    private fun parseHtmlToText(html: String): String {
-        // Strip comments
+    private fun extractNotesFromHtml(html: String, notesMap: MutableMap<String, String>) {
+        val regex = Regex("""<([a-zA-Z0-9]+)[^>]*id=["']([^"']+)["'][^>]*>(.*?)</\1>""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+        for (match in regex.findAll(html)) {
+            val id = match.groupValues[2]
+            var innerText = match.groupValues[3]
+            innerText = innerText.replace(Regex("<[^>]+>"), " ")
+            innerText = decodeHtmlEntities(innerText).trim()
+            if (innerText.isNotEmpty()) {
+                notesMap[id] = innerText
+            }
+        }
+    }
+
+    private fun decodeHtmlEntities(text: String): String {
+        return text
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .replace("&nbsp;", " ")
+            .replace("&laquo;", "«")
+            .replace("&raquo;", "»")
+            .replace("&mdash;", "—")
+            .replace("&ndash;", "–")
+    }
+
+    private fun parseHtmlToText(html: String, notesMap: MutableMap<String, String>): String {
+        extractNotesFromHtml(html, notesMap)
+
         var text = html.replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
-        // Strip scripts/styles
         text = text.replace(Regex("<script.*?>.*?</script>", RegexOption.IGNORE_CASE), "")
         text = text.replace(Regex("<style.*?>.*?</style>", RegexOption.IGNORE_CASE), "")
         
-        // Convert paragraph and break tags to lines
+        text = text
+            .replace(Regex("<blockquote[^>]*>", RegexOption.IGNORE_CASE), "\n[CITE]")
+            .replace(Regex("</blockquote>", RegexOption.IGNORE_CASE), "[/CITE]\n")
+            .replace(Regex("<cite[^>]*>", RegexOption.IGNORE_CASE), "\n[CITE]")
+            .replace(Regex("</cite>", RegexOption.IGNORE_CASE), "[/CITE]\n")
+            .replace(Regex("<sup[^>]*>", RegexOption.IGNORE_CASE), "[SUP]")
+            .replace(Regex("</sup>", RegexOption.IGNORE_CASE), "[/SUP]")
+
+        // Format note links: <a href="...#note_id">1</a>
+        val noteLinkRegex = Regex("""<a[^>]*(?:href|l:href)=["']([^"']*#)([^"']+)["'][^>]*>(.*?)</a>""", RegexOption.IGNORE_CASE)
+        text = noteLinkRegex.replace(text) { matchResult ->
+            val noteId = matchResult.groupValues[2]
+            val linkText = matchResult.groupValues[3].replace(Regex("<[^>]+>"), "")
+            "[NOTE:$noteId]$linkText[/NOTE]"
+        }
+
         text = text.replace(Regex("<p.*?>", RegexOption.IGNORE_CASE), "\n")
         text = text.replace(Regex("</p>", RegexOption.IGNORE_CASE), "\n")
         text = text.replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
         text = text.replace(Regex("<div.*?>", RegexOption.IGNORE_CASE), "\n")
         text = text.replace(Regex("</div>", RegexOption.IGNORE_CASE), "\n")
 
-        // Strip remaining HTML tags
         text = text.replace(Regex("<.*?>", RegexOption.DOT_MATCHES_ALL), "")
 
-        // Unescape standard entities
-        text = text.replace("&nbsp;", " ")
-                   .replace("&lt;", "<")
-                   .replace("&gt;", ">")
-                   .replace("&amp;", "&")
-                   .replace("&quot;", "\"")
-                   .replace("&apos;", "'")
-                   .replace("&#39;", "'")
+        text = decodeHtmlEntities(text)
 
-        // Clean up multiple empty lines
         text = text.replace(Regex("\n{3,}"), "\n\n")
         return text.trim()
     }

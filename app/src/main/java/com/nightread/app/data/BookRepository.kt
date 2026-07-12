@@ -1,6 +1,7 @@
 package com.nightread.app.data
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.util.Log
@@ -11,6 +12,20 @@ class BookRepository(
 ) {
     val allBooks: Flow<List<BookEntity>> = bookDao.getAllBooks()
     val allNotes: Flow<List<NoteEntity>> = noteDao.getAllNotes()
+
+    fun filterBooksByFormat(books: List<BookEntity>, showAll: Boolean): List<BookEntity> {
+        if (showAll) return books
+        return books.filter { book ->
+            val path = book.filePath?.lowercase() ?: ""
+            path.endsWith(".fb2") || path.endsWith(".fb2.zip") || book.filePath.isNullOrEmpty()
+        }
+    }
+
+    fun getFilteredBooks(showAll: Boolean): Flow<List<BookEntity>> {
+        return bookDao.getAllBooks().map { books ->
+            filterBooksByFormat(books, showAll)
+        }
+    }
 
     fun searchBooks(query: String): Flow<List<BookEntity>> {
         val sqlQuery = "%$query%"

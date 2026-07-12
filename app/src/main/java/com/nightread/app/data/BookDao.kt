@@ -100,6 +100,12 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE isFavorite = 1 ORDER BY title ASC")
     fun getFavoriteBooks(): Flow<List<BookEntity>>
 
+    @Query("SELECT * FROM books WHERE isWantToRead = 1 ORDER BY title ASC")
+    fun getWantToReadBooks(): Flow<List<BookEntity>>
+
+    @Query("UPDATE books SET isWantToRead = :isWantToRead WHERE sha1 = :sha1")
+    suspend fun updateWantToRead(sha1: String, isWantToRead: Boolean)
+
     @Query("UPDATE books SET lastReadTime = 0 WHERE currentProgressChar = 0 AND currentPageIndex = 0 AND lastReadTime > 0")
     suspend fun resetUnreadBooksLastReadTime()
 
@@ -114,4 +120,10 @@ interface BookDao {
 
     @Query("UPDATE books SET isNew = 0 WHERE isNew = 1")
     suspend fun clearNewBooksFlag()
+
+    @Query("SELECT * FROM books ORDER BY dateAdded DESC LIMIT 30")
+    fun getRecentlyAddedBooksFlow(): Flow<List<BookEntity>>
+
+    @Query("SELECT * FROM books ORDER BY dateAdded DESC LIMIT 30")
+    suspend fun getRecentlyAddedBooks(): List<BookEntity>
 }

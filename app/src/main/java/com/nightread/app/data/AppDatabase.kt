@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [BookEntity::class, NoteEntity::class, CloudFileEntity::class], version = 8, exportSchema = false)
+@Database(entities = [BookEntity::class, NoteEntity::class, CloudFileEntity::class], version = 10, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
     abstract fun noteDao(): NoteDao

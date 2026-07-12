@@ -47,6 +47,7 @@ class BookDetailActivity : BaseActivity() {
 
     private lateinit var btnReadToolbar: TextView
     private lateinit var ivFavorite: ImageView
+    private lateinit var ivWantToRead: ImageView
     private lateinit var ivShare: ImageView
     private lateinit var ivDelete: ImageView
 
@@ -115,6 +116,7 @@ class BookDetailActivity : BaseActivity() {
 
         btnReadToolbar = findViewById(R.id.btnReadToolbar)
         ivFavorite = findViewById(R.id.ivFavorite)
+        ivWantToRead = findViewById(R.id.ivWantToRead)
         ivShare = findViewById(R.id.ivShare)
         ivDelete = findViewById(R.id.ivDelete)
 
@@ -155,6 +157,10 @@ class BookDetailActivity : BaseActivity() {
         ivFavorite.setOnClickListener {
             toggleFavorite()
         }
+        
+        ivWantToRead.setOnClickListener {
+            toggleWantToRead()
+        }
 
         ivShare.setOnClickListener {
             shareBookFile()
@@ -178,6 +184,19 @@ class BookDetailActivity : BaseActivity() {
         }
     }
 
+    private fun toggleWantToRead() {
+        val book = currentBook ?: return
+        val updated = book.copy(isWantToRead = !book.isWantToRead)
+        lifecycleScope.launch {
+            val db = AppDatabase.getDatabase(this@BookDetailActivity)
+            withContext(Dispatchers.IO) {
+                db.bookDao().updateBook(updated)
+            }
+            currentBook = updated
+            updateWantToReadIcon(updated.isWantToRead)
+        }
+    }
+
     private fun updateFavoriteIcon(isFav: Boolean) {
         if (isFav) {
             ivFavorite.setImageResource(android.R.drawable.btn_star_big_on)
@@ -185,6 +204,16 @@ class BookDetailActivity : BaseActivity() {
         } else {
             ivFavorite.setImageResource(android.R.drawable.btn_star_big_off)
             ivFavorite.setColorFilter(Color.parseColor("#8E8E93"))
+        }
+    }
+
+    private fun updateWantToReadIcon(isWantToRead: Boolean) {
+        if (isWantToRead) {
+            ivWantToRead.setImageResource(R.drawable.ic_pin_filled)
+            ivWantToRead.setColorFilter(Color.parseColor("#FF5C5C"))
+        } else {
+            ivWantToRead.setImageResource(R.drawable.ic_pin)
+            ivWantToRead.setColorFilter(Color.parseColor("#8E8E93"))
         }
     }
 
@@ -344,6 +373,9 @@ class BookDetailActivity : BaseActivity() {
 
                 // Favorite icon setup
                 updateFavoriteIcon(book.isFavorite)
+
+                // Want to read icon setup
+                updateWantToReadIcon(book.isWantToRead)
 
                 // Cover setup
                 if (!book.coverPath.isNullOrEmpty() && File(book.coverPath).exists()) {
