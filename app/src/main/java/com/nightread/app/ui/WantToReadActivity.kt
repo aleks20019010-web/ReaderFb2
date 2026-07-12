@@ -6,6 +6,9 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.LinearLayout
 import androidx.appcompat.widget.Toolbar
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -26,6 +29,20 @@ class WantToReadActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_want_to_read)
 
+        // Support Edge-to-Edge immersion and safe areas (Status Bar + Notch + 12dp spacing)
+        val rootLayout = findViewById<android.view.View>(R.id.rootWantToRead)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { view, windowInsets ->
+            val insets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.statusBars() or
+                WindowInsetsCompat.Type.displayCutout()
+            )
+            val topPadding = insets.top + (12 * resources.displayMetrics.density).toInt()
+            val bottomPadding = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            view.setPadding(0, topPadding, 0, bottomPadding)
+            windowInsets
+        }
+
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -40,6 +57,7 @@ class WantToReadActivity : BaseActivity() {
         adapter = BookAdapter(
             books = emptyList(),
             onOpenBook = { book ->
+                android.util.Log.d("WantToReadActivity", "Opening BookDetailActivity for SHA1: ${book.sha1}")
                 val intent = Intent(this, BookDetailActivity::class.java).apply {
                     putExtra("BOOK_SHA1", book.sha1)
                 }

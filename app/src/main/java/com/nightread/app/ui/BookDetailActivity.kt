@@ -125,8 +125,10 @@ class BookDetailActivity : BaseActivity() {
         llSeriesContainer = findViewById(R.id.llSeriesContainer)
 
         bookSha1 = intent.getStringExtra("BOOK_SHA1")
+        Log.d("BookDetailActivity", "onCreate: Opened BookDetailActivity with BOOK_SHA1 = $bookSha1")
 
         if (bookSha1.isNullOrEmpty()) {
+            Log.e("BookDetailActivity", "onCreate: BOOK_SHA1 is null or empty! Finishing activity.")
             finish()
             return
         }

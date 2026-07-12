@@ -277,39 +277,8 @@ class BookAdapter(
             ivCover.setTag(R.id.breathing_animator, newAnimator)
 
             // Click interactions
-            
-            // Bounce animation
-            itemView.setOnTouchListener { v, event ->
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        triggerGoldShine(tvBookTitle, tvBookAuthor)
-                        val scaleDownX = ObjectAnimator.ofFloat(v, "scaleX", 0.95f)
-                        val scaleDownY = ObjectAnimator.ofFloat(v, "scaleY", 0.95f)
-                        scaleDownX.duration = 100
-                        scaleDownY.duration = 100
-                        val scaleDown = AnimatorSet()
-                        scaleDown.play(scaleDownX).with(scaleDownY)
-                        scaleDown.start()
-                    }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        val scaleUpX = ObjectAnimator.ofFloat(v, "scaleX", 1.0f)
-                        val scaleUpY = ObjectAnimator.ofFloat(v, "scaleY", 1.0f)
-                        scaleUpX.duration = 300
-                        scaleUpY.duration = 300
-                        scaleUpX.interpolator = OvershootInterpolator(1.5f)
-                        scaleUpY.interpolator = OvershootInterpolator(1.5f)
-                        val scaleUp = AnimatorSet()
-                        scaleUp.play(scaleUpX).with(scaleUpY)
-                        scaleUp.start()
-                        
-                        if (event.action == MotionEvent.ACTION_UP) {
-                            v.performClick()
-                        }
-                    }
-                }
-                true
-            }
             itemView.setOnClickListener {
+                android.util.Log.d("BookAdapter", "Book clicked: title='${book.title}', author='${book.author}', sha1='${book.sha1}'")
                 onOpenBook(book)
             }
 

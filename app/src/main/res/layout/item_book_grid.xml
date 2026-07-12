@@ -5,6 +5,9 @@
     android:layout_width="match_parent"
     android:layout_height="290dp"
     android:layout_margin="5dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?android:attr/selectableItemBackground"
     app:cardCornerRadius="12dp"
     app:cardElevation="4dp"
     app:strokeWidth="0dp"
@@ -14,10 +17,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="6dp"
-        android:foreground="?android:attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true">
+        android:padding="6dp">
 
         <!-- Cover container taking most of the card height -->
         <FrameLayout
@@ -33,12 +33,12 @@
                 android:layout_height="match_parent"
                 android:background="#1A1A2E" />
 
-            <!-- Cover Image: takes full card -->
+            <!-- Cover Image: fits nicely inside keeping proportions -->
             <ImageView
                 android:id="@+id/ivCover"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:scaleType="centerCrop"
+                android:scaleType="fitCenter"
                 android:adjustViewBounds="true"
                 android:contentDescription="Обложка книги" />
 
