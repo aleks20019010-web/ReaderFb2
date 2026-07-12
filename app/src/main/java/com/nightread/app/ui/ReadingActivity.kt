@@ -159,6 +159,9 @@ class ReadingActivity : AppCompatActivity() {
         lastLineSpacing = SettingsManager.getLineSpacing(this)
         lastPageAnimation = SettingsManager.getPageAnimation(this)
 
+        val startReadingTheme = SettingsManager.getReadingTheme(this)
+        isNightMode = startReadingTheme == "dark" || startReadingTheme == "contrast"
+
         lifecycleScope.launch {
             SettingsManager.settingsChanged.collectLatest {
                 updateSystemBarsColors()
@@ -672,9 +675,21 @@ class ReadingActivity : AppCompatActivity() {
     }
 
     private fun toggleNightMode() {
-        isNightMode = !isNightMode
-        val newTheme = if (isNightMode) "dark" else SettingsManager.getPreviousTheme(this)
-        SettingsManager.setTheme(this, newTheme)
+        val currentReadingTheme = SettingsManager.getReadingTheme(this)
+        val isCurrentDark = currentReadingTheme == "dark" || currentReadingTheme == "contrast"
+        
+        if (isCurrentDark) {
+            val prevTheme = getSharedPreferences("reader_prefs", MODE_PRIVATE).getString("prev_reading_theme", "sepia") ?: "sepia"
+            val target = if (prevTheme == "dark" || prevTheme == "contrast") "sepia" else prevTheme
+            SettingsManager.setReadingTheme(this, target)
+            isNightMode = false
+        } else {
+            getSharedPreferences("reader_prefs", MODE_PRIVATE).edit()
+                .putString("prev_reading_theme", currentReadingTheme)
+                .apply()
+            SettingsManager.setReadingTheme(this, "dark")
+            isNightMode = true
+        }
     }
 
     private fun setupSeekBar() {

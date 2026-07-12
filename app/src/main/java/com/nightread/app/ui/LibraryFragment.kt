@@ -666,6 +666,9 @@ class LibraryFragment : Fragment() {
             wasScanning = true
             layoutScanProgress.visibility = View.VISIBLE
             progressBarSpinner.visibility = View.VISIBLE
+            context?.getSharedPreferences("library_prefs", Context.MODE_PRIVATE)?.edit()
+                ?.putBoolean("no_books_banner_dismissed", false)
+                ?.apply()
         } else {
             progressBarSpinner.visibility = View.GONE
             
@@ -673,7 +676,12 @@ class LibraryFragment : Fragment() {
                 wasScanning = false
                 if (state.status.isNotBlank()) {
                     context?.let { ctx ->
-                        CustomToast.show(ctx, state.status)
+                        val isNoBooksFound = state.status.contains("не найдено", ignoreCase = true) || state.status.contains("не найдены", ignoreCase = true)
+                        if (isNoBooksFound) {
+                            CustomToast.show(ctx, state.status, android.widget.Toast.LENGTH_SHORT)
+                        } else {
+                            CustomToast.show(ctx, state.status)
+                        }
                     }
                 }
                 // Check new books count
@@ -699,11 +707,32 @@ class LibraryFragment : Fragment() {
         }
         
         if (state.status.isNotBlank()) {
-            layoutScanProgress.visibility = View.VISIBLE
-            if (isSwipeRescanInProgress) {
-                tvScanStatus.text = "Обновление: ${state.status}"
+            val isNoBooksFound = state.status.contains("не найдено", ignoreCase = true) || state.status.contains("не найдены", ignoreCase = true)
+            
+            if (isNoBooksFound && !active) {
+                val wasAlreadyDismissed = context?.getSharedPreferences("library_prefs", Context.MODE_PRIVATE)?.getBoolean("no_books_banner_dismissed", false) ?: false
+                if (!wasAlreadyDismissed) {
+                    layoutScanProgress.visibility = View.VISIBLE
+                    tvScanStatus.text = state.status
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        kotlinx.coroutines.delay(2000)
+                        if (isAdded) {
+                            layoutScanProgress.visibility = View.GONE
+                            context?.getSharedPreferences("library_prefs", Context.MODE_PRIVATE)?.edit()
+                                ?.putBoolean("no_books_banner_dismissed", true)
+                                ?.apply()
+                        }
+                    }
+                } else {
+                    layoutScanProgress.visibility = View.GONE
+                }
             } else {
-                tvScanStatus.text = state.status
+                layoutScanProgress.visibility = View.VISIBLE
+                if (isSwipeRescanInProgress) {
+                    tvScanStatus.text = "Обновление: ${state.status}"
+                } else {
+                    tvScanStatus.text = state.status
+                }
             }
             
             if (state.status.contains("Job was cancelled", ignoreCase = true)) {
