@@ -118,7 +118,7 @@ class MainActivity : BaseActivity() {
 
             // Check if there is a last read book and immediately launch ReadingActivity
             val lastReadSha1 = SettingsManager.getLastReadBookSha1(this)
-            if (!lastReadSha1.isNullOrEmpty()) {
+            if (!lastReadSha1.isNullOrEmpty() && SettingsManager.isCurrentlyReading(this)) {
                 lifecycleScope.launch {
                     val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
                     val repository = com.nightread.app.data.BookRepository(db.bookDao(), db.noteDao())

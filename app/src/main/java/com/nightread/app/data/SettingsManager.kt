@@ -24,6 +24,7 @@ object SettingsManager {
     const val KEY_AUTO_DISCOVERY = "auto_discovery"
     const val KEY_AUTO_THEME = "auto_theme"
     const val KEY_LAST_READ_BOOK_SHA1 = "last_read_book_sha1"
+    const val KEY_IS_READING = "is_currently_reading"
     const val KEY_AI_ENABLED = "ai_enabled"
     const val KEY_AI_MODEL_PATH = "ai_model_path"
     const val KEY_AI_MODEL_ID = "ai_model_id"
@@ -306,5 +307,13 @@ object SettingsManager {
         cachedShowAllFormats = enabled
         getPrefs(context).edit().putBoolean(KEY_SHOW_ALL_FORMATS, enabled).apply()
         notifyChanged()
+    }
+
+    fun isCurrentlyReading(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_IS_READING, false)
+    }
+
+    fun setCurrentlyReading(context: Context, isReading: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_IS_READING, isReading).apply()
     }
 }

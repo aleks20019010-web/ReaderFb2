@@ -292,7 +292,7 @@ class LibraryFragment : Fragment() {
         shimmerContainer = view.findViewById(R.id.shimmer_view_container)
         shimmerContainer.startShimmer()
         shimmerContainer.visibility = View.VISIBLE
-        // Parallax effect for background and book covers
+        // Parallax effect for background
         val textureBackground = view.findViewById<View>(R.id.textureBackground)
         rvBooks.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
             var totalScrollY = 0
@@ -300,22 +300,6 @@ class LibraryFragment : Fragment() {
                 super.onScrolled(recyclerView, dx, dy)
                 totalScrollY += dy
                 textureBackground?.translationY = -(totalScrollY * 0.1f)
-                
-                // Cover Parallax
-                val layoutManager = recyclerView.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager
-                if (layoutManager != null) {
-                    val firstVisible = layoutManager.findFirstVisibleItemPosition()
-                    val lastVisible = layoutManager.findLastVisibleItemPosition()
-                    val rvCenter = recyclerView.height / 2f
-                    
-                    for (i in firstVisible..lastVisible) {
-                        val child = layoutManager.findViewByPosition(i) ?: continue
-                        val ivCover = child.findViewById<ImageView>(R.id.ivCover) ?: continue
-                        val childCenter = child.y + child.height / 2f
-                        val offset = (childCenter - rvCenter) * 0.05f
-                        ivCover.translationY = offset
-                    }
-                }
             }
         })
 

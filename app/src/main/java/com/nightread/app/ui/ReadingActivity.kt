@@ -133,10 +133,12 @@ class ReadingActivity : AppCompatActivity() {
             return
         }
         SettingsManager.setLastReadBookSha1(this, sha1)
+        SettingsManager.setCurrentlyReading(this, true)
 
         
         onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                SettingsManager.setCurrentlyReading(this@ReadingActivity, false)
                 if (isTaskRoot) {
                     startActivity(android.content.Intent(this@ReadingActivity, com.nightread.app.MainActivity::class.java))
                 }
