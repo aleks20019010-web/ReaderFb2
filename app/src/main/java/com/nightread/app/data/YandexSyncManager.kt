@@ -176,7 +176,11 @@ class YandexSyncManager(private val context: Context) {
             // Фильтруем только поддерживаемые форматы книг
             val cloudBooks = cloudItems.filter {
                 val name = it.name.lowercase()
-                name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".epub") || name.endsWith(".mobi") || name.endsWith(".azw3") || name.endsWith(".pdf")
+                val isSupported = name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".epub") || name.endsWith(".mobi") || name.endsWith(".azw3") || name.endsWith(".pdf")
+                if (!isSupported) {
+                    Log.d(TAG, "Файл не поддерживается: ${it.name}")
+                }
+                isSupported
             }
             val booksOnDisk = cloudBooks.size
             Log.d(TAG, "Найдено книг на диске: $booksOnDisk")
@@ -199,6 +203,11 @@ class YandexSyncManager(private val context: Context) {
                 if (cached != null && cached.size == (cloudBook.size ?: 0L) && cached.lastModified == (cloudBook.modified ?: "")) {
                     updatedCloudBooks.add(cached)
                 } else {
+                    val cloudSize = cloudBook.size ?: 0L
+                    val cloudModified = cloudBook.modified ?: ""
+                    Log.d(TAG, "Файл не прошел проверку кэша: ${cloudBook.name}. " +
+                            "Кэш: (found: ${cached != null}, size: ${cached?.size}, mod: ${cached?.lastModified}). " +
+                            "Облако: (size: $cloudSize, mod: $cloudModified)")
                     needsSha1.add(cloudBook)
                 }
             }
