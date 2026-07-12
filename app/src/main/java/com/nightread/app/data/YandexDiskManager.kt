@@ -266,6 +266,29 @@ object YandexDiskManager {
         }
     }
 
+    private suspend fun <T> retryWithDelay(
+        maxAttempts: Int = 3,
+        initialDelayMs: Long = 1000,
+        backoffFactor: Double = 2.0,
+        block: suspend () -> T
+    ): T {
+        var currentDelay = initialDelayMs
+        var lastException: Throwable? = null
+        for (attempt in 1..maxAttempts) {
+            try {
+                return block()
+            } catch (e: Exception) {
+                lastException = e
+                Log.w(TAG, "Attempt $attempt failed: ${e.message}. Retrying in ${currentDelay}ms...")
+                if (attempt < maxAttempts) {
+                    kotlinx.coroutines.delay(currentDelay)
+                    currentDelay = (currentDelay * backoffFactor).toLong()
+                }
+            }
+        }
+        throw lastException ?: Exception("Unknown error in retry")
+    }
+
     suspend fun getAllFilesFromFolder(
         context: Context?,
         authHeader: String,
@@ -273,6 +296,7 @@ object YandexDiskManager {
         onProgress: ((String) -> Unit)? = null
     ): List<ResourceItem> {
         val items = mutableListOf<ResourceItem>()
+        var nextUrl: String? = null
         var offset = 0
         val limit = 100 // Safe, standard limit that Yandex definitely supports
         var hasMore = true
@@ -282,66 +306,77 @@ object YandexDiskManager {
         Log.d(TAG, "getAllFilesFromFolder: Starting listing for path='$cleanPath'. Prefix 'disk:' removed.")
 
         while (hasMore) {
-            try {
-                Log.d(TAG, "getAllFilesFromFolder: Page $page, requesting offset=$offset, limit=$limit for path='$cleanPath'")
-                val response = api.getResource(
-                    token = authHeader,
-                    path = cleanPath,
-                    limit = limit,
-                    offset = offset,
-                    fields = null
-                )
-                
-                Log.d(TAG, "API Response for path='$cleanPath': Code 200 (OK)")
-
-                val embedded = response.embedded
-                val pageItems = embedded?.items ?: emptyList()
-                Log.d(TAG, "getAllFilesFromFolder: Page $page fetched, received ${pageItems.size} items from API (before filtering).")
-
-                if (pageItems.isEmpty()) {
-                    Log.d(TAG, "getAllFilesFromFolder: Page $page is empty. Stopping pagination.")
-                    hasMore = false
-                } else {
-                    val fileItems = pageItems.filter { it.type == "file" }
-                    items.addAll(fileItems)
-                    Log.d(TAG, "getAllFilesFromFolder: Added ${fileItems.size} files. Total gathered so far: ${items.size}")
-
-                    val total = embedded?.total
-                    val returnedLimit = embedded?.limit ?: limit
-                    
-                    Log.d(TAG, "getAllFilesFromFolder: Pagination parameters in response: total=$total, limit=$returnedLimit, offset=${embedded?.offset}")
-
-                    if (total != null) {
-                        offset += pageItems.size
-                        if (offset >= total) {
-                            Log.d(TAG, "getAllFilesFromFolder: Offset $offset reached or exceeded total $total. Stopping pagination.")
-                            hasMore = false
-                        } else {
-                            page++
-                        }
+            val response: ResourceResponse? = try {
+                retryWithDelay(maxAttempts = 3, initialDelayMs = 1500) {
+                    if (!nextUrl.isNullOrBlank()) {
+                        Log.d(TAG, "getAllFilesFromFolder: Fetching page $page via _links.next: $nextUrl")
+                        api.getResourcesByUrl(authHeader, nextUrl!!)
                     } else {
-                        // Fallback pagination when total is not returned
-                        if (pageItems.size < returnedLimit) {
-                            Log.d(TAG, "getAllFilesFromFolder: Received ${pageItems.size} < limit $returnedLimit. Stopping pagination.")
-                            hasMore = false
-                        } else {
-                            offset += pageItems.size
-                            page++
-                        }
+                        Log.d(TAG, "getAllFilesFromFolder: Fetching page $page via path: $cleanPath, limit=$limit, offset=$offset")
+                        api.getResource(authHeader, cleanPath, limit = limit, offset = offset)
                     }
                 }
             } catch (e: retrofit2.HttpException) {
                 val code = e.code()
                 val errorBody = e.response()?.errorBody()?.string()
-                Log.e(TAG, "API Response Error: Code $code, Message: ${e.message()}, Body: $errorBody")
+                Log.e(TAG, "getAllFilesFromFolder HTTP Error: Code $code, Body: $errorBody", e)
                 if (code == 401 && context != null) {
-                    Log.e(TAG, "API Token is invalid or expired! Clearing stored token.")
+                    Log.e(TAG, "getAllFilesFromFolder: Token expired/invalid. Clearing token.")
                     clearToken(context)
                 }
-                hasMore = false
+                null
             } catch (e: Exception) {
-                Log.e(TAG, "API Connection/Parsing Error: ${e.message}", e)
+                Log.e(TAG, "getAllFilesFromFolder Error: ${e.message}", e)
+                null
+            }
+
+            if (response == null) {
+                Log.e(TAG, "getAllFilesFromFolder: Failed to load page $page after retries. Stopping pagination.")
                 hasMore = false
+                break
+            }
+
+            val embedded = response.embedded
+            val pageItems = embedded?.items ?: emptyList()
+            Log.d(TAG, "getAllFilesFromFolder: Page $page fetched, received ${pageItems.size} items from API (before filtering).")
+
+            if (pageItems.isEmpty()) {
+                Log.d(TAG, "getAllFilesFromFolder: Page $page is empty. Stopping pagination.")
+                hasMore = false
+            } else {
+                val fileItems = pageItems.filter { it.type == "file" }
+                items.addAll(fileItems)
+                
+                val total = embedded?.total ?: 0
+                Log.d(TAG, "getAllFilesFromFolder: Added ${fileItems.size} files. Total gathered so far: ${items.size}. Total files in folder: $total")
+
+                if (total > 0) {
+                    onProgress?.invoke("Загрузка файлов из облака: получено ${items.size} из $total...")
+                } else {
+                    onProgress?.invoke("Загрузка файлов из облака: получено ${items.size}...")
+                }
+
+                // Retrieve _links.next link if available
+                val nextLinkObj = response.links?.get("next") ?: embedded?.links?.get("next")
+                val oldNextUrl = nextUrl
+                nextUrl = nextLinkObj?.href
+
+                if (!nextUrl.isNullOrBlank() && nextUrl != oldNextUrl) {
+                    page++
+                    hasMore = true
+                } else {
+                    // Fallback pagination when _links.next is missing or unchanged
+                    val returnedLimit = embedded?.limit ?: limit
+                    offset += pageItems.size
+                    if (total > 0) {
+                        hasMore = offset < total
+                    } else {
+                        hasMore = pageItems.size >= returnedLimit
+                    }
+                    if (hasMore) {
+                        page++
+                    }
+                }
             }
         }
         

@@ -13,63 +13,11 @@ class CloudFileService(private val context: Context) {
     suspend fun getFileList(path: String): List<ResourceItem> {
         val token = YandexDiskManager.getToken(context) ?: return emptyList()
         val authHeader = "OAuth $token"
-        val cleanPath = YandexDiskManager.normalizePath(path)
-        
-        val items = mutableListOf<ResourceItem>()
-        var offset = 0
-        val limit = 100
-        var hasMore = true
-        var page = 1
-
-        Log.d(TAG, "Fetching file list for path: $cleanPath")
-
-        while (hasMore) {
-            try {
-                val response = api.getResource(
-                    token = authHeader,
-                    path = cleanPath,
-                    limit = limit,
-                    offset = offset
-                )
-                val embedded = response.embedded
-                val pageItems = embedded?.items ?: emptyList()
-
-                if (pageItems.isEmpty()) {
-                    hasMore = false
-                } else {
-                    val fileItems = pageItems.filter { item ->
-                        if (item.type == "file") {
-                            val name = item.name.lowercase()
-                            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip")
-                        } else {
-                            false
-                        }
-                    }
-                    
-                    items.addAll(fileItems)
-
-                    val total = embedded?.total ?: 0
-                    Log.d(TAG, "Page $page: received ${pageItems.size} items (${fileItems.size} supported files). Total items in folder: $total")
-
-                    val returnedLimit = embedded?.limit ?: limit
-                    offset += pageItems.size
-                    
-                    if (total > 0) {
-                        hasMore = offset < total
-                    } else {
-                        hasMore = pageItems.size >= returnedLimit
-                    }
-                    
-                    if (hasMore) page++
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error fetching file list from path: $cleanPath", e)
-                hasMore = false
-            }
+        val allFiles = YandexDiskManager.getAllFilesFromFolder(context, authHeader, path)
+        return allFiles.filter { item ->
+            val name = item.name.lowercase()
+            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip")
         }
-        
-        Log.d(TAG, "Finished fetching file list. Total supported files found: ${items.size}")
-        return items
     }
 
     suspend fun downloadFile(remotePath: String, destinationFile: File): Boolean {

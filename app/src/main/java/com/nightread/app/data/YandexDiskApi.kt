@@ -27,7 +27,8 @@ data class ResourceResponse(
     @Json(name = "path") val path: String,
     @Json(name = "size") val size: Long? = null,
     @Json(name = "modified") val modified: String? = null,
-    @Json(name = "_embedded") val embedded: EmbeddedResources? = null
+    @Json(name = "_embedded") val embedded: EmbeddedResources? = null,
+    @Json(name = "_links") val links: Map<String, LinkResponse>? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -35,7 +36,8 @@ data class EmbeddedResources(
     @Json(name = "items") val items: List<ResourceItem>,
     @Json(name = "limit") val limit: Int? = null,
     @Json(name = "offset") val offset: Int? = null,
-    @Json(name = "total") val total: Int? = null
+    @Json(name = "total") val total: Int? = null,
+    @Json(name = "_links") val links: Map<String, LinkResponse>? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -48,6 +50,8 @@ data class ResourceItem(
     @Json(name = "sha256") val sha256: String? = null,
     @Json(name = "modified") val modified: String? = null
 )
+
+typealias YandexFile = ResourceItem
 
 @JsonClass(generateAdapter = true)
 data class LinkResponse(
@@ -80,6 +84,12 @@ interface YandexDiskApi {
         @Query("limit") limit: Int = 1000,
         @Query("offset") offset: Int = 0,
         @Query("fields") fields: String? = null
+    ): ResourceResponse
+
+    @GET
+    suspend fun getResourcesByUrl(
+        @Header("Authorization") token: String,
+        @Url url: String
     ): ResourceResponse
 
     @PUT("v1/disk/resources")
