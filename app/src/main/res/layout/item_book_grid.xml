@@ -1,28 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
     android:layout_margin="5dp"
     android:clickable="true"
     android:focusable="true"
-    android:background="?android:attr/selectableItemBackground"
-    android:padding="4dp">
+    android:foreground="?android:attr/selectableItemBackground"
+    app:cardCornerRadius="14dp"
+    app:cardElevation="3dp"
+    app:strokeWidth="0dp"
+    app:cardBackgroundColor="#231735"
+    app:cardPreventCornerOverlap="false"
+    app:cardUseCompatPadding="false">
 
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/cardCover"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="210dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="4dp"
-        app:strokeWidth="0dp"
-        app:cardBackgroundColor="#CC1C122C">
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
 
+        <!-- Cover container taking most of the card height -->
         <FrameLayout
             android:id="@+id/coverContainer"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="185dp">
 
             <!-- Fallback background gradient -->
             <View
@@ -31,13 +32,12 @@
                 android:layout_height="match_parent"
                 android:background="#1A1A2E" />
 
-            <!-- Cover Image: fits nicely inside keeping proportions -->
+            <!-- Cover Image: fills the space perfectly, absolutely NO borders or stripes -->
             <ImageView
                 android:id="@+id/ivCover"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:scaleType="fitCenter"
-                android:adjustViewBounds="true"
+                android:scaleType="centerCrop"
                 android:contentDescription="Обложка книги" />
 
             <!-- Cover letter fallback -->
@@ -47,7 +47,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:textColor="#FFFFFF"
-                android:textSize="32sp"
+                android:textSize="28sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
 
@@ -56,7 +56,7 @@
                 android:id="@+id/pbReadingProgress"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
-                android:layout_height="3dp"
+                android:layout_height="4dp"
                 android:layout_gravity="bottom"
                 android:progress="0"
                 android:max="100"
@@ -64,40 +64,55 @@
                 android:progressBackgroundTint="#20FFFFFF"
                 android:visibility="gone" />
         </FrameLayout>
-    </com.google.android.material.card.MaterialCardView>
 
-    <!-- Text container under the cover, outside the CardView -->
-    <LinearLayout
-        android:id="@+id/textContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingTop="6dp"
-        android:paddingBottom="8dp"
-        android:paddingHorizontal="4dp">
-
-        <TextView
-            android:id="@+id/tvBookTitle"
+        <!-- Text container under the cover, inside the CardView -->
+        <LinearLayout
+            android:id="@+id/textContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="2"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:orientation="vertical"
+            android:paddingHorizontal="10dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="10dp">
 
-        <TextView
-            android:id="@+id/tvBookAuthor"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="#E8D8F0"
-            android:textSize="10sp" />
-        
-        <!-- Hidden components for compatibility with existing adapter logic -->
-        <TextView android:id="@+id/tvBookSeries" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-        <ImageButton android:id="@+id/btnDelete" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+            <TextView
+                android:id="@+id/tvBookTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:lineSpacingMultiplier="1.1" />
+
+            <TextView
+                android:id="@+id/tvBookAuthor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#B0A4C4"
+                android:textSize="10.5sp" />
+
+            <TextView
+                android:id="@+id/tvBookSeries"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#887C9E"
+                android:textSize="9.5sp"
+                android:visibility="gone" />
+
+            <!-- Hidden components for compatibility with existing adapter logic -->
+            <ImageButton
+                android:id="@+id/btnDelete"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone" />
+        </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+</com.google.android.material.card.MaterialCardView>
