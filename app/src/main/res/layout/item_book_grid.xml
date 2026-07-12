@@ -3,7 +3,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="290dp"
+    android:layout_height="wrap_content"
     android:layout_margin="5dp"
     android:clickable="true"
     android:focusable="true"
@@ -15,16 +15,14 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="6dp">
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
 
         <!-- Cover container taking most of the card height -->
         <FrameLayout
             android:id="@+id/coverContainer"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1">
+            android:layout_height="210dp">
 
             <!-- Fallback background gradient -->
             <View
@@ -74,8 +72,8 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingTop="6dp"
-            android:paddingBottom="2dp"
-            android:paddingHorizontal="4dp">
+            android:paddingBottom="8dp"
+            android:paddingHorizontal="8dp">
 
             <TextView
                 android:id="@+id/tvBookTitle"
