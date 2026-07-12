@@ -176,7 +176,7 @@ class YandexSyncManager(private val context: Context) {
             // Фильтруем только поддерживаемые форматы книг
             val cloudBooks = cloudItems.filter {
                 val name = it.name.lowercase()
-                name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".epub") || name.endsWith(".mobi") || name.endsWith(".azw3")
+                name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".epub") || name.endsWith(".mobi") || name.endsWith(".azw3") || name.endsWith(".pdf")
             }
             val booksOnDisk = cloudBooks.size
             Log.d(TAG, "Найдено книг на диске: $booksOnDisk")
@@ -632,9 +632,10 @@ class YandexSyncManager(private val context: Context) {
                         val bytes = tempFile.readBytes()
                         val isEpub = originalName.lowercase().endsWith(".epub")
                         val isMobi = originalName.lowercase().endsWith(".mobi") || originalName.lowercase().endsWith(".azw3")
+                        val isPdf = originalName.lowercase().endsWith(".pdf")
                         if (isEpub) {
                             val meta = com.nightread.app.service.EpubParser.parseEpub(tempFile, originalName.substringBeforeLast("."))
-                            val sha1 = computeSha1(meta.content.toByteArray(StandardCharsets.UTF_8))
+                            val sha1 = computeSha1(bytes)
                             
                             val titleText = meta.title
                             val authorText = meta.author
@@ -735,6 +736,58 @@ class YandexSyncManager(private val context: Context) {
                                 }
                             } else {
                                 Log.e(TAG, "Ошибка вставки книги MOBI '$originalName' в базу")
+                            }
+                        } else if (isPdf) {
+                            val meta = com.nightread.app.service.PdfParser.parse(tempFile, originalName.substringBeforeLast("."))
+                            val sha1 = computeSha1(bytes)
+                            
+                            val titleText = meta.title
+                            val authorText = meta.author
+                            val seriesText: String? = null
+                            val seriesIdx: Int? = null
+                            val langText = "ru"
+                            val truncatedAnnotation = null
+                            
+                            var coverPath: String? = null
+                            if (meta.coverBytes != null && meta.coverBytes.isNotEmpty()) {
+                                coverPath = NewCoverExtractor.saveCoverBytes(meta.coverBytes, sha1, context)
+                            }
+                            
+                            val localFile = File(booksDirectory, originalName)
+                            tempFile.copyTo(localFile, overwrite = true)
+                            
+                            val progressPayload = cloudProgressMap[sha1]
+
+                            val newBook = BookEntity(
+                                sha1 = sha1,
+                                title = titleText,
+                                author = authorText,
+                                category = "Локальные",
+                                coverGradientStart = getRandomGradientStartColor(),
+                                coverGradientEnd = getRandomGradientEndColor(),
+                                filePath = localFile.absolutePath,
+                                series = seriesText,
+                                seriesIndex = seriesIdx,
+                                language = langText,
+                                annotation = truncatedAnnotation,
+                                fileSize = bytes.size.toLong(),
+                                coverPath = coverPath,
+                                currentPageIndex = progressPayload?.page ?: 0,
+                                currentProgressChar = progressPayload?.charOffset ?: 0,
+                                totalCharacters = progressPayload?.totalChars ?: meta.content.length,
+                                lastReadTime = progressPayload?.lastReadTime ?: 0L
+                            )
+                            if (repository.insertBookSafely(newBook)) {
+                                downloadedCount++
+                                Log.d(TAG, "Успешно скачана и импортирована книга PDF: $originalName (SHA-1: $sha1)")
+                                try {
+                                    cloudFileCache.save(sha1, cloudItem.path, cloudItem.lastModified, cloudItem.size)
+                                    Log.d(TAG, "Кэш SHA-1 обновлен для скачанной книги PDF: $originalName")
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Ошибка сохранения SHA-1 в кэш для скачанной книги PDF: $originalName", e)
+                                }
+                            } else {
+                                Log.e(TAG, "Ошибка вставки книги PDF '$originalName' в базу")
                             }
                         } else {
                             val fb2Bytes = extractFb2Bytes(bytes, originalName)
@@ -849,7 +902,7 @@ class YandexSyncManager(private val context: Context) {
                     try {
                         val cleanPath = YandexDiskManager.normalizePath("$syncFolder/$originalName")
                         val fileBytes = localFile.readBytes()
-                        val success = YandexDiskManager.uploadBook(context, cleanPath, fileBytes, localBook.sha1 ?: "")
+                        val success = YandexDiskManager.uploadBook(context, cleanPath, fileBytes)
                         if (success) {
                             uploadedCount++
                             Log.d(TAG, "Успешно загружена книга: $originalName")

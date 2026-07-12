@@ -923,7 +923,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                                 traverse(file)
                             } else {
                                 val ext = file.extension.lowercase()
-                                if (ext == "txt" || ext == "fb2" || ext == "epub" || ext == "zip" || ext == "mobi" || ext == "azw3") {
+                                if (ext == "txt" || ext == "fb2" || ext == "epub" || ext == "zip" || ext == "mobi" || ext == "azw3" || ext == "pdf") {
                                     // Exclude files >= 30MB to prevent memory crashes
                                     if (file.length() < 30 * 1024 * 1024 && file.length() > 0) {
                                         filesToProcess.add(file)
@@ -945,7 +945,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 
                 if (filesToProcess.isEmpty()) {
                     withContext(Dispatchers.Main) {
-                        scanProgressText = "Книг (*.txt, *.fb2, *.epub, *.zip, *.mobi, *.azw3) не найдено в $rootPath"
+                        scanProgressText = "Книг (*.txt, *.fb2, *.epub, *.zip, *.mobi, *.azw3, *.pdf) не найдено в $rootPath"
                     }
                     return@withContext
                 }
@@ -991,6 +991,12 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             parsedAuthor = metadata.author
                             parsedContent = metadata.content
                             parsedLanguage = metadata.language
+                        } else if (ext == "pdf") {
+                            val metadata = com.nightread.app.service.PdfParser.parse(file, parsedTitle)
+                            parsedTitle = metadata.title
+                            parsedAuthor = metadata.author
+                            parsedContent = metadata.content
+                            parsedLanguage = "ru"
                         } else if (ext == "zip") {
                             val parsed = parseFb2FromZip(file)
                             parsedTitle = parsed.title
@@ -1447,6 +1453,15 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("BookScanner", "Error extracting cover from MOBI file", e)
+                }
+            } else if (ext == "pdf") {
+                try {
+                    val coverBytes = com.nightread.app.service.PdfParser.extractCoverBytes(file)
+                    if (coverBytes != null && coverBytes.isNotEmpty()) {
+                        bitmap = android.graphics.BitmapFactory.decodeByteArray(coverBytes, 0, coverBytes.size)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("BookScanner", "Error extracting cover from PDF file", e)
                 }
             } else if (ext == "zip") {
                 java.io.FileInputStream(file).use { fis ->

@@ -411,12 +411,13 @@ object YandexDiskManager {
         }
     }
 
-    suspend fun uploadBook(context: Context, cleanPath: String, fileBytes: ByteArray, sha1: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun uploadBook(context: Context, cleanPath: String, fileBytes: ByteArray): Boolean = withContext(Dispatchers.IO) {
         val token = getToken(context) ?: return@withContext false
         val authHeader = "OAuth $token"
         try {
             val originalName = File(cleanPath).name
             val totalSize = fileBytes.size.toLong()
+            val sha1 = computeSha1(fileBytes) // Calculate SHA-1 here!
             
             YandexSyncState.update {
                 it.copy(

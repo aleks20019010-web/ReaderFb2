@@ -842,6 +842,9 @@ class ReadingActivity : AppCompatActivity() {
             "mobi", "azw3" -> {
                 com.nightread.app.service.MobiParser.parseMobi(file, "").content
             }
+            "pdf" -> {
+                com.nightread.app.service.PdfParser.extractText(file)
+            }
             "zip" -> {
                 var content = ""
                 FileInputStream(file).use { fis ->
@@ -959,6 +962,9 @@ class ReadingActivity : AppCompatActivity() {
             }
             "mobi", "azw3" -> {
                 MobiParser.parse(file, file.nameWithoutExtension)
+            }
+            "pdf" -> {
+                com.nightread.app.service.PdfParser.parse(file, file.nameWithoutExtension)
             }
             "txt" -> {
                 TxtParser.parse(file, file.nameWithoutExtension)

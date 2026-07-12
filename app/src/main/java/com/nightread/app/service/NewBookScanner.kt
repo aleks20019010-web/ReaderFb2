@@ -579,7 +579,7 @@ class NewBookScanner(
                 }
 
                 val metadata = EpubParser.parseEpub(file, file.nameWithoutExtension)
-                val sha1 = computeSha1(metadata.content.toByteArray(java.nio.charset.StandardCharsets.UTF_8))
+                val sha1 = computeSha1(file.readBytes())
                 
                 if (sha1ToPathMap.containsKey(sha1)) {
                     val existingPath = sha1ToPathMap[sha1]
@@ -684,6 +684,63 @@ class NewBookScanner(
                 onStatsUpdated(1, 0)
             } catch (e: Throwable) {
                 Log.e(TAG, "Error handling mobi file: ${file.absolutePath}", e)
+            }
+        } else if (ext == "pdf") {
+            try {
+                if (!file.exists() || !file.canRead()) {
+                    Log.w(TAG, "File does not exist or is not readable: ${file.absolutePath}")
+                    return
+                }
+
+                val metadata = PdfParser.parse(file, file.nameWithoutExtension)
+                val sha1 = computeSha1(file.readBytes())
+                
+                if (sha1ToPathMap.containsKey(sha1)) {
+                    val existingPath = sha1ToPathMap[sha1]
+                    if (existingPath != file.absolutePath) {
+                        Log.d(TAG, "Book with SHA-1 $sha1 already exists but path changed from '$existingPath' to '${file.absolutePath}'. Updating path in database.")
+                        try {
+                            kotlinx.coroutines.runBlocking {
+                                bookDao.updateFilePath(sha1, file.absolutePath)
+                            }
+                            sha1ToPathMap[sha1] = file.absolutePath
+                        } catch (ex: Exception) {
+                            Log.e(TAG, "Failed to update file path in DB during scanning for SHA-1: $sha1", ex)
+                        }
+                    } else {
+                        Log.d(TAG, "Skipped existing PDF book by SHA-1 ($sha1): ${file.name}")
+                    }
+                    onStatsUpdated(0, 1)
+                    return
+                }
+
+                var coverPath: String? = null
+                if (metadata.coverBytes != null && metadata.coverBytes.isNotEmpty()) {
+                    coverPath = NewCoverExtractor.saveCoverBytes(metadata.coverBytes, sha1, context)
+                }
+
+                val book = BookEntity(
+                    sha1 = sha1,
+                    title = metadata.title,
+                    author = metadata.author,
+                    coverGradientStart = getRandomGradientStartColor(),
+                    coverGradientEnd = getRandomGradientEndColor(),
+                    category = "Local",
+                    filePath = file.absolutePath,
+                    coverPath = coverPath,
+                    annotation = null,
+                    fileSize = file.length(),
+                    series = null,
+                    seriesIndex = null,
+                    language = "ru",
+                    isNew = true,
+                    totalCharacters = metadata.content.length
+                )
+                batchList.add(book)
+                sha1ToPathMap[sha1] = file.absolutePath
+                onStatsUpdated(1, 0)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error handling pdf file: ${file.absolutePath}", e)
             }
         } else if (ext == "zip") {
             try {
@@ -843,7 +900,7 @@ class NewBookScanner(
                     gatherFilesRecursive(file, list, depth + 1)
                 } else {
                     val ext = file.extension.lowercase()
-                    if (ext == "fb2" || ext == "zip" || ext == "epub" || ext == "mobi" || ext == "azw3") {
+                    if (ext == "fb2" || ext == "zip" || ext == "epub" || ext == "mobi" || ext == "azw3" || ext == "pdf") {
                         if (file.length() > 0 && file.length() < 30 * 1024 * 1024) {
                             list.add(file)
                         } else {
