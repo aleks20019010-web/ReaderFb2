@@ -1,222 +1,252 @@
 package com.nightread.app.ui
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
-import androidx.fragment.app.FragmentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
+import android.view.View
+import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.widget.Toolbar
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.ViewModelProvider
+import com.nightread.app.R
 import com.nightread.app.data.SettingsManager
-import com.nightread.app.ui.theme.MyApplicationTheme
-import androidx.compose.foundation.Image
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.isSystemInDarkTheme
+import com.nightread.app.data.ThemeManager
 
 class SettingsActivity : BaseActivity() {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        
-        setContent {
-            MyApplicationTheme {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = Color.Transparent
-                    ) {
-                        SettingsScreen(
-                            onBack = { finish() }
-                        )
-                    }
-                }
+    private val viewModel: BookViewModel by lazy {
+        ViewModelProvider(this)[BookViewModel::class.java]
+    }
+
+    private val importLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            viewModel.importBookFromUri(it, this) { success, message ->
+                CustomToast.show(this, message)
             }
         }
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
-    @Composable
-    fun SettingsScreen(onBack: () -> Unit) {
-        val context = this@SettingsActivity
-        val viewModel: com.nightread.app.ui.BookViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.settings_fragment)
 
-        val importLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument()
-        ) { uri ->
-            uri?.let {
-                viewModel.importBookFromUri(it, context) { success, message ->
-                    CustomToast.show(context, message)
-                }
-            }
+        // Support Edge-to-Edge immersion and safe areas
+        val rootLayout = findViewById<View>(R.id.rootSettings)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { view, windowInsets ->
+            val insets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.statusBars() or
+                WindowInsetsCompat.Type.displayCutout()
+            )
+            val topPadding = insets.top + (12 * resources.displayMetrics.density).toInt()
+            val bottomPadding = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            view.setPadding(0, topPadding, 0, bottomPadding)
+            windowInsets
         }
 
+        // Toolbar
+        val toolbar = findViewById<Toolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = "Настройки"
+        toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
+        // --- ТЕМЫ И ОФОРМЛЕНИЕ ---
+        // Auto-Theme Switch
+        val switchAutoTheme = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchAutoTheme)
+        switchAutoTheme.isChecked = SettingsManager.isAutoThemeEnabled(this)
+        switchAutoTheme.setOnCheckedChangeListener { _, isChecked ->
+            SettingsManager.setAutoThemeEnabled(this, isChecked)
+        }
 
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Настройки", fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Назад"
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        titleContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                )
-            },
-            containerColor = MaterialTheme.colorScheme.background
-        ) { paddingValues ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // New Functionality Section
-                item { Text("Основные функции", style = MaterialTheme.typography.titleMedium) }
-                item { 
-                    Button(onClick = { viewModel.startLocalBookScan() }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Сканировать библиотеку")
-                    }
+        // Theme Spinner
+        val themes = listOf("Светлая", "Темная")
+        val themeAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, themes)
+        themeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        val spinnerTheme = findViewById<Spinner>(R.id.spinnerThemeSelect)
+        spinnerTheme.adapter = themeAdapter
+
+        val currentTheme = SettingsManager.getTheme(this)
+        if (currentTheme == "dark") {
+            spinnerTheme.setSelection(1)
+        } else {
+            spinnerTheme.setSelection(0)
+        }
+
+        spinnerTheme.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedTheme = if (position == 1) "dark" else "light"
+                if (SettingsManager.getTheme(this@SettingsActivity) != selectedTheme) {
+                    SettingsManager.setTheme(this@SettingsActivity, selectedTheme)
+                    ThemeManager.applyTheme(this@SettingsActivity)
                 }
-                item {
-                    Button(onClick = { importLauncher.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Ручной импорт")
-                    }
-                }
-                item {
-                    Button(onClick = { 
-                        val intent = Intent(context, com.nightread.app.MainActivity::class.java).apply {
-                            putExtra("OPEN_SYNC", true)
-                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        }
-                        context.startActivity(intent)
-                        context.finish()
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Синхронизация с Яндекс Диском")
-                    }
-                }
-                item {
-                    Button(
-                        onClick = { 
-                            CleanupDialogFragment().show(
-                                context.supportFragmentManager,
-                                "CleanupDialogFragment"
-                            )
-                        }, 
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                    ) {
-                        Text("Найти и удалить дубликаты книг")
-                    }
-                }
-                
-                item { Text("Настройки библиотеки", style = MaterialTheme.typography.titleMedium) }
-                item {
-                    var showAllFormats by remember { mutableStateOf(SettingsManager.isShowAllFormatsEnabled(context)) }
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Показывать все форматы",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Отображать в библиотеке EPUB, MOBI, PDF, DJVU и другие форматы",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Switch(
-                                checked = showAllFormats,
-                                onCheckedChange = { checked ->
-                                    showAllFormats = checked
-                                    SettingsManager.setShowAllFormatsEnabled(context, checked)
-                                }
-                            )
-                        }
-                    }
-                }
-                
-                item { Text("Очистка и восстановление", style = MaterialTheme.typography.titleMedium) }
-                item { 
-                    Button(
-                        onClick = { 
-                            viewModel.clearScanCache()
-                            CustomToast.show(context, "Кэш сканирования успешно сброшен")
-                        }, 
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                    ) {
-                        Text("Сбросить кэш сканирования")
-                    }
-                }
-                item { 
-                    Button(
-                        onClick = { 
-                            androidx.appcompat.app.AlertDialog.Builder(context)
-                                .setTitle("Очистить библиотеку?")
-                                .setMessage("Все книги будут удалены из базы данных приложения. Это действие необратимо.")
-                                .setPositiveButton("Удалить всё") { _, _ ->
-                                    viewModel.clearLibrary()
-                                    viewModel.cancelAllScanningTasks()
-                                    CustomToast.show(context, "Библиотека полностью очищена")
-                                }
-                                .setNegativeButton("Отмена", null)
-                                .show()
-                        }, 
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Text("Очистить библиотеку")
-                    }
-                }
-                item { Text("Информация", style = MaterialTheme.typography.titleMedium) }
-                item { Text("Версия: ${com.nightread.app.BuildConfig.VERSION_NAME}") }
             }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        // --- НАСТРОЙКИ БИБЛИОТЕКИ ---
+        // Show All Formats Switch
+        val switchShowAllFormats = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchShowAllFormats)
+        switchShowAllFormats.isChecked = SettingsManager.isShowAllFormatsEnabled(this)
+        switchShowAllFormats.setOnCheckedChangeListener { _, isChecked ->
+            SettingsManager.setShowAllFormatsEnabled(this, isChecked)
+        }
+
+        // Buttons
+        findViewById<Button>(R.id.btnScanLibrary).setOnClickListener {
+            viewModel.startLocalBookScan()
+            CustomToast.show(this, "Сканирование библиотеки запущено")
+        }
+
+        findViewById<Button>(R.id.btnManualImport).setOnClickListener {
+            importLauncher.launch(arrayOf("*/*"))
+        }
+
+        findViewById<Button>(R.id.btnDeleteDuplicates).setOnClickListener {
+            CleanupDialogFragment().show(supportFragmentManager, "CleanupDialogFragment")
+        }
+
+        // --- СИНХРОНИЗАЦИЯ ---
+        // Auto-Sync Switch
+        val switchAutoSync = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchAutoSync)
+        switchAutoSync.isChecked = SettingsManager.isAutoSyncEnabled(this)
+        switchAutoSync.setOnCheckedChangeListener { _, isChecked ->
+            SettingsManager.setAutoSyncEnabled(this, isChecked)
+            scheduleAutoSync(this)
+        }
+
+        // Sync Period Spinner
+        val periods = listOf("1 день", "2 дня", "3 дня", "7 дней")
+        val periodValues = listOf(1, 2, 3, 7)
+        val periodAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, periods)
+        periodAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        val spinnerPeriod = findViewById<Spinner>(R.id.spinnerSyncPeriod)
+        spinnerPeriod.adapter = periodAdapter
+
+        val currentPeriodDays = SettingsManager.getAutoSyncIntervalDays(this)
+        val selectionIndex = periodValues.indexOf(currentPeriodDays).coerceAtLeast(0)
+        spinnerPeriod.setSelection(selectionIndex)
+
+        spinnerPeriod.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedDays = periodValues[position]
+                if (SettingsManager.getAutoSyncIntervalDays(this@SettingsActivity) != selectedDays) {
+                    SettingsManager.setAutoSyncIntervalDays(this@SettingsActivity, selectedDays)
+                    if (SettingsManager.isAutoSyncEnabled(this@SettingsActivity)) {
+                        scheduleAutoSync(this@SettingsActivity)
+                    }
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        // Sync Start Time Value
+        val tvSyncTimeValue = findViewById<TextView>(R.id.tvSyncTimeValue)
+        val currentStartTime = SettingsManager.getAutoSyncStartTime(this)
+        tvSyncTimeValue.text = currentStartTime
+
+        findViewById<View>(R.id.layoutSyncTime).setOnClickListener {
+            val parts = tvSyncTimeValue.text.toString().split(":")
+            val hour = parts.getOrNull(0)?.toIntOrNull() ?: 3
+            val minute = parts.getOrNull(1)?.toIntOrNull() ?: 0
+
+            android.app.TimePickerDialog(this, { _, selectedHour, selectedMinute ->
+                val formattedTime = String.format("%02d:%02d", selectedHour, selectedMinute)
+                tvSyncTimeValue.text = formattedTime
+                SettingsManager.setAutoSyncStartTime(this, formattedTime)
+                if (SettingsManager.isAutoSyncEnabled(this)) {
+                    scheduleAutoSync(this)
+                }
+            }, hour, minute, true).show()
+        }
+
+        // --- ОЧИСТКА И ВОССТАНОВЛЕНИЕ ---
+        findViewById<Button>(R.id.btnResetCache).setOnClickListener {
+            viewModel.clearScanCache()
+            CustomToast.show(this, "Кэш сканирования успешно сброшен")
+        }
+
+        findViewById<Button>(R.id.btnClearLibrary).setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Очистить библиотеку?")
+                .setMessage("Все книги будут удалены из базы данных приложения. Это действие необратимо.")
+                .setPositiveButton("Удалить всё") { _, _ ->
+                    viewModel.clearLibrary()
+                    viewModel.cancelAllScanningTasks()
+                    CustomToast.show(this, "Библиотека полностью очищена")
+                }
+                .setNegativeButton("Отмена", null)
+                .show()
+        }
+
+        // App Version
+        findViewById<TextView>(R.id.tvAppVersion).text = "Версия: ${com.nightread.app.BuildConfig.VERSION_NAME}"
+    }
+
+    private fun scheduleAutoSync(context: Context) {
+        try {
+            val workManager = androidx.work.WorkManager.getInstance(context)
+            workManager.cancelUniqueWork("YandexAutoSyncWork")
+
+            if (!SettingsManager.isAutoSyncEnabled(context)) {
+                return
+            }
+
+            val days = SettingsManager.getAutoSyncIntervalDays(context)
+            val startTime = SettingsManager.getAutoSyncStartTime(context)
+
+            val constraints = androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .build()
+
+            val initialDelayMs = calculateInitialDelay(startTime)
+
+            val workRequest = androidx.work.PeriodicWorkRequestBuilder<com.nightread.app.service.AutoSyncWorker>(
+                days.toLong(), java.util.concurrent.TimeUnit.DAYS
+            )
+                .setConstraints(constraints)
+                .setInitialDelay(initialDelayMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                .addTag("YandexAutoSyncWork")
+                .build()
+
+            workManager.enqueueUniquePeriodicWork(
+                "YandexAutoSyncWork",
+                androidx.work.ExistingPeriodicWorkPolicy.UPDATE,
+                workRequest
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsActivity", "Error scheduling auto sync", e)
+        }
+    }
+
+    private fun calculateInitialDelay(timeStr: String): Long {
+        try {
+            val parts = timeStr.split(":")
+            if (parts.size != 2) return 0L
+            val targetHour = parts[0].toIntOrNull() ?: 3
+            val targetMinute = parts[1].toIntOrNull() ?: 0
+
+            val now = java.util.Calendar.getInstance()
+            val target = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.HOUR_OF_DAY, targetHour)
+                set(java.util.Calendar.MINUTE, targetMinute)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+
+            if (target.before(now)) {
+                target.add(java.util.Calendar.DAY_OF_YEAR, 1)
+            }
+
+            return target.timeInMillis - now.timeInMillis
+        } catch (e: Exception) {
+            return 0L
         }
     }
 }

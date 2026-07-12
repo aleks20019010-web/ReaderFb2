@@ -30,6 +30,9 @@ object SettingsManager {
     const val KEY_AI_MODEL_ID = "ai_model_id"
     const val KEY_AI_AUTO_LOAD = "ai_auto_load"
     const val KEY_SHOW_ALL_FORMATS = "show_all_formats"
+    const val KEY_AUTO_SYNC = "auto_sync"
+    const val KEY_AUTO_SYNC_INTERVAL_DAYS = "auto_sync_interval_days"
+    const val KEY_AUTO_SYNC_START_TIME = "auto_sync_start_time"
 
     private val _settingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val settingsChanged: SharedFlow<Unit> = _settingsChanged.asSharedFlow()
@@ -315,5 +318,32 @@ object SettingsManager {
 
     fun setCurrentlyReading(context: Context, isReading: Boolean) {
         getPrefs(context).edit().putBoolean(KEY_IS_READING, isReading).apply()
+    }
+
+    fun isAutoSyncEnabled(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_AUTO_SYNC, false)
+    }
+
+    fun setAutoSyncEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_AUTO_SYNC, enabled).apply()
+        notifyChanged()
+    }
+
+    fun getAutoSyncIntervalDays(context: Context): Int {
+        return getPrefs(context).getInt(KEY_AUTO_SYNC_INTERVAL_DAYS, 1)
+    }
+
+    fun setAutoSyncIntervalDays(context: Context, days: Int) {
+        getPrefs(context).edit().putInt(KEY_AUTO_SYNC_INTERVAL_DAYS, days).apply()
+        notifyChanged()
+    }
+
+    fun getAutoSyncStartTime(context: Context): String {
+        return getPrefs(context).getString(KEY_AUTO_SYNC_START_TIME, "03:00") ?: "03:00"
+    }
+
+    fun setAutoSyncStartTime(context: Context, time: String) {
+        getPrefs(context).edit().putString(KEY_AUTO_SYNC_START_TIME, time).apply()
+        notifyChanged()
     }
 }

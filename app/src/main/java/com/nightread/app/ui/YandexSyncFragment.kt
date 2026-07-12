@@ -173,15 +173,8 @@ class YandexSyncFragment : Fragment() {
             selectLocalFolderLauncher.launch(null)
         }
 
-        
-        val isOnboardingCompleted = SettingsManager.isOnboardingCompleted(requireContext())
-        if (!isOnboardingCompleted) {
-            btnSyncNow.isEnabled = false
-            btnSyncNow.alpha = 0.5f
-        } else {
-            btnSyncNow.isEnabled = true
-            btnSyncNow.alpha = 1.0f
-        }
+        btnSyncNow.isEnabled = true
+        btnSyncNow.alpha = 1.0f
 
         btnSyncNow.setOnClickListener {
             startForegroundSync()
@@ -517,17 +510,9 @@ class YandexSyncFragment : Fragment() {
                     // Возвращаем стандартный UI
                     btnSyncNow.text = "Синхронизировать"
                     btnSyncNow.isEnabled = true
-                    
-        val isOnboardingCompleted = SettingsManager.isOnboardingCompleted(requireContext())
-        if (!isOnboardingCompleted) {
-            btnSyncNow.isEnabled = false
-            btnSyncNow.alpha = 0.5f
-        } else {
-            btnSyncNow.isEnabled = true
-            btnSyncNow.alpha = 1.0f
-        }
+                    btnSyncNow.alpha = 1.0f
 
-        btnSyncNow.setOnClickListener {
+                    btnSyncNow.setOnClickListener {
                         startForegroundSync()
                     }
                     btnSelectFolder.isEnabled = true
