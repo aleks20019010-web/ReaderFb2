@@ -464,10 +464,8 @@ class LibraryFragment : Fragment() {
         if (isGridView) {
             val widthDp = resources.configuration.screenWidthDp
             val spanCount = when {
-                widthDp >= 900 -> 5
                 widthDp >= 600 -> 4
-                widthDp >= 400 -> 3
-                else -> 2
+                else -> 3
             }
             val gridLayoutManager = GridLayoutManager(requireContext(), spanCount)
             rvBooks.layoutManager = gridLayoutManager

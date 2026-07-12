@@ -3,27 +3,28 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_margin="6dp"
+    android:layout_height="290dp"
+    android:layout_margin="5dp"
     app:cardCornerRadius="12dp"
     app:cardElevation="4dp"
     app:strokeWidth="0dp"
-    app:cardBackgroundColor="@android:color/transparent">
+    app:cardBackgroundColor="#CC1C122C">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:foreground="?android:attr/selectableItemBackground">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="6dp"
+        android:foreground="?android:attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true">
 
-        <!-- Cover container with 2:3 ratio -->
+        <!-- Cover container taking most of the card height -->
         <FrameLayout
             android:id="@+id/coverContainer"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="0dp"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintDimensionRatio="2:3">
+            android:layout_weight="1">
 
             <!-- Fallback background gradient -->
             <View
@@ -38,6 +39,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
+                android:adjustViewBounds="true"
                 android:contentDescription="Обложка книги" />
 
             <!-- Cover letter fallback -->
@@ -47,52 +49,11 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:textColor="#FFFFFF"
-                android:textSize="36sp"
+                android:textSize="32sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
 
-            <!-- Overlay for text readability (bottom gradient) -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_book_card_overlay" />
-
-            <!-- Text container overlaid on bottom of cover -->
-            <LinearLayout
-                android:id="@+id/textContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
-                android:orientation="vertical"
-                android:padding="10dp"
-                android:background="#88000000">
-
-                <TextView
-                    android:id="@+id/tvBookTitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="2"
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tvBookAuthor"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:textColor="#E8D8F0"
-                    android:textSize="12sp" />
-                
-                <!-- Hidden components for compatibility with existing adapter logic -->
-                <TextView android:id="@+id/tvBookSeries" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-                <ImageButton android:id="@+id/btnDelete" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-            </LinearLayout>
-
-            <!-- Progress bar at the very bottom -->
+            <!-- Progress bar at the very bottom of the cover -->
             <ProgressBar
                 android:id="@+id/pbReadingProgress"
                 style="?android:attr/progressBarStyleHorizontal"
@@ -106,5 +67,40 @@
                 android:visibility="gone" />
         </FrameLayout>
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        <!-- Text container under the cover -->
+        <LinearLayout
+            android:id="@+id/textContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="6dp"
+            android:paddingBottom="2dp"
+            android:paddingHorizontal="4dp">
+
+            <TextView
+                android:id="@+id/tvBookTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvBookAuthor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#E8D8F0"
+                android:textSize="10sp" />
+            
+            <!-- Hidden components for compatibility with existing adapter logic -->
+            <TextView android:id="@+id/tvBookSeries" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+            <ImageButton android:id="@+id/btnDelete" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+        </LinearLayout>
+
+    </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

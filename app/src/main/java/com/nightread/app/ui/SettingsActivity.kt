@@ -71,17 +71,7 @@ class SettingsActivity : BaseActivity() {
             }
         }
 
-        // Font options
-        val fontOptions = listOf("Roboto", "Times New Roman", "Georgia", "OpenDyslexic", "Monospace")
-        var selectedFont by remember { mutableStateOf(SettingsManager.getFontFamily(context)) }
-        
-        // Weight options
-        val weightOptions = listOf("Normal", "Medium", "Bold", "ExtraBold")
-        var selectedWeight by remember { mutableStateOf(SettingsManager.getFontWeight(context)) }
-        
-        // Float sliders
-        var fontSize by remember { mutableStateOf(SettingsManager.getFontSize(context)) }
-        var lineSpacing by remember { mutableStateOf(SettingsManager.getLineSpacing(context)) }
+
 
         Scaffold(
             topBar = {
@@ -226,119 +216,6 @@ class SettingsActivity : BaseActivity() {
                 }
                 item { Text("Информация", style = MaterialTheme.typography.titleMedium) }
                 item { Text("Версия: ${com.nightread.app.BuildConfig.VERSION_NAME}") }
-
-                item { Spacer(modifier = Modifier.height(24.dp)) }
-
-                item {
-                    SettingsDropdown(
-                        label = "Шрифт",
-                        options = fontOptions,
-                        selectedOption = selectedFont,
-                        onOptionSelected = {
-                            selectedFont = it
-                            SettingsManager.setFontFamily(context, it)
-                        }
-                    )
-                }
-
-                item {
-                    SettingsDropdown(
-                        label = "Жирность шрифта",
-                        options = weightOptions,
-                        selectedOption = selectedWeight,
-                        onOptionSelected = {
-                            selectedWeight = it
-                            SettingsManager.setFontWeight(context, it)
-                        }
-                    )
-                }
-
-                item {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Размер шрифта",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "${fontSize.toInt()} sp",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Slider(
-                            value = fontSize,
-                            onValueChange = {
-                                fontSize = it
-                                SettingsManager.setFontSize(context, it)
-                            },
-                            valueRange = 14f..28f,
-                            steps = 14
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    @Composable
-    fun <T> SettingsDropdown(
-        label: String,
-        options: List<T>,
-        selectedOption: T,
-        onOptionSelected: (T) -> Unit,
-        enabled: Boolean = true,
-        displayMapper: (T) -> String = { it.toString() }
-    ) {
-        var expanded by remember { mutableStateOf(false) }
-        
-        Column(modifier = Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.5f)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, if (enabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                    .clickable(enabled = enabled) { expanded = true }
-                    .background(if (enabled) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = displayMapper(selectedOption), style = MaterialTheme.typography.bodyLarge)
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = "Expand"
-                    )
-                }
-                
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.fillMaxWidth(0.9f).background(androidx.compose.ui.graphics.Color(0xFF2A1A3E))
-                ) {
-                    options.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(text = displayMapper(option), color = androidx.compose.ui.graphics.Color(0xFFE8D8F0)) },
-                            onClick = {
-                                onOptionSelected(option)
-                                expanded = false
-                            }
-                        )
-                    }
-                }
             }
         }
     }

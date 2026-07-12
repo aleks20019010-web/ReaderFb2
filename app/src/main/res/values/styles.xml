@@ -102,4 +102,14 @@
         <item name="android:focusable">true</item>
     </style>
 
+    <!-- Custom style for semi-transparent NavigationView -->
+    <style name="Widget.NightRead.NavigationView" parent="Widget.Material3.NavigationView">
+        <item name="android:background">@drawable/bg_drawer</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:elevation">8dp</item>
+        <item name="itemIconTint">@color/nav_item_text_color</item>
+        <item name="itemTextColor">@color/nav_item_text_color</item>
+        <item name="itemShapeFillColor">@color/nav_item_state_list</item>
+    </style>
+
 </resources>
