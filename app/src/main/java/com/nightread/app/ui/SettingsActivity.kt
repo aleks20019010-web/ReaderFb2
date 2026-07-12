@@ -57,39 +57,6 @@ class SettingsActivity : BaseActivity() {
         supportActionBar?.title = "Настройки"
         toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
-        // --- ТЕМЫ И ОФОРМЛЕНИЕ ---
-        // Auto-Theme Switch
-        val switchAutoTheme = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchAutoTheme)
-        switchAutoTheme.isChecked = SettingsManager.isAutoThemeEnabled(this)
-        switchAutoTheme.setOnCheckedChangeListener { _, isChecked ->
-            SettingsManager.setAutoThemeEnabled(this, isChecked)
-        }
-
-        // Theme Spinner
-        val themes = listOf("Светлая", "Темная")
-        val themeAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, themes)
-        themeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        val spinnerTheme = findViewById<Spinner>(R.id.spinnerThemeSelect)
-        spinnerTheme.adapter = themeAdapter
-
-        val currentTheme = SettingsManager.getTheme(this)
-        if (currentTheme == "dark") {
-            spinnerTheme.setSelection(1)
-        } else {
-            spinnerTheme.setSelection(0)
-        }
-
-        spinnerTheme.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val selectedTheme = if (position == 1) "dark" else "light"
-                if (SettingsManager.getTheme(this@SettingsActivity) != selectedTheme) {
-                    SettingsManager.setTheme(this@SettingsActivity, selectedTheme)
-                    ThemeManager.applyTheme(this@SettingsActivity)
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-
         // --- НАСТРОЙКИ БИБЛИОТЕКИ ---
         // Show All Formats Switch
         val switchShowAllFormats = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchShowAllFormats)
@@ -124,8 +91,8 @@ class SettingsActivity : BaseActivity() {
         // Sync Period Spinner
         val periods = listOf("1 день", "2 дня", "3 дня", "7 дней")
         val periodValues = listOf(1, 2, 3, 7)
-        val periodAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, periods)
-        periodAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        val periodAdapter = ArrayAdapter(this, R.layout.spinner_item, periods)
+        periodAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
         val spinnerPeriod = findViewById<Spinner>(R.id.spinnerSyncPeriod)
         spinnerPeriod.adapter = periodAdapter
 

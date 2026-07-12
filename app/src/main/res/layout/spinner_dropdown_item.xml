@@ -6,6 +6,6 @@
     android:ellipsize="marquee"
     android:singleLine="true"
     android:textColor="#E8D8F0"
-    android:textSize="13sp"
-    android:padding="8dp"
-    android:background="@color/bg_card" />
+    android:textSize="15sp"
+    android:padding="12dp"
+    android:background="#2A1A3E" />
