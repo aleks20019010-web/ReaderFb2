@@ -93,34 +93,27 @@ class SyncOrchestrator(
                             val normalizedPath = YandexDiskManager.normalizePath(file.path)
 
                             try {
-                                val cached = cacheManager.getByPath(normalizedPath)
                                 var sha1: String? = null
-
-                                if (cached != null && cached.lastModified == file.modified && cached.size == (file.size ?: 0L)) {
-                                    sha1 = cached.sha1
-                                    Log.d(TAG, "Reusing cached SHA-1 for ${file.name}: $sha1")
-                                } else {
-                                    Log.d(TAG, "Downloading temporarily and extracting SHA-1 for ${file.name}")
-                                    val tempFile = File(context.cacheDir, "temp_sha_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}_${file.name}")
+                                Log.d(TAG, "Downloading temporarily and extracting SHA-1 for ${file.name}")
+                                val tempFile = File(context.cacheDir, "temp_sha_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}_${file.name}")
+                                try {
+                                    val success = cloudService.downloadFile(normalizedPath, tempFile)
+                                    if (success) {
+                                        sha1 = sha1Extractor.extractSha1(tempFile)
+                                        if (sha1 != null) {
+                                            cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
+                                            Log.d(TAG, "Calculated and cached SHA-1 for ${file.name}: $sha1")
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error calculating SHA-1 for ${file.name}", e)
+                                } finally {
                                     try {
-                                        val success = cloudService.downloadFile(normalizedPath, tempFile)
-                                        if (success) {
-                                            sha1 = sha1Extractor.extractSha1(tempFile)
-                                            if (sha1 != null) {
-                                                cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
-                                                Log.d(TAG, "Calculated and cached SHA-1 for ${file.name}: $sha1")
-                                            }
+                                        if (tempFile.exists()) {
+                                            tempFile.delete()
                                         }
                                     } catch (e: Exception) {
-                                        Log.e(TAG, "Error calculating SHA-1 for ${file.name}", e)
-                                    } finally {
-                                        try {
-                                            if (tempFile.exists()) {
-                                                tempFile.delete()
-                                            }
-                                        } catch (e: Exception) {
-                                            Log.e(TAG, "Failed to delete temp SHA-1 file: ${tempFile.absolutePath}", e)
-                                        }
+                                        Log.e(TAG, "Failed to delete temp SHA-1 file: ${tempFile.absolutePath}", e)
                                     }
                                 }
 
