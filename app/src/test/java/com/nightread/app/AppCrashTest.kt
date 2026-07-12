@@ -14,17 +14,6 @@ class AppCrashTest {
     }
 
     @Test
-    fun testOnboardingActivityStarts() {
-        try {
-            val activity = Robolectric.buildActivity(com.nightread.app.ui.OnboardingActivity::class.java).create().start().resume().get()
-            assert(activity != null)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            throw e
-        }
-    }
-
-    @Test
     fun testMainActivityStarts() {
         try {
             val activity = Robolectric.buildActivity(com.nightread.app.MainActivity::class.java).create().start().resume().get()

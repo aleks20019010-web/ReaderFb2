@@ -59,9 +59,11 @@ data class LinkResponse(
 @JsonClass(generateAdapter = true)
 data class BookProgressPayload(
     @Json(name = "sha1") val sha1: String,
-    @Json(name = "title") val title: String,
-    @Json(name = "currentProgressChar") val currentProgressChar: Int,
-    @Json(name = "lastReadTime") val lastReadTime: Long
+    @Json(name = "page") val page: Int,
+    @Json(name = "charOffset") val charOffset: Int,
+    @Json(name = "progress") val progress: Int,
+    @Json(name = "lastReadTime") val lastReadTime: Long,
+    @Json(name = "totalChars") val totalChars: Int
 )
 
 interface YandexDiskApi {

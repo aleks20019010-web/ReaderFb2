@@ -176,7 +176,7 @@ class YandexSyncManager(private val context: Context) {
             // Фильтруем только поддерживаемые форматы книг
             val cloudBooks = cloudItems.filter {
                 val name = it.name.lowercase()
-                name.endsWith(".fb2") || name.endsWith(".fb2.zip")
+                name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".epub") || name.endsWith(".mobi") || name.endsWith(".azw3")
             }
             val booksOnDisk = cloudBooks.size
             Log.d(TAG, "Найдено книг на диске: $booksOnDisk")
@@ -470,7 +470,101 @@ class YandexSyncManager(private val context: Context) {
 
         try {
             // ==========================================
-            // 1. СКАЧИВАНИЕ КНИГ (DOWNLOAD)
+            // 1. СИНХРОНИЗАЦИЯ ПРОГРЕССА ЧТЕНИЯ (ДО скачивания/загрузки книг)
+            // ==========================================
+            currentCoroutineContext().ensureActive()
+            ensureInternet(completedTasks, totalTasks, YandexSyncState.Stage.PROGRESS_SYNC, downloadedCount, uploadedCount, onProgress)
+
+            onProgress(
+                "Синхронизация прогресса чтения...",
+                completedTasks,
+                totalTasks,
+                YandexSyncState.Stage.PROGRESS_SYNC,
+                downloadedCount,
+                uploadedCount,
+                -1L
+            )
+
+            // Map to store downloaded cloud progress payloads so they can also be applied to newly downloaded books
+            val cloudProgressMap = mutableMapOf<String, BookProgressPayload>()
+
+            // Скачиваем прогресс с облака
+            for (progressItem in stats.cloudProgressItems) {
+                currentCoroutineContext().ensureActive()
+                if (progressItem.name.endsWith(".json")) {
+                    try {
+                        val cleanPath = YandexDiskManager.normalizePath(progressItem.path ?: "$syncFolder/Progress/${progressItem.name}")
+                        val linkResponse = YandexDiskManager.api.getDownloadLink(authHeader, cleanPath)
+                        val body = YandexDiskManager.api.downloadFile(linkResponse.href)
+                        val jsonStr = body.string()
+                        val cloudProgress = progressAdapter.fromJson(jsonStr)
+                        if (cloudProgress != null) {
+                            cloudProgressMap[cloudProgress.sha1] = cloudProgress
+                            val localBook = repository.getBookBySha1(cloudProgress.sha1)
+                            if (localBook != null) {
+                                if (cloudProgress.lastReadTime > localBook.lastReadTime) {
+                                    database.bookDao().updateProgressAndPage(
+                                        sha1 = cloudProgress.sha1,
+                                        charOffset = cloudProgress.charOffset,
+                                        pageIndex = cloudProgress.page,
+                                        totalChars = cloudProgress.totalChars,
+                                        timestamp = cloudProgress.lastReadTime
+                                    )
+                                    Log.d(TAG, "Обновлен локальный прогресс для книги: ${localBook.title} (смещение: ${cloudProgress.charOffset}, страница: ${cloudProgress.page})")
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Ошибка синхронизации прогресса: ${progressItem.name}", e)
+                    }
+                }
+            }
+
+            // Загружаем наш локальный прогресс (для всех локальных книг)
+            val updatedLocalBooks = repository.allBooks.first()
+            for (localBook in updatedLocalBooks) {
+                currentCoroutineContext().ensureActive()
+                val sha1 = localBook.sha1 ?: continue
+                if (sha1.isEmpty()) continue
+
+                val cloudProgressName = "$sha1.json"
+                val cloudProgress = cloudProgressMap[sha1]
+
+                // shouldUpload: if there's no cloud progress and we actually have some progress locally, OR if local is newer than cloud
+                val shouldUploadProgress = (cloudProgress == null && localBook.currentProgressChar > 0) || 
+                                           (cloudProgress != null && localBook.lastReadTime > cloudProgress.lastReadTime)
+
+                if (shouldUploadProgress) {
+                    try {
+                        val totalChars = localBook.totalCharacters
+                        val progressPercent = if (totalChars > 0) (localBook.currentProgressChar.toLong() * 100 / totalChars).toInt().coerceIn(0, 100) else 0
+                        
+                        val payload = BookProgressPayload(
+                            sha1 = sha1,
+                            page = localBook.currentPageIndex,
+                            charOffset = localBook.currentProgressChar,
+                            progress = progressPercent,
+                            lastReadTime = localBook.lastReadTime,
+                            totalChars = totalChars
+                        )
+                        val json = progressAdapter.toJson(payload)
+                        val cleanPath = YandexDiskManager.normalizePath("$syncFolder/Progress/$cloudProgressName")
+                        val link = YandexDiskManager.api.getUploadLink(authHeader, cleanPath)
+                        YandexDiskManager.api.uploadFile(
+                            link.href,
+                            json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType())
+                        )
+                        Log.d(TAG, "Загружен прогресс в облако для книги: ${localBook.title} (смещение: ${localBook.currentProgressChar}, страница: ${localBook.currentPageIndex})")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Ошибка отправки прогресса для '${localBook.title}'", e)
+                    }
+                }
+            }
+
+            completedTasks++
+
+            // ==========================================
+            // 2. СКАЧИВАНИЕ КНИГ (DOWNLOAD)
             // ==========================================
             val downloadStartTime = System.currentTimeMillis()
             val booksDirectory = getLocalBooksDirectory()
@@ -536,40 +630,34 @@ class YandexSyncManager(private val context: Context) {
                         }
                         
                         val bytes = tempFile.readBytes()
-                        val fb2Bytes = extractFb2Bytes(bytes, originalName)
-                        if (fb2Bytes.isNotEmpty()) {
-                            // Compute exact SHA-1 on the extracted fb2 content bytes
-                            val sha1 = computeSha1(fb2Bytes)
+                        val isEpub = originalName.lowercase().endsWith(".epub")
+                        val isMobi = originalName.lowercase().endsWith(".mobi") || originalName.lowercase().endsWith(".azw3")
+                        if (isEpub) {
+                            val meta = com.nightread.app.service.EpubParser.parseEpub(tempFile, originalName.substringBeforeLast("."))
+                            val sha1 = computeSha1(meta.content.toByteArray(StandardCharsets.UTF_8))
                             
-                            val titleText: String
-                            val authorText: String
-                            val seriesText: String?
-                            val seriesIdx: Int?
-                            val langText: String?
+                            val titleText = meta.title
+                            val authorText = meta.author
+                            val seriesText: String? = null
+                            val seriesIdx: Int? = null
+                            val langText = meta.language
+                            val truncatedAnnotation = meta.annotation?.take(500)
+                            
                             var coverPath: String? = null
-                            val truncatedAnnotation: String?
-                            
-                            // Decode fb2Bytes safely to String respecting XML and Russian Windows-1251 encoding
-                            val content = decodeBytesToString(fb2Bytes)
-                            // Parse FB2 correctly to get metadata
-                            val meta = NewFb2Parser.parse(content, originalName)
-                            titleText = meta.title
-                            authorText = meta.author
-                            seriesText = meta.series
-                            seriesIdx = meta.seriesIndex
-                            langText = meta.language
-                            truncatedAnnotation = meta.annotation?.take(500)
-                            coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
+                            if (meta.coverBytes != null && meta.coverBytes.isNotEmpty()) {
+                                coverPath = NewCoverExtractor.saveCoverBytes(meta.coverBytes, sha1, context)
+                            }
                             
                             val localFile = File(booksDirectory, originalName)
                             tempFile.copyTo(localFile, overwrite = true)
                             
+                            val progressPayload = cloudProgressMap[sha1]
+
                             val newBook = BookEntity(
                                 sha1 = sha1,
                                 title = titleText,
                                 author = authorText,
                                 category = "Локальные",
-                                
                                 coverGradientStart = getRandomGradientStartColor(),
                                 coverGradientEnd = getRandomGradientEndColor(),
                                 filePath = localFile.absolutePath,
@@ -578,22 +666,142 @@ class YandexSyncManager(private val context: Context) {
                                 language = langText,
                                 annotation = truncatedAnnotation,
                                 fileSize = bytes.size.toLong(),
-                                coverPath = coverPath
+                                coverPath = coverPath,
+                                currentPageIndex = progressPayload?.page ?: 0,
+                                currentProgressChar = progressPayload?.charOffset ?: 0,
+                                totalCharacters = progressPayload?.totalChars ?: meta.content.length,
+                                lastReadTime = progressPayload?.lastReadTime ?: 0L
                             )
                             if (repository.insertBookSafely(newBook)) {
                                 downloadedCount++
-                                Log.d(TAG, "Успешно скачана и импортирована книга: $originalName (SHA-1: $sha1)")
+                                Log.d(TAG, "Успешно скачана и импортирована книга EPUB: $originalName (SHA-1: $sha1)")
                                 try {
                                     cloudFileCache.save(sha1, cloudItem.path, cloudItem.lastModified, cloudItem.size)
-                                    Log.d(TAG, "Кэш SHA-1 обновлен для скачанной книги: $originalName")
+                                    Log.d(TAG, "Кэш SHA-1 обновлен для скачанной книги EPUB: $originalName")
                                 } catch (e: Exception) {
-                                    Log.e(TAG, "Ошибка сохранения SHA-1 в кэш для скачанной книги: $originalName", e)
+                                    Log.e(TAG, "Ошибка сохранения SHA-1 в кэш для скачанной книги EPUB: $originalName", e)
                                 }
                             } else {
-                                Log.e(TAG, "Ошибка вставки книги '$originalName' в базу")
+                                Log.e(TAG, "Ошибка вставки книги EPUB '$originalName' в базу")
+                            }
+                        } else if (isMobi) {
+                            val meta = com.nightread.app.service.MobiParser.parseMobi(tempFile, originalName.substringBeforeLast("."))
+                            val sha1 = computeSha1(meta.content.toByteArray(StandardCharsets.UTF_8))
+                            
+                            val titleText = meta.title
+                            val authorText = meta.author
+                            val seriesText: String? = null
+                            val seriesIdx: Int? = null
+                            val langText = meta.language
+                            val truncatedAnnotation = meta.annotation?.take(500)
+                            
+                            var coverPath: String? = null
+                            if (meta.coverBytes != null && meta.coverBytes.isNotEmpty()) {
+                                coverPath = NewCoverExtractor.saveCoverBytes(meta.coverBytes, sha1, context)
+                            }
+                            
+                            val localFile = File(booksDirectory, originalName)
+                            tempFile.copyTo(localFile, overwrite = true)
+                            
+                            val progressPayload = cloudProgressMap[sha1]
+
+                            val newBook = BookEntity(
+                                sha1 = sha1,
+                                title = titleText,
+                                author = authorText,
+                                category = "Локальные",
+                                coverGradientStart = getRandomGradientStartColor(),
+                                coverGradientEnd = getRandomGradientEndColor(),
+                                filePath = localFile.absolutePath,
+                                series = seriesText,
+                                seriesIndex = seriesIdx,
+                                language = langText,
+                                annotation = truncatedAnnotation,
+                                fileSize = bytes.size.toLong(),
+                                coverPath = coverPath,
+                                currentPageIndex = progressPayload?.page ?: 0,
+                                currentProgressChar = progressPayload?.charOffset ?: 0,
+                                totalCharacters = progressPayload?.totalChars ?: meta.content.length,
+                                lastReadTime = progressPayload?.lastReadTime ?: 0L
+                            )
+                            if (repository.insertBookSafely(newBook)) {
+                                downloadedCount++
+                                Log.d(TAG, "Успешно скачана и импортирована книга MOBI: $originalName (SHA-1: $sha1)")
+                                try {
+                                    cloudFileCache.save(sha1, cloudItem.path, cloudItem.lastModified, cloudItem.size)
+                                    Log.d(TAG, "Кэш SHA-1 обновлен для скачанной книги MOBI: $originalName")
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Ошибка сохранения SHA-1 в кэш для скачанной книги MOBI: $originalName", e)
+                                }
+                            } else {
+                                Log.e(TAG, "Ошибка вставки книги MOBI '$originalName' в базу")
                             }
                         } else {
-                            Log.e(TAG, "Empty or missing FB2 content inside downloaded file: $originalName")
+                            val fb2Bytes = extractFb2Bytes(bytes, originalName)
+                            if (fb2Bytes.isNotEmpty()) {
+                                // Compute exact SHA-1 on the extracted fb2 content bytes
+                                val sha1 = computeSha1(fb2Bytes)
+                                
+                                val titleText: String
+                                val authorText: String
+                                val seriesText: String?
+                                val seriesIdx: Int?
+                                val langText: String?
+                                var coverPath: String? = null
+                                val truncatedAnnotation: String?
+                                
+                                // Decode fb2Bytes safely to String respecting XML and Russian Windows-1251 encoding
+                                val content = decodeBytesToString(fb2Bytes)
+                                // Parse FB2 correctly to get metadata
+                                val meta = NewFb2Parser.parse(content, originalName)
+                                titleText = meta.title
+                                authorText = meta.author
+                                seriesText = meta.series
+                                seriesIdx = meta.seriesIndex
+                                langText = meta.language
+                                truncatedAnnotation = meta.annotation?.take(500)
+                                coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
+                                
+                                val localFile = File(booksDirectory, originalName)
+                                tempFile.copyTo(localFile, overwrite = true)
+                                
+                                val progressPayload = cloudProgressMap[sha1]
+
+                                val newBook = BookEntity(
+                                    sha1 = sha1,
+                                    title = titleText,
+                                    author = authorText,
+                                    category = "Локальные",
+                                    
+                                    coverGradientStart = getRandomGradientStartColor(),
+                                    coverGradientEnd = getRandomGradientEndColor(),
+                                    filePath = localFile.absolutePath,
+                                    series = seriesText,
+                                    seriesIndex = seriesIdx,
+                                    language = langText,
+                                    annotation = truncatedAnnotation,
+                                    fileSize = bytes.size.toLong(),
+                                    coverPath = coverPath,
+                                    currentPageIndex = progressPayload?.page ?: 0,
+                                    currentProgressChar = progressPayload?.charOffset ?: 0,
+                                    totalCharacters = progressPayload?.totalChars ?: 0,
+                                    lastReadTime = progressPayload?.lastReadTime ?: 0L
+                                )
+                                if (repository.insertBookSafely(newBook)) {
+                                    downloadedCount++
+                                    Log.d(TAG, "Успешно скачана и импортирована книга: $originalName (SHA-1: $sha1)")
+                                    try {
+                                        cloudFileCache.save(sha1, cloudItem.path, cloudItem.lastModified, cloudItem.size)
+                                        Log.d(TAG, "Кэш SHA-1 обновлен для скачанной книги: $originalName")
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Ошибка сохранения SHA-1 в кэш для скачанной книги: $originalName", e)
+                                    }
+                                } else {
+                                    Log.e(TAG, "Ошибка вставки книги '$originalName' в базу")
+                                }
+                            } else {
+                                Log.e(TAG, "Empty or missing FB2 content inside downloaded file: $originalName")
+                            }
                         }
                     } finally {
                         if (tempFile.exists()) tempFile.delete()
@@ -612,7 +820,7 @@ class YandexSyncManager(private val context: Context) {
             }
 
             // ==========================================
-            // 2. ЗАГРУЗКА КНИГ (UPLOAD)
+            // 3. ЗАГРУЗКА КНИГ (UPLOAD)
             // ==========================================
             val uploadStartTime = System.currentTimeMillis()
             for ((index, localBook) in stats.toUpload.withIndex()) {
@@ -657,80 +865,6 @@ class YandexSyncManager(private val context: Context) {
                 completedTasks++
             }
 
-            // ==========================================
-            // 3. СИНХРОНИЗАЦИЯ ПРОГРЕССА ЧТЕНИЯ
-            // ==========================================
-            currentCoroutineContext().ensureActive()
-            ensureInternet(completedTasks, totalTasks, YandexSyncState.Stage.PROGRESS_SYNC, downloadedCount, uploadedCount, onProgress)
-
-            onProgress(
-                "Синхронизация прогресса чтения...",
-                completedTasks,
-                totalTasks,
-                YandexSyncState.Stage.PROGRESS_SYNC,
-                downloadedCount,
-                uploadedCount,
-                -1L
-            )
-
-            // Скачиваем прогресс с облака
-            for (progressItem in stats.cloudProgressItems) {
-                currentCoroutineContext().ensureActive()
-                if (progressItem.name.endsWith(".json")) {
-                    try {
-                        val cleanPath = YandexDiskManager.normalizePath(progressItem.path ?: "$syncFolder/Progress/${progressItem.name}")
-                        val linkResponse = YandexDiskManager.api.getDownloadLink(authHeader, cleanPath)
-                        val body = YandexDiskManager.api.downloadFile(linkResponse.href)
-                        val jsonStr = body.string()
-                        val cloudProgress = progressAdapter.fromJson(jsonStr)
-                        if (cloudProgress != null) {
-                            val localBook = repository.getBookBySha1(cloudProgress.sha1)
-                            if (localBook != null) {
-                                if (cloudProgress.lastReadTime > localBook.lastReadTime) {
-                                    repository.updateBook(localBook.copy(
-                                        currentProgressChar = cloudProgress.currentProgressChar,
-                                        lastReadTime = cloudProgress.lastReadTime
-                                    ))
-                                    Log.d(TAG, "Обновлен локальный прогресс для книги: ${localBook.title}")
-                                }
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Ошибка синхронизации прогресса: ${progressItem.name}", e)
-                    }
-                }
-            }
-
-            // Загружаем наш локальный прогресс
-            val updatedLocalBooks = repository.allBooks.first()
-            for (localBook in updatedLocalBooks) {
-                currentCoroutineContext().ensureActive()
-                val cloudProgressName = "progress_${localBook.sha1}.json"
-                val matchingCloudProgress = stats.cloudProgressItems.find { it.name == cloudProgressName }
-                val shouldUploadProgress = (matchingCloudProgress == null && localBook.currentProgressChar > 0) || matchingCloudProgress != null
-
-                if (shouldUploadProgress) {
-                    try {
-                        val payload = BookProgressPayload(
-                            sha1 = localBook.sha1,
-                            title = localBook.title,
-                            currentProgressChar = localBook.currentProgressChar,
-                            lastReadTime = localBook.lastReadTime
-                        )
-                        val json = progressAdapter.toJson(payload)
-                        val cleanPath = YandexDiskManager.normalizePath("$syncFolder/Progress/$cloudProgressName")
-                        val link = YandexDiskManager.api.getUploadLink(authHeader, cleanPath)
-                        YandexDiskManager.api.uploadFile(
-                            link.href,
-                            json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType())
-                        )
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Ошибка отправки прогресса для '${localBook.title}'", e)
-                    }
-                }
-            }
-
-            completedTasks++
             YandexDiskManager.saveSyncTimestamp(context)
             
             val deletedCount = YandexSyncState.state.value.deletedDuplicatesCount

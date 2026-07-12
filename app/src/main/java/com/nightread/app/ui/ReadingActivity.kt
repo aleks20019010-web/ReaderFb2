@@ -810,6 +810,12 @@ class ReadingActivity : AppCompatActivity() {
                 val xmlContent = readFb2WithEncoding(file)
                 Fb2Parser.extractText(xmlContent)
             }
+            "epub" -> {
+                com.nightread.app.service.EpubParser.extractText(file)
+            }
+            "mobi", "azw3" -> {
+                com.nightread.app.service.MobiParser.parseMobi(file, "").content
+            }
             "zip" -> {
                 var content = ""
                 FileInputStream(file).use { fis ->

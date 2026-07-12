@@ -450,15 +450,19 @@ object YandexDiskManager {
         try {
             val database = AppDatabase.getDatabase(context)
             val book = database.bookDao().getBookBySha1(sha1) ?: return@withContext
+            val totalChars = book.totalCharacters
+            val progress = if (totalChars > 0) (progressChar.toLong() * 100 / totalChars).toInt().coerceIn(0, 100) else 0
             val payload = BookProgressPayload(
                 sha1 = sha1,
-                title = book.title,
-                currentProgressChar = progressChar,
-                lastReadTime = System.currentTimeMillis()
+                page = book.currentPageIndex,
+                charOffset = progressChar,
+                progress = progress,
+                lastReadTime = System.currentTimeMillis(),
+                totalChars = totalChars
             )
             val progressAdapter = moshi.adapter(BookProgressPayload::class.java)
             val json = progressAdapter.toJson(payload)
-            val cloudProgressName = "progress_$sha1.json"
+            val cloudProgressName = "$sha1.json"
             val cleanPath = normalizePath("$syncFolder/Progress/$cloudProgressName")
             val link = api.getUploadLink(authHeader, cleanPath)
             api.uploadFile(link.href, json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType()))

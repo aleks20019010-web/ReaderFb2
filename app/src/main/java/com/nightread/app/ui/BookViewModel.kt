@@ -288,7 +288,27 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 
                 // Align ZIP SHA-1 calculation with uncompressed FB2 bytes just like in scanning
                 var bytesForSha1 = bytes
-                if (ext == "zip") {
+                if (ext == "epub") {
+                    try {
+                        val tempFile = java.io.File.createTempFile("epub_import", ".epub", context.cacheDir)
+                        tempFile.writeBytes(bytes)
+                        val metadata = com.nightread.app.service.EpubParser.parseEpub(tempFile, fileName.substringBeforeLast("."))
+                        bytesForSha1 = metadata.content.toByteArray(java.nio.charset.StandardCharsets.UTF_8)
+                        tempFile.delete()
+                    } catch (e: Exception) {
+                        Log.e("BookScanner", "Error calculating EPUB bytes for SHA-1: ", e)
+                    }
+                } else if (ext == "mobi" || ext == "azw3") {
+                    try {
+                        val tempFile = java.io.File.createTempFile("mobi_import", ".$ext", context.cacheDir)
+                        tempFile.writeBytes(bytes)
+                        val metadata = com.nightread.app.service.MobiParser.parseMobi(tempFile, fileName.substringBeforeLast("."))
+                        bytesForSha1 = metadata.content.toByteArray(java.nio.charset.StandardCharsets.UTF_8)
+                        tempFile.delete()
+                    } catch (e: Exception) {
+                        Log.e("BookScanner", "Error calculating MOBI bytes for SHA-1: ", e)
+                    }
+                } else if (ext == "zip") {
                     try {
                         java.io.ByteArrayInputStream(bytes).use { bais ->
                             java.util.zip.ZipInputStream(bais).use { zis ->
@@ -375,6 +395,34 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     parsedSeriesIndex = parsed.seriesIndex
                     parsedLanguage = parsed.language
                     parsedAnnotation = parsed.annotation
+                } else if (ext == "epub") {
+                    try {
+                        val tempFile = java.io.File.createTempFile("epub_import", ".epub", context.cacheDir)
+                        tempFile.writeBytes(bytes)
+                        val metadata = com.nightread.app.service.EpubParser.parseEpub(tempFile, parsedTitle)
+                        parsedTitle = metadata.title
+                        parsedAuthor = metadata.author
+                        parsedContent = metadata.content
+                        parsedLanguage = metadata.language
+                        parsedAnnotation = metadata.annotation
+                        tempFile.delete()
+                    } catch (e: Exception) {
+                        Log.e("BookScanner", "Error parsing manual imported EPUB: ", e)
+                    }
+                } else if (ext == "mobi" || ext == "azw3") {
+                    try {
+                        val tempFile = java.io.File.createTempFile("mobi_import", ".$ext", context.cacheDir)
+                        tempFile.writeBytes(bytes)
+                        val metadata = com.nightread.app.service.MobiParser.parseMobi(tempFile, parsedTitle)
+                        parsedTitle = metadata.title
+                        parsedAuthor = metadata.author
+                        parsedContent = metadata.content
+                        parsedLanguage = metadata.language
+                        parsedAnnotation = metadata.annotation
+                        tempFile.delete()
+                    } catch (e: Exception) {
+                        Log.e("BookScanner", "Error parsing manual imported MOBI: ", e)
+                    }
                 } else if (ext == "zip") {
                     // Extract data from the uncompressed bytes we found earlier
                     val rawText = decodeBytesToString(finalBytesForSha1)
@@ -875,7 +923,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                                 traverse(file)
                             } else {
                                 val ext = file.extension.lowercase()
-                                if (ext == "txt" || ext == "fb2" || ext == "zip") {
+                                if (ext == "txt" || ext == "fb2" || ext == "epub" || ext == "zip" || ext == "mobi" || ext == "azw3") {
                                     // Exclude files >= 30MB to prevent memory crashes
                                     if (file.length() < 30 * 1024 * 1024 && file.length() > 0) {
                                         filesToProcess.add(file)
@@ -897,7 +945,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 
                 if (filesToProcess.isEmpty()) {
                     withContext(Dispatchers.Main) {
-                        scanProgressText = "Книг (*.txt, *.fb2, *.zip) не найдено в $rootPath"
+                        scanProgressText = "Книг (*.txt, *.fb2, *.epub, *.zip, *.mobi, *.azw3) не найдено в $rootPath"
                     }
                     return@withContext
                 }
@@ -931,6 +979,18 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             parsedContent = parsed.content
                             parsedSeries = parsed.series
                             parsedLanguage = parsed.language
+                        } else if (ext == "epub") {
+                            val metadata = com.nightread.app.service.EpubParser.parseEpub(file, parsedTitle)
+                            parsedTitle = metadata.title
+                            parsedAuthor = metadata.author
+                            parsedContent = metadata.content
+                            parsedLanguage = metadata.language
+                        } else if (ext == "mobi" || ext == "azw3") {
+                            val metadata = com.nightread.app.service.MobiParser.parseMobi(file, parsedTitle)
+                            parsedTitle = metadata.title
+                            parsedAuthor = metadata.author
+                            parsedContent = metadata.content
+                            parsedLanguage = metadata.language
                         } else if (ext == "zip") {
                             val parsed = parseFb2FromZip(file)
                             parsedTitle = parsed.title
@@ -1035,6 +1095,13 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     java.io.FileInputStream(file).use { fis ->
                         computeSha1FromStream(fis)
                     }
+                }
+                "epub" -> {
+                    android.util.Log.d(TAG, "Reading text from EPUB to compute SHA-1")
+                    val metadata = com.nightread.app.service.EpubParser.parseEpub(file, "")
+                    val digest = java.security.MessageDigest.getInstance("SHA-1")
+                    val hash = digest.digest(metadata.content.toByteArray(java.nio.charset.StandardCharsets.UTF_8))
+                    hash.joinToString("") { String.format("%02x", it) }
                 }
                 "zip" -> {
                     android.util.Log.d(TAG, "Decompressing ZIP to find FB2 contents")
@@ -1361,6 +1428,26 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
             if (ext == "fb2") {
                 val fb2Content = readTextFile(file)
                 bitmap = extractCoverFromFb2(fb2Content) ?: extractCoverUsingRegex(fb2Content)
+            } else if (ext == "epub") {
+                try {
+                    val metadata = com.nightread.app.service.EpubParser.parseEpub(file, "")
+                    val coverBytes = metadata.coverBytes
+                    if (coverBytes != null && coverBytes.isNotEmpty()) {
+                        bitmap = android.graphics.BitmapFactory.decodeByteArray(coverBytes, 0, coverBytes.size)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("BookScanner", "Error extracting cover from EPUB file", e)
+                }
+            } else if (ext == "mobi" || ext == "azw3") {
+                try {
+                    val metadata = com.nightread.app.service.MobiParser.parseMobi(file, "")
+                    val coverBytes = metadata.coverBytes
+                    if (coverBytes != null && coverBytes.isNotEmpty()) {
+                        bitmap = android.graphics.BitmapFactory.decodeByteArray(coverBytes, 0, coverBytes.size)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("BookScanner", "Error extracting cover from MOBI file", e)
+                }
             } else if (ext == "zip") {
                 java.io.FileInputStream(file).use { fis ->
                     java.util.zip.ZipInputStream(fis).use { zis ->
