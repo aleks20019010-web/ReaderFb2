@@ -7,6 +7,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.activity.OnBackPressedCallback
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import com.nightread.app.data.SettingsManager
 import com.nightread.app.ui.BaseActivity
 import com.nightread.app.ui.BookmarksFragment
 import com.nightread.app.ui.YandexSyncFragment
@@ -111,6 +114,23 @@ class MainActivity : BaseActivity() {
                 navView.setCheckedItem(R.id.nav_sync)
             } else {
                 openLibraryFragment(lastFilter)
+            }
+
+            // Check if there is a last read book and immediately launch ReadingActivity
+            val lastReadSha1 = SettingsManager.getLastReadBookSha1(this)
+            if (!lastReadSha1.isNullOrEmpty()) {
+                lifecycleScope.launch {
+                    val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
+                    val repository = com.nightread.app.data.BookRepository(db.bookDao(), db.noteDao())
+                    val book = repository.getBookBySha1(lastReadSha1)
+                    if (book != null) {
+                        android.util.Log.d("MainActivity", "Auto-opening last read book on startup: SHA1=$lastReadSha1")
+                        val openIntent = Intent(this@MainActivity, com.nightread.app.ui.ReadingActivity::class.java).apply {
+                            putExtra("BOOK_SHA1", lastReadSha1)
+                        }
+                        startActivity(openIntent)
+                    }
+                }
             }
         }
 

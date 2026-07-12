@@ -264,18 +264,6 @@ class BookAdapter(
             }
 
 
-            // Breathing effect on cover
-            val oldAnimator = ivCover.getTag(R.id.breathing_animator) as? ObjectAnimator
-            oldAnimator?.cancel()
-            val newAnimator = ObjectAnimator.ofFloat(ivCover, "alpha", 0.95f, 1.0f).apply {
-                duration = 2000
-                repeatCount = ValueAnimator.INFINITE
-                repeatMode = ValueAnimator.REVERSE
-                startDelay = (Math.random() * 1000).toLong()
-                start()
-            }
-            ivCover.setTag(R.id.breathing_animator, newAnimator)
-
             // Click interactions
             itemView.setOnClickListener {
                 android.util.Log.d("BookAdapter", "Book clicked: title='${book.title}', author='${book.author}', sha1='${book.sha1}'")
