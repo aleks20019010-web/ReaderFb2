@@ -53,9 +53,8 @@ class PageFragment : Fragment() {
             val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
             
             val dp8 = (8 * v.resources.displayMetrics.density).toInt()
-            val dp16 = (16 * v.resources.displayMetrics.density).toInt()
             
-            v.setPadding(dp16, dp8 + topInset, dp16, 0)
+            v.setPadding(dp8, dp8 + topInset, dp8, dp8)
             windowInsets
         }
         view.requestApplyInsets()
