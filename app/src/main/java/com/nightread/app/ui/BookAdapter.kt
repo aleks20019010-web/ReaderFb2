@@ -32,7 +32,7 @@ import java.io.File
 
 class BookAdapter(
     private var books: List<BookEntity>,
-    private val onOpenBook: (BookEntity) -> Unit,
+    private val onOpenBook: (BookEntity, View) -> Unit,
     private val onDeleteBook: ((BookEntity) -> Unit)? = null
 ) : RecyclerView.Adapter<BookAdapter.BookViewHolder>() {
 
@@ -224,10 +224,11 @@ class BookAdapter(
 
         fun bind(
             book: BookEntity,
-            onOpenBook: (BookEntity) -> Unit,
+            onOpenBook: (BookEntity, View) -> Unit,
             onDeleteBook: ((BookEntity) -> Unit)?
         ) {
             android.util.Log.d("BookAdapter", "Binding book in ViewHolder: title='${book.title}', author='${book.author}', sha1='${book.sha1}', coverPath='${book.coverPath}'")
+            ivCover.transitionName = "cover_${book.sha1}"
             tvBookTitle.text = book.title
 
             if (tvBookAnnotation != null) {
@@ -348,7 +349,7 @@ class BookAdapter(
             // Click interactions
             itemView.setOnClickListener {
                 android.util.Log.d("BookAdapter", "Book clicked: title='${book.title}', author='${book.author}', sha1='${book.sha1}'")
-                onOpenBook(book)
+                onOpenBook(book, ivCover)
             }
 
 
@@ -363,7 +364,7 @@ class BookAdapter(
                 popup.setOnMenuItemClickListener { menuItem ->
                     when (menuItem.itemId) {
                         1 -> {
-                            onOpenBook(book)
+                            onOpenBook(book, ivCover)
                             true
                         }
                         2 -> {

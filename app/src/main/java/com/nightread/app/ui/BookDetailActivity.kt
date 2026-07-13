@@ -134,6 +134,7 @@ class BookDetailActivity : BaseActivity() {
         }
         
         ivCover.transitionName = "cover_$bookSha1"
+        supportPostponeEnterTransition()
 
         tvReadMore.setOnClickListener {
             toggleAnnotation()
@@ -381,12 +382,22 @@ class BookDetailActivity : BaseActivity() {
 
                 // Cover setup
                 if (!book.coverPath.isNullOrEmpty() && File(book.coverPath).exists()) {
-                    ivCover.load(File(book.coverPath))
+                    ivCover.load(File(book.coverPath)) {
+                        listener(
+                            onSuccess = { _, _ ->
+                                supportStartPostponedEnterTransition()
+                            },
+                            onError = { _, _ ->
+                                supportStartPostponedEnterTransition()
+                            }
+                        )
+                    }
                     tvCoverLetter.visibility = View.GONE
                 } else {
                     ivCover.setImageDrawable(null)
                     tvCoverLetter.visibility = View.VISIBLE
                     tvCoverLetter.text = if (book.title.isNotEmpty()) book.title.take(1).uppercase(Locale.ROOT) else "?"
+                    supportStartPostponedEnterTransition()
                 }
 
                 // Render dynamic list of files copies

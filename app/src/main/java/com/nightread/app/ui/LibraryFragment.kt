@@ -316,12 +316,17 @@ class LibraryFragment : Fragment() {
         // Setup RecyclerView
         adapter = BookAdapter(
             books = emptyList(),
-            onOpenBook = { book ->
+            onOpenBook = { book, coverView ->
                 viewModel.openBook(book)
                 val intent = android.content.Intent(requireContext(), BookDetailActivity::class.java).apply {
                     putExtra("BOOK_SHA1", book.sha1)
                 }
-                startActivity(intent)
+                val options = androidx.core.app.ActivityOptionsCompat.makeSceneTransitionAnimation(
+                    requireActivity(),
+                    coverView,
+                    "cover_${book.sha1}"
+                )
+                startActivity(intent, options.toBundle())
             },
             onDeleteBook = { book ->
                 showDeleteConfirmationDialog(book)
