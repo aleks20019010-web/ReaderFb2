@@ -489,8 +489,8 @@ class SettingsBottomSheet : DialogFragment() {
         dialog?.window?.let { window ->
             val metrics = resources.displayMetrics
             
-            // Width: 50% of screen size, height: wrap content but maximum 40% of screen height
-            val width = (metrics.widthPixels * 0.50).toInt().coerceAtLeast(300)
+            // Width: 55% of screen size, height: wrap content but maximum 40% of screen height
+            val width = (metrics.widthPixels * 0.55).toInt().coerceAtLeast(300)
 
             window.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT)
             window.setGravity(Gravity.TOP or Gravity.END)

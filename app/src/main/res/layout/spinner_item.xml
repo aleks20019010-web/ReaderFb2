@@ -3,9 +3,9 @@
     android:id="@android:id/text1"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:ellipsize="marquee"
+    android:ellipsize="end"
     android:singleLine="true"
     android:textColor="?android:attr/textColorPrimary"
-    android:textSize="15sp"
-    android:padding="8dp"
+    android:textSize="13sp"
+    android:padding="6dp"
     android:background="@android:color/transparent" />
