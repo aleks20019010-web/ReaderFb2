@@ -200,14 +200,17 @@ class YandexSyncManager(private val context: Context) {
             for (cloudBook in cloudBooks) {
                 val cleanPath = YandexDiskManager.normalizePath(cloudBook.path ?: "$syncFolder/${cloudBook.name}")
                 val cached = cachedMap[cleanPath]
-                if (cached != null && cached.size == (cloudBook.size ?: 0L) && cached.lastModified == (cloudBook.modified ?: "")) {
+                // Use cached SHA-1 if size matches, even if lastModified differs (optimization)
+                if (cached != null && cached.size == (cloudBook.size ?: 0L)) {
                     updatedCloudBooks.add(cached)
                 } else {
                     val cloudSize = cloudBook.size ?: 0L
                     val cloudModified = cloudBook.modified ?: ""
-                    Log.d(TAG, "Файл не прошел проверку кэша: ${cloudBook.name}. " +
-                            "Кэш: (found: ${cached != null}, size: ${cached?.size}, mod: ${cached?.lastModified}). " +
-                            "Облако: (size: $cloudSize, mod: $cloudModified)")
+                    val cachedSize = cached?.size
+                    val cachedModified = cached?.lastModified
+                    Log.d(TAG, "Cache miss for: ${cloudBook.name}. " +
+                            "Cached: (exists: ${cached != null}, size: $cachedSize, mod: $cachedModified). " +
+                            "Cloud: (size: $cloudSize, mod: $cloudModified)")
                     needsSha1.add(cloudBook)
                 }
             }
