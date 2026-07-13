@@ -140,7 +140,10 @@ class ReadingActivity : AppCompatActivity() {
             override fun handleOnBackPressed() {
                 SettingsManager.setCurrentlyReading(this@ReadingActivity, false)
                 if (isTaskRoot) {
-                    startActivity(android.content.Intent(this@ReadingActivity, com.nightread.app.MainActivity::class.java))
+                    val mainIntent = android.content.Intent(this@ReadingActivity, com.nightread.app.MainActivity::class.java).apply {
+                        putExtra("PREVENT_AUTO_OPEN", true)
+                    }
+                    startActivity(mainIntent)
                 }
                 finish()
             }

@@ -117,18 +117,26 @@ class MainActivity : BaseActivity() {
             }
 
             // Check if there is a last read book and immediately launch ReadingActivity
+            val preventAutoOpen = intent.getBooleanExtra("PREVENT_AUTO_OPEN", false)
             val lastReadSha1 = SettingsManager.getLastReadBookSha1(this)
-            if (!lastReadSha1.isNullOrEmpty() && SettingsManager.isCurrentlyReading(this)) {
+            if (!lastReadSha1.isNullOrEmpty() && !preventAutoOpen) {
                 lifecycleScope.launch {
                     val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
                     val repository = com.nightread.app.data.BookRepository(db.bookDao(), db.noteDao())
                     val book = repository.getBookBySha1(lastReadSha1)
                     if (book != null) {
-                        android.util.Log.d("MainActivity", "Auto-opening last read book on startup: SHA1=$lastReadSha1")
-                        val openIntent = Intent(this@MainActivity, com.nightread.app.ui.ReadingActivity::class.java).apply {
-                            putExtra("BOOK_SHA1", lastReadSha1)
+                        val percent = if (book.totalCharacters > 0) {
+                            ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt()
+                        } else {
+                            0
                         }
-                        startActivity(openIntent)
+                        if (percent < 100) {
+                            android.util.Log.d("MainActivity", "Auto-opening last read book on startup: SHA1=$lastReadSha1")
+                            val openIntent = Intent(this@MainActivity, com.nightread.app.ui.ReadingActivity::class.java).apply {
+                                putExtra("BOOK_SHA1", lastReadSha1)
+                            }
+                            startActivity(openIntent)
+                        }
                     }
                 }
             }
