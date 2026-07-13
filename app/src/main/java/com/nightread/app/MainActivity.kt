@@ -29,6 +29,16 @@ class MainActivity : BaseActivity() {
         drawerLayout = findViewById(R.id.drawer_layout)
         navView = findViewById(R.id.nav_view)
 
+        val starryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.starry_bg)
+        drawerLayout.addDrawerListener(object : DrawerLayout.DrawerListener {
+            override fun onDrawerSlide(drawerView: android.view.View, slideOffset: Float) {
+                starryBg?.setDrawerSlideOffset(slideOffset)
+            }
+            override fun onDrawerOpened(drawerView: android.view.View) {}
+            override fun onDrawerClosed(drawerView: android.view.View) {}
+            override fun onDrawerStateChanged(newState: Int) {}
+        })
+
         // Handle back press
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {

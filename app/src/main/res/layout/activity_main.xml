@@ -7,10 +7,21 @@
 
     <!-- The main content view -->
     <FrameLayout
-        android:background="@android:color/transparent"
-        android:id="@+id/fragment_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
+
+        <!-- Dynamic Starry Parallax Background -->
+        <com.nightread.app.ui.StarryNightView
+            android:id="@+id/starry_bg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <FrameLayout
+            android:background="@android:color/transparent"
+            android:id="@+id/fragment_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
 
     <!-- The navigation drawer -->
     <com.google.android.material.navigation.NavigationView

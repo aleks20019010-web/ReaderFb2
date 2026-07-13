@@ -160,8 +160,67 @@ class BookAdapter(
         private val ivCover: ImageView = itemView.findViewById(R.id.ivCover)
         private val tvCoverLetter: TextView = itemView.findViewById(R.id.tvCoverLetter)
         private val vCoverBackground: View = itemView.findViewById(R.id.vCoverBackground)
+        private val vCoverGlow: View? = itemView.findViewById(R.id.vCoverGlow)
         private val btnDelete: View = itemView.findViewById(R.id.btnDelete)
         private val pbReadingProgress: ProgressBar = itemView.findViewById(R.id.pbReadingProgress)
+
+        private fun getDominantColor(bitmap: android.graphics.Bitmap): Int {
+            val width = bitmap.width
+            val height = bitmap.height
+            var redSum = 0L
+            var greenSum = 0L
+            var blueSum = 0L
+            var count = 0
+            
+            val stepX = (width / 8).coerceAtLeast(1)
+            val stepY = (height / 8).coerceAtLeast(1)
+            
+            for (x in 0 until width step stepX) {
+                for (y in 0 until height step stepY) {
+                    val pixel = bitmap.getPixel(x, y)
+                    val alpha = (pixel shr 24) and 0xff
+                    if (alpha > 128) {
+                        redSum += (pixel shr 16) and 0xff
+                        greenSum += (pixel shr 8) and 0xff
+                        blueSum += pixel and 0xff
+                        count++
+                    }
+                }
+            }
+            
+            if (count == 0) return Color.parseColor("#E94560")
+            
+            val r = (redSum / count).toInt()
+            val g = (greenSum / count).toInt()
+            val b = (blueSum / count).toInt()
+            return Color.rgb(r, g, b)
+        }
+
+        private fun applyGlow(baseColor: Int) {
+            val context = itemView.context
+            val density = context.resources.displayMetrics.density
+            
+            val hsv = FloatArray(3)
+            Color.colorToHSV(baseColor, hsv)
+            hsv[1] = (hsv[1] * 1.3f).coerceAtMost(1.0f) // boost saturation
+            hsv[2] = (hsv[2] * 1.3f).coerceIn(0.6f, 1.0f) // boost brightness
+            val glowColor = Color.HSVToColor(hsv)
+
+            val drawable = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 12f * density
+                
+                val c1 = androidx.core.graphics.ColorUtils.setAlphaComponent(glowColor, 150)
+                val c2 = androidx.core.graphics.ColorUtils.setAlphaComponent(glowColor, 35)
+                val c3 = Color.TRANSPARENT
+                
+                colors = intArrayOf(c1, c2, c3)
+                gradientType = GradientDrawable.RADIAL_GRADIENT
+                gradientRadius = 120f * density
+                setGradientCenter(0.5f, 0.5f)
+            }
+            vCoverGlow?.background = drawable
+        }
 
         fun bind(
             book: BookEntity,
@@ -210,7 +269,7 @@ class BookAdapter(
             val startColorHex = if (book.coverGradientStart.startsWith("#")) book.coverGradientStart else "#E94560"
             val endColorHex = if (book.coverGradientEnd.startsWith("#")) book.coverGradientEnd else "#1A1A2E"
             
-            try {
+            val fallbackColor = try {
                 val startColor = Color.parseColor(startColorHex)
                 val endColor = Color.parseColor(endColorHex)
                 val gradient = GradientDrawable(
@@ -219,8 +278,10 @@ class BookAdapter(
                 )
                 gradient.cornerRadius = 6f * itemView.resources.displayMetrics.density
                 vCoverBackground.background = gradient
+                startColor
             } catch (e: Exception) {
                 vCoverBackground.setBackgroundColor(Color.LTGRAY)
+                Color.parseColor("#E94560")
             }
 
             // Load cover if present
@@ -233,18 +294,35 @@ class BookAdapter(
                         crossfade(true)
                         memoryCacheKey(book.sha1)
                         diskCacheKey(book.sha1)
+                        listener(
+                            onSuccess = { _, result ->
+                                val bitmapDrawable = result.drawable as? android.graphics.drawable.BitmapDrawable
+                                val bitmap = bitmapDrawable?.bitmap
+                                if (bitmap != null) {
+                                    val dominant = getDominantColor(bitmap)
+                                    applyGlow(dominant)
+                                } else {
+                                    applyGlow(fallbackColor)
+                                }
+                            },
+                            onError = { _, _ ->
+                                applyGlow(fallbackColor)
+                            }
+                        )
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("BookAdapter", "Error loading cover with Coil: ${e.message}")
                     ivCover.visibility = View.GONE
                     tvCoverLetter.visibility = View.VISIBLE
                     tvCoverLetter.text = if (!book.title.isNullOrEmpty()) book.title.trim().take(1).uppercase() else "?"
+                    applyGlow(fallbackColor)
                 }
             } else {
                 ivCover.setImageDrawable(null)
                 ivCover.visibility = View.GONE
                 tvCoverLetter.visibility = View.VISIBLE
                 tvCoverLetter.text = if (!book.title.isNullOrEmpty()) book.title.trim().take(1).uppercase() else "?"
+                applyGlow(fallbackColor)
             }
 
             // Set reading progress
