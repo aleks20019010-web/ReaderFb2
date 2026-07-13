@@ -74,6 +74,7 @@ class LibraryFragment : Fragment() {
     private var wasScanning: Boolean = false
     private var isSwipeRescanInProgress: Boolean = false
     private var isJobCancelledDialogShown: Boolean = false
+    private var isScanCompletionDismissed: Boolean = false
 
     // View bindings
     private lateinit var btnToggleViewMode: com.google.android.material.button.MaterialButton
@@ -674,6 +675,7 @@ class LibraryFragment : Fragment() {
         
         if (active) {
             wasScanning = true
+            isScanCompletionDismissed = false
             layoutScanProgress.visibility = View.VISIBLE
             progressBarSpinner.visibility = View.VISIBLE
             context?.getSharedPreferences("library_prefs", Context.MODE_PRIVATE)?.edit()
@@ -721,13 +723,14 @@ class LibraryFragment : Fragment() {
                 }
             }
 
-            if (state.status.isBlank()) {
+            if (state.status.isBlank() || isScanCompletionDismissed) {
                 layoutScanProgress.visibility = View.GONE
             }
         }
         
         if (state.status.isNotBlank()) {
             val isNoBooksFound = state.status.contains("не найдено", ignoreCase = true) || state.status.contains("не найдены", ignoreCase = true)
+            val isCompleted = state.status.contains("завершено", ignoreCase = true)
             
             if (isNoBooksFound && !active) {
                 val wasAlreadyDismissed = context?.getSharedPreferences("library_prefs", Context.MODE_PRIVATE)?.getBoolean("no_books_banner_dismissed", false) ?: false
@@ -746,12 +749,34 @@ class LibraryFragment : Fragment() {
                 } else {
                     layoutScanProgress.visibility = View.GONE
                 }
-            } else {
-                layoutScanProgress.visibility = View.VISIBLE
-                if (isSwipeRescanInProgress) {
-                    tvScanStatus.text = "Обновление: ${state.status}"
+            } else if (isCompleted && !active) {
+                if (isScanCompletionDismissed) {
+                    layoutScanProgress.visibility = View.GONE
                 } else {
-                    tvScanStatus.text = state.status
+                    layoutScanProgress.visibility = View.VISIBLE
+                    if (isSwipeRescanInProgress) {
+                        tvScanStatus.text = "Обновление: ${state.status}"
+                    } else {
+                        tvScanStatus.text = state.status
+                    }
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        kotlinx.coroutines.delay(2000)
+                        if (isAdded) {
+                            isScanCompletionDismissed = true
+                            layoutScanProgress.visibility = View.GONE
+                        }
+                    }
+                }
+            } else {
+                if (isScanCompletionDismissed && !active) {
+                    layoutScanProgress.visibility = View.GONE
+                } else {
+                    layoutScanProgress.visibility = View.VISIBLE
+                    if (isSwipeRescanInProgress) {
+                        tvScanStatus.text = "Обновление: ${state.status}"
+                    } else {
+                        tvScanStatus.text = state.status
+                    }
                 }
             }
             
