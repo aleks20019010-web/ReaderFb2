@@ -98,7 +98,7 @@
             <!-- Expandable SearchView (Initially Hidden) -->
             <androidx.appcompat.widget.SearchView
                 android:id="@+id/etSearch"
-                android:layout_width="140dp"
+                android:layout_width="200dp"
                 android:layout_height="40dp"
                 android:layout_marginEnd="4dp"
                 android:background="@drawable/bg_search_input"

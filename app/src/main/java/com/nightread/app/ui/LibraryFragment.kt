@@ -490,6 +490,11 @@ class LibraryFragment : Fragment() {
         btnSearchToggle.setOnClickListener {
             if (etSearch.visibility == View.VISIBLE) {
                 etSearch.visibility = View.GONE
+                tvTitle.visibility = View.VISIBLE
+                tvBookCount.visibility = View.VISIBLE
+                btnImport.visibility = View.VISIBLE
+                btnAutoScan.visibility = View.VISIBLE
+                btnToggleViewMode.visibility = View.VISIBLE
                 btnSearchToggle.animate().rotation(0f).setDuration(300).start()
                 etSearch.setQuery("", false)
                 currentSearchQuery = ""
@@ -497,6 +502,11 @@ class LibraryFragment : Fragment() {
                 filterAndApplyBooks()
             } else {
                 etSearch.visibility = View.VISIBLE
+                tvTitle.visibility = View.GONE
+                tvBookCount.visibility = View.GONE
+                btnImport.visibility = View.GONE
+                btnAutoScan.visibility = View.GONE
+                btnToggleViewMode.visibility = View.GONE
                 btnSearchToggle.animate().rotation(90f).setDuration(300).start()
                 etSearch.requestFocus()
             }
