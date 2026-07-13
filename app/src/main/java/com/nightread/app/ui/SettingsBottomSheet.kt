@@ -442,6 +442,53 @@ class SettingsBottomSheet : DialogFragment() {
             }
         }
 
+        // 9. Bedtime Mode Quick Preset Card Click Listener
+        val cardBedtimeMode = view.findViewById<androidx.cardview.widget.CardView>(R.id.cardBedtimeMode)
+        cardBedtimeMode.setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            
+            // Apply settings values
+            SettingsManager.setReadingTheme(context, "dark")
+            SettingsManager.setAmberFilterEnabled(context, true)
+            SettingsManager.setAmberFilterIntensity(context, 50)
+            SettingsManager.setExtraDimEnabled(context, true)
+            SettingsManager.setExtraDimIntensity(context, 30)
+            SettingsManager.setSleepTimerEnabled(context, true)
+            SettingsManager.setSleepTimerDuration(context, 30)
+            
+            // Sync local UI controls
+            // Theme Spinner
+            val darkIdx = themeKeys.indexOf("dark").coerceAtLeast(0)
+            spinnerTheme.setSelection(darkIdx)
+            applyThemeColors("dark", view)
+            
+            // Amber Filter Controls
+            switchAmberFilter.isChecked = true
+            layoutAmberIntensity.visibility = View.VISIBLE
+            tvAmberIntensityValue.text = "50%"
+            seekBarAmberIntensity.progress = 50
+            
+            // Extra Dim Controls
+            switchExtraDim.isChecked = true
+            layoutExtraDimIntensity.visibility = View.VISIBLE
+            tvExtraDimIntensityValue.text = "30%"
+            seekBarExtraDimIntensity.progress = 30
+            
+            // Sleep Timer Controls
+            switchSleepTimer.isChecked = true
+            layoutSleepTimerDuration.visibility = View.VISIBLE
+            layoutShakeToExtend.visibility = View.VISIBLE
+            tvSleepTimerValue.text = "30 мин"
+            seekBarSleepTimer.progress = 30
+            
+            // Notify user
+            android.widget.Toast.makeText(
+                context,
+                context.getString(R.string.bedtime_mode_activated),
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+
         // Apply initial colors based on current theme
         applyThemeColors(currentTheme, view)
     }

@@ -32,6 +32,16 @@
         android:focusable="false"
         android:importantForAccessibility="no" />
 
+    <!-- Eye Comfort Fade-In Overlay (Starts solid black, then fades to transparent) -->
+    <View
+        android:id="@+id/viewEyeComfortFade"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#FF000000"
+        android:clickable="false"
+        android:focusable="false"
+        android:importantForAccessibility="no" />
+
     <!-- Brightness Indicator -->
     <TextView
         android:id="@+id/tvBrightness"

@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24.0"
+    android:viewportHeight="24.0">
+    <!-- Star in top right -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M19,9l1.25,-2.75l2.75,-1.25l-2.75,-1.25l-1.25,-2.75l-1.25,2.75l-2.75,1.25l2.75,1.25z"/>
+    <!-- Stats Bars -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M19,19H5V5h2v12h12v2z M9,15h2v-4H9v4z M13,15h2v-8h-2v8z M17,15h2v-5h-2v5z"/>
+</vector>

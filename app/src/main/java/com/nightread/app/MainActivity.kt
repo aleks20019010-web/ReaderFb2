@@ -61,6 +61,8 @@ class MainActivity : BaseActivity() {
         navView.setNavigationItemSelectedListener { menuItem ->
             if (menuItem.itemId == R.id.nav_sync) {
                 openSyncFragment()
+            } else if (menuItem.itemId == R.id.nav_stats) {
+                openStatsFragment()
             } else if (menuItem.itemId == R.id.nav_bookmarks) {
                 openBookmarksFragment()
             } else if (menuItem.itemId == R.id.nav_favorites) {
@@ -165,6 +167,13 @@ class MainActivity : BaseActivity() {
 
     private fun openBookmarksFragment() {
         val fragment = com.nightread.app.ui.BookmarksFragment.newInstance()
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .commit()
+    }
+
+    private fun openStatsFragment() {
+        val fragment = com.nightread.app.ui.StatsFragment.newInstance()
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()

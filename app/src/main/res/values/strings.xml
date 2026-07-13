@@ -18,4 +18,24 @@
     <string name="extra_dim_title">Сверхнизкая яркость</string>
     <string name="extra_dim_desc">Затемнение экрана ниже системного минимума</string>
     <string name="extra_dim_intensity">Степень затемнения</string>
+    <string name="bedtime_mode_title">Режим сна (Bedtime Mode)</string>
+    <string name="bedtime_mode_desc">Мгновенный ночной профиль: черная тема, янтарный фильтр 50%, сверхнизкая яркость 30% и таймер на 30 мин</string>
+    <string name="bedtime_mode_activated">Режим сна активирован! Приятного чтения 🌙</string>
+    
+    <!-- Stats & Achievements strings -->
+    <string name="stats_title">Статистика и достижения</string>
+    <string name="stats_rank_title">Ваш ночной ранг</string>
+    <string name="stats_points">Очков опыта: %1$d</string>
+    <string name="stats_next_rank">До следующего ранга: %1$d XP</string>
+    <string name="stats_total_books">Всего книг</string>
+    <string name="stats_completed_books">Прочитано</string>
+    <string name="stats_in_progress_books">В процессе</string>
+    <string name="stats_favorites_books">Избранное</string>
+    <string name="stats_want_to_read">Хочу прочесть</string>
+    <string name="stats_bookmarks">Закладки</string>
+    <string name="stats_notes">Заметки</string>
+    <string name="stats_categories">Популярные жанры</string>
+    <string name="stats_achievements_title">Ночные достижения</string>
+    <string name="stats_ach_unlocked_status">Получено 🌟</string>
+    <string name="stats_ach_locked_status">Заблокировано 🔒</string>
 </resources>

@@ -261,6 +261,7 @@ class ReadingActivity : AppCompatActivity() {
                 lastHeight = h
             }
         }
+        startEyeComfortFadeIn()
     }
 
     private fun loadBook() {
@@ -535,7 +536,9 @@ class ReadingActivity : AppCompatActivity() {
 
     private var startY = 0f
     private var startBrightness = 0f
+    private var startWarmth = 0
     private var isChangingBrightness = false
+    private var isChangingWarmth = false
 
     private fun setupGestures() {
         gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
@@ -567,20 +570,28 @@ class ReadingActivity : AppCompatActivity() {
                 startX = event.x
                 startY = event.y
                 isChangingBrightness = false
+                isChangingWarmth = false
                 isGestureConsumed = false
                 
-                val rightEdge = width - (60 * resources.displayMetrics.density)
-                if (event.x > rightEdge && event.y > height / 2f) {
-                    if (!isTouchOnUiBars(event)) {
+                if (!isTouchOnUiBars(event)) {
+                    if (event.x < width / 2f) {
                         isChangingBrightness = true
                         startBrightness = BrightnessHelper.getBrightness(this)
+                    } else {
+                        isChangingWarmth = true
+                        startWarmth = com.nightread.app.data.SettingsManager.getAmberFilterIntensity(this)
                     }
                 }
             }
             android.view.MotionEvent.ACTION_MOVE -> {
-                if (isChangingBrightness) {
-                    val dy = startY - event.y
-                    if (Math.abs(dy) > 10 * resources.displayMetrics.density || isGestureConsumed) {
+                if (isChangingBrightness || isChangingWarmth) {
+                    val dx = event.x - startX
+                    val dy = startY - event.y // positive is up
+                    
+                    // To prevent interfering with page swipes (horizontal), we require:
+                    // 1. Vertical scroll displacement (abs(dy)) is greater than horizontal scroll displacement (abs(dx))
+                    // 2. Vertical scroll displacement exceeds threshold
+                    if (Math.abs(dy) > 10 * resources.displayMetrics.density && Math.abs(dy) > Math.abs(dx) * 1.5f || isGestureConsumed) {
                         if (!isGestureConsumed) {
                             isGestureConsumed = true
                             val cancelEvent = android.view.MotionEvent.obtain(event)
@@ -589,13 +600,28 @@ class ReadingActivity : AppCompatActivity() {
                             cancelEvent.recycle()
                         }
                         
-                        val deltaBrightness = dy / (height / 2f)
-                        val newBrightness = (startBrightness + deltaBrightness).coerceIn(0.01f, 1f)
-                        BrightnessHelper.setBrightness(this, newBrightness)
-                        com.nightread.app.data.SettingsManager.setBrightness(this, newBrightness)
-                        
-                        tvBrightness.visibility = android.view.View.VISIBLE
-                        tvBrightness.text = "☀ ${(newBrightness * 100).toInt()}%"
+                        if (isChangingBrightness) {
+                            val deltaBrightness = dy / (height / 2f)
+                            val newBrightness = (startBrightness + deltaBrightness).coerceIn(0.01f, 1f)
+                            BrightnessHelper.setBrightness(this, newBrightness)
+                            com.nightread.app.data.SettingsManager.setBrightness(this, newBrightness)
+                            
+                            tvBrightness.visibility = android.view.View.VISIBLE
+                            tvBrightness.text = "☀ ${(newBrightness * 100).toInt()}%"
+                        } else if (isChangingWarmth) {
+                            val deltaWarmth = (dy / (height / 2f) * 100).toInt()
+                            val newWarmth = (startWarmth + deltaWarmth).coerceIn(0, 100)
+                            
+                            // Auto enable amber filter if adjusting warmth above 0
+                            if (newWarmth > 0 && !com.nightread.app.data.SettingsManager.isAmberFilterEnabled(this)) {
+                                com.nightread.app.data.SettingsManager.setAmberFilterEnabled(this, true)
+                            }
+                            com.nightread.app.data.SettingsManager.setAmberFilterIntensity(this, newWarmth)
+                            updateAmberFilter()
+                            
+                            tvBrightness.visibility = android.view.View.VISIBLE
+                            tvBrightness.text = "🔸 Теплота: $newWarmth%"
+                        }
                         return true
                     }
                 }
@@ -603,8 +629,12 @@ class ReadingActivity : AppCompatActivity() {
             android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
                 if (isGestureConsumed) {
                     tvBrightness.visibility = android.view.View.GONE
+                    isChangingBrightness = false
+                    isChangingWarmth = false
                     return true
                 }
+                isChangingBrightness = false
+                isChangingWarmth = false
             }
         }
         
@@ -1291,5 +1321,20 @@ class ReadingActivity : AppCompatActivity() {
         } else {
             filter.visibility = android.view.View.GONE
         }
+    }
+
+    private fun startEyeComfortFadeIn() {
+        val fadeView = findViewById<android.view.View>(R.id.viewEyeComfortFade) ?: return
+        fadeView.visibility = android.view.View.VISIBLE
+        fadeView.alpha = 1.0f
+        
+        fadeView.animate()
+            .alpha(0.0f)
+            .setDuration(1800) // 1.8 seconds smooth fade-in
+            .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+            .withEndAction {
+                fadeView.visibility = android.view.View.GONE
+            }
+            .start()
     }
 }
