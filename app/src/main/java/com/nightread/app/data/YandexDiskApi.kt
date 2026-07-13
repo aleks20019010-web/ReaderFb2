@@ -47,6 +47,7 @@ data class ResourceItem(
     @Json(name = "path") val path: String,
     @Json(name = "size") val size: Long? = null,
     @Json(name = "md5") val md5: String? = null,
+    @Json(name = "sha1") val sha1: String? = null,
     @Json(name = "sha256") val sha256: String? = null,
     @Json(name = "modified") val modified: String? = null
 )
