@@ -43,12 +43,12 @@ class SyncReadingProgressUseCase(
         
         // 1. Сверяем SHA1 через кэш (Требование 2a, b, c, d)
         val sha1 = precomputedSha1 ?: try {
-            sha1CacheRepository.getOrComputeSha1(token, accountId, cloudPath, fileSize, fileModified)
+            sha1CacheRepository.getOrComputeSha1(token, accountId, cloudPath, fileSize, fileModified, precomputedSha1 = precomputedSha1)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to resolve SHA1 for $cloudPath, force recalculating due to possible cache corruption...", e)
             // При коррупции или сбое кэша принудительно сбрасываем и пробуем ещё раз
             sha1CacheRepository.invalidate(accountId, cloudPath)
-            sha1CacheRepository.getOrComputeSha1(token, accountId, cloudPath, fileSize, fileModified)
+            sha1CacheRepository.getOrComputeSha1(token, accountId, cloudPath, fileSize, fileModified, precomputedSha1 = precomputedSha1)
         }
 
         if (sha1 == null) {

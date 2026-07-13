@@ -41,7 +41,8 @@ class SyncBooksUseCase(
                     accountId = accountId,
                     filePath = cloudFile.path,
                     fileSize = cloudFile.size,
-                    fileModified = cloudFile.modified
+                    fileModified = cloudFile.modified,
+                    precomputedSha1 = cloudFile.sha1
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Error resolving SHA1 for ${cloudFile.path}, skipping: ${e.localizedMessage}")

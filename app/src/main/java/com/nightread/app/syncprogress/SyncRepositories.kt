@@ -151,10 +151,16 @@ class Sha1CacheRepository(
         accountId: String,
         filePath: String,
         fileSize: Long,
-        fileModified: String
+        fileModified: String,
+        precomputedSha1: String? = null
     ): String? = withContext(Dispatchers.IO) {
         val cached = getCachedSha1(accountId, filePath, fileSize, fileModified)
         if (cached != null) return@withContext cached
+
+        if (precomputedSha1 != null) {
+            updateCache(accountId, filePath, fileSize, fileModified, precomputedSha1)
+            return@withContext precomputedSha1
+        }
 
         var tempFile: File? = null
         try {
