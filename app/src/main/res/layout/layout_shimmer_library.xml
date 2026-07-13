@@ -5,7 +5,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     app:shimmer_auto_start="true"
-    app:shimmer_duration="1200">
+    app:shimmer_duration="1400"
+    app:shimmer_colored="true"
+    app:shimmer_base_color="#181026"
+    app:shimmer_highlight_color="#2E1C4B"
+    app:shimmer_base_alpha="1.0"
+    app:shimmer_highlight_alpha="1.0">
 
     <LinearLayout
         android:layout_width="match_parent"

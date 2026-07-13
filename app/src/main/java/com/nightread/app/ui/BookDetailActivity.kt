@@ -1,6 +1,7 @@
 package com.nightread.app.ui
 
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -384,7 +385,16 @@ class BookDetailActivity : BaseActivity() {
                 if (!book.coverPath.isNullOrEmpty() && File(book.coverPath).exists()) {
                     ivCover.load(File(book.coverPath)) {
                         listener(
-                            onSuccess = { _, _ ->
+                            onSuccess = { _, result ->
+                                val bitmapDrawable = result.drawable as? android.graphics.drawable.BitmapDrawable
+                                val bitmap = bitmapDrawable?.bitmap
+                                if (bitmap != null) {
+                                    androidx.palette.graphics.Palette.from(bitmap).generate { palette ->
+                                        if (palette != null) {
+                                            applyPaletteColors(palette)
+                                        }
+                                    }
+                                }
                                 supportStartPostponedEnterTransition()
                             },
                             onError = { _, _ ->
@@ -687,5 +697,83 @@ class BookDetailActivity : BaseActivity() {
             Log.e("BookDetail", "Failed to parse XML using charset $charsetName", e)
         }
         return null
+    }
+
+    private fun applyPaletteColors(palette: androidx.palette.graphics.Palette) {
+        // 1. Extract premium colors
+        val defaultAccent = androidx.core.content.ContextCompat.getColor(this, R.color.accent)
+        
+        // Choose vibrant/lightVibrant color as the accent, fallback to default accent
+        val vibrantColor = palette.getVibrantColor(palette.getLightVibrantColor(palette.getDominantColor(defaultAccent)))
+        val darkMutedColor = palette.getDarkMutedColor(palette.getDarkVibrantColor(0xFF140C26.toInt()))
+        
+        // 2. Beautiful Soft background gradient bleed
+        val coordinatorLayout = findViewById<androidx.coordinatorlayout.widget.CoordinatorLayout>(R.id.coordinatorLayout)
+        if (coordinatorLayout != null) {
+            // Create a gorgeous gradient that blends with our starry sky background
+            val bgGradient = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(
+                    adjustAlpha(vibrantColor, 0.28f), // Soft, warm color bleed at the top
+                    adjustAlpha(darkMutedColor, 0.12f), // Extremely subtle color transition in middle
+                    0x00000000 // Fades completely to transparent at the bottom
+                )
+            )
+            coordinatorLayout.background = bgGradient
+        }
+        
+        // 3. Cover background glow
+        val flCoverContainer = findViewById<android.view.View>(R.id.flCoverContainer)
+        if (flCoverContainer != null) {
+            val coverGlow = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                val radiusPx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24f, resources.displayMetrics)
+                cornerRadius = radiusPx
+                setStroke(0, 0)
+                colors = intArrayOf(
+                    adjustAlpha(vibrantColor, 0.40f), // central glow
+                    0x00000000 // fades out
+                )
+                gradientType = GradientDrawable.RADIAL_GRADIENT
+                gradientRadius = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 180f, resources.displayMetrics)
+            }
+            flCoverContainer.background = coverGlow
+        }
+
+        // 4. Colorize text elements
+        tvAuthor.setTextColor(vibrantColor)
+        tvSeries.setTextColor(vibrantColor)
+        tvReadMore.setTextColor(vibrantColor)
+
+        // 5. Read Button background tint
+        btnReadToolbar.backgroundTintList = ColorStateList.valueOf(vibrantColor)
+        
+        // 6. Tint AI and Tonal Buttons
+        val btnAiAnnotation = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnAiAnnotation)
+        val btnBookSummary = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnBookSummary)
+        val btnAnalyzeCharacters = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnAnalyzeCharacters)
+        
+        val secondaryTint = adjustAlpha(vibrantColor, 0.15f)
+        val textStateList = ColorStateList.valueOf(vibrantColor)
+        
+        btnAiAnnotation?.backgroundTintList = ColorStateList.valueOf(secondaryTint)
+        btnAiAnnotation?.setTextColor(textStateList)
+        btnAiAnnotation?.iconTint = textStateList
+        
+        btnBookSummary?.backgroundTintList = ColorStateList.valueOf(secondaryTint)
+        btnBookSummary?.setTextColor(textStateList)
+        btnBookSummary?.iconTint = textStateList
+        
+        btnAnalyzeCharacters?.backgroundTintList = ColorStateList.valueOf(secondaryTint)
+        btnAnalyzeCharacters?.setTextColor(textStateList)
+        btnAnalyzeCharacters?.iconTint = textStateList
+    }
+
+    private fun adjustAlpha(color: Int, factor: Float): Int {
+        val alpha = Math.round(Color.alpha(color) * factor)
+        val red = Color.red(color)
+        val green = Color.green(color)
+        val blue = Color.blue(color)
+        return Color.argb(alpha, red, green, blue)
     }
 }
