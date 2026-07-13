@@ -212,11 +212,11 @@ class LibraryFragment : Fragment() {
         if (isSwipeRescanInProgress) {
             android.util.Log.d("LibraryFragment", "startScan: Starting incremental book scan on ViewModel")
             viewModel.startIncrementalBookScan()
-            CustomToast.show(ctx, "Быстрая проверка новых книг...")
+            CustomToast.show(ctx, "Быстрая проверка новых книг...", android.widget.Toast.LENGTH_SHORT)
         } else {
             android.util.Log.d("LibraryFragment", "startScan: Starting local deep book scan on ViewModel")
             viewModel.startLocalBookScan()
-            CustomToast.show(ctx, "Начато сканирование папок...")
+            CustomToast.show(ctx, "Начато сканирование папок...", android.widget.Toast.LENGTH_SHORT)
         }
     }
 
@@ -554,7 +554,7 @@ class LibraryFragment : Fragment() {
         // Swipe refresh layout manual scan trigger
         swipeRefresh.setOnRefreshListener {
             if (viewModel.scanState.value.isScanning) {
-                CustomToast.show(requireContext(), "Сканирование уже выполняется")
+                CustomToast.show(requireContext(), "Сканирование уже выполняется", android.widget.Toast.LENGTH_SHORT)
                 swipeRefresh.isRefreshing = false
             } else {
                 isSwipeRescanInProgress = true
@@ -676,12 +676,7 @@ class LibraryFragment : Fragment() {
                 wasScanning = false
                 if (state.status.isNotBlank()) {
                     context?.let { ctx ->
-                        val isNoBooksFound = state.status.contains("не найдено", ignoreCase = true) || state.status.contains("не найдены", ignoreCase = true)
-                        if (isNoBooksFound) {
-                            CustomToast.show(ctx, state.status, android.widget.Toast.LENGTH_SHORT)
-                        } else {
-                            CustomToast.show(ctx, state.status)
-                        }
+                        CustomToast.show(ctx, state.status, android.widget.Toast.LENGTH_SHORT)
                     }
                 }
                 // Check new books count
@@ -691,10 +686,25 @@ class LibraryFragment : Fragment() {
                         db.bookDao().getNewBooks()
                     }
                     if (newBooks.isNotEmpty()) {
-                        layoutNewBooksBanner.visibility = View.VISIBLE
-                        tvNewBooksCount.text = "Найдено новых книг: ${newBooks.size}"
-                        hideBannerHandler.removeCallbacks(hideBannerRunnable)
-                        hideBannerHandler.postDelayed(hideBannerRunnable, 10000)
+                        context?.let { ctx ->
+                            val prefs = ctx.getSharedPreferences("library_prefs", Context.MODE_PRIVATE)
+                            val shownSha1s = prefs.getStringSet("shown_new_books_sha1", emptySet()) ?: emptySet()
+                            val unseenBooks = newBooks.filter { it.sha1 !in shownSha1s }
+                            
+                            if (unseenBooks.isNotEmpty()) {
+                                layoutNewBooksBanner.visibility = View.VISIBLE
+                                tvNewBooksCount.text = "Найдено новых книг: ${newBooks.size}"
+                                hideBannerHandler.removeCallbacks(hideBannerRunnable)
+                                hideBannerHandler.postDelayed(hideBannerRunnable, 2000)
+                                
+                                val updatedShown = shownSha1s.toMutableSet().apply {
+                                    addAll(newBooks.map { it.sha1 })
+                                }
+                                prefs.edit().putStringSet("shown_new_books_sha1", updatedShown).apply()
+                            } else {
+                                layoutNewBooksBanner.visibility = View.GONE
+                            }
+                        }
                     } else {
                         layoutNewBooksBanner.visibility = View.GONE
                     }
