@@ -474,4 +474,25 @@ object SettingsManager {
         getPrefs(context).edit().putString(KEY_AUTO_SYNC_START_TIME, time).apply()
         notifyChanged()
     }
+
+    private var ambientLux: Float = 100f
+
+    fun getAmbientLux(): Float = ambientLux
+
+    fun setAmbientLux(context: Context, lux: Float) {
+        val oldBand = when {
+            ambientLux < 10f -> 0
+            ambientLux <= 150f -> 1
+            else -> 2
+        }
+        val newBand = when {
+            lux < 10f -> 0
+            lux <= 150f -> 1
+            else -> 2
+        }
+        ambientLux = lux
+        if (oldBand != newBand) {
+            notifyChanged()
+        }
+    }
 }

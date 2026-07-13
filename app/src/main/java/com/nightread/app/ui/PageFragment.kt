@@ -93,7 +93,7 @@ class PageFragment : Fragment() {
         textView.textSize = fontSize
         textView.setTextColor(Color.parseColor(textColor))
         
-        textView.typeface = FontUtils.createTypeface(fontFamily, numericWeight)
+        textView.typeface = FontUtils.createTypefaceWithOpticalBalance(context, fontFamily, numericWeight)
 
         textView.setLineSpacing(0f, lineSpacingMultiplier)
         

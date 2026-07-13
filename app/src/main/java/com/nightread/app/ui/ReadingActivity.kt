@@ -1100,11 +1100,6 @@ class ReadingActivity : AppCompatActivity() {
     }
 
     private fun registerLightSensor() {
-        if (!SettingsManager.isAutoLightNightEnabled(this)) {
-            unregisterLightSensor()
-            return
-        }
-
         if (sensorManager == null) {
             sensorManager = getSystemService(Context.SENSOR_SERVICE) as? android.hardware.SensorManager
         }
@@ -1115,9 +1110,14 @@ class ReadingActivity : AppCompatActivity() {
         if (lightSensor != null && lightSensorListener == null) {
             lightSensorListener = object : android.hardware.SensorEventListener {
                 override fun onSensorChanged(event: android.hardware.SensorEvent?) {
-                    if (event == null || !SettingsManager.isAutoLightNightEnabled(this@ReadingActivity)) return
+                    if (event == null) return
                     
                     val lux = event.values[0]
+                    // Always set ambient lux in SettingsManager for dynamic variable typography
+                    SettingsManager.setAmbientLux(this@ReadingActivity, lux)
+
+                    if (!SettingsManager.isAutoLightNightEnabled(this@ReadingActivity)) return
+                    
                     val currentTime = System.currentTimeMillis()
                     // Add simple cooldown (5 seconds) to avoid rapid transitions
                     if (currentTime - lastThemeTransitionTime < 5000) return
