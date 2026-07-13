@@ -32,7 +32,7 @@ import java.io.File
 
 class BookAdapter(
     private var books: List<BookEntity>,
-    private val onOpenBook: (BookEntity, View) -> Unit,
+    private val onOpenBook: (BookEntity) -> Unit,
     private val onDeleteBook: ((BookEntity) -> Unit)? = null
 ) : RecyclerView.Adapter<BookAdapter.BookViewHolder>() {
 
@@ -224,12 +224,11 @@ class BookAdapter(
 
         fun bind(
             book: BookEntity,
-            onOpenBook: (BookEntity, View) -> Unit,
+            onOpenBook: (BookEntity) -> Unit,
             onDeleteBook: ((BookEntity) -> Unit)?
         ) {
             android.util.Log.d("BookAdapter", "Binding book in ViewHolder: title='${book.title}', author='${book.author}', sha1='${book.sha1}', coverPath='${book.coverPath}'")
             tvBookTitle.text = book.title
-            ivCover.transitionName = "cover_${book.sha1}"
 
             if (tvBookAnnotation != null) {
                 if (!book.annotation.isNullOrBlank()) {
@@ -293,6 +292,7 @@ class BookAdapter(
                 try {
                     ivCover.load(coverFile) {
                         crossfade(true)
+                        allowHardware(false)
                         memoryCacheKey(book.sha1)
                         diskCacheKey(book.sha1)
                         listener(
@@ -348,7 +348,7 @@ class BookAdapter(
             // Click interactions
             itemView.setOnClickListener {
                 android.util.Log.d("BookAdapter", "Book clicked: title='${book.title}', author='${book.author}', sha1='${book.sha1}'")
-                onOpenBook(book, ivCover)
+                onOpenBook(book)
             }
 
 
@@ -363,7 +363,7 @@ class BookAdapter(
                 popup.setOnMenuItemClickListener { menuItem ->
                     when (menuItem.itemId) {
                         1 -> {
-                            onOpenBook(book, ivCover)
+                            onOpenBook(book)
                             true
                         }
                         2 -> {

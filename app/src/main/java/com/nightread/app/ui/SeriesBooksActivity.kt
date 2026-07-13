@@ -31,16 +31,11 @@ class SeriesBooksActivity : BaseActivity() {
         rvBooks = findViewById(R.id.rvBooks)
         rvBooks.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 3)
 
-        adapter = BookAdapter(emptyList(), { book, coverView ->
+        adapter = BookAdapter(emptyList(), { book ->
             val intent = Intent(this, BookDetailActivity::class.java).apply {
                 putExtra("BOOK_SHA1", book.sha1)
             }
-            val options = androidx.core.app.ActivityOptionsCompat.makeSceneTransitionAnimation(
-                this,
-                coverView,
-                "cover_${book.sha1}"
-            )
-            startActivity(intent, options.toBundle())
+            startActivity(intent)
         })
         rvBooks.adapter = adapter
 
