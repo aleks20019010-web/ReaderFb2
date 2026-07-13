@@ -200,8 +200,8 @@ class YandexSyncManager(private val context: Context) {
             for (cloudBook in cloudBooks) {
                 val cleanPath = YandexDiskManager.normalizePath(cloudBook.path ?: "$syncFolder/${cloudBook.name}")
                 val cached = cachedMap[cleanPath]
-                // Use cached SHA-1 if size matches, even if lastModified differs (optimization)
-                if (cached != null && cached.size == (cloudBook.size ?: 0L)) {
+                // Strictly check lastModified to avoid unnecessary re-downloads
+                if (cached != null && cached.size == (cloudBook.size ?: 0L) && cached.lastModified == (cloudBook.modified ?: "")) {
                     updatedCloudBooks.add(cached)
                 } else {
                     val cloudSize = cloudBook.size ?: 0L
