@@ -500,7 +500,13 @@ object YandexDiskManager {
             val json = progressAdapter.toJson(payload)
             val cloudProgressName = "$sha1.json"
             val cleanPath = normalizePath("$syncFolder/Progress/$cloudProgressName")
-            val link = api.getUploadLink(authHeader, cleanPath)
+            val link = try {
+                api.getUploadLink(authHeader, cleanPath)
+            } catch (e: Exception) {
+                Log.d(TAG, "Failed to get upload link, initializing directories... Error: ${e.message}")
+                initDirectories(authHeader, syncFolder)
+                api.getUploadLink(authHeader, cleanPath)
+            }
             api.uploadFile(link.href, json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType()))
             Log.d(TAG, "Direct push progress for book $sha1 successful.")
         } catch (e: Exception) {

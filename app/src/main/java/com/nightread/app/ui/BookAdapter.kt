@@ -231,6 +231,8 @@ class BookAdapter(
                 try {
                     ivCover.load(coverFile) {
                         crossfade(true)
+                        memoryCacheKey(book.sha1)
+                        diskCacheKey(book.sha1)
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("BookAdapter", "Error loading cover with Coil: ${e.message}")

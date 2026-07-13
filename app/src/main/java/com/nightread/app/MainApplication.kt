@@ -3,6 +3,11 @@ package com.nightread.app
 import android.app.Application
 import android.util.Log
 import android.content.Context
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
+import coil.request.CachePolicy
 import com.nightread.app.data.SettingsManager
 import com.nightread.app.data.ThemeManager
 import com.nightread.app.service.AutoDiscoveryService
@@ -14,9 +19,29 @@ import kotlinx.coroutines.launch
 import java.io.PrintWriter
 import java.io.StringWriter
 
-class MainApplication : Application() {
+class MainApplication : Application(), ImageLoaderFactory {
     
     var bookScanner: com.nightread.app.service.NewBookScanner? = null
+
+    override fun newImageLoader(): ImageLoader {
+        return ImageLoader.Builder(this)
+            .memoryCache {
+                MemoryCache.Builder(this)
+                    .maxSizePercent(0.30) // Use 30% of available memory for images
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(this.cacheDir.resolve("image_cache"))
+                    .maxSizePercent(0.05) // Use up to 5% of storage for disk cache
+                    .build()
+            }
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .respectCacheHeaders(false)
+            .crossfade(true)
+            .build()
+    }
 
     override fun onCreate() {
         super.onCreate()

@@ -1,6 +1,7 @@
 package com.nightread.app.ui
 
 import android.os.Bundle
+import android.content.Context
 import android.text.TextPaint
 import android.util.Log
 import com.nightread.app.service.BookParser
@@ -63,6 +64,18 @@ class ReadingActivity : AppCompatActivity() {
     private var isSplittingFinished = false
     private var isBarsVisible = false
     private var isNightMode = false
+    private var sensorManager: android.hardware.SensorManager? = null
+    private var lightSensor: android.hardware.Sensor? = null
+    private var lightSensorListener: android.hardware.SensorEventListener? = null
+    private var lastThemeTransitionTime: Long = 0L
+    private var viewAmberFilter: android.view.View? = null
+    private var viewExtraDim: android.view.View? = null
+    private var tvSleepTimerIndicator: TextView? = null
+    private var sleepTimerJob: kotlinx.coroutines.Job? = null
+    private var sleepTimerRemainingSeconds: Int = 0
+    private var accelerometer: android.hardware.Sensor? = null
+    private var shakeListener: android.hardware.SensorEventListener? = null
+    private var lastShakeTime: Long = 0L
     private lateinit var gestureDetector: android.view.GestureDetector
     private lateinit var tvBrightness: TextView
     private var startX = 0f
@@ -84,6 +97,12 @@ class ReadingActivity : AppCompatActivity() {
         setContentView(R.layout.activity_reading) // Actually we updated activity_reader.xml but wait, I didn't change setContentView name! Let me use activity_reader.
 
         viewPager = findViewById(R.id.viewPager)
+        viewAmberFilter = findViewById(R.id.viewAmberFilter)
+        viewExtraDim = findViewById(R.id.viewExtraDim)
+        tvSleepTimerIndicator = findViewById(R.id.tvSleepTimerIndicator)
+        updateAmberFilter()
+        updateExtraDim()
+        updateSleepTimer()
         updatePageTransformer()
         progressBar = findViewById(R.id.progressBar)
         topBar = findViewById(R.id.topBar)
@@ -165,10 +184,23 @@ class ReadingActivity : AppCompatActivity() {
         val startReadingTheme = SettingsManager.getReadingTheme(this)
         isNightMode = startReadingTheme == "dark" || startReadingTheme == "contrast"
 
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as? android.hardware.SensorManager
+        lightSensor = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_LIGHT)
+
         lifecycleScope.launch {
             SettingsManager.settingsChanged.collectLatest {
                 updateSystemBarsColors()
                 updatePageTransformer()
+                updateAmberFilter()
+                updateExtraDim()
+                updateSleepTimer()
+                
+                // Re-evaluate light sensor listener state on settings change
+                if (SettingsManager.isAutoLightNightEnabled(this@ReadingActivity)) {
+                    registerLightSensor()
+                } else {
+                    unregisterLightSensor()
+                }
                 // Check if layout-affecting settings changed
                 val newFontSize = SettingsManager.getFontSize(this@ReadingActivity)
                 val newFontFamily = SettingsManager.getFontFamily(this@ReadingActivity)
@@ -623,6 +655,10 @@ class ReadingActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateAiButtonsVisibility()
+        registerLightSensor()
+        if (SettingsManager.isSleepTimerEnabled(this) && SettingsManager.isShakeToExtendEnabled(this)) {
+            registerShakeListener()
+        }
     }
 
     private fun toggleBars() {
@@ -811,6 +847,8 @@ class ReadingActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         saveProgress()
+        unregisterLightSensor()
+        unregisterShakeListener()
     }
 
     private fun saveProgress() {
@@ -825,6 +863,12 @@ class ReadingActivity : AppCompatActivity() {
                 try {
                     AppDatabase.getDatabase(this@ReadingActivity)
                         .bookDao().updateProgressAndPage(sha1, charOffset, currentIdx, totalChars, System.currentTimeMillis())
+                    
+                    // Trigger background incremental progress synchronization if Yandex Disk integration is active
+                    val hasToken = !com.nightread.app.data.YandexDiskManager.getToken(this@ReadingActivity).isNullOrEmpty()
+                    if (hasToken) {
+                        com.nightread.app.service.ProgressSyncWorker.scheduleProgressSync(this@ReadingActivity, sha1, charOffset)
+                    }
                 } catch (e: Exception) {
                     Log.e("READING_DEBUG", "Error saving progress in DB", e)
                 }
@@ -1023,5 +1067,229 @@ class ReadingActivity : AppCompatActivity() {
             }
         }
         bottomSheet.show(supportFragmentManager, "NoteBottomSheet")
+    }
+
+    private fun registerLightSensor() {
+        if (!SettingsManager.isAutoLightNightEnabled(this)) {
+            unregisterLightSensor()
+            return
+        }
+
+        if (sensorManager == null) {
+            sensorManager = getSystemService(Context.SENSOR_SERVICE) as? android.hardware.SensorManager
+        }
+        if (lightSensor == null) {
+            lightSensor = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_LIGHT)
+        }
+
+        if (lightSensor != null && lightSensorListener == null) {
+            lightSensorListener = object : android.hardware.SensorEventListener {
+                override fun onSensorChanged(event: android.hardware.SensorEvent?) {
+                    if (event == null || !SettingsManager.isAutoLightNightEnabled(this@ReadingActivity)) return
+                    
+                    val lux = event.values[0]
+                    val currentTime = System.currentTimeMillis()
+                    // Add simple cooldown (5 seconds) to avoid rapid transitions
+                    if (currentTime - lastThemeTransitionTime < 5000) return
+
+                    val currentTheme = SettingsManager.getReadingTheme(this@ReadingActivity)
+                    
+                    if (lux < 8.0f) {
+                        // Environment is dark, switch to deep "dark" theme
+                        if (currentTheme != "dark" && currentTheme != "contrast") {
+                            // Save pre-sensor theme to restore it later if environment gets bright
+                            getSharedPreferences("reader_prefs", MODE_PRIVATE).edit()
+                                .putString("pre_sensor_theme", currentTheme)
+                                .apply()
+                            
+                            SettingsManager.setReadingTheme(this@ReadingActivity, "dark")
+                            isNightMode = true
+                            lastThemeTransitionTime = currentTime
+                            Log.d("ReadingActivity", "Ambient light low ($lux lux). Switched to dark theme automatically.")
+                        }
+                    } else if (lux > 25.0f) {
+                        // Environment is bright, restore previous non-dark theme (or "sepia" as default)
+                        if (currentTheme == "dark" || currentTheme == "contrast") {
+                            val savedTheme = getSharedPreferences("reader_prefs", MODE_PRIVATE)
+                                .getString("pre_sensor_theme", "sepia") ?: "sepia"
+                            
+                            val targetTheme = if (savedTheme == "dark" || savedTheme == "contrast") "sepia" else savedTheme
+                            SettingsManager.setReadingTheme(this@ReadingActivity, targetTheme)
+                            isNightMode = false
+                            lastThemeTransitionTime = currentTime
+                            Log.d("ReadingActivity", "Ambient light high ($lux lux). Restored previous theme: $targetTheme.")
+                        }
+                    }
+                }
+
+                override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+            }
+            
+            sensorManager?.registerListener(
+                lightSensorListener,
+                lightSensor,
+                android.hardware.SensorManager.SENSOR_DELAY_NORMAL
+            )
+            Log.d("ReadingActivity", "Registered light sensor listener.")
+        }
+    }
+
+    private fun unregisterLightSensor() {
+        lightSensorListener?.let {
+            sensorManager?.unregisterListener(it)
+            lightSensorListener = null
+            Log.d("ReadingActivity", "Unregistered light sensor listener.")
+        }
+    }
+
+    private fun updateAmberFilter() {
+        val filter = viewAmberFilter ?: return
+        val isEnabled = SettingsManager.isAmberFilterEnabled(this)
+        if (isEnabled) {
+            val intensity = SettingsManager.getAmberFilterIntensity(this)
+            // Map 0..100% to alpha 0..180 to avoid absolute solid colors
+            val alpha = (intensity * 1.8).toInt().coerceIn(0, 180)
+            filter.setBackgroundColor(android.graphics.Color.argb(alpha, 255, 140, 0))
+            filter.visibility = android.view.View.VISIBLE
+        } else {
+            filter.visibility = android.view.View.GONE
+        }
+    }
+
+    private fun updateSleepTimer() {
+        // Cancel existing job if any
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+
+        val isEnabled = SettingsManager.isSleepTimerEnabled(this)
+        val indicator = tvSleepTimerIndicator
+
+        if (isEnabled) {
+            val durationMinutes = SettingsManager.getSleepTimerDuration(this)
+            sleepTimerRemainingSeconds = durationMinutes * 60
+            indicator?.visibility = android.view.View.VISIBLE
+            updateSleepTimerIndicatorText()
+
+            if (SettingsManager.isShakeToExtendEnabled(this)) {
+                registerShakeListener()
+            } else {
+                unregisterShakeListener()
+            }
+
+            // Start ticking
+            sleepTimerJob = lifecycleScope.launch {
+                while (sleepTimerRemainingSeconds > 0) {
+                    kotlinx.coroutines.delay(1000)
+                    sleepTimerRemainingSeconds--
+                    updateSleepTimerIndicatorText()
+
+                    if (sleepTimerRemainingSeconds == 0) {
+                        // Sleep timer finished! Close reader activity
+                        vibrateDevice()
+                        android.widget.Toast.makeText(
+                            this@ReadingActivity,
+                            "Таймер сна сработал. Спокойной ночи!",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                        finish()
+                    }
+                }
+            }
+        } else {
+            indicator?.visibility = android.view.View.GONE
+            unregisterShakeListener()
+        }
+    }
+
+    private fun updateSleepTimerIndicatorText() {
+        val indicator = tvSleepTimerIndicator ?: return
+        val minutes = sleepTimerRemainingSeconds / 60
+        val seconds = sleepTimerRemainingSeconds % 60
+        indicator.text = String.format("⏳ %d:%02d", minutes, seconds)
+    }
+
+    private fun extendSleepTimer() {
+        if (!SettingsManager.isSleepTimerEnabled(this)) return
+        val extendSeconds = 10 * 60
+        sleepTimerRemainingSeconds += extendSeconds
+        // Cap at 120 minutes max to be reasonable
+        if (sleepTimerRemainingSeconds > 120 * 60) {
+            sleepTimerRemainingSeconds = 120 * 60
+        }
+        updateSleepTimerIndicatorText()
+        vibrateDevice()
+        android.widget.Toast.makeText(
+            this,
+            "Таймер сна продлен на 10 минут ⏳",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun registerShakeListener() {
+        if (shakeListener != null) return
+        val sm = sensorManager ?: return
+        val acc = sm.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER) ?: return
+        accelerometer = acc
+
+        shakeListener = object : android.hardware.SensorEventListener {
+            override fun onSensorChanged(event: android.hardware.SensorEvent?) {
+                val ev = event ?: return
+                if (ev.sensor.type == android.hardware.Sensor.TYPE_ACCELEROMETER) {
+                    val x = ev.values[0]
+                    val y = ev.values[1]
+                    val z = ev.values[2]
+
+                    // Calculate acceleration vector magnitude subtracting gravity (approx 9.8)
+                    val gForce = Math.sqrt((x * x + y * y + z * z).toDouble()).toFloat() - 9.8f
+                    if (gForce > 5.0f) { // Shake force threshold
+                        val now = System.currentTimeMillis()
+                        if (now - lastShakeTime > 2000) { // Limit shake extension once per 2 seconds
+                            lastShakeTime = now
+                            extendSleepTimer()
+                        }
+                    }
+                }
+            }
+            override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+        }
+        sm.registerListener(shakeListener, acc, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+        Log.d("ReadingActivity", "Registered shake-to-extend listener.")
+    }
+
+    private fun unregisterShakeListener() {
+        val listener = shakeListener ?: return
+        sensorManager?.unregisterListener(listener)
+        shakeListener = null
+        Log.d("ReadingActivity", "Unregistered shake-to-extend listener.")
+    }
+
+    private fun vibrateDevice() {
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            if (vibrator != null && vibrator.hasVibrator()) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    vibrator.vibrate(android.os.VibrationEffect.createOneShot(150, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(150)
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore if permission or hardware error
+        }
+    }
+
+    private fun updateExtraDim() {
+        val filter = viewExtraDim ?: return
+        val isEnabled = SettingsManager.isExtraDimEnabled(this)
+        if (isEnabled) {
+            val intensity = SettingsManager.getExtraDimIntensity(this)
+            // Map 0..90% to alpha 0..230 to avoid absolute black screen
+            val alpha = (intensity * 2.5).toInt().coerceIn(0, 230)
+            filter.setBackgroundColor(android.graphics.Color.argb(alpha, 0, 0, 0))
+            filter.visibility = android.view.View.VISIBLE
+        } else {
+            filter.visibility = android.view.View.GONE
+        }
     }
 }

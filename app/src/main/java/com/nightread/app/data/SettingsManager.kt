@@ -23,6 +23,14 @@ object SettingsManager {
 
     const val KEY_AUTO_DISCOVERY = "auto_discovery"
     const val KEY_AUTO_THEME = "auto_theme"
+    const val KEY_AUTO_LIGHT_NIGHT = "auto_light_night"
+    const val KEY_AMBER_FILTER_ENABLED = "amber_filter_enabled"
+    const val KEY_AMBER_FILTER_INTENSITY = "amber_filter_intensity"
+    const val KEY_EXTRA_DIM_ENABLED = "extra_dim_enabled"
+    const val KEY_EXTRA_DIM_INTENSITY = "extra_dim_intensity"
+    const val KEY_SLEEP_TIMER_ENABLED = "sleep_timer_enabled"
+    const val KEY_SLEEP_TIMER_DURATION = "sleep_timer_duration"
+    const val KEY_SHAKE_TO_EXTEND_ENABLED = "shake_to_extend_enabled"
     const val KEY_LAST_READ_BOOK_SHA1 = "last_read_book_sha1"
     const val KEY_IS_READING = "is_currently_reading"
     const val KEY_AI_ENABLED = "ai_enabled"
@@ -53,6 +61,14 @@ object SettingsManager {
     private var cachedOnboardingCompleted: Boolean? = null 
     private var cachedAutoDiscovery: Boolean? = null
     private var cachedAutoTheme: Boolean? = null
+    private var cachedAutoLightNight: Boolean? = null
+    private var cachedAmberFilterEnabled: Boolean? = null
+    private var cachedAmberFilterIntensity: Int? = null
+    private var cachedExtraDimEnabled: Boolean? = null
+    private var cachedExtraDimIntensity: Int? = null
+    private var cachedSleepTimerEnabled: Boolean? = null
+    private var cachedSleepTimerDuration: Int? = null
+    private var cachedShakeToExtendEnabled: Boolean? = null
     private var cachedShowAllFormats: Boolean? = null
 
     private fun getPrefs(context: Context): SharedPreferences {
@@ -91,6 +107,118 @@ object SettingsManager {
         if (cachedAutoTheme == enabled) return
         cachedAutoTheme = enabled
         getPrefs(context).edit().putBoolean(KEY_AUTO_THEME, enabled).apply()
+        notifyChanged()
+    }
+
+    fun isAutoLightNightEnabled(context: Context): Boolean {
+        if (cachedAutoLightNight == null) {
+            cachedAutoLightNight = getPrefs(context).getBoolean(KEY_AUTO_LIGHT_NIGHT, false)
+        }
+        return cachedAutoLightNight!!
+    }
+
+    fun setAutoLightNightEnabled(context: Context, enabled: Boolean) {
+        if (cachedAutoLightNight == enabled) return
+        cachedAutoLightNight = enabled
+        getPrefs(context).edit().putBoolean(KEY_AUTO_LIGHT_NIGHT, enabled).apply()
+        notifyChanged()
+    }
+
+    fun isAmberFilterEnabled(context: Context): Boolean {
+        if (cachedAmberFilterEnabled == null) {
+            cachedAmberFilterEnabled = getPrefs(context).getBoolean(KEY_AMBER_FILTER_ENABLED, false)
+        }
+        return cachedAmberFilterEnabled!!
+    }
+
+    fun setAmberFilterEnabled(context: Context, enabled: Boolean) {
+        if (cachedAmberFilterEnabled == enabled) return
+        cachedAmberFilterEnabled = enabled
+        getPrefs(context).edit().putBoolean(KEY_AMBER_FILTER_ENABLED, enabled).apply()
+        notifyChanged()
+    }
+
+    fun getAmberFilterIntensity(context: Context): Int {
+        if (cachedAmberFilterIntensity == null) {
+            cachedAmberFilterIntensity = getPrefs(context).getInt(KEY_AMBER_FILTER_INTENSITY, 30)
+        }
+        return cachedAmberFilterIntensity!!
+    }
+
+    fun setAmberFilterIntensity(context: Context, intensity: Int) {
+        if (cachedAmberFilterIntensity == intensity) return
+        cachedAmberFilterIntensity = intensity
+        getPrefs(context).edit().putInt(KEY_AMBER_FILTER_INTENSITY, intensity).apply()
+        notifyChanged()
+    }
+
+    fun isSleepTimerEnabled(context: Context): Boolean {
+        if (cachedSleepTimerEnabled == null) {
+            cachedSleepTimerEnabled = getPrefs(context).getBoolean(KEY_SLEEP_TIMER_ENABLED, false)
+        }
+        return cachedSleepTimerEnabled!!
+    }
+
+    fun setSleepTimerEnabled(context: Context, enabled: Boolean) {
+        if (cachedSleepTimerEnabled == enabled) return
+        cachedSleepTimerEnabled = enabled
+        getPrefs(context).edit().putBoolean(KEY_SLEEP_TIMER_ENABLED, enabled).apply()
+        notifyChanged()
+    }
+
+    fun getSleepTimerDuration(context: Context): Int {
+        if (cachedSleepTimerDuration == null) {
+            cachedSleepTimerDuration = getPrefs(context).getInt(KEY_SLEEP_TIMER_DURATION, 30)
+        }
+        return cachedSleepTimerDuration!!
+    }
+
+    fun setSleepTimerDuration(context: Context, duration: Int) {
+        if (cachedSleepTimerDuration == duration) return
+        cachedSleepTimerDuration = duration
+        getPrefs(context).edit().putInt(KEY_SLEEP_TIMER_DURATION, duration).apply()
+        notifyChanged()
+    }
+
+    fun isShakeToExtendEnabled(context: Context): Boolean {
+        if (cachedShakeToExtendEnabled == null) {
+            cachedShakeToExtendEnabled = getPrefs(context).getBoolean(KEY_SHAKE_TO_EXTEND_ENABLED, true)
+        }
+        return cachedShakeToExtendEnabled!!
+    }
+
+    fun setShakeToExtendEnabled(context: Context, enabled: Boolean) {
+        if (cachedShakeToExtendEnabled == enabled) return
+        cachedShakeToExtendEnabled = enabled
+        getPrefs(context).edit().putBoolean(KEY_SHAKE_TO_EXTEND_ENABLED, enabled).apply()
+        notifyChanged()
+    }
+
+    fun isExtraDimEnabled(context: Context): Boolean {
+        if (cachedExtraDimEnabled == null) {
+            cachedExtraDimEnabled = getPrefs(context).getBoolean(KEY_EXTRA_DIM_ENABLED, false)
+        }
+        return cachedExtraDimEnabled!!
+    }
+
+    fun setExtraDimEnabled(context: Context, enabled: Boolean) {
+        if (cachedExtraDimEnabled == enabled) return
+        cachedExtraDimEnabled = enabled
+        getPrefs(context).edit().putBoolean(KEY_EXTRA_DIM_ENABLED, enabled).apply()
+        notifyChanged()
+    }
+
+    fun getExtraDimIntensity(context: Context): Int {
+        if (cachedExtraDimIntensity == null) {
+            cachedExtraDimIntensity = getPrefs(context).getInt(KEY_EXTRA_DIM_INTENSITY, 40)
+        }
+        return cachedExtraDimIntensity!!
+    }
+
+    fun setExtraDimIntensity(context: Context, intensity: Int) {
+        if (cachedExtraDimIntensity == intensity) return
+        cachedExtraDimIntensity = intensity
+        getPrefs(context).edit().putInt(KEY_EXTRA_DIM_INTENSITY, intensity).apply()
         notifyChanged()
     }
 

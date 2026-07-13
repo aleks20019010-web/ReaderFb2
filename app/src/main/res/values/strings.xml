@@ -5,4 +5,17 @@
     <string name="unknown_title">Неизвестно</string>
     <string name="local_txt">Локальный TXT</string>
     <string name="yandex_client_id">bfdea73d1e6242ba826f15d9d0374005</string>
+    <string name="auto_light_night_title">Сенсор освещения</string>
+    <string name="auto_light_night_desc">Авто-ночной режим при слабом свете</string>
+    <string name="amber_filter_title">Защита зрения</string>
+    <string name="amber_filter_desc">Теплый янтарный фильтр (Blue Light Filter)</string>
+    <string name="amber_filter_intensity">Интенсивность фильтра</string>
+    <string name="sleep_timer_title">Таймер сна</string>
+    <string name="sleep_timer_desc">Автоматически закроет читалку</string>
+    <string name="sleep_timer_duration">Время до отключения</string>
+    <string name="shake_to_extend_title">Продление встряхиванием</string>
+    <string name="shake_to_extend_desc">Встряхните телефон, чтобы добавить 10 минут</string>
+    <string name="extra_dim_title">Сверхнизкая яркость</string>
+    <string name="extra_dim_desc">Затемнение экрана ниже системного минимума</string>
+    <string name="extra_dim_intensity">Степень затемнения</string>
 </resources>

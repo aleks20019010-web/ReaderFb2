@@ -12,6 +12,26 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Amber / Blue Light Filter Overlay (Click-through) -->
+    <View
+        android:id="@+id/viewAmberFilter"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#00FF9800"
+        android:clickable="false"
+        android:focusable="false"
+        android:importantForAccessibility="no" />
+
+    <!-- Extra Dim Overlay (Click-through) -->
+    <View
+        android:id="@+id/viewExtraDim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#00000000"
+        android:clickable="false"
+        android:focusable="false"
+        android:importantForAccessibility="no" />
+
     <!-- Brightness Indicator -->
     <TextView
         android:id="@+id/tvBrightness"
@@ -64,6 +84,17 @@
                 android:ellipsize="end"
                 android:paddingHorizontal="8dp"
                 android:text="" />
+
+            <TextView
+                android:id="@+id/tvSleepTimerIndicator"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFB74D"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:paddingHorizontal="6dp"
+                android:visibility="gone"
+                android:text="⏳ 30:00" />
 
             <ImageButton
                 android:id="@+id/btnBookmark"

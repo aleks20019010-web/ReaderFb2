@@ -107,7 +107,37 @@ class PageFragment : Fragment() {
         
         textView.isLongClickable = true
         textView.setTextIsSelectable(true)
-        textView.customSelectionActionModeCallback = null
+        textView.customSelectionActionModeCallback = object : android.view.ActionMode.Callback {
+            override fun onCreateActionMode(mode: android.view.ActionMode?, menu: android.view.Menu?): Boolean {
+                val start = textView.selectionStart
+                val end = textView.selectionEnd
+                if (start != -1 && end != -1 && start != end) {
+                    val selectedText = textView.text.subSequence(start, end).toString().trim()
+                    if (selectedText.isNotEmpty()) {
+                        val fullText = textView.text.toString()
+                        val contextStart = maxOf(0, start - 150)
+                        val contextEnd = minOf(fullText.length, end + 150)
+                        val contextSnippet = fullText.substring(contextStart, contextEnd)
+                        
+                        val bottomSheet = WordActionBottomSheet.newInstance(selectedText, contextSnippet)
+                        bottomSheet.show(parentFragmentManager, "WordAction")
+                    }
+                }
+                mode?.finish()
+                return false
+            }
+
+            override fun onPrepareActionMode(mode: android.view.ActionMode?, menu: android.view.Menu?): Boolean {
+                return false
+            }
+
+            override fun onActionItemClicked(mode: android.view.ActionMode?, item: android.view.MenuItem?): Boolean {
+                return false
+            }
+
+            override fun onDestroyActionMode(mode: android.view.ActionMode?) {
+            }
+        }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             textView.breakStrategy = android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY

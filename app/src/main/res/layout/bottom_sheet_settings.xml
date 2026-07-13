@@ -433,6 +433,332 @@
                     app:trackTint="#9B59B6" />
             </RelativeLayout>
 
+            <!-- Auto-Light-Night Switch -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="8dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/switchAutoLightNight"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvAutoLightNightTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/auto_light_night_title"
+                        android:textColor="#E8D8F0"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvAutoLightNightDesc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/auto_light_night_desc"
+                        android:textColor="#B8A0C8"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchAutoLightNight"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    app:thumbTint="@color/white"
+                    app:trackTint="#9B59B6" />
+            </RelativeLayout>
+
+            <!-- Amber Eye Care Filter Switch -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="8dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/switchAmberFilter"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvAmberFilterTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/amber_filter_title"
+                        android:textColor="#E8D8F0"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvAmberFilterDesc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/amber_filter_desc"
+                        android:textColor="#B8A0C8"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchAmberFilter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    app:thumbTint="@color/white"
+                    app:trackTint="#9B59B6" />
+            </RelativeLayout>
+
+            <!-- Amber Filter Intensity SeekBar -->
+            <LinearLayout
+                android:id="@+id/layoutAmberIntensity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingVertical="4dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:id="@+id/tvAmberIntensityLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:text="@string/amber_filter_intensity"
+                        android:textColor="#B8A0C8"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/tvAmberIntensityValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:textColor="#E8D8F0"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:text="30%" />
+                </RelativeLayout>
+
+                <SeekBar
+                    android:id="@+id/seekBarAmberIntensity"
+                    style="@style/CompactSeekBarStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:max="100" />
+            </LinearLayout>
+
+            <!-- Extra Dim Switch -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="8dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/switchExtraDim"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvExtraDimTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/extra_dim_title"
+                        android:textColor="#E8D8F0"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvExtraDimDesc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/extra_dim_desc"
+                        android:textColor="#B8A0C8"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchExtraDim"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    app:thumbTint="@color/white"
+                    app:trackTint="#9B59B6" />
+            </RelativeLayout>
+
+            <!-- Extra Dim Intensity SeekBar -->
+            <LinearLayout
+                android:id="@+id/layoutExtraDimIntensity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingVertical="4dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:id="@+id/tvExtraDimIntensityLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:text="@string/extra_dim_intensity"
+                        android:textColor="#B8A0C8"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/tvExtraDimIntensityValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:textColor="#E8D8F0"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:text="40%" />
+                </RelativeLayout>
+
+                <SeekBar
+                    android:id="@+id/seekBarExtraDimIntensity"
+                    style="@style/CompactSeekBarStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:max="90" />
+            </LinearLayout>
+
+            <!-- Sleep Timer Switch -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="8dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/switchSleepTimer"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvSleepTimerTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sleep_timer_title"
+                        android:textColor="#E8D8F0"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvSleepTimerDesc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sleep_timer_desc"
+                        android:textColor="#B8A0C8"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchSleepTimer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    app:thumbTint="@color/white"
+                    app:trackTint="#9B59B6" />
+            </RelativeLayout>
+
+            <!-- Sleep Timer Duration SeekBar -->
+            <LinearLayout
+                android:id="@+id/layoutSleepTimerDuration"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingVertical="4dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:id="@+id/tvSleepTimerDurationLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:text="@string/sleep_timer_duration"
+                        android:textColor="#B8A0C8"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/tvSleepTimerValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:textColor="#E8D8F0"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:text="30 мин" />
+                </RelativeLayout>
+
+                <SeekBar
+                    android:id="@+id/seekBarSleepTimer"
+                    style="@style/CompactSeekBarStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:max="120" />
+            </LinearLayout>
+
+            <!-- Shake to Extend Switch -->
+            <RelativeLayout
+                android:id="@+id/layoutShakeToExtend"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="8dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/switchShakeToExtend"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvShakeToExtendTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/shake_to_extend_title"
+                        android:textColor="#E8D8F0"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvShakeToExtendDesc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/shake_to_extend_desc"
+                        android:textColor="#B8A0C8"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchShakeToExtend"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    app:thumbTint="@color/white"
+                    app:trackTint="#9B59B6" />
+            </RelativeLayout>
+
         </LinearLayout>
     </ScrollView>
 </androidx.cardview.widget.CardView>

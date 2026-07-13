@@ -13,6 +13,8 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.LinearLayout
+import android.widget.RelativeLayout
 import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
@@ -278,6 +280,124 @@ class SettingsBottomSheet : DialogFragment() {
             }
         }
 
+        // 7b. Auto-Light-Night Switch
+        val switchAutoLightNight = view.findViewById<SwitchCompat>(R.id.switchAutoLightNight)
+        switchAutoLightNight.isChecked = SettingsManager.isAutoLightNightEnabled(context)
+        switchAutoLightNight.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != SettingsManager.isAutoLightNightEnabled(context)) {
+                SettingsManager.setAutoLightNightEnabled(context, isChecked)
+            }
+        }
+
+        // 7c. Amber Filter Switch & Intensity Hookup
+        val switchAmberFilter = view.findViewById<SwitchCompat>(R.id.switchAmberFilter)
+        val layoutAmberIntensity = view.findViewById<LinearLayout>(R.id.layoutAmberIntensity)
+        val tvAmberIntensityValue = view.findViewById<TextView>(R.id.tvAmberIntensityValue)
+        val seekBarAmberIntensity = view.findViewById<SeekBar>(R.id.seekBarAmberIntensity)
+
+        val initialAmberEnabled = SettingsManager.isAmberFilterEnabled(context)
+        switchAmberFilter.isChecked = initialAmberEnabled
+        layoutAmberIntensity.visibility = if (initialAmberEnabled) View.VISIBLE else View.GONE
+
+        val initialIntensity = SettingsManager.getAmberFilterIntensity(context)
+        tvAmberIntensityValue.text = "$initialIntensity%"
+        seekBarAmberIntensity.progress = initialIntensity
+
+        switchAmberFilter.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != SettingsManager.isAmberFilterEnabled(context)) {
+                SettingsManager.setAmberFilterEnabled(context, isChecked)
+                layoutAmberIntensity.visibility = if (isChecked) View.VISIBLE else View.GONE
+            }
+        }
+
+        seekBarAmberIntensity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                tvAmberIntensityValue.text = "$progress%"
+                if (fromUser) {
+                    SettingsManager.setAmberFilterIntensity(context, progress)
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        // 7c_2. Extra Dim Switch & Intensity Hookup
+        val switchExtraDim = view.findViewById<SwitchCompat>(R.id.switchExtraDim)
+        val layoutExtraDimIntensity = view.findViewById<LinearLayout>(R.id.layoutExtraDimIntensity)
+        val tvExtraDimIntensityValue = view.findViewById<TextView>(R.id.tvExtraDimIntensityValue)
+        val seekBarExtraDimIntensity = view.findViewById<SeekBar>(R.id.seekBarExtraDimIntensity)
+
+        val initialExtraDimEnabled = SettingsManager.isExtraDimEnabled(context)
+        switchExtraDim.isChecked = initialExtraDimEnabled
+        layoutExtraDimIntensity.visibility = if (initialExtraDimEnabled) View.VISIBLE else View.GONE
+
+        val initialExtraDimIntensity = SettingsManager.getExtraDimIntensity(context)
+        tvExtraDimIntensityValue.text = "$initialExtraDimIntensity%"
+        seekBarExtraDimIntensity.progress = initialExtraDimIntensity
+
+        switchExtraDim.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != SettingsManager.isExtraDimEnabled(context)) {
+                SettingsManager.setExtraDimEnabled(context, isChecked)
+                layoutExtraDimIntensity.visibility = if (isChecked) View.VISIBLE else View.GONE
+            }
+        }
+
+        seekBarExtraDimIntensity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                tvExtraDimIntensityValue.text = "$progress%"
+                if (fromUser) {
+                    SettingsManager.setExtraDimIntensity(context, progress)
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        // 7d. Sleep Timer Switches & Seekbar Hookup
+        val switchSleepTimer = view.findViewById<SwitchCompat>(R.id.switchSleepTimer)
+        val layoutSleepTimerDuration = view.findViewById<LinearLayout>(R.id.layoutSleepTimerDuration)
+        val tvSleepTimerValue = view.findViewById<TextView>(R.id.tvSleepTimerValue)
+        val seekBarSleepTimer = view.findViewById<SeekBar>(R.id.seekBarSleepTimer)
+        val switchShakeToExtend = view.findViewById<SwitchCompat>(R.id.switchShakeToExtend)
+        val layoutShakeToExtend = view.findViewById<RelativeLayout>(R.id.layoutShakeToExtend)
+
+        val initialSleepTimerEnabled = SettingsManager.isSleepTimerEnabled(context)
+        switchSleepTimer.isChecked = initialSleepTimerEnabled
+        layoutSleepTimerDuration.visibility = if (initialSleepTimerEnabled) View.VISIBLE else View.GONE
+        layoutShakeToExtend.visibility = if (initialSleepTimerEnabled) View.VISIBLE else View.GONE
+
+        val initialDuration = SettingsManager.getSleepTimerDuration(context).coerceAtLeast(5)
+        tvSleepTimerValue.text = "$initialDuration мин"
+        seekBarSleepTimer.progress = initialDuration
+
+        switchSleepTimer.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != SettingsManager.isSleepTimerEnabled(context)) {
+                SettingsManager.setSleepTimerEnabled(context, isChecked)
+                layoutSleepTimerDuration.visibility = if (isChecked) View.VISIBLE else View.GONE
+                layoutShakeToExtend.visibility = if (isChecked) View.VISIBLE else View.GONE
+            }
+        }
+
+        seekBarSleepTimer.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val duration = progress.coerceAtLeast(5)
+                tvSleepTimerValue.text = "$duration мин"
+                if (fromUser) {
+                    SettingsManager.setSleepTimerDuration(context, duration)
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        val initialShake = SettingsManager.isShakeToExtendEnabled(context)
+        switchShakeToExtend.isChecked = initialShake
+        switchShakeToExtend.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != SettingsManager.isShakeToExtendEnabled(context)) {
+                SettingsManager.setShakeToExtendEnabled(context, isChecked)
+            }
+        }
+
         // 8. Color Scheme Circle Buttons Hookup
         val btnThemeLight = view.findViewById<FrameLayout>(R.id.btnThemeLight)
         val btnThemeSepia = view.findViewById<FrameLayout>(R.id.btnThemeSepia)
@@ -389,6 +509,14 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvFontWeightValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvLineSpacingValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoDiscoveryTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvAutoLightNightTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvAmberFilterTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvAmberIntensityValue)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvExtraDimTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvExtraDimIntensityValue)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvSleepTimerTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvSleepTimerValue)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvShakeToExtendTitle)?.setTextColor(textPrimaryColor)
 
         // 3. Secondary Labels and Descriptions
         rootView.findViewById<TextView>(R.id.tvColorSchemeLabel)?.setTextColor(textSecondaryColor)
@@ -398,6 +526,14 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvThemeLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvLineSpacingLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoDiscoveryDesc)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvAutoLightNightDesc)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvAmberFilterDesc)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvAmberIntensityLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvExtraDimDesc)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvExtraDimIntensityLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvSleepTimerDesc)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvSleepTimerDurationLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvShakeToExtendDesc)?.setTextColor(textSecondaryColor)
 
         // 4. Content Dividers
         rootView.findViewById<View>(R.id.dividerTop)?.setBackgroundColor(dividerColor)
@@ -411,17 +547,46 @@ class SettingsBottomSheet : DialogFragment() {
         val seekBarFontSize = rootView.findViewById<SeekBar>(R.id.seekBarFontSize)
         val seekBarFontWeight = rootView.findViewById<SeekBar>(R.id.seekBarFontWeight)
         val seekBarLineSpacing = rootView.findViewById<SeekBar>(R.id.seekBarLineSpacing)
+        val seekBarAmberIntensity = rootView.findViewById<SeekBar>(R.id.seekBarAmberIntensity)
+        val seekBarExtraDimIntensity = rootView.findViewById<SeekBar>(R.id.seekBarExtraDimIntensity)
+        val seekBarSleepTimer = rootView.findViewById<SeekBar>(R.id.seekBarSleepTimer)
         seekBarFontSize?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarFontSize?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarFontWeight?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarFontWeight?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarLineSpacing?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarLineSpacing?.thumbTintList = ColorStateList.valueOf(accentColor)
+        seekBarAmberIntensity?.progressTintList = ColorStateList.valueOf(accentColor)
+        seekBarAmberIntensity?.thumbTintList = ColorStateList.valueOf(accentColor)
+        seekBarExtraDimIntensity?.progressTintList = ColorStateList.valueOf(accentColor)
+        seekBarExtraDimIntensity?.thumbTintList = ColorStateList.valueOf(accentColor)
+        seekBarSleepTimer?.progressTintList = ColorStateList.valueOf(accentColor)
+        seekBarSleepTimer?.thumbTintList = ColorStateList.valueOf(accentColor)
 
         // 7. Auto-discovery SwitchCompat coloring
         val switchAutoDiscovery = rootView.findViewById<SwitchCompat>(R.id.switchAutoDiscovery)
         switchAutoDiscovery?.trackTintList = ColorStateList.valueOf(accentColor)
         switchAutoDiscovery?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
+
+        val switchAutoLightNight = rootView.findViewById<SwitchCompat>(R.id.switchAutoLightNight)
+        switchAutoLightNight?.trackTintList = ColorStateList.valueOf(accentColor)
+        switchAutoLightNight?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
+
+        val switchAmberFilter = rootView.findViewById<SwitchCompat>(R.id.switchAmberFilter)
+        switchAmberFilter?.trackTintList = ColorStateList.valueOf(accentColor)
+        switchAmberFilter?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
+
+        val switchExtraDim = rootView.findViewById<SwitchCompat>(R.id.switchExtraDim)
+        switchExtraDim?.trackTintList = ColorStateList.valueOf(accentColor)
+        switchExtraDim?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
+
+        val switchSleepTimer = rootView.findViewById<SwitchCompat>(R.id.switchSleepTimer)
+        switchSleepTimer?.trackTintList = ColorStateList.valueOf(accentColor)
+        switchSleepTimer?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
+
+        val switchShakeToExtend = rootView.findViewById<SwitchCompat>(R.id.switchShakeToExtend)
+        switchShakeToExtend?.trackTintList = ColorStateList.valueOf(accentColor)
+        switchShakeToExtend?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
 
         // 8. Custom Theme Circle selection ring highlights & colors
         val ringLight = rootView.findViewById<View>(R.id.ringThemeLight)
