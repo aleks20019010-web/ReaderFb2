@@ -91,11 +91,12 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
 
             try {
                 // 1. Синхронизируем список книг с дедупликацией в облаке
-                val duplicates = syncBooksUseCase.syncBooks(token, accountId, cloudFilesList)
+                val (duplicates, pathSha1Map) = syncBooksUseCase.syncBooks(token, accountId, cloudFilesList)
 
                 // 2. Для каждой книги синхронизируем прогресс чтения
                 for (cloudFile in cloudFilesList) {
                     val cloudPath = cloudFile.path
+                    val sha1 = pathSha1Map[cloudPath] ?: continue
                     val fileSize = cloudFile.size
                     val fileModified = cloudFile.modified
 
@@ -106,6 +107,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                         cloudPath = cloudPath,
                         fileSize = fileSize,
                         fileModified = fileModified,
+                        precomputedSha1 = sha1,
                         onConflict = { local, cloud ->
                             // Возвращаем Deferred или приостанавливаем корутину до ручного разрешения конфликта в UI
                             // Для демонстрации мы создаем приостановку корутины и переводим стейт в ConflictDetected

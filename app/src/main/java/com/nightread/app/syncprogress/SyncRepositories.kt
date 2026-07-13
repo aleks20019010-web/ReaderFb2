@@ -61,7 +61,7 @@ class Sha1CacheRepository(
                     cached.sha1
                 } else {
                     cacheMisses.incrementAndGet()
-                    Log.d(TAG, "Cache MISS (invalidated): $filePath (size changed or modified)")
+                    Log.d(TAG, "Cache MISS (invalidated): $filePath (size=$fileSize, cachedSize=${cached.fileSize}, mod=$fileModified, cachedMod=${cached.fileModified})")
                     dao.deleteCache(accountId, filePath) // Удаляем старый некорректный кэш
                     null
                 }

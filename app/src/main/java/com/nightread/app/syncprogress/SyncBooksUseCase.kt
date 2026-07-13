@@ -18,16 +18,17 @@ class SyncBooksUseCase(
      * @param token Токен авторизации Яндекс Диска
      * @param accountId Идентификатор аккаунта
      * @param cloudFiles Список файлов, полученных из облака
-     * @return Список обнаруженных дубликатов в облаке (для UI уведомления)
+     * @return Pair: Список обнаруженных дубликатов (для UI) и Map (path -> SHA1) для прогресса
      */
     suspend fun syncBooks(
         token: String,
         accountId: String,
         cloudFiles: List<CloudMetadata>
-    ): List<CloudDuplicateInfo> = withContext(Dispatchers.IO) {
+    ): Pair<List<CloudDuplicateInfo>, Map<String, String>> = withContext(Dispatchers.IO) {
         Log.i(TAG, "Starting syncBooks with ${cloudFiles.size} cloud files")
 
         val duplicateInfos = mutableListOf<CloudDuplicateInfo>()
+        val pathSha1Map = mutableMapOf<String, String>()
 
         // 1. Группируем файлы в облаке по SHA-1, чтобы обнаружить дубликаты
         // Но сначала нужно вычислить/получить SHA-1 для каждого файла.
@@ -87,6 +88,7 @@ class SyncBooksUseCase(
         // Новые SHA1 -> добавляем/обновляем
         for ((sha1, cloudFile) in uniqueCloudBooks) {
             progressRepository.addBookIfNotExists(cloudFile, sha1)
+            pathSha1Map[cloudFile.path] = sha1
         }
 
         // Пропавшие SHA1 -> помечаем как "удалены" (soft delete)
@@ -99,7 +101,7 @@ class SyncBooksUseCase(
         }
 
         Log.i(TAG, "SyncBooks completed. Active books saved/updated, duplicates reported: ${duplicateInfos.size}")
-        duplicateInfos
+        Pair(duplicateInfos, pathSha1Map)
     }
 }
 

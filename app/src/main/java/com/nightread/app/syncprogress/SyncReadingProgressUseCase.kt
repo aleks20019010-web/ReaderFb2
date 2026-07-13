@@ -37,11 +37,12 @@ class SyncReadingProgressUseCase(
         cloudPath: String,
         fileSize: Long,
         fileModified: String,
+        precomputedSha1: String? = null,
         onConflict: (suspend (local: ReadingProgress, cloud: ReadingProgress) -> ReadingProgress)? = null
     ): MergeResult = withContext(Dispatchers.IO) {
         
         // 1. Сверяем SHA1 через кэш (Требование 2a, b, c, d)
-        val sha1 = try {
+        val sha1 = precomputedSha1 ?: try {
             sha1CacheRepository.getOrComputeSha1(token, accountId, cloudPath, fileSize, fileModified)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to resolve SHA1 for $cloudPath, force recalculating due to possible cache corruption...", e)
