@@ -312,7 +312,7 @@ class ReadingActivity : AppCompatActivity() {
             }
 
             try {
-                if (BookCache.sha1 == sha1 + "_v3" && BookCache.content.isNotEmpty()) {
+                if (BookCache.sha1 == sha1 + "_v4" && BookCache.content.isNotEmpty()) {
                     tvLoadingProgress.text = "Книга загружена из кэша..."
                     Log.i("READING_DEBUG", "Reusing cached book content for SHA-1: $sha1")
                     bookContent = BookCache.content
@@ -349,7 +349,7 @@ class ReadingActivity : AppCompatActivity() {
                         return@launch
                     }
                     
-                    BookCache.sha1 = sha1 + "_v3"
+                    BookCache.sha1 = sha1 + "_v4"
                     BookCache.content = bookContent
                     BookCache.notes = bookNotes
                     Log.i("READING_DEBUG", "Successfully loaded book from disk and updated BookCache for SHA-1: $sha1")
@@ -372,7 +372,7 @@ class ReadingActivity : AppCompatActivity() {
                     throw e
                 }
                 Log.e("READING_DEBUG", "Error loading book", e)
-                if (bookContent.isNotEmpty() || (BookCache.sha1 == sha1 + "_v3" && BookCache.content.isNotEmpty())) {
+                if (bookContent.isNotEmpty() || (BookCache.sha1 == sha1 + "_v4" && BookCache.content.isNotEmpty())) {
                     Log.d("READING_DEBUG", "Suppressed non-critical loading error because book content is already available.")
                 } else {
                     CustomToast.show(this@ReadingActivity, "Ошибка чтения файла")
@@ -439,7 +439,7 @@ class ReadingActivity : AppCompatActivity() {
         val letterSpacing = SettingsManager.getLetterSpacing(this@ReadingActivity)
         val paragraphIndent = SettingsManager.getParagraphIndent(this@ReadingActivity)
         val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getFontWeightAsInt(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}_letterSpacing=${letterSpacing}_paragraphIndent=${paragraphIndent}_hyphen=$hyphenationEnabled"
-        if (BookCache.sha1 == sha1 + "_v3" && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {
+        if (BookCache.sha1 == sha1 + "_v4" && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {
             splitResult = BookCache.splitResult ?: TextFormatter.PageResult()
             isSplittingFinished = true
             tvLoadingProgress.visibility = View.GONE
@@ -484,10 +484,10 @@ class ReadingActivity : AppCompatActivity() {
         var isFirstRender = true
 
         val textToSplit = if (hyphenationEnabled) {
-            if (BookCache.sha1 == this.sha1 + "_v3" && BookCache.isHyphenated == true && BookCache.hyphenatedContent != null) {
+            if (BookCache.sha1 == this.sha1 + "_v4" && BookCache.isHyphenated == true && BookCache.hyphenatedContent != null) {
                 BookCache.hyphenatedContent!!
             } else {
-                val cachedHyphenated = com.nightread.app.ui.HyphenationDiskCache.getHyphenatedText(this@ReadingActivity, sha1 + "_v3")
+                val cachedHyphenated = com.nightread.app.ui.HyphenationDiskCache.getHyphenatedText(this@ReadingActivity, sha1 + "_v4")
                 if (cachedHyphenated != null) {
                     BookCache.hyphenatedContent = cachedHyphenated
                     BookCache.isHyphenated = true
@@ -500,7 +500,7 @@ class ReadingActivity : AppCompatActivity() {
                     BookCache.hyphenatedContent = hyphenated
                     BookCache.isHyphenated = true
                     lifecycleScope.launch(Dispatchers.IO) {
-                        com.nightread.app.ui.HyphenationDiskCache.saveHyphenatedText(this@ReadingActivity, sha1 + "_v3", hyphenated)
+                        com.nightread.app.ui.HyphenationDiskCache.saveHyphenatedText(this@ReadingActivity, sha1 + "_v4", hyphenated)
                     }
                     hyphenated
                 }
@@ -517,7 +517,7 @@ class ReadingActivity : AppCompatActivity() {
                 TextFormatter.formatChapterSpans(this@ReadingActivity, fixedText, paint.textSize)
             }
             
-            val cachedOffsets = com.nightread.app.ui.PaginationDiskCache.getOffsets(this@ReadingActivity, sha1 + "_v3", currentKey)
+            val cachedOffsets = com.nightread.app.ui.PaginationDiskCache.getOffsets(this@ReadingActivity, sha1 + "_v4", currentKey)
             if (cachedOffsets != null) {
                 val newPages = java.util.ArrayList<CharSequence>()
                 for (i in cachedOffsets.indices) {
@@ -529,7 +529,7 @@ class ReadingActivity : AppCompatActivity() {
                 val result = TextFormatter.PageResult(newPages, java.util.ArrayList(cachedOffsets), true)
                 splitResult = result
                 isSplittingFinished = true
-                BookCache.sha1 = sha1 + "_v3"
+                BookCache.sha1 = sha1 + "_v4"
                 BookCache.layoutKey = currentKey
                 BookCache.splitResult = result
 

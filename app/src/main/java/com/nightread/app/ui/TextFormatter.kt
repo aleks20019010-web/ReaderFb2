@@ -16,6 +16,12 @@ import com.nightread.app.data.SettingsManager
 
 object TextFormatter {
 
+    private class ZeroWidthSpan : android.text.style.ReplacementSpan() {
+        override fun getSize(paint: android.graphics.Paint, text: CharSequence, start: Int, end: Int, fm: android.graphics.Paint.FontMetricsInt?): Int = 0
+        override fun draw(canvas: android.graphics.Canvas, text: CharSequence, start: Int, end: Int, x: Float, top: Int, y: Int, bottom: Int, paint: android.graphics.Paint) {}
+    }
+
+
     data class PageResult(
         var pages: MutableList<CharSequence> = mutableListOf(),
         var offsets: MutableList<Int> = mutableListOf(),
@@ -30,19 +36,27 @@ object TextFormatter {
         onNoteClick: ((String) -> Unit)? = null
     ): CharSequence {
         var processedText = text.toString()
+        
+        // 1. Remove multiple consecutive empty lines (including any spaces between them)
+        processedText = processedText.replace(Regex("([ \\t\\r ]*\\n[ \\t\\r ]*){2,}"), "\n")
+        
+        // 2. Strip any remaining spaces at the beginning of every line
+        processedText = processedText.replace(Regex("\\n[ \\t\\r ]+"), "\n")
+        
         if (context != null) {
             val indentDp = com.nightread.app.data.SettingsManager.getParagraphIndent(context)
-            if (indentDp > 0 && !processedText.contains("    ")) {
+            if (indentDp > 0) {
                 val indentStr = "    "
-                val regex = Regex("\\n([^\\s ])")
-                processedText = regex.replace(processedText) { match ->
+                // Add indent to all lines except those starting with a page break (\u000C)
+                processedText = processedText.replace(Regex("\\n([^\\n\\u000C])")) { match ->
                     "\n" + indentStr + match.groupValues[1]
                 }
-                if (processedText.isNotEmpty() && !processedText[0].isWhitespace() && processedText[0] != ' ') {
-                    processedText = indentStr + processedText
+                if (processedText.isNotEmpty() && processedText[0] != '\u000C') {
+                    processedText = indentStr + processedText.trimStart(' ', '\t', '\r', '\n', ' ')
                 }
             }
         }
+
         val finalCharSequence: CharSequence = processedText
         if (finalCharSequence.isEmpty()) return finalCharSequence
 
@@ -58,11 +72,11 @@ object TextFormatter {
             if (endTag == -1) break
             
             // Hide tags
-            spannable.setSpan(AbsoluteSizeSpan(0), startTag, startTag + "[CHAPTER]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ZeroWidthSpan(), startTag, startTag + "[CHAPTER]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), startTag, startTag + "[CHAPTER]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             
             // Hide [/CHAPTER]
-            spannable.setSpan(AbsoluteSizeSpan(0), endTag, endTag + "[/CHAPTER]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ZeroWidthSpan(), endTag, endTag + "[/CHAPTER]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), endTag, endTag + "[/CHAPTER]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             
             val titleStart = startTag + "[CHAPTER]".length
@@ -87,10 +101,10 @@ object TextFormatter {
             val endTag = str.indexOf("[/CITE]", startTag)
             if (endTag == -1) break
 
-            spannable.setSpan(AbsoluteSizeSpan(0), startTag, startTag + "[CITE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ZeroWidthSpan(), startTag, startTag + "[CITE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), startTag, startTag + "[CITE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             
-            spannable.setSpan(AbsoluteSizeSpan(0), endTag, endTag + "[/CITE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ZeroWidthSpan(), endTag, endTag + "[/CITE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), endTag, endTag + "[/CITE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
 
             val citeStart = startTag + "[CITE]".length
@@ -109,10 +123,10 @@ object TextFormatter {
             val endTag = str.indexOf("[/SUP]", startTag)
             if (endTag == -1) break
 
-            spannable.setSpan(AbsoluteSizeSpan(0), startTag, startTag + "[SUP]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ZeroWidthSpan(), startTag, startTag + "[SUP]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), startTag, startTag + "[SUP]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             
-            spannable.setSpan(AbsoluteSizeSpan(0), endTag, endTag + "[/SUP]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(ZeroWidthSpan(), endTag, endTag + "[/SUP]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), endTag, endTag + "[/SUP]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
 
             val supStart = startTag + "[SUP]".length
@@ -139,10 +153,10 @@ object TextFormatter {
                 val contentStart = startTagEnd
                 val contentEnd = endTag
                 
-                spannable.setSpan(AbsoluteSizeSpan(0), match.range.first, startTagEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                spannable.setSpan(ZeroWidthSpan(), match.range.first, startTagEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), match.range.first, startTagEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 
-                spannable.setSpan(AbsoluteSizeSpan(0), endTag, endTag + "[/NOTE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                spannable.setSpan(ZeroWidthSpan(), endTag, endTag + "[/NOTE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), endTag, endTag + "[/NOTE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
 
                 if (contentEnd > contentStart) {
@@ -189,10 +203,10 @@ object TextFormatter {
                 val endTag = str.indexOf("[/NOTE]", startTagEnd)
                 if (endTag == -1) break
                 
-                spannable.setSpan(AbsoluteSizeSpan(0), match.range.first, startTagEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                spannable.setSpan(ZeroWidthSpan(), match.range.first, startTagEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), match.range.first, startTagEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 
-                spannable.setSpan(AbsoluteSizeSpan(0), endTag, endTag + "[/NOTE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                spannable.setSpan(ZeroWidthSpan(), endTag, endTag + "[/NOTE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 spannable.setSpan(ForegroundColorSpan(Color.TRANSPARENT), endTag, endTag + "[/NOTE]".length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 
                 lastIdx = endTag + "[/NOTE]".length

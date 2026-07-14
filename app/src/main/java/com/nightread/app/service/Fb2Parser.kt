@@ -129,7 +129,7 @@ object Fb2Parser : BookParser {
 
         // Clean up multiple newlines to just one newline, excluding FormFeed (\u000C)
         // Clean up multiple newlines to just one or two
-        text = text.replace(Regex("([ \t\r]*\n[ \t\r]*){3,}"), "\n\n")
+        text = text.replace(Regex("([ \t\r]*\n[ \t\r]*){2,}"), "\n")
         // Remove spaces before non-breaking spaces (our paragraph indent)
         text = text.replace(Regex("\n[ \t\r]+(?=\u00A0)"), "\n")
 
