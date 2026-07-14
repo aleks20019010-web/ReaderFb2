@@ -1258,7 +1258,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         return ParsedBook(
             title = parsed.title,
             author = parsed.author,
-            content = parsed.content,
+            content = com.nightread.app.service.TextCleaner.cleanText(parsed.content) as String,
             series = parsed.series,
             language = parsed.language,
             seriesIndex = parsed.seriesIndex,

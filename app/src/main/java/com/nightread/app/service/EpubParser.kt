@@ -23,7 +23,7 @@ object EpubParser : BookParser {
         return BookParser.ParsedBook(
             title = metadata.title,
             author = metadata.author,
-            content = metadata.content,
+            content = TextCleaner.cleanText(metadata.content) as String,
             notes = metadata.notes,
             coverBytes = metadata.coverBytes
         )

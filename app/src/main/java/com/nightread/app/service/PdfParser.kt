@@ -20,7 +20,7 @@ object PdfParser : BookParser {
         return BookParser.ParsedBook(
             title = title,
             author = author,
-            content = content,
+            content = TextCleaner.cleanText(content) as String,
             notes = emptyMap(),
             coverBytes = coverBytes
         )

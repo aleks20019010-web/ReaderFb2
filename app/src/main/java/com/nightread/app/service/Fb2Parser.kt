@@ -142,7 +142,7 @@ object Fb2Parser : BookParser {
         return BookParser.ParsedBook(
             title = title,
             author = author,
-            content = finalResult,
+            content = TextCleaner.cleanText(finalResult) as String,
             notes = notesMap
         )
     }
