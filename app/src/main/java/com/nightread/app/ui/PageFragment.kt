@@ -86,6 +86,7 @@ class PageFragment : Fragment() {
             "sepia_contrast" -> Pair("#F5E6C8", "#1A1A1A")
             "contrast" -> Pair("#000000", "#FFFF00")
             "beige" -> Pair("#F4ECD8", "#3B2F1F")
+            "amoled" -> Pair("#000000", "#D9CEE2")
             else -> Pair("#F5F0E8", "#2C2C2C")
         }
 

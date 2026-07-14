@@ -29,13 +29,30 @@ class StarryNightView @JvmOverloads constructor(
     private val shootingStarPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         strokeCap = Paint.Cap.ROUND
     }
+    private val fireflyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val random = Random()
     private val stars = mutableListOf<Star>()
     private val shootingStars = mutableListOf<ShootingStar>()
+    private val fireflies = mutableListOf<Firefly>()
 
     private var lastW = 0
     private var lastH = 0
     private var animating = false
+
+    // Структура светлячка
+    private data class Firefly(
+        var x: Float,
+        var y: Float,
+        val baseRadius: Float,
+        val speedX: Float,
+        val speedY: Float,
+        val color: Int,
+        val pulseSpeed: Float,
+        var pulsePhase: Float,
+        val depth: Float,
+        var driftOffsetX: Float = 0f,
+        var driftOffsetY: Float = 0f
+    )
 
     // Параметры гироскопа и фильтрации наклонов
     private var sensorManager: SensorManager? = null
@@ -137,12 +154,35 @@ class StarryNightView @JvmOverloads constructor(
         invalidate()
     }
 
+    private fun pushFireflies(tx: Float, ty: Float) {
+        val density = resources.displayMetrics.density
+        val pushRadius = 150f * density // Around 150dp radius of influence
+        for (f in fireflies) {
+            val dx = f.x - tx
+            val dy = f.y - ty
+            val distSq = dx * dx + dy * dy
+            if (distSq < pushRadius * pushRadius) {
+                val dist = Math.sqrt(distSq.toDouble()).toFloat()
+                if (dist > 0.1f) {
+                    val force = (pushRadius - dist) / pushRadius
+                    // Push vector
+                    val pushX = (dx / dist) * force * 15f * density
+                    val pushY = (dy / dist) * force * 15f * density
+                    
+                    f.driftOffsetX += pushX
+                    f.driftOffsetY += pushY
+                }
+            }
+        }
+    }
+
     override fun onTouchEvent(event: MotionEvent?): Boolean {
         if (event == null) return super.onTouchEvent(event)
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 lastTouchX = event.x
                 lastTouchY = event.y
+                pushFireflies(event.x, event.y)
             }
             MotionEvent.ACTION_MOVE -> {
                 val dx = event.x - lastTouchX
@@ -152,6 +192,7 @@ class StarryNightView @JvmOverloads constructor(
                 touchOffsetY += dy * 0.15f
                 lastTouchX = event.x
                 lastTouchY = event.y
+                pushFireflies(event.x, event.y)
                 invalidate()
             }
         }
@@ -216,6 +257,56 @@ class StarryNightView @JvmOverloads constructor(
                 canvas.drawCircle(finalX, finalY, star.radius, starPaint)
             }
 
+            // 3b. Отрисовка интерактивных светлячков (Ambient Fireflies)
+            for (f in fireflies) {
+                // Update pulsation
+                f.pulsePhase += f.pulseSpeed
+                val sinVal = Math.sin(f.pulsePhase.toDouble()).toFloat()
+                
+                // Pulsate alpha (0.2 to 0.7) and radius (0.85x to 1.15x)
+                val alphaMult = 0.25f + 0.45f * (sinVal + 1f) / 2f
+                val currentRadius = f.baseRadius * (0.85f + 0.15f * sinVal)
+                
+                // Slowly drift naturally
+                f.x += f.speedX + f.driftOffsetX
+                f.y += f.speedY + f.driftOffsetY
+                
+                // Decay the touch-push offsets
+                f.driftOffsetX *= 0.92f
+                f.driftOffsetY *= 0.92f
+                
+                // Wrap around edges
+                if (f.x < -50f) f.x += w + 100f
+                else if (f.x > w + 50f) f.x -= w + 100f
+                
+                if (f.y < -50f) f.y += h + 100f
+                else if (f.y > h + 50f) f.y -= h + 100f
+                
+                // Parallax shift based on depth and tilts
+                val xOffset = (currentTiltX + touchOffsetX) * f.depth - (drawerSlideOffset * w * 0.4f * f.depth)
+                val yOffset = (currentTiltY + touchOffsetY) * f.depth
+                
+                var drawX = f.x + xOffset
+                var drawY = f.y + yOffset
+                
+                // Wrap around for parallax draw position as well to keep them on screen
+                if (drawX < 0) drawX += w
+                else if (drawX > w) drawX -= w
+                
+                if (drawY < 0) drawY += h
+                else if (drawY > h) drawY -= h
+                
+                // Draw a soft glowing firefly (dual layers for neon blur)
+                // Outer glow: very low alpha, larger radius
+                fireflyPaint.color = f.color
+                fireflyPaint.alpha = (alphaMult * 0.15f * 255).toInt().coerceIn(0, 255)
+                canvas.drawCircle(drawX, drawY, currentRadius * 2.2f, fireflyPaint)
+                
+                // Inner core: higher alpha, standard radius
+                fireflyPaint.alpha = (alphaMult * 0.85f * 255).toInt().coerceIn(0, 255)
+                canvas.drawCircle(drawX, drawY, currentRadius, fireflyPaint)
+            }
+
             // 4. Логика и отрисовка падающих звезд
             updateAndDrawShootingStars(canvas, w, h)
 
@@ -267,6 +358,40 @@ class StarryNightView @JvmOverloads constructor(
             val twinklePhase = random.nextFloat() * (Math.PI * 2).toFloat()
 
             stars.add(Star(x, y, radius, baseAlpha, color, depth, twinkleSpeed, twinklePhase))
+        }
+        generateFireflies(w, h)
+    }
+
+    private fun generateFireflies(w: Int, h: Int) {
+        fireflies.clear()
+        val count = 28 // Balanced number for premium aesthetic without over-crowding
+        val density = resources.displayMetrics.density
+        for (i in 0 until count) {
+            val x = random.nextFloat() * w
+            val y = random.nextFloat() * h
+            
+            // Random slow speeds
+            val speedX = (random.nextFloat() * 0.4f - 0.2f) * density
+            val speedY = (random.nextFloat() * 0.4f - 0.2f) * density
+            
+            // Large, soft radius (3dp to 6dp)
+            val baseRadius = (3f + random.nextFloat() * 3f) * density
+            
+            // Colors: magical warm golden/amber (#FFD700, #FFAB40, #FFE082, #FF9100)
+            val colorSelector = random.nextFloat()
+            val color = when {
+                colorSelector > 0.7f -> Color.rgb(255, 171, 64)  // Warm Amber
+                colorSelector > 0.4f -> Color.rgb(255, 224, 130) // Soft light yellow
+                else -> Color.rgb(255, 215, 0)                   // Gold
+            }
+            
+            val pulseSpeed = 0.015f + random.nextFloat() * 0.025f
+            val pulsePhase = random.nextFloat() * (Math.PI * 2).toFloat()
+            
+            // Floating foreground layer has depth 1.6 to 2.4
+            val depth = 1.6f + random.nextFloat() * 0.8f
+            
+            fireflies.add(Firefly(x, y, baseRadius, speedX, speedY, color, pulseSpeed, pulsePhase, depth))
         }
     }
 

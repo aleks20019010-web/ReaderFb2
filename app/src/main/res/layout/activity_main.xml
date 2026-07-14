@@ -21,6 +21,48 @@
             android:id="@+id/fragment_container"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
+
+        <!-- Liquid Onboarding / Shared Splash Overlay Layer -->
+        <FrameLayout
+            android:id="@+id/splash_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#06030F"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/iv_splash_logo"
+                android:layout_width="140dp"
+                android:layout_height="140dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_launcher_foreground"
+                android:scaleType="fitCenter" />
+
+            <TextView
+                android:id="@+id/tv_splash_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal|bottom"
+                android:layout_marginBottom="110dp"
+                android:text="N I G H T R E A D"
+                android:textColor="#E5D9F4"
+                android:textSize="20sp"
+                android:fontFamily="sans-serif-thin"
+                android:letterSpacing="0.3" />
+
+            <TextView
+                android:id="@+id/tv_splash_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal|bottom"
+                android:layout_marginBottom="85dp"
+                android:text="ЧТЕНИЕ В ПОЛНОЙ ТЕМНОТЕ"
+                android:textColor="#8B7CA2"
+                android:textSize="11sp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.15" />
+        </FrameLayout>
     </FrameLayout>
 
     <!-- The navigation drawer -->

@@ -104,6 +104,16 @@ class BookAdapter(
         holder.itemView.animate().cancel(); holder.itemView.alpha = 1f; holder.itemView.translationY = 0f
     }
 
+    override fun onViewAttachedToWindow(holder: BookViewHolder) {
+        super.onViewAttachedToWindow(holder)
+        holder.registerParallax()
+    }
+
+    override fun onViewDetachedFromWindow(holder: BookViewHolder) {
+        super.onViewDetachedFromWindow(holder)
+        holder.unregisterParallax()
+    }
+
 
     override fun getItemCount(): Int = books.size
 
@@ -152,7 +162,7 @@ class BookAdapter(
         }
     }
 
-    class BookViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    class BookViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView), ParallaxSensorManager.ParallaxListener {
         private val tvBookTitle: TextView = itemView.findViewById(R.id.tvBookTitle)
         private val tvBookAuthor: TextView = itemView.findViewById(R.id.tvBookAuthor)
         private val tvBookSeries: TextView = itemView.findViewById(R.id.tvBookSeries)
@@ -161,8 +171,56 @@ class BookAdapter(
         private val tvCoverLetter: TextView = itemView.findViewById(R.id.tvCoverLetter)
         private val vCoverBackground: View = itemView.findViewById(R.id.vCoverBackground)
         private val vCoverGlow: View? = itemView.findViewById(R.id.vCoverGlow)
+        private val cvBookCover: View = itemView.findViewById(R.id.cvBookCover)
         private val btnDelete: View = itemView.findViewById(R.id.btnDelete)
         private val pbReadingProgress: ProgressBar = itemView.findViewById(R.id.pbReadingProgress)
+
+        override fun onTiltChanged(tiltX: Float, tiltY: Float) {
+            val maxRotation = 12f // degrees max tilt
+            val maxTranslation = 8f // translation depth (dp)
+            
+            val density = itemView.context.resources.displayMetrics.density
+            val translationPx = maxTranslation * density
+            
+            // Set 3D perspective camera distance
+            cvBookCover.cameraDistance = 8000f * density
+            
+            // Apply 3D rotation and translation to the book card cover
+            cvBookCover.rotationY = -tiltX * maxRotation
+            cvBookCover.rotationX = tiltY * maxRotation
+            cvBookCover.translationX = -tiltX * translationPx
+            cvBookCover.translationY = tiltY * translationPx
+            
+            // Translate glow in the opposite direction for parallax separation
+            vCoverGlow?.let { glow ->
+                glow.translationX = tiltX * (translationPx * 1.6f)
+                glow.translationY = -tiltY * (translationPx * 1.6f)
+                glow.scaleX = 1.03f + (Math.abs(tiltX) * 0.05f)
+                glow.scaleY = 1.03f + (Math.abs(tiltY) * 0.05f)
+            }
+        }
+
+        fun registerParallax() {
+            ParallaxSensorManager.init(itemView.context.applicationContext)
+            ParallaxSensorManager.registerListener(this)
+        }
+
+        fun unregisterParallax() {
+            ParallaxSensorManager.unregisterListener(this)
+            
+            // Reset values to flat state
+            cvBookCover.rotationX = 0f
+            cvBookCover.rotationY = 0f
+            cvBookCover.translationX = 0f
+            cvBookCover.translationY = 0f
+            
+            vCoverGlow?.let { glow ->
+                glow.translationX = 0f
+                glow.translationY = 0f
+                glow.scaleX = 1f
+                glow.scaleY = 1f
+            }
+        }
 
         private fun getDominantColor(bitmap: android.graphics.Bitmap): Int {
             val width = bitmap.width

@@ -180,12 +180,13 @@ class SettingsBottomSheet : DialogFragment() {
         })
 
         // 5. Theme Selection (Spinner)
-        val themeKeys = listOf("light", "dark", "sepia", "sepia_contrast")
+        val themeKeys = listOf("light", "dark", "sepia", "sepia_contrast", "amoled")
         val themeNames = mapOf(
             "light" to "День",
             "dark" to "Ночь",
             "sepia" to "Сепия",
-            "sepia_contrast" to "Сепия контраст"
+            "sepia_contrast" to "Сепия контраст",
+            "amoled" to "Абсолютная сингулярность"
         )
         val themeDisplayNames = themeKeys.map { themeNames[it] ?: it }
         val spinnerTheme = view.findViewById<Spinner>(R.id.spinnerTheme)
@@ -213,8 +214,9 @@ class SettingsBottomSheet : DialogFragment() {
         spinnerTheme.alpha = 1.0f
 
         // 5b. Page Flip Animation Selection (Spinner)
-        val animKeys = listOf("slide", "fade", "depth", "zoom", "none")
+        val animKeys = listOf("curl", "slide", "fade", "depth", "zoom", "none")
         val animNames = mapOf(
+            "curl" to "3D Page Curl (изгиб листа)",
             "slide" to "Стандартный (слайд)",
             "fade" to "Fade (исчезновение)",
             "depth" to "Depth (глубина)",
@@ -529,6 +531,14 @@ class SettingsBottomSheet : DialogFragment() {
                 textSecondaryHex = "#AAAAAA"
                 dividerHex = "#333333"
             }
+            "amoled" -> {
+                cardBgHex = "#000000"
+                itemBgHex = "#0C0617"
+                accentHex = "#D354FF"
+                textPrimaryHex = "#E5D9F4"
+                textSecondaryHex = "#8B7CA2"
+                dividerHex = "#23113E"
+            }
             else -> { // "dark" or default
                 cardBgHex = "#1A0D2A"
                 itemBgHex = "#2A1A3E"
@@ -642,7 +652,7 @@ class SettingsBottomSheet : DialogFragment() {
 
         val isLightActive = themeKey == "light" || themeKey == "beige"
         val isSepiaActive = themeKey == "sepia" || themeKey == "sepia_contrast"
-        val isDarkActive = themeKey == "dark" || themeKey == "contrast"
+        val isDarkActive = themeKey == "dark" || themeKey == "contrast" || themeKey == "amoled"
 
         ringLight?.visibility = if (isLightActive) View.VISIBLE else View.INVISIBLE
         ringSepia?.visibility = if (isSepiaActive) View.VISIBLE else View.INVISIBLE

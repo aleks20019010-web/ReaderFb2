@@ -159,6 +159,101 @@ class MainActivity : BaseActivity() {
             com.nightread.app.data.SyncSettingsManager.setInterruptedFlag(this, false)
             CustomToast.show(this, "Предыдущая фоновая синхронизация была прервана")
         }
+
+        // Set up Splash Screen
+        val splashOverlay = findViewById<FrameLayout>(R.id.splash_overlay)
+        if (hasShownSplash) {
+            splashOverlay?.visibility = android.view.View.GONE
+        } else {
+            hasShownSplash = true
+            runSplashAnimation()
+        }
+    }
+
+    private fun runSplashAnimation() {
+        val splashOverlay = findViewById<FrameLayout>(R.id.splash_overlay) ?: return
+        val ivLogo = findViewById<android.widget.ImageView>(R.id.iv_splash_logo)
+        val tvTitle = findViewById<android.widget.TextView>(R.id.tv_splash_title)
+        val tvSubtitle = findViewById<android.widget.TextView>(R.id.tv_splash_subtitle)
+
+        // Initial states
+        ivLogo?.alpha = 0f
+        ivLogo?.scaleX = 0.3f
+        ivLogo?.scaleY = 0.3f
+        ivLogo?.rotation = -45f
+
+        tvTitle?.alpha = 0f
+        tvTitle?.translationY = 50f
+
+        tvSubtitle?.alpha = 0f
+        tvSubtitle?.translationY = 50f
+
+        // 1. Animate Logo scale and rotation (Book unfolding feel)
+        ivLogo?.animate()
+            ?.alpha(1f)
+            ?.scaleX(1.0f)
+            ?.scaleY(1.0f)
+            ?.rotation(0f)
+            ?.setDuration(1000)
+            ?.setInterpolator(android.view.animation.OvershootInterpolator(1.4f))
+            ?.start()
+
+        // 2. Animate Title and Subtitle floating up and fading in
+        tvTitle?.animate()
+            ?.alpha(1f)
+            ?.translationY(0f)
+            ?.setDuration(800)
+            ?.setStartDelay(300)
+            ?.setInterpolator(android.view.animation.DecelerateInterpolator())
+            ?.start()
+
+        tvSubtitle?.animate()
+            ?.alpha(1f)
+            ?.translationY(0f)
+            ?.setDuration(800)
+            ?.setStartDelay(500)
+            ?.setInterpolator(android.view.animation.DecelerateInterpolator())
+            ?.start()
+
+        // 3. Liquid reveal / transition to main menu after a gorgeous delay
+        splashOverlay.postDelayed({
+            // Transform/Move logo up out of the way
+            ivLogo?.animate()
+                ?.scaleX(0.4f)
+                ?.scaleY(0.4f)
+                ?.translationY(-300f)
+                ?.alpha(0f)
+                ?.setDuration(800)
+                ?.setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+                ?.start()
+
+            // Subtitle and title sink gracefully
+            tvTitle?.animate()
+                ?.translationY(150f)
+                ?.alpha(0f)
+                ?.setDuration(600)
+                ?.setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+                ?.start()
+
+            tvSubtitle?.animate()
+                ?.translationY(150f)
+                ?.alpha(0f)
+                ?.setDuration(600)
+                ?.setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+                ?.start()
+
+            // Expand overlay in size and fade out (creates a liquid "portal" zoom-out effect)
+            splashOverlay.animate()
+                ?.alpha(0f)
+                ?.scaleX(1.15f)
+                ?.scaleY(1.15f)
+                ?.setDuration(900)
+                ?.setInterpolator(android.view.animation.DecelerateInterpolator())
+                ?.withEndAction {
+                    splashOverlay.visibility = android.view.View.GONE
+                }
+                ?.start()
+        }, 1500) // 1.5 seconds splash display
     }
 
     private fun openLibraryFragment(filter: String) {
@@ -208,5 +303,9 @@ class MainActivity : BaseActivity() {
         if (intent.getBooleanExtra("OPEN_DRAWER", false)) {
             openDrawer()
         }
+    }
+
+    companion object {
+        private var hasShownSplash = false
     }
 }

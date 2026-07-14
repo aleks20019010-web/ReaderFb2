@@ -828,6 +828,7 @@ class ReadingActivity : AppCompatActivity() {
             "sepia_contrast" -> "#F5E6C8"
             "contrast" -> "#000000"
             "beige" -> "#F4ECD8"
+            "amoled" -> "#000000"
             else -> "#F5F0E8"
         }
         val parsedColor = android.graphics.Color.parseColor(bgColor)
@@ -982,6 +983,7 @@ class ReadingActivity : AppCompatActivity() {
         lastPageAnimation = animMode
         
         val transformer = when (animMode) {
+            "curl" -> CurlPageTransformer()
             "fade" -> FadePageTransformer()
             "depth" -> DepthPageTransformer()
             "zoom" -> ZoomOutPageTransformer()
