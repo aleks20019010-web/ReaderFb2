@@ -573,11 +573,15 @@ class ReadingActivity : AppCompatActivity() {
         }
     }
 
-    private fun getTopInset(): Int {
-        val insets = androidx.core.view.ViewCompat.getRootWindowInsets(window.decorView) ?: return 0
-        val displayCutoutInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.displayCutout())
-        val statusBarInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-        return maxOf(statusBarInsets.top, displayCutoutInsets.top)
+    internal fun getTopInset(): Int {
+        val insets = androidx.core.view.ViewCompat.getRootWindowInsets(window.decorView)
+        if (insets != null) {
+            val displayCutoutInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.displayCutout())
+            val statusBarInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            return maxOf(statusBarInsets.top, displayCutoutInsets.top)
+        }
+        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
     }
 
     private var startY = 0f

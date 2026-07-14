@@ -118,7 +118,7 @@ class PageFragment : Fragment() {
             
             if (width > 0 && height > 0) {
                 val offset = arguments?.getInt("PAGE_OFFSET") ?: 0
-                val formattedTextWithClicks = TextFormatter.formatAllSpans(context, pageText, paint.textSize, offset) { noteId ->
+                val formattedTextWithClicks = TextFormatter.addClickableSpans(pageText) { noteId ->
                     val readingActivity = activity as? ReadingActivity
                     readingActivity?.showFootnote(noteId)
                 }

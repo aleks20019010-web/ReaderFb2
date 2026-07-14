@@ -218,4 +218,41 @@ object TextFormatter {
     fun formatChapterSpans(context: android.content.Context?, text: CharSequence, basePaintSize: Float): CharSequence {
         return formatAllSpans(context, text, basePaintSize, null, null)
     }
+
+    fun addClickableSpans(text: CharSequence, onNoteClick: (String) -> Unit): CharSequence {
+        val spannable = SpannableStringBuilder(text)
+        val str = text.toString()
+        var lastIdx = 0
+        val noteRegex = Regex("""\[NOTE:([^\]]+)\]""")
+        while (true) {
+            val match = noteRegex.find(str, lastIdx) ?: break
+            val startTagEnd = match.range.last + 1
+            val noteId = match.groupValues[1]
+
+            val endTag = str.indexOf("[/NOTE]", startTagEnd)
+            if (endTag == -1) break
+
+            val contentStart = startTagEnd
+            val contentEnd = endTag
+            if (contentEnd > contentStart) {
+                spannable.setSpan(
+                    object : android.text.style.ClickableSpan() {
+                        override fun onClick(widget: View) {
+                            onNoteClick(noteId)
+                        }
+                        override fun updateDrawState(ds: android.text.TextPaint) {
+                            super.updateDrawState(ds)
+                            ds.isUnderlineText = false
+                            ds.color = Color.parseColor("#9B59B6")
+                        }
+                    },
+                    contentStart,
+                    contentEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+            lastIdx = endTag + "[/NOTE]".length
+        }
+        return spannable
+    }
 }
