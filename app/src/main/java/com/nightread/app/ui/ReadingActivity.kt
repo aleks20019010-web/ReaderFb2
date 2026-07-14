@@ -182,7 +182,7 @@ class ReadingActivity : AppCompatActivity() {
         lastPageAnimation = SettingsManager.getPageAnimation(this)
 
         val startReadingTheme = SettingsManager.getReadingTheme(this)
-        isNightMode = startReadingTheme == "dark" || startReadingTheme == "contrast"
+        isNightMode = isDarkTheme(startReadingTheme)
 
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as? android.hardware.SensorManager
         lightSensor = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_LIGHT)
@@ -743,13 +743,17 @@ class ReadingActivity : AppCompatActivity() {
             .start()
     }
 
+    private fun isDarkTheme(theme: String): Boolean {
+        return theme == "dark" || theme == "contrast" || theme == "amoled"
+    }
+
     private fun toggleNightMode() {
         val currentReadingTheme = SettingsManager.getReadingTheme(this)
-        val isCurrentDark = currentReadingTheme == "dark" || currentReadingTheme == "contrast"
+        val isCurrentDark = isDarkTheme(currentReadingTheme)
         
         if (isCurrentDark) {
             val prevTheme = getSharedPreferences("reader_prefs", MODE_PRIVATE).getString("prev_reading_theme", "sepia") ?: "sepia"
-            val target = if (prevTheme == "dark" || prevTheme == "contrast") "sepia" else prevTheme
+            val target = if (isDarkTheme(prevTheme)) "sepia" else prevTheme
             SettingsManager.setReadingTheme(this, target)
             isNightMode = false
         } else {
@@ -1128,7 +1132,7 @@ class ReadingActivity : AppCompatActivity() {
                     
                     if (lux < 8.0f) {
                         // Environment is dark, switch to deep "dark" theme
-                        if (currentTheme != "dark" && currentTheme != "contrast") {
+                        if (!isDarkTheme(currentTheme)) {
                             // Save pre-sensor theme to restore it later if environment gets bright
                             getSharedPreferences("reader_prefs", MODE_PRIVATE).edit()
                                 .putString("pre_sensor_theme", currentTheme)
@@ -1141,11 +1145,11 @@ class ReadingActivity : AppCompatActivity() {
                         }
                     } else if (lux > 25.0f) {
                         // Environment is bright, restore previous non-dark theme (or "sepia" as default)
-                        if (currentTheme == "dark" || currentTheme == "contrast") {
+                        if (isDarkTheme(currentTheme)) {
                             val savedTheme = getSharedPreferences("reader_prefs", MODE_PRIVATE)
                                 .getString("pre_sensor_theme", "sepia") ?: "sepia"
                             
-                            val targetTheme = if (savedTheme == "dark" || savedTheme == "contrast") "sepia" else savedTheme
+                            val targetTheme = if (isDarkTheme(savedTheme)) "sepia" else savedTheme
                             SettingsManager.setReadingTheme(this@ReadingActivity, targetTheme)
                             isNightMode = false
                             lastThemeTransitionTime = currentTime
