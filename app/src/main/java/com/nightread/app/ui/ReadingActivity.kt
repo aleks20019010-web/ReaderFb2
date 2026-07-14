@@ -465,10 +465,15 @@ class ReadingActivity : AppCompatActivity() {
                 }
             }
             if (targetPage < splitResult.pages.size) {
-                viewPager.setCurrentItem(targetPage, false)
+                viewPager.post {
+                    viewPager.setCurrentItem(targetPage, false)
+                    updateBottomBar(targetPage)
+                    showBarsWithAnimation(animateFab = true)
+                }
+            } else {
+                updateBottomBar(targetPage)
+                showBarsWithAnimation(animateFab = true)
             }
-            updateBottomBar(targetPage)
-            showBarsWithAnimation(animateFab = true)
             return
         }
 
