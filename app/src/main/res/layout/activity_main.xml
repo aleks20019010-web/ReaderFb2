@@ -27,7 +27,7 @@
             android:id="@+id/splash_overlay"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="#F205020E"
+            android:background="#D905020E"
             android:clickable="true"
             android:focusable="true">
 
@@ -148,21 +148,37 @@
                     </LinearLayout>
                 </FrameLayout>
 
-                <!-- Action Button: Enter App button with Gold-purple glow styling -->
-                <Button
-                    android:id="@+id/btn_enter_app"
+                <!-- Progress Loading Section -->
+                <LinearLayout
+                    android:id="@+id/layout_splash_loading"
                     android:layout_width="match_parent"
-                    android:layout_height="54dp"
-                    android:layout_marginBottom="16dp"
-                    android:text="ПОГРУЗИТЬСЯ В ЧТЕНИЕ"
-                    android:textColor="#120924"
-                    android:textSize="15sp"
-                    android:fontFamily="sans-serif-medium"
-                    android:letterSpacing="0.1"
-                    style="@style/Widget.Material3.Button"
-                    app:backgroundTint="#FFE3A8"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp" />
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:layout_marginBottom="16dp">
+
+                    <TextView
+                        android:id="@+id/tv_splash_loading_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Инициализация приложения..."
+                        android:textColor="#8B7CA2"
+                        android:textSize="13sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:letterSpacing="0.05"
+                        android:layout_marginBottom="12dp" />
+
+                    <ProgressBar
+                        android:id="@+id/pb_splash_loading"
+                        style="@android:style/Widget.ProgressBar.Horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="4dp"
+                        android:layout_marginLeft="24dp"
+                        android:layout_marginRight="24dp"
+                        android:max="100"
+                        android:progress="0"
+                        android:progressDrawable="@drawable/bg_splash_progress" />
+                </LinearLayout>
 
             </LinearLayout>
         </FrameLayout>

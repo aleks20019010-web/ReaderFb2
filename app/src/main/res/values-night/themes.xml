@@ -13,8 +13,12 @@
         <item name="colorOnSecondary">@color/btn_text</item>
 
         <!-- Surface and background colors -->
-        <item name="android:colorBackground">@android:color/transparent</item>
-        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorBackground">#05020E</item>
+        <item name="android:windowBackground">#05020E</item>
+        
+        <!-- Splash Screen customization for API 31+ to avoid showing launcher icon before greeting screen -->
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">#05020E</item>
+        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@android:color/transparent</item>
         <item name="colorSurface">@color/bg_card</item>
         <item name="colorOnSurface">@color/text_primary</item>
         <item name="colorSurfaceVariant">@color/bg_panel</item>

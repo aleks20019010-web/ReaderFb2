@@ -9,14 +9,32 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.firstOrNull
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
+import android.animation.AnimatorSet
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.widget.ProgressBar
 import com.nightread.app.data.SettingsManager
 import com.nightread.app.ui.BaseActivity
 import com.nightread.app.ui.BookmarksFragment
 import com.nightread.app.ui.YandexSyncFragment
 import com.nightread.app.ui.LibraryFragment
 import com.nightread.app.ui.CustomToast
+import com.nightread.app.ui.FontUtils
+import com.nightread.app.ui.PageSplitter
+import com.nightread.app.ui.BookCache
+import com.nightread.app.service.BookParser
+import com.nightread.app.service.Fb2Parser
+import com.nightread.app.service.EpubParser
+import com.nightread.app.service.MobiParser
+import com.nightread.app.service.TxtParser
 import com.google.android.material.navigation.NavigationView
 import android.graphics.Color
+import android.text.TextPaint
 import android.widget.TextView
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -25,6 +43,10 @@ import android.view.View
 import android.content.res.ColorStateList
 import android.view.animation.OvershootInterpolator
 import android.view.animation.DecelerateInterpolator
+import java.io.File
+import java.io.FileInputStream
+import java.util.Locale
+import java.util.zip.ZipInputStream
 
 class MainActivity : BaseActivity() {
 
@@ -32,6 +54,11 @@ class MainActivity : BaseActivity() {
     private lateinit var navView: NavigationView
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            splashScreen.setOnExitAnimationListener { splashScreenView ->
+                splashScreenView.remove()
+            }
+        }
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
@@ -136,31 +163,6 @@ class MainActivity : BaseActivity() {
             } else {
                 openLibraryFragment(lastFilter)
             }
-
-            // Check if there is a last read book and immediately launch ReadingActivity
-            val preventAutoOpen = intent.getBooleanExtra("PREVENT_AUTO_OPEN", false)
-            val lastReadSha1 = SettingsManager.getLastReadBookSha1(this)
-            if (!lastReadSha1.isNullOrEmpty() && !preventAutoOpen) {
-                lifecycleScope.launch {
-                    val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
-                    val repository = com.nightread.app.data.BookRepository(db.bookDao(), db.noteDao())
-                    val book = repository.getBookBySha1(lastReadSha1)
-                    if (book != null) {
-                        val percent = if (book.totalCharacters > 0) {
-                            ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt()
-                        } else {
-                            0
-                        }
-                        if (percent < 100) {
-                            android.util.Log.d("MainActivity", "Auto-opening last read book on startup: SHA1=$lastReadSha1")
-                            val openIntent = Intent(this@MainActivity, com.nightread.app.ui.ReadingActivity::class.java).apply {
-                                putExtra("BOOK_SHA1", lastReadSha1)
-                            }
-                            startActivity(openIntent)
-                        }
-                    }
-                }
-            }
         }
 
         // Inform user if previous sync was interrupted
@@ -173,8 +175,10 @@ class MainActivity : BaseActivity() {
         val splashOverlay = findViewById<FrameLayout>(R.id.splash_overlay)
         if (hasShownSplash) {
             splashOverlay?.visibility = android.view.View.GONE
+            isSplashActive = false
         } else {
             hasShownSplash = true
+            isSplashActive = true
             runSplashAnimation()
         }
     }
@@ -190,46 +194,61 @@ class MainActivity : BaseActivity() {
         val tvMoodTitle = findViewById<TextView>(R.id.tv_mood_title)
         val tvMoodSubtitle = findViewById<TextView>(R.id.tv_mood_subtitle)
         val tvMoodQuote = findViewById<TextView>(R.id.tv_mood_quote)
-        val btnEnterApp = findViewById<Button>(R.id.btn_enter_app)
+        val layoutSplashLoading = findViewById<LinearLayout>(R.id.layout_splash_loading)
+        val tvSplashLoadingStatus = findViewById<TextView>(R.id.tv_splash_loading_status)
+        val pbSplashLoading = findViewById<ProgressBar>(R.id.pb_splash_loading)
         val starryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.starry_bg)
 
         // Configure the background live particles to match our premium Golden accent initially
         starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
-        // Add interactive premium splash touch! Tap on card or icon to shoot stars and trigger ring pulses
-        val triggerInteraction = View.OnClickListener {
-            // 1. Shake/Rotate the logo slightly with overshoot
-            ivLogo?.clearAnimation()
-            ivLogo?.animate()
-                ?.rotation(360f)
-                ?.scaleX(1.15f)
-                ?.scaleY(1.15f)
-                ?.setDuration(700)
-                ?.setInterpolator(OvershootInterpolator(1.3f))
-                ?.withEndAction {
-                    ivLogo.rotation = 0f
-                    ivLogo.animate()?.scaleX(1.0f)?.scaleY(1.0f)?.setDuration(200)?.start()
-                }
-                ?.start()
-
-            // 2. Pulse the background glow
-            viewIconGlow?.clearAnimation()
-            viewIconGlow?.alpha = 0.6f
-            viewIconGlow?.scaleX = 1.3f
-            viewIconGlow?.scaleY = 1.3f
-            viewIconGlow?.animate()
-                ?.alpha(0.25f)
-                ?.scaleX(1.0f)
-                ?.scaleY(1.0f)
-                ?.setDuration(600)
-                ?.start()
-
-            // 3. Trigger a shooting star in the live background!
-            starryBg?.triggerShootingStar()
+        // Infinite, hypnotic ambient animations matching the premium style
+        // 1. Glow pulsation
+        viewIconGlow?.let { glow ->
+            val scaleXAnimator = ObjectAnimator.ofFloat(glow, "scaleX", 1.0f, 1.25f).apply {
+                duration = 2000
+                repeatMode = ValueAnimator.REVERSE
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+            }
+            val scaleYAnimator = ObjectAnimator.ofFloat(glow, "scaleY", 1.0f, 1.25f).apply {
+                duration = 2000
+                repeatMode = ValueAnimator.REVERSE
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+            }
+            val alphaAnimator = ObjectAnimator.ofFloat(glow, "alpha", 0.18f, 0.45f).apply {
+                duration = 2000
+                repeatMode = ValueAnimator.REVERSE
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+            }
+            AnimatorSet().apply {
+                playTogether(scaleXAnimator, scaleYAnimator, alphaAnimator)
+                start()
+            }
         }
 
-        layoutGlowingIcon?.setOnClickListener(triggerInteraction)
-        cardMood?.setOnClickListener(triggerInteraction)
+        // 2. Slow breathing floating effect of the entire logo container
+        layoutGlowingIcon?.let { iconContainer ->
+            ObjectAnimator.ofFloat(iconContainer, "translationY", -12f, 12f).apply {
+                duration = 2500
+                repeatMode = ValueAnimator.REVERSE
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+                start()
+            }
+        }
+
+        // 3. Gentle infinite rotation of the logo itself for cosmic movement
+        ivLogo?.let { logo ->
+            ObjectAnimator.ofFloat(logo, "rotation", 0f, 360f).apply {
+                duration = 32000
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = android.view.animation.LinearInterpolator()
+                start()
+            }
+        }
 
         // Initial hidden states for a beautiful timed staggered reveal
         tvSplashTitle?.alpha = 0f
@@ -239,8 +258,8 @@ class MainActivity : BaseActivity() {
         cardMood?.alpha = 0f
         cardMood?.scaleX = 0.88f
         cardMood?.scaleY = 0.88f
-        btnEnterApp?.alpha = 0f
-        btnEnterApp?.translationY = 40f
+        layoutSplashLoading?.alpha = 0f
+        layoutSplashLoading?.translationY = 40f
 
         // Staggered reveal animations
         tvSplashTitle?.animate()?.alpha(1f)?.translationY(0f)?.setDuration(800)?.setInterpolator(DecelerateInterpolator())?.start()
@@ -248,27 +267,286 @@ class MainActivity : BaseActivity() {
         
         cardMood?.animate()?.alpha(1f)?.scaleX(1.0f)?.scaleY(1.0f)?.setDuration(950)?.setStartDelay(300)?.setInterpolator(OvershootInterpolator(1.1f))?.start()
         
-        btnEnterApp?.animate()?.alpha(1f)?.translationY(0f)?.setDuration(850)?.setStartDelay(750)?.setInterpolator(OvershootInterpolator(1.2f))?.start()
+        layoutSplashLoading?.animate()?.alpha(1f)?.translationY(0f)?.setDuration(850)?.setStartDelay(750)?.setInterpolator(OvershootInterpolator(1.2f))?.start()
 
-        // Transition from splash to primary app content
-        btnEnterApp?.setOnClickListener {
-            // Outward transition animation
-            tvSplashTitle?.animate()?.alpha(0f)?.translationY(-60f)?.setDuration(550)?.start()
-            tvSplashSubtitle?.animate()?.alpha(0f)?.translationY(-60f)?.setDuration(550)?.start()
-            
-            cardMood?.animate()?.alpha(0f)?.scaleX(0.92f)?.scaleY(0.92f)?.setDuration(550)?.start()
-            btnEnterApp.animate()?.alpha(0f)?.scaleX(0.95f)?.scaleY(0.95f)?.setDuration(450)?.start()
+        // Background loading & pre-splitting configuration
+        val splashStartTime = System.currentTimeMillis()
+        var lastReadBookSha1: String? = null
+        var shouldAutoOpen = false
 
-            splashOverlay.animate()
-                ?.alpha(0f)
-                ?.scaleX(1.12f)
-                ?.scaleY(1.12f)
-                ?.setDuration(750)
-                ?.setInterpolator(DecelerateInterpolator())
-                ?.withEndAction {
-                    splashOverlay.visibility = View.GONE
+        val preventAutoOpen = intent.getBooleanExtra("PREVENT_AUTO_OPEN", false)
+        val lastReadSha1 = SettingsManager.getLastReadBookSha1(this)
+
+        var isTransitionStarted = false
+        fun proceedFromSplash() {
+            if (isTransitionStarted) return
+            isTransitionStarted = true
+
+            if (shouldAutoOpen && lastReadBookSha1 != null) {
+                val openIntent = Intent(this@MainActivity, com.nightread.app.ui.ReadingActivity::class.java).apply {
+                    putExtra("BOOK_SHA1", lastReadBookSha1)
                 }
-                ?.start()
+                startActivity(openIntent)
+                splashOverlay.visibility = View.GONE
+                isSplashActive = false
+            } else {
+                tvSplashTitle?.animate()?.alpha(0f)?.translationY(-60f)?.setDuration(550)?.start()
+                tvSplashSubtitle?.animate()?.alpha(0f)?.translationY(-60f)?.setDuration(550)?.start()
+                cardMood?.animate()?.alpha(0f)?.scaleX(0.92f)?.scaleY(0.92f)?.setDuration(550)?.start()
+                layoutSplashLoading?.animate()?.alpha(0f)?.scaleX(0.95f)?.scaleY(0.95f)?.setDuration(450)?.start()
+
+                splashOverlay.animate()
+                    ?.alpha(0f)
+                    ?.scaleX(1.12f)
+                    ?.scaleY(1.12f)
+                    ?.setDuration(750)
+                    ?.setInterpolator(DecelerateInterpolator())
+                    ?.withEndAction {
+                        splashOverlay.visibility = View.GONE
+                        isSplashActive = false
+                    }
+                    ?.start()
+            }
+        }
+
+        // Helper to update progress on the main thread safely
+        fun updateLoadingProgress(progress: Int, statusText: String) {
+            runOnUiThread {
+                tvSplashLoadingStatus?.text = statusText
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    pbSplashLoading?.setProgress(progress, true)
+                } else {
+                    pbSplashLoading?.progress = progress
+                }
+            }
+        }
+
+        // Start background pre-processing as soon as layout size is known
+        splashOverlay.post {
+            val width = splashOverlay.width
+            val height = splashOverlay.height
+            if (width <= 0 || height <= 0) return@post
+
+            lifecycleScope.launch {
+                val bookViewModel = androidx.lifecycle.ViewModelProvider(this@MainActivity).get(com.nightread.app.ui.BookViewModel::class.java)
+
+                // 1. Run background incremental scanning if storage permission is granted
+                updateLoadingProgress(10, "Инициализация библиотечной базы...")
+                delay(300) // Small warm up delay
+
+                var isScanningTriggered = false
+                if (hasStoragePermission()) {
+                    isScanningTriggered = true
+                    android.util.Log.d("MainActivity", "Storage permissions granted, starting background scanner on splash")
+                    updateLoadingProgress(25, "Поиск новых книг в памяти...")
+                    bookViewModel.startIncrementalBookScan()
+                } else {
+                    // Smoothly animate progress bar to make the entrance look fluid and premium
+                    for (p in 25..45 step 2) {
+                        updateLoadingProgress(p, "Подготовка космической полки...")
+                        delay(50)
+                    }
+                }
+
+                // 2. Prepare/pre-split last read book if available
+                if (!lastReadSha1.isNullOrEmpty() && !preventAutoOpen) {
+                    val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
+                    val book = db.bookDao().getBookBySha1(lastReadSha1)
+                    if (book != null) {
+                        val percent = if (book.totalCharacters > 0) {
+                            ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt()
+                        } else {
+                            0
+                        }
+                        if (percent < 100) {
+                            lastReadBookSha1 = lastReadSha1
+                            shouldAutoOpen = true
+                        }
+                    }
+                }
+
+                // 3. Warm up the database and book list stream
+                try {
+                    updateLoadingProgress(45, "Обновление книжной полки...")
+                    bookViewModel.allBooks.firstOrNull()
+                } catch (e: Exception) {
+                    android.util.Log.e("MainActivity", "Database warm up failed in background", e)
+                }
+
+                // 4. Await background scan completion (up to a 4s total timeout to prevent hanging)
+                if (isScanningTriggered) {
+                    val scanTimeoutLimit = splashStartTime + 4000L
+                    while (bookViewModel.scanState.value.isScanning && System.currentTimeMillis() < scanTimeoutLimit) {
+                        val state = bookViewModel.scanState.value
+                        val scanProgress = if (state.totalFiles > 0) {
+                            (state.processedFiles.toFloat() / state.totalFiles * 25).toInt()
+                        } else {
+                            0
+                        }
+                        updateLoadingProgress(45 + scanProgress, "Сканирование: ${state.processedFiles}/${state.totalFiles}...")
+                        delay(200)
+                    }
+                    android.util.Log.d("MainActivity", "Splash book scanning completed or timed out. finalIsScanning=${bookViewModel.scanState.value.isScanning}")
+                } else {
+                    for (p in 46..70 step 2) {
+                        updateLoadingProgress(p, "Загрузка книг...")
+                        delay(40)
+                    }
+                }
+
+                // 5. Precalculate and parse last book pages if needed
+                if (shouldAutoOpen && lastReadBookSha1 != null) {
+                    updateLoadingProgress(70, "Анализ структуры страниц книги...")
+                    withContext(Dispatchers.Default) {
+                        try {
+                            val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
+                            val book = db.bookDao().getBookBySha1(lastReadBookSha1!!) ?: return@withContext
+                            val filePath = book.filePath ?: return@withContext
+                            val file = File(filePath)
+                            if (file.exists()) {
+                                updateLoadingProgress(75, "Открытие книги: ${book.title ?: "Без названия"}...")
+                                val parsedBook = parseBookFile(file)
+                                val bookContent = parsedBook.content.trim().trim('\u000C').trim()
+                                val bookNotes = parsedBook.notes
+                                
+                                if (bookContent.isNotEmpty()) {
+                                    updateLoadingProgress(80, "Анализ структуры и переносов...")
+                                    BookCache.sha1 = lastReadBookSha1!!
+                                    BookCache.content = bookContent
+                                    BookCache.notes = bookNotes
+                                    
+                                    val hyphenationEnabled = SettingsManager.isHyphenationEnabled(this@MainActivity)
+                                    val textToSplit = if (hyphenationEnabled) {
+                                        com.nightread.app.ui.HyphenationPatterns.load("ru")
+                                        com.nightread.app.ui.HyphenatorHelper.hyphenate(bookContent)
+                                    } else {
+                                        bookContent
+                                    }
+                                    BookCache.hyphenatedContent = textToSplit
+                                    BookCache.isHyphenated = hyphenationEnabled
+                                    
+                                    updateLoadingProgress(85, "Отрисовка и верстка страниц...")
+                                    val paint = TextPaint().apply {
+                                        textSize = SettingsManager.getFontSize(this@MainActivity) * resources.displayMetrics.scaledDensity
+                                        val family = SettingsManager.getFontFamily(this@MainActivity)
+                                        val numericWeight = SettingsManager.getFontWeightAsInt(this@MainActivity)
+                                        typeface = FontUtils.createTypeface(family, numericWeight)
+                                    }
+                                    
+                                    val paddingHorizontal = (32 * resources.displayMetrics.density).toInt()
+                                    val paddingVertical = (8 * resources.displayMetrics.density).toInt() + getTopInset()
+                                    
+                                    val availableWidth = width - paddingHorizontal
+                                    val availableHeight = height - paddingVertical
+                                    
+                                    val splitResult = PageSplitter.splitText(
+                                        text = textToSplit,
+                                        availableWidth = availableWidth,
+                                        availableHeight = availableHeight,
+                                        paint = paint,
+                                        lineSpacing = SettingsManager.getLineSpacing(this@MainActivity),
+                                        alignment = "left",
+                                        isHyphenationEnabled = hyphenationEnabled
+                                    )
+                                    
+                                    val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@MainActivity)}_${SettingsManager.getFontWeightAsInt(this@MainActivity)}_${SettingsManager.getLineSpacing(this@MainActivity)}_hyphen=$hyphenationEnabled"
+                                    BookCache.layoutKey = currentKey
+                                    BookCache.splitResult = splitResult
+                                    
+                                    android.util.Log.d("MainActivity", "Precalculated splitting finished during splash. Total pages: ${splitResult.pages.size}")
+                                    updateLoadingProgress(95, "Оформление страниц завершено!")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("MainActivity", "Pre-splitting failed in splash background", e)
+                        }
+                    }
+                } else {
+                    // Smooth transition to 95% if not auto-opening
+                    for (p in 71..95) {
+                        updateLoadingProgress(p, "Завершение загрузки...")
+                        delay(20)
+                    }
+                }
+
+                // 6. Ensure the splash screen is visible for at least 4 seconds (4000ms)
+                val elapsed = System.currentTimeMillis() - splashStartTime
+                val remaining = 4000L - elapsed
+                if (remaining > 0) {
+                    val steps = (remaining / 50L).toInt().coerceAtLeast(1)
+                    val stepIncrement = (100 - 95) / steps.toFloat()
+                    var currentP = 95f
+                    for (i in 0 until steps) {
+                        currentP += stepIncrement
+                        updateLoadingProgress(currentP.toInt().coerceAtMost(100), "Готово к чтению...")
+                        delay(50L)
+                    }
+                } else {
+                    updateLoadingProgress(100, "Готово к чтению...")
+                }
+
+                // Proceed with auto-open or library fade-out
+                proceedFromSplash()
+            }
+        }
+    }
+
+    private fun getTopInset(): Int {
+        val insets = androidx.core.view.ViewCompat.getRootWindowInsets(window.decorView)
+        if (insets != null) {
+            val displayCutoutInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.displayCutout())
+            val statusBarInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            return maxOf(statusBarInsets.top, displayCutoutInsets.top)
+        }
+        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
+    }
+
+    private fun parseBookFile(file: File): BookParser.ParsedBook {
+        val ext = file.extension.lowercase(Locale.ROOT)
+        return when (ext) {
+            "fb2", "xml" -> {
+                Fb2Parser.parse(file, file.nameWithoutExtension)
+            }
+            "epub" -> {
+                EpubParser.parse(file, file.nameWithoutExtension)
+            }
+            "mobi", "azw3" -> {
+                MobiParser.parse(file, file.nameWithoutExtension)
+            }
+            "pdf" -> {
+                com.nightread.app.service.PdfParser.parse(file, file.nameWithoutExtension)
+            }
+            "txt" -> {
+                TxtParser.parse(file, file.nameWithoutExtension)
+            }
+            "zip" -> {
+                var parsed = BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
+                try {
+                    FileInputStream(file).use { fis ->
+                        ZipInputStream(fis).use { zis ->
+                            var entry = zis.nextEntry
+                            while (entry != null) {
+                                if (!entry.isDirectory && (entry.name.endsWith(".fb2") || entry.name.endsWith(".xml"))) {
+                                    val tempFile = File.createTempFile("zip_fb2", ".fb2")
+                                    tempFile.deleteOnExit()
+                                    tempFile.outputStream().use { fos ->
+                                        zis.copyTo(fos)
+                                    }
+                                    parsed = Fb2Parser.parse(tempFile, file.nameWithoutExtension)
+                                    tempFile.delete()
+                                    break
+                                }
+                                entry = zis.nextEntry
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("MainActivity", "Error parsing zip in splash", e)
+                }
+                parsed
+            }
+            else -> BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
         }
     }
 
@@ -321,7 +599,23 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    private fun hasStoragePermission(): Boolean {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            return try {
+                android.os.Environment.isExternalStorageManager()
+            } catch (e: Exception) {
+                false
+            }
+        } else {
+            return androidx.core.content.ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+    }
+
     companion object {
-        private var hasShownSplash = false
+        var hasShownSplash = false
+        var isSplashActive = true
     }
 }

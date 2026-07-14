@@ -596,7 +596,9 @@ class LibraryFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             // Artificial delay to show shimmer for better UX as Room loads extremely fast
-            kotlinx.coroutines.delay(800)
+            if (!com.nightread.app.MainActivity.isSplashActive) {
+                kotlinx.coroutines.delay(800)
+            }
             booksFlow.collectLatest { books ->
                 if (viewModel.scanState.value.isScanning && allBooksList.isNotEmpty()) {
                     val currentSha1s = allBooksList.map { it.sha1 }.toSet()
