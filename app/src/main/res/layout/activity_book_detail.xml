@@ -64,7 +64,7 @@
                     android:layout_height="wrap_content"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/text_primary"
+                    android:textColor="#FFFFFF"
                     android:layout_marginBottom="12dp"
                     android:lineSpacingMultiplier="1.1"
                     tools:text="Орден Архитекторов" />
@@ -201,7 +201,7 @@
                             android:text="АННОТАЦИЯ"
                             android:textSize="12sp"
                             android:textStyle="bold"
-                            android:textColor="@color/text_secondary"
+                            android:textColor="#FFE3A8"
                             android:layout_marginBottom="8dp" />
 
                         <TextView
@@ -209,7 +209,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:textSize="15sp"
-                            android:textColor="@color/text_primary"
+                            android:textColor="#FFFFFF"
                             android:lineSpacingMultiplier="1.2"
                             android:ellipsize="end"
                             android:maxLines="5"
@@ -267,7 +267,7 @@
                             android:text="AI ФУНКЦИИ"
                             android:textSize="12sp"
                             android:textStyle="bold"
-                            android:textColor="@color/text_secondary"
+                            android:textColor="#FFE3A8"
                             android:layout_marginBottom="12dp" />
 
                         <com.google.android.material.button.MaterialButton
@@ -296,7 +296,7 @@
                     android:text="ИНФОРМАЦИЯ"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    android:textColor="@color/text_secondary"
+                    android:textColor="#FFE3A8"
                     android:layout_marginBottom="12dp" />
 
                 <!-- Document Info Card -->
@@ -327,7 +327,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="16sp"
-                                android:textColor="@color/text_primary"
+                                android:textColor="#FFFFFF"
                                 android:textStyle="bold"
                                 tools:text="Русский" />
 
@@ -335,7 +335,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="12sp"
-                                android:textColor="@color/text_secondary"
+                                android:textColor="#B8A0C8"
                                 android:text="Язык документа"
                                 android:layout_marginTop="2dp" />
                         </LinearLayout>
@@ -358,7 +358,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="16sp"
-                                android:textColor="@color/text_primary"
+                                android:textColor="#FFFFFF"
                                 android:textStyle="bold"
                                 tools:text="63%, 5 июля 2026 г. 11:11" />
 
@@ -366,7 +366,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="12sp"
-                                android:textColor="@color/text_secondary"
+                                android:textColor="#B8A0C8"
                                 android:text="Текущая закладка и время последнего чтения"
                                 android:layout_marginTop="2dp" />
                         </LinearLayout>
@@ -389,7 +389,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="16sp"
-                                android:textColor="@color/text_primary"
+                                android:textColor="#FFFFFF"
                                 android:textStyle="bold"
                                 tools:text="FB2, 818 КБ" />
 
@@ -397,7 +397,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="12sp"
-                                android:textColor="@color/text_secondary"
+                                android:textColor="#B8A0C8"
                                 android:text="Формат и размер файла"
                                 android:layout_marginTop="2dp" />
                         </LinearLayout>
@@ -420,7 +420,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="14sp"
-                                android:textColor="@color/text_primary"
+                                android:textColor="#FFFFFF"
                                 android:textStyle="bold"
                                 tools:text="47fbfb03d54eb3ec97f5053e267c907c322dd51c" />
 
@@ -428,7 +428,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="12sp"
-                                android:textColor="@color/text_secondary"
+                                android:textColor="#B8A0C8"
                                 android:text="Идентификатор файла документа (SHA-1)"
                                 android:layout_marginTop="2dp" />
                         </LinearLayout>
@@ -443,7 +443,7 @@
                     android:layout_height="wrap_content"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    android:textColor="@color/text_secondary"
+                    android:textColor="#FFE3A8"
                     android:text="Копии файла документа"
                     android:layout_marginBottom="8dp" />
 

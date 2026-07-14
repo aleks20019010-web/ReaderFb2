@@ -244,8 +244,8 @@ class LibraryFragment : Fragment() {
         // Customize SearchView text color, hint, and close button to match theme
         val searchEditText = etSearch.findViewById<EditText>(androidx.appcompat.R.id.search_src_text)
         searchEditText?.apply {
-            setTextColor(resources.getColor(R.color.text_primary, null))
-            setHintTextColor(resources.getColor(R.color.text_secondary, null))
+            setTextColor(android.graphics.Color.WHITE)
+            setHintTextColor(android.graphics.Color.parseColor("#B8A0C8"))
             textSize = 14f
         }
         val closeButton = etSearch.findViewById<ImageView>(androidx.appcompat.R.id.search_close_btn)

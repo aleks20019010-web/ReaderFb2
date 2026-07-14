@@ -72,14 +72,14 @@
                     android:text="Библиотека"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="@color/text_title" />
+                    android:textColor="#FFFFFF" />
 
                 <TextView
                     android:id="@+id/tvBookCount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="12sp"
-                    android:textColor="@color/text_secondary"
+                    android:textColor="#D0C8D8"
                     android:fontFamily="sans-serif-light"
                     android:text="" />
             </LinearLayout>
@@ -238,7 +238,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Продолжить чтение"
-                android:textColor="@color/text_primary"
+                android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="8dp" />
@@ -306,7 +306,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Библиотека пока пустая"
-                    android:textColor="@color/text_title"
+                    android:textColor="#FFFFFF"
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
@@ -316,7 +316,7 @@
                     android:layout_width="260dp"
                     android:layout_height="wrap_content"
                     android:text="Начните сканирование или импортируйте книги"
-                    android:textColor="@color/text_author"
+                    android:textColor="#D0C8D8"
                     android:textSize="13sp"
                     android:gravity="center"
                     android:lineSpacingMultiplier="1.1"

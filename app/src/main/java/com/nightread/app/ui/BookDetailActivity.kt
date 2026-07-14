@@ -488,8 +488,8 @@ class BookDetailActivity : BaseActivity() {
 
     private fun renderFilesList(copies: List<BookEntity>) {
         llFilesContainer.removeAllViews()
-        val textPrimaryColor = resources.getColor(R.color.text_primary, theme)
-        val textSecondaryColor = resources.getColor(R.color.text_secondary, theme)
+        val textPrimaryColor = Color.WHITE
+        val textSecondaryColor = Color.parseColor("#B8A0C8")
 
         val outValue = TypedValue()
         theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
