@@ -7,7 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import com.nightread.app.ui.ReaderPageView
+
 import android.widget.ProgressBar
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -36,7 +36,7 @@ class PageFragment : Fragment() {
     ): View {
         val view = inflater.inflate(R.layout.fragment_page, container, false)
         val root = view.findViewById<FrameLayout>(R.id.rootContainer)
-        val textView = view.findViewById<ReaderPageView>(R.id.textView)
+        val textView = view.findViewById<com.nightread.app.ui.customlayout.CustomReaderPageView>(R.id.textView)
         
         updateStyle(root, textView)
 
@@ -46,7 +46,7 @@ class PageFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        val textView = view.findViewById<ReaderPageView>(R.id.textView)
+        val textView = view.findViewById<com.nightread.app.ui.customlayout.CustomReaderPageView>(R.id.textView)
         ViewCompat.setOnApplyWindowInsetsListener(textView) { v, windowInsets ->
             val displayCutoutInsets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
             val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
@@ -64,7 +64,7 @@ class PageFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 SettingsManager.settingsChanged.collect {
                     val root = view.findViewById<FrameLayout>(R.id.rootContainer)
-                    val textView = view.findViewById<ReaderPageView>(R.id.textView)
+                    val textView = view.findViewById<com.nightread.app.ui.customlayout.CustomReaderPageView>(R.id.textView)
                     updateStyle(root, textView)
                 }
             }
@@ -72,7 +72,7 @@ class PageFragment : Fragment() {
     }
 
     @Suppress("WrongConstant")
-    private fun updateStyle(root: FrameLayout, textView: ReaderPageView) {
+    private fun updateStyle(root: FrameLayout, textView: com.nightread.app.ui.customlayout.CustomReaderPageView) {
         val context = requireContext()
         val fontSize = SettingsManager.getFontSize(context)
         val themeName = SettingsManager.getReadingTheme(context)
@@ -106,26 +106,29 @@ class PageFragment : Fragment() {
         // the view might not be measured yet. We can use post to delay the layout calculation.
         textView.post {
             val width = textView.width - textView.paddingLeft - textView.paddingRight
-            if (width > 0) {
+            val height = textView.height - textView.paddingTop - textView.paddingBottom
+            
+            if (width > 0 && height > 0) {
                 val offset = arguments?.getInt("PAGE_OFFSET") ?: 0
-                val formattedTextWithClicks = PageSplitter.formatAllSpans(context, pageText, paint.textSize, offset) { noteId ->
+                val formattedTextWithClicks = TextFormatter.formatAllSpans(context, pageText, paint.textSize, offset) { noteId ->
                     val readingActivity = activity as? ReadingActivity
                     readingActivity?.showFootnote(noteId)
                 }
 
-                val layout = PaginationManager.createLayoutForPage(
-                    formattedTextWithClicks,
-                    0 to formattedTextWithClicks.length,
-                    width,
-                    paint,
-                    lineSpacingMultiplier,
-                    lineSpacingExtra
-                )
-                textView.setLayout(layout)
+                val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
+                    .setText(formattedTextWithClicks)
+                    .setWidth(width)
+                    .setHeight(height)
+                    .setPaint(paint)
+                    .setLineSpacing(lineSpacingExtra, lineSpacingMultiplier)
+                    
+                val layout = builder.buildPageLayout(0, formattedTextWithClicks.length)
+                
+                (textView as com.nightread.app.ui.customlayout.CustomReaderPageView).setLayout(layout)
             }
         }
         
-        // Handle clicks if needed, might need a custom touch listener on ReaderPageView
+        // Handle clicks if needed, might need a custom touch listener on com.nightread.app.ui.customlayout.CustomReaderPageView
         // textView.movementMethod = android.text.method.LinkMovementMethod.getInstance()
     }
 

@@ -59,7 +59,7 @@ class ReadingActivity : AppCompatActivity() {
     private var bookTitle: String = ""
     private var bookContent: String = ""
     private var bookNotes: Map<String, String> = emptyMap()
-    private var splitResult = PageSplitter.PageResult()
+    private var splitResult = TextFormatter.PageResult()
     private var progressiveJob: kotlinx.coroutines.Job? = null
     private var isSplittingFinished = false
     private var isBarsVisible = false
@@ -237,9 +237,9 @@ class ReadingActivity : AppCompatActivity() {
                 lastLetterSpacing = newLetterSpacing
                 lastParagraphIndent = newParagraphIndent
 
-                if (layoutChanged && bookContent.isNotEmpty() && splitResult != null) {
+                if (layoutChanged && bookContent.isNotEmpty() && true) {
                     val currentIdx = viewPager.currentItem
-                    val targetOffset = if (currentIdx >= 0 && currentIdx < splitResult.offsets.size) {
+                    val targetOffset: Int = if (currentIdx >= 0 && currentIdx < splitResult.offsets.size) {
                         splitResult.offsets[currentIdx]
                     } else {
                         -1
@@ -261,7 +261,7 @@ class ReadingActivity : AppCompatActivity() {
                 lastHeight = h
                 if (bookContent.isNotEmpty() && isSplittingFinished) {
                     val currentIdx = viewPager.currentItem
-                    val targetOffset = if (currentIdx >= 0 && currentIdx < splitResult.offsets.size) {
+                    val targetOffset: Int = if (currentIdx >= 0 && currentIdx < splitResult.offsets.size) {
                         splitResult.offsets[currentIdx]
                     } else {
                         -1
@@ -395,7 +395,7 @@ class ReadingActivity : AppCompatActivity() {
         if (!kotlin.coroutines.coroutineContext.isActive) return
         
         var resolvedCharOffset = targetCharOffset
-        if (resolvedCharOffset < 0 && splitResult != null) {
+        if (resolvedCharOffset < 0 && true) {
             val currentIdx = viewPager.currentItem
             if (currentIdx >= 0 && currentIdx < splitResult.offsets.size) {
                 resolvedCharOffset = splitResult.offsets[currentIdx]
@@ -439,7 +439,7 @@ class ReadingActivity : AppCompatActivity() {
         val paragraphIndent = SettingsManager.getParagraphIndent(this@ReadingActivity)
         val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getFontWeightAsInt(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}_letterSpacing=${letterSpacing}_paragraphIndent=${paragraphIndent}_hyphen=$hyphenationEnabled"
         if (BookCache.sha1 == sha1 && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {
-            splitResult = BookCache.splitResult!!
+            splitResult = BookCache.splitResult ?: TextFormatter.PageResult()
             isSplittingFinished = true
             tvLoadingProgress.visibility = View.GONE
             progressBar.visibility = View.GONE
@@ -501,16 +501,25 @@ class ReadingActivity : AppCompatActivity() {
         }
 
         progressiveJob = lifecycleScope.launch {
-            PageSplitter.splitTextProgressive(
-                context = this@ReadingActivity,
-                text = textToSplit,
-                availableWidth = availableWidth,
-                availableHeight = availableHeight,
-                paint = paint,
-                lineSpacing = SettingsManager.getLineSpacing(this@ReadingActivity),
-                alignment = "left",
-                isHyphenationEnabled = SettingsManager.isHyphenationEnabled(this@ReadingActivity)
-            ) { result ->
+            val formattedText = TextFormatter.formatChapterSpans(this@ReadingActivity, textToSplit, paint.textSize)
+            
+            val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
+                .setText(formattedText)
+                .setWidth(availableWidth)
+                .setHeight(availableHeight)
+                .setPaint(paint)
+                .setLineSpacing(0f, SettingsManager.getLineSpacing(this@ReadingActivity))
+                
+            builder.buildPagination { newOffsets, finished ->
+                val newPages = ArrayList<CharSequence>()
+                for (i in newOffsets.indices) {
+                    val startIdx = newOffsets[i]
+                    val endIdx = if (i < newOffsets.size - 1) newOffsets[i + 1] else formattedText.length
+                    newPages.add(formattedText.subSequence(startIdx, endIdx))
+                }
+                
+                val result = TextFormatter.PageResult(newPages, ArrayList(newOffsets), finished)
+
                 val oldCount = splitResult.pages.size
                 splitResult = result
                 isSplittingFinished = result.isFinished
@@ -810,8 +819,8 @@ class ReadingActivity : AppCompatActivity() {
     private fun setupSeekBar() {
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser && splitResult != null) {
-                    val maxPages = splitResult!!.pages.size - 1
+                if (fromUser && true) {
+                    val maxPages = splitResult.pages.size - 1
                     val targetPage = (progress * maxPages / 100)
                     viewPager.setCurrentItem(targetPage, false)
                 }
@@ -835,7 +844,7 @@ class ReadingActivity : AppCompatActivity() {
             seekBar.progress = 0
         }
 
-        if (sha1.isNotEmpty() && splitResult != null && position >= 0 && position < splitResult.offsets.size) {
+        if (sha1.isNotEmpty() && true && position >= 0 && position < splitResult.offsets.size) {
             val charOffset = splitResult.offsets[position]
             lifecycleScope.launch(Dispatchers.IO) {
                 val db = com.nightread.app.data.BookmarkDatabase.getDatabase(this@ReadingActivity)
@@ -905,7 +914,7 @@ class ReadingActivity : AppCompatActivity() {
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
                 val next = viewPager.currentItem + 1
-                if (splitResult != null && next < splitResult!!.pages.size) {
+                if (true && next < splitResult.pages.size) {
                     viewPager.setCurrentItem(next, true)
                 }
                 return true
@@ -931,8 +940,8 @@ class ReadingActivity : AppCompatActivity() {
     private fun saveProgress() {
         if (sha1.isEmpty() || splitResult == null) return
         val currentIdx = viewPager.currentItem
-        if (currentIdx < splitResult!!.offsets.size) {
-            val charOffset = splitResult!!.offsets[currentIdx]
+        if (currentIdx < splitResult.offsets.size) {
+            val charOffset = splitResult.offsets[currentIdx]
             val totalChars = if (bookContent.isNotEmpty()) bookContent.length else 0
             // Run on an independent scope so it completes even if the activity finishes or its lifecycleScope is cancelled
             val saveScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)

@@ -232,18 +232,22 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             val alignment = _fontAlignmentState.value
             val lineSpacing = _lineSpacingState.value
             
-            val result = PageSplitter.splitText(
-                text = content,
-                availableWidth = availableWidth,
-                availableHeight = availableHeight,
-                paint = paint,
-                lineSpacing = lineSpacing,
-                alignment = alignment,
-                isHyphenationEnabled = SettingsManager.isHyphenationEnabled(appContext)
-            )
-
-            val pages = result.pages
-            val offsets = result.offsets
+            val formattedText = TextFormatter.formatChapterSpans(appContext, content, paint.textSize)
+            val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
+                .setText(formattedText)
+                .setWidth(availableWidth)
+                .setHeight(availableHeight)
+                .setPaint(paint)
+                .setLineSpacing(0f, lineSpacing)
+                
+            val offsets = builder.buildPagination()
+            
+            val pages = ArrayList<CharSequence>()
+            for (i in offsets.indices) {
+                val startIdx = offsets[i]
+                val endIdx = if (i < offsets.size - 1) offsets[i + 1] else formattedText.length
+                pages.add(formattedText.subSequence(startIdx, endIdx))
+            }
 
             // 3. Find the best matching page in the new layout
             var newPageIndex = 0

@@ -5,7 +5,7 @@ object BookCache {
     var content: String = ""
     var notes: Map<String, String> = emptyMap()
     var layoutKey: String = ""
-    var splitResult: PageSplitter.PageResult? = null
+    var splitResult: TextFormatter.PageResult? = null
     var hyphenatedContent: CharSequence? = null
     var isHyphenated: Boolean? = null
 

@@ -26,7 +26,7 @@ import com.nightread.app.ui.LibraryFragment
 import com.nightread.app.ui.CustomToast
 import android.widget.Toast
 import com.nightread.app.ui.FontUtils
-import com.nightread.app.ui.PageSplitter
+import com.nightread.app.ui.TextFormatter
 import com.nightread.app.ui.BookCache
 import com.nightread.app.service.BookParser
 import com.nightread.app.service.Fb2Parser
@@ -454,15 +454,22 @@ class MainActivity : BaseActivity() {
                                     val availableWidth = width - paddingHorizontal
                                     val availableHeight = height - paddingVertical
                                     
-                                    val splitResult = PageSplitter.splitText(
-                                        text = textToSplit,
-                                        availableWidth = availableWidth,
-                                        availableHeight = availableHeight,
-                                        paint = paint,
-                                        lineSpacing = SettingsManager.getLineSpacing(this@MainActivity),
-                                        alignment = "left",
-                                        isHyphenationEnabled = hyphenationEnabled
-                                    )
+                                    val formattedText = com.nightread.app.ui.TextFormatter.formatChapterSpans(this@MainActivity, textToSplit, paint.textSize)
+                                    val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
+                                        .setText(formattedText)
+                                        .setWidth(availableWidth)
+                                        .setHeight(availableHeight)
+                                        .setPaint(paint)
+                                        .setLineSpacing(0f, SettingsManager.getLineSpacing(this@MainActivity))
+                                        
+                                    val offsets = builder.buildPagination()
+                                    val pages = java.util.ArrayList<CharSequence>()
+                                    for (i in offsets.indices) {
+                                        val startIdx = offsets[i]
+                                        val endIdx = if (i < offsets.size - 1) offsets[i + 1] else formattedText.length
+                                        pages.add(formattedText.subSequence(startIdx, endIdx))
+                                    }
+                                    val splitResult = com.nightread.app.ui.TextFormatter.PageResult(pages, java.util.ArrayList(offsets), true)
                                     
                                     val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@MainActivity)}_${SettingsManager.getFontWeightAsInt(this@MainActivity)}_${SettingsManager.getLineSpacing(this@MainActivity)}_hyphen=$hyphenationEnabled"
                                     BookCache.layoutKey = currentKey
