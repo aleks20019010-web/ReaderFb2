@@ -549,7 +549,7 @@ class ReadingActivity : AppCompatActivity() {
                     SettingsManager.setAmberFilterEnabled(this@ReadingActivity, true)
                     SettingsManager.setAmberFilterIntensity(this@ReadingActivity, 15)
                     isNightMode = false
-                    android.widget.Toast.makeText(this@ReadingActivity, "Сепия контраст (теплота 15%)", android.widget.Toast.LENGTH_SHORT).show()
+                    CustomToast.show(this@ReadingActivity, "Сепия контраст (теплота 15%)", Toast.LENGTH_SHORT)
                 } else {
                     toggleBars()
                 }
@@ -668,9 +668,9 @@ class ReadingActivity : AppCompatActivity() {
         val index = bookContent.indexOf(query, ignoreCase = true)
         if (index != -1) {
             jumpToBookmarkOffset(index)
-            Toast.makeText(this, "Найдено в книге", Toast.LENGTH_SHORT).show()
+            CustomToast.show(this, "Найдено в книге", Toast.LENGTH_SHORT)
         } else {
-            Toast.makeText(this, "Текст не найден", Toast.LENGTH_SHORT).show()
+            CustomToast.show(this, "Текст не найден", Toast.LENGTH_SHORT)
         }
     }
 
@@ -1226,11 +1226,11 @@ class ReadingActivity : AppCompatActivity() {
                     if (sleepTimerRemainingSeconds == 0) {
                         // Sleep timer finished! Close reader activity
                         vibrateDevice()
-                        android.widget.Toast.makeText(
+                        CustomToast.show(
                             this@ReadingActivity,
                             "Таймер сна сработал. Спокойной ночи!",
-                            android.widget.Toast.LENGTH_LONG
-                        ).show()
+                            Toast.LENGTH_LONG
+                        )
                         finish()
                     }
                 }
@@ -1258,11 +1258,11 @@ class ReadingActivity : AppCompatActivity() {
         }
         updateSleepTimerIndicatorText()
         vibrateDevice()
-        android.widget.Toast.makeText(
+        CustomToast.show(
             this,
             "Таймер сна продлен на 10 минут ⏳",
-            android.widget.Toast.LENGTH_SHORT
-        ).show()
+            Toast.LENGTH_SHORT
+        )
     }
 
     private fun registerShakeListener() {

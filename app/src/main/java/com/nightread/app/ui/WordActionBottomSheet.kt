@@ -62,7 +62,7 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
             if (readingActivity != null) {
                 readingActivity.performSmartSearch(word)
             } else {
-                Toast.makeText(requireContext(), "Функция доступна только на экране чтения", Toast.LENGTH_SHORT).show()
+                CustomToast.show(requireContext(), "Функция доступна только на экране чтения", Toast.LENGTH_SHORT)
             }
             dismiss()
         }
@@ -71,7 +71,7 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
             val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val clip = ClipData.newPlainText("Copied Word", word)
             clipboard.setPrimaryClip(clip)
-            Toast.makeText(requireContext(), "Слово скопировано", Toast.LENGTH_SHORT).show()
+            CustomToast.show(requireContext(), "Слово скопировано", Toast.LENGTH_SHORT)
             dismiss()
         }
 

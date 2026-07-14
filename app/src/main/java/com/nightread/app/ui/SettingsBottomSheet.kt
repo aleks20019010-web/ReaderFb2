@@ -18,6 +18,7 @@ import android.widget.RelativeLayout
 import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.widget.SwitchCompat
 import androidx.fragment.app.DialogFragment
 import com.nightread.app.R
@@ -484,11 +485,11 @@ class SettingsBottomSheet : DialogFragment() {
             seekBarSleepTimer.progress = 30
             
             // Notify user
-            android.widget.Toast.makeText(
+            CustomToast.show(
                 context,
                 context.getString(R.string.bedtime_mode_activated),
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+                Toast.LENGTH_SHORT
+            )
         }
 
         // Apply initial colors based on current theme

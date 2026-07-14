@@ -24,6 +24,7 @@ import com.nightread.app.ui.BookmarksFragment
 import com.nightread.app.ui.YandexSyncFragment
 import com.nightread.app.ui.LibraryFragment
 import com.nightread.app.ui.CustomToast
+import android.widget.Toast
 import com.nightread.app.ui.FontUtils
 import com.nightread.app.ui.PageSplitter
 import com.nightread.app.ui.BookCache
@@ -95,13 +96,25 @@ class MainActivity : BaseActivity() {
         // Handle WindowInsets for Edge-to-Edge
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         val fragmentContainer = findViewById<FrameLayout>(R.id.fragment_container)
+        val drawerLayoutContainer = findViewById<LinearLayout>(R.id.drawer_layout_container)
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(drawerLayout) { view, windowInsets ->
             val insets = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             // Apply top and bottom padding to the main content container
             fragmentContainer.setPadding(0, insets.top, 0, insets.bottom)
-            // Apply top padding to the NavigationView
-            navView.setPadding(0, insets.top, 0, insets.bottom)
+            // Apply top and bottom padding to the Drawer Container
+            drawerLayoutContainer?.setPadding(0, insets.top, 0, insets.bottom)
             windowInsets
+        }
+
+        findViewById<View>(R.id.btn_searchfloor)?.setOnClickListener {
+            val url = "https://searchfloor.org"
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                startActivity(intent)
+            } catch (e: Exception) {
+                CustomToast.show(this, "Не удалось открыть браузер", Toast.LENGTH_SHORT)
+            }
+            drawerLayout.closeDrawer(GravityCompat.START)
         }
 
         navView.setNavigationItemSelectedListener { menuItem ->
