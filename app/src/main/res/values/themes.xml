@@ -60,11 +60,12 @@
     </style>
 
     <style name="Theme.NightRead.PopupMenu" parent="ThemeOverlay.AppCompat.Dark">
-        <item name="android:textColor">#E5D9F4</item>
-        <item name="android:textColorPrimary">#E5D9F4</item>
-        <item name="android:textColorSecondary">#8B7CA2</item>
-        <item name="colorSurface">#1A0D2A</item>
-        <item name="android:colorBackground">#1A0D2A</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:textColorSecondary">#E5D9F4</item>
+        <item name="colorSurface">#1D0E30</item>
+        <item name="android:colorBackground">#1D0E30</item>
+        <item name="android:popupBackground">@drawable/bg_popup_menu</item>
     </style>
 
     <style name="Theme.NightRead.BottomSheet" parent="Theme.Material3.DayNight.BottomSheetDialog">

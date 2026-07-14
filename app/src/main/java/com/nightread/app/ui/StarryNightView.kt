@@ -46,7 +46,7 @@ class StarryNightView @JvmOverloads constructor(
         val baseRadius: Float,
         val speedX: Float,
         val speedY: Float,
-        val color: Int,
+        var color: Int,
         val pulseSpeed: Float,
         var pulsePhase: Float,
         val depth: Float,
@@ -444,6 +444,41 @@ class StarryNightView @JvmOverloads constructor(
             canvas.drawLine(s.x, s.y, trailX, trailY, shootingStarPaint)
         }
         shootingStarPaint.shader = null // Очищаем шейдер для переиспользования
+    }
+
+    fun setFireflyThemeColor(accentColor: Int) {
+        for (i in 0 until fireflies.size) {
+            val f = fireflies[i]
+            // Calculate a color mixing the accent color and gold/amber
+            val mixedColor = if (random.nextFloat() > 0.5f) {
+                accentColor
+            } else {
+                // Mix accent color and white/gold
+                val r = (Color.red(accentColor) + 255) / 2
+                val g = (Color.green(accentColor) + 224) / 2
+                val b = (Color.blue(accentColor) + 130) / 2
+                Color.rgb(r, g, b)
+            }
+            f.color = mixedColor
+        }
+        triggerShootingStar()
+        invalidate()
+    }
+
+    fun triggerShootingStar() {
+        val w = if (width > 0) width else 1080
+        val h = if (height > 0) height else 1920
+        val startX = random.nextFloat() * w
+        val startY = random.nextFloat() * (h * 0.4f)
+        val speed = 25f + random.nextFloat() * 20f
+        val angle = (35 + random.nextInt(25)) * Math.PI / 180.0
+        val speedX = (-speed * Math.cos(angle)).toFloat()
+        val speedY = (speed * Math.sin(angle)).toFloat()
+        val length = 110f + random.nextFloat() * 100f
+        val width = 1.5f + random.nextFloat() * 1.5f
+        val color = Color.WHITE
+        shootingStars.add(ShootingStar(startX, startY, speedX, speedY, length, width, color))
+        invalidate()
     }
 }
 

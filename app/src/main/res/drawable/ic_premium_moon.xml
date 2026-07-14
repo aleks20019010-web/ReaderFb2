@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    
+    <!-- Outer ambient glowing rings -->
+    <path
+        android:pathData="M 60,10 A 50,50 0 1,1 59.99,10 Z"
+        android:strokeColor="#20FFE3A8"
+        android:strokeWidth="1" />
+    <path
+        android:pathData="M 60,18 A 42,42 0 1,1 59.99,18 Z"
+        android:strokeColor="#10FFE3A8"
+        android:strokeWidth="1.5" />
+        
+    <!-- Premium Golden Crescent Moon -->
+    <path
+        android:fillColor="#FFE3A8"
+        android:pathData="M75,25 C50,25 35,45 35,65 C35,85 50,100 75,100 C60,100 48,88 48,65 C48,42 60,25 75,25 Z" />
+
+    <!-- Sparkly Star 1 (Inside/Near moon center) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M80,48 L82.5,53 L87.5,53 L83.5,56 L85,61 L80,58 L75,61 L76.5,56 L72.5,53 L77.5,53 Z" />
+
+    <!-- Tiny Star 2 (Top Left) -->
+    <path
+        android:fillColor="#FFE875"
+        android:pathData="M35,32 L36.5,34.5 L39.5,34.5 L37,36.5 L38,39.5 L35,37.5 L32,39.5 L33,36.5 L30.5,34.5 L33.5,34.5 Z" />
+
+    <!-- Tiny Star 3 (Bottom Left) -->
+    <path
+        android:fillColor="#FFE875"
+        android:pathData="M40,82 L41.5,84 L43.5,84 L41.7,85.5 L42.5,87.5 L40,86 L37.5,87.5 L38.3,85.5 L36.5,84 L38.5,84 Z" />
+
+    <!-- Sparkly Star 4 (Right side) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M92,72 L93.5,75.5 L97,75.5 L94,77.5 L95.5,81 L92,79 L88.5,81 L90,77.5 L87,75.5 L90.5,75.5 Z" />
+</vector>

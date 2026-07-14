@@ -19,7 +19,7 @@
     <string name="extra_dim_desc">Затемнение экрана ниже системного минимума</string>
     <string name="extra_dim_intensity">Степень затемнения</string>
     <string name="bedtime_mode_title">Режим сна (Bedtime Mode)</string>
-    <string name="bedtime_mode_desc">Мгновенный ночной профиль: черная тема, янтарный фильтр 50%, сверхнизкая яркость 30% и таймер на 30 мин</string>
+    <string name="bedtime_mode_desc" formatted="false">Мгновенный ночной профиль: черная тема, янтарный фильтр 50%, сверхнизкая яркость 30% и таймер на 30 мин</string>
     <string name="bedtime_mode_activated">Режим сна активирован! Приятного чтения 🌙</string>
     
     <!-- Stats & Achievements strings -->

@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="24dp"
-    android:background="?android:colorBackground">
+    android:background="@drawable/bg_dark_purple_bottom_sheet">
 
     <TextView
         android:layout_width="match_parent"

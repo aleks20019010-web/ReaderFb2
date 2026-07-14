@@ -16,6 +16,15 @@ import com.nightread.app.ui.YandexSyncFragment
 import com.nightread.app.ui.LibraryFragment
 import com.nightread.app.ui.CustomToast
 import com.google.android.material.navigation.NavigationView
+import android.graphics.Color
+import android.widget.TextView
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.Button
+import android.view.View
+import android.content.res.ColorStateList
+import android.view.animation.OvershootInterpolator
+import android.view.animation.DecelerateInterpolator
 
 class MainActivity : BaseActivity() {
 
@@ -172,88 +181,95 @@ class MainActivity : BaseActivity() {
 
     private fun runSplashAnimation() {
         val splashOverlay = findViewById<FrameLayout>(R.id.splash_overlay) ?: return
-        val ivLogo = findViewById<android.widget.ImageView>(R.id.iv_splash_logo)
-        val tvTitle = findViewById<android.widget.TextView>(R.id.tv_splash_title)
-        val tvSubtitle = findViewById<android.widget.TextView>(R.id.tv_splash_subtitle)
+        val tvSplashTitle = findViewById<TextView>(R.id.tv_splash_title)
+        val tvSplashSubtitle = findViewById<TextView>(R.id.tv_splash_subtitle)
+        val cardMood = findViewById<View>(R.id.card_mood)
+        val layoutGlowingIcon = findViewById<View>(R.id.layout_glowing_icon)
+        val viewIconGlow = findViewById<View>(R.id.view_icon_glow)
+        val ivLogo = findViewById<ImageView>(R.id.iv_splash_logo)
+        val tvMoodTitle = findViewById<TextView>(R.id.tv_mood_title)
+        val tvMoodSubtitle = findViewById<TextView>(R.id.tv_mood_subtitle)
+        val tvMoodQuote = findViewById<TextView>(R.id.tv_mood_quote)
+        val btnEnterApp = findViewById<Button>(R.id.btn_enter_app)
+        val starryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.starry_bg)
 
-        // Initial states
-        ivLogo?.alpha = 0f
-        ivLogo?.scaleX = 0.3f
-        ivLogo?.scaleY = 0.3f
-        ivLogo?.rotation = -45f
+        // Configure the background live particles to match our premium Golden accent initially
+        starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
-        tvTitle?.alpha = 0f
-        tvTitle?.translationY = 50f
-
-        tvSubtitle?.alpha = 0f
-        tvSubtitle?.translationY = 50f
-
-        // 1. Animate Logo scale and rotation (Book unfolding feel)
-        ivLogo?.animate()
-            ?.alpha(1f)
-            ?.scaleX(1.0f)
-            ?.scaleY(1.0f)
-            ?.rotation(0f)
-            ?.setDuration(1000)
-            ?.setInterpolator(android.view.animation.OvershootInterpolator(1.4f))
-            ?.start()
-
-        // 2. Animate Title and Subtitle floating up and fading in
-        tvTitle?.animate()
-            ?.alpha(1f)
-            ?.translationY(0f)
-            ?.setDuration(800)
-            ?.setStartDelay(300)
-            ?.setInterpolator(android.view.animation.DecelerateInterpolator())
-            ?.start()
-
-        tvSubtitle?.animate()
-            ?.alpha(1f)
-            ?.translationY(0f)
-            ?.setDuration(800)
-            ?.setStartDelay(500)
-            ?.setInterpolator(android.view.animation.DecelerateInterpolator())
-            ?.start()
-
-        // 3. Liquid reveal / transition to main menu after a gorgeous delay
-        splashOverlay.postDelayed({
-            // Transform/Move logo up out of the way
+        // Add interactive premium splash touch! Tap on card or icon to shoot stars and trigger ring pulses
+        val triggerInteraction = View.OnClickListener {
+            // 1. Shake/Rotate the logo slightly with overshoot
+            ivLogo?.clearAnimation()
             ivLogo?.animate()
-                ?.scaleX(0.4f)
-                ?.scaleY(0.4f)
-                ?.translationY(-300f)
-                ?.alpha(0f)
-                ?.setDuration(800)
-                ?.setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
-                ?.start()
-
-            // Subtitle and title sink gracefully
-            tvTitle?.animate()
-                ?.translationY(150f)
-                ?.alpha(0f)
-                ?.setDuration(600)
-                ?.setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
-                ?.start()
-
-            tvSubtitle?.animate()
-                ?.translationY(150f)
-                ?.alpha(0f)
-                ?.setDuration(600)
-                ?.setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
-                ?.start()
-
-            // Expand overlay in size and fade out (creates a liquid "portal" zoom-out effect)
-            splashOverlay.animate()
-                ?.alpha(0f)
+                ?.rotation(360f)
                 ?.scaleX(1.15f)
                 ?.scaleY(1.15f)
-                ?.setDuration(900)
-                ?.setInterpolator(android.view.animation.DecelerateInterpolator())
+                ?.setDuration(700)
+                ?.setInterpolator(OvershootInterpolator(1.3f))
                 ?.withEndAction {
-                    splashOverlay.visibility = android.view.View.GONE
+                    ivLogo.rotation = 0f
+                    ivLogo.animate()?.scaleX(1.0f)?.scaleY(1.0f)?.setDuration(200)?.start()
                 }
                 ?.start()
-        }, 1500) // 1.5 seconds splash display
+
+            // 2. Pulse the background glow
+            viewIconGlow?.clearAnimation()
+            viewIconGlow?.alpha = 0.6f
+            viewIconGlow?.scaleX = 1.3f
+            viewIconGlow?.scaleY = 1.3f
+            viewIconGlow?.animate()
+                ?.alpha(0.25f)
+                ?.scaleX(1.0f)
+                ?.scaleY(1.0f)
+                ?.setDuration(600)
+                ?.start()
+
+            // 3. Trigger a shooting star in the live background!
+            starryBg?.triggerShootingStar()
+        }
+
+        layoutGlowingIcon?.setOnClickListener(triggerInteraction)
+        cardMood?.setOnClickListener(triggerInteraction)
+
+        // Initial hidden states for a beautiful timed staggered reveal
+        tvSplashTitle?.alpha = 0f
+        tvSplashTitle?.translationY = -30f
+        tvSplashSubtitle?.alpha = 0f
+        tvSplashSubtitle?.translationY = -30f
+        cardMood?.alpha = 0f
+        cardMood?.scaleX = 0.88f
+        cardMood?.scaleY = 0.88f
+        btnEnterApp?.alpha = 0f
+        btnEnterApp?.translationY = 40f
+
+        // Staggered reveal animations
+        tvSplashTitle?.animate()?.alpha(1f)?.translationY(0f)?.setDuration(800)?.setInterpolator(DecelerateInterpolator())?.start()
+        tvSplashSubtitle?.animate()?.alpha(1f)?.translationY(0f)?.setDuration(800)?.setStartDelay(150)?.setInterpolator(DecelerateInterpolator())?.start()
+        
+        cardMood?.animate()?.alpha(1f)?.scaleX(1.0f)?.scaleY(1.0f)?.setDuration(950)?.setStartDelay(300)?.setInterpolator(OvershootInterpolator(1.1f))?.start()
+        
+        btnEnterApp?.animate()?.alpha(1f)?.translationY(0f)?.setDuration(850)?.setStartDelay(750)?.setInterpolator(OvershootInterpolator(1.2f))?.start()
+
+        // Transition from splash to primary app content
+        btnEnterApp?.setOnClickListener {
+            // Outward transition animation
+            tvSplashTitle?.animate()?.alpha(0f)?.translationY(-60f)?.setDuration(550)?.start()
+            tvSplashSubtitle?.animate()?.alpha(0f)?.translationY(-60f)?.setDuration(550)?.start()
+            
+            cardMood?.animate()?.alpha(0f)?.scaleX(0.92f)?.scaleY(0.92f)?.setDuration(550)?.start()
+            btnEnterApp.animate()?.alpha(0f)?.scaleX(0.95f)?.scaleY(0.95f)?.setDuration(450)?.start()
+
+            splashOverlay.animate()
+                ?.alpha(0f)
+                ?.scaleX(1.12f)
+                ?.scaleY(1.12f)
+                ?.setDuration(750)
+                ?.setInterpolator(DecelerateInterpolator())
+                ?.withEndAction {
+                    splashOverlay.visibility = View.GONE
+                }
+                ?.start()
+        }
     }
 
     private fun openLibraryFragment(filter: String) {

@@ -25,6 +25,7 @@ class ChapterListBottomSheet : BottomSheetDialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setStyle(STYLE_NORMAL, R.style.DarkPurpleBottomSheetDialog)
         sha1 = arguments?.getString(ARG_SHA1) ?: ""
         bookContent = arguments?.getString(ARG_BOOK_CONTENT) ?: ""
     }
