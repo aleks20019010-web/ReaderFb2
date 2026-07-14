@@ -33,6 +33,7 @@ object PageSplitter {
         context: android.content.Context? = null,
         text: CharSequence,
         basePaintSize: Float,
+        pageStartOffset: Int? = null,
         onNoteClick: ((String) -> Unit)? = null
     ): CharSequence {
         if (text.isEmpty()) return text
@@ -174,12 +175,25 @@ object PageSplitter {
                     
                     val paragraphText = textStr.substring(start, if (nextNewLine == -1) end else nextNewLine)
                     if (paragraphText.isNotBlank() && !paragraphText.contains("[CHAPTER]") && !paragraphText.contains("[/CHAPTER]")) {
-                        spannable.setSpan(
-                            LeadingMarginSpan.Standard(indentInPx, 0),
-                            start,
-                            end,
-                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                        )
+                        val shouldIndent = if (start == 0 && pageStartOffset != null) {
+                            val bookText = if (com.nightread.app.data.SettingsManager.isHyphenationEnabled(context)) {
+                                BookCache.hyphenatedContent ?: BookCache.content
+                            } else {
+                                BookCache.content
+                            }
+                            pageStartOffset == 0 || (pageStartOffset > 0 && pageStartOffset - 1 < bookText.length && (bookText[pageStartOffset - 1] == '\n' || bookText[pageStartOffset - 1] == '\u000C'))
+                        } else {
+                            true
+                        }
+
+                        if (shouldIndent) {
+                            spannable.setSpan(
+                                LeadingMarginSpan.Standard(indentInPx, 0),
+                                start,
+                                end,
+                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
+                        }
                     }
                     start = end
                 }
@@ -190,7 +204,7 @@ object PageSplitter {
     }
 
     fun formatChapterSpans(context: android.content.Context?, text: CharSequence, basePaintSize: Float): CharSequence {
-        return formatAllSpans(context, text, basePaintSize, null)
+        return formatAllSpans(context, text, basePaintSize, null, null)
     }
 
     suspend fun getPageForOffset(

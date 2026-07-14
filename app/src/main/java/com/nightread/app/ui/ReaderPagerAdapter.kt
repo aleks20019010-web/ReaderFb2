@@ -6,12 +6,14 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 
 class ReaderPagerAdapter(
     activity: FragmentActivity,
-    var pages: List<CharSequence>
+    var pages: List<CharSequence>,
+    var offsets: List<Int> = emptyList()
 ) : FragmentStateAdapter(activity) {
 
     override fun getItemCount(): Int = pages.size
 
     override fun createFragment(position: Int): Fragment {
-        return PageFragment.newInstance(pages[position])
+        val offset = if (position < offsets.size) offsets[position] else 0
+        return PageFragment.newInstance(pages[position], offset)
     }
 }

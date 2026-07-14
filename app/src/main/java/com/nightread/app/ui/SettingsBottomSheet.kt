@@ -56,7 +56,7 @@ class SettingsBottomSheet : DialogFragment() {
         // 2. Font Selection (Spinner)
         val fontOptions = listOf("Roboto", "Times New Roman", "Georgia", "Merriweather", "Lora", "EB Garamond", "Literata", "OpenDyslexic", "Monospace")
         val spinnerFont = view.findViewById<Spinner>(R.id.spinnerFont)
-        val fontAdapter = ArrayAdapter(context, R.layout.spinner_item, fontOptions).apply {
+        val fontAdapter = SettingsSpinnerAdapter(context, fontOptions).apply {
             setDropDownViewResource(R.layout.spinner_dropdown_item)
         }
         spinnerFont.adapter = fontAdapter
@@ -191,7 +191,7 @@ class SettingsBottomSheet : DialogFragment() {
         )
         val themeDisplayNames = themeKeys.map { themeNames[it] ?: it }
         val spinnerTheme = view.findViewById<Spinner>(R.id.spinnerTheme)
-        val themeAdapter = ArrayAdapter(context, R.layout.spinner_item, themeDisplayNames).apply {
+        val themeAdapter = SettingsSpinnerAdapter(context, themeDisplayNames).apply {
             setDropDownViewResource(R.layout.spinner_dropdown_item)
         }
         spinnerTheme.adapter = themeAdapter
@@ -226,7 +226,7 @@ class SettingsBottomSheet : DialogFragment() {
         )
         val animDisplayNames = animKeys.map { animNames[it] ?: it }
         val spinnerAnimation = view.findViewById<Spinner>(R.id.spinnerAnimation)
-        val animAdapter = ArrayAdapter(context, R.layout.spinner_item, animDisplayNames).apply {
+        val animAdapter = SettingsSpinnerAdapter(context, animDisplayNames).apply {
             setDropDownViewResource(R.layout.spinner_dropdown_item)
         }
         spinnerAnimation.adapter = animAdapter
@@ -640,55 +640,22 @@ class SettingsBottomSheet : DialogFragment() {
     private fun applyThemeColors(themeKey: String, rootView: View) {
         val context = requireContext()
         
-        // Define color scheme values
-        val cardBgHex: String
-        val itemBgHex: String
-        val accentHex: String
-        val textPrimaryHex: String
-        val textSecondaryHex: String
-        val dividerHex: String
+        // The user requested to make all labels/texts/captions inside reading settings a single dark violet color.
+        // To ensure high contrast and readability of dark violet text, the settings panel maintains a consistent
+        // beautiful light purplish-cream theme, while the controls (seekbars, active rings, switch tracks)
+        // match the active theme's accent color.
+        val cardBgHex = "#F5F0F8"
+        val itemBgHex = "#EAE2F3"
+        val dividerHex = "#D2C5E3"
+        val textPrimaryHex = "#2A1A36" // Dark violet brand color
+        val textSecondaryHex = "#2A1A36" // Also dark violet, as requested
 
-        when (themeKey) {
-            "light", "beige" -> {
-                cardBgHex = "#FAF6F0"
-                itemBgHex = "#EFE9E2"
-                accentHex = "#D35400"
-                textPrimaryHex = "#2C3E50"
-                textSecondaryHex = "#7F8C8D"
-                dividerHex = "#E0D5C1"
-            }
-            "sepia", "sepia_contrast" -> {
-                cardBgHex = "#F4ECD8"
-                itemBgHex = "#EADCB9"
-                accentHex = "#8E44AD"
-                textPrimaryHex = "#5B3A29"
-                textSecondaryHex = "#8F7365"
-                dividerHex = "#D5C5B5"
-            }
-            "contrast" -> {
-                cardBgHex = "#000000"
-                itemBgHex = "#1A1A1A"
-                accentHex = "#FFFFFF"
-                textPrimaryHex = "#FFFFFF"
-                textSecondaryHex = "#AAAAAA"
-                dividerHex = "#333333"
-            }
-            "amoled" -> {
-                cardBgHex = "#000000"
-                itemBgHex = "#0C0617"
-                accentHex = "#D354FF"
-                textPrimaryHex = "#E5D9F4"
-                textSecondaryHex = "#8B7CA2"
-                dividerHex = "#23113E"
-            }
-            else -> { // "dark" or default
-                cardBgHex = "#1A0D2A"
-                itemBgHex = "#2A1A3E"
-                accentHex = "#9B59B6"
-                textPrimaryHex = "#E8D8F0"
-                textSecondaryHex = "#B8A0C8"
-                dividerHex = "#3A2A4E"
-            }
+        val accentHex = when (themeKey) {
+            "light", "beige" -> "#D35400"
+            "sepia", "sepia_contrast" -> "#8E44AD"
+            "contrast" -> "#9B59B6"
+            "amoled" -> "#D354FF"
+            else -> "#9B59B6"
         }
 
         val cardBgColor = Color.parseColor(cardBgHex)
@@ -707,6 +674,8 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvFontSizeValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvFontWeightValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvLineSpacingValue)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvLetterSpacingValue)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvParagraphIndentValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoDiscoveryTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoLightNightTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAmberFilterTitle)?.setTextColor(textPrimaryColor)
@@ -716,6 +685,10 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvSleepTimerTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvSleepTimerValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvShakeToExtendTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvBedtimeTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvAmbientGlowTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvAmbientGlowIntensityValue)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvHapticFeedbackTitle)?.setTextColor(textPrimaryColor)
 
         // 3. Secondary Labels and Descriptions
         rootView.findViewById<TextView>(R.id.tvColorSchemeLabel)?.setTextColor(textSecondaryColor)
@@ -723,7 +696,10 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvFontSizeLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvFontWeightLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvThemeLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvAnimationLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvLineSpacingLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvLetterSpacingLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvParagraphIndentLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoDiscoveryDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoLightNightDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAmberFilterDesc)?.setTextColor(textSecondaryColor)
@@ -733,6 +709,10 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvSleepTimerDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvSleepTimerDurationLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvShakeToExtendDesc)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvBedtimeDesc)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvAmbientGlowDesc)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvAmbientGlowIntensityLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvHapticFeedbackDesc)?.setTextColor(textSecondaryColor)
 
         // 4. Content Dividers
         rootView.findViewById<View>(R.id.dividerTop)?.setBackgroundColor(dividerColor)
@@ -873,6 +853,30 @@ class SettingsBottomSheet : DialogFragment() {
 
             // Apply custom enter/exit slide animations from top-right
             window.setWindowAnimations(R.style.SettingsDialogAnimation)
+        }
+    }
+
+    private class SettingsSpinnerAdapter<T>(
+        context: android.content.Context,
+        objects: List<T>
+    ) : ArrayAdapter<T>(context, R.layout.spinner_item, objects) {
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val view = super.getView(position, convertView, parent)
+            if (view is TextView) {
+                view.setTextColor(Color.parseColor("#2A1A36")) // Dark violet text
+                view.setBackgroundColor(Color.TRANSPARENT)
+            }
+            return view
+        }
+
+        override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val view = super.getDropDownView(position, convertView, parent)
+            if (view is TextView) {
+                view.setTextColor(Color.parseColor("#2A1A36")) // Dark violet text
+                view.setBackgroundColor(Color.parseColor("#EAE2F3")) // Match item Bg color
+            }
+            return view
         }
     }
 }

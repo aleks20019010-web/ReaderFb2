@@ -86,6 +86,8 @@ class ReadingActivity : AppCompatActivity() {
     private var lastFontFamily = ""
     private var lastFontWeight = ""
     private var lastLineSpacing = 0f
+    private var lastLetterSpacing = 0f
+    private var lastParagraphIndent = 0f
     private var lastPageAnimation = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -182,6 +184,8 @@ class ReadingActivity : AppCompatActivity() {
         lastFontFamily = SettingsManager.getFontFamily(this)
         lastFontWeight = SettingsManager.getFontWeight(this)
         lastLineSpacing = SettingsManager.getLineSpacing(this)
+        lastLetterSpacing = SettingsManager.getLetterSpacing(this)
+        lastParagraphIndent = SettingsManager.getParagraphIndent(this).toFloat()
         lastPageAnimation = SettingsManager.getPageAnimation(this)
 
         val startReadingTheme = SettingsManager.getReadingTheme(this)
@@ -210,14 +214,18 @@ class ReadingActivity : AppCompatActivity() {
                 val newFontFamily = SettingsManager.getFontFamily(this@ReadingActivity)
                 val newFontWeight = SettingsManager.getFontWeight(this@ReadingActivity)
                 val newLineSpacing = SettingsManager.getLineSpacing(this@ReadingActivity)
+                val newLetterSpacing = SettingsManager.getLetterSpacing(this@ReadingActivity)
+                val newParagraphIndent = SettingsManager.getParagraphIndent(this@ReadingActivity).toFloat()
                 
                 val layoutChanged = newFontSize != lastFontSize || 
                                    newFontFamily != lastFontFamily || 
                                    newFontWeight != lastFontWeight ||
-                                   newLineSpacing != lastLineSpacing
+                                   newLineSpacing != lastLineSpacing ||
+                                   newLetterSpacing != lastLetterSpacing ||
+                                   newParagraphIndent != lastParagraphIndent
 
                 if (layoutChanged) {
-                    kotlinx.coroutines.delay(300) // Debounce fast slider changes
+                    kotlinx.coroutines.delay(150) // Debounce fast slider changes for instantaneous recalculation
                 }
 
                 android.util.Log.d("ReadingActivity", "Settings changed. Layout changed: $layoutChanged")
@@ -226,6 +234,8 @@ class ReadingActivity : AppCompatActivity() {
                 lastFontFamily = newFontFamily
                 lastFontWeight = newFontWeight
                 lastLineSpacing = newLineSpacing
+                lastLetterSpacing = newLetterSpacing
+                lastParagraphIndent = newParagraphIndent
 
                 if (layoutChanged && bookContent.isNotEmpty() && splitResult != null) {
                     val currentIdx = viewPager.currentItem
@@ -405,9 +415,14 @@ class ReadingActivity : AppCompatActivity() {
             textSize = SettingsManager.getFontSize(this@ReadingActivity) * resources.displayMetrics.scaledDensity
             val family = SettingsManager.getFontFamily(this@ReadingActivity)
             val numericWeight = SettingsManager.getFontWeightAsInt(this@ReadingActivity)
-            typeface = FontUtils.createTypeface(this@ReadingActivity, family, numericWeight)
+            typeface = FontUtils.createTypefaceWithOpticalBalance(this@ReadingActivity, family, numericWeight)
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                 letterSpacing = SettingsManager.getLetterSpacing(this@ReadingActivity)
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                textLocales = android.os.LocaleList(java.util.Locale("ru"))
+            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                textLocale = java.util.Locale("ru")
             }
         }
 
@@ -420,7 +435,9 @@ class ReadingActivity : AppCompatActivity() {
         val availableHeight = height - paddingVertical
 
         val hyphenationEnabled = com.nightread.app.data.SettingsManager.isHyphenationEnabled(this@ReadingActivity)
-        val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getFontWeightAsInt(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}_hyphen=$hyphenationEnabled"
+        val letterSpacing = SettingsManager.getLetterSpacing(this@ReadingActivity)
+        val paragraphIndent = SettingsManager.getParagraphIndent(this@ReadingActivity)
+        val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getFontWeightAsInt(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}_letterSpacing=${letterSpacing}_paragraphIndent=${paragraphIndent}_hyphen=$hyphenationEnabled"
         if (BookCache.sha1 == sha1 && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {
             splitResult = BookCache.splitResult!!
             isSplittingFinished = true
@@ -428,10 +445,12 @@ class ReadingActivity : AppCompatActivity() {
             progressBar.visibility = View.GONE
             
             if (viewPager.adapter == null) {
-                viewPager.adapter = ReaderPagerAdapter(this@ReadingActivity, splitResult.pages)
+                viewPager.adapter = ReaderPagerAdapter(this@ReadingActivity, splitResult.pages, splitResult.offsets)
             } else {
-                (viewPager.adapter as ReaderPagerAdapter).pages = splitResult.pages
-                viewPager.adapter?.notifyDataSetChanged()
+                val adapter = viewPager.adapter as ReaderPagerAdapter
+                adapter.pages = splitResult.pages
+                adapter.offsets = splitResult.offsets
+                adapter.notifyDataSetChanged()
             }
             
             var targetPage = 0
@@ -454,7 +473,7 @@ class ReadingActivity : AppCompatActivity() {
         }
 
         progressiveJob?.cancel()
-        viewPager.adapter = ReaderPagerAdapter(this@ReadingActivity, splitResult.pages)
+        viewPager.adapter = ReaderPagerAdapter(this@ReadingActivity, splitResult.pages, splitResult.offsets)
         isSplittingFinished = false
         var isFirstRender = true
 
@@ -493,6 +512,7 @@ class ReadingActivity : AppCompatActivity() {
                 
                 val adapter = viewPager.adapter as ReaderPagerAdapter
                 adapter.pages = result.pages
+                adapter.offsets = result.offsets
                 val newCount = result.pages.size
                 
                 if (isFirstRender) {

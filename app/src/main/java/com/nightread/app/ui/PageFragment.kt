@@ -52,9 +52,10 @@ class PageFragment : Fragment() {
             val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
             val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
             
+            val dp16 = (16 * v.resources.displayMetrics.density).toInt()
             val dp8 = (8 * v.resources.displayMetrics.density).toInt()
             
-            v.setPadding(dp8, dp8 + topInset, dp8, dp8)
+            v.setPadding(dp16, dp8 + topInset, dp16, dp8)
             windowInsets
         }
         view.requestApplyInsets()
@@ -100,10 +101,17 @@ class PageFragment : Fragment() {
             textView.letterSpacing = SettingsManager.getLetterSpacing(context)
         }
 
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            textView.textLocales = android.os.LocaleList(java.util.Locale("ru"))
+        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            textView.textLocale = java.util.Locale("ru")
+        }
+
         textView.setLineSpacing(0f, lineSpacingMultiplier)
         
+        val offset = arguments?.getInt("PAGE_OFFSET") ?: 0
         android.util.Log.d("PageFragment", "updateStyle: setting text. contains soft hyphens: ${pageText.contains('\u00AD')} (count: ${pageText.count { it == '\u00AD' }})")
-        val formattedTextWithClicks = PageSplitter.formatAllSpans(context, pageText, textView.textSize) { noteId ->
+        val formattedTextWithClicks = PageSplitter.formatAllSpans(context, pageText, textView.textSize, offset) { noteId ->
             val readingActivity = activity as? ReadingActivity
             readingActivity?.showFootnote(noteId)
         }
@@ -144,9 +152,10 @@ class PageFragment : Fragment() {
             }
         }
 
+        val hyphenationEnabled = SettingsManager.isHyphenationEnabled(context)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            textView.breakStrategy = android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY
-            textView.hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
+            textView.breakStrategy = if (hyphenationEnabled) android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY else android.text.Layout.BREAK_STRATEGY_SIMPLE
+            textView.hyphenationFrequency = if (hyphenationEnabled) android.text.Layout.HYPHENATION_FREQUENCY_FULL else android.text.Layout.HYPHENATION_FREQUENCY_NONE
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_INTER_WORD
@@ -154,10 +163,11 @@ class PageFragment : Fragment() {
     }
 
     companion object {
-        fun newInstance(pageText: CharSequence): PageFragment {
+        fun newInstance(pageText: CharSequence, offset: Int = 0): PageFragment {
             val fragment = PageFragment()
             val args = Bundle().apply {
                 putCharSequence("PAGE_TEXT", pageText)
+                putInt("PAGE_OFFSET", offset)
             }
             fragment.arguments = args
             return fragment
