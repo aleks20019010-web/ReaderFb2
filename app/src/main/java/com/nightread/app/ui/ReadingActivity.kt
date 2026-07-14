@@ -545,7 +545,11 @@ class ReadingActivity : AppCompatActivity() {
             override fun onSingleTapConfirmed(e: android.view.MotionEvent): Boolean {
                 val cornerSize = 80 * resources.displayMetrics.density
                 if (e.x < cornerSize && e.y < cornerSize) {
-                    toggleNightMode()
+                    SettingsManager.setReadingTheme(this@ReadingActivity, "sepia_contrast")
+                    SettingsManager.setAmberFilterEnabled(this@ReadingActivity, true)
+                    SettingsManager.setAmberFilterIntensity(this@ReadingActivity, 15)
+                    isNightMode = false
+                    android.widget.Toast.makeText(this@ReadingActivity, "Сепия контраст (теплота 15%)", android.widget.Toast.LENGTH_SHORT).show()
                 } else {
                     toggleBars()
                 }
