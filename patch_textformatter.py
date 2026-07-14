@@ -1,9 +1,8 @@
 with open("app/src/main/java/com/nightread/app/ui/TextFormatter.kt", "r") as f:
-    text_formatter = f.read()
+    tf = f.read()
 
-import re
+tf = tf.replace("ZeroWidthSpan()", "AbsoluteSizeSpan(0)")
 
-# We will replace the whole while (true) loops for CHAPTER, CITE, SUP, NOTE.
-# Let's replace the whole body of formatAllSpans.
-
-# Actually, doing it via a script is easier.
+with open("app/src/main/java/com/nightread/app/ui/TextFormatter.kt", "w") as f:
+    f.write(tf)
+print("Reverted to AbsoluteSizeSpan")

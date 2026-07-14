@@ -55,7 +55,8 @@ class PageFragment : Fragment() {
             val dp6 = (6 * v.resources.displayMetrics.density).toInt()
             val dp8 = (8 * v.resources.displayMetrics.density).toInt()
             
-            v.setPadding(dp6, dp8 + topInset, dp6, dp8)
+            val dp14 = (14 * v.resources.displayMetrics.density).toInt()
+            v.setPadding(dp6, dp8 + topInset, dp6, dp14)
             windowInsets
         }
         view.requestApplyInsets()
