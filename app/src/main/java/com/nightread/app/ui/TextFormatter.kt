@@ -195,9 +195,25 @@ object TextFormatter {
                                 true
                             }
                             
-                            val firstChar = textStr[start]
-                            val startsWithWhitespace = firstChar.isWhitespace() || firstChar == '\u00A0' || firstChar == '\t'
-                            if (shouldIndent && !startsWithWhitespace) {
+                            var firstNonSpace = start
+                            while (firstNonSpace < paraEnd) {
+                                val c = textStr[firstNonSpace]
+                                if (c.isWhitespace() || c == '\u00A0' || c == '\t') {
+                                    firstNonSpace++
+                                } else {
+                                    break
+                                }
+                            }
+
+                            if (shouldIndent) {
+                                if (firstNonSpace > start) {
+                                    spannable.setSpan(
+                                        android.text.style.ScaleXSpan(0f),
+                                        start,
+                                        firstNonSpace,
+                                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                                    )
+                                }
                                 spannable.setSpan(
                                     LeadingMarginSpan.Standard(indentInPx, 0),
                                     start,

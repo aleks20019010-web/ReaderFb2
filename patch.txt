@@ -1,69 +1,40 @@
-513c513,556
-<         progressiveJob = lifecycleScope.launch {
-<             val formattedText = withContext(Dispatchers.Default) {
-<                 TextFormatter.formatChapterSpans(this@ReadingActivity, textToSplit, paint.textSize)
-<             }
-<             
-<             val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
-<                 .setText(formattedText)
+197,207c197,219
+<                             
+<                             val firstChar = textStr[start]
+<                             val startsWithWhitespace = firstChar.isWhitespace() || firstChar == '\u00A0' || firstChar == '\t'
+<                             if (shouldIndent && !startsWithWhitespace) {
+<                                 spannable.setSpan(
+<                                     LeadingMarginSpan.Standard(indentInPx, 0),
+<                                     start,
+<                                     end,
+<                                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+<                                 )
+<                             }
 ---
->         progressiveJob = lifecycleScope.launch {
->             val formattedText = withContext(Dispatchers.Default) {
->                 TextFormatter.formatChapterSpans(this@ReadingActivity, textToSplit, paint.textSize)
->             }
 > 
->             val cachedOffsets = com.nightread.app.ui.PaginationDiskCache.getOffsets(this@ReadingActivity, sha1, currentKey)
->             if (cachedOffsets != null) {
->                 val newPages = ArrayList<CharSequence>()
->                 for (i in cachedOffsets.indices) {
->                     val startIdx = cachedOffsets[i]
->                     val endIdx = if (i < cachedOffsets.size - 1) cachedOffsets[i + 1] else formattedText.length
->                     newPages.add(formattedText.subSequence(startIdx, endIdx))
->                 }
->                 
->                 val result = TextFormatter.PageResult(newPages, ArrayList(cachedOffsets), true)
->                 splitResult = result
->                 isSplittingFinished = true
->                 BookCache.sha1 = sha1
->                 BookCache.layoutKey = currentKey
->                 BookCache.splitResult = result
+>                             var firstNonSpace = start
+>                             while (firstNonSpace < paraEnd) {
+>                                 val c = textStr[firstNonSpace]
+>                                 if (c.isWhitespace() || c == '\u00A0' || c == '\t') {
+>                                     firstNonSpace++
+>                                 } else {
+>                                     break
+>                                 }
+>                             }
 > 
->                 tvLoadingProgress.visibility = View.GONE
->                 progressBar.visibility = View.GONE
-> 
->                 if (viewPager.adapter == null) {
->                     viewPager.adapter = ReaderPagerAdapter(this@ReadingActivity, splitResult.pages, splitResult.offsets)
->                 } else {
->                     val adapter = viewPager.adapter as ReaderPagerAdapter
->                     adapter.pages = splitResult.pages
->                     adapter.offsets = splitResult.offsets
->                     adapter.notifyDataSetChanged()
->                 }
-> 
->                 var targetPage = 0
->                 if (resolvedCharOffset >= 0) {
->                     targetPage = splitResult.offsets.indexOfLast { it <= resolvedCharOffset }.coerceAtLeast(0)
->                 } else {
->                     val currentIdx = viewPager.currentItem
->                     val oldOffsets = splitResult.offsets
->                     if (currentIdx >= 0 && currentIdx < oldOffsets.size) {
->                         val offset = oldOffsets[currentIdx]
->                         targetPage = splitResult.offsets.indexOfLast { it <= offset }.coerceAtLeast(0)
->                     }
->                 }
->                 
->                 if (targetPage < splitResult.pages.size) {
->                     viewPager.post {
->                         viewPager.setCurrentItem(targetPage, false)
->                         updateBottomBar(targetPage)
->                         showBarsWithAnimation(animateFab = true)
->                     }
->                 } else {
->                     updateBottomBar(targetPage)
->                     showBarsWithAnimation(animateFab = true)
->                 }
->                 return@launch
->             }
-> 
->             val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
->                 .setText(formattedText)
+>                             if (shouldIndent) {
+>                                 if (firstNonSpace > start) {
+>                                     spannable.setSpan(
+>                                         android.text.style.ScaleXSpan(0f),
+>                                         start,
+>                                         firstNonSpace,
+>                                         android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+>                                     )
+>                                 }
+>                                 spannable.setSpan(
+>                                     android.text.style.LeadingMarginSpan.Standard(indentInPx, 0),
+>                                     start,
+>                                     end,
+>                                     android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+>                                 )
+>                             }
