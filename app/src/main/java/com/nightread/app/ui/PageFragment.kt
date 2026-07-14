@@ -52,10 +52,10 @@ class PageFragment : Fragment() {
             val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
             val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
             
-            val dp16 = (16 * v.resources.displayMetrics.density).toInt()
+            val dp18 = (18 * v.resources.displayMetrics.density).toInt()
             val dp8 = (8 * v.resources.displayMetrics.density).toInt()
             
-            v.setPadding(dp16, dp8 + topInset, dp16, dp8)
+            v.setPadding(dp18, dp8 + topInset, dp18, dp8)
             windowInsets
         }
         view.requestApplyInsets()
@@ -157,9 +157,11 @@ class PageFragment : Fragment() {
             textView.breakStrategy = if (hyphenationEnabled) android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY else android.text.Layout.BREAK_STRATEGY_SIMPLE
             textView.hyphenationFrequency = if (hyphenationEnabled) android.text.Layout.HYPHENATION_FREQUENCY_FULL else android.text.Layout.HYPHENATION_FREQUENCY_NONE
         }
+        /*
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_INTER_WORD
         }
+        */
     }
 
     companion object {
