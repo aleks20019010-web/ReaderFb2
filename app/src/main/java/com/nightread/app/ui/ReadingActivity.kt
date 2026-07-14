@@ -225,6 +225,7 @@ class ReadingActivity : AppCompatActivity() {
                                    newParagraphIndent != lastParagraphIndent
 
                 if (layoutChanged) {
+                    com.nightread.app.ui.customlayout.LayoutCache.clear()
                     kotlinx.coroutines.delay(150) // Debounce fast slider changes for instantaneous recalculation
                 }
 
@@ -509,6 +510,7 @@ class ReadingActivity : AppCompatActivity() {
                 .setHeight(availableHeight)
                 .setPaint(paint)
                 .setLineSpacing(0f, SettingsManager.getLineSpacing(this@ReadingActivity))
+                .setHyphenation(SettingsManager.isHyphenationEnabled(this@ReadingActivity))
                 
             builder.buildPagination { newOffsets, finished ->
                 val newPages = ArrayList<CharSequence>()

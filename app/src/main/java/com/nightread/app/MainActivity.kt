@@ -461,6 +461,7 @@ class MainActivity : BaseActivity() {
                                         .setHeight(availableHeight)
                                         .setPaint(paint)
                                         .setLineSpacing(0f, SettingsManager.getLineSpacing(this@MainActivity))
+                                        .setHyphenation(hyphenationEnabled)
                                         
                                     val offsets = builder.buildPagination()
                                     val pages = java.util.ArrayList<CharSequence>()

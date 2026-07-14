@@ -121,6 +121,7 @@ class PageFragment : Fragment() {
                     .setHeight(height)
                     .setPaint(paint)
                     .setLineSpacing(lineSpacingExtra, lineSpacingMultiplier)
+                    .setHyphenation(SettingsManager.isHyphenationEnabled(context))
                     
                 val layout = builder.buildPageLayout(0, formattedTextWithClicks.length)
                 
