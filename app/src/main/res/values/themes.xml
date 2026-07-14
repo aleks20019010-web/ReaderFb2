@@ -59,6 +59,14 @@
         <item name="android:background">@android:color/transparent</item>
     </style>
 
+    <style name="Theme.NightRead.PopupMenu" parent="ThemeOverlay.AppCompat.Dark">
+        <item name="android:textColor">#E5D9F4</item>
+        <item name="android:textColorPrimary">#E5D9F4</item>
+        <item name="android:textColorSecondary">#8B7CA2</item>
+        <item name="colorSurface">#1A0D2A</item>
+        <item name="android:colorBackground">#1A0D2A</item>
+    </style>
+
     <style name="Theme.NightRead.BottomSheet" parent="Theme.Material3.DayNight.BottomSheetDialog">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="bottomSheetStyle">@style/Widget.NightRead.BottomSheet</item>

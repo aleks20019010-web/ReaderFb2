@@ -6,10 +6,10 @@
     <color name="bg_gradient_start">#F5F0F8</color>
     <color name="bg_gradient_end">#FFFFFF</color>
     
-    <color name="text_primary">#F5F0F8</color>
-    <color name="text_secondary">#D0C8D8</color>
-    <color name="text_title">#FFFFFF</color>
-    <color name="text_author">#D0C8D8</color>
+    <color name="text_primary">#2A1A36</color>
+    <color name="text_secondary">#5C4D6C</color>
+    <color name="text_title">#12091A</color>
+    <color name="text_author">#5C4D6C</color>
     
     <!-- Reading Themes Colors -->
     <color name="reading_day_bg">#FFFFFF</color>

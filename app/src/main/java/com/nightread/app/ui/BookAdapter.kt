@@ -413,7 +413,8 @@ class BookAdapter(
 
             // Long click interactions (Context Menu)
             itemView.setOnLongClickListener { view ->
-                val popup = androidx.appcompat.widget.PopupMenu(view.context, view)
+                val themedContext = android.view.ContextThemeWrapper(view.context, R.style.Theme_NightRead_PopupMenu)
+                val popup = androidx.appcompat.widget.PopupMenu(themedContext, view)
                 popup.menu.add(0, 1, 0, "Открыть детали") // View Details
                 if (onDeleteBook != null) {
                     popup.menu.add(0, 2, 1, "Удалить книгу") // Delete Book

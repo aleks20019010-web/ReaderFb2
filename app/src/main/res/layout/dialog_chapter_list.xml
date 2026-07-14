@@ -11,6 +11,7 @@
         android:layout_height="wrap_content"
         android:textSize="18sp"
         android:textStyle="bold"
+        android:textColor="#E8D8F0"
         android:text="Оглавление (AI)"
         android:layout_marginBottom="12dp" />
 
@@ -36,5 +37,6 @@
         android:layout_gravity="end"
         android:layout_marginTop="16dp"
         android:text="ЗАКРЫТЬ"
+        android:textColor="#E8D8F0"
         style="@style/Widget.Material3.Button.TextButton" />
 </LinearLayout>

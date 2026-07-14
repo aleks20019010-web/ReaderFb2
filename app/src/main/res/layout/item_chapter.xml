@@ -9,9 +9,9 @@
     android:background="?android:attr/selectableItemBackground">
 
     <TextView
-        android:id="@+id/tvChapterTitle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textColor="@color/text_primary"
-        android:textSize="16sp" />
+         android:id="@+id/tvChapterTitle"
+         android:layout_width="match_parent"
+         android:layout_height="wrap_content"
+         android:textColor="#E8D8F0"
+         android:textSize="16sp" />
 </LinearLayout>
