@@ -267,59 +267,6 @@ class SettingsBottomSheet : DialogFragment() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        // 6b. Letter Spacing (SeekBar)
-        val tvLetterSpacingValue = view.findViewById<TextView>(R.id.tvLetterSpacingValue)
-        val seekBarLetterSpacing = view.findViewById<SeekBar>(R.id.seekBarLetterSpacing)
-        val currentLetterSpacing = SettingsManager.getLetterSpacing(context)
-        
-        fun getLetterSpacingLabel(spacing: Float): String {
-            return when {
-                spacing == 0.0f -> "Стандарт"
-                spacing < -0.01f -> String.format("Узкий (%.2f)", spacing)
-                spacing > 0.01f -> String.format("Широкий (+%.2f)", spacing)
-                else -> String.format("%.2f", spacing)
-            }
-        }
-        tvLetterSpacingValue?.text = getLetterSpacingLabel(currentLetterSpacing)
-        seekBarLetterSpacing?.progress = (((currentLetterSpacing - (-0.05f)) / 0.01f).toInt()).coerceIn(0, 20)
-        var lastLetterSpacingProgress = seekBarLetterSpacing?.progress ?: 5
-        seekBarLetterSpacing?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val newSpacing = -0.05f + (progress * 0.01f)
-                tvLetterSpacingValue?.text = getLetterSpacingLabel(newSpacing)
-                if (fromUser) {
-                    SettingsManager.setLetterSpacing(context, newSpacing)
-                    if (progress != lastLetterSpacingProgress) {
-                        seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                        lastLetterSpacingProgress = progress
-                    }
-                }
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-
-        // 6c. Paragraph Indent (SeekBar)
-        val tvParagraphIndentValue = view.findViewById<TextView>(R.id.tvParagraphIndentValue)
-        val seekBarParagraphIndent = view.findViewById<SeekBar>(R.id.seekBarParagraphIndent)
-        val currentParagraphIndent = SettingsManager.getParagraphIndent(context)
-        tvParagraphIndentValue?.text = if (currentParagraphIndent == 0) "Без отступа" else "$currentParagraphIndent dp"
-        seekBarParagraphIndent?.progress = currentParagraphIndent.coerceIn(0, 40)
-        var lastParagraphIndentProgress = seekBarParagraphIndent?.progress ?: 18
-        seekBarParagraphIndent?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvParagraphIndentValue?.text = if (progress == 0) "Без отступа" else "$progress dp"
-                if (fromUser) {
-                    SettingsManager.setParagraphIndent(context, progress)
-                    if (progress != lastParagraphIndentProgress) {
-                        seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                        lastParagraphIndentProgress = progress
-                    }
-                }
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
 
         // 7. Auto-Discovery Switch
         val switchAutoDiscovery = view.findViewById<SwitchCompat>(R.id.switchAutoDiscovery)
@@ -674,8 +621,6 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvFontSizeValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvFontWeightValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvLineSpacingValue)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvLetterSpacingValue)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvParagraphIndentValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoDiscoveryTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoLightNightTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAmberFilterTitle)?.setTextColor(textPrimaryColor)
@@ -698,8 +643,6 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvThemeLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAnimationLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvLineSpacingLabel)?.setTextColor(textSecondaryColor)
-        rootView.findViewById<TextView>(R.id.tvLetterSpacingLabel)?.setTextColor(textSecondaryColor)
-        rootView.findViewById<TextView>(R.id.tvParagraphIndentLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoDiscoveryDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoLightNightDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAmberFilterDesc)?.setTextColor(textSecondaryColor)
@@ -726,8 +669,6 @@ class SettingsBottomSheet : DialogFragment() {
         val seekBarFontSize = rootView.findViewById<SeekBar>(R.id.seekBarFontSize)
         val seekBarFontWeight = rootView.findViewById<SeekBar>(R.id.seekBarFontWeight)
         val seekBarLineSpacing = rootView.findViewById<SeekBar>(R.id.seekBarLineSpacing)
-        val seekBarLetterSpacing = rootView.findViewById<SeekBar>(R.id.seekBarLetterSpacing)
-        val seekBarParagraphIndent = rootView.findViewById<SeekBar>(R.id.seekBarParagraphIndent)
         val seekBarAmberIntensity = rootView.findViewById<SeekBar>(R.id.seekBarAmberIntensity)
         val seekBarExtraDimIntensity = rootView.findViewById<SeekBar>(R.id.seekBarExtraDimIntensity)
         val seekBarSleepTimer = rootView.findViewById<SeekBar>(R.id.seekBarSleepTimer)
@@ -737,10 +678,6 @@ class SettingsBottomSheet : DialogFragment() {
         seekBarFontWeight?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarLineSpacing?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarLineSpacing?.thumbTintList = ColorStateList.valueOf(accentColor)
-        seekBarLetterSpacing?.progressTintList = ColorStateList.valueOf(accentColor)
-        seekBarLetterSpacing?.thumbTintList = ColorStateList.valueOf(accentColor)
-        seekBarParagraphIndent?.progressTintList = ColorStateList.valueOf(accentColor)
-        seekBarParagraphIndent?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarAmberIntensity?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarAmberIntensity?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarExtraDimIntensity?.progressTintList = ColorStateList.valueOf(accentColor)

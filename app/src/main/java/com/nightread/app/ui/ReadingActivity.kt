@@ -502,7 +502,9 @@ class ReadingActivity : AppCompatActivity() {
         }
 
         progressiveJob = lifecycleScope.launch {
-            val formattedText = TextFormatter.formatChapterSpans(this@ReadingActivity, textToSplit, paint.textSize)
+            val formattedText = withContext(Dispatchers.Default) {
+                TextFormatter.formatChapterSpans(this@ReadingActivity, textToSplit, paint.textSize)
+            }
             
             val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
                 .setText(formattedText)
