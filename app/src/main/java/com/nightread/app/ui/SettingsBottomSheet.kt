@@ -54,7 +54,7 @@ class SettingsBottomSheet : DialogFragment() {
         }
 
         // 2. Font Selection (Spinner)
-        val fontOptions = listOf("Roboto", "Times New Roman", "Georgia", "Merriweather", "OpenDyslexic", "Monospace")
+        val fontOptions = listOf("Roboto", "Times New Roman", "Georgia", "Merriweather", "Lora", "EB Garamond", "Literata", "OpenDyslexic", "Monospace")
         val spinnerFont = view.findViewById<Spinner>(R.id.spinnerFont)
         val fontAdapter = ArrayAdapter(context, R.layout.spinner_item, fontOptions).apply {
             setDropDownViewResource(R.layout.spinner_dropdown_item)
@@ -260,6 +260,60 @@ class SettingsBottomSheet : DialogFragment() {
                     if (progress != lastLineSpacingProgress) {
                         seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                         lastLineSpacingProgress = progress
+                    }
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        // 6b. Letter Spacing (SeekBar)
+        val tvLetterSpacingValue = view.findViewById<TextView>(R.id.tvLetterSpacingValue)
+        val seekBarLetterSpacing = view.findViewById<SeekBar>(R.id.seekBarLetterSpacing)
+        val currentLetterSpacing = SettingsManager.getLetterSpacing(context)
+        
+        fun getLetterSpacingLabel(spacing: Float): String {
+            return when {
+                spacing == 0.0f -> "Стандарт"
+                spacing < -0.01f -> String.format("Узкий (%.2f)", spacing)
+                spacing > 0.01f -> String.format("Широкий (+%.2f)", spacing)
+                else -> String.format("%.2f", spacing)
+            }
+        }
+        tvLetterSpacingValue?.text = getLetterSpacingLabel(currentLetterSpacing)
+        seekBarLetterSpacing?.progress = (((currentLetterSpacing - (-0.05f)) / 0.01f).toInt()).coerceIn(0, 20)
+        var lastLetterSpacingProgress = seekBarLetterSpacing?.progress ?: 5
+        seekBarLetterSpacing?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val newSpacing = -0.05f + (progress * 0.01f)
+                tvLetterSpacingValue?.text = getLetterSpacingLabel(newSpacing)
+                if (fromUser) {
+                    SettingsManager.setLetterSpacing(context, newSpacing)
+                    if (progress != lastLetterSpacingProgress) {
+                        seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                        lastLetterSpacingProgress = progress
+                    }
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        // 6c. Paragraph Indent (SeekBar)
+        val tvParagraphIndentValue = view.findViewById<TextView>(R.id.tvParagraphIndentValue)
+        val seekBarParagraphIndent = view.findViewById<SeekBar>(R.id.seekBarParagraphIndent)
+        val currentParagraphIndent = SettingsManager.getParagraphIndent(context)
+        tvParagraphIndentValue?.text = if (currentParagraphIndent == 0) "Без отступа" else "$currentParagraphIndent dp"
+        seekBarParagraphIndent?.progress = currentParagraphIndent.coerceIn(0, 40)
+        var lastParagraphIndentProgress = seekBarParagraphIndent?.progress ?: 18
+        seekBarParagraphIndent?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                tvParagraphIndentValue?.text = if (progress == 0) "Без отступа" else "$progress dp"
+                if (fromUser) {
+                    SettingsManager.setParagraphIndent(context, progress)
+                    if (progress != lastParagraphIndentProgress) {
+                        seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                        lastParagraphIndentProgress = progress
                     }
                 }
             }
@@ -492,6 +546,93 @@ class SettingsBottomSheet : DialogFragment() {
             )
         }
 
+        // 7e. Ambient Glow controls
+        val switchAmbientGlow = view.findViewById<SwitchCompat>(R.id.switchAmbientGlow)
+        val layoutAmbientGlow = view.findViewById<LinearLayout>(R.id.layoutAmbientGlow)
+        val tvAmbientGlowIntensityValue = view.findViewById<TextView>(R.id.tvAmbientGlowIntensityValue)
+        val seekBarAmbientGlowIntensity = view.findViewById<SeekBar>(R.id.seekBarAmbientGlowIntensity)
+
+        val initialAmbientGlowEnabled = SettingsManager.isAmbientGlowEnabled(context)
+        switchAmbientGlow.isChecked = initialAmbientGlowEnabled
+        layoutAmbientGlow.visibility = if (initialAmbientGlowEnabled) View.VISIBLE else View.GONE
+
+        val initialGlowIntensity = SettingsManager.getAmbientGlowIntensity(context)
+        tvAmbientGlowIntensityValue.text = "$initialGlowIntensity%"
+        seekBarAmbientGlowIntensity.progress = initialGlowIntensity
+
+        switchAmbientGlow.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != SettingsManager.isAmbientGlowEnabled(context)) {
+                SettingsManager.setAmbientGlowEnabled(context, isChecked)
+                layoutAmbientGlow.visibility = if (isChecked) View.VISIBLE else View.GONE
+                if (isChecked) {
+                    view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                }
+            }
+        }
+
+        seekBarAmbientGlowIntensity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            private var lastProgress = initialGlowIntensity
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                tvAmbientGlowIntensityValue.text = "$progress%"
+                if (fromUser) {
+                    SettingsManager.setAmbientGlowIntensity(context, progress)
+                    if (progress != lastProgress && progress % 5 == 0) {
+                        seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                        lastProgress = progress
+                    }
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        // Palette presets
+        val btnGlowColorAmber = view.findViewById<FrameLayout>(R.id.btnGlowColorAmber)
+        val btnGlowColorMoon = view.findViewById<FrameLayout>(R.id.btnGlowColorMoon)
+        val btnGlowColorIndigo = view.findViewById<FrameLayout>(R.id.btnGlowColorIndigo)
+
+        val ringGlowColorAmber = view.findViewById<View>(R.id.ringGlowColorAmber)
+        val ringGlowColorMoon = view.findViewById<View>(R.id.ringGlowColorMoon)
+        val ringGlowColorIndigo = view.findViewById<View>(R.id.ringGlowColorIndigo)
+
+        fun updateGlowSelection(selectedColor: String) {
+            ringGlowColorAmber.visibility = if (selectedColor == "amber") View.VISIBLE else View.INVISIBLE
+            ringGlowColorMoon.visibility = if (selectedColor == "moon") View.VISIBLE else View.INVISIBLE
+            ringGlowColorIndigo.visibility = if (selectedColor == "indigo") View.VISIBLE else View.INVISIBLE
+        }
+
+        updateGlowSelection(SettingsManager.getAmbientGlowColor(context))
+
+        btnGlowColorAmber.setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            SettingsManager.setAmbientGlowColor(context, "amber")
+            updateGlowSelection("amber")
+        }
+
+        btnGlowColorMoon.setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            SettingsManager.setAmbientGlowColor(context, "moon")
+            updateGlowSelection("moon")
+        }
+
+        btnGlowColorIndigo.setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            SettingsManager.setAmbientGlowColor(context, "indigo")
+            updateGlowSelection("indigo")
+        }
+
+        // 7f. Haptic Feedback control
+        val switchHapticFeedback = view.findViewById<SwitchCompat>(R.id.switchHapticFeedback)
+        switchHapticFeedback.isChecked = SettingsManager.isHapticFeedbackEnabled(context)
+        switchHapticFeedback.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != SettingsManager.isHapticFeedbackEnabled(context)) {
+                SettingsManager.setHapticFeedbackEnabled(context, isChecked)
+                if (isChecked) {
+                    view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                }
+            }
+        }
+
         // Apply initial colors based on current theme
         applyThemeColors(currentTheme, view)
     }
@@ -605,6 +746,8 @@ class SettingsBottomSheet : DialogFragment() {
         val seekBarFontSize = rootView.findViewById<SeekBar>(R.id.seekBarFontSize)
         val seekBarFontWeight = rootView.findViewById<SeekBar>(R.id.seekBarFontWeight)
         val seekBarLineSpacing = rootView.findViewById<SeekBar>(R.id.seekBarLineSpacing)
+        val seekBarLetterSpacing = rootView.findViewById<SeekBar>(R.id.seekBarLetterSpacing)
+        val seekBarParagraphIndent = rootView.findViewById<SeekBar>(R.id.seekBarParagraphIndent)
         val seekBarAmberIntensity = rootView.findViewById<SeekBar>(R.id.seekBarAmberIntensity)
         val seekBarExtraDimIntensity = rootView.findViewById<SeekBar>(R.id.seekBarExtraDimIntensity)
         val seekBarSleepTimer = rootView.findViewById<SeekBar>(R.id.seekBarSleepTimer)
@@ -614,6 +757,10 @@ class SettingsBottomSheet : DialogFragment() {
         seekBarFontWeight?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarLineSpacing?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarLineSpacing?.thumbTintList = ColorStateList.valueOf(accentColor)
+        seekBarLetterSpacing?.progressTintList = ColorStateList.valueOf(accentColor)
+        seekBarLetterSpacing?.thumbTintList = ColorStateList.valueOf(accentColor)
+        seekBarParagraphIndent?.progressTintList = ColorStateList.valueOf(accentColor)
+        seekBarParagraphIndent?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarAmberIntensity?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarAmberIntensity?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarExtraDimIntensity?.progressTintList = ColorStateList.valueOf(accentColor)
@@ -676,7 +823,7 @@ class SettingsBottomSheet : DialogFragment() {
         // 10. Programmatic background and text colors for quick font switching buttons
         val currentFont = SettingsManager.getFontFamily(context)
         val isSansSelected = currentFont == "Roboto"
-        val isSerifSelected = currentFont == "Georgia" || currentFont == "Times New Roman" || currentFont == "Merriweather"
+        val isSerifSelected = currentFont == "Georgia" || currentFont == "Times New Roman" || currentFont == "Merriweather" || currentFont == "Lora" || currentFont == "EB Garamond" || currentFont == "Literata"
         val isMonoSelected = currentFont == "Monospace"
 
         val btnFontSans = rootView.findViewById<TextView>(R.id.btnFontSans)

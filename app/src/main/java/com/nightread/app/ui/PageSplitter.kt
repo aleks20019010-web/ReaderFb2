@@ -30,6 +30,7 @@ object PageSplitter {
     )
 
     fun formatAllSpans(
+        context: android.content.Context? = null,
         text: CharSequence,
         basePaintSize: Float,
         onNoteClick: ((String) -> Unit)? = null
@@ -159,15 +160,41 @@ object PageSplitter {
             }
             lastIdx = endTag + "[/NOTE]".length
         }
+
+        // 5. Apply dynamic paragraph first-line indents
+        if (context != null) {
+            val indentDp = com.nightread.app.data.SettingsManager.getParagraphIndent(context)
+            if (indentDp > 0) {
+                val indentInPx = (indentDp * context.resources.displayMetrics.density).toInt()
+                val textStr = spannable.toString()
+                var start = 0
+                while (start < textStr.length) {
+                    val nextNewLine = textStr.indexOf('\n', start)
+                    val end = if (nextNewLine == -1) textStr.length else nextNewLine + 1
+                    
+                    val paragraphText = textStr.substring(start, if (nextNewLine == -1) end else nextNewLine)
+                    if (paragraphText.isNotBlank() && !paragraphText.contains("[CHAPTER]") && !paragraphText.contains("[/CHAPTER]")) {
+                        spannable.setSpan(
+                            LeadingMarginSpan.Standard(indentInPx, 0),
+                            start,
+                            end,
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                    }
+                    start = end
+                }
+            }
+        }
         
         return spannable
     }
 
-    fun formatChapterSpans(text: CharSequence, basePaintSize: Float): CharSequence {
-        return formatAllSpans(text, basePaintSize, null)
+    fun formatChapterSpans(context: android.content.Context?, text: CharSequence, basePaintSize: Float): CharSequence {
+        return formatAllSpans(context, text, basePaintSize, null)
     }
 
     suspend fun getPageForOffset(
+        context: android.content.Context? = null,
         text: CharSequence,
         targetOffset: Int,
         availableWidth: Int,
@@ -182,7 +209,7 @@ object PageSplitter {
         val containsSoftHyphen = text.contains('\u00AD')
         Log.d(TAG, "splitText: text contains soft hyphens: $containsSoftHyphen (count: ${text.count { it == '\u00AD' }})")
         
-        val formattedText = formatChapterSpans(text, paint.textSize)
+        val formattedText = formatChapterSpans(context, text, paint.textSize)
         
         var start = targetOffset
         while (start > 0 && formattedText[start - 1] != '\n' && formattedText[start - 1] != '\u000C') {
@@ -226,6 +253,7 @@ object PageSplitter {
     }
 
     suspend fun splitTextProgressive(
+        context: android.content.Context? = null,
         text: CharSequence,
         availableWidth: Int,
         availableHeight: Int,
@@ -248,7 +276,7 @@ object PageSplitter {
         val containsSoftHyphen = text.contains('\u00AD')
         Log.d(TAG, "splitTextProgressive: text contains soft hyphens: $containsSoftHyphen (count: ${text.count { it == '\u00AD' }})")
 
-        val formattedText = formatChapterSpans(text, paint.textSize)
+        val formattedText = formatChapterSpans(context, text, paint.textSize)
         var start = 0
         val textLength = formattedText.length
         val alignmentVal = when (alignment) {
@@ -345,6 +373,7 @@ object PageSplitter {
     }
 
     suspend fun splitText(
+        context: android.content.Context? = null,
         text: CharSequence,
         availableWidth: Int,
         availableHeight: Int,
@@ -354,7 +383,7 @@ object PageSplitter {
         isHyphenationEnabled: Boolean = false
     ): PageResult {
         var finalResult = PageResult()
-        splitTextProgressive(text, availableWidth, availableHeight, paint, lineSpacing, alignment, isHyphenationEnabled) {
+        splitTextProgressive(context, text, availableWidth, availableHeight, paint, lineSpacing, alignment, isHyphenationEnabled) {
             if (it.isFinished) {
                 finalResult = it
             }

@@ -96,10 +96,14 @@ class PageFragment : Fragment() {
         
         textView.typeface = FontUtils.createTypefaceWithOpticalBalance(context, fontFamily, numericWeight)
 
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            textView.letterSpacing = SettingsManager.getLetterSpacing(context)
+        }
+
         textView.setLineSpacing(0f, lineSpacingMultiplier)
         
         android.util.Log.d("PageFragment", "updateStyle: setting text. contains soft hyphens: ${pageText.contains('\u00AD')} (count: ${pageText.count { it == '\u00AD' }})")
-        val formattedTextWithClicks = PageSplitter.formatAllSpans(pageText, textView.textSize) { noteId ->
+        val formattedTextWithClicks = PageSplitter.formatAllSpans(context, pageText, textView.textSize) { noteId ->
             val readingActivity = activity as? ReadingActivity
             readingActivity?.showFootnote(noteId)
         }

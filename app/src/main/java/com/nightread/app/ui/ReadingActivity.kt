@@ -70,6 +70,7 @@ class ReadingActivity : AppCompatActivity() {
     private var lastThemeTransitionTime: Long = 0L
     private var viewAmberFilter: android.view.View? = null
     private var viewExtraDim: android.view.View? = null
+    private var viewAmbientGlow: com.nightread.app.ui.AmbientGlowView? = null
     private var tvSleepTimerIndicator: TextView? = null
     private var sleepTimerJob: kotlinx.coroutines.Job? = null
     private var sleepTimerRemainingSeconds: Int = 0
@@ -99,9 +100,11 @@ class ReadingActivity : AppCompatActivity() {
         viewPager = findViewById(R.id.viewPager)
         viewAmberFilter = findViewById(R.id.viewAmberFilter)
         viewExtraDim = findViewById(R.id.viewExtraDim)
+        viewAmbientGlow = findViewById(R.id.viewAmbientGlow)
         tvSleepTimerIndicator = findViewById(R.id.tvSleepTimerIndicator)
         updateAmberFilter()
         updateExtraDim()
+        updateAmbientGlow()
         updateSleepTimer()
         updatePageTransformer()
         progressBar = findViewById(R.id.progressBar)
@@ -193,6 +196,7 @@ class ReadingActivity : AppCompatActivity() {
                 updatePageTransformer()
                 updateAmberFilter()
                 updateExtraDim()
+                updateAmbientGlow()
                 updateSleepTimer()
                 
                 // Re-evaluate light sensor listener state on settings change
@@ -401,7 +405,10 @@ class ReadingActivity : AppCompatActivity() {
             textSize = SettingsManager.getFontSize(this@ReadingActivity) * resources.displayMetrics.scaledDensity
             val family = SettingsManager.getFontFamily(this@ReadingActivity)
             val numericWeight = SettingsManager.getFontWeightAsInt(this@ReadingActivity)
-            typeface = FontUtils.createTypeface(family, numericWeight)
+            typeface = FontUtils.createTypeface(this@ReadingActivity, family, numericWeight)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                letterSpacing = SettingsManager.getLetterSpacing(this@ReadingActivity)
+            }
         }
 
         // Match padding in PageFragment: 16dp left + 16dp right = 32dp
@@ -471,6 +478,7 @@ class ReadingActivity : AppCompatActivity() {
 
         progressiveJob = lifecycleScope.launch {
             PageSplitter.splitTextProgressive(
+                context = this@ReadingActivity,
                 text = textToSplit,
                 availableWidth = availableWidth,
                 availableHeight = availableHeight,
@@ -558,9 +566,14 @@ class ReadingActivity : AppCompatActivity() {
         })
         
         viewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+            private var lastSelectedPos = -1
             override fun onPageSelected(position: Int) {
                 updateBottomBar(position)
                 saveProgress()
+                if (lastSelectedPos != -1 && lastSelectedPos != position) {
+                    triggerPremiumHaptic(HapticType.LIGHT)
+                }
+                lastSelectedPos = position
             }
         })
     }
@@ -1015,6 +1028,7 @@ class ReadingActivity : AppCompatActivity() {
                 if (existing != null) {
                     db.bookmarkDao().deleteBookmark(existing)
                     withContext(Dispatchers.Main) {
+                        triggerPremiumHaptic(HapticType.LIGHT)
                         btnBookmark.setImageResource(R.drawable.ic_bookmark)
                         fabBookmark.setImageResource(R.drawable.ic_bookmark)
                         CustomToast.show(this@ReadingActivity, "Закладка удалена")
@@ -1029,6 +1043,7 @@ class ReadingActivity : AppCompatActivity() {
                     )
                     db.bookmarkDao().insertBookmark(newBookmark)
                     withContext(Dispatchers.Main) {
+                        triggerPremiumHaptic(HapticType.DOUBLE)
                         btnBookmark.setImageResource(R.drawable.ic_bookmark_filled)
                         fabBookmark.setImageResource(R.drawable.ic_bookmark_filled)
                         CustomToast.show(this@ReadingActivity, "Закладка добавлена")
@@ -1346,5 +1361,62 @@ class ReadingActivity : AppCompatActivity() {
                 fadeView.visibility = android.view.View.GONE
             }
             .start()
+    }
+
+    private fun updateAmbientGlow() {
+        val glowView = viewAmbientGlow ?: return
+        val isEnabled = SettingsManager.isAmbientGlowEnabled(this)
+        if (isEnabled) {
+            val intensity = SettingsManager.getAmbientGlowIntensity(this)
+            val colorPreset = SettingsManager.getAmbientGlowColor(this)
+            glowView.setGlowPreset(colorPreset)
+            glowView.setGlowIntensity(intensity)
+            glowView.visibility = android.view.View.VISIBLE
+        } else {
+            glowView.visibility = android.view.View.GONE
+        }
+    }
+
+    enum class HapticType {
+        LIGHT, MEDIUM, DOUBLE, ERROR
+    }
+
+    private fun triggerPremiumHaptic(type: HapticType) {
+        if (!SettingsManager.isHapticFeedbackEnabled(this)) return
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            if (vibrator != null && vibrator.hasVibrator()) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    when (type) {
+                        HapticType.LIGHT -> {
+                            vibrator.vibrate(android.os.VibrationEffect.createOneShot(10, 45))
+                        }
+                        HapticType.MEDIUM -> {
+                            vibrator.vibrate(android.os.VibrationEffect.createOneShot(20, 90))
+                        }
+                        HapticType.DOUBLE -> {
+                            val pattern = longArrayOf(0, 15, 40, 15)
+                            val amplitudes = intArrayOf(0, 90, 0, 90)
+                            vibrator.vibrate(android.os.VibrationEffect.createWaveform(pattern, amplitudes, -1))
+                        }
+                        HapticType.ERROR -> {
+                            val pattern = longArrayOf(0, 40, 60, 40)
+                            val amplitudes = intArrayOf(0, 160, 0, 160)
+                            vibrator.vibrate(android.os.VibrationEffect.createWaveform(pattern, amplitudes, -1))
+                        }
+                    }
+                } else {
+                    @Suppress("DEPRECATION")
+                    when (type) {
+                        HapticType.LIGHT -> vibrator.vibrate(10)
+                        HapticType.MEDIUM -> vibrator.vibrate(20)
+                        HapticType.DOUBLE -> vibrator.vibrate(longArrayOf(0, 15, 40, 15), -1)
+                        HapticType.ERROR -> vibrator.vibrate(longArrayOf(0, 40, 60, 40), -1)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Safe fallback
+        }
     }
 }

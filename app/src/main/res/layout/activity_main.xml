@@ -27,9 +27,15 @@
             android:id="@+id/splash_overlay"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="#05020E"
+            android:background="@android:color/transparent"
             android:clickable="true"
             android:focusable="true">
+
+            <!-- Starry Parallax Background for Splash/Onboarding Screen -->
+            <com.nightread.app.ui.StarryNightView
+                android:id="@+id/splash_starry_bg"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
 
             <LinearLayout
                 android:layout_width="match_parent"

@@ -211,9 +211,11 @@ class MainActivity : BaseActivity() {
         val tvSplashLoadingStatus = findViewById<TextView>(R.id.tv_splash_loading_status)
         val pbSplashLoading = findViewById<ProgressBar>(R.id.pb_splash_loading)
         val starryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.starry_bg)
+        val splashStarryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.splash_starry_bg)
 
         // Configure the background live particles to match our premium Golden accent initially
         starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
+        splashStarryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
         // Infinite, hypnotic ambient animations matching the premium style
         // 1. Glow pulsation
@@ -443,7 +445,7 @@ class MainActivity : BaseActivity() {
                                         textSize = SettingsManager.getFontSize(this@MainActivity) * resources.displayMetrics.scaledDensity
                                         val family = SettingsManager.getFontFamily(this@MainActivity)
                                         val numericWeight = SettingsManager.getFontWeightAsInt(this@MainActivity)
-                                        typeface = FontUtils.createTypeface(family, numericWeight)
+                                        typeface = FontUtils.createTypeface(this@MainActivity, family, numericWeight)
                                     }
                                     
                                     val paddingHorizontal = (32 * resources.displayMetrics.density).toInt()

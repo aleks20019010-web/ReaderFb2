@@ -12,6 +12,16 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Ambient Glow Overlay (Click-through) -->
+    <com.nightread.app.ui.AmbientGlowView
+        android:id="@+id/viewAmbientGlow"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
     <!-- Amber / Blue Light Filter Overlay (Click-through) -->
     <View
         android:id="@+id/viewAmberFilter"

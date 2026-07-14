@@ -41,6 +41,12 @@ object SettingsManager {
     const val KEY_AUTO_SYNC = "auto_sync"
     const val KEY_AUTO_SYNC_INTERVAL_DAYS = "auto_sync_interval_days"
     const val KEY_AUTO_SYNC_START_TIME = "auto_sync_start_time"
+    const val KEY_AMBIENT_GLOW_ENABLED = "ambient_glow_enabled"
+    const val KEY_AMBIENT_GLOW_INTENSITY = "ambient_glow_intensity"
+    const val KEY_AMBIENT_GLOW_COLOR = "ambient_glow_color"
+    const val KEY_HAPTIC_FEEDBACK_ENABLED = "haptic_feedback_enabled"
+    const val KEY_LETTER_SPACING = "letter_spacing"
+    const val KEY_PARAGRAPH_INDENT = "paragraph_indent"
 
     private val _settingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val settingsChanged: SharedFlow<Unit> = _settingsChanged.asSharedFlow()
@@ -70,6 +76,12 @@ object SettingsManager {
     private var cachedSleepTimerDuration: Int? = null
     private var cachedShakeToExtendEnabled: Boolean? = null
     private var cachedShowAllFormats: Boolean? = null
+    private var cachedAmbientGlowEnabled: Boolean? = null
+    private var cachedAmbientGlowIntensity: Int? = null
+    private var cachedAmbientGlowColor: String? = null
+    private var cachedHapticFeedbackEnabled: Boolean? = null
+    private var cachedLetterSpacing: Float? = null
+    private var cachedParagraphIndent: Int? = null
 
     private fun getPrefs(context: Context): SharedPreferences {
         if (prefs == null) {
@@ -494,5 +506,90 @@ object SettingsManager {
         if (oldBand != newBand) {
             notifyChanged()
         }
+    }
+
+    fun isAmbientGlowEnabled(context: Context): Boolean {
+        if (cachedAmbientGlowEnabled == null) {
+            cachedAmbientGlowEnabled = getPrefs(context).getBoolean(KEY_AMBIENT_GLOW_ENABLED, false)
+        }
+        return cachedAmbientGlowEnabled!!
+    }
+
+    fun setAmbientGlowEnabled(context: Context, enabled: Boolean) {
+        if (cachedAmbientGlowEnabled == enabled) return
+        cachedAmbientGlowEnabled = enabled
+        getPrefs(context).edit().putBoolean(KEY_AMBIENT_GLOW_ENABLED, enabled).apply()
+        notifyChanged()
+    }
+
+    fun getAmbientGlowIntensity(context: Context): Int {
+        if (cachedAmbientGlowIntensity == null) {
+            cachedAmbientGlowIntensity = getPrefs(context).getInt(KEY_AMBIENT_GLOW_INTENSITY, 40)
+        }
+        return cachedAmbientGlowIntensity!!
+    }
+
+    fun setAmbientGlowIntensity(context: Context, intensity: Int) {
+        if (cachedAmbientGlowIntensity == intensity) return
+        cachedAmbientGlowIntensity = intensity
+        getPrefs(context).edit().putInt(KEY_AMBIENT_GLOW_INTENSITY, intensity).apply()
+        notifyChanged()
+    }
+
+    fun getAmbientGlowColor(context: Context): String {
+        if (cachedAmbientGlowColor == null) {
+            cachedAmbientGlowColor = getPrefs(context).getString(KEY_AMBIENT_GLOW_COLOR, "amber") ?: "amber"
+        }
+        return cachedAmbientGlowColor!!
+    }
+
+    fun setAmbientGlowColor(context: Context, color: String) {
+        if (cachedAmbientGlowColor == color) return
+        cachedAmbientGlowColor = color
+        getPrefs(context).edit().putString(KEY_AMBIENT_GLOW_COLOR, color).apply()
+        notifyChanged()
+    }
+
+    fun isHapticFeedbackEnabled(context: Context): Boolean {
+        if (cachedHapticFeedbackEnabled == null) {
+            cachedHapticFeedbackEnabled = getPrefs(context).getBoolean(KEY_HAPTIC_FEEDBACK_ENABLED, true)
+        }
+        return cachedHapticFeedbackEnabled!!
+    }
+
+    fun setHapticFeedbackEnabled(context: Context, enabled: Boolean) {
+        if (cachedHapticFeedbackEnabled == enabled) return
+        cachedHapticFeedbackEnabled = enabled
+        getPrefs(context).edit().putBoolean(KEY_HAPTIC_FEEDBACK_ENABLED, enabled).apply()
+        notifyChanged()
+    }
+
+    fun getLetterSpacing(context: Context): Float {
+        if (cachedLetterSpacing == null) {
+            cachedLetterSpacing = getPrefs(context).getFloat(KEY_LETTER_SPACING, 0.0f)
+        }
+        return cachedLetterSpacing!!
+    }
+
+    fun setLetterSpacing(context: Context, spacing: Float) {
+        if (cachedLetterSpacing == spacing) return
+        cachedLetterSpacing = spacing
+        getPrefs(context).edit().putFloat(KEY_LETTER_SPACING, spacing).apply()
+        notifyChanged()
+    }
+
+    fun getParagraphIndent(context: Context): Int {
+        if (cachedParagraphIndent == null) {
+            // Default 18dp indent is standard and beautiful for literature reading
+            cachedParagraphIndent = getPrefs(context).getInt(KEY_PARAGRAPH_INDENT, 18)
+        }
+        return cachedParagraphIndent!!
+    }
+
+    fun setParagraphIndent(context: Context, indent: Int) {
+        if (cachedParagraphIndent == indent) return
+        cachedParagraphIndent = indent
+        getPrefs(context).edit().putInt(KEY_PARAGRAPH_INDENT, indent).apply()
+        notifyChanged()
     }
 }
