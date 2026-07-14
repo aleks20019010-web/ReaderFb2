@@ -312,7 +312,7 @@ class ReadingActivity : AppCompatActivity() {
             }
 
             try {
-                if (BookCache.sha1 == sha1 && BookCache.content.isNotEmpty()) {
+                if (BookCache.sha1 == sha1 + "_v3" && BookCache.content.isNotEmpty()) {
                     tvLoadingProgress.text = "Книга загружена из кэша..."
                     Log.i("READING_DEBUG", "Reusing cached book content for SHA-1: $sha1")
                     bookContent = BookCache.content
@@ -349,7 +349,7 @@ class ReadingActivity : AppCompatActivity() {
                         return@launch
                     }
                     
-                    BookCache.sha1 = sha1
+                    BookCache.sha1 = sha1 + "_v3"
                     BookCache.content = bookContent
                     BookCache.notes = bookNotes
                     Log.i("READING_DEBUG", "Successfully loaded book from disk and updated BookCache for SHA-1: $sha1")
@@ -372,7 +372,7 @@ class ReadingActivity : AppCompatActivity() {
                     throw e
                 }
                 Log.e("READING_DEBUG", "Error loading book", e)
-                if (bookContent.isNotEmpty() || (BookCache.sha1 == sha1 && BookCache.content.isNotEmpty())) {
+                if (bookContent.isNotEmpty() || (BookCache.sha1 == sha1 + "_v3" && BookCache.content.isNotEmpty())) {
                     Log.d("READING_DEBUG", "Suppressed non-critical loading error because book content is already available.")
                 } else {
                     CustomToast.show(this@ReadingActivity, "Ошибка чтения файла")
@@ -439,7 +439,7 @@ class ReadingActivity : AppCompatActivity() {
         val letterSpacing = SettingsManager.getLetterSpacing(this@ReadingActivity)
         val paragraphIndent = SettingsManager.getParagraphIndent(this@ReadingActivity)
         val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getFontWeightAsInt(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}_letterSpacing=${letterSpacing}_paragraphIndent=${paragraphIndent}_hyphen=$hyphenationEnabled"
-        if (BookCache.sha1 == sha1 && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {
+        if (BookCache.sha1 == sha1 + "_v3" && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {
             splitResult = BookCache.splitResult ?: TextFormatter.PageResult()
             isSplittingFinished = true
             tvLoadingProgress.visibility = View.GONE
@@ -484,10 +484,10 @@ class ReadingActivity : AppCompatActivity() {
         var isFirstRender = true
 
         val textToSplit = if (hyphenationEnabled) {
-            if (BookCache.sha1 == this.sha1 && BookCache.isHyphenated == true && BookCache.hyphenatedContent != null) {
+            if (BookCache.sha1 == this.sha1 + "_v3" && BookCache.isHyphenated == true && BookCache.hyphenatedContent != null) {
                 BookCache.hyphenatedContent!!
             } else {
-                val cachedHyphenated = com.nightread.app.ui.HyphenationDiskCache.getHyphenatedText(this@ReadingActivity, sha1)
+                val cachedHyphenated = com.nightread.app.ui.HyphenationDiskCache.getHyphenatedText(this@ReadingActivity, sha1 + "_v3")
                 if (cachedHyphenated != null) {
                     BookCache.hyphenatedContent = cachedHyphenated
                     BookCache.isHyphenated = true
@@ -500,7 +500,7 @@ class ReadingActivity : AppCompatActivity() {
                     BookCache.hyphenatedContent = hyphenated
                     BookCache.isHyphenated = true
                     lifecycleScope.launch(Dispatchers.IO) {
-                        com.nightread.app.ui.HyphenationDiskCache.saveHyphenatedText(this@ReadingActivity, sha1, hyphenated)
+                        com.nightread.app.ui.HyphenationDiskCache.saveHyphenatedText(this@ReadingActivity, sha1 + "_v3", hyphenated)
                     }
                     hyphenated
                 }
@@ -512,12 +512,12 @@ class ReadingActivity : AppCompatActivity() {
         }
 
         progressiveJob = lifecycleScope.launch {
-            val fixedText = textToSplit.toString().replace("\n    ", "\n\u200B\u200B\u200B\u200B")
+            val fixedText = textToSplit.toString().replace("\n", "\n\u200B\u200B\u200B\u200B")
             val formattedText = withContext(Dispatchers.Default) {
                 TextFormatter.formatChapterSpans(this@ReadingActivity, fixedText, paint.textSize)
             }
             
-            val cachedOffsets = com.nightread.app.ui.PaginationDiskCache.getOffsets(this@ReadingActivity, sha1, currentKey)
+            val cachedOffsets = com.nightread.app.ui.PaginationDiskCache.getOffsets(this@ReadingActivity, sha1 + "_v3", currentKey)
             if (cachedOffsets != null) {
                 val newPages = java.util.ArrayList<CharSequence>()
                 for (i in cachedOffsets.indices) {
@@ -529,7 +529,7 @@ class ReadingActivity : AppCompatActivity() {
                 val result = TextFormatter.PageResult(newPages, java.util.ArrayList(cachedOffsets), true)
                 splitResult = result
                 isSplittingFinished = true
-                BookCache.sha1 = sha1
+                BookCache.sha1 = sha1 + "_v3"
                 BookCache.layoutKey = currentKey
                 BookCache.splitResult = result
 
@@ -907,7 +907,16 @@ class ReadingActivity : AppCompatActivity() {
 
     private fun updateBottomBar(position: Int) {
         val total = splitResult.pages.size
+        
+        val progressView = findViewById<com.nightread.app.ui.customlayout.ReadingProgressView>(R.id.readingProgressView)
+        
         if (isSplittingFinished) {
+            if (total > 1) {
+                progressView?.progress = position.toFloat() / (total - 1)
+            } else {
+                progressView?.progress = 0f
+            }
+
             tvPageInfo.text = "Стр. ${position + 1} из $total"
             if (total > 1) {
                 seekBar.progress = (position * 100) / (total - 1)
@@ -972,6 +981,13 @@ class ReadingActivity : AppCompatActivity() {
 
         // Ensure the root view and window background match the active page theme color
         findViewById<android.view.View>(R.id.rootView)?.setBackgroundColor(parsedColor)
+        
+        val progressColor = when (themeName) {
+            "light", "sepia", "sepia_contrast", "beige" -> android.graphics.Color.parseColor("#40000000") // Darker progress line for light themes
+            else -> android.graphics.Color.parseColor("#40FFFFFF") // Lighter progress line for dark themes
+        }
+        findViewById<com.nightread.app.ui.customlayout.ReadingProgressView>(R.id.readingProgressView)?.setColorHint(progressColor)
+
         window.decorView.setBackgroundColor(parsedColor)
 
         val isLightTheme = when (themeName) {

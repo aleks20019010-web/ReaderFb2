@@ -52,6 +52,14 @@
         android:focusable="false"
         android:importantForAccessibility="no" />
 
+    <!-- Reading Progress Indicator (always visible) -->
+    <com.nightread.app.ui.customlayout.ReadingProgressView
+        android:id="@+id/readingProgressView"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_gravity="bottom"
+        android:layout_marginBottom="2dp" />
+
     <!-- Brightness Indicator -->
     <TextView
         android:id="@+id/tvBrightness"

@@ -110,12 +110,12 @@ object Fb2Parser : BookParser {
 
         // Map rest of formatting
         text = text
-            .replace(Regex("<empty-line[^>]*>"), "\n")
+            .replace(Regex("<empty-line[^>]*>"), "\n\n")
             .replace(Regex("<title[^>]*>"), "\n\u000C[CHAPTER]")
             .replace(Regex("</title>"), "[/CHAPTER]\n")
-            .replace(Regex("<p[^>]*>"), "\n\u200B\u200B\u200B\u200B")
+            .replace(Regex("<p[^>]*>"), "\n\u00A0\u00A0\u00A0\u00A0")
             .replace(Regex("</p>"), "")
-            .replace(Regex("<v[^>]*>"), "\n\u200B\u200B\u200B\u200B")
+            .replace(Regex("<v[^>]*>"), "\n")
             .replace(Regex("</v>"), "")
             .replace(Regex("<subtitle[^>]*>"), "\n")
             .replace(Regex("</subtitle>"), "\n")
@@ -128,7 +128,11 @@ object Fb2Parser : BookParser {
         text = decodeHtmlEntities(text)
 
         // Clean up multiple newlines to just one newline, excluding FormFeed (\u000C)
-        text = text.replace(Regex("([ \\t\\r\\n]*\\n[ \\t\\r\\n]*)+"), "\n\u200B\u200B\u200B\u200B")
+        // Clean up multiple newlines to just one or two
+        text = text.replace(Regex("([ \t\r]*\n[ \t\r]*){3,}"), "\n\n")
+        // Remove spaces before non-breaking spaces (our paragraph indent)
+        text = text.replace(Regex("\n[ \t\r]+(?=\u00A0)"), "\n")
+
 
         // Clean up consecutive page breaks
         text = text.replace(Regex("\\u000C+"), "\u000C")
