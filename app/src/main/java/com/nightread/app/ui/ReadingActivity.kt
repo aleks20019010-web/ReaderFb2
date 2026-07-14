@@ -487,13 +487,23 @@ class ReadingActivity : AppCompatActivity() {
             if (BookCache.sha1 == this.sha1 && BookCache.isHyphenated == true && BookCache.hyphenatedContent != null) {
                 BookCache.hyphenatedContent!!
             } else {
-                val hyphenated = withContext(Dispatchers.Default) {
-                    com.nightread.app.ui.HyphenationPatterns.load("ru")
-                    com.nightread.app.ui.HyphenatorHelper.hyphenate(bookContent)
+                val cachedHyphenated = com.nightread.app.ui.HyphenationDiskCache.getHyphenatedText(this@ReadingActivity, sha1)
+                if (cachedHyphenated != null) {
+                    BookCache.hyphenatedContent = cachedHyphenated
+                    BookCache.isHyphenated = true
+                    cachedHyphenated
+                } else {
+                    val hyphenated = withContext(Dispatchers.Default) {
+                        com.nightread.app.ui.HyphenationPatterns.load("ru")
+                        com.nightread.app.ui.HyphenatorHelper.hyphenate(bookContent)
+                    }
+                    BookCache.hyphenatedContent = hyphenated
+                    BookCache.isHyphenated = true
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        com.nightread.app.ui.HyphenationDiskCache.saveHyphenatedText(this@ReadingActivity, sha1, hyphenated)
+                    }
+                    hyphenated
                 }
-                BookCache.hyphenatedContent = hyphenated
-                BookCache.isHyphenated = true
-                hyphenated
             }
         } else {
             BookCache.isHyphenated = false
@@ -506,6 +516,59 @@ class ReadingActivity : AppCompatActivity() {
                 TextFormatter.formatChapterSpans(this@ReadingActivity, textToSplit, paint.textSize)
             }
             
+            val cachedOffsets = com.nightread.app.ui.PaginationDiskCache.getOffsets(this@ReadingActivity, sha1, currentKey)
+            if (cachedOffsets != null) {
+                val newPages = java.util.ArrayList<CharSequence>()
+                for (i in cachedOffsets.indices) {
+                    val startIdx = cachedOffsets[i]
+                    val endIdx = if (i < cachedOffsets.size - 1) cachedOffsets[i + 1] else formattedText.length
+                    newPages.add(formattedText.subSequence(startIdx, endIdx))
+                }
+                
+                val result = TextFormatter.PageResult(newPages, java.util.ArrayList(cachedOffsets), true)
+                splitResult = result
+                isSplittingFinished = true
+                BookCache.sha1 = sha1
+                BookCache.layoutKey = currentKey
+                BookCache.splitResult = result
+
+                tvLoadingProgress.visibility = android.view.View.GONE
+                progressBar.visibility = android.view.View.GONE
+
+                if (viewPager.adapter == null) {
+                    viewPager.adapter = ReaderPagerAdapter(this@ReadingActivity, splitResult.pages, splitResult.offsets)
+                } else {
+                    val adapter = viewPager.adapter as ReaderPagerAdapter
+                    adapter.pages = splitResult.pages
+                    adapter.offsets = splitResult.offsets
+                    adapter.notifyDataSetChanged()
+                }
+
+                var targetPage = 0
+                if (resolvedCharOffset >= 0) {
+                    targetPage = splitResult.offsets.indexOfLast { it <= resolvedCharOffset }.coerceAtLeast(0)
+                } else {
+                    val currentIdx = viewPager.currentItem
+                    val oldOffsets = splitResult.offsets
+                    if (currentIdx >= 0 && currentIdx < oldOffsets.size) {
+                        val offset = oldOffsets[currentIdx]
+                        targetPage = splitResult.offsets.indexOfLast { it <= offset }.coerceAtLeast(0)
+                    }
+                }
+                
+                if (targetPage < splitResult.pages.size) {
+                    viewPager.post {
+                        viewPager.setCurrentItem(targetPage, false)
+                        updateBottomBar(targetPage)
+                        showBarsWithAnimation(animateFab = true)
+                    }
+                } else {
+                    updateBottomBar(targetPage)
+                    showBarsWithAnimation(animateFab = true)
+                }
+                return@launch
+            }
+
             val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
                 .setText(formattedText)
                 .setWidth(availableWidth)
@@ -568,6 +631,9 @@ class ReadingActivity : AppCompatActivity() {
                 if (result.isFinished) {
                     BookCache.layoutKey = currentKey
                     BookCache.splitResult = result
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        com.nightread.app.ui.PaginationDiskCache.saveOffsets(this@ReadingActivity, sha1, currentKey, newOffsets)
+                    }
                 }
             }
         }

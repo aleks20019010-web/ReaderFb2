@@ -1,0 +1,13 @@
+629c629,634
+<                 if (result.isFinished) {
+<                     BookCache.layoutKey = currentKey
+<                     BookCache.splitResult = result
+<                 }
+---
+>                 if (result.isFinished) {
+>                     BookCache.layoutKey = currentKey
+>                     BookCache.splitResult = result
+>                     lifecycleScope.launch(Dispatchers.IO) {
+>                         com.nightread.app.ui.PaginationDiskCache.saveOffsets(this@ReadingActivity, sha1, currentKey, newOffsets)
+>                     }
+>                 }
