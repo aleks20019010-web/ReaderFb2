@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="62dp"
     android:orientation="vertical"
-    android:background="@drawable/bg_card_forest"
+    android:background="@drawable/bg_notification"
     android:padding="10dp"
     android:layout_marginBottom="8dp"
     android:elevation="2dp"
@@ -26,6 +26,7 @@
             android:layout_height="16dp"
             android:layout_marginEnd="8dp"
             android:indeterminate="true"
+            android:indeterminateTint="#FFE3A8"
             style="?android:attr/progressBarStyleSmall" />
 
         <TextView
@@ -37,7 +38,8 @@
             android:textSize="13sp"
             android:maxLines="1"
             android:ellipsize="end"
-            android:textColor="@color/text_author" />
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
             
         <TextView
             android:id="@+id/tvTimeElapsed"
@@ -46,7 +48,8 @@
             android:text=""
             android:textSize="11sp"
             android:gravity="end"
-            android:textColor="@color/text_secondary"
+            android:textColor="#FFE3A8"
+            android:textStyle="bold"
             android:layout_marginStart="4dp" />
     </LinearLayout>
 
@@ -56,5 +59,7 @@
         android:layout_width="match_parent"
         android:layout_height="6dp"
         android:max="100"
-        android:progress="0" />
+        android:progress="0"
+        android:progressTint="#FFE3A8"
+        android:progressBackgroundTint="#221B35" />
 </LinearLayout>

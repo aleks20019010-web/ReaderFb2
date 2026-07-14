@@ -185,7 +185,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:background="@drawable/bg_panel"
+            android:background="@drawable/bg_notification"
             android:padding="12dp"
             android:layout_marginBottom="12dp"
             android:gravity="center_vertical"
@@ -197,7 +197,8 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Найдено новых книг: X"
-                android:textColor="@color/text_primary"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
                 android:textSize="14sp" />
 
             <TextView
@@ -205,7 +206,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Показать"
-                android:textColor="@color/accent"
+                android:textColor="#FFE3A8"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:padding="4dp"
@@ -221,7 +222,7 @@
                 android:padding="4dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
-                app:tint="@color/text_author" />
+                app:tint="#FFE3A8" />
         </LinearLayout>
 
         <!-- Continue Reading Section -->

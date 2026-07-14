@@ -105,6 +105,7 @@ class LibraryFragment : Fragment() {
     private lateinit var btnCloseNewBooks: ImageView
     private val hideBannerHandler = Handler(Looper.getMainLooper())
     private val hideBannerRunnable = Runnable { layoutNewBooksBanner.visibility = View.GONE }
+    private var scanDismissJob: kotlinx.coroutines.Job? = null
     private lateinit var tvEmptyStateDesc: TextView
     private lateinit var btnEmptyStateScan: com.google.android.material.button.MaterialButton
     private lateinit var btnRecoverLibrary: com.google.android.material.button.MaterialButton
@@ -736,54 +737,34 @@ class LibraryFragment : Fragment() {
         }
         
         if (state.status.isNotBlank()) {
-            val isNoBooksFound = state.status.contains("не найдено", ignoreCase = true) || state.status.contains("не найдены", ignoreCase = true)
-            val isCompleted = state.status.contains("завершено", ignoreCase = true)
-            
-            if (isNoBooksFound && !active) {
-                val wasAlreadyDismissed = context?.getSharedPreferences("library_prefs", Context.MODE_PRIVATE)?.getBoolean("no_books_banner_dismissed", false) ?: false
-                if (!wasAlreadyDismissed) {
-                    layoutScanProgress.visibility = View.VISIBLE
+            if (active) {
+                scanDismissJob?.cancel()
+                scanDismissJob = null
+                layoutScanProgress.visibility = View.VISIBLE
+                if (isSwipeRescanInProgress) {
+                    tvScanStatus.text = "Обновление: ${state.status}"
+                } else {
                     tvScanStatus.text = state.status
-                    viewLifecycleOwner.lifecycleScope.launch {
-                        kotlinx.coroutines.delay(2000)
-                        if (isAdded) {
-                            layoutScanProgress.visibility = View.GONE
-                            context?.getSharedPreferences("library_prefs", Context.MODE_PRIVATE)?.edit()
-                                ?.putBoolean("no_books_banner_dismissed", true)
-                                ?.apply()
-                        }
-                    }
-                } else {
-                    layoutScanProgress.visibility = View.GONE
                 }
-            } else if (isCompleted && !active) {
-                if (isScanCompletionDismissed) {
-                    layoutScanProgress.visibility = View.GONE
-                } else {
+            } else {
+                if (!isScanCompletionDismissed) {
                     layoutScanProgress.visibility = View.VISIBLE
                     if (isSwipeRescanInProgress) {
                         tvScanStatus.text = "Обновление: ${state.status}"
                     } else {
                         tvScanStatus.text = state.status
                     }
-                    viewLifecycleOwner.lifecycleScope.launch {
+                    
+                    scanDismissJob?.cancel()
+                    scanDismissJob = viewLifecycleOwner.lifecycleScope.launch {
                         kotlinx.coroutines.delay(2000)
                         if (isAdded) {
                             isScanCompletionDismissed = true
                             layoutScanProgress.visibility = View.GONE
                         }
                     }
-                }
-            } else {
-                if (isScanCompletionDismissed && !active) {
-                    layoutScanProgress.visibility = View.GONE
                 } else {
-                    layoutScanProgress.visibility = View.VISIBLE
-                    if (isSwipeRescanInProgress) {
-                        tvScanStatus.text = "Обновление: ${state.status}"
-                    } else {
-                        tvScanStatus.text = state.status
-                    }
+                    layoutScanProgress.visibility = View.GONE
                 }
             }
             
