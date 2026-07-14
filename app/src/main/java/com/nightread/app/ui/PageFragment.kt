@@ -100,6 +100,14 @@ class PageFragment : Fragment() {
             textSize = fontSize * resources.displayMetrics.scaledDensity
             color = Color.parseColor(textColor)
             typeface = FontUtils.createTypefaceWithOpticalBalance(context, fontFamily, numericWeight)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                letterSpacing = SettingsManager.getLetterSpacing(context)
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                textLocales = android.os.LocaleList(java.util.Locale("ru"))
+            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                textLocale = java.util.Locale("ru")
+            }
         }
 
         // We need the width of the view. Since updateStyle is called in onCreate/onViewCreated, 

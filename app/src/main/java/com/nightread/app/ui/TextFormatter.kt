@@ -179,7 +179,8 @@ object TextFormatter {
                         } else {
                             true
                         }
-                        if (shouldIndent) {
+                        val startsWithWhitespace = paragraphText.isNotEmpty() && (paragraphText[0].isWhitespace() || paragraphText[0] == '\u00A0' || paragraphText[0] == '\t')
+                        if (shouldIndent && !startsWithWhitespace) {
                             spannable.setSpan(
                                 LeadingMarginSpan.Standard(indentInPx, 0),
                                 start,

@@ -580,8 +580,8 @@ object SettingsManager {
 
     fun getParagraphIndent(context: Context): Int {
         if (cachedParagraphIndent == null) {
-            // Default 18dp indent is standard and beautiful for literature reading
-            cachedParagraphIndent = getPrefs(context).getInt(KEY_PARAGRAPH_INDENT, 18)
+            // Default 12dp indent is standard and beautiful for literature reading
+            cachedParagraphIndent = getPrefs(context).getInt(KEY_PARAGRAPH_INDENT, 12)
         }
         return cachedParagraphIndent!!
     }
