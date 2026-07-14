@@ -4,25 +4,9 @@
     android:id="@+id/rootContainer"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
-    <TextView
+    <com.nightread.app.ui.ReaderPageView
         android:id="@+id/textView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        
-        
-        android:layout_gravity="center_horizontal"
-        
-        
-        
-        
-        android:gravity="top|start"
-        android:textAlignment="viewStart"
-        android:includeFontPadding="false"
-        android:breakStrategy="high_quality"
-        android:hyphenationFrequency="full"
-        tools:targetApi="o"
-        android:justificationMode="none"
-        android:lineSpacingExtra="0dp"
-        android:textIsSelectable="true"
-        android:scrollHorizontally="false" />
+        android:layout_gravity="center_horizontal" />
 </FrameLayout>

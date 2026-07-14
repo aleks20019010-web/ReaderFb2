@@ -7,7 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.TextView
+import com.nightread.app.ui.ReaderPageView
 import android.widget.ProgressBar
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -36,7 +36,7 @@ class PageFragment : Fragment() {
     ): View {
         val view = inflater.inflate(R.layout.fragment_page, container, false)
         val root = view.findViewById<FrameLayout>(R.id.rootContainer)
-        val textView = view.findViewById<TextView>(R.id.textView)
+        val textView = view.findViewById<ReaderPageView>(R.id.textView)
         
         updateStyle(root, textView)
 
@@ -46,7 +46,7 @@ class PageFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        val textView = view.findViewById<TextView>(R.id.textView)
+        val textView = view.findViewById<ReaderPageView>(R.id.textView)
         ViewCompat.setOnApplyWindowInsetsListener(textView) { v, windowInsets ->
             val displayCutoutInsets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
             val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
@@ -64,7 +64,7 @@ class PageFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 SettingsManager.settingsChanged.collect {
                     val root = view.findViewById<FrameLayout>(R.id.rootContainer)
-                    val textView = view.findViewById<TextView>(R.id.textView)
+                    val textView = view.findViewById<ReaderPageView>(R.id.textView)
                     updateStyle(root, textView)
                 }
             }
@@ -72,7 +72,7 @@ class PageFragment : Fragment() {
     }
 
     @Suppress("WrongConstant")
-    private fun updateStyle(root: FrameLayout, textView: TextView) {
+    private fun updateStyle(root: FrameLayout, textView: ReaderPageView) {
         val context = requireContext()
         val fontSize = SettingsManager.getFontSize(context)
         val themeName = SettingsManager.getReadingTheme(context)
