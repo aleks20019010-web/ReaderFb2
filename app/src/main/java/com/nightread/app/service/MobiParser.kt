@@ -354,7 +354,7 @@ object MobiParser : BookParser {
             "[NOTE:$noteId]$linkText[/NOTE]"
         }
 
-        text = text.replace(Regex("<p.*?>", RegexOption.IGNORE_CASE), "\n")
+        text = text.replace(Regex("<p.*?>", RegexOption.IGNORE_CASE), "\n\u00A0\u00A0\u00A0\u00A0")
         text = text.replace(Regex("</p>", RegexOption.IGNORE_CASE), "\n")
         text = text.replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
         text = text.replace(Regex("<div.*?>", RegexOption.IGNORE_CASE), "\n")
@@ -364,7 +364,8 @@ object MobiParser : BookParser {
 
         text = decodeHtmlEntities(text)
 
-        text = text.replace(Regex("\n{3,}"), "\n\n")
+        text = text.replace(Regex("([ \\t\\r]*\\n[ \\t\\r]*){2,}"), "\n")
+        text = text.replace(Regex("\\n[ \\t\\r]+(?=\\u00A0)"), "\n")
         return text.trim()
     }
 }

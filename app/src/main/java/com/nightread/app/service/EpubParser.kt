@@ -337,17 +337,18 @@ object EpubParser : BookParser {
                 .replace(Regex("</title>", RegexOption.IGNORE_CASE), "[/CHAPTER]\n")
             
             cleanHtml = cleanHtml
-                .replace(Regex("<p[^>]*>", RegexOption.IGNORE_CASE), "\n    ")
+                .replace(Regex("<p[^>]*>", RegexOption.IGNORE_CASE), "\n\u00A0\u00A0\u00A0\u00A0")
                 .replace(Regex("</p>", RegexOption.IGNORE_CASE), "")
                 .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
-                .replace(Regex("<li[^>]*>", RegexOption.IGNORE_CASE), "\n  - ")
+                .replace(Regex("<li[^>]*>", RegexOption.IGNORE_CASE), "\n\u00A0\u00A0- ")
                 .replace(Regex("</li>", RegexOption.IGNORE_CASE), "")
             
             var text = cleanHtml.replace(Regex("<[^>]+>"), "")
             
             text = decodeHtmlEntities(text)
             
-            text = text.replace(Regex("([ \\t\\r\\n]*\\n[ \\t\\r\\n]*)+"), "\n    ")
+            text = text.replace(Regex("([ \\t\\r]*\\n[ \\t\\r]*){2,}"), "\n")
+            text = text.replace(Regex("\\n[ \\t\\r]+(?=\\u00A0)"), "\n")
             text = text.replace(Regex("\\u000C+"), "\u000C")
             
             return text.trim().trim('\u000C').trim()

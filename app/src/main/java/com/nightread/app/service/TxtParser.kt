@@ -60,7 +60,7 @@ object TxtParser : BookParser {
             return BookParser.ParsedBook(
                 title = file.nameWithoutExtension,
                 author = "Неизвестен",
-                content = text.trim(),
+                content = text.replace(Regex("([ \\t\\r]*\\n[ \\t\\r]*){2,}"), "\n").trim(),
                 notes = notesMap
             )
         } catch (e: Exception) {
