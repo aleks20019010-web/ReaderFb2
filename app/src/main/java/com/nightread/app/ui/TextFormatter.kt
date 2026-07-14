@@ -198,7 +198,7 @@ object TextFormatter {
                             var firstNonSpace = start
                             while (firstNonSpace < paraEnd) {
                                 val c = textStr[firstNonSpace]
-                                if (c.isWhitespace() || c == '\u00A0' || c == '\t') {
+                                if (Character.isWhitespace(c.code) || Character.isSpaceChar(c.code) || c == '\u00A0' || c == '\u200B') {
                                     firstNonSpace++
                                 } else {
                                     break
@@ -209,6 +209,12 @@ object TextFormatter {
                                 if (firstNonSpace > start) {
                                     spannable.setSpan(
                                         android.text.style.ScaleXSpan(0f),
+                                        start,
+                                        firstNonSpace,
+                                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                                    )
+                                    spannable.setSpan(
+                                        android.text.style.AbsoluteSizeSpan(0),
                                         start,
                                         firstNonSpace,
                                         Spanned.SPAN_EXCLUSIVE_EXCLUSIVE

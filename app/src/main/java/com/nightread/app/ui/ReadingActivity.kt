@@ -382,7 +382,7 @@ class ReadingActivity : AppCompatActivity() {
         }
     }
     private fun preprocessTextAndHyphenate(text: String): String {
-        var processedText = text.replace(Regex("([ \\t\\r\\n]*\\n[ \\t\\r\\n]*)+"), "\n    ")
+        var processedText = text.replace(Regex("([ \\t\\r\\n\\u200B]*\\n[ \\t\\r\\n\\u200B]*)+"), "\n\u200B\u200B\u200B\u200B")
         processedText = processedText.trim().trim('\u000C').trim()
         HyphenationPatterns.load("ru")
         val result = com.nightread.app.ui.HyphenatorHelper.hyphenate(processedText)
@@ -512,8 +512,9 @@ class ReadingActivity : AppCompatActivity() {
         }
 
         progressiveJob = lifecycleScope.launch {
+            val fixedText = textToSplit.toString().replace("\n    ", "\n\u200B\u200B\u200B\u200B")
             val formattedText = withContext(Dispatchers.Default) {
-                TextFormatter.formatChapterSpans(this@ReadingActivity, textToSplit, paint.textSize)
+                TextFormatter.formatChapterSpans(this@ReadingActivity, fixedText, paint.textSize)
             }
             
             val cachedOffsets = com.nightread.app.ui.PaginationDiskCache.getOffsets(this@ReadingActivity, sha1, currentKey)

@@ -113,9 +113,9 @@ object Fb2Parser : BookParser {
             .replace(Regex("<empty-line[^>]*>"), "\n")
             .replace(Regex("<title[^>]*>"), "\n\u000C[CHAPTER]")
             .replace(Regex("</title>"), "[/CHAPTER]\n")
-            .replace(Regex("<p[^>]*>"), "\n    ")
+            .replace(Regex("<p[^>]*>"), "\n\u200B\u200B\u200B\u200B")
             .replace(Regex("</p>"), "")
-            .replace(Regex("<v[^>]*>"), "\n    ")
+            .replace(Regex("<v[^>]*>"), "\n\u200B\u200B\u200B\u200B")
             .replace(Regex("</v>"), "")
             .replace(Regex("<subtitle[^>]*>"), "\n")
             .replace(Regex("</subtitle>"), "\n")
@@ -128,7 +128,7 @@ object Fb2Parser : BookParser {
         text = decodeHtmlEntities(text)
 
         // Clean up multiple newlines to just one newline, excluding FormFeed (\u000C)
-        text = text.replace(Regex("([ \\t\\r\\n]*\\n[ \\t\\r\\n]*)+"), "\n    ")
+        text = text.replace(Regex("([ \\t\\r\\n]*\\n[ \\t\\r\\n]*)+"), "\n\u200B\u200B\u200B\u200B")
 
         // Clean up consecutive page breaks
         text = text.replace(Regex("\\u000C+"), "\u000C")
