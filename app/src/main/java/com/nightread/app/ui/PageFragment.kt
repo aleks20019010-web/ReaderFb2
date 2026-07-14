@@ -52,10 +52,10 @@ class PageFragment : Fragment() {
             val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
             val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
             
-            val dp18 = (18 * v.resources.displayMetrics.density).toInt()
+            val dp6 = (6 * v.resources.displayMetrics.density).toInt()
             val dp8 = (8 * v.resources.displayMetrics.density).toInt()
             
-            v.setPadding(dp18, dp8 + topInset, dp18, dp8)
+            v.setPadding(dp6, dp8 + topInset, dp6, dp8)
             windowInsets
         }
         view.requestApplyInsets()
@@ -79,7 +79,8 @@ class PageFragment : Fragment() {
         val fontFamily = SettingsManager.getFontFamily(context)
         val numericWeight = SettingsManager.getFontWeightAsInt(context)
         val lineSpacingMultiplier = SettingsManager.getLineSpacing(context)
-        
+        val lineSpacingExtra = 0f // Simplified for now
+
         val (bgColor, textColor) = when (themeName) {
             "light" -> Pair("#FFFFFF", "#121212")
             "dark" -> Pair("#1A1A1A", "#E0E0E0")
@@ -92,76 +93,40 @@ class PageFragment : Fragment() {
         }
 
         root.setBackgroundColor(Color.parseColor(bgColor))
-        textView.textSize = fontSize
-        textView.setTextColor(Color.parseColor(textColor))
         
-        textView.typeface = FontUtils.createTypefaceWithOpticalBalance(context, fontFamily, numericWeight)
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            textView.letterSpacing = SettingsManager.getLetterSpacing(context)
+        // Create TextPaint with styling
+        val paint = android.text.TextPaint().apply {
+            isAntiAlias = true
+            textSize = fontSize * resources.displayMetrics.scaledDensity
+            color = Color.parseColor(textColor)
+            typeface = FontUtils.createTypefaceWithOpticalBalance(context, fontFamily, numericWeight)
         }
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            textView.textLocales = android.os.LocaleList(java.util.Locale("ru"))
-        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            textView.textLocale = java.util.Locale("ru")
-        }
-
-        textView.setLineSpacing(0f, lineSpacingMultiplier)
-        
-        val offset = arguments?.getInt("PAGE_OFFSET") ?: 0
-        android.util.Log.d("PageFragment", "updateStyle: setting text. contains soft hyphens: ${pageText.contains('\u00AD')} (count: ${pageText.count { it == '\u00AD' }})")
-        val formattedTextWithClicks = PageSplitter.formatAllSpans(context, pageText, textView.textSize, offset) { noteId ->
-            val readingActivity = activity as? ReadingActivity
-            readingActivity?.showFootnote(noteId)
-        }
-        textView.text = formattedTextWithClicks
-        textView.movementMethod = android.text.method.LinkMovementMethod.getInstance()
-        
-        textView.isLongClickable = true
-        textView.setTextIsSelectable(true)
-        textView.customSelectionActionModeCallback = object : android.view.ActionMode.Callback {
-            override fun onCreateActionMode(mode: android.view.ActionMode?, menu: android.view.Menu?): Boolean {
-                val start = textView.selectionStart
-                val end = textView.selectionEnd
-                if (start != -1 && end != -1 && start != end) {
-                    val selectedText = textView.text.subSequence(start, end).toString().trim()
-                    if (selectedText.isNotEmpty()) {
-                        val fullText = textView.text.toString()
-                        val contextStart = maxOf(0, start - 150)
-                        val contextEnd = minOf(fullText.length, end + 150)
-                        val contextSnippet = fullText.substring(contextStart, contextEnd)
-                        
-                        val bottomSheet = WordActionBottomSheet.newInstance(selectedText, contextSnippet)
-                        bottomSheet.show(parentFragmentManager, "WordAction")
-                    }
+        // We need the width of the view. Since updateStyle is called in onCreate/onViewCreated, 
+        // the view might not be measured yet. We can use post to delay the layout calculation.
+        textView.post {
+            val width = textView.width - textView.paddingLeft - textView.paddingRight
+            if (width > 0) {
+                val offset = arguments?.getInt("PAGE_OFFSET") ?: 0
+                val formattedTextWithClicks = PageSplitter.formatAllSpans(context, pageText, paint.textSize, offset) { noteId ->
+                    val readingActivity = activity as? ReadingActivity
+                    readingActivity?.showFootnote(noteId)
                 }
-                mode?.finish()
-                return false
-            }
 
-            override fun onPrepareActionMode(mode: android.view.ActionMode?, menu: android.view.Menu?): Boolean {
-                return false
-            }
-
-            override fun onActionItemClicked(mode: android.view.ActionMode?, item: android.view.MenuItem?): Boolean {
-                return false
-            }
-
-            override fun onDestroyActionMode(mode: android.view.ActionMode?) {
+                val layout = PaginationManager.createLayoutForPage(
+                    formattedTextWithClicks,
+                    0 to formattedTextWithClicks.length,
+                    width,
+                    paint,
+                    lineSpacingMultiplier,
+                    lineSpacingExtra
+                )
+                textView.setLayout(layout)
             }
         }
-
-        val hyphenationEnabled = SettingsManager.isHyphenationEnabled(context)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            textView.breakStrategy = if (hyphenationEnabled) android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY else android.text.Layout.BREAK_STRATEGY_SIMPLE
-            textView.hyphenationFrequency = if (hyphenationEnabled) android.text.Layout.HYPHENATION_FREQUENCY_FULL else android.text.Layout.HYPHENATION_FREQUENCY_NONE
-        }
-        /*
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            textView.justificationMode = android.text.Layout.JUSTIFICATION_MODE_INTER_WORD
-        }
-        */
+        
+        // Handle clicks if needed, might need a custom touch listener on ReaderPageView
+        // textView.movementMethod = android.text.method.LinkMovementMethod.getInstance()
     }
 
     companion object {
