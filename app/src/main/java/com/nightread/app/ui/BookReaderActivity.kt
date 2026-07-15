@@ -243,48 +243,24 @@ class BookReaderActivity : AppCompatActivity() {
             return
         }
 
-        val debugHtml = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <meta charset="utf-8">
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-                width: ${screenWidth}px; 
-                height: ${screenHeight}px;
-                background: #FF0000;
-                overflow: hidden;
-            }
-            .box {
-                width: 100%;
-                height: 100%;
-                background: #00FF00;
-            }
-            .text {
-                font-size: 20px;
-                color: black;
-                text-align: center;
-                font-family: Arial, sans-serif;
-                background: white;
-                padding: 20px;
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                border-radius: 8px;
-            }
-        </style>
-        </head>
-        <body>
-            <div class="box">
-                <div class="text">${screenWidth} × ${screenHeight}</div>
-            </div>
-        </body>
-        </html>
-        """.trimIndent()
+        progressBar.visibility = View.VISIBLE
+        webView.visibility = View.INVISIBLE // Hide WebView during paginating to avoid flickering
 
-        webView.loadDataWithBaseURL(null, debugHtml, "text/html", "UTF-8", null)
+        lifecycleScope.launch {
+            val parsedPages = splitTextIntoPages(text)
+            pages = parsedPages
+            totalPages = pages.size
+            if (currentPage >= totalPages) {
+                currentPage = totalPages - 1
+            }
+            if (currentPage < 0) {
+                currentPage = 0
+            }
+
+            progressBar.visibility = View.GONE
+            webView.visibility = View.VISIBLE
+            loadPage(currentPage)
+        }
     }
 
     /**
@@ -365,6 +341,7 @@ class BookReaderActivity : AppCompatActivity() {
         withContext(Dispatchers.IO) {
             latch.await(300, TimeUnit.MILLISECONDS)
         }
+        Log.d("BookReader", "Измерено: height=$height, screenHeight=$screenHeight, превышение=${height - screenHeight}px")
         height
     }
 
@@ -510,9 +487,7 @@ class BookReaderActivity : AppCompatActivity() {
      */
     private fun updatePageIndicator() {
         runOnUiThread {
-            val displayPage = currentPage + 1
-            val displayTotal = totalPages
-            pageIndicatorView.text = "$displayPage / $displayTotal"
+            pageIndicatorView.text = "Стр.${currentPage + 1}/$totalPages | Экран:${screenWidth}x${screenHeight} | Шрифт:${fontSize}px/${lineHeight}"
         }
     }
 
