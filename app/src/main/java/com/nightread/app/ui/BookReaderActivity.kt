@@ -21,21 +21,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.nightread.app.R
 import com.nightread.app.data.AppDatabase
-import com.nightread.app.service.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
 import java.io.File
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
-import java.util.Locale
-import java.io.FileInputStream
-import java.util.zip.ZipInputStream
 import java.nio.charset.Charset
-import android.webkit.JavascriptInterface
 
 /**
  * Custom WebView exposing computeHorizontalScrollRange and computeVerticalScrollRange.
@@ -58,14 +48,6 @@ class BookWebView @JvmOverloads constructor(
 
 class BookReaderActivity : AppCompatActivity() {
 
-    private class JsCallback {
-        var onFinish: (() -> Unit)? = null
-        @JavascriptInterface
-        fun finish() {
-            onFinish?.invoke()
-        }
-    }
-
     private lateinit var webView: BookWebView
     private lateinit var pageIndicatorView: TextView
     private lateinit var progressBar: ProgressBar
@@ -75,22 +57,16 @@ class BookReaderActivity : AppCompatActivity() {
     private var screenHeight: Int = 0
     private var currentPage: Int = 0
     private var totalPages: Int = 1
-    private var pages: List<String> = emptyList()
 
     private var fontSize: Int = 18
     private var lineHeight: Float = 1.6f
     private var fontFamily: String = "Georgia, 'Times New Roman', serif"
-    private var currentFontPath: String = ""
+    private var paddingDp = 24
     private var paddingValue: Int = 24
-
-    private val paddingDp = 24
 
     private var bookText: String = ""
     private var bookLoaded = false
     private var isDimensionsReady = false
-
-    private var touchStartX = 0f
-    private val swipeThreshold = 100f
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -122,7 +98,6 @@ class BookReaderActivity : AppCompatActivity() {
         rootLayout.addView(pageIndicatorView, indicatorParams)
 
         setupWebView()
-        setupTouchListener()
 
         webView.viewTreeObserver.addOnGlobalLayoutListener(
             object : ViewTreeObserver.OnGlobalLayoutListener {
@@ -170,95 +145,70 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     private fun setupWebView() {
-        val settings = webView.settings
-        settings.apply {
-            allowFileAccess = true
+        webView.settings.apply {
+            javaScriptEnabled = false
+            useWideViewPort = false
+            loadWithOverviewMode = false
             blockNetworkLoads = true
             cacheMode = WebSettings.LOAD_NO_CACHE
             setSupportZoom(false)
             builtInZoomControls = false
             displayZoomControls = false
-            javaScriptEnabled = false
-            useWideViewPort = false
-            loadWithOverviewMode = true
         }
         webView.apply {
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
+            webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    val totalHeight = webView.getVerticalScrollRange()
+                    totalPages = Math.max(1, Math.ceil(totalHeight.toDouble() / screenHeight).toInt())
+                    currentPage = 0
+                    updatePageIndicator()
+                }
+            }
         }
     }
+
+    fun loadPage(pageNumber: Int) {
+        currentPage = pageNumber.coerceIn(0, totalPages - 1)
+        webView.scrollTo(0, currentPage * screenHeight)
+        updatePageIndicator()
+    }
+
+    fun showFootnote(noteId: String) {}
+    fun performSmartSearch(word: String) {}
 
     fun loadBook(text: String) {
         bookText = text
         if (screenWidth <= 0 || screenHeight <= 0) return
 
         progressBar.visibility = View.VISIBLE
-        webView.visibility = View.INVISIBLE
-
-        lifecycleScope.launch {
-            // Temporarily skip pagination
-            pages = listOf(buildPageHtml(text))
-            
-            totalPages = pages.size
-            currentPage = 0
-
-            progressBar.visibility = View.GONE
-            webView.visibility = View.VISIBLE
-            loadPage(currentPage)
-        }
-    }
-
-    private suspend fun splitTextIntoPages(text: String): List<String> {
-        val paragraphs = text.split(Regex("\n+")).map { it.trim() }.filter { it.isNotEmpty() }
-        val resultPages = ArrayList<String>()
-
-        var currentPageParagraphs = ArrayList<String>()
-
-        for (paragraph in paragraphs) {
-            val isChapter = isChapterHeading(paragraph)
-            
-            if (currentPageParagraphs.isEmpty()) {
-                currentPageParagraphs.add(paragraph)
-                continue
-            }
-
-            if (isChapter) {
-                resultPages.add(buildPageHtml(currentPageParagraphs.joinToString("\n\n")))
-                currentPageParagraphs.clear()
-                currentPageParagraphs.add(paragraph)
-                continue
-            }
-
-            val testList = ArrayList(currentPageParagraphs)
-            testList.add(paragraph)
-            val testHtml = buildPageHtml(testList.joinToString("\n\n"), false)
-
-            val height = measureHeightInWebView(testHtml)
-            if (height <= screenHeight) {
-                currentPageParagraphs.add(paragraph)
-            } else {
-                resultPages.add(buildPageHtml(currentPageParagraphs.joinToString("\n\n")))
-                currentPageParagraphs.clear()
-                currentPageParagraphs.add(paragraph)
-            }
-        }
-
-        if (currentPageParagraphs.isNotEmpty()) {
-            resultPages.add(buildPageHtml(currentPageParagraphs.joinToString("\n\n")))
-        }
-
-        return resultPages
-    }
-
-    private fun isChapterHeading(paragraph: String): Boolean {
-        val p = paragraph.trim()
-        val regex = Regex("^(Глава|Chapter|ГЛАВА|I+\\.|II+\\.|III+\\.|IV+\\.|[0-9]+\\.)", RegexOption.IGNORE_CASE)
-        return regex.containsMatchIn(p)
+        
+        val html = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+            <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <style>
+                body { margin:0; padding:0; width: ${screenWidth}px; height:auto; overflow:hidden; }
+                .content { padding: ${paddingValue}px; font-size: ${fontSize}px; line-height: ${lineHeight}; font-family: $fontFamily; text-align: justify; }
+                p { margin-bottom:1em; text-indent:1.5em; }
+            </style>
+            </head>
+            <body>
+                <div class="content">
+                    ${text.replace("\n\n", "</p><p>").replace("\n", "<br>")}
+                </div>
+            </body>
+            </html>
+        """.trimIndent()
+        
+        webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
+        progressBar.visibility = View.GONE
     }
 
     private fun fixEncoding(text: String): String {
-        // Проверяем, похож ли текст на кракозябры (windows-1251 прочитанный как UTF-8)
         if (text.contains("Ñ") || text.contains("ð") || text.contains("å") || text.contains("è")) {
             try {
                 val bytes = text.toByteArray(Charsets.ISO_8859_1)
@@ -270,100 +220,24 @@ class BookReaderActivity : AppCompatActivity() {
         return text
     }
 
-    private suspend fun measureHeightInWebView(html: String): Int = suspendCancellableCoroutine { cont ->
-        val callback = JsCallback()
-        callback.onFinish = {
-            webView.postDelayed({
-                val height = webView.getVerticalScrollRange()
-                Log.d("BookReader", "measureHeightInWebView JS: $height")
-                webView.settings.javaScriptEnabled = false
-                cont.resume(height)
-            }, 200)
+    fun nextPage() {
+        if (currentPage < totalPages - 1) {
+            currentPage++
+            webView.scrollTo(0, currentPage * screenHeight)
+            updatePageIndicator()
         }
-        
-        webView.addJavascriptInterface(callback, "android")
-        webView.settings.javaScriptEnabled = true
-        
-        val htmlWithCallback = html.replace("<body>", "<body onload=\"android.finish()\">")
-        webView.loadDataWithBaseURL(null, htmlWithCallback, "text/html", "UTF-8", null)
     }
 
-    private fun buildPageHtml(text: String, useFonts: Boolean = true): String {
-        val paragraphsHtml = text.split(Regex("\n+")).joinToString("") { p ->
-            val className = if (isChapterHeading(p)) "chapter-title" else "paragraph"
-            "<p class=\"$className\">${p.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</p>"
-        }
-
-        return """
-            <!DOCTYPE html>
-            <html>
-            <head>
-            <style>
-                html, body { margin: 0; padding: 0; width: ${screenWidth}px; height: ${screenHeight}px; overflow: hidden; background: #FFFFFF; }
-                .content { width: ${screenWidth}px; height: ${screenHeight}px; padding: ${paddingValue}px; box-sizing: border-box; font-size: ${fontSize}px; line-height: ${lineHeight}; font-family: $fontFamily; text-align: justify; }
-                .paragraph { margin: 0 0 1em 0; text-indent: 1.5em; }
-                .chapter-title { text-indent: 0; font-weight: bold; margin-top: 1em; text-align: center; }
-            </style>
-            </head>
-            <body>
-                <div class="content">$paragraphsHtml</div>
-            </body>
-            </html>
-        """.trimIndent()
-    }
-
-    fun loadPage(pageNumber: Int) {
-        if (pages.isEmpty()) return
-        currentPage = pageNumber.coerceIn(0, pages.size - 1)
-        webView.loadDataWithBaseURL(null, pages[currentPage], "text/html", "UTF-8", null)
-        updatePageIndicator()
-    }
-
-    fun showFootnote(noteId: String) {
-        // TODO: Implement footnote display
-    }
-
-    fun performSmartSearch(word: String) {
-        // TODO: Implement smart search
-    }
-
-    private fun setupTouchListener() {
-        webView.setOnTouchListener { v, event ->
-            if (event.action == MotionEvent.ACTION_DOWN) touchStartX = event.x
-            else if (event.action == MotionEvent.ACTION_UP) {
-                val diffX = event.x - touchStartX
-                if (Math.abs(diffX) > swipeThreshold) {
-                    if (diffX > 0 && currentPage > 0) loadPage(currentPage - 1)
-                    else if (diffX < 0 && currentPage < totalPages - 1) loadPage(currentPage + 1)
-                } else {
-                    if (event.x < webView.width * 0.3f && currentPage > 0) loadPage(currentPage - 1)
-                    else if (event.x > webView.width * 0.7f && currentPage < totalPages - 1) loadPage(currentPage + 1)
-                }
-                v.performClick()
-            }
-            true
+    fun prevPage() {
+        if (currentPage > 0) {
+            currentPage--
+            webView.scrollTo(0, currentPage * screenHeight)
+            updatePageIndicator()
         }
     }
 
     private fun updatePageIndicator() {
         pageIndicatorView.text = "Стр.${currentPage + 1}/$totalPages"
-    }
-
-    private fun getDefaultBookText(): String {
-        return """
-            Глава I
-            В уездном городе N остановилась коляска. В ней сидел молодой человек.
-            Погода была прекрасная, и он решил выйти прогуляться.
-            Вокруг него были красивые дома и зеленые парки.
-            
-            Глава II
-            Комната была обставлена скромно. Приезжий подошел к окну.
-            На улице шел дождь, но это не портило ему настроения.
-            Он достал книгу и начал читать, наслаждаясь тишиной.
-            
-            Это тестовый текст для проверки работы приложения.
-            Русские буквы должны отображаться корректно.
-        """.trimIndent()
     }
 
     private fun tryLoadBook() {
@@ -373,68 +247,5 @@ class BookReaderActivity : AppCompatActivity() {
         }
     }
 
-    // Public Settings Customization APIs
-    fun increaseFontSize() {
-        fontSize += 2
-        bookLoaded = false
-        loadBook(bookText)
-    }
-
-    fun decreaseFontSize() {
-        fontSize = (fontSize - 2).coerceAtLeast(10)
-        bookLoaded = false
-        loadBook(bookText)
-    }
-
-    fun setLineHeight(multiplier: Float) {
-        lineHeight = multiplier
-        bookLoaded = false
-        loadBook(bookText)
-    }
-
-    fun setFont(fontName: String, fontPath: String) {
-        fontFamily = fontName
-        currentFontPath = fontPath
-        bookLoaded = false
-        loadBook(bookText)
-    }
-
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        return when (keyCode) {
-            KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                if (currentPage < totalPages - 1) {
-                    loadPage(currentPage + 1)
-                    true
-                } else super.onKeyDown(keyCode, event)
-            }
-            KeyEvent.KEYCODE_VOLUME_UP -> {
-                if (currentPage > 0) {
-                    loadPage(currentPage - 1)
-                    true
-                } else super.onKeyDown(keyCode, event)
-            }
-            else -> super.onKeyDown(keyCode, event)
-        }
-    }
-
-    // Brightness and Warmth control (simplified gestures)
-    private var touchStartY = 0f
-    
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                touchStartX = event.x
-                touchStartY = event.y
-            }
-            MotionEvent.ACTION_MOVE -> {
-                val diffY = touchStartY - event.y
-                if (Math.abs(diffY) > 50) {
-                    // Logic for brightness or warmth would be here.
-                    // For now, it's just a gesture detection.
-                    touchStartY = event.y
-                }
-            }
-        }
-        return super.onTouchEvent(event)
-    }
+    private fun getDefaultBookText(): String = "Тестовая книга\n\nГлава I\n\nТекст первой главы."
 }
