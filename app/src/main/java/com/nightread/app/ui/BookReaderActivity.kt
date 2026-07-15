@@ -25,6 +25,7 @@ import com.nightread.app.service.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -177,7 +178,17 @@ class BookReaderActivity : AppCompatActivity() {
         webView.visibility = View.INVISIBLE
 
         lifecycleScope.launch {
-            pages = splitTextIntoPages(text)
+            val parsedPages = withTimeoutOrNull(15000) {
+                splitTextIntoPages(text)
+            }
+            
+            if (parsedPages != null && parsedPages.isNotEmpty()) {
+                pages = parsedPages
+            } else {
+                Log.w("BookReader", "Pagination failed or timeout, using single page fallback")
+                pages = listOf(buildPageHtml(text))
+            }
+            
             totalPages = pages.size
             currentPage = 0
 
