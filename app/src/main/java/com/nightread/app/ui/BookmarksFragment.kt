@@ -46,7 +46,7 @@ class BookmarksFragment : Fragment(R.layout.fragment_bookmarks) {
 
         adapter = BookmarkAdapter(
             onBookmarkClicked = { bookmark ->
-                val intent = Intent(requireContext(), ReadingActivity::class.java).apply {
+                val intent = Intent(requireContext(), BookReaderActivity::class.java).apply {
                     putExtra("BOOK_SHA1", bookmark.bookSha1)
                     putExtra("TARGET_OFFSET", bookmark.charOffset)
                 }

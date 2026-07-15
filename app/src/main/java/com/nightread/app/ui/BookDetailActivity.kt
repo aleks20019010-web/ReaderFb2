@@ -151,7 +151,7 @@ class BookDetailActivity : BaseActivity() {
 
     private fun setupClickListeners() {
         btnReadToolbar.setOnClickListener {
-            val intent = Intent(this, ReadingActivity::class.java).apply {
+            val intent = Intent(this, BookReaderActivity::class.java).apply {
                 putExtra("BOOK_SHA1", bookSha1)
             }
             startActivity(intent)

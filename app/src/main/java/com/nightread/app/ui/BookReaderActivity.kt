@@ -19,12 +19,21 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.nightread.app.R
+import com.nightread.app.data.AppDatabase
+import com.nightread.app.service.BookParser
+import com.nightread.app.service.EpubParser
+import com.nightread.app.service.MobiParser
+import com.nightread.app.service.TxtParser
+import com.nightread.app.service.Fb2Parser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileInputStream
+import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.zip.ZipInputStream
 
 /**
  * Custom WebView exposing computeHorizontalScrollRange and computeVerticalScrollRange.
@@ -75,6 +84,7 @@ class BookReaderActivity : AppCompatActivity() {
 
     // Book content text
     private var bookText: String = ""
+    private var isBookLoading: Boolean = false
 
     // Touch gesture properties
     private var touchStartX = 0f
@@ -130,7 +140,36 @@ class BookReaderActivity : AppCompatActivity() {
         setupTouchListener()
 
         // Load content
-        bookText = intent.getStringExtra("book_text") ?: getDefaultBookText()
+        val sha1 = intent.getStringExtra("BOOK_SHA1")
+        if (!sha1.isNullOrEmpty()) {
+            isBookLoading = true
+            progressBar.visibility = View.VISIBLE
+            lifecycleScope.launch {
+                val db = AppDatabase.getDatabase(this@BookReaderActivity)
+                val book = withContext(Dispatchers.IO) {
+                    db.bookDao().getBookBySha1(sha1)
+                }
+                if (book != null) {
+                    val filePath = book.filePath
+                    if (!filePath.isNullOrEmpty()) {
+                        val file = File(filePath)
+                        if (file.exists()) {
+                            val parsedBook = withContext(Dispatchers.IO) {
+                                parseBookFile(file)
+                            }
+                            bookText = parsedBook.content.trim().trim('\u000C').trim()
+                        }
+                    }
+                }
+                isBookLoading = false
+                progressBar.visibility = View.GONE
+                if (screenWidth > 0 && screenHeight > 0) {
+                    loadBook(bookText)
+                }
+            }
+        } else {
+            bookText = intent.getStringExtra("book_text") ?: getDefaultBookText()
+        }
 
         // Wait until WebView layout is complete to get exact dimensions using OnGlobalLayoutListener
         webView.viewTreeObserver.addOnGlobalLayoutListener(
@@ -145,7 +184,7 @@ class BookReaderActivity : AppCompatActivity() {
 
                     Log.d("BookReader", "Screen dimensions: ${screenWidth}x${screenHeight}, Padding: ${paddingValue}px")
 
-                    if (screenWidth > 0 && screenHeight > 0) {
+                    if (screenWidth > 0 && screenHeight > 0 && !isBookLoading) {
                         loadBook(bookText)
                     }
                 }
@@ -479,6 +518,54 @@ class BookReaderActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e("BookReader", "Error copying font $assetFontPath to cache", e)
             ""
+        }
+    }
+
+    private fun parseBookFile(file: File): BookParser.ParsedBook {
+        val ext = file.extension.lowercase(Locale.ROOT)
+        return when (ext) {
+            "fb2", "xml" -> {
+                Fb2Parser.parse(file, file.nameWithoutExtension)
+            }
+            "epub" -> {
+                EpubParser.parse(file, file.nameWithoutExtension)
+            }
+            "mobi", "azw3" -> {
+                MobiParser.parse(file, file.nameWithoutExtension)
+            }
+            "pdf" -> {
+                com.nightread.app.service.PdfParser.parse(file, file.nameWithoutExtension)
+            }
+            "txt" -> {
+                TxtParser.parse(file, file.nameWithoutExtension)
+            }
+            "zip" -> {
+                var parsed = BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
+                try {
+                    FileInputStream(file).use { fis ->
+                        ZipInputStream(fis).use { zis ->
+                            var entry = zis.nextEntry
+                            while (entry != null) {
+                                if (!entry.isDirectory && (entry.name.endsWith(".fb2") || entry.name.endsWith(".xml"))) {
+                                    val tempFile = File.createTempFile("zip_fb2", ".fb2")
+                                    tempFile.deleteOnExit()
+                                    tempFile.outputStream().use { fos ->
+                                        zis.copyTo(fos)
+                                    }
+                                    parsed = Fb2Parser.parse(tempFile, file.nameWithoutExtension)
+                                    tempFile.delete()
+                                    break
+                                }
+                                entry = zis.nextEntry
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("BookReader", "Error parsing zipped FB2", e)
+                }
+                parsed
+            }
+            else -> BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
         }
     }
 

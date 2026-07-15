@@ -298,7 +298,7 @@ class MainActivity : BaseActivity() {
             isTransitionStarted = true
 
             if (shouldAutoOpen && lastReadBookSha1 != null) {
-                val openIntent = Intent(this@MainActivity, com.nightread.app.ui.ReadingActivity::class.java).apply {
+                val openIntent = Intent(this@MainActivity, com.nightread.app.ui.BookReaderActivity::class.java).apply {
                     putExtra("BOOK_SHA1", lastReadBookSha1)
                 }
                 startActivity(openIntent)
