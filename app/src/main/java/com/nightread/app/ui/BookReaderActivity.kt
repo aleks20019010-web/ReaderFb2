@@ -1,3 +1,5 @@
+package com.nightread.app.ui
+
 import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
