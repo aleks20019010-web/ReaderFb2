@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.nightread.app.service.TextCleaner
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -98,11 +99,12 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 
                 val file = java.io.File(book.filePath ?: "")
                 if (file.exists()) {
-                    content = if (file.extension.lowercase() == "zip") {
+                    val rawContent = if (file.extension.lowercase() == "zip") {
                         readZipFile(file)
                     } else {
                         file.readText(java.nio.charset.StandardCharsets.UTF_8)
                     }
+                    content = TextCleaner.cleanText(rawContent) as String
                 } else {
                     content = ""
                 }

@@ -104,8 +104,9 @@ class BookReaderActivity : AppCompatActivity() {
             typeface = android.graphics.Typeface.DEFAULT
         }
         
+        val availableWidth = readerView.width - readerView.paddingStart - readerView.paddingEnd
         val layout = PageSplitter.createStaticLayout(
-            text, 0, text.length, paint, readerView.width,
+            text, 0, text.length, paint, availableWidth,
             android.text.Layout.Alignment.ALIGN_NORMAL,
             viewModel.lineSpacingState.value, 0f, false
         )
