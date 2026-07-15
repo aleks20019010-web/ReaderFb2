@@ -58,9 +58,9 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
         val tvAiResponse = view.findViewById<TextView>(R.id.tvAiResponse)
 
         view.findViewById<View>(R.id.btnFind).setOnClickListener {
-            val readingActivity = activity as? ReadingActivity
-            if (readingActivity != null) {
-                readingActivity.performSmartSearch(word)
+            val bookReaderActivity = activity as? BookReaderActivity
+            if (bookReaderActivity != null) {
+                bookReaderActivity.performSmartSearch(word)
             } else {
                 CustomToast.show(requireContext(), "Функция доступна только на экране чтения", Toast.LENGTH_SHORT)
             }

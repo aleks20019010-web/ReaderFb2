@@ -308,11 +308,19 @@ class BookReaderActivity : AppCompatActivity() {
         """.trimIndent()
     }
 
-    private fun loadPage(pageNumber: Int) {
+    fun loadPage(pageNumber: Int) {
         if (pages.isEmpty()) return
         currentPage = pageNumber.coerceIn(0, pages.size - 1)
         webView.loadDataWithBaseURL(null, pages[currentPage], "text/html", "UTF-8", null)
         updatePageIndicator()
+    }
+
+    fun showFootnote(noteId: String) {
+        // TODO: Implement footnote display
+    }
+
+    fun performSmartSearch(word: String) {
+        // TODO: Implement smart search
     }
 
     private fun setupTouchListener() {

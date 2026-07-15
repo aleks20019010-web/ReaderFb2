@@ -115,8 +115,8 @@ class PageFragment : Fragment() {
                 url?.let {
                     if (it.startsWith("note:")) {
                         val noteId = it.substring(5)
-                        val readingActivity = activity as? ReadingActivity
-                        readingActivity?.showFootnote(noteId)
+                        val bookReaderActivity = activity as? BookReaderActivity
+                        bookReaderActivity?.showFootnote(noteId)
                         return true
                     }
                 }
@@ -129,8 +129,8 @@ class PageFragment : Fragment() {
                 url?.let {
                     if (it.startsWith("note:")) {
                         val noteId = it.substring(5)
-                        val readingActivity = activity as? ReadingActivity
-                        readingActivity?.showFootnote(noteId)
+                        val bookReaderActivity = activity as? BookReaderActivity
+                        bookReaderActivity?.showFootnote(noteId)
                         return true
                     }
                 }

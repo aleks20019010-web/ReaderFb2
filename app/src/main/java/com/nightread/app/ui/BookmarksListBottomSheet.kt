@@ -92,8 +92,8 @@ class BookmarksListBottomSheet : DialogFragment() {
         adapter = BookBookmarkAdapter(
             themeKey = activeTheme,
             onBookmarkClicked = { bookmark ->
-                // Navigate to this bookmark in ReadingActivity
-                (activity as? ReadingActivity)?.jumpToBookmarkOffset(bookmark.charOffset)
+                // Navigate to this bookmark in BookReaderActivity
+                (activity as? BookReaderActivity)?.loadPage(bookmark.pageIndex)
                 dismiss()
             },
             onBookmarkDeleteClicked = { bookmark ->
