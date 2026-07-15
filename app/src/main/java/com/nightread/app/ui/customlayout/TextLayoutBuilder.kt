@@ -82,8 +82,8 @@ class TextLayoutBuilder {
         }
             
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Disable justification mode to avoid stretched text and orphan lines
-            builder.setJustificationMode(Layout.JUSTIFICATION_MODE_NONE)
+            // Enable inter-word justification for high-quality text layout
+            builder.setJustificationMode(Layout.JUSTIFICATION_MODE_INTER_WORD)
         }
             
         return builder.build()

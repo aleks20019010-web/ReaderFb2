@@ -42,7 +42,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     val fontSizeState: StateFlow<Float> = _fontSizeState.asStateFlow()
 
     // Line spacing multiplier
-    private val _lineSpacingState = MutableStateFlow(1.4f)
+    private val _lineSpacingState = MutableStateFlow(1.2f)
     val lineSpacingState: StateFlow<Float> = _lineSpacingState.asStateFlow()
 
     // Font family state: "Merriweather", "Roboto", "Sans Serif", "Serif", "Monospace"
@@ -80,7 +80,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     init {
         // Restore saved settings
         _fontSizeState.value = sharedPrefs.getFloat("saved_font_size", 18f)
-        _lineSpacingState.value = sharedPrefs.getFloat("saved_line_spacing", 1.4f)
+        _lineSpacingState.value = sharedPrefs.getFloat("saved_line_spacing", 1.2f)
         _themeState.value = sharedPrefs.getString("reader_theme", "day") ?: "day"
         _fontFamilyState.value = sharedPrefs.getString("saved_font_family", "Merriweather") ?: "Merriweather"
         _fontWeightState.value = sharedPrefs.getInt("saved_font_weight", 0)
@@ -238,7 +238,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 .setWidth(availableWidth)
                 .setHeight(availableHeight)
                 .setPaint(paint)
-                .setLetterSpacing(-0.01f) // Fine-tune: compact spacing
+                .setLetterSpacing(-0.02f) // Fine-tune: compact spacing
                 .setLineSpacing(0f, lineSpacing)
                 
             val offsets = builder.buildPagination()
