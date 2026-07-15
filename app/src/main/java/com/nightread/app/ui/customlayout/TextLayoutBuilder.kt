@@ -78,9 +78,8 @@ class TextLayoutBuilder {
         }
             
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (alignment == Layout.Alignment.ALIGN_NORMAL) {
-                builder.setJustificationMode(Layout.JUSTIFICATION_MODE_INTER_WORD)
-            }
+            // Disable justification mode to avoid stretched text and orphan lines
+            builder.setJustificationMode(Layout.JUSTIFICATION_MODE_NONE)
         }
             
         return builder.build()
