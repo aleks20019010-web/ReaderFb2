@@ -255,16 +255,26 @@ class BookReaderActivity : AppCompatActivity() {
 
         tempWebView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
+                Log.d("BookReader", "measurePageScrollHeight: onPageFinished")
                 tempWebView.postDelayed({
                     height = tempWebView.getVerticalScrollRange()
+                    Log.d("BookReader", "measurePageScrollHeight: measured height=$height")
                     latch.countDown()
                 }, 100)
+            }
+            override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
+                Log.e("BookReader", "measurePageScrollHeight: onReceivedError ${error?.description}")
+                latch.countDown()
             }
         }
         tempWebView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
 
-        withContext(Dispatchers.IO) { latch.await(500, TimeUnit.MILLISECONDS) }
-        if (height == 0) height = screenHeight
+        withContext(Dispatchers.IO) { latch.await(2000, TimeUnit.MILLISECONDS) }
+        Log.d("BookReader", "measurePageScrollHeight: finished, height=$height")
+        if (height == 0) {
+            Log.w("BookReader", "measurePageScrollHeight: height is 0, fallback to screenHeight")
+            height = screenHeight
+        }
         height
     }
 
