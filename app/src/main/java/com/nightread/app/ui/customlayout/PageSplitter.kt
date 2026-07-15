@@ -37,7 +37,9 @@ object PageSplitter {
         return linesCache.getOrPut(key) {
             val fm = paint.fontMetrics
             val lineHeight = (fm.descent - fm.ascent) * lineSpacingMultiplier + lineSpacingExtra
-            val lines = (height / lineHeight).toInt()
+            // Вычитаем запас в 12 пикселей для предотвращения обрезания последней строки из-за внутренних отступов шрифта
+            val safeHeight = height - 12
+            val lines = (safeHeight / lineHeight).toInt()
             val finalLines = maxOf(3, lines)
             Log.d("PageSplitter", "Calculated linesPerPage: $finalLines for height: $height, lineHeight: $lineHeight")
             finalLines
@@ -165,7 +167,7 @@ object PageSplitter {
     }
 
     /**
-     * Группирует строки в страницы, корректируя границы и заполняя последние строки.
+     * Группирует строки в страницы, корректируя границы и перенося короткие последние строки на следующую страницу.
      */
     fun groupLinesIntoPages(
         lines: List<String>,
@@ -188,45 +190,25 @@ object PageSplitter {
                 adjustedEnd = tentativeEnd
             }
             
-            var pageLines: List<String> = mutableLines.subList(current, adjustedEnd)
-            
-            val nextLines = if (adjustedEnd < mutableLines.size) {
-                mutableLines.subList(adjustedEnd, minOf(adjustedEnd + 5, mutableLines.size))
-            } else {
-                emptyList()
-            }
-            
-            // Если передан paint и ширина экрана, выполняем заполнение последней строки
-            if (paint != null && width > 0 && nextLines.isNotEmpty()) {
-                val filledLines = fillLastLine(pageLines, nextLines, paint, width, minLastLineWidthPercent)
-                
-                if (filledLines != pageLines) {
-                    val lastOriginalLine = pageLines.last()
-                    val lastFilledLine = filledLines.last()
-                    val pulledLength = lastFilledLine.length - lastOriginalLine.length
+            // 7. Если страница заканчивается на короткой строке (< 30% ширины) - перенести ее на следующую
+            if (paint != null && width > 0) {
+                var pageLinesCount = adjustedEnd - current
+                while (pageLinesCount > minLinesPerPage) {
+                    val lastLineIdx = current + pageLinesCount - 1
+                    val lastLineText = mutableLines[lastLineIdx]
+                    val lastLineWidth = paint.measureText(lastLineText.trimEnd())
+                    val targetMin = width * minLastLineWidthPercent
                     
-                    if (pulledLength > 0) {
-                        val originalNextFirstLine = nextLines[0]
-                        val wordsPulled = lastFilledLine.substring(lastOriginalLine.length).trim()
-                        var remainingNextFirstLine = originalNextFirstLine
-                        if (remainingNextFirstLine.startsWith(wordsPulled)) {
-                            remainingNextFirstLine = remainingNextFirstLine.substring(wordsPulled.length).trim()
-                        } else {
-                            val originalWords = originalNextFirstLine.split(Regex("\\s+")).filter { it.isNotEmpty() }
-                            val pulledWordsCount = wordsPulled.split(Regex("\\s+")).filter { it.isNotEmpty() }.size
-                            if (pulledWordsCount < originalWords.size) {
-                                remainingNextFirstLine = originalWords.drop(pulledWordsCount).joinToString(" ")
-                            } else {
-                                remainingNextFirstLine = ""
-                            }
-                        }
-                        
-                        mutableLines[adjustedEnd] = remainingNextFirstLine
+                    if (lastLineWidth < targetMin) {
+                        adjustedEnd--
+                        pageLinesCount--
+                    } else {
+                        break
                     }
-                    pageLines = filledLines
                 }
             }
             
+            val pageLines = mutableLines.subList(current, adjustedEnd)
             pages.add(pageLines.toList())
             current = adjustedEnd
         }
@@ -306,58 +288,25 @@ object PageSplitter {
                 adjustedEnd = tentativeEnd
             }
 
-            // Вычисляем забираемые слова для точной коррекции смещения следующей страницы
-            var nextPageStartShift = 0
-            if (adjustedEnd < lineCount) {
-                val lastLineText = linesList[adjustedEnd - 1]
+            // 7. Если страница заканчивается на короткой строке (< 30% ширины) - перенести ее на следующую
+            var pageLinesCount = adjustedEnd - currentLineIdx
+            while (pageLinesCount > minLinesPerPage) {
+                val lastLineIdx = currentLineIdx + pageLinesCount - 1
+                val lastLineText = linesList[lastLineIdx]
                 val lastLineWidth = paint.measureText(lastLineText.trimEnd())
                 val targetMin = width * minLastLineWidthPercent
 
                 if (lastLineWidth < targetMin) {
-                    val nextLineText = linesList[adjustedEnd]
-                    val words = nextLineText.split(Regex("\\s+")).filter { it.isNotEmpty() }
-                    if (words.isNotEmpty()) {
-                        var currentLastLine = lastLineText
-                        var wordsPulledCount = 0
-                        
-                        for (word in words) {
-                            val separator = if (currentLastLine.endsWith("-") || currentLastLine.endsWith("\u00AD")) "" else " "
-                            val testLine = currentLastLine + separator + word
-                            if (paint.measureText(testLine.trimEnd()) <= width) {
-                                currentLastLine = testLine
-                                wordsPulledCount++
-                            } else {
-                                break
-                            }
-                        }
-
-                        if (wordsPulledCount > 0) {
-                            var count = 0
-                            var scanIdx = 0
-                            while (scanIdx < nextLineText.length && count < wordsPulledCount) {
-                                while (scanIdx < nextLineText.length && nextLineText[scanIdx].isWhitespace()) {
-                                    scanIdx++
-                                }
-                                val wordStart = scanIdx
-                                while (scanIdx < nextLineText.length && !nextLineText[scanIdx].isWhitespace()) {
-                                    scanIdx++
-                                }
-                                if (scanIdx > wordStart) {
-                                    count++
-                                }
-                            }
-                            while (scanIdx < nextLineText.length && nextLineText[scanIdx].isWhitespace()) {
-                                scanIdx++
-                            }
-                            nextPageStartShift = scanIdx
-                        }
-                    }
+                    adjustedEnd--
+                    pageLinesCount--
+                } else {
+                    break
                 }
             }
 
             // Добавляем смещение для следующей страницы
             if (adjustedEnd < lineCount) {
-                val nextPageOffset = lineStartOffsets[adjustedEnd] + nextPageStartShift
+                val nextPageOffset = lineStartOffsets[adjustedEnd]
                 if (nextPageOffset < text.length) {
                     offsets.add(nextPageOffset)
                     pagesFound++

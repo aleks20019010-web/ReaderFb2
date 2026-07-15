@@ -2,13 +2,15 @@ package com.nightread.app.ui
 
 import android.graphics.Color
 import android.os.Bundle
-import android.view.Gravity
+import android.text.Layout
+import android.text.Spanned
+import android.text.style.AbsoluteSizeSpan
+import android.text.style.AlignmentSpan
+import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-
-import android.widget.ProgressBar
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
@@ -18,7 +20,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.nightread.app.R
 import com.nightread.app.data.SettingsManager
 import kotlinx.coroutines.launch
-import android.widget.Toast
+import java.io.File
+import java.io.FileOutputStream
 
 class PageFragment : Fragment() {
     private var pageText: CharSequence = ""
@@ -36,9 +39,9 @@ class PageFragment : Fragment() {
     ): View {
         val view = inflater.inflate(R.layout.fragment_page, container, false)
         val root = view.findViewById<FrameLayout>(R.id.rootContainer)
-        val textView = view.findViewById<com.nightread.app.ui.customlayout.CustomReaderPageView>(R.id.textView)
+        val webView = view.findViewById<android.webkit.WebView>(R.id.bookWebView)
         
-        updateStyle(root, textView)
+        updateStyle(root, webView)
 
         return view
     }
@@ -46,16 +49,16 @@ class PageFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        val textView = view.findViewById<com.nightread.app.ui.customlayout.CustomReaderPageView>(R.id.textView)
-        ViewCompat.setOnApplyWindowInsetsListener(textView) { v, windowInsets ->
+        val root = view.findViewById<FrameLayout>(R.id.rootContainer)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, windowInsets ->
             val displayCutoutInsets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
             val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
             val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
             
             val dp6 = (6 * v.resources.displayMetrics.density).toInt()
             val dp8 = (8 * v.resources.displayMetrics.density).toInt()
-            
             val dp14 = (14 * v.resources.displayMetrics.density).toInt()
+            
             v.setPadding(dp6, dp8 + topInset, dp6, dp14)
             windowInsets
         }
@@ -65,97 +68,261 @@ class PageFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 SettingsManager.settingsChanged.collect {
                     val root = view.findViewById<FrameLayout>(R.id.rootContainer)
-                    val textView = view.findViewById<com.nightread.app.ui.customlayout.CustomReaderPageView>(R.id.textView)
-                    updateStyle(root, textView)
+                    val webView = view.findViewById<android.webkit.WebView>(R.id.bookWebView)
+                    updateStyle(root, webView)
                 }
             }
         }
     }
 
     @Suppress("WrongConstant")
-    private fun updateStyle(root: FrameLayout, textView: com.nightread.app.ui.customlayout.CustomReaderPageView) {
+    private fun updateStyle(root: FrameLayout, webView: android.webkit.WebView) {
         val context = requireContext()
         val fontSize = SettingsManager.getFontSize(context)
         val themeName = SettingsManager.getReadingTheme(context)
         val fontFamily = SettingsManager.getFontFamily(context)
-        val numericWeight = SettingsManager.getFontWeightAsInt(context)
         val lineSpacingMultiplier = SettingsManager.getLineSpacing(context)
-        val lineSpacingExtra = 0f // Simplified for now
 
-        val (bgColor, textColor) = when (themeName) {
-            "light" -> Pair("#FFFFFF", "#121212")
-            "dark" -> Pair("#1A1A1A", "#E0E0E0")
-            "sepia" -> Pair("#F5F0E8", "#2C2C2C")
-            "sepia_contrast" -> Pair("#F5E6C8", "#1A1A1A")
-            "contrast" -> Pair("#000000", "#FFFF00")
-            "beige" -> Pair("#F4ECD8", "#3B2F1F")
-            "amoled" -> Pair("#000000", "#D9CEE2")
-            else -> Pair("#F5F0E8", "#2C2C2C")
+        val (bgColor, textColor, linkColor) = when (themeName) {
+            "light" -> Triple("#FFFFFF", "#121212", "#E53935")
+            "dark" -> Triple("#1A1A1A", "#E0E0E0", "#FF8A80")
+            "sepia" -> Triple("#F5F0E8", "#2C2C2C", "#D32F2F")
+            "sepia_contrast" -> Triple("#F5E6C8", "#1A1A1A", "#C62828")
+            "contrast" -> Triple("#000000", "#FFFF00", "#FF5252")
+            "beige" -> Triple("#F4ECD8", "#3B2F1F", "#8D6E63")
+            "amoled" -> Triple("#000000", "#D9CEE2", "#B388FF")
+            else -> Triple("#F5F0E8", "#2C2C2C", "#D32F2F")
         }
 
         root.setBackgroundColor(Color.parseColor(bgColor))
-        
-        // Create TextPaint with styling
-        val paint = android.text.TextPaint().apply {
-            isAntiAlias = true
-            textSize = fontSize * resources.displayMetrics.scaledDensity
-            color = Color.parseColor(textColor)
-            typeface = FontUtils.createTypefaceWithOpticalBalance(context, fontFamily, numericWeight)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                letterSpacing = SettingsManager.getLetterSpacing(context)
-            }
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                textLocales = android.os.LocaleList(java.util.Locale("ru"))
-            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1) {
-                textLocale = java.util.Locale("ru")
-            }
+        webView.setBackgroundColor(Color.parseColor(bgColor))
+
+        webView.settings.apply {
+            javaScriptEnabled = false
+            blockNetworkImage = true
+            blockNetworkLoads = true
+            cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+            allowContentAccess = false
+            allowFileAccess = true
         }
 
-        // We need the width of the view. Since updateStyle is called in onCreate/onViewCreated, 
-        // the view might not be measured yet. We can use post to delay the layout calculation.
-        textView.post {
-            val width = textView.width - textView.paddingLeft - textView.paddingRight
-            val height = textView.height - textView.paddingTop - textView.paddingBottom
-            
-            if (width > 0 && height > 0) {
-                val offset = arguments?.getInt("PAGE_OFFSET") ?: 0
-                var formattedTextWithClicks = TextFormatter.addClickableSpans(pageText) { noteId ->
-                    val readingActivity = activity as? ReadingActivity
-                    readingActivity?.showFootnote(noteId)
-                }
+        webView.isVerticalScrollBarEnabled = false
+        webView.isHorizontalScrollBarEnabled = false
 
-                val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
-                    .setText(formattedTextWithClicks)
-                    .setWidth(width)
-                    .setHeight(height)
-                    .setPaint(paint)
-                    .setLineSpacing(lineSpacingExtra, lineSpacingMultiplier)
-                    .setHyphenation(SettingsManager.isHyphenationEnabled(context))
-                    
-                var layout = builder.buildPageLayout(0, formattedTextWithClicks.length)
-                
-                var hasReplacedHyphen = false
-                val newText = android.text.SpannableStringBuilder(formattedTextWithClicks)
-                
-                for (i in 0 until layout.lineCount) {
-                    val end = layout.getLineEnd(i)
-                    if (end > 0 && end <= newText.length && newText[end - 1] == '\u00AD') {
-                        newText.replace(end - 1, end, "-")
-                        hasReplacedHyphen = true
+        webView.webViewClient = object : android.webkit.WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: android.webkit.WebView?, url: String?): Boolean {
+                url?.let {
+                    if (it.startsWith("note:")) {
+                        val noteId = it.substring(5)
+                        val readingActivity = activity as? ReadingActivity
+                        readingActivity?.showFootnote(noteId)
+                        return true
                     }
                 }
-                
-                if (hasReplacedHyphen) {
-                    builder.setText(newText)
-                    layout = builder.buildPageLayout(0, newText.length)
+                return false
+            }
+
+            @android.annotation.TargetApi(android.os.Build.VERSION_CODES.LOLLIPOP)
+            override fun shouldOverrideUrlLoading(view: android.webkit.WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                val url = request?.url?.toString()
+                url?.let {
+                    if (it.startsWith("note:")) {
+                        val noteId = it.substring(5)
+                        val readingActivity = activity as? ReadingActivity
+                        readingActivity?.showFootnote(noteId)
+                        return true
+                    }
                 }
-                
-                (textView as com.nightread.app.ui.customlayout.CustomReaderPageView).setLayout(layout)
+                return false
             }
         }
-        
-        // Handle clicks if needed, might need a custom touch listener on com.nightread.app.ui.customlayout.CustomReaderPageView
-        // textView.movementMethod = android.text.method.LinkMovementMethod.getInstance()
+
+        val htmlString = buildBookHtml(context, pageText, fontSize, fontFamily, themeName, lineSpacingMultiplier)
+        webView.loadDataWithBaseURL("file:///android_asset/", htmlString, "text/html", "UTF-8", null)
+    }
+
+    private fun buildBookHtml(
+        context: android.content.Context,
+        text: CharSequence,
+        fontSize: Float,
+        fontFamily: String,
+        themeName: String,
+        lineSpacingMultiplier: Float
+    ): String {
+        val htmlContent = spannedToHtml(text)
+
+        val (bgColor, textColor, linkColor) = when (themeName) {
+            "light" -> Triple("#FFFFFF", "#121212", "#E53935")
+            "dark" -> Triple("#1A1A1A", "#E0E0E0", "#FF8A80")
+            "sepia" -> Triple("#F5F0E8", "#2C2C2C", "#D32F2F")
+            "sepia_contrast" -> Triple("#F5E6C8", "#1A1A1A", "#C62828")
+            "contrast" -> Triple("#000000", "#FFFF00", "#FF5252")
+            "beige" -> Triple("#F4ECD8", "#3B2F1F", "#8D6E63")
+            "amoled" -> Triple("#000000", "#D9CEE2", "#B388FF")
+            else -> Triple("#F5F0E8", "#2C2C2C", "#D32F2F")
+        }
+
+        val fontFaceCss = when (fontFamily) {
+            "Lora" -> """
+                @font-face {
+                    font-family: 'CustomFont';
+                    src: url('file://${getFontCachePath(context, "lora.ttf")}');
+                }
+            """.trimIndent()
+            "EB Garamond" -> """
+                @font-face {
+                    font-family: 'CustomFont';
+                    src: url('file://${getFontCachePath(context, "eb_garamond.ttf")}');
+                }
+            """.trimIndent()
+            "Literata" -> """
+                @font-face {
+                    font-family: 'CustomFont';
+                    src: url('file://${getFontCachePath(context, "literata.ttf")}');
+                }
+            """.trimIndent()
+            else -> ""
+        }
+
+        val fontStyle = if (fontFaceCss.isNotEmpty()) "font-family: 'CustomFont', serif;" else "font-family: sans-serif;"
+
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                <style>
+                    $fontFaceCss
+                    
+                    body {
+                        background-color: $bgColor;
+                        color: $textColor;
+                        font-size: ${fontSize}px;
+                        $fontStyle
+                        line-height: $lineSpacingMultiplier;
+                        text-align: justify;
+                        -webkit-hyphens: auto;
+                        hyphens: auto;
+                        margin: 0;
+                        padding: 0;
+                        overflow: hidden;
+                        word-wrap: break-word;
+                        user-select: none;
+                        -webkit-user-select: none;
+                    }
+                    
+                    p {
+                        margin: 0;
+                        padding: 0;
+                        text-indent: 1.5em;
+                    }
+                    
+                    a {
+                        color: $linkColor;
+                        text-decoration: none;
+                    }
+                    
+                    .chapter {
+                        text-align: center;
+                        font-weight: bold;
+                        margin-top: 1em;
+                        margin-bottom: 1em;
+                    }
+                </style>
+            </head>
+            <body>
+                $htmlContent
+            </body>
+            </html>
+        """.trimIndent()
+    }
+
+    private fun spannedToHtml(text: CharSequence): String {
+        if (text !is Spanned) {
+            return escapeHtml(text.toString()).replace("\n", "<br>")
+        }
+
+        val sb = java.lang.StringBuilder()
+        var i = 0
+        while (i < text.length) {
+            val next = text.nextSpanTransition(i, text.length, Any::class.java)
+            val chunk = text.subSequence(i, next)
+
+            val spans = text.getSpans(i, next, Any::class.java)
+            var htmlChunk = escapeHtml(chunk.toString()).replace("\n", "<br>")
+
+            for (span in spans) {
+                when (span) {
+                    is StyleSpan -> {
+                        if (span.style == android.graphics.Typeface.BOLD) {
+                            htmlChunk = "<b>$htmlChunk</b>"
+                        } else if (span.style == android.graphics.Typeface.ITALIC) {
+                            htmlChunk = "<i>$htmlChunk</i>"
+                        }
+                    }
+                    is android.text.style.SuperscriptSpan -> {
+                        htmlChunk = "<sup>$htmlChunk</sup>"
+                    }
+                    is android.text.style.RelativeSizeSpan -> {
+                        htmlChunk = "<span style='font-size: 75%;'>$htmlChunk</span>"
+                    }
+                    is android.text.style.AbsoluteSizeSpan -> {
+                        if (span.size > 0) {
+                            htmlChunk = "<span class='chapter'>$htmlChunk</span>"
+                        } else {
+                            htmlChunk = "" // Hide zero size tags
+                        }
+                    }
+                    is AlignmentSpan -> {
+                        if (span.alignment == Layout.Alignment.ALIGN_CENTER) {
+                            htmlChunk = "<div style='text-align: center;'>$htmlChunk</div>"
+                        }
+                    }
+                    is android.text.Annotation -> {
+                        if (span.key == "note") {
+                            htmlChunk = "<a href='note:${span.value}'>$htmlChunk</a>"
+                        }
+                    }
+                }
+            }
+            sb.append(htmlChunk)
+            i = next
+        }
+        return sb.toString()
+    }
+
+    private fun escapeHtml(s: String): String {
+        return s.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&#39;")
+    }
+
+    private fun getFontCachePath(context: android.content.Context, fontName: String): String {
+        val fontsDir = File(context.cacheDir, "fonts")
+        if (!fontsDir.exists()) {
+            fontsDir.mkdirs()
+        }
+        val fontFile = File(fontsDir, fontName)
+        if (!fontFile.exists() || fontFile.length() == 0L) {
+            try {
+                val resId = when (fontName) {
+                    "eb_garamond.ttf" -> R.font.eb_garamond
+                    "literata.ttf" -> R.font.literata
+                    "lora.ttf" -> R.font.lora
+                    else -> return ""
+                }
+                context.resources.openRawResource(resId).use { input ->
+                    FileOutputStream(fontFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        return fontFile.absolutePath
     }
 
     companion object {
