@@ -5,8 +5,8 @@
     android:layout_height="match_parent"
     android:background="#FFFFFF">
 
-    <com.nightread.app.ui.BookWebView
-        android:id="@+id/bookWebView"
+    <com.nightread.app.ui.customlayout.CustomReaderPageView
+        android:id="@+id/bookReaderView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 

@@ -348,7 +348,7 @@ object PageSplitter {
         return@withContext offsets
     }
 
-    private fun createStaticLayout(
+    fun createStaticLayout(
         source: CharSequence, start: Int, end: Int, 
         paint: TextPaint, width: Int, 
         alignment: android.text.Layout.Alignment,

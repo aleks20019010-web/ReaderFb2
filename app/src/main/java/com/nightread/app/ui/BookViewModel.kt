@@ -1254,7 +1254,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     private fun parseFb2DetailedText(rawText: String, fallbackName: String): ParsedBook {
-        val parsed = com.nightread.app.service.NewFb2Parser.parse(rawText, fallbackName)
+        val parsed = com.nightread.app.service.Fb2Parser.parse(rawText, fallbackName)
         return ParsedBook(
             title = parsed.title,
             author = parsed.author,

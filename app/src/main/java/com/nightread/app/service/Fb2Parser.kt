@@ -1,168 +1,117 @@
 package com.nightread.app.service
 
-import android.util.Log
 import java.io.File
+import com.nightread.app.service.BookParser.ParsedBook
+
+data class BookMetadata(
+    val title: String,
+    val author: String,
+    val content: String,
+    val series: String?,
+    val seriesIndex: Int?,
+    val language: String?,
+    val annotation: String? = null
+)
 
 object Fb2Parser : BookParser {
-
-    override fun parse(file: File, defaultTitle: String): BookParser.ParsedBook {
-        try {
-            val bytes = file.readBytes()
-            val xmlContent = decodeFb2Bytes(bytes)
-            return parseFb2String(xmlContent, defaultTitle)
-        } catch (e: Exception) {
-            Log.e("Fb2Parser", "Error parsing FB2", e)
-            return BookParser.ParsedBook(defaultTitle, "Неизвестен", "")
-        }
-    }
-
-    private fun decodeFb2Bytes(bytes: ByteArray): String {
-        val header = String(bytes, 0, minOf(bytes.size, 1024), java.nio.charset.StandardCharsets.ISO_8859_1)
-        val match = Regex("""<\?xml[^>]*encoding=["']([^"']+)["']""", RegexOption.IGNORE_CASE).find(header)
-        val charsetName = match?.groupValues?.get(1)?.trim() ?: "UTF-8"
+    fun extractAnnotation(fb2Content: String): String? {
         return try {
-            String(bytes, java.nio.charset.Charset.forName(charsetName))
+            val annotationMatch = Regex("<annotation>\\s*(.*?)\\s*</annotation>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(fb2Content)
+            if (annotationMatch != null) {
+                var annotationText = annotationMatch.groupValues[1]
+                // Strip tags like <p>, <strong>, etc.
+                annotationText = annotationText.replace(Regex("<[^>]+>"), " ")
+                // Decode common XML entities
+                annotationText = annotationText
+                    .replace("&amp;", "&")
+                    .replace("&lt;", "<")
+                    .replace("&gt;", ">")
+                    .replace("&quot;", "\"")
+                    .replace("&apos;", "'")
+                
+                annotationText.split("\n")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .joinToString("\n")
+                    .trim()
+            } else {
+                null
+            }
         } catch (e: Exception) {
-            String(bytes, java.nio.charset.StandardCharsets.UTF_8)
+            null
         }
     }
 
-    fun parseFb2String(xmlContent: String, defaultTitle: String): BookParser.ParsedBook {
-        val notesMap = mutableMapOf<String, String>()
-        
-        // Extract notes body if present to avoid mixing notes text into main body
-        var mainXml = xmlContent
-        var notesXml = ""
-        val notesBodyStart = xmlContent.indexOf("<body name=\"notes\"", ignoreCase = true).let { 
-            if (it == -1) xmlContent.indexOf("<body id=\"notes\"", ignoreCase = true) else it
-        }
-        if (notesBodyStart != -1) {
-            val notesBodyEnd = xmlContent.indexOf("</body>", notesBodyStart, ignoreCase = true)
-            if (notesBodyEnd != -1) {
-                notesXml = xmlContent.substring(notesBodyStart, notesBodyEnd + "</body>".length)
-                mainXml = xmlContent.removeRange(notesBodyStart, notesBodyEnd + "</body>".length)
-            }
-        }
-        
-        // Extract notes from sections with id
-        val sectionRegex = Regex("""<section[^>]*id=["']([^"']+)["'][^>]*>(.*?)</section>""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
-        
-        // Search in both notesXml and mainXml (as fallback)
-        val searchXmls = listOf(notesXml, mainXml)
-        for (xml in searchXmls) {
-            if (xml.isEmpty()) continue
-            for (match in sectionRegex.findAll(xml)) {
-                val id = match.groupValues[1]
-                var inner = match.groupValues[2]
-                // Strip tags from note content
-                inner = inner.replace(Regex("<[^>]+>"), " ")
-                inner = decodeHtmlEntities(inner).trim()
-                if (inner.isNotEmpty()) {
-                    notesMap[id] = inner
-                }
-            }
-        }
-
-        // Now parse metadata
-        var title = defaultTitle
-        val titleMatch = Regex("""<book-title[^>]*>(.*?)</book-title>""", RegexOption.IGNORE_CASE).find(mainXml)
-        if (titleMatch != null) {
-            title = titleMatch.groupValues[1].replace(Regex("<[^>]+>"), "").trim()
-        }
-        
-        var author = "Неизвестен"
-        val firstNameMatch = Regex("""<first-name[^>]*>(.*?)</first-name>""", RegexOption.IGNORE_CASE).find(mainXml)
-        val lastNameMatch = Regex("""<last-name[^>]*>(.*?)</last-name>""", RegexOption.IGNORE_CASE).find(mainXml)
-        if (firstNameMatch != null || lastNameMatch != null) {
-            val fn = firstNameMatch?.groupValues?.get(1)?.replace(Regex("<[^>]+>"), "")?.trim() ?: ""
-            val ln = lastNameMatch?.groupValues?.get(1)?.replace(Regex("<[^>]+>"), "")?.trim() ?: ""
-            author = "$fn $ln".trim().ifEmpty { "Неизвестен" }
-        }
-
-        // Get main content body
-        val bodyStart = mainXml.indexOf("<body>")
-        val bodyEnd = mainXml.indexOf("</body>")
-        val contentToParse = if (bodyStart != -1 && bodyEnd != -1 && bodyEnd > bodyStart) {
-            mainXml.substring(bodyStart, bodyEnd + "</body>".length)
-        } else {
-            mainXml
-        }
-
-        var text = contentToParse
-
-        // Replace cites/blockquote
-        text = text
-            .replace(Regex("<cite[^>]*>", RegexOption.IGNORE_CASE), "\n[CITE]")
-            .replace(Regex("</cite>", RegexOption.IGNORE_CASE), "[/CITE]\n")
-
-        // Replace sup tags
-        text = text
-            .replace(Regex("<sup[^>]*>", RegexOption.IGNORE_CASE), "[SUP]")
-            .replace(Regex("</sup>", RegexOption.IGNORE_CASE), "[/SUP]")
-
-        // Replace links to notes: <a l:href="#note_id">1</a>
-        val noteLinkRegex = Regex("""<a[^>]*(?:href|l:href)=["']#([^"']+)["'][^>]*>(.*?)</a>""", RegexOption.IGNORE_CASE)
-        text = noteLinkRegex.replace(text) { matchResult ->
-            val noteId = matchResult.groupValues[1]
-            val linkText = matchResult.groupValues[2].replace(Regex("<[^>]+>"), "")
-            "[NOTE:$noteId]$linkText[/NOTE]"
-        }
-
-        // Map rest of formatting
-        text = text
-            .replace(Regex("<empty-line[^>]*>"), "\n\n")
-            .replace(Regex("<title[^>]*>"), "\n\u000C[CHAPTER]")
-            .replace(Regex("</title>"), "[/CHAPTER]\n")
-            .replace(Regex("<p[^>]*>"), "\n\u00A0\u00A0\u00A0\u00A0")
-            .replace(Regex("</p>"), "")
-            .replace(Regex("<v[^>]*>"), "\n")
-            .replace(Regex("</v>"), "")
-            .replace(Regex("<subtitle[^>]*>"), "\n")
-            .replace(Regex("</subtitle>"), "\n")
-            .replace(Regex("<hyphen[^>]*>"), "\u00AD")
-
-        // Strip remaining tags
-        text = text.replace(Regex("<[^>]+>"), "")
-
-        // Decode entities
-        text = decodeHtmlEntities(text)
-
-        // Clean up multiple newlines to just one newline, excluding FormFeed (\u000C)
-        // Clean up multiple newlines to just one or two
-        text = text.replace(Regex("([ \t\r]*\n[ \t\r]*){2,}"), "\n")
-        // Remove spaces before non-breaking spaces (our paragraph indent)
-        text = text.replace(Regex("\n[ \t\r]+(?=\u00A0)"), "\n")
-
-
-        // Clean up consecutive page breaks
-        text = text.replace(Regex("\\u000C+"), "\u000C")
-
-        val finalResult = text.trim().trim('\u000C').trim()
-        
-        return BookParser.ParsedBook(
-            title = title,
-            author = author,
-            content = TextCleaner.cleanText(finalResult) as String,
-            notes = notesMap
+    override fun parse(file: File, defaultTitle: String): ParsedBook {
+        val fb2Content = file.readText(Charsets.UTF_8)
+        val metadata = parse(fb2Content, defaultTitle)
+        return ParsedBook(
+            title = metadata.title,
+            author = metadata.author,
+            content = metadata.content
         )
     }
 
-    private fun decodeHtmlEntities(text: String): String {
-        return text
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .replace("&apos;", "'")
-            .replace("&nbsp;", " ")
-            .replace("&laquo;", "«")
-            .replace("&raquo;", "»")
-            .replace("&mdash;", "—")
-            .replace("&ndash;", "–")
-    }
+    fun parse(fb2Content: String, defaultTitle: String): BookMetadata {
+        return try {
+            var title = ""
+            var firstName = ""
+            var lastName = ""
+            var series: String? = null
+            var seriesIndex: Int? = null
+            var lang: String? = null
 
-    // Retain old method for backward compatibility
-    fun extractText(xmlContent: String): String {
-        return parseFb2String(xmlContent, "").content
+            // Limit regex matching to the first ~150KB or the end of the <description> block
+            // to prevent OutOfMemory and catastrophic regex backtracking on large books.
+            val descriptionEnd = fb2Content.indexOf("</description>", ignoreCase = true)
+            val headerContent = if (descriptionEnd != -1) {
+                fb2Content.substring(0, descriptionEnd + "</description>".length)
+            } else {
+                fb2Content.take(150000)
+            }
+
+            // Use regex for extremely fast and robust parsing of metadata (avoids XML parsing exceptions on huge/malformed files)
+            val titleMatch = Regex("<book-title>\\s*([^<]+?)\\s*</book-title>", RegexOption.IGNORE_CASE).find(headerContent)
+            if (titleMatch != null) {
+                title = titleMatch.groupValues[1].trim()
+            }
+
+            val authorMatch = Regex("<author>\\s*(.*?)\\s*</author>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(headerContent)
+            if (authorMatch != null) {
+                val authorBlock = authorMatch.groupValues[1]
+                val fnMatch = Regex("<first-name>\\s*([^<]+?)\\s*</first-name>", RegexOption.IGNORE_CASE).find(authorBlock)
+                val lnMatch = Regex("<last-name>\\s*([^<]+?)\\s*</last-name>", RegexOption.IGNORE_CASE).find(authorBlock)
+                if (fnMatch != null) firstName = fnMatch.groupValues[1].trim()
+                if (lnMatch != null) lastName = lnMatch.groupValues[1].trim()
+            }
+
+            val sequenceMatch = Regex("<sequence\\s+([^>]+?)>", RegexOption.IGNORE_CASE).find(headerContent)
+            if (sequenceMatch != null) {
+                val sequenceAttributes = sequenceMatch.groupValues[1]
+                val nameMatch = Regex("name\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(sequenceAttributes)
+                if (nameMatch != null) {
+                    series = nameMatch.groupValues[1].trim()
+                }
+                val indexMatch = Regex("number\\s*=\\s*[\"'](\\d+)[\"']", RegexOption.IGNORE_CASE).find(sequenceAttributes)
+                if (indexMatch != null) {
+                    seriesIndex = indexMatch.groupValues[1].toIntOrNull()
+                }
+            }
+
+            val langMatch = Regex("<lang>\\s*([^<]+?)\\s*</lang>", RegexOption.IGNORE_CASE).find(headerContent)
+            if (langMatch != null) {
+                lang = langMatch.groupValues[1].trim()
+            }
+
+            val finalTitle = title.ifBlank { defaultTitle }
+            val authorList = listOf(firstName, lastName).filter { it.isNotBlank() }
+            val finalAuthor = if (authorList.isNotEmpty()) authorList.joinToString(" ") else "Unknown Author"
+
+            val annotation = extractAnnotation(headerContent)
+
+            BookMetadata(finalTitle, finalAuthor, fb2Content, series, seriesIndex, lang, annotation)
+        } catch (e: Exception) {
+            BookMetadata(defaultTitle, "Unknown Author", fb2Content, null, null, null, null)
+        }
     }
 }

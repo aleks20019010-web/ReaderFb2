@@ -3,7 +3,7 @@ package com.nightread.app.data
 import android.content.Context
 import android.util.Log
 import com.nightread.app.service.NewCoverExtractor
-import com.nightread.app.service.NewFb2Parser
+import com.nightread.app.service.Fb2Parser
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers

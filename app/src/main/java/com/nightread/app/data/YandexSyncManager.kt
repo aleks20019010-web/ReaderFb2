@@ -6,7 +6,7 @@ import android.net.NetworkCapabilities
 import android.os.Environment
 import android.util.Log
 import com.nightread.app.service.NewCoverExtractor
-import com.nightread.app.service.NewFb2Parser
+import com.nightread.app.service.Fb2Parser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -818,7 +818,7 @@ class YandexSyncManager(private val context: Context) {
                                 // Decode fb2Bytes safely to String respecting XML and Russian Windows-1251 encoding
                                 val content = decodeBytesToString(fb2Bytes)
                                 // Parse FB2 correctly to get metadata
-                                val meta = NewFb2Parser.parse(content, originalName)
+                                val meta = Fb2Parser.parse(content, originalName)
                                 titleText = meta.title
                                 authorText = meta.author
                                 seriesText = meta.series

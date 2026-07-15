@@ -541,7 +541,7 @@ class NewBookScanner(
                 }
                 
                 val rawText = decodeBytesToString(bytes)
-                val metadata = NewFb2Parser.parse(rawText, file.nameWithoutExtension)
+                val metadata = Fb2Parser.parse(rawText, file.nameWithoutExtension)
                 
                 // Resolve correct Russian title with transliteration support
                 val resolvedTitle = resolveRussianTitle(metadata.title, file.nameWithoutExtension)
@@ -804,7 +804,7 @@ class NewBookScanner(
                                     } else {
                                         val rawText = decodeBytesToString(tempBytes)
                                         val entryFallback = entryName.removeSuffix(".fb2")
-                                        val metadata = NewFb2Parser.parse(rawText, entryFallback)
+                                        val metadata = Fb2Parser.parse(rawText, entryFallback)
                                         
                                         // Resolve correct Russian title with transliteration support
                                         val resolvedTitle = resolveRussianTitle(metadata.title, entryFallback)

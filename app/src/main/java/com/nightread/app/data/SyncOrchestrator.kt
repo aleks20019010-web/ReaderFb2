@@ -4,7 +4,7 @@ import android.content.Context
 import android.os.Environment
 import android.util.Log
 import com.nightread.app.service.NewCoverExtractor
-import com.nightread.app.service.NewFb2Parser
+import com.nightread.app.service.Fb2Parser
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -280,7 +280,7 @@ class SyncOrchestrator(
                                         if (fb2Bytes.isNotEmpty()) {
                                             val sha1 = computeSha1(fb2Bytes)
                                             val content = decodeBytesToString(fb2Bytes)
-                                            val meta = NewFb2Parser.parse(content, originalName)
+                                            val meta = Fb2Parser.parse(content, originalName)
                                             val coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
                                             val truncatedAnnotation = meta.annotation?.take(500)
 
