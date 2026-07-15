@@ -217,15 +217,22 @@ class TextLayoutBuilder {
         var layout = createStaticLayout(text, offset, endOffset)
         
         // Pull-in algorithm
-        if (layout.lineCount > 0) {
+        if (layout.lineCount > 1) {
             val lastLineIdx = layout.lineCount - 1
             val lastLineLineWidth = layout.getLineRight(lastLineIdx) - layout.getLineLeft(lastLineIdx)
-            // If last line is less than 15% of width
-            if (lastLineLineWidth < width * 0.15f) {
+            // If last line is less than 25% of width
+            if (lastLineLineWidth < width * 0.25f) {
                 // Try to rebuild with slightly reduced letter spacing
                 val originalLetterSpacing = letterSpacing
-                letterSpacing -= 0.05f // Increased adjustment for better effect
-                layout = createStaticLayout(text, offset, endOffset)
+                letterSpacing -= 0.05f
+                val newLayout = createStaticLayout(text, offset, endOffset)
+                
+                // Only use new layout if it reduced lines OR improved last line width
+                if (newLayout.lineCount < layout.lineCount || 
+                    (newLayout.lineCount == layout.lineCount && 
+                     (newLayout.getLineRight(newLayout.lineCount - 1) - newLayout.getLineLeft(newLayout.lineCount - 1)) > lastLineLineWidth)) {
+                    layout = newLayout
+                }
                 letterSpacing = originalLetterSpacing
             }
         }
