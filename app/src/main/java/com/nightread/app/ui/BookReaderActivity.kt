@@ -1,5 +1,3 @@
-package com.nightread.app.ui
-
 import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
@@ -7,6 +5,7 @@ import android.util.AttributeSet
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewTreeObserver
@@ -19,12 +18,17 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.nightread.app.R
+import com.nightread.app.data.AppDatabase
+import com.nightread.app.service.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.Locale
+import java.io.FileInputStream
+import java.util.zip.ZipInputStream
 
 /**
  * Custom WebView exposing computeHorizontalScrollRange and computeVerticalScrollRange.
@@ -67,6 +71,7 @@ class BookReaderActivity : AppCompatActivity() {
 
     private var bookText: String = ""
     private var bookLoaded = false
+    private var isDimensionsReady = false
 
     private var touchStartX = 0f
     private val swipeThreshold = 100f
@@ -111,13 +116,34 @@ class BookReaderActivity : AppCompatActivity() {
                     screenHeight = webView.height
                     paddingValue = (paddingDp * resources.displayMetrics.density).toInt()
 
-                    if (screenWidth > 0 && screenHeight > 0) {
-                        bookText = getDefaultBookText()
-                        loadBook(bookText)
-                    }
+                    isDimensionsReady = true
+                    tryLoadBook()
                 }
             }
         )
+
+        // Load content
+        val sha1 = intent.getStringExtra("BOOK_SHA1")
+        if (!sha1.isNullOrEmpty()) {
+            progressBar.visibility = View.VISIBLE
+            lifecycleScope.launch {
+                val db = AppDatabase.getDatabase(this@BookReaderActivity)
+                val book = withContext(Dispatchers.IO) {
+                    db.bookDao().getBookBySha1(sha1)
+                }
+                if (book != null && !book.filePath.isNullOrEmpty()) {
+                    val file = File(book.filePath)
+                    if (file.exists()) {
+                        bookText = withContext(Dispatchers.IO) { com.nightread.app.service.Fb2Parser.parse(file, "Unknown").content }.trim().trim('\u000C').trim()
+                    }
+                }
+                progressBar.visibility = View.GONE
+                tryLoadBook()
+            }
+        } else {
+            bookText = intent.getStringExtra("book_text") ?: getDefaultBookText()
+            tryLoadBook()
+        }
     }
 
     private fun setupWebView() {
@@ -301,5 +327,77 @@ class BookReaderActivity : AppCompatActivity() {
             Глава II
             Комната была обставлена скромно. Приезжий подошел к окну.
         """.trimIndent()
+    }
+
+    private fun tryLoadBook() {
+        if (!bookLoaded && isDimensionsReady && bookText.isNotEmpty()) {
+            bookLoaded = true
+            loadBook(bookText)
+        }
+    }
+
+    // Public Settings Customization APIs
+    fun increaseFontSize() {
+        fontSize += 2
+        bookLoaded = false
+        loadBook(bookText)
+    }
+
+    fun decreaseFontSize() {
+        fontSize = (fontSize - 2).coerceAtLeast(10)
+        bookLoaded = false
+        loadBook(bookText)
+    }
+
+    fun setLineHeight(multiplier: Float) {
+        lineHeight = multiplier
+        bookLoaded = false
+        loadBook(bookText)
+    }
+
+    fun setFont(fontName: String, fontPath: String) {
+        fontFamily = fontName
+        currentFontPath = fontPath
+        bookLoaded = false
+        loadBook(bookText)
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        return when (keyCode) {
+            KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                if (currentPage < totalPages - 1) {
+                    loadPage(currentPage + 1)
+                    true
+                } else super.onKeyDown(keyCode, event)
+            }
+            KeyEvent.KEYCODE_VOLUME_UP -> {
+                if (currentPage > 0) {
+                    loadPage(currentPage - 1)
+                    true
+                } else super.onKeyDown(keyCode, event)
+            }
+            else -> super.onKeyDown(keyCode, event)
+        }
+    }
+
+    // Brightness and Warmth control (simplified gestures)
+    private var touchStartY = 0f
+    
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                touchStartX = event.x
+                touchStartY = event.y
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val diffY = touchStartY - event.y
+                if (Math.abs(diffY) > 50) {
+                    // Logic for brightness or warmth would be here.
+                    // For now, it's just a gesture detection.
+                    touchStartY = event.y
+                }
+            }
+        }
+        return super.onTouchEvent(event)
     }
 }

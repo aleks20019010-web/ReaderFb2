@@ -18,6 +18,7 @@ import android.animation.ValueAnimator
 import android.animation.AnimatorSet
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ProgressBar
+import com.nightread.app.ui.BookReaderActivity
 import com.nightread.app.data.SettingsManager
 import com.nightread.app.ui.BaseActivity
 import com.nightread.app.ui.BookmarksFragment
