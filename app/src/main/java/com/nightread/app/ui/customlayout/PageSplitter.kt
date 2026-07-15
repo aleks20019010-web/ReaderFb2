@@ -8,9 +8,29 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 
+/**
+ * PageSplitter — класс для гибридного разбиения книги на страницы.
+ * 
+ * Логика работы:
+ * 1. Разбивает весь текст на строки через StaticLayout (один раз).
+ * 2. Группирует строки в страницы по фиксированному количеству строк.
+ * 3. Корректирует границы страниц, стараясь не разрывать абзацы и предложения.
+ * 4. Заполняет последнюю строку страницы (если ее ширина < 30%), подтягивая слова со следующей страницы.
+ * 
+ * Пример использования:
+ * ```kotlin
+ * val pageSplitter = PageSplitter
+ * val linesPerPage = pageSplitter.getLinesPerPage(height, paint, multiplier, extra)
+ * val pages = pageSplitter.groupLinesIntoPages(lines, minLinesPerPage = 3, maxLinesPerPage = linesPerPage)
+ * ```
+ */
 object PageSplitter {
     private val linesCache = mutableMapOf<String, Int>()
 
+    /**
+     * Рассчитывает статическое количество строк, помещающихся на одной странице,
+     * исходя из высоты экрана, шрифта и межстрочных интервалов.
+     */
     fun getLinesPerPage(height: Int, paint: TextPaint, lineSpacingMultiplier: Float, lineSpacingExtra: Float): Int {
         val key = "${height}_${paint.textSize}_${lineSpacingMultiplier}_${lineSpacingExtra}"
         
@@ -24,128 +44,207 @@ object PageSplitter {
         }
     }
 
-    private fun findPageEnd(
-        text: CharSequence,
-        layout: StaticLayout,
-        currentOffset: Int,
-        lineIdx: Int,
-        linesPerPage: Int,
-        measureEnd: Int,
-        width: Int,
-        paint: TextPaint,
-        lineSpacingMultiplier: Float,
-        lineSpacingExtra: Float,
-        hyphenation: Boolean
-    ): Pair<Int, Int> {
-        val lineCount = layout.lineCount
-        var pageEndLine = minOf(lineIdx + linesPerPage, lineCount)
-        
-        // Check for hard page breaks
-        var hasPageBreak = false
-        for (i in lineIdx until pageEndLine) {
-            val lineStart = layout.getLineStart(i)
-            val lineEnd = layout.getLineEnd(i)
-            var foundBreak = false
-            for (j in lineStart until lineEnd) {
-                if (text[j] == '\u000C') {
-                    pageEndLine = i + 1
-                    foundBreak = true
-                    hasPageBreak = true
-                    break
-                }
-            }
-            if (foundBreak) break
+    /**
+     * Проверяет, является ли строка началом нового абзаца.
+     */
+    private fun isParagraphStart(line: String, prevLine: String?): Boolean {
+        if (line.isEmpty()) return true
+        // Если предыдущая строка заканчивается переносом строки, текущая начинает абзац
+        if (prevLine != null && (prevLine.endsWith("\n") || prevLine.endsWith("\r") || prevLine.endsWith("\u000C"))) {
+            return true
         }
-        
-        val originalNextOffset = layout.getLineEnd(pageEndLine - 1)
-        var nextOffset = originalNextOffset
-
-        val lastLine = pageEndLine - 1
-        val lastLineStart = layout.getLineStart(lastLine)
-
-        if (pageEndLine < lineCount || measureEnd == text.length) {
-            if (nextOffset > currentOffset && nextOffset < text.length && !hasPageBreak) {
-                // 1. Word break protection
-                val before = text[nextOffset - 1]
-                val after = text[nextOffset]
-                val isBoundaryBefore = before.isWhitespace() || before == '-' || before == '\n' || before == '\u00AD'
-                val isBoundaryAfter = after.isWhitespace() || after == '\n'
-
-                if (!isBoundaryBefore && !isBoundaryAfter) {
-                    var backtrack = nextOffset - 1
-                    while (backtrack > currentOffset) {
-                        val c = text[backtrack]
-                        if (c.isWhitespace() || c == '-' || c == '\n' || c == '\u00AD') {
-                            backtrack++
-                            break
-                        }
-                        backtrack--
-                    }
-                    if (backtrack > lastLineStart) {
-                        nextOffset = backtrack
-                        Log.d("PageSplitter", "[Word break] Protected, nextOffset: $nextOffset")
-                    }
-                }
-
-                // 2. Last line filling up to 80% (try pulling words from next page)
-                val lineWidth = layout.getLineWidth(lastLine)
-                if (lineWidth < width * 0.8f) {
-                    var currentNextOffset = nextOffset
-                    var lastValidNextOffset = nextOffset
-                    var continuePulling = true
-                    
-                    while (continuePulling && currentNextOffset < text.length) {
-                        var scanIdx = currentNextOffset
-                        // Skip whitespaces first
-                        while (scanIdx < text.length && text[scanIdx].isWhitespace()) {
-                            scanIdx++
-                        }
-                        // Scan the word
-                        while (scanIdx < text.length && !text[scanIdx].isWhitespace() && text[scanIdx] != '-' && text[scanIdx] != '\n' && text[scanIdx] != '\u000C') {
-                            scanIdx++
-                        }
-                        
-                        if (scanIdx > currentNextOffset) {
-                            val tempLayout = createStaticLayout(
-                                text, currentOffset, scanIdx, paint, width, 
-                                layout.alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation
-                            )
-                            if (tempLayout.lineCount <= pageEndLine) {
-                                Log.d("PageSplitter", "[Last line filling] Pulled word ending at $scanIdx")
-                                lastValidNextOffset = scanIdx
-                                currentNextOffset = scanIdx
-                            } else {
-                                continuePulling = false
-                            }
-                        } else {
-                            break
-                        }
-                    }
-                    nextOffset = lastValidNextOffset
-                }
-
-                // 3. Orphan protection (1-2 character word at end of page)
-                var backtrack = nextOffset
-                while (backtrack > currentOffset && text[backtrack - 1].isWhitespace()) {
-                    backtrack--
-                }
-                val wordEnd = backtrack
-                while (backtrack > currentOffset && !text[backtrack - 1].isWhitespace() && text[backtrack - 1] != '-' && text[backtrack - 1] != '\n') {
-                    backtrack--
-                }
-                val wordStart = backtrack
-                val wordLen = wordEnd - wordStart
-                
-                if (wordLen in 1..2 && wordStart > lastLineStart) {
-                    Log.d("PageSplitter", "[Orphan protection] Short word ($wordLen chars) moved to next page: $wordStart")
-                    nextOffset = wordStart
-                }
-            }
+        // Если строка начинается с пробельных символов (красная строка / отступ)
+        if (line.startsWith(" ") || line.startsWith("\t") || line.startsWith("\u00A0")) {
+            return true
         }
-        
-        return Pair(nextOffset, pageEndLine)
+        return false
     }
 
+    /**
+     * Проверяет, заканчивается ли строка концом предложения.
+     */
+    private fun isSentenceEnd(line: String): Boolean {
+        val trimmed = line.trimEnd()
+        if (trimmed.isEmpty()) return false
+        val lastChar = trimmed.last()
+        return lastChar == '.' || lastChar == '!' || lastChar == '?' || 
+               trimmed.endsWith(".\"") || trimmed.endsWith("!\"") || trimmed.endsWith("?\"") ||
+               trimmed.endsWith("»") || trimmed.endsWith(")")
+    }
+
+    /**
+     * Корректирует границы страниц, стараясь не разрывать абзацы и предложения.
+     * Возвращает новый скорректированный индекс конца страницы.
+     */
+    fun adjustPageBoundary(lines: List<String>, start: Int, end: Int): Int {
+        val tentativeEnd = minOf(end, lines.size)
+        // Если на странице слишком мало строк, не корректируем, чтобы не нарушать minLinesPerPage
+        if (tentativeEnd <= start + 3) return tentativeEnd
+        
+        // Проверяем, является ли текущая граница естественным концом абзаца
+        val nextLine = if (tentativeEnd < lines.size) lines[tentativeEnd] else null
+        val currentLine = lines[tentativeEnd - 1]
+        if (nextLine == null || isParagraphStart(nextLine, currentLine)) {
+            return tentativeEnd
+        }
+        
+        // 1. Пытаемся найти границу абзаца, двигаясь назад (не дальше чем до start + 3 строк)
+        for (i in tentativeEnd downTo start + 3) {
+            val next = if (i < lines.size) lines[i] else null
+            val curr = lines[i - 1]
+            if (next == null || isParagraphStart(next, curr)) {
+                return i
+            }
+        }
+        
+        // 2. Если абзац слишком длинный, пытаемся найти конец предложения, двигаясь назад
+        for (i in tentativeEnd downTo start + 3) {
+            val curr = lines[i - 1]
+            if (isSentenceEnd(curr)) {
+                return i
+            }
+        }
+        
+        // 3. Если назад не нашли предложений, ищем конец предложения вперед (не более чем на 2 строки)
+        val limit = minOf(tentativeEnd + 2, lines.size)
+        for (i in tentativeEnd + 1..limit) {
+            val curr = lines[i - 1]
+            if (isSentenceEnd(curr)) {
+                return i
+            }
+        }
+        
+        return tentativeEnd
+    }
+
+    /**
+     * Заполняет последнюю строку страницы словами из следующей страницы, 
+     * если ширина последней строки меньше minLastLineWidthPercent.
+     */
+    fun fillLastLine(
+        pageLines: List<String>, 
+        nextLines: List<String>,
+        paint: TextPaint,
+        width: Int,
+        minLastLineWidthPercent: Float = 0.3f
+    ): List<String> {
+        if (pageLines.isEmpty() || nextLines.isEmpty() || width <= 0) return pageLines
+        
+        val lastLine = pageLines.last()
+        val lastLineWidth = paint.measureText(lastLine.trimEnd())
+        val targetMin = width * minLastLineWidthPercent
+        
+        // Если ширина последней строки уже достаточная, ничего не делаем
+        if (lastLineWidth >= targetMin) return pageLines
+        
+        // Берем первую строку следующей страницы и пытаемся перетащить слова
+        val nextLine = nextLines.first()
+        val words = nextLine.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (words.isEmpty()) return pageLines
+        
+        val newPageLines = pageLines.toMutableList()
+        var currentLastLine = lastLine
+        val pulledWords = mutableListOf<String>()
+        
+        for (word in words) {
+            val separator = if (currentLastLine.endsWith("-") || currentLastLine.endsWith("\u00AD")) "" else " "
+            val testLine = currentLastLine + separator + word
+            if (paint.measureText(testLine.trimEnd()) <= width) {
+                currentLastLine = testLine
+                pulledWords.add(word)
+            } else {
+                break
+            }
+        }
+        
+        if (pulledWords.isNotEmpty()) {
+            newPageLines[newPageLines.size - 1] = currentLastLine
+        }
+        
+        return newPageLines
+    }
+
+    /**
+     * Группирует строки в страницы, корректируя границы и заполняя последние строки.
+     */
+    fun groupLinesIntoPages(
+        lines: List<String>,
+        minLinesPerPage: Int = 3,
+        maxLinesPerPage: Int = 15,
+        minLastLineWidthPercent: Float = 0.3f,
+        paint: TextPaint? = null,
+        width: Int = 0
+    ): List<List<String>> {
+        val mutableLines = lines.toMutableList()
+        val pages = mutableListOf<List<String>>()
+        var current = 0
+        
+        while (current < mutableLines.size) {
+            val tentativeEnd = minOf(current + maxLinesPerPage, mutableLines.size)
+            var adjustedEnd = adjustPageBoundary(mutableLines, current, tentativeEnd)
+            
+            // Гарантируем минимальное количество строк на странице (кроме конца текста)
+            if (adjustedEnd - current < minLinesPerPage && tentativeEnd < mutableLines.size) {
+                adjustedEnd = tentativeEnd
+            }
+            
+            var pageLines: List<String> = mutableLines.subList(current, adjustedEnd)
+            
+            val nextLines = if (adjustedEnd < mutableLines.size) {
+                mutableLines.subList(adjustedEnd, minOf(adjustedEnd + 5, mutableLines.size))
+            } else {
+                emptyList()
+            }
+            
+            // Если передан paint и ширина экрана, выполняем заполнение последней строки
+            if (paint != null && width > 0 && nextLines.isNotEmpty()) {
+                val filledLines = fillLastLine(pageLines, nextLines, paint, width, minLastLineWidthPercent)
+                
+                if (filledLines != pageLines) {
+                    val lastOriginalLine = pageLines.last()
+                    val lastFilledLine = filledLines.last()
+                    val pulledLength = lastFilledLine.length - lastOriginalLine.length
+                    
+                    if (pulledLength > 0) {
+                        val originalNextFirstLine = nextLines[0]
+                        val wordsPulled = lastFilledLine.substring(lastOriginalLine.length).trim()
+                        var remainingNextFirstLine = originalNextFirstLine
+                        if (remainingNextFirstLine.startsWith(wordsPulled)) {
+                            remainingNextFirstLine = remainingNextFirstLine.substring(wordsPulled.length).trim()
+                        } else {
+                            val originalWords = originalNextFirstLine.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                            val pulledWordsCount = wordsPulled.split(Regex("\\s+")).filter { it.isNotEmpty() }.size
+                            if (pulledWordsCount < originalWords.size) {
+                                remainingNextFirstLine = originalWords.drop(pulledWordsCount).joinToString(" ")
+                            } else {
+                                remainingNextFirstLine = ""
+                            }
+                        }
+                        
+                        mutableLines[adjustedEnd] = remainingNextFirstLine
+                    }
+                    pageLines = filledLines
+                }
+            }
+            
+            pages.add(pageLines.toList())
+            current = adjustedEnd
+        }
+        
+        // 8. Если на последней странице слишком мало строк - объединяем ее с предпоследней
+        if (pages.size > 1 && pages.last().size < minLinesPerPage) {
+            val lastPage = pages.removeAt(pages.size - 1)
+            val prevPage = pages.removeAt(pages.size - 1)
+            pages.add(prevPage + lastPage)
+        }
+        
+        return pages
+    }
+
+    /**
+     * Главный асинхронный метод для расчета пагинации всей книги/главы.
+     * Возвращает список символьных смещений начала каждой страницы для ReaderViewModel.
+     */
     suspend fun buildPagination(
         text: CharSequence,
         width: Int,
@@ -165,95 +264,130 @@ object PageSplitter {
             return@withContext res
         }
 
+        // Проверяем наличие результатов в кэше
         val cached = LayoutCache.getOffsets(configKey)
         if (cached != null) {
             withContext(Dispatchers.Main) { onProgress?.invoke(cached, true) }
             return@withContext cached
         }
 
-        val offsets = mutableListOf<Int>()
-        offsets.add(0)
-
-        var currentOffset = 0
-        var pagesFound = 0
-        val textLength = text.length
-        
-        val linesPerPage = getLinesPerPage(height, paint, lineSpacingMultiplier, lineSpacingExtra)
-        
-        var currentChunkSize = 50000 
-        
         paint.letterSpacing = letterSpacing
         paint.textLocale = java.util.Locale("ru", "RU")
 
-        while (currentOffset < textLength) {
+        // 1. Разбиваем весь текст на строки через StaticLayout (один раз)
+        val layout = createStaticLayout(text, 0, text.length, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation)
+        val lineCount = layout.lineCount
+        val linesList = ArrayList<String>()
+        val lineStartOffsets = ArrayList<Int>()
+        for (i in 0 until lineCount) {
+            val start = layout.getLineStart(i)
+            val end = layout.getLineEnd(i)
+            linesList.add(text.subSequence(start, end).toString())
+            lineStartOffsets.add(start)
+        }
+
+        val maxLinesPerPage = getLinesPerPage(height, paint, lineSpacingMultiplier, lineSpacingExtra)
+        val minLinesPerPage = 3
+        val minLastLineWidthPercent = 0.3f
+
+        val offsets = mutableListOf<Int>()
+        offsets.add(0)
+
+        var currentLineIdx = 0
+        var pagesFound = 0
+
+        while (currentLineIdx < lineCount) {
             if (!isActive) break
-            
-            var measureEnd = minOf(currentOffset + currentChunkSize, textLength)
-            if (measureEnd < textLength) {
-                var lastNewLine = measureEnd
-                while (lastNewLine > currentOffset && text[lastNewLine] != '\n' && text[lastNewLine] != '\u000C') {
-                    lastNewLine--
-                }
-                if (lastNewLine > currentOffset) {
-                    measureEnd = lastNewLine + 1
-                }
+
+            val tentativeEnd = minOf(currentLineIdx + maxLinesPerPage, lineCount)
+            var adjustedEnd = adjustPageBoundary(linesList, currentLineIdx, tentativeEnd)
+
+            if (adjustedEnd - currentLineIdx < minLinesPerPage && tentativeEnd < lineCount) {
+                adjustedEnd = tentativeEnd
             }
 
-            val layout = createStaticLayout(text, currentOffset, measureEnd, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation)
-            var lineIdx = 0
-            val lineCount = layout.lineCount
-            var lastPageEndOffset = currentOffset
+            // Вычисляем забираемые слова для точной коррекции смещения следующей страницы
+            var nextPageStartShift = 0
+            if (adjustedEnd < lineCount) {
+                val lastLineText = linesList[adjustedEnd - 1]
+                val lastLineWidth = paint.measureText(lastLineText.trimEnd())
+                val targetMin = width * minLastLineWidthPercent
 
-            while (lineIdx < lineCount) {
-                if (!isActive) break
-
-                val (nextOffset, pageEndLine) = findPageEnd(
-                    text = text,
-                    layout = layout,
-                    currentOffset = currentOffset,
-                    lineIdx = lineIdx,
-                    linesPerPage = linesPerPage,
-                    measureEnd = measureEnd,
-                    width = width,
-                    paint = paint,
-                    lineSpacingMultiplier = lineSpacingMultiplier,
-                    lineSpacingExtra = lineSpacingExtra,
-                    hyphenation = hyphenation
-                )
-
-                if (pageEndLine <= lineCount) {
-                    if (nextOffset < textLength) {
-                        offsets.add(nextOffset)
-                        pagesFound++
-                        if (pagesFound % 20 == 0) {
-                            val offsetsCopy = ArrayList(offsets)
-                            withContext(Dispatchers.Main) {
-                                onProgress?.invoke(offsetsCopy, false)
+                if (lastLineWidth < targetMin) {
+                    val nextLineText = linesList[adjustedEnd]
+                    val words = nextLineText.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                    if (words.isNotEmpty()) {
+                        var currentLastLine = lastLineText
+                        var wordsPulledCount = 0
+                        
+                        for (word in words) {
+                            val separator = if (currentLastLine.endsWith("-") || currentLastLine.endsWith("\u00AD")) "" else " "
+                            val testLine = currentLastLine + separator + word
+                            if (paint.measureText(testLine.trimEnd()) <= width) {
+                                currentLastLine = testLine
+                                wordsPulledCount++
+                            } else {
+                                break
                             }
                         }
-                    }
-                    lastPageEndOffset = nextOffset
-                    lineIdx = pageEndLine
 
-                    val originalNextOffset = layout.getLineEnd(pageEndLine - 1)
-                    if (nextOffset != originalNextOffset) {
-                        break
+                        if (wordsPulledCount > 0) {
+                            var count = 0
+                            var scanIdx = 0
+                            while (scanIdx < nextLineText.length && count < wordsPulledCount) {
+                                while (scanIdx < nextLineText.length && nextLineText[scanIdx].isWhitespace()) {
+                                    scanIdx++
+                                }
+                                val wordStart = scanIdx
+                                while (scanIdx < nextLineText.length && !nextLineText[scanIdx].isWhitespace()) {
+                                    scanIdx++
+                                }
+                                if (scanIdx > wordStart) {
+                                    count++
+                                }
+                            }
+                            while (scanIdx < nextLineText.length && nextLineText[scanIdx].isWhitespace()) {
+                                scanIdx++
+                            }
+                            nextPageStartShift = scanIdx
+                        }
                     }
-                    if (pageEndLine == lineCount && measureEnd < textLength) {
-                        break
-                    }
-                } else {
-                    break
                 }
             }
 
-            if (lastPageEndOffset == currentOffset) {
-                if (measureEnd == textLength) break
-                currentChunkSize *= 2
-            } else {
-                currentOffset = lastPageEndOffset
+            // Добавляем смещение для следующей страницы
+            if (adjustedEnd < lineCount) {
+                val nextPageOffset = lineStartOffsets[adjustedEnd] + nextPageStartShift
+                if (nextPageOffset < text.length) {
+                    offsets.add(nextPageOffset)
+                    pagesFound++
+                    
+                    // Периодически сообщаем о прогрессе для плавного интерфейса
+                    if (pagesFound % 20 == 0) {
+                        val offsetsCopy = ArrayList(offsets)
+                        withContext(Dispatchers.Main) {
+                            onProgress?.invoke(offsetsCopy, false)
+                        }
+                    }
+                }
             }
+
+            currentLineIdx = adjustedEnd
             yield()
+        }
+
+        // 8. Если на последней странице мало строк, объединяем с предыдущей
+        if (offsets.size > 1) {
+            val lastPageStartOffset = offsets.last()
+            var lastPageLinesCount = 0
+            for (i in 0 until lineCount) {
+                if (lineStartOffsets[i] >= lastPageStartOffset) {
+                    lastPageLinesCount++
+                }
+            }
+            if (lastPageLinesCount < minLinesPerPage) {
+                offsets.removeAt(offsets.size - 1)
+            }
         }
 
         if (isActive) {
