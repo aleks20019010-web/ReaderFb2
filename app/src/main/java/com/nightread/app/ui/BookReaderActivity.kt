@@ -249,29 +249,6 @@ class BookReaderActivity : AppCompatActivity() {
         """.trimIndent()
 
         webView.loadDataWithBaseURL(null, debugHtml, "text/html", "UTF-8", null)
-        return // Временно не загружаем книгу, только отладку
-        // Закомментировать return после проверки чтобы вернуть загрузку книги
-
-        /*
-        progressBar.visibility = View.VISIBLE
-        webView.visibility = View.INVISIBLE // Hide WebView during paginating to avoid flickering
-
-        lifecycleScope.launch {
-            val parsedPages = splitTextIntoPages(text)
-            pages = parsedPages
-            totalPages = pages.size
-            if (currentPage >= totalPages) {
-                currentPage = totalPages - 1
-            }
-            if (currentPage < 0) {
-                currentPage = 0
-            }
-
-            progressBar.visibility = View.GONE
-            webView.visibility = View.VISIBLE
-            loadPage(currentPage)
-        }
-        */
     }
 
     /**
