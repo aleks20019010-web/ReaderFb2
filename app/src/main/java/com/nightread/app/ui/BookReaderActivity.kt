@@ -308,7 +308,7 @@ class BookReaderActivity : AppCompatActivity() {
             val testList = ArrayList(currentPageParagraphs)
             testList.add(paragraph)
             val testText = testList.joinToString("\n\n")
-            val testHtml = buildPageHtml(testText)
+            val testHtml = buildPageHtml(testText, false)
 
             val scrollHeight = measurePageScrollHeight(tempWebView, testHtml)
             if (scrollHeight <= screenHeight) {
@@ -344,6 +344,7 @@ class BookReaderActivity : AppCompatActivity() {
 
         tempWebView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
+                Log.d("BookReader", "onPageFinished called for measurement")
                 tempWebView.post {
                     height = tempWebView.getVerticalScrollRange()
                     latch.countDown()
@@ -363,7 +364,7 @@ class BookReaderActivity : AppCompatActivity() {
     /**
      * Creates full HTML document for a single page.
      */
-    private fun buildPageHtml(text: String): String {
+    private fun buildPageHtml(text: String, useFonts: Boolean = true): String {
         // Convert simple text into HTML paragraphs
         val paragraphs = text.split(Regex("\n+")).map { it.trim() }.filter { it.isNotEmpty() }
         val paragraphsHtml = paragraphs.joinToString("") { p ->
@@ -371,7 +372,7 @@ class BookReaderActivity : AppCompatActivity() {
         }
 
         // Custom font face embedding
-        val fontFaceCss = if (currentFontPath.isNotEmpty()) {
+        val fontFaceCss = if (useFonts && currentFontPath.isNotEmpty()) {
             val cachedPath = copyFontToCache(currentFontPath)
             if (cachedPath.isNotEmpty()) {
                 """
@@ -383,7 +384,7 @@ class BookReaderActivity : AppCompatActivity() {
             } else ""
         } else ""
 
-        val fontFamilyStyle = if (currentFontPath.isNotEmpty()) "'CustomFont'" else fontFamily
+        val fontFamilyStyle = if (useFonts && currentFontPath.isNotEmpty()) "'CustomFont'" else fontFamily
 
         return """
             <!DOCTYPE html>
