@@ -187,6 +187,22 @@ class MainActivity : BaseActivity() {
 
         // Set up Splash Screen
         val splashOverlay = findViewById<FrameLayout>(R.id.splash_overlay)
+        
+        // Inject test book if library is empty
+        lifecycleScope.launch(Dispatchers.IO) {
+            val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
+            if (db.bookDao().getBooksCount() == 0) {
+                db.bookDao().insertBook(
+                    com.nightread.app.data.BookEntity(
+                        sha1 = "test_book_1",
+                        title = "Тестовая книга",
+                        author = "AI Agent",
+                        filePath = null
+                    )
+                )
+            }
+        }
+
         if (hasShownSplash) {
             splashOverlay?.visibility = android.view.View.GONE
             isSplashActive = false

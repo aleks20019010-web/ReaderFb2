@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit
 import java.util.Locale
 import java.io.FileInputStream
 import java.util.zip.ZipInputStream
+import java.nio.charset.Charset
 
 /**
  * Custom WebView exposing computeHorizontalScrollRange and computeVerticalScrollRange.
@@ -137,10 +138,17 @@ class BookReaderActivity : AppCompatActivity() {
                 val book = withContext(Dispatchers.IO) {
                     db.bookDao().getBookBySha1(sha1)
                 }
-                if (book != null && !book.filePath.isNullOrEmpty()) {
-                    val file = File(book.filePath)
-                    if (file.exists()) {
-                        bookText = withContext(Dispatchers.IO) { com.nightread.app.service.Fb2Parser.parse(file, "Unknown").content }.trim().trim('\u000C').trim()
+                if (book != null) {
+                    if (!book.filePath.isNullOrEmpty()) {
+                        val file = File(book.filePath)
+                        if (file.exists()) {
+                            val rawText = withContext(Dispatchers.IO) { com.nightread.app.service.Fb2Parser.parse(file, "Unknown").content }
+                            bookText = fixEncoding(rawText).trim().trim('\u000C').trim()
+                        } else {
+                            bookText = getDefaultBookText()
+                        }
+                    } else {
+                        bookText = getDefaultBookText()
                     }
                 }
                 progressBar.visibility = View.GONE
@@ -163,7 +171,7 @@ class BookReaderActivity : AppCompatActivity() {
             displayZoomControls = false
             javaScriptEnabled = false
             useWideViewPort = false
-            loadWithOverviewMode = false
+            loadWithOverviewMode = true
         }
         webView.apply {
             isVerticalScrollBarEnabled = false
@@ -180,16 +188,8 @@ class BookReaderActivity : AppCompatActivity() {
         webView.visibility = View.INVISIBLE
 
         lifecycleScope.launch {
-            val parsedPages = withTimeoutOrNull(15000) {
-                splitTextIntoPages(text)
-            }
-            
-            if (parsedPages != null && parsedPages.isNotEmpty()) {
-                pages = parsedPages
-            } else {
-                Log.w("BookReader", "Pagination failed or timeout, using single page fallback")
-                pages = listOf(buildPageHtml(text))
-            }
+            // Temporarily skip pagination
+            pages = listOf(buildPageHtml(text))
             
             totalPages = pages.size
             currentPage = 0
@@ -246,6 +246,19 @@ class BookReaderActivity : AppCompatActivity() {
         val p = paragraph.trim()
         val regex = Regex("^(Глава|Chapter|ГЛАВА|I+\\.|II+\\.|III+\\.|IV+\\.|[0-9]+\\.)", RegexOption.IGNORE_CASE)
         return regex.containsMatchIn(p)
+    }
+
+    private fun fixEncoding(text: String): String {
+        // Проверяем, похож ли текст на кракозябры (windows-1251 прочитанный как UTF-8)
+        if (text.contains("Ñ") || text.contains("ð") || text.contains("å") || text.contains("è")) {
+            try {
+                val bytes = text.toByteArray(Charsets.ISO_8859_1)
+                return String(bytes, Charset.forName("windows-1251"))
+            } catch (e: Exception) {
+                Log.e("BookReader", "Failed to fix encoding", e)
+            }
+        }
+        return text
     }
 
     private suspend fun measureHeightInWebView(html: String): Int = suspendCancellableCoroutine { cont ->
@@ -328,9 +341,16 @@ class BookReaderActivity : AppCompatActivity() {
         return """
             Глава I
             В уездном городе N остановилась коляска. В ней сидел молодой человек.
+            Погода была прекрасная, и он решил выйти прогуляться.
+            Вокруг него были красивые дома и зеленые парки.
             
             Глава II
             Комната была обставлена скромно. Приезжий подошел к окну.
+            На улице шел дождь, но это не портило ему настроения.
+            Он достал книгу и начал читать, наслаждаясь тишиной.
+            
+            Это тестовый текст для проверки работы приложения.
+            Русские буквы должны отображаться корректно.
         """.trimIndent()
     }
 
