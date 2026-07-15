@@ -224,7 +224,7 @@ class TextLayoutBuilder {
             if (lastLineLineWidth < width * 0.15f) {
                 // Try to rebuild with slightly reduced letter spacing
                 val originalLetterSpacing = letterSpacing
-                letterSpacing -= 0.01f
+                letterSpacing -= 0.05f // Increased adjustment for better effect
                 layout = createStaticLayout(text, offset, endOffset)
                 letterSpacing = originalLetterSpacing
             }
