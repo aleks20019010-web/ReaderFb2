@@ -262,16 +262,25 @@ object TextFormatter {
         while (true) {
             val startTag = spannable.indexOf("[CHAPTER]")
             if (startTag == -1) break
-            spannable.replace(startTag, startTag + "[CHAPTER]".length, "")
             
-            val endTag = spannable.indexOf("[/CHAPTER]", startTag)
+            // Insert page break if it's not the very beginning of the book
+            if (startTag > 0 && spannable[startTag - 1] != '\u000C') {
+                spannable.insert(startTag, "\u000C")
+            }
+            
+            // Re-find tag after potential insertion
+            val newStartTag = spannable.indexOf("[CHAPTER]")
+            
+            spannable.replace(newStartTag, newStartTag + "[CHAPTER]".length, "")
+            
+            val endTag = spannable.indexOf("[/CHAPTER]", newStartTag)
             if (endTag == -1) break
             spannable.replace(endTag, endTag + "[/CHAPTER]".length, "")
             
-            if (endTag > startTag) {
-                spannable.setSpan(AbsoluteSizeSpan((basePaintSize * 1.5f).toInt()), startTag, endTag, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                spannable.setSpan(StyleSpan(Typeface.BOLD), startTag, endTag, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                var alignStart = startTag
+            if (endTag > newStartTag) {
+                spannable.setSpan(AbsoluteSizeSpan((basePaintSize * 1.5f).toInt()), newStartTag, endTag, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                spannable.setSpan(StyleSpan(Typeface.BOLD), newStartTag, endTag, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                var alignStart = newStartTag
                 if (alignStart > 0 && spannable[alignStart - 1] == '\u000C') {
                     alignStart--
                 }
