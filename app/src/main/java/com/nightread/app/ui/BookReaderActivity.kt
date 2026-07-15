@@ -85,6 +85,8 @@ class BookReaderActivity : AppCompatActivity() {
     // Book content text
     private var bookText: String = ""
     private var isBookLoading: Boolean = false
+    private var isDimensionsReady = false
+    private var bookLoaded = false
 
     // Touch gesture properties
     private var touchStartX = 0f
@@ -172,16 +174,12 @@ class BookReaderActivity : AppCompatActivity() {
                 }
                 isBookLoading = false
                 progressBar.visibility = View.GONE
-                if (screenWidth > 0 && screenHeight > 0) {
-                    loadBook(bookText)
-                }
+                tryLoadBook()
             }
         } else {
             bookText = intent.getStringExtra("book_text") ?: getDefaultBookText()
             Log.d("BookReader", "onCreate: else branch, bookTextLength=${bookText.length}")
-            if (screenWidth > 0 && screenHeight > 0) {
-                loadBook(bookText)
-            }
+            tryLoadBook()
         }
 
         // Wait until WebView layout is complete to get exact dimensions using OnGlobalLayoutListener
@@ -198,8 +196,9 @@ class BookReaderActivity : AppCompatActivity() {
                     Log.d("BookReader", "Screen dimensions: ${screenWidth}x${screenHeight}, Padding: ${paddingValue}px")
                     Log.d("BookReader", "onGlobalLayout: check loadBook, screenWidth=$screenWidth, screenHeight=$screenHeight, bookTextLength=${bookText.length}")
 
-                    if (screenWidth > 0 && screenHeight > 0 && bookText.isNotEmpty()) {
-                        loadBook(bookText)
+                    if (screenWidth > 0 && screenHeight > 0) {
+                        isDimensionsReady = true
+                        tryLoadBook()
                     }
                 }
             }
@@ -275,6 +274,13 @@ class BookReaderActivity : AppCompatActivity() {
             progressBar.visibility = View.GONE
             webView.visibility = View.VISIBLE
             loadPage(currentPage)
+        }
+    }
+
+    private fun tryLoadBook() {
+        if (!bookLoaded && isDimensionsReady && bookText.isNotEmpty()) {
+            bookLoaded = true
+            loadBook(bookText)
         }
     }
 
@@ -520,22 +526,26 @@ class BookReaderActivity : AppCompatActivity() {
     // Public Settings Customization APIs
     fun increaseFontSize() {
         fontSize += 2
+        bookLoaded = false
         loadBook(bookText)
     }
 
     fun decreaseFontSize() {
         fontSize = (fontSize - 2).coerceAtLeast(10)
+        bookLoaded = false
         loadBook(bookText)
     }
 
     fun setLineHeight(multiplier: Float) {
         lineHeight = multiplier
+        bookLoaded = false
         loadBook(bookText)
     }
 
     fun setFont(fontName: String, fontPath: String) {
         fontFamily = fontName
         currentFontPath = fontPath
+        bookLoaded = false
         loadBook(bookText)
     }
 
