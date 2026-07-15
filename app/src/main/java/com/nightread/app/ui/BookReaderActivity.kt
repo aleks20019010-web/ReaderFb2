@@ -205,18 +205,15 @@ class BookReaderActivity : AppCompatActivity() {
         webView.visibility = View.INVISIBLE // Hide WebView during paginating to avoid flickering
 
         lifecycleScope.launch {
-            val parsedPages = splitTextIntoPages(text)
-            pages = parsedPages
+            // Debug: skip pagination
+            Log.d("BookReader", "loadBook: skipping pagination for debugging")
+            pages = listOf(buildPageHtml(text, true))
             totalPages = pages.size
-            if (currentPage >= totalPages) {
-                currentPage = totalPages - 1
-            }
-            if (currentPage < 0) {
-                currentPage = 0
-            }
+            currentPage = 0
 
             progressBar.visibility = View.GONE
             webView.visibility = View.VISIBLE
+            Log.d("BookReader", "loadBook: loading page $currentPage")
             loadPage(currentPage)
         }
     }
@@ -299,11 +296,11 @@ class BookReaderActivity : AppCompatActivity() {
         tempWebView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 Log.d("BookReader", "measurePageScrollHeight: onPageFinished called")
-                tempWebView.post {
+                tempWebView.postDelayed({
                     height = tempWebView.getVerticalScrollRange()
                     Log.d("BookReader", "measurePageScrollHeight: height measured=$height")
                     latch.countDown()
-                }
+                }, 100)
             }
             override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
                 Log.e("BookReader", "measurePageScrollHeight: onReceivedError ${error?.description}")
@@ -314,9 +311,15 @@ class BookReaderActivity : AppCompatActivity() {
         tempWebView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null)
 
         withContext(Dispatchers.IO) {
-            val finished = latch.await(5000, TimeUnit.MILLISECONDS)
+            val finished = latch.await(1000, TimeUnit.MILLISECONDS)
             Log.d("BookReader", "measurePageScrollHeight: latch await finished=$finished")
         }
+        
+        if (height == 0) {
+            height = (html.length * 0.1).toInt() + 100 
+            Log.d("BookReader", "measurePageScrollHeight: used fallback height=$height")
+        }
+        
         Log.d("BookReader", "measurePageScrollHeight: returning height=$height")
         height
     }
