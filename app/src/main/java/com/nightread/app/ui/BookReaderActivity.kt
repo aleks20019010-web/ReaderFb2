@@ -26,6 +26,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -202,15 +204,6 @@ class BookReaderActivity : AppCompatActivity() {
         val paragraphs = text.split(Regex("\n+")).map { it.trim() }.filter { it.isNotEmpty() }
         val resultPages = ArrayList<String>()
 
-        val tempWebView = withContext(Dispatchers.Main) {
-            BookWebView(this@BookReaderActivity).apply {
-                setupWebViewSettings(this)
-                layout(0, 0, screenWidth, screenHeight)
-                visibility = View.INVISIBLE
-                rootLayout.addView(this)
-            }
-        }
-
         var currentPageParagraphs = ArrayList<String>()
 
         for (paragraph in paragraphs) {
@@ -230,10 +223,10 @@ class BookReaderActivity : AppCompatActivity() {
 
             val testList = ArrayList(currentPageParagraphs)
             testList.add(paragraph)
-            val testText = testList.joinToString("\n\n")
-            val testHtml = buildPageHtml(testText, false)
+            val testHtml = buildPageHtml(testList.joinToString("\n\n"), false)
 
-            if (measurePageScrollHeight(tempWebView, testHtml) <= screenHeight) {
+            val height = measureHeightInWebView(testHtml)
+            if (height <= screenHeight) {
                 currentPageParagraphs.add(paragraph)
             } else {
                 resultPages.add(buildPageHtml(currentPageParagraphs.joinToString("\n\n")))
@@ -246,10 +239,6 @@ class BookReaderActivity : AppCompatActivity() {
             resultPages.add(buildPageHtml(currentPageParagraphs.joinToString("\n\n")))
         }
 
-        withContext(Dispatchers.Main) {
-            rootLayout.removeView(tempWebView)
-            tempWebView.destroy()
-        }
         return resultPages
     }
 
@@ -259,40 +248,17 @@ class BookReaderActivity : AppCompatActivity() {
         return regex.containsMatchIn(p)
     }
 
-    private fun setupWebViewSettings(targetWebView: WebView) {
-        targetWebView.settings.apply {
-            javaScriptEnabled = true // Required for measurement
-            blockNetworkLoads = true
-        }
-    }
-
-    private suspend fun measurePageScrollHeight(tempWebView: BookWebView, html: String): Int = withContext(Dispatchers.Main) {
-        val latch = CountDownLatch(1)
-        var height = 0
-
-        tempWebView.webViewClient = object : WebViewClient() {
+    private suspend fun measureHeightInWebView(html: String): Int = suspendCancellableCoroutine { cont ->
+        webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
-                Log.d("BookReader", "measurePageScrollHeight: onPageFinished")
-                tempWebView.postDelayed({
-                    height = tempWebView.getVerticalScrollRange()
-                    Log.d("BookReader", "measurePageScrollHeight: measured height=$height")
-                    latch.countDown()
-                }, 100)
-            }
-            override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
-                Log.e("BookReader", "measurePageScrollHeight: onReceivedError ${error?.description}")
-                latch.countDown()
+                webView.postDelayed({
+                    val height = webView.getVerticalScrollRange()
+                    Log.d("BookReader", "measureHeightInWebView: $height")
+                    cont.resume(height)
+                }, 200)
             }
         }
-        tempWebView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
-
-        withContext(Dispatchers.IO) { latch.await(2000, TimeUnit.MILLISECONDS) }
-        Log.d("BookReader", "measurePageScrollHeight: finished, height=$height")
-        if (height == 0) {
-            Log.w("BookReader", "measurePageScrollHeight: height is 0, fallback to screenHeight")
-            height = screenHeight
-        }
-        height
+        webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
     }
 
     private fun buildPageHtml(text: String, useFonts: Boolean = true): String {
