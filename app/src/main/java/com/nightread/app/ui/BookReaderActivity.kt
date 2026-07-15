@@ -181,7 +181,7 @@ class BookReaderActivity : AppCompatActivity() {
         
         // Disable scripts and adaptive viewport (JavaScript not needed for offline, as requested)
         settings.javaScriptEnabled = false
-        settings.useWideViewPort = true
+        settings.useWideViewPort = false
         settings.loadWithOverviewMode = false
 
         // Disable standard scrollbars and scroll mechanics
@@ -205,11 +205,15 @@ class BookReaderActivity : AppCompatActivity() {
         webView.visibility = View.INVISIBLE // Hide WebView during paginating to avoid flickering
 
         lifecycleScope.launch {
-            // Debug: skip pagination
-            Log.d("BookReader", "loadBook: skipping pagination for debugging")
-            pages = listOf(buildPageHtml(text, true))
+            val parsedPages = splitTextIntoPages(text)
+            pages = parsedPages
             totalPages = pages.size
-            currentPage = 0
+            if (currentPage >= totalPages) {
+                currentPage = totalPages - 1
+            }
+            if (currentPage < 0) {
+                currentPage = 0
+            }
 
             progressBar.visibility = View.GONE
             webView.visibility = View.VISIBLE
