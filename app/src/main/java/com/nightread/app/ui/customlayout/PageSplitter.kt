@@ -7,7 +7,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
-import kotlin.coroutines.coroutineContext
 
 object PageSplitter {
     private val linesCache = mutableMapOf<String, Int>()
@@ -32,8 +31,12 @@ object PageSplitter {
         lineIdx: Int,
         linesPerPage: Int,
         measureEnd: Int,
-        width: Int
-    ): Pair<Int, Int> { // Returns Pair<NextOffset, PageEndLine>
+        width: Int,
+        paint: TextPaint,
+        lineSpacingMultiplier: Float,
+        lineSpacingExtra: Float,
+        hyphenation: Boolean
+    ): Pair<Int, Int> {
         val lineCount = layout.lineCount
         var pageEndLine = minOf(lineIdx + linesPerPage, lineCount)
         
@@ -57,54 +60,85 @@ object PageSplitter {
         val originalNextOffset = layout.getLineEnd(pageEndLine - 1)
         var nextOffset = originalNextOffset
 
+        val lastLine = pageEndLine - 1
+        val lastLineStart = layout.getLineStart(lastLine)
+
         if (pageEndLine < lineCount || measureEnd == text.length) {
             if (nextOffset > currentOffset && nextOffset < text.length && !hasPageBreak) {
-                // Protect from breaking middle of word
+                // 1. Word break protection
                 val before = text[nextOffset - 1]
                 val after = text[nextOffset]
-                val isBoundaryBefore = before.isWhitespace() || before == '-' || before == '\n'
+                val isBoundaryBefore = before.isWhitespace() || before == '-' || before == '\n' || before == '\u00AD'
                 val isBoundaryAfter = after.isWhitespace() || after == '\n'
 
                 if (!isBoundaryBefore && !isBoundaryAfter) {
                     var backtrack = nextOffset - 1
                     while (backtrack > currentOffset) {
                         val c = text[backtrack]
-                        if (c.isWhitespace() || c == '-' || c == '\n') {
+                        if (c.isWhitespace() || c == '-' || c == '\n' || c == '\u00AD') {
                             backtrack++
                             break
                         }
                         backtrack--
                     }
-                    if (backtrack > currentOffset) {
+                    if (backtrack > lastLineStart) {
                         nextOffset = backtrack
-                        Log.d("PageSplitter", "Word break protected, nextOffset: $nextOffset")
+                        Log.d("PageSplitter", "[Word break] Protected, nextOffset: $nextOffset")
                     }
-                } else {
-                    // Find length of last word
-                    var charsCount = 0
-                    var backtrack = nextOffset - 1
-                    while (backtrack > currentOffset) {
-                        val c = text[backtrack]
-                        if (c.isWhitespace() || c == '\n' || c == '-') {
+                }
+
+                // 2. Last line filling up to 80% (try pulling words from next page)
+                val lineWidth = layout.getLineWidth(lastLine)
+                if (lineWidth < width * 0.8f) {
+                    var currentNextOffset = nextOffset
+                    var lastValidNextOffset = nextOffset
+                    var continuePulling = true
+                    
+                    while (continuePulling && currentNextOffset < text.length) {
+                        var scanIdx = currentNextOffset
+                        // Skip whitespaces first
+                        while (scanIdx < text.length && text[scanIdx].isWhitespace()) {
+                            scanIdx++
+                        }
+                        // Scan the word
+                        while (scanIdx < text.length && !text[scanIdx].isWhitespace() && text[scanIdx] != '-' && text[scanIdx] != '\n' && text[scanIdx] != '\u000C') {
+                            scanIdx++
+                        }
+                        
+                        if (scanIdx > currentNextOffset) {
+                            val tempLayout = createStaticLayout(
+                                text, currentOffset, scanIdx, paint, width, 
+                                layout.alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation
+                            )
+                            if (tempLayout.lineCount <= pageEndLine) {
+                                Log.d("PageSplitter", "[Last line filling] Pulled word ending at $scanIdx")
+                                lastValidNextOffset = scanIdx
+                                currentNextOffset = scanIdx
+                            } else {
+                                continuePulling = false
+                            }
+                        } else {
                             break
                         }
-                        charsCount++
-                        backtrack--
                     }
-                    
-                    // Orphan protection: 1-2 chars
-                    if (charsCount in 1..2 && backtrack + 1 > currentOffset) {
-                        Log.d("PageSplitter", "Orphan word ($charsCount chars) protected, nextOffset: ${backtrack + 1}")
-                        nextOffset = backtrack + 1
-                    } else {
-                        // 30% width protection
-                        val lastLine = pageEndLine - 1
-                        val lineWidth = layout.getLineWidth(lastLine)
-                        if (lineWidth < width * 0.3f && charsCount > 2 && backtrack + 1 > currentOffset) {
-                            Log.d("PageSplitter", "Last line < 30% width, moving last word to next page, nextOffset: ${backtrack + 1}")
-                            nextOffset = backtrack + 1
-                        }
-                    }
+                    nextOffset = lastValidNextOffset
+                }
+
+                // 3. Orphan protection (1-2 character word at end of page)
+                var backtrack = nextOffset
+                while (backtrack > currentOffset && text[backtrack - 1].isWhitespace()) {
+                    backtrack--
+                }
+                val wordEnd = backtrack
+                while (backtrack > currentOffset && !text[backtrack - 1].isWhitespace() && text[backtrack - 1] != '-' && text[backtrack - 1] != '\n') {
+                    backtrack--
+                }
+                val wordStart = backtrack
+                val wordLen = wordEnd - wordStart
+                
+                if (wordLen in 1..2 && wordStart > lastLineStart) {
+                    Log.d("PageSplitter", "[Orphan protection] Short word ($wordLen chars) moved to next page: $wordStart")
+                    nextOffset = wordStart
                 }
             }
         }
@@ -173,79 +207,21 @@ object PageSplitter {
             while (lineIdx < lineCount) {
                 if (!isActive) break
 
-                var pageEndLine = minOf(lineIdx + linesPerPage, lineCount)
-                
-                // Check for hard page breaks
-                var hasPageBreak = false
-                for (i in lineIdx until pageEndLine) {
-                    val lineStart = layout.getLineStart(i)
-                    val lineEnd = layout.getLineEnd(i)
-                    var foundBreak = false
-                    for (j in lineStart until lineEnd) {
-                        if (text[j] == '\u000C') {
-                            pageEndLine = i + 1
-                            foundBreak = true
-                            hasPageBreak = true
-                            break
-                        }
-                    }
-                    if (foundBreak) break
-                }
-                
-                val originalNextOffset = layout.getLineEnd(pageEndLine - 1)
-                var nextOffset = originalNextOffset
+                val (nextOffset, pageEndLine) = findPageEnd(
+                    text = text,
+                    layout = layout,
+                    currentOffset = currentOffset,
+                    lineIdx = lineIdx,
+                    linesPerPage = linesPerPage,
+                    measureEnd = measureEnd,
+                    width = width,
+                    paint = paint,
+                    lineSpacingMultiplier = lineSpacingMultiplier,
+                    lineSpacingExtra = lineSpacingExtra,
+                    hyphenation = hyphenation
+                )
 
-                if (pageEndLine < lineCount || measureEnd == textLength) {
-                    if (nextOffset > currentOffset && nextOffset < textLength && !hasPageBreak) {
-                        // Protect from breaking middle of word
-                        val before = text[nextOffset - 1]
-                        val after = text[nextOffset]
-                        val isBoundaryBefore = before.isWhitespace() || before == '-' || before == '\n'
-                        val isBoundaryAfter = after.isWhitespace() || after == '\n'
-
-                        if (!isBoundaryBefore && !isBoundaryAfter) {
-                            var backtrack = nextOffset - 1
-                            while (backtrack > currentOffset) {
-                                val c = text[backtrack]
-                                if (c.isWhitespace() || c == '-' || c == '\n') {
-                                    backtrack++
-                                    break
-                                }
-                                backtrack--
-                            }
-                            if (backtrack > currentOffset) {
-                                nextOffset = backtrack
-                                Log.d("PageSplitter", "Word break protected, nextOffset: $nextOffset")
-                            }
-                        } else {
-                            // Find length of last word
-                            var charsCount = 0
-                            var backtrack = nextOffset - 1
-                            while (backtrack > currentOffset) {
-                                val c = text[backtrack]
-                                if (c.isWhitespace() || c == '\n' || c == '-') {
-                                    break
-                                }
-                                charsCount++
-                                backtrack--
-                            }
-                            
-                            // Orphan protection: 1-2 chars
-                            if (charsCount in 1..2 && backtrack + 1 > currentOffset) {
-                                Log.d("PageSplitter", "Orphan word ($charsCount chars) protected, nextOffset: ${backtrack + 1}")
-                                nextOffset = backtrack + 1
-                            } else {
-                                // 30% width protection
-                                val lastLine = pageEndLine - 1
-                                val lineWidth = layout.getLineWidth(lastLine)
-                                if (lineWidth < width * 0.3f && charsCount > 2 && backtrack + 1 > currentOffset) {
-                                    Log.d("PageSplitter", "Last line < 30% width, moving last word to next page, nextOffset: ${backtrack + 1}")
-                                    nextOffset = backtrack + 1
-                                }
-                            }
-                        }
-                    }
-
+                if (pageEndLine <= lineCount) {
                     if (nextOffset < textLength) {
                         offsets.add(nextOffset)
                         pagesFound++
@@ -259,7 +235,11 @@ object PageSplitter {
                     lastPageEndOffset = nextOffset
                     lineIdx = pageEndLine
 
+                    val originalNextOffset = layout.getLineEnd(pageEndLine - 1)
                     if (nextOffset != originalNextOffset) {
+                        break
+                    }
+                    if (pageEndLine == lineCount && measureEnd < textLength) {
                         break
                     }
                 } else {

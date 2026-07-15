@@ -124,9 +124,6 @@ class PageFragment : Fragment() {
                     readingActivity?.showFootnote(noteId)
                 }
 
-                if (!formattedTextWithClicks.endsWith("\n") && !formattedTextWithClicks.endsWith("\u000C")) {
-                    formattedTextWithClicks = android.text.SpannableStringBuilder(formattedTextWithClicks).append(" \n")
-                }
                 val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
                     .setText(formattedTextWithClicks)
                     .setWidth(width)

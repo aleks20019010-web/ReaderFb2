@@ -92,154 +92,20 @@ class TextLayoutBuilder {
         return builder.build()
     }
 
-    suspend fun buildPagination(onProgress: ((List<Int>, Boolean) -> Unit)? = null): List<Int> = withContext(Dispatchers.Default) {
-        if (text.isEmpty() || width <= 0 || height <= 0) {
-            val res = listOf(0)
-            withContext(Dispatchers.Main) { onProgress?.invoke(res, true) }
-            return@withContext res
-        }
-        
-        val cached = LayoutCache.getOffsets(configKey)
-        if (cached != null) {
-            withContext(Dispatchers.Main) { onProgress?.invoke(cached, true) }
-            return@withContext cached
-        }
-
-        paint.textLocale = java.util.Locale("ru", "RU")
-
-        val offsets = mutableListOf<Int>()
-        offsets.add(0)
-        
-        var currentOffset = 0
-        var pagesFound = 0
-        
-        val textLength = text.length
-        var currentChunkSize = 50000 
-
-        while (currentOffset < textLength) {
-            if (!isActive) break
-
-            var measureEnd = minOf(currentOffset + currentChunkSize, textLength)
-            
-            if (measureEnd < textLength) {
-                var lastNewLine = measureEnd
-                while (lastNewLine > currentOffset && text[lastNewLine] != '\n' && text[lastNewLine] != '\u000C') {
-                    lastNewLine--
-                }
-                if (lastNewLine > currentOffset) {
-                    measureEnd = lastNewLine + 1
-                }
-            }
-            
-            val layout = createStaticLayout(text, currentOffset, measureEnd)
-            
-            var lineIdx = 0
-            val lineCount = layout.lineCount
-            var lastPageEndOffset = currentOffset
-            
-            while (lineIdx < lineCount) {
-                if (!isActive) break
-                
-                var pageEndLine = lineIdx
-                val startY = layout.getLineTop(lineIdx)
-                var pageFull = false
-                
-                while (pageEndLine < lineCount) {
-                    if (layout.getLineBottom(pageEndLine) - startY > height) {
-                        pageFull = true
-                        break
-                    }
-                    
-                    val lineStartOffset = layout.getLineStart(pageEndLine)
-                    val lineEndOffset = layout.getLineEnd(pageEndLine)
-                    var hasPageBreak = false
-                    for (i in lineStartOffset until lineEndOffset) {
-                        if (text[i] == '\u000C') {
-                            hasPageBreak = true
-                            break
-                        }
-                    }
-                    
-                    if (hasPageBreak) {
-                        pageFull = true
-                        pageEndLine++
-                        break
-                    }
-                    
-                    pageEndLine++
-                }
-                
-                if (pageEndLine == lineIdx) {
-                    pageEndLine = lineIdx + 1
-                    pageFull = true
-                }
-                
-                val originalNextOffset = layout.getLineEnd(pageEndLine - 1)
-                var nextOffset = originalNextOffset
-                
-                if (nextOffset > currentOffset && nextOffset < textLength) {
-                    val before = text[nextOffset - 1]
-                    val after = text[nextOffset]
-                    
-                    val isBoundaryBefore = before.isWhitespace() || before == '-' || before == '\n'
-                    val isBoundaryAfter = after.isWhitespace() || after == '\n'
-                    
-                    if (!isBoundaryBefore && !isBoundaryAfter) {
-                        var backtrack = nextOffset - 1
-                        while (backtrack > currentOffset) {
-                            val c = text[backtrack]
-                            if (c.isWhitespace() || c == '-' || c == '\n') {
-                                backtrack++
-                                break
-                            }
-                            backtrack--
-                        }
-                        if (backtrack > currentOffset) {
-                            nextOffset = backtrack
-                        }
-                    }
-                }
-                
-                if (pageFull || measureEnd == textLength) {
-                    if (nextOffset < textLength) {
-                        offsets.add(nextOffset)
-                        pagesFound++
-                        
-                        if (pagesFound % 20 == 0) {
-                            val offsetsCopy = ArrayList(offsets)
-                            withContext(Dispatchers.Main) {
-                                onProgress?.invoke(offsetsCopy, false)
-                            }
-                        }
-                    }
-                    lastPageEndOffset = nextOffset
-                    lineIdx = pageEndLine
-                    
-                    if (nextOffset != originalNextOffset) {
-                        break
-                    }
-                } else {
-                    break
-                }
-            }
-            
-            if (lastPageEndOffset == currentOffset) {
-                if (measureEnd == textLength) break
-                currentChunkSize *= 2
-            } else {
-                currentOffset = lastPageEndOffset
-            }
-            
-            yield()
-        }
-        
-        if (isActive) {
-            LayoutCache.putOffsets(configKey, offsets)
-            withContext(Dispatchers.Main) {
-                onProgress?.invoke(offsets, true)
-            }
-        }
-        return@withContext offsets
+    suspend fun buildPagination(onProgress: ((List<Int>, Boolean) -> Unit)? = null): List<Int> {
+        return PageSplitter.buildPagination(
+            text = text,
+            width = width,
+            height = height,
+            paint = paint,
+            lineSpacingMultiplier = lineSpacingMultiplier,
+            lineSpacingExtra = lineSpacingExtra,
+            hyphenation = hyphenation,
+            alignment = alignment,
+            letterSpacing = letterSpacing,
+            configKey = configKey,
+            onProgress = onProgress
+        )
     }
 
     fun buildPageLayout(offset: Int, endOffset: Int): StaticLayout {
