@@ -70,11 +70,14 @@ class TextLayoutBuilder {
         paint.letterSpacing = letterSpacing
         val strategy = if (hyphenation) android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY else android.graphics.text.LineBreaker.BREAK_STRATEGY_SIMPLE
         val frequency = if (hyphenation) Layout.HYPHENATION_FREQUENCY_FULL else Layout.HYPHENATION_FREQUENCY_NONE
+        
+        // Use a slightly reduced width to prevent edge cropping
+        val safeWidth = (width - 4).coerceAtLeast(1)
 
-        val builder = StaticLayout.Builder.obtain(source, start, end, paint, width)
+        val builder = StaticLayout.Builder.obtain(source, start, end, paint, safeWidth)
             .setAlignment(alignment)
             .setLineSpacing(lineSpacingExtra, lineSpacingMultiplier)
-            .setIncludePad(false)
+            .setIncludePad(true) // Include padding for accurate height
             
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             builder.setBreakStrategy(strategy)
@@ -212,31 +215,9 @@ class TextLayoutBuilder {
     }
 
     fun buildPageLayout(offset: Int, endOffset: Int): StaticLayout {
-        // Build initial layout
+        // Build layout using standard justification
         paint.textLocale = java.util.Locale("ru", "RU")
-        var layout = createStaticLayout(text, offset, endOffset)
-        
-        // Pull-in algorithm
-        if (layout.lineCount > 1) {
-            val lastLineIdx = layout.lineCount - 1
-            val lastLineLineWidth = layout.getLineRight(lastLineIdx) - layout.getLineLeft(lastLineIdx)
-            // If last line is less than 25% of width
-            if (lastLineLineWidth < width * 0.25f) {
-                // Try to rebuild with slightly reduced letter spacing
-                val originalLetterSpacing = letterSpacing
-                letterSpacing -= 0.05f
-                val newLayout = createStaticLayout(text, offset, endOffset)
-                
-                // Only use new layout if it reduced lines OR improved last line width
-                if (newLayout.lineCount < layout.lineCount || 
-                    (newLayout.lineCount == layout.lineCount && 
-                     (newLayout.getLineRight(newLayout.lineCount - 1) - newLayout.getLineLeft(newLayout.lineCount - 1)) > lastLineLineWidth)) {
-                    layout = newLayout
-                }
-                letterSpacing = originalLetterSpacing
-            }
-        }
-        
-        return layout
+        return createStaticLayout(text, offset, endOffset)
     }
+
 }
