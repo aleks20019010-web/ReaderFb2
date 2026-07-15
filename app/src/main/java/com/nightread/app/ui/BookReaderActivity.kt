@@ -35,6 +35,7 @@ import java.util.Locale
 import java.io.FileInputStream
 import java.util.zip.ZipInputStream
 import java.nio.charset.Charset
+import android.webkit.JavascriptInterface
 
 /**
  * Custom WebView exposing computeHorizontalScrollRange and computeVerticalScrollRange.
@@ -56,6 +57,14 @@ class BookWebView @JvmOverloads constructor(
 }
 
 class BookReaderActivity : AppCompatActivity() {
+
+    private class JsCallback {
+        var onFinish: (() -> Unit)? = null
+        @JavascriptInterface
+        fun finish() {
+            onFinish?.invoke()
+        }
+    }
 
     private lateinit var webView: BookWebView
     private lateinit var pageIndicatorView: TextView
@@ -262,18 +271,21 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     private suspend fun measureHeightInWebView(html: String): Int = suspendCancellableCoroutine { cont ->
-        val originalClient = webView.webViewClient
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                webView.postDelayed({
-                    val height = webView.getVerticalScrollRange()
-                    Log.d("BookReader", "measureHeightInWebView: $height")
-                    webView.webViewClient = originalClient
-                    cont.resume(height)
-                }, 200)
-            }
+        val callback = JsCallback()
+        callback.onFinish = {
+            webView.postDelayed({
+                val height = webView.getVerticalScrollRange()
+                Log.d("BookReader", "measureHeightInWebView JS: $height")
+                webView.settings.javaScriptEnabled = false
+                cont.resume(height)
+            }, 200)
         }
-        webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
+        
+        webView.addJavascriptInterface(callback, "android")
+        webView.settings.javaScriptEnabled = true
+        
+        val htmlWithCallback = html.replace("<body>", "<body onload=\"android.finish()\">")
+        webView.loadDataWithBaseURL(null, htmlWithCallback, "text/html", "UTF-8", null)
     }
 
     private fun buildPageHtml(text: String, useFonts: Boolean = true): String {
