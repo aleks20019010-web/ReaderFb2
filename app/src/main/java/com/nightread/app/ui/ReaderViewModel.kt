@@ -238,36 +238,36 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 .setWidth(availableWidth)
                 .setHeight(availableHeight)
                 .setPaint(paint)
-                .setLetterSpacing(-0.02f) // Fine-tune: compact spacing
+                .setLetterSpacing(-0.02f)
                 .setLineSpacing(0f, lineSpacing)
                 
-            val offsets = builder.buildPagination()
-            
-            val pages = ArrayList<CharSequence>()
-            for (i in offsets.indices) {
-                val startIdx = offsets[i]
-                val endIdx = if (i < offsets.size - 1) offsets[i + 1] else formattedText.length
-                pages.add(formattedText.subSequence(startIdx, endIdx))
-            }
-
-            // 3. Find the best matching page in the new layout
-            var newPageIndex = 0
-            for (i in 0 until offsets.size) {
-                if (offsets[i] <= currentOffset) {
-                    newPageIndex = i
-                } else {
-                    break
+            builder.buildPagination { offsets, finished ->
+                val pages = ArrayList<CharSequence>()
+                for (i in offsets.indices) {
+                    val startIdx = offsets[i]
+                    val endIdx = if (i < offsets.size - 1) offsets[i + 1] else formattedText.length
+                    pages.add(formattedText.subSequence(startIdx, endIdx))
                 }
-            }
+                
+                // 3. Find the best matching page in the new layout
+                var newPageIndex = 0
+                for (i in 0 until offsets.size) {
+                    if (offsets[i] <= currentOffset) {
+                        newPageIndex = i
+                    } else {
+                        break
+                    }
+                }
+                val clampedPageIndex = newPageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
 
-            val clampedPageIndex = newPageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
-
-            // 4. Update state safely on Main Thread
-            withContext(Dispatchers.Main) {
-                _pagesState.value = pages
-                pageStartOffsets = offsets
-                _currentPage.value = clampedPageIndex
-                saveProgress()
+                viewModelScope.launch(Dispatchers.Main) {
+                    _pagesState.value = pages
+                    pageStartOffsets = offsets
+                    _currentPage.value = clampedPageIndex
+                    if (finished) {
+                        saveProgress()
+                    }
+                }
             }
         }
     }
