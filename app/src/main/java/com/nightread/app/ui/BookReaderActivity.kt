@@ -56,6 +56,7 @@ class BookReaderActivity : AppCompatActivity() {
     private lateinit var webView: BookWebView
     private lateinit var pageIndicatorView: TextView
     private lateinit var progressBar: ProgressBar
+    private lateinit var rootLayout: FrameLayout
 
     private var screenWidth: Int = 0
     private var screenHeight: Int = 0
@@ -82,7 +83,7 @@ class BookReaderActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_book)
 
-        val rootLayout = findViewById<FrameLayout>(R.id.rootView)
+        rootLayout = findViewById(R.id.rootView)
         webView = findViewById(R.id.bookWebView)
 
         progressBar = ProgressBar(this).apply { visibility = View.GONE }
@@ -194,6 +195,8 @@ class BookReaderActivity : AppCompatActivity() {
             BookWebView(this@BookReaderActivity).apply {
                 setupWebViewSettings(this)
                 layout(0, 0, screenWidth, screenHeight)
+                visibility = View.INVISIBLE
+                rootLayout.addView(this)
             }
         }
 
@@ -232,7 +235,10 @@ class BookReaderActivity : AppCompatActivity() {
             resultPages.add(buildPageHtml(currentPageParagraphs.joinToString("\n\n")))
         }
 
-        withContext(Dispatchers.Main) { tempWebView.destroy() }
+        withContext(Dispatchers.Main) {
+            rootLayout.removeView(tempWebView)
+            tempWebView.destroy()
+        }
         return resultPages
     }
 
