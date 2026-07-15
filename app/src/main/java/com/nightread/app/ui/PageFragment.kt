@@ -108,6 +108,7 @@ class PageFragment : Fragment() {
 
         webView.isVerticalScrollBarEnabled = false
         webView.isHorizontalScrollBarEnabled = false
+        webView.overScrollMode = android.view.View.OVER_SCROLL_NEVER
 
         webView.webViewClient = object : android.webkit.WebViewClient() {
             override fun shouldOverrideUrlLoading(view: android.webkit.WebView?, url: String?): Boolean {
@@ -137,17 +138,37 @@ class PageFragment : Fragment() {
             }
         }
 
-        val htmlString = buildBookHtml(context, pageText, fontSize, fontFamily, themeName, lineSpacingMultiplier)
+        // Calculate exact font size and line height in physical pixels
+        val paint = android.text.TextPaint().apply {
+            isAntiAlias = true
+            textSize = fontSize * resources.displayMetrics.scaledDensity
+            typeface = FontUtils.createTypefaceWithOpticalBalance(context, fontFamily, SettingsManager.getFontWeightAsInt(context))
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                letterSpacing = SettingsManager.getLetterSpacing(context)
+            }
+        }
+        val fm = paint.fontMetrics
+        val fontHeight = fm.descent - fm.ascent
+        val lineHeight = fontHeight * lineSpacingMultiplier
+
+        // Convert to CSS px (which acts as dp in WebView with standard viewport settings)
+        val density = resources.displayMetrics.density
+        val cssFontSize = paint.textSize / density
+        val cssLineHeight = lineHeight / density
+        val letterSpacing = SettingsManager.getLetterSpacing(context)
+
+        val htmlString = buildBookHtml(context, pageText, cssFontSize, cssLineHeight, fontFamily, themeName, letterSpacing)
         webView.loadDataWithBaseURL("file:///android_asset/", htmlString, "text/html", "UTF-8", null)
     }
 
     private fun buildBookHtml(
         context: android.content.Context,
         text: CharSequence,
-        fontSize: Float,
+        cssFontSize: Float,
+        cssLineHeight: Float,
         fontFamily: String,
         themeName: String,
-        lineSpacingMultiplier: Float
+        letterSpacing: Float
     ): String {
         val htmlContent = spannedToHtml(text)
 
@@ -194,17 +215,24 @@ class PageFragment : Fragment() {
                 <style>
                     $fontFaceCss
                     
+                    html, body {
+                        margin: 0;
+                        padding: 0;
+                        width: 100%;
+                        height: 100%;
+                    }
+                    
                     body {
                         background-color: $bgColor;
                         color: $textColor;
-                        font-size: ${fontSize}px;
+                        font-size: ${cssFontSize}px;
+                        line-height: ${cssLineHeight}px;
                         $fontStyle
-                        line-height: $lineSpacingMultiplier;
+                        font-weight: ${SettingsManager.getFontWeightAsInt(context)};
+                        letter-spacing: ${letterSpacing}em;
                         text-align: justify;
-                        -webkit-hyphens: auto;
-                        hyphens: auto;
-                        margin: 0;
-                        padding: 0;
+                        -webkit-hyphens: manual;
+                        hyphens: manual;
                         overflow: hidden;
                         word-wrap: break-word;
                         user-select: none;
@@ -214,7 +242,6 @@ class PageFragment : Fragment() {
                     p {
                         margin: 0;
                         padding: 0;
-                        text-indent: 1.5em;
                     }
                     
                     a {
@@ -223,6 +250,7 @@ class PageFragment : Fragment() {
                     }
                     
                     .chapter {
+                        display: block;
                         text-align: center;
                         font-weight: bold;
                         margin-top: 1em;
