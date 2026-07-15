@@ -36,8 +36,8 @@ class BookWebView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : WebView(context, attrs, defStyleAttr) {
 
-    fun getVerticalScrollRange(): Int {
-        return computeVerticalScrollRange()
+    fun getHorizontalScrollRange(): Int {
+        return computeHorizontalScrollRange()
     }
 
     override fun performClick(): Boolean {
@@ -67,6 +67,7 @@ class BookReaderActivity : AppCompatActivity() {
     private var bookText: String = ""
     private var bookLoaded = false
     private var isDimensionsReady = false
+    private var touchStartX: Float = 0f
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,6 +99,7 @@ class BookReaderActivity : AppCompatActivity() {
         rootLayout.addView(pageIndicatorView, indicatorParams)
 
         setupWebView()
+        setupTouchListener()
 
         webView.viewTreeObserver.addOnGlobalLayoutListener(
             object : ViewTreeObserver.OnGlobalLayoutListener {
@@ -161,8 +163,8 @@ class BookReaderActivity : AppCompatActivity() {
             overScrollMode = View.OVER_SCROLL_NEVER
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
-                    val totalHeight = webView.getVerticalScrollRange()
-                    totalPages = Math.max(1, Math.ceil(totalHeight.toDouble() / screenHeight).toInt())
+                    val totalWidth = webView.getHorizontalScrollRange()
+                    totalPages = Math.max(1, totalWidth / screenWidth)
                     currentPage = 0
                     updatePageIndicator()
                 }
@@ -170,14 +172,26 @@ class BookReaderActivity : AppCompatActivity() {
         }
     }
 
-    fun loadPage(pageNumber: Int) {
-        currentPage = pageNumber.coerceIn(0, totalPages - 1)
-        webView.scrollTo(0, currentPage * screenHeight)
-        updatePageIndicator()
+    private fun setupTouchListener() {
+        webView.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    touchStartX = event.x
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    val diff = event.x - touchStartX
+                    if (Math.abs(diff) > 100) {
+                        if (diff > 0) prevPage() else nextPage()
+                        true
+                    } else {
+                        false
+                    }
+                }
+                else -> false
+            }
+        }
     }
-
-    fun showFootnote(noteId: String) {}
-    fun performSmartSearch(word: String) {}
 
     fun loadBook(text: String) {
         bookText = text
@@ -189,10 +203,9 @@ class BookReaderActivity : AppCompatActivity() {
             <!DOCTYPE html>
             <html>
             <head>
-            <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <style>
-                body { margin:0; padding:0; width: ${screenWidth}px; height:auto; overflow:hidden; }
-                .content { padding: ${paddingValue}px; font-size: ${fontSize}px; line-height: ${lineHeight}; font-family: $fontFamily; text-align: justify; }
+                body { margin:0; padding:0; width: auto; height: ${screenHeight}px; overflow:hidden; }
+                .content { padding: ${paddingValue}px; font-size: ${fontSize}px; line-height: ${lineHeight}; font-family: $fontFamily; text-align: justify; column-width: ${screenWidth}px; column-gap: 0px; column-fill: auto; height: ${screenHeight - 2 * paddingValue}px; }
                 p { margin-bottom:1em; text-indent:1.5em; }
             </style>
             </head>
@@ -223,7 +236,7 @@ class BookReaderActivity : AppCompatActivity() {
     fun nextPage() {
         if (currentPage < totalPages - 1) {
             currentPage++
-            webView.scrollTo(0, currentPage * screenHeight)
+            webView.scrollTo(currentPage * screenWidth, 0)
             updatePageIndicator()
         }
     }
@@ -231,10 +244,19 @@ class BookReaderActivity : AppCompatActivity() {
     fun prevPage() {
         if (currentPage > 0) {
             currentPage--
-            webView.scrollTo(0, currentPage * screenHeight)
+            webView.scrollTo(currentPage * screenWidth, 0)
             updatePageIndicator()
         }
     }
+
+    fun loadPage(pageNumber: Int) {
+        currentPage = pageNumber.coerceIn(0, totalPages - 1)
+        webView.scrollTo(currentPage * screenWidth, 0)
+        updatePageIndicator()
+    }
+
+    fun showFootnote(noteId: String) {}
+    fun performSmartSearch(word: String) {}
 
     private fun updatePageIndicator() {
         pageIndicatorView.text = "Стр.${currentPage + 1}/$totalPages"
