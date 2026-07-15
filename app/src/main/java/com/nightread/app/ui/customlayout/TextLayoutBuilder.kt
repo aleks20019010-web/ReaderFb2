@@ -46,8 +46,11 @@ class TextLayoutBuilder {
     private var paint: TextPaint = TextPaint()
     private var lineSpacingMultiplier: Float = 1.0f
     private var lineSpacingExtra: Float = 0f
+    private var letterSpacing: Float = 0f
     private var alignment: Layout.Alignment = Layout.Alignment.ALIGN_NORMAL
     private var hyphenation: Boolean = true
+    
+    fun setLetterSpacing(spacing: Float) = apply { this.letterSpacing = spacing }
 
     fun setText(text: CharSequence) = apply { this.text = text }
     fun setWidth(width: Int) = apply { this.width = width }
@@ -61,9 +64,10 @@ class TextLayoutBuilder {
     fun setHyphenation(enabled: Boolean) = apply { this.hyphenation = enabled }
     
     val configKey: String
-        get() = "${text.length}_${width}_${height}_${paint.textSize}_${paint.typeface?.hashCode()}_${lineSpacingMultiplier}_${alignment.name}_$hyphenation"
+        get() = "${text.length}_${width}_${height}_${paint.textSize}_${paint.typeface?.hashCode()}_${lineSpacingMultiplier}_${alignment.name}_${hyphenation}_$letterSpacing"
 
     private fun createStaticLayout(source: CharSequence, start: Int, end: Int): StaticLayout {
+        paint.letterSpacing = letterSpacing
         val strategy = if (hyphenation) android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY else android.graphics.text.LineBreaker.BREAK_STRATEGY_SIMPLE
         val frequency = if (hyphenation) Layout.HYPHENATION_FREQUENCY_FULL else Layout.HYPHENATION_FREQUENCY_NONE
 

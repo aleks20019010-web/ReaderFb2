@@ -18,15 +18,11 @@ object HyphenatorHelper {
 
     private val regex1 = Regex("(?<=$l)($v)(?=$c$v)")
     private val regex2 = Regex("($v$c)(?=$c$v)")
-    private val regex3 = Regex("($v$c)(?=$c$c$v)")
-    private val regex4 = Regex("($v$s)(?=$c$v)")
 
     fun hyphenate(text: String): String {
         var res = text
         res = regex1.replace(res, "$1\u00AD")
         res = regex2.replace(res, "$1\u00AD")
-        res = regex3.replace(res, "$1\u00AD")
-        res = regex4.replace(res, "$1\u00AD")
         return res
     }
 }

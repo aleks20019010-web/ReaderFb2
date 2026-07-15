@@ -238,6 +238,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 .setWidth(availableWidth)
                 .setHeight(availableHeight)
                 .setPaint(paint)
+                .setLetterSpacing(-0.01f) // Fine-tune: compact spacing
                 .setLineSpacing(0f, lineSpacing)
                 
             val offsets = builder.buildPagination()
