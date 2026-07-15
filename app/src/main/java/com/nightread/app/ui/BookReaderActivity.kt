@@ -95,24 +95,11 @@ class BookReaderActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // Restore state if available
-        if (savedInstanceState != null) {
-            currentPage = savedInstanceState.getInt("current_page", 0)
-            fontSize = savedInstanceState.getInt("font_size", 18)
-            lineHeight = savedInstanceState.getFloat("line_height", 1.6f)
-            fontFamily = savedInstanceState.getString("font_family", "Georgia, 'Times New Roman', serif")
-            currentFontPath = savedInstanceState.getString("current_font_path", "")
-        }
-
-        // Set layout activity_book.xml
         setContentView(R.layout.activity_book)
 
-        // Initialize UI components
         val rootLayout = findViewById<FrameLayout>(R.id.rootView)
         webView = findViewById(R.id.bookWebView)
 
-        // Dynamically add ProgressBar
         progressBar = ProgressBar(this).apply {
             visibility = View.GONE
         }
@@ -123,7 +110,6 @@ class BookReaderActivity : AppCompatActivity() {
         )
         rootLayout.addView(progressBar, progressParams)
 
-        // Dynamically add page indicator on top of FrameLayout to preserve clean XML layout
         pageIndicatorView = TextView(this).apply {
             setTextColor(Color.GRAY)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
@@ -141,48 +127,7 @@ class BookReaderActivity : AppCompatActivity() {
         setupWebView()
         setupTouchListener()
 
-        // Load content
-        val sha1 = intent.getStringExtra("BOOK_SHA1")
-        Log.d("BookReader", "onCreate: sha1=$sha1")
-        if (!sha1.isNullOrEmpty()) {
-            isBookLoading = true
-            progressBar.visibility = View.VISIBLE
-            lifecycleScope.launch {
-                val db = AppDatabase.getDatabase(this@BookReaderActivity)
-                val book = withContext(Dispatchers.IO) {
-                    db.bookDao().getBookBySha1(sha1)
-                }
-                Log.d("BookReader", "onCreate: sha1 loading finished, book found=${book != null}")
-                if (book != null) {
-                    val filePath = book.filePath
-                    if (!filePath.isNullOrEmpty()) {
-                        val file = File(filePath)
-                        if (file.exists()) {
-                            val parsedBook = withContext(Dispatchers.IO) {
-                                parseBookFile(file)
-                            }
-                            bookText = parsedBook.content.trim().trim('\u000C').trim()
-                            Log.d("BookReader", "onCreate: book loaded, textLength=${bookText.length}")
-                        } else {
-                            Log.e("BookReader", "onCreate: book file does not exist: $filePath")
-                        }
-                    } else {
-                        Log.e("BookReader", "onCreate: book file path is empty")
-                    }
-                } else {
-                    Log.e("BookReader", "onCreate: book not found in DB")
-                }
-                isBookLoading = false
-                progressBar.visibility = View.GONE
-                tryLoadBook()
-            }
-        } else {
-            bookText = intent.getStringExtra("book_text") ?: getDefaultBookText()
-            Log.d("BookReader", "onCreate: else branch, bookTextLength=${bookText.length}")
-            tryLoadBook()
-        }
-
-        // Wait until WebView layout is complete to get exact dimensions using OnGlobalLayoutListener
+        // Сразу загружаем тестовый текст когда размеры готовы
         webView.viewTreeObserver.addOnGlobalLayoutListener(
             object : ViewTreeObserver.OnGlobalLayoutListener {
                 override fun onGlobalLayout() {
@@ -194,11 +139,10 @@ class BookReaderActivity : AppCompatActivity() {
                     paddingValue = (paddingDp * density).toInt()
 
                     Log.d("BookReader", "Screen dimensions: ${screenWidth}x${screenHeight}, Padding: ${paddingValue}px")
-                    Log.d("BookReader", "onGlobalLayout: check loadBook, screenWidth=$screenWidth, screenHeight=$screenHeight, bookTextLength=${bookText.length}")
 
                     if (screenWidth > 0 && screenHeight > 0) {
-                        isDimensionsReady = true
-                        tryLoadBook()
+                        bookText = getDefaultBookText()
+                        loadBook(bookText)
                     }
                 }
             }
