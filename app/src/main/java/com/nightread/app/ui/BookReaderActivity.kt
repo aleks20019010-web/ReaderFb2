@@ -9,6 +9,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewTreeObserver
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -107,19 +108,25 @@ class BookReaderActivity : AppCompatActivity() {
         // Load content
         bookText = intent.getStringExtra("book_text") ?: getDefaultBookText()
 
-        // Wait until WebView layout is complete to get exact dimensions
-        webView.post {
-            screenWidth = webView.width
-            screenHeight = webView.height
-            val density = resources.displayMetrics.density
-            paddingValue = (paddingDp * density).toInt()
+        // Wait until WebView layout is complete to get exact dimensions using OnGlobalLayoutListener
+        webView.viewTreeObserver.addOnGlobalLayoutListener(
+            object : ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    webView.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                    
+                    screenWidth = webView.width
+                    screenHeight = webView.height
+                    val density = resources.displayMetrics.density
+                    paddingValue = (paddingDp * density).toInt()
 
-            Log.d("BookReader", "Screen dimensions: ${screenWidth}x${screenHeight}, Padding: ${paddingValue}px")
+                    Log.d("BookReader", "Screen dimensions: ${screenWidth}x${screenHeight}, Padding: ${paddingValue}px")
 
-            if (screenWidth > 0 && screenHeight > 0) {
-                loadBook(bookText)
+                    if (screenWidth > 0 && screenHeight > 0) {
+                        loadBook(bookText)
+                    }
+                }
             }
-        }
+        )
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
