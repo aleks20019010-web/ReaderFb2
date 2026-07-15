@@ -341,23 +341,33 @@ class BookReaderActivity : AppCompatActivity() {
     private suspend fun measurePageScrollHeight(tempWebView: BookWebView, html: String): Int = withContext(Dispatchers.Main) {
         val latch = CountDownLatch(1)
         var height = 0
+        Log.d("BookReader", "measurePageScrollHeight: starting measurement")
 
+        tempWebView.settings.javaScriptEnabled = true
+        tempWebView.settings.domStorageEnabled = true
+        
         tempWebView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
-                Log.d("BookReader", "onPageFinished called for measurement")
+                Log.d("BookReader", "measurePageScrollHeight: onPageFinished called")
                 tempWebView.post {
                     height = tempWebView.getVerticalScrollRange()
+                    Log.d("BookReader", "measurePageScrollHeight: height measured=$height")
                     latch.countDown()
                 }
+            }
+            override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
+                Log.e("BookReader", "measurePageScrollHeight: onReceivedError ${error?.description}")
+                latch.countDown()
             }
         }
 
         tempWebView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null)
 
         withContext(Dispatchers.IO) {
-            latch.await(300, TimeUnit.MILLISECONDS)
+            val finished = latch.await(5000, TimeUnit.MILLISECONDS)
+            Log.d("BookReader", "measurePageScrollHeight: latch await finished=$finished")
         }
-        Log.d("BookReader", "Измерено: height=$height, screenHeight=$screenHeight, превышение=${height - screenHeight}px")
+        Log.d("BookReader", "measurePageScrollHeight: returning height=$height")
         height
     }
 
