@@ -141,6 +141,7 @@ class BookReaderActivity : AppCompatActivity() {
 
         // Load content
         val sha1 = intent.getStringExtra("BOOK_SHA1")
+        Log.d("BookReader", "onCreate: sha1=$sha1")
         if (!sha1.isNullOrEmpty()) {
             isBookLoading = true
             progressBar.visibility = View.VISIBLE
@@ -149,6 +150,7 @@ class BookReaderActivity : AppCompatActivity() {
                 val book = withContext(Dispatchers.IO) {
                     db.bookDao().getBookBySha1(sha1)
                 }
+                Log.d("BookReader", "onCreate: sha1 loading finished, book found=${book != null}")
                 if (book != null) {
                     val filePath = book.filePath
                     if (!filePath.isNullOrEmpty()) {
@@ -158,8 +160,15 @@ class BookReaderActivity : AppCompatActivity() {
                                 parseBookFile(file)
                             }
                             bookText = parsedBook.content.trim().trim('\u000C').trim()
+                            Log.d("BookReader", "onCreate: book loaded, textLength=${bookText.length}")
+                        } else {
+                            Log.e("BookReader", "onCreate: book file does not exist: $filePath")
                         }
+                    } else {
+                        Log.e("BookReader", "onCreate: book file path is empty")
                     }
+                } else {
+                    Log.e("BookReader", "onCreate: book not found in DB")
                 }
                 isBookLoading = false
                 progressBar.visibility = View.GONE
@@ -169,6 +178,7 @@ class BookReaderActivity : AppCompatActivity() {
             }
         } else {
             bookText = intent.getStringExtra("book_text") ?: getDefaultBookText()
+            Log.d("BookReader", "onCreate: else branch, bookTextLength=${bookText.length}")
             if (screenWidth > 0 && screenHeight > 0) {
                 loadBook(bookText)
             }
@@ -186,6 +196,7 @@ class BookReaderActivity : AppCompatActivity() {
                     paddingValue = (paddingDp * density).toInt()
 
                     Log.d("BookReader", "Screen dimensions: ${screenWidth}x${screenHeight}, Padding: ${paddingValue}px")
+                    Log.d("BookReader", "onGlobalLayout: check loadBook, screenWidth=$screenWidth, screenHeight=$screenHeight, bookTextLength=${bookText.length}")
 
                     if (screenWidth > 0 && screenHeight > 0 && bookText.isNotEmpty()) {
                         loadBook(bookText)
@@ -240,6 +251,7 @@ class BookReaderActivity : AppCompatActivity() {
      * Loads the entire book by splitting it into pages, updating state, and loading the first page.
      */
     fun loadBook(text: String) {
+        Log.d("BookReader", "loadBook called. screenWidth=$screenWidth, screenHeight=$screenHeight, textLength=${text.length}")
         bookText = text
         if (screenWidth <= 0 || screenHeight <= 0) {
             Log.e("BookReader", "Cannot load book: dimensions not ready yet")
