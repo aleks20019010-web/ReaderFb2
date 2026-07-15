@@ -14,13 +14,20 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.nightread.app.R
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
- * Custom WebView exposing computeHorizontalScrollRange for column count computation.
+ * Custom WebView exposing computeHorizontalScrollRange and computeVerticalScrollRange.
  */
 class BookWebView @JvmOverloads constructor(
     context: Context,
@@ -30,6 +37,10 @@ class BookWebView @JvmOverloads constructor(
 
     fun getHorizontalScrollRange(): Int {
         return computeHorizontalScrollRange()
+    }
+
+    fun getVerticalScrollRange(): Int {
+        return computeVerticalScrollRange()
     }
 
     override fun performClick(): Boolean {
@@ -43,12 +54,14 @@ class BookReaderActivity : AppCompatActivity() {
     // Target UI elements
     private lateinit var webView: BookWebView
     private lateinit var pageIndicatorView: TextView
+    private lateinit var progressBar: ProgressBar
 
-    // Class variables for screen size and column calculations
+    // Class variables for screen size and pagination
     private var screenWidth: Int = 0
     private var screenHeight: Int = 0
-    private var currentColumn: Int = 0
-    private var totalColumns: Int = 1
+    private var currentPage: Int = 0
+    private var totalPages: Int = 1
+    private var pages: List<String> = emptyList()
 
     // Settings variables with default values
     private var fontSize: Int = 18
@@ -73,7 +86,7 @@ class BookReaderActivity : AppCompatActivity() {
         
         // Restore state if available
         if (savedInstanceState != null) {
-            currentColumn = savedInstanceState.getInt("current_column", 0)
+            currentPage = savedInstanceState.getInt("current_page", 0)
             fontSize = savedInstanceState.getInt("font_size", 18)
             lineHeight = savedInstanceState.getFloat("line_height", 1.6f)
             fontFamily = savedInstanceState.getString("font_family", "Georgia, 'Times New Roman', serif")
@@ -86,6 +99,17 @@ class BookReaderActivity : AppCompatActivity() {
         // Initialize UI components
         val rootLayout = findViewById<FrameLayout>(R.id.rootView)
         webView = findViewById(R.id.bookWebView)
+
+        // Dynamically add ProgressBar
+        progressBar = ProgressBar(this).apply {
+            visibility = View.GONE
+        }
+        val progressParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            Gravity.CENTER
+        )
+        rootLayout.addView(progressBar, progressParams)
 
         // Dynamically add page indicator on top of FrameLayout to preserve clean XML layout
         pageIndicatorView = TextView(this).apply {
@@ -131,7 +155,7 @@ class BookReaderActivity : AppCompatActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putInt("current_column", currentColumn)
+        outState.putInt("current_page", currentPage)
         outState.putInt("font_size", fontSize)
         outState.putFloat("line_height", lineHeight)
         outState.putString("font_family", fontFamily)
@@ -142,7 +166,11 @@ class BookReaderActivity : AppCompatActivity() {
      * Basic settings for offline-mode without internet.
      */
     private fun setupWebView() {
-        val settings = webView.settings
+        setupWebViewSettings(webView)
+    }
+
+    private fun setupWebViewSettings(targetWebView: WebView) {
+        val settings = targetWebView.settings
         
         // Offline security settings
         settings.allowFileAccess = true
@@ -155,45 +183,19 @@ class BookReaderActivity : AppCompatActivity() {
         settings.builtInZoomControls = false
         settings.displayZoomControls = false
         
-        // Enable scripts and adaptive viewport
+        // Disable scripts and adaptive viewport (JavaScript not needed for offline, as requested)
         settings.javaScriptEnabled = false
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = false
 
         // Disable standard scrollbars and scroll mechanics
-        webView.isVerticalScrollBarEnabled = false
-        webView.isHorizontalScrollBarEnabled = false
-        webView.overScrollMode = View.OVER_SCROLL_NEVER
-
-        // Override client to intercept layout changes
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                super.onPageFinished(view, url)
-                webView.post {
-                    val range = webView.getHorizontalScrollRange()
-                    totalColumns = if (screenWidth > 0) (range + screenWidth - 1) / screenWidth else 1
-                    if (totalColumns <= 0) totalColumns = 1
-
-                    Log.d("BookReader", "Page Loaded. HorizontalScrollRange: $range, TotalColumns: $totalColumns")
-
-                    // Constrain column index to valid bounds
-                    if (currentColumn >= totalColumns) {
-                        currentColumn = totalColumns - 1
-                    }
-                    if (currentColumn < 0) {
-                        currentColumn = 0
-                    }
-
-                    // Perform scroll to the target column
-                    webView.scrollTo(currentColumn * screenWidth, 0)
-                    updatePageIndicator()
-                }
-            }
-        }
+        targetWebView.isVerticalScrollBarEnabled = false
+        targetWebView.isHorizontalScrollBarEnabled = false
+        targetWebView.overScrollMode = View.OVER_SCROLL_NEVER
     }
 
     /**
-     * Loads the entire book as one HTML in the WebView.
+     * Loads the entire book by splitting it into pages, updating state, and loading the first page.
      */
     fun loadBook(text: String) {
         bookText = text
@@ -202,14 +204,111 @@ class BookReaderActivity : AppCompatActivity() {
             return
         }
 
-        val htmlContent = buildFullBookHtml(text)
-        webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
+        progressBar.visibility = View.VISIBLE
+        webView.visibility = View.INVISIBLE // Hide WebView during paginating to avoid flickering
+
+        lifecycleScope.launch {
+            val parsedPages = splitTextIntoPages(text)
+            pages = parsedPages
+            totalPages = pages.size
+            if (currentPage >= totalPages) {
+                currentPage = totalPages - 1
+            }
+            if (currentPage < 0) {
+                currentPage = 0
+            }
+
+            progressBar.visibility = View.GONE
+            webView.visibility = View.VISIBLE
+            loadPage(currentPage)
+        }
     }
 
     /**
-     * Creates full HTML document with optimized CSS multi-column pagination.
+     * Splits text into pages based on actual rendering measurements.
      */
-    private fun buildFullBookHtml(text: String): String {
+    private suspend fun splitTextIntoPages(text: String): List<String> {
+        val startTime = System.currentTimeMillis()
+        Log.d("BookReader", "Starting splitTextIntoPages computation...")
+
+        val paragraphs = text.split(Regex("\n+")).map { it.trim() }.filter { it.isNotEmpty() }
+        val resultPages = ArrayList<String>()
+
+        // Create the temp WebView on the main thread
+        val tempWebView = withContext(Dispatchers.Main) {
+            val tw = BookWebView(this@BookReaderActivity)
+            setupWebViewSettings(tw)
+            tw.layout(0, 0, screenWidth, screenHeight)
+            tw
+        }
+
+        var currentPageParagraphs = ArrayList<String>()
+
+        for (paragraph in paragraphs) {
+            if (currentPageParagraphs.isEmpty()) {
+                currentPageParagraphs.add(paragraph)
+                continue
+            }
+
+            // Test if paragraph fits with the existing ones on this page
+            val testList = ArrayList(currentPageParagraphs)
+            testList.add(paragraph)
+            val testText = testList.joinToString("\n\n")
+            val testHtml = buildPageHtml(testText)
+
+            val scrollHeight = measurePageScrollHeight(tempWebView, testHtml)
+            if (scrollHeight <= screenHeight) {
+                currentPageParagraphs.add(paragraph)
+            } else {
+                // Save current page
+                val pageText = currentPageParagraphs.joinToString("\n\n")
+                resultPages.add(buildPageHtml(pageText))
+
+                // Start new page with the current paragraph
+                currentPageParagraphs.clear()
+                currentPageParagraphs.add(paragraph)
+            }
+        }
+
+        if (currentPageParagraphs.isNotEmpty()) {
+            val pageText = currentPageParagraphs.joinToString("\n\n")
+            resultPages.add(buildPageHtml(pageText))
+        }
+
+        // Clean up the tempWebView reference
+        withContext(Dispatchers.Main) {
+            tempWebView.destroy()
+        }
+
+        Log.d("BookReader", "splitTextIntoPages finished in ${System.currentTimeMillis() - startTime}ms. Pages count: ${resultPages.size}")
+        return resultPages
+    }
+
+    private suspend fun measurePageScrollHeight(tempWebView: BookWebView, html: String): Int = withContext(Dispatchers.Main) {
+        val latch = CountDownLatch(1)
+        var height = 0
+
+        tempWebView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                tempWebView.post {
+                    height = tempWebView.getVerticalScrollRange()
+                    latch.countDown()
+                }
+            }
+        }
+
+        tempWebView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null)
+
+        withContext(Dispatchers.IO) {
+            latch.await(300, TimeUnit.MILLISECONDS)
+        }
+        height
+    }
+
+    /**
+     * Creates full HTML document for a single page.
+     */
+    private fun buildPageHtml(text: String): String {
         // Convert simple text into HTML paragraphs
         val paragraphs = text.split(Regex("\n+")).map { it.trim() }.filter { it.isNotEmpty() }
         val paragraphsHtml = paragraphs.joinToString("") { p ->
@@ -247,30 +346,22 @@ class BookReaderActivity : AppCompatActivity() {
                     overflow: hidden;
                     background-color: #FFFFFF;
                 }
-                body {
-                    column-width: ${screenWidth}px;
-                    column-gap: 0px;
-                    column-fill: auto;
-                    -webkit-column-width: ${screenWidth}px;
-                    -webkit-column-gap: 0px;
-                    -webkit-column-fill: auto;
-                }
                 .content {
                     box-sizing: border-box;
+                    width: ${screenWidth}px;
+                    height: ${screenHeight}px;
                     padding: ${paddingValue}px;
-                    
                     font-size: ${fontSize}px;
                     line-height: ${lineHeight};
                     font-family: $fontFamilyStyle;
-                    
                     text-align: justify;
                     -webkit-hyphens: auto;
                     -moz-hyphens: auto;
                     hyphens: auto;
-                    
                     word-wrap: break-word;
                     widows: 2;
                     orphans: 2;
+                    overflow: hidden;
                 }
                 p {
                     margin: 0 0 1em 0;
@@ -291,33 +382,19 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     /**
-     * Copies a custom font file from assets folder into internal cache folder for file URL access.
+     * Loads a page with a given index.
      */
-    private fun copyFontToCache(assetFontPath: String): String {
-        if (assetFontPath.isEmpty()) return ""
-        return try {
-            val fileName = assetFontPath.substringAfterLast('/')
-            val cacheDir = File(cacheDir, "fonts")
-            if (!cacheDir.exists()) {
-                cacheDir.mkdirs()
-            }
-            val cacheFile = File(cacheDir, fileName)
-            if (!cacheFile.exists()) {
-                assets.open(assetFontPath).use { input ->
-                    cacheFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                }
-            }
-            cacheFile.absolutePath
-        } catch (e: Exception) {
-            Log.e("BookReader", "Error copying font $assetFontPath to cache", e)
-            ""
-        }
+    private fun loadPage(pageNumber: Int) {
+        if (pages.isEmpty()) return
+        currentPage = pageNumber.coerceIn(0, pages.size - 1)
+
+        val htmlContent = pages[currentPage]
+        webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
+        updatePageIndicator()
     }
 
     /**
-     * Touch gesture logic for horizontal column switching.
+     * Touch gesture logic for horizontal page switching.
      */
     private fun setupTouchListener() {
         webView.setOnTouchListener { v, event ->
@@ -325,7 +402,7 @@ class BookReaderActivity : AppCompatActivity() {
                 MotionEvent.ACTION_DOWN -> {
                     touchStartX = event.x
                     touchStartY = event.y
-                    true // Consume ACTION_DOWN to capture subsequent touch movements and release
+                    true
                 }
                 MotionEvent.ACTION_UP -> {
                     val diffX = event.x - touchStartX
@@ -334,17 +411,13 @@ class BookReaderActivity : AppCompatActivity() {
                     if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > swipeThreshold) {
                         if (diffX > 0) {
                             // Swipe Right -> previous page
-                            if (currentColumn > 0) {
-                                currentColumn--
-                                webView.scrollTo(currentColumn * screenWidth, 0)
-                                updatePageIndicator()
+                            if (currentPage > 0) {
+                                loadPage(currentPage - 1)
                             }
                         } else {
                             // Swipe Left -> next page
-                            if (currentColumn < totalColumns - 1) {
-                                currentColumn++
-                                webView.scrollTo(currentColumn * screenWidth, 0)
-                                updatePageIndicator()
+                            if (currentPage < totalPages - 1) {
+                                loadPage(currentPage + 1)
                             }
                         }
                     } else {
@@ -352,16 +425,12 @@ class BookReaderActivity : AppCompatActivity() {
                         val tapX = event.x
                         val width = webView.width
                         if (tapX < width * 0.3f) {
-                            if (currentColumn > 0) {
-                                currentColumn--
-                                webView.scrollTo(currentColumn * screenWidth, 0)
-                                updatePageIndicator()
+                            if (currentPage > 0) {
+                                loadPage(currentPage - 1)
                             }
                         } else if (tapX > width * 0.7f) {
-                            if (currentColumn < totalColumns - 1) {
-                                currentColumn++
-                                webView.scrollTo(currentColumn * screenWidth, 0)
-                                updatePageIndicator()
+                            if (currentPage < totalPages - 1) {
+                                loadPage(currentPage + 1)
                             }
                         }
                     }
@@ -378,8 +447,8 @@ class BookReaderActivity : AppCompatActivity() {
      */
     private fun updatePageIndicator() {
         runOnUiThread {
-            val displayPage = currentColumn + 1
-            val displayTotal = totalColumns
+            val displayPage = currentPage + 1
+            val displayTotal = totalPages
             pageIndicatorView.text = "$displayPage / $displayTotal"
         }
     }
@@ -404,6 +473,29 @@ class BookReaderActivity : AppCompatActivity() {
         fontFamily = fontName
         currentFontPath = fontPath
         loadBook(bookText)
+    }
+
+    private fun copyFontToCache(assetFontPath: String): String {
+        if (assetFontPath.isEmpty()) return ""
+        return try {
+            val fileName = assetFontPath.substringAfterLast('/')
+            val cacheDir = File(cacheDir, "fonts")
+            if (!cacheDir.exists()) {
+                cacheDir.mkdirs()
+            }
+            val cacheFile = File(cacheDir, fileName)
+            if (!cacheFile.exists()) {
+                assets.open(assetFontPath).use { input ->
+                    cacheFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            }
+            cacheFile.absolutePath
+        } catch (e: Exception) {
+            Log.e("BookReader", "Error copying font $assetFontPath to cache", e)
+            ""
+        }
     }
 
     private fun getDefaultBookText(): String {
