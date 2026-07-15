@@ -149,9 +149,9 @@ class BookReaderActivity : AppCompatActivity() {
         settings.displayZoomControls = false
         
         // Enable scripts and adaptive viewport
-        settings.javaScriptEnabled = true
+        settings.javaScriptEnabled = false
         settings.useWideViewPort = true
-        settings.loadWithOverviewMode = true
+        settings.loadWithOverviewMode = false
 
         // Disable standard scrollbars and scroll mechanics
         webView.isVerticalScrollBarEnabled = false
@@ -237,7 +237,6 @@ class BookReaderActivity : AppCompatActivity() {
                     padding: 0;
                     width: ${screenWidth}px;
                     height: ${screenHeight}px;
-                    box-sizing: border-box;
                     overflow: hidden;
                     background-color: #FFFFFF;
                 }
@@ -248,10 +247,9 @@ class BookReaderActivity : AppCompatActivity() {
                     -webkit-column-width: ${screenWidth}px;
                     -webkit-column-gap: 0px;
                     -webkit-column-fill: auto;
-                    
-                    overflow-y: hidden;
-                    overflow-x: hidden;
-                    
+                }
+                .content {
+                    box-sizing: border-box;
                     padding: ${paddingValue}px;
                     
                     font-size: ${fontSize}px;
@@ -277,7 +275,9 @@ class BookReaderActivity : AppCompatActivity() {
             </style>
             </head>
             <body>
-                $paragraphsHtml
+                <div class="content">
+                    $paragraphsHtml
+                </div>
             </body>
             </html>
         """.trimIndent()
