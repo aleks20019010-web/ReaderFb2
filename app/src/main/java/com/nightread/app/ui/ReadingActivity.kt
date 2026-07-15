@@ -384,7 +384,6 @@ class ReadingActivity : AppCompatActivity() {
     private fun preprocessTextAndHyphenate(text: String): String {
         var processedText = text.replace(Regex("([ \\t\\r\\n\\u200B]*\\n[ \\t\\r\\n\\u200B]*)+"), "\n\u200B\u200B\u200B\u200B")
         processedText = processedText.trim().trim('\u000C').trim()
-        HyphenationPatterns.load("ru")
         val result = com.nightread.app.ui.HyphenatorHelper.hyphenate(processedText)
         val hyphensInResult = result.count { it == '\u00AD' }
         Log.d("ReadingActivity", "preprocessTextAndHyphenate: original text length: ${text.length}, processed length: ${result.length}, contains $hyphensInResult soft hyphens.")
@@ -494,7 +493,6 @@ class ReadingActivity : AppCompatActivity() {
                     cachedHyphenated
                 } else {
                     val hyphenated = withContext(Dispatchers.Default) {
-                        com.nightread.app.ui.HyphenationPatterns.load("ru")
                         com.nightread.app.ui.HyphenatorHelper.hyphenate(bookContent)
                     }
                     BookCache.hyphenatedContent = hyphenated

@@ -212,12 +212,24 @@ class TextLayoutBuilder {
     }
 
     fun buildPageLayout(offset: Int, endOffset: Int): StaticLayout {
-        val cached = LayoutCache.getPage(configKey, offset)
-        if (cached != null) return cached
-        
+        // Build initial layout
         paint.textLocale = java.util.Locale("ru", "RU")
-        val layout = createStaticLayout(text, offset, endOffset)
-        LayoutCache.putPage(configKey, offset, layout)
+        var layout = createStaticLayout(text, offset, endOffset)
+        
+        // Pull-in algorithm
+        if (layout.lineCount > 0) {
+            val lastLineIdx = layout.lineCount - 1
+            val lastLineLineWidth = layout.getLineRight(lastLineIdx) - layout.getLineLeft(lastLineIdx)
+            // If last line is less than 15% of width
+            if (lastLineLineWidth < width * 0.15f) {
+                // Try to rebuild with slightly reduced letter spacing
+                val originalLetterSpacing = letterSpacing
+                letterSpacing -= 0.01f
+                layout = createStaticLayout(text, offset, endOffset)
+                letterSpacing = originalLetterSpacing
+            }
+        }
+        
         return layout
     }
 }

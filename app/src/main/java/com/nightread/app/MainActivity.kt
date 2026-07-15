@@ -432,7 +432,6 @@ class MainActivity : BaseActivity() {
                                     
                                     val hyphenationEnabled = SettingsManager.isHyphenationEnabled(this@MainActivity)
                                     val textToSplit = if (hyphenationEnabled) {
-                                        com.nightread.app.ui.HyphenationPatterns.load("ru")
                                         com.nightread.app.ui.HyphenatorHelper.hyphenate(bookContent)
                                     } else {
                                         bookContent
