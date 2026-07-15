@@ -204,51 +204,8 @@ class BookReaderActivity : AppCompatActivity() {
             return
         }
 
-        val debugHtml = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=$screenWidth, initial-scale=1.0, user-scalable=no">
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-                width: ${screenWidth}px; 
-                height: ${screenHeight}px;
-                background: #FF0000;
-                overflow: hidden;
-            }
-            .box {
-                width: 100%;
-                height: 100%;
-                background: #00FF00;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .text {
-                font-size: 20px;
-                color: black;
-                text-align: center;
-                font-family: Arial, sans-serif;
-                background: white;
-                padding: 20px;
-                border-radius: 8px;
-            }
-        </style>
-        </head>
-        <body>
-            <div class="box">
-                <div class="text">
-                    WebView: ${screenWidth} × ${screenHeight}<br>
-                    Доступно: [ширина] × [высота]
-                </div>
-            </div>
-        </body>
-        </html>
-        """.trimIndent()
-
-        webView.loadDataWithBaseURL(null, debugHtml, "text/html", "UTF-8", null)
+        webView.loadDataWithBaseURL(null, "<html><body style='background:blue;margin:0'><h1 style='color:white;text-align:center;padding-top:100px;font-family:Arial,sans-serif'>loadBook ВЫЗВАН</h1></body></html>", "text/html", "UTF-8", null)
+        return
     }
 
     /**
