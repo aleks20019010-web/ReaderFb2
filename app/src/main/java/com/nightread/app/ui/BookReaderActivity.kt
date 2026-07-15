@@ -252,6 +252,7 @@ class BookReaderActivity : AppCompatActivity() {
         return // Временно не загружаем книгу, только отладку
         // Закомментировать return после проверки чтобы вернуть загрузку книги
 
+        /*
         progressBar.visibility = View.VISIBLE
         webView.visibility = View.INVISIBLE // Hide WebView during paginating to avoid flickering
 
@@ -270,6 +271,7 @@ class BookReaderActivity : AppCompatActivity() {
             webView.visibility = View.VISIBLE
             loadPage(currentPage)
         }
+        */
     }
 
     /**
