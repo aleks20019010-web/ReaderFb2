@@ -263,7 +263,7 @@ class BookReaderActivity : AppCompatActivity() {
         }
         tempWebView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
 
-        withContext(Dispatchers.IO) { latch.await(2000, TimeUnit.MILLISECONDS) }
+        withContext(Dispatchers.IO) { latch.await(500, TimeUnit.MILLISECONDS) }
         if (height == 0) height = screenHeight
         height
     }
