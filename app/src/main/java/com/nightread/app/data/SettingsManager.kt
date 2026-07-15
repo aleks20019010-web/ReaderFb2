@@ -315,7 +315,7 @@ object SettingsManager {
 
     fun getLineSpacing(context: Context): Float {
         if (cachedLineSpacing == null) {
-            cachedLineSpacing = getPrefs(context).getFloat(KEY_LINE_SPACING, 1.2f)
+            cachedLineSpacing = 1.2f
         }
         return cachedLineSpacing!!
     }

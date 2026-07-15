@@ -568,15 +568,20 @@ class ReadingActivity : AppCompatActivity() {
                 return@launch
             }
 
-            val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
-                .setText(formattedText)
-                .setWidth(availableWidth)
-                .setHeight(availableHeight)
-                .setPaint(paint)
-                .setLineSpacing(0f, SettingsManager.getLineSpacing(this@ReadingActivity))
-                .setHyphenation(SettingsManager.isHyphenationEnabled(this@ReadingActivity))
-                
-            builder.buildPagination { newOffsets, finished ->
+            val alignment = android.text.Layout.Alignment.ALIGN_NORMAL
+            
+            com.nightread.app.ui.customlayout.PageSplitter.buildPagination(
+                text = formattedText,
+                width = availableWidth,
+                height = availableHeight,
+                paint = paint,
+                lineSpacingMultiplier = SettingsManager.getLineSpacing(this@ReadingActivity),
+                lineSpacingExtra = 0f,
+                hyphenation = SettingsManager.isHyphenationEnabled(this@ReadingActivity),
+                alignment = alignment,
+                letterSpacing = SettingsManager.getLetterSpacing(this@ReadingActivity),
+                configKey = currentKey
+            ) { newOffsets, finished ->
                 val newPages = ArrayList<CharSequence>()
                 for (i in newOffsets.indices) {
                     val startIdx = newOffsets[i]

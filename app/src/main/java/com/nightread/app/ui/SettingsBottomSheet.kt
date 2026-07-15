@@ -244,29 +244,6 @@ class SettingsBottomSheet : DialogFragment() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        // 6. Line Spacing (SeekBar)
-        val tvLineSpacingValue = view.findViewById<TextView>(R.id.tvLineSpacingValue)
-        val seekBarLineSpacing = view.findViewById<SeekBar>(R.id.seekBarLineSpacing)
-        val currentLineSpacing = SettingsManager.getLineSpacing(context)
-        tvLineSpacingValue.text = String.format("%.2f", currentLineSpacing)
-        seekBarLineSpacing.progress = (((currentLineSpacing - 1.0f) * 10).toInt()).coerceIn(0, 10)
-        var lastLineSpacingProgress = seekBarLineSpacing.progress
-        seekBarLineSpacing.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val newSpacing = 1.0f + (progress / 10.0f)
-                tvLineSpacingValue.text = String.format("%.2f", newSpacing)
-                if (fromUser) {
-                    SettingsManager.setLineSpacing(context, newSpacing)
-                    if (progress != lastLineSpacingProgress) {
-                        seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                        lastLineSpacingProgress = progress
-                    }
-                }
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-
 
         // 7. Auto-Discovery Switch
         val switchAutoDiscovery = view.findViewById<SwitchCompat>(R.id.switchAutoDiscovery)
@@ -619,14 +596,6 @@ class SettingsBottomSheet : DialogFragment() {
         // 2. Primary Titles and Text Values
         rootView.findViewById<TextView>(R.id.tvSettingsTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvFontSizeValue)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvFontWeightValue)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvLineSpacingValue)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvAutoDiscoveryTitle)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvAutoLightNightTitle)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvAmberFilterTitle)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvAmberIntensityValue)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvExtraDimTitle)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvExtraDimIntensityValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvSleepTimerTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvSleepTimerValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvShakeToExtendTitle)?.setTextColor(textPrimaryColor)
@@ -642,7 +611,6 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvFontWeightLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvThemeLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAnimationLabel)?.setTextColor(textSecondaryColor)
-        rootView.findViewById<TextView>(R.id.tvLineSpacingLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoDiscoveryDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoLightNightDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAmberFilterDesc)?.setTextColor(textSecondaryColor)
@@ -668,7 +636,6 @@ class SettingsBottomSheet : DialogFragment() {
         // 6. Font size, font weight & line spacing SeekBars coloring
         val seekBarFontSize = rootView.findViewById<SeekBar>(R.id.seekBarFontSize)
         val seekBarFontWeight = rootView.findViewById<SeekBar>(R.id.seekBarFontWeight)
-        val seekBarLineSpacing = rootView.findViewById<SeekBar>(R.id.seekBarLineSpacing)
         val seekBarAmberIntensity = rootView.findViewById<SeekBar>(R.id.seekBarAmberIntensity)
         val seekBarExtraDimIntensity = rootView.findViewById<SeekBar>(R.id.seekBarExtraDimIntensity)
         val seekBarSleepTimer = rootView.findViewById<SeekBar>(R.id.seekBarSleepTimer)
@@ -676,8 +643,6 @@ class SettingsBottomSheet : DialogFragment() {
         seekBarFontSize?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarFontWeight?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarFontWeight?.thumbTintList = ColorStateList.valueOf(accentColor)
-        seekBarLineSpacing?.progressTintList = ColorStateList.valueOf(accentColor)
-        seekBarLineSpacing?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarAmberIntensity?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarAmberIntensity?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarExtraDimIntensity?.progressTintList = ColorStateList.valueOf(accentColor)
