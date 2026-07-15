@@ -249,11 +249,13 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     private suspend fun measureHeightInWebView(html: String): Int = suspendCancellableCoroutine { cont ->
+        val originalClient = webView.webViewClient
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 webView.postDelayed({
                     val height = webView.getVerticalScrollRange()
                     Log.d("BookReader", "measureHeightInWebView: $height")
+                    webView.webViewClient = originalClient
                     cont.resume(height)
                 }, 200)
             }
