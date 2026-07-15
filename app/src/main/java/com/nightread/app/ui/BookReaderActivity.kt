@@ -169,6 +169,9 @@ class BookReaderActivity : AppCompatActivity() {
             }
         } else {
             bookText = intent.getStringExtra("book_text") ?: getDefaultBookText()
+            if (screenWidth > 0 && screenHeight > 0) {
+                loadBook(bookText)
+            }
         }
 
         // Wait until WebView layout is complete to get exact dimensions using OnGlobalLayoutListener
@@ -184,7 +187,7 @@ class BookReaderActivity : AppCompatActivity() {
 
                     Log.d("BookReader", "Screen dimensions: ${screenWidth}x${screenHeight}, Padding: ${paddingValue}px")
 
-                    if (screenWidth > 0 && screenHeight > 0 && !isBookLoading) {
+                    if (screenWidth > 0 && screenHeight > 0 && bookText.isNotEmpty()) {
                         loadBook(bookText)
                     }
                 }
