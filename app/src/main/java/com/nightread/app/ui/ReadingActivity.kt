@@ -428,8 +428,8 @@ class ReadingActivity : AppCompatActivity() {
 
         // Match padding in PageFragment: 6dp left + 6dp right = 12dp
         val paddingHorizontal = (12 * resources.displayMetrics.density).toInt()
-        // Match padding in PageFragment: 8dp top + 8dp bottom = 16dp + topInset
-        val paddingVertical = (16 * resources.displayMetrics.density).toInt() + getTopInset()
+        // Match padding in PageFragment: 8dp top + 14dp bottom = 22dp + topInset
+        val paddingVertical = (22 * resources.displayMetrics.density).toInt() + getTopInset()
         
         val availableWidth = width - paddingHorizontal
         val availableHeight = height - paddingVertical

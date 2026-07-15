@@ -119,11 +119,14 @@ class PageFragment : Fragment() {
             
             if (width > 0 && height > 0) {
                 val offset = arguments?.getInt("PAGE_OFFSET") ?: 0
-                val formattedTextWithClicks = TextFormatter.addClickableSpans(pageText) { noteId ->
+                var formattedTextWithClicks = TextFormatter.addClickableSpans(pageText) { noteId ->
                     val readingActivity = activity as? ReadingActivity
                     readingActivity?.showFootnote(noteId)
                 }
 
+                if (!formattedTextWithClicks.endsWith("\n") && !formattedTextWithClicks.endsWith("\u000C")) {
+                    formattedTextWithClicks = android.text.SpannableStringBuilder(formattedTextWithClicks).append(" \n")
+                }
                 val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
                     .setText(formattedTextWithClicks)
                     .setWidth(width)
