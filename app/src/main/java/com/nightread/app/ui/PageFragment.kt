@@ -135,7 +135,23 @@ class PageFragment : Fragment() {
                     .setLineSpacing(lineSpacingExtra, lineSpacingMultiplier)
                     .setHyphenation(SettingsManager.isHyphenationEnabled(context))
                     
-                val layout = builder.buildPageLayout(0, formattedTextWithClicks.length)
+                var layout = builder.buildPageLayout(0, formattedTextWithClicks.length)
+                
+                var hasReplacedHyphen = false
+                val newText = android.text.SpannableStringBuilder(formattedTextWithClicks)
+                
+                for (i in 0 until layout.lineCount) {
+                    val end = layout.getLineEnd(i)
+                    if (end > 0 && end <= newText.length && newText[end - 1] == '\u00AD') {
+                        newText.replace(end - 1, end, "-")
+                        hasReplacedHyphen = true
+                    }
+                }
+                
+                if (hasReplacedHyphen) {
+                    builder.setText(newText)
+                    layout = builder.buildPageLayout(0, newText.length)
+                }
                 
                 (textView as com.nightread.app.ui.customlayout.CustomReaderPageView).setLayout(layout)
             }

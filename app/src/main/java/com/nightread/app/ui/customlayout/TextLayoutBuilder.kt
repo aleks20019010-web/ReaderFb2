@@ -64,7 +64,7 @@ class TextLayoutBuilder {
     fun setHyphenation(enabled: Boolean) = apply { this.hyphenation = enabled }
     
     val configKey: String
-        get() = "${text.length}_${width}_${height}_${paint.textSize}_${paint.typeface?.hashCode()}_${lineSpacingMultiplier}_${alignment.name}_${hyphenation}_$letterSpacing"
+        get() = "${text.length}_${width}_${height}_${paint.textSize}_${paint.typeface?.hashCode()}_${lineSpacingMultiplier}_${alignment.name}_${hyphenation}_${letterSpacing}_v2"
 
     private fun createStaticLayout(source: CharSequence, start: Int, end: Int): StaticLayout {
         paint.letterSpacing = letterSpacing
@@ -174,7 +174,31 @@ class TextLayoutBuilder {
                     pageFull = true
                 }
                 
-                val nextOffset = layout.getLineEnd(pageEndLine - 1)
+                val originalNextOffset = layout.getLineEnd(pageEndLine - 1)
+                var nextOffset = originalNextOffset
+                
+                if (nextOffset > currentOffset && nextOffset < textLength) {
+                    val before = text[nextOffset - 1]
+                    val after = text[nextOffset]
+                    
+                    val isBoundaryBefore = before.isWhitespace() || before == '-' || before == '\n'
+                    val isBoundaryAfter = after.isWhitespace() || after == '\n'
+                    
+                    if (!isBoundaryBefore && !isBoundaryAfter) {
+                        var backtrack = nextOffset - 1
+                        while (backtrack > currentOffset) {
+                            val c = text[backtrack]
+                            if (c.isWhitespace() || c == '-' || c == '\n') {
+                                backtrack++
+                                break
+                            }
+                            backtrack--
+                        }
+                        if (backtrack > currentOffset) {
+                            nextOffset = backtrack
+                        }
+                    }
+                }
                 
                 if (pageFull || measureEnd == textLength) {
                     if (nextOffset < textLength) {
@@ -190,6 +214,10 @@ class TextLayoutBuilder {
                     }
                     lastPageEndOffset = nextOffset
                     lineIdx = pageEndLine
+                    
+                    if (nextOffset != originalNextOffset) {
+                        break
+                    }
                 } else {
                     break
                 }

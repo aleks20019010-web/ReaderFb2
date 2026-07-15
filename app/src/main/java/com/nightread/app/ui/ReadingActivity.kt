@@ -437,7 +437,7 @@ class ReadingActivity : AppCompatActivity() {
         val hyphenationEnabled = com.nightread.app.data.SettingsManager.isHyphenationEnabled(this@ReadingActivity)
         val letterSpacing = SettingsManager.getLetterSpacing(this@ReadingActivity)
         val paragraphIndent = SettingsManager.getParagraphIndent(this@ReadingActivity)
-        val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getFontWeightAsInt(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}_letterSpacing=${letterSpacing}_paragraphIndent=${paragraphIndent}_hyphen=$hyphenationEnabled"
+        val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@ReadingActivity)}_${SettingsManager.getFontWeightAsInt(this@ReadingActivity)}_${SettingsManager.getLineSpacing(this@ReadingActivity)}_letterSpacing=${letterSpacing}_paragraphIndent=${paragraphIndent}_hyphen=$hyphenationEnabled" + "_v2"
         if (BookCache.sha1 == sha1 + "_v4" && BookCache.layoutKey == currentKey && BookCache.splitResult?.isFinished == true) {
             splitResult = BookCache.splitResult ?: TextFormatter.PageResult()
             isSplittingFinished = true
