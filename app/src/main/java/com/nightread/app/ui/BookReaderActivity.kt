@@ -35,6 +35,7 @@ class BookReaderActivity : AppCompatActivity() {
         setContentView(R.layout.activity_book)
 
         readerView = findViewById(R.id.bookReaderView)
+        rootLayout = findViewById(R.id.rootView)
         viewModel = ViewModelProvider(this).get(ReaderViewModel::class.java)
 
         progressBar = ProgressBar(this).apply { visibility = View.GONE }
