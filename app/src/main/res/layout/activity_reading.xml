@@ -67,6 +67,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
+        android:layout_marginBottom="60dp"
         android:background="@drawable/bg_brightness"
         android:paddingHorizontal="24dp"
         android:paddingVertical="12dp"
@@ -74,6 +75,21 @@
         android:textSize="20sp"
         android:visibility="gone"
         android:text="☀ 75%" />
+
+    <!-- Warmth Indicator -->
+    <TextView
+        android:id="@+id/tvWarmth"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="60dp"
+        android:background="@drawable/bg_brightness"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="12dp"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:visibility="gone"
+        android:text="🌡 30%" />
 
     <!-- UI Bars Container -->
     <FrameLayout

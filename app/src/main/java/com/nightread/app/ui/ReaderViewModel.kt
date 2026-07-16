@@ -486,7 +486,9 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 for (i in offsets.indices) {
                     val startIdx = offsets[i]
                     val endIdx = if (i < offsets.size - 1) offsets[i + 1] else formattedText.length
-                    pages.add(formattedText.subSequence(startIdx, endIdx))
+                    // Для частичных результатов используем остаток текста
+                    val actualEnd = if (endIdx > formattedText.length) formattedText.length else endIdx
+                    pages.add(formattedText.subSequence(startIdx, actualEnd))
                     finalOffsets.add(startIdx)
                 }
                 
@@ -523,6 +525,21 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                         BookCache.content = content
                         BookCache.layoutKey = currentKey
                         BookCache.splitResult = TextFormatter.PageResult(pages, finalOffsets, true)
+
+                        // Trigger pre-rendering
+                        viewModelScope.launch(Dispatchers.Default) {
+                            com.nightread.app.ui.customlayout.PageSplitter.startBackgroundRendering(
+                                pages.map { listOf(it.toString()) },
+                                _currentPage.value,
+                                paint,
+                                availableWidth,
+                                com.nightread.app.ui.customlayout.PageSplitter.createStaticLayout(formattedText, 0, formattedText.length, paint, availableWidth, com.nightread.app.ui.customlayout.PageSplitter.createStaticLayout(formattedText, 0, formattedText.length, paint, availableWidth, android.text.Layout.Alignment.ALIGN_NORMAL, lineSpacing, 0f, hyphenationEnabled).alignment, lineSpacing, 0f, hyphenationEnabled).alignment,
+                                lineSpacing,
+                                0f,
+                                hyphenationEnabled,
+                                isJustify
+                            )
+                        }
                     }
                 }
             }

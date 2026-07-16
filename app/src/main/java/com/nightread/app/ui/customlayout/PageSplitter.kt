@@ -259,64 +259,65 @@ object PageSplitter {
         paint.textLocale = java.util.Locale("ru", "RU")
 
         // 1. Разбиваем текст на части (chunking) чтобы не вешать UI и ускорить открытие
-        val chunkSize = 50000 
         val totalLength = text.length
         
-        // Временно ограничиваемся только первой частью для мгновенного открытия
-        val end = minOf(chunkSize, totalLength)
-        val layout = createStaticLayout(text, 0, end, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
-        val lineCount = layout.lineCount
-        val lineStartOffsets = ArrayList<Int>()
-        for (i in 0 until lineCount) {
-            lineStartOffsets.add(layout.getLineStart(i))
-        }
-
+        // Переходим к по-настоящему инкрементальному построению
         val offsets = mutableListOf<Int>()
         offsets.add(0)
 
-        var currentLineIdx = 0
-        var pagesFound = 0
-
-        // Запас в несколько пикселей, чтобы гарантировать, что последний символ/строка не будут обрезаны из-за погрешностей рендеринга
+        // Запас в несколько пикселей
         val maxPageHeight = height - (paint.textSize * 0.15f).toInt().coerceAtLeast(6)
-
-        while (currentLineIdx < lineCount) {
+        
+        var currentOffset = 0
+        var pagesFound = 0
+        val CHUNK_SIZE_CHARS = 10000 // Обрабатываем по 10к символов
+        
+        while (currentOffset < totalLength) {
             if (!isActive) break
 
-            var endLineIdx = currentLineIdx
-            while (endLineIdx < lineCount) {
-                val nextLineIdx = endLineIdx + 1
-                val pageHeight = layout.getLineBottom(nextLineIdx - 1) - layout.getLineTop(currentLineIdx)
-                if (pageHeight <= maxPageHeight) {
-                    endLineIdx = nextLineIdx
-                } else {
-                    break
-                }
-            }
-
-            // Обеспечиваем продвижение вперед хотя бы на одну строку, чтобы избежать бесконечного цикла
-            if (endLineIdx == currentLineIdx) {
-                endLineIdx = currentLineIdx + 1
-            }
-
-            // Добавляем смещение для следующей страницы
-            if (endLineIdx < lineCount) {
-                val nextPageOffset = lineStartOffsets[endLineIdx]
-                if (nextPageOffset < text.length) {
-                    offsets.add(nextPageOffset)
-                    pagesFound++
-                    
-                    // Периодически сообщаем о прогрессе для плавного интерфейса
-                    if (pagesFound % 20 == 0) {
-                        val offsetsCopy = ArrayList(offsets)
-                        withContext(Dispatchers.Main) {
-                            onProgress?.invoke(offsetsCopy, false)
-                        }
+            val end = minOf(currentOffset + CHUNK_SIZE_CHARS, totalLength)
+            
+            // Создаем макет только для текущего чанка
+            val layout = createStaticLayout(text, currentOffset, end, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
+            val lineCount = layout.lineCount
+            
+            var currentLineIdx = 0
+            while (currentLineIdx < lineCount) {
+                var endLineIdx = currentLineIdx
+                while (endLineIdx < lineCount) {
+                    val nextLineIdx = endLineIdx + 1
+                    val pageHeight = layout.getLineBottom(nextLineIdx - 1) - layout.getLineTop(currentLineIdx)
+                    if (pageHeight <= maxPageHeight) {
+                        endLineIdx = nextLineIdx
+                    } else {
+                        break
                     }
                 }
-            }
 
-            currentLineIdx = endLineIdx
+                if (endLineIdx == currentLineIdx) {
+                    endLineIdx = currentLineIdx + 1
+                }
+
+                // Добавляем смещение, если мы нашли новую границу
+                val lineStart = layout.getLineStart(endLineIdx - 1) // Просто для примера, нужно точнее
+                // На самом деле нужно учитывать глобальное смещение
+                val globalLineStart = currentOffset + layout.getLineStart(endLineIdx)
+                
+                if (globalLineStart > offsets.last() && globalLineStart < totalLength) {
+                    offsets.add(globalLineStart)
+                    pagesFound++
+                    
+                    // Сообщаем о прогрессе чаще
+                    val offsetsCopy = ArrayList(offsets)
+                    withContext(Dispatchers.Main) {
+                        onProgress?.invoke(offsetsCopy, false)
+                    }
+                }
+
+                currentLineIdx = endLineIdx
+            }
+            
+            currentOffset = end
             yield()
         }
 

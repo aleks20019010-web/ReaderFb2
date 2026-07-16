@@ -47,6 +47,8 @@ class BookReaderActivity : AppCompatActivity() {
     private lateinit var extraDimOverlay: View
     private lateinit var topToolbar: View
     private lateinit var bottomToolbar: View
+    private lateinit var tvBrightness: TextView
+    private lateinit var tvWarmth: TextView
     private var isBarsVisible = true
     private var touchStartY: Float = 0f
     private var touchStartTime: Long = 0L
@@ -78,6 +80,8 @@ class BookReaderActivity : AppCompatActivity() {
         ambientGlowView = findViewById(R.id.ambientGlowView)
         amberFilterOverlay = findViewById(R.id.amberFilterOverlay)
         extraDimOverlay = findViewById(R.id.extraDimOverlay)
+        tvBrightness = findViewById(R.id.tvBrightness)
+        tvWarmth = findViewById(R.id.tvWarmth)
         viewModel = ViewModelProvider(this).get(ReaderViewModel::class.java)
 
         val btnBack = findViewById<View>(R.id.btnBack)
@@ -265,6 +269,11 @@ class BookReaderActivity : AppCompatActivity() {
         var isDraggingVerticalLeft = false
         var isDraggingVerticalRight = false
         var initialGestureValue = 0f
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val hideIndicatorsRunnable = Runnable {
+            tvBrightness.visibility = View.GONE
+            tvWarmth.visibility = View.GONE
+        }
 
         val gestureTouchListener = View.OnTouchListener { view, event ->
             val screenWidth = view.width.toFloat()
@@ -300,12 +309,20 @@ class BookReaderActivity : AppCompatActivity() {
                             lp.screenBrightness = newBrightness
                             window.attributes = lp
                             com.nightread.app.data.SettingsManager.setBrightness(this@BookReaderActivity, newBrightness)
+                            
+                            tvBrightness.visibility = View.VISIBLE
+                            tvBrightness.text = "☀ ${(newBrightness * 100).toInt()}%"
+                            handler.removeCallbacks(hideIndicatorsRunnable)
                         } else if (isDraggingVerticalRight) {
                             val delta = (-diffY / screenHeight) * 100f
                             val newIntensity = (initialGestureValue + delta).coerceIn(0f, 100f).toInt()
                             com.nightread.app.data.SettingsManager.setAmberFilterEnabled(this@BookReaderActivity, true)
                             com.nightread.app.data.SettingsManager.setAmberFilterIntensity(this@BookReaderActivity, newIntensity)
                             applyScreenSettings()
+                            
+                            tvWarmth.visibility = View.VISIBLE
+                            tvWarmth.text = "🌡 $newIntensity%"
+                            handler.removeCallbacks(hideIndicatorsRunnable)
                         }
                     }
                 }
@@ -326,6 +343,7 @@ class BookReaderActivity : AppCompatActivity() {
                     
                     isDraggingVerticalLeft = false
                     isDraggingVerticalRight = false
+                    handler.postDelayed(hideIndicatorsRunnable, 1000)
                 }
             }
             true
