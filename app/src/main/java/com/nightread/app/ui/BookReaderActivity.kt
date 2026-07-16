@@ -111,7 +111,7 @@ class BookReaderActivity : AppCompatActivity() {
                 if (fromUser) {
                     // Update the page indicator text for real-time feedback without expensive re-rendering
                     val total = viewModel.pagesState.value.size
-                    findViewById<TextView>(R.id.tvPageInfo).text = "Стр. ${progress + 1} из $total"
+                    pageIndicatorView.text = "Стр. ${progress + 1} из $total"
                 }
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
