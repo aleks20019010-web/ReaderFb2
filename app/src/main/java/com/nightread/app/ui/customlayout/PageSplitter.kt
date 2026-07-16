@@ -258,8 +258,13 @@ object PageSplitter {
         paint.letterSpacing = letterSpacing
         paint.textLocale = java.util.Locale("ru", "RU")
 
-        // 1. Разбиваем весь текст на строки через StaticLayout (один раз)
-        val layout = createStaticLayout(text, 0, text.length, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
+        // 1. Разбиваем текст на части (chunking) чтобы не вешать UI и ускорить открытие
+        val chunkSize = 50000 
+        val totalLength = text.length
+        
+        // Временно ограничиваемся только первой частью для мгновенного открытия
+        val end = minOf(chunkSize, totalLength)
+        val layout = createStaticLayout(text, 0, end, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
         val lineCount = layout.lineCount
         val lineStartOffsets = ArrayList<Int>()
         for (i in 0 until lineCount) {
@@ -429,10 +434,46 @@ object PageSplitter {
         }
     }
 
-    fun clearCache() {
-        renderJob?.cancel()
-        pagesCache.clear()
-        renderQueue.clear()
+    /**
+     * Быстрое получение макета для одной страницы текста, начиная с startOffset.
+     */
+    fun getFastPageLayout(
+        text: CharSequence,
+        startOffset: Int,
+        width: Int,
+        height: Int,
+        paint: TextPaint,
+        alignment: android.text.Layout.Alignment,
+        lineSpacingMultiplier: Float,
+        lineSpacingExtra: Float,
+        hyphenation: Boolean,
+        justify: Boolean
+    ): Pair<StaticLayout, Int> {
+        val safeWidth = (width - 4).coerceAtLeast(1)
+        
+        // Создаем временный Layout для определения того, сколько текста поместится
+        val builder = StaticLayout.Builder.obtain(text, startOffset, text.length, paint, safeWidth)
+            .setAlignment(alignment)
+            .setLineSpacing(lineSpacingExtra, lineSpacingMultiplier)
+            .setIncludePad(true)
+        
+        val layout = builder.build()
+        val lineCount = layout.lineCount
+        val lastVisibleLine = layout.getLineForVertical(height)
+        
+        // Получаем смещение начала следующей страницы
+        val nextOffset = if (lastVisibleLine + 1 < lineCount) {
+            layout.getLineStart(lastVisibleLine + 1)
+        } else {
+            text.length
+        }
+        
+        // Создаем конечный Layout для текущей страницы
+        val endOffset = layout.getLineEnd(lastVisibleLine)
+        
+        val finalLayout = createStaticLayout(text, startOffset, endOffset, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
+        
+        return finalLayout to nextOffset
     }
 
     val hyphenationPatternsMap = java.util.WeakHashMap<android.graphics.Paint, List<String>>()
