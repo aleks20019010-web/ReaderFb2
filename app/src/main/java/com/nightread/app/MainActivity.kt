@@ -491,7 +491,7 @@ class MainActivity : BaseActivity() {
                                     }
                                     val splitResult = com.nightread.app.ui.TextFormatter.PageResult(pages, java.util.ArrayList(offsets), true)
                                     
-                                    val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@MainActivity)}_${SettingsManager.getFontWeightAsInt(this@MainActivity)}_${SettingsManager.getLineSpacing(this@MainActivity)}_hyphen=$hyphenationEnabled"
+                                    val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@MainActivity)}_${SettingsManager.getFontWeightAsInt(this@MainActivity)}_${SettingsManager.getLineSpacing(this@MainActivity)}_align=${getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE).getString("saved_font_alignment", "justify")}_hyphen=$hyphenationEnabled"
                                     BookCache.layoutKey = currentKey
                                     BookCache.splitResult = splitResult
                                     
