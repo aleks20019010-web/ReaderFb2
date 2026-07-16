@@ -416,14 +416,27 @@ class BookReaderActivity : AppCompatActivity() {
         }
         val isHyphen = com.nightread.app.data.SettingsManager.isHyphenationEnabled(this)
         
-        val layout = PageSplitter.createStaticLayout(
-            text, 0, text.length, paint, availableWidth,
+        PageSplitter.getPageLayout(
+            pageIdx,
+            text,
+            paint,
+            availableWidth,
             align,
             viewModel.lineSpacingState.value, 0f,
             hyphenation = isHyphen,
             justify = isJustify
-        )
-        readerView.setLayout(layout, isJustify)
+        ) { layout ->
+            progressBar.visibility = View.GONE
+            readerView.setLayout(layout, isJustify)
+        }
+        
+        // Show progress bar while loading
+        if (!PageSplitter.isPageCached(pageIdx)) {
+            progressBar.visibility = View.VISIBLE
+        }
+
+
+
     }
 
     private fun updatePageIndicator() {

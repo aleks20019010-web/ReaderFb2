@@ -329,18 +329,36 @@ object PageSplitter {
     private val renderQueue = java.util.concurrent.ConcurrentLinkedQueue<Int>()
     private var isRendering = false
 
+    fun isPageCached(pageIndex: Int): Boolean {
+        return pagesCache.containsKey(pageIndex)
+    }
+
     fun getPageLayout(
         pageIndex: Int,
-        lines: List<String>,
+        text: CharSequence,
         paint: TextPaint,
         width: Int,
         alignment: android.text.Layout.Alignment,
         lineSpacingMultiplier: Float,
         lineSpacingExtra: Float,
         hyphenation: Boolean,
-        justify: Boolean
-    ): StaticLayout? {
-        return pagesCache[pageIndex]
+        justify: Boolean,
+        onLayoutReady: (StaticLayout) -> Unit
+    ) {
+        val cached = pagesCache[pageIndex]
+        if (cached != null) {
+            onLayoutReady(cached)
+            return
+        }
+
+        // Render asynchronously
+        CoroutineScope(Dispatchers.IO).launch {
+            val layout = createStaticLayout(text, 0, text.length, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
+            pagesCache[pageIndex] = layout
+            withContext(Dispatchers.Main) {
+                onLayoutReady(layout)
+            }
+        }
     }
 
     fun startBackgroundRendering(
