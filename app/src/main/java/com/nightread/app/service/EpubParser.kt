@@ -103,7 +103,8 @@ object EpubParser : BookParser {
                 val entry = findZipEntry(zipFile, zipPath) ?: continue
                 
                 val htmlContent = zipFile.getInputStream(entry).use { stream ->
-                    stream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+                    val bytes = stream.readBytes()
+                    decodeHtmlBytes(bytes)
                 }
                 
                 val pageText = parseHtmlToText(htmlContent, notesMap)
@@ -214,6 +215,32 @@ object EpubParser : BookParser {
             }
         }
         return resolved.joinToString("/")
+    }
+
+    private fun decodeHtmlBytes(bytes: ByteArray): String {
+        if (bytes.isEmpty()) return ""
+        val prefixLen = minOf(bytes.size, 1024)
+        val prefix = String(bytes, 0, prefixLen, Charsets.US_ASCII).lowercase()
+        
+        var charsetName = "UTF-8"
+        // Try to find encoding in <?xml ... encoding="..." ?> or <meta ... charset="..." ?>
+        val xmlEncodingMatch = Regex("""encoding\s*=\s*["']([^"']+)["']""").find(prefix)
+        if (xmlEncodingMatch != null) {
+            charsetName = xmlEncodingMatch.groupValues[1]
+        } else {
+            val htmlEncodingMatch = Regex("""charset\s*=\s*["']([^"']+)["']""").find(prefix)
+            if (htmlEncodingMatch != null) {
+                charsetName = htmlEncodingMatch.groupValues[1]
+            } else if (prefix.contains("windows-1251")) {
+                charsetName = "windows-1251"
+            }
+        }
+        
+        return try {
+            String(bytes, java.nio.charset.Charset.forName(charsetName))
+        } catch (e: Exception) {
+            String(bytes, StandardCharsets.UTF_8)
+        }
     }
 
     private fun extractTags(xml: String, tagName: String): List<Map<String, String>> {

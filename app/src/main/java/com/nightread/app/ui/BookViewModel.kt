@@ -298,16 +298,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     } catch (e: Exception) {
                         Log.e("BookScanner", "Error calculating EPUB bytes for SHA-1: ", e)
                     }
-                } else if (ext == "mobi" || ext == "azw3") {
-                    try {
-                        val tempFile = java.io.File.createTempFile("mobi_import", ".$ext", context.cacheDir)
-                        tempFile.writeBytes(bytes)
-                        val metadata = com.nightread.app.service.MobiParser.parseMobi(tempFile, fileName.substringBeforeLast("."))
-                        bytesForSha1 = metadata.content.toByteArray(java.nio.charset.StandardCharsets.UTF_8)
-                        tempFile.delete()
-                    } catch (e: Exception) {
-                        Log.e("BookScanner", "Error calculating MOBI bytes for SHA-1: ", e)
-                    }
                 } else if (ext == "zip") {
                     try {
                         java.io.ByteArrayInputStream(bytes).use { bais ->
@@ -408,20 +398,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                         tempFile.delete()
                     } catch (e: Exception) {
                         Log.e("BookScanner", "Error parsing manual imported EPUB: ", e)
-                    }
-                } else if (ext == "mobi" || ext == "azw3") {
-                    try {
-                        val tempFile = java.io.File.createTempFile("mobi_import", ".$ext", context.cacheDir)
-                        tempFile.writeBytes(bytes)
-                        val metadata = com.nightread.app.service.MobiParser.parseMobi(tempFile, parsedTitle)
-                        parsedTitle = metadata.title
-                        parsedAuthor = metadata.author
-                        parsedContent = metadata.content
-                        parsedLanguage = metadata.language
-                        parsedAnnotation = metadata.annotation
-                        tempFile.delete()
-                    } catch (e: Exception) {
-                        Log.e("BookScanner", "Error parsing manual imported MOBI: ", e)
                     }
                 } else if (ext == "zip") {
                     // Extract data from the uncompressed bytes we found earlier
@@ -923,7 +899,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                                 traverse(file)
                             } else {
                                 val ext = file.extension.lowercase()
-                                if (ext == "txt" || ext == "fb2" || ext == "epub" || ext == "zip" || ext == "mobi" || ext == "azw3" || ext == "pdf") {
+                                if (ext == "txt" || ext == "fb2" || ext == "epub" || ext == "zip") {
                                     // Exclude files >= 30MB to prevent memory crashes
                                     if (file.length() < 30 * 1024 * 1024 && file.length() > 0) {
                                         filesToProcess.add(file)
@@ -945,7 +921,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 
                 if (filesToProcess.isEmpty()) {
                     withContext(Dispatchers.Main) {
-                        scanProgressText = "Книг (*.txt, *.fb2, *.epub, *.zip, *.mobi, *.azw3, *.pdf) не найдено в $rootPath"
+                        scanProgressText = "Книг (*.txt, *.fb2, *.epub, *.zip) не найдено в $rootPath"
                     }
                     return@withContext
                 }
@@ -985,18 +961,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             parsedAuthor = metadata.author
                             parsedContent = metadata.content
                             parsedLanguage = metadata.language
-                        } else if (ext == "mobi" || ext == "azw3") {
-                            val metadata = com.nightread.app.service.MobiParser.parseMobi(file, parsedTitle)
-                            parsedTitle = metadata.title
-                            parsedAuthor = metadata.author
-                            parsedContent = metadata.content
-                            parsedLanguage = metadata.language
-                        } else if (ext == "pdf") {
-                            val metadata = com.nightread.app.service.PdfParser.parse(file, parsedTitle)
-                            parsedTitle = metadata.title
-                            parsedAuthor = metadata.author
-                            parsedContent = metadata.content
-                            parsedLanguage = "ru"
                         } else if (ext == "zip") {
                             val parsed = parseFb2FromZip(file)
                             parsedTitle = parsed.title
@@ -1443,25 +1407,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("BookScanner", "Error extracting cover from EPUB file", e)
-                }
-            } else if (ext == "mobi" || ext == "azw3") {
-                try {
-                    val metadata = com.nightread.app.service.MobiParser.parseMobi(file, "")
-                    val coverBytes = metadata.coverBytes
-                    if (coverBytes != null && coverBytes.isNotEmpty()) {
-                        bitmap = android.graphics.BitmapFactory.decodeByteArray(coverBytes, 0, coverBytes.size)
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("BookScanner", "Error extracting cover from MOBI file", e)
-                }
-            } else if (ext == "pdf") {
-                try {
-                    val coverBytes = com.nightread.app.service.PdfParser.extractCoverBytes(file)
-                    if (coverBytes != null && coverBytes.isNotEmpty()) {
-                        bitmap = android.graphics.BitmapFactory.decodeByteArray(coverBytes, 0, coverBytes.size)
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("BookScanner", "Error extracting cover from PDF file", e)
                 }
             } else if (ext == "zip") {
                 java.io.FileInputStream(file).use { fis ->

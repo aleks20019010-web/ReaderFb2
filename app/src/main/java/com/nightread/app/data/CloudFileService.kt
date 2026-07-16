@@ -16,7 +16,7 @@ class CloudFileService(private val context: Context) {
         val allFiles = YandexDiskManager.getAllFilesFromFolder(context, authHeader, path)
         return allFiles.filter { item ->
             val name = item.name.lowercase()
-            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip") || name.endsWith(".epub") || name.endsWith(".mobi") || name.endsWith(".azw3") || name.endsWith(".pdf")
+            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip") || name.endsWith(".epub")
         }
     }
 

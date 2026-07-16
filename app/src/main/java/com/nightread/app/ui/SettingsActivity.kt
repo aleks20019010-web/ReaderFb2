@@ -58,13 +58,6 @@ class SettingsActivity : BaseActivity() {
         toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         // --- НАСТРОЙКИ БИБЛИОТЕКИ ---
-        // Show All Formats Switch
-        val switchShowAllFormats = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchShowAllFormats)
-        switchShowAllFormats.isChecked = SettingsManager.isShowAllFormatsEnabled(this)
-        switchShowAllFormats.setOnCheckedChangeListener { _, isChecked ->
-            SettingsManager.setShowAllFormatsEnabled(this, isChecked)
-        }
-
         // Buttons
         findViewById<Button>(R.id.btnScanLibrary).setOnClickListener {
             viewModel.startLocalBookScan()

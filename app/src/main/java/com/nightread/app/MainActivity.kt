@@ -32,7 +32,6 @@ import com.nightread.app.ui.BookCache
 import com.nightread.app.service.BookParser
 import com.nightread.app.service.Fb2Parser
 import com.nightread.app.service.EpubParser
-import com.nightread.app.service.MobiParser
 import com.nightread.app.service.TxtParser
 import com.google.android.material.navigation.NavigationView
 import android.graphics.Color
@@ -557,12 +556,6 @@ class MainActivity : BaseActivity() {
             }
             "epub" -> {
                 EpubParser.parse(file, file.nameWithoutExtension)
-            }
-            "mobi", "azw3" -> {
-                MobiParser.parse(file, file.nameWithoutExtension)
-            }
-            "pdf" -> {
-                com.nightread.app.service.PdfParser.parse(file, file.nameWithoutExtension)
             }
             "txt" -> {
                 TxtParser.parse(file, file.nameWithoutExtension)

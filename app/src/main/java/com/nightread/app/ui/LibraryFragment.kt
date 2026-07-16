@@ -815,13 +815,9 @@ class LibraryFragment : Fragment() {
     }
 
     private fun applyFilters(books: List<BookEntity>): List<BookEntity> {
-        var filtered = books
+        val filteredByFormat = viewModel.repository.filterBooksByFormat(books, false)
+        var filtered = filteredByFormat
         
-        val showAllFormats = context?.let { SettingsManager.isShowAllFormatsEnabled(it) } ?: false
-        if (!showAllFormats) {
-            filtered = viewModel.repository.filterBooksByFormat(filtered, false)
-        }
-
         filtered = when (filterType) {
             "reading" -> filtered.filter { book -> 
                 val percent = if (book.totalCharacters > 0) ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt() else 0

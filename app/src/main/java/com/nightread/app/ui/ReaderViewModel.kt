@@ -136,7 +136,11 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.IO) {
             val book = bookDao.getBookBySha1(bookSha1)
             if (book != null) {
-                _bookState.value = book
+                withContext(Dispatchers.Main) {
+                    _bookState.value = book
+                    // Correctly restore current page on book load
+                    _currentPage.value = book.currentPageIndex
+                }
                 
                 if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty()) {
                     content = BookCache.content
@@ -277,9 +281,12 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
         if (book.filePath?.endsWith(".fb2", true) == true || 
             book.filePath?.endsWith(".fb2.zip", true) == true || 
-            book.filePath?.endsWith(".zip", true) == true) {
+            book.filePath?.endsWith(".zip", true) == true ||
+            book.filePath?.endsWith(".epub", true) == true) {
             
-            // If it's already using WEBVIEW_PAGE_ list, keep it. Otherwise reset to WEBVIEW_CONTENT.
+            // For WebView books, we reset pagesState to trigger a reload in Activity, 
+            // but we MUST NOT reset _currentPage to 0 if it was already set.
+            // Activity will use the current _currentPage value to scroll the WebView after reload.
             _pagesState.value = listOf("WEBVIEW_CONTENT_${System.currentTimeMillis()}")
             return
         }
@@ -544,9 +551,17 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setCurrentPage(page: Int) {
-        val maxPage = (_pagesState.value.size - 1).coerceAtLeast(0)
-        val clamped = page.coerceIn(0, maxPage)
-        _currentPage.value = clamped
+        val pages = _pagesState.value
+        val isWebViewBook = pages.any { it.toString().startsWith("WEBVIEW_CONTENT") }
+        
+        if (isWebViewBook) {
+            // For WebView books, the pagesState might temporarily have size 1 during repagination.
+            // We avoid clamping to 0 if it was already set to a higher value.
+            _currentPage.value = page.coerceAtLeast(0)
+        } else {
+            val maxPage = (pages.size - 1).coerceAtLeast(0)
+            _currentPage.value = page.coerceIn(0, maxPage)
+        }
         saveProgress()
     }
 
