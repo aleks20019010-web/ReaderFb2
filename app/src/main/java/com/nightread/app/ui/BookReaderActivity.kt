@@ -324,6 +324,9 @@ class BookReaderActivity : AppCompatActivity() {
         val density = resources.displayMetrics.density
         val paint = TextPaint().apply {
             textSize = viewModel.fontSizeState.value * density
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                letterSpacing = -0.02f
+            }
             
             val weightVal = com.nightread.app.data.SettingsManager.getFontWeightAsInt(this@BookReaderActivity)
             val style = if (weightVal >= 600) Typeface.BOLD else Typeface.NORMAL

@@ -272,7 +272,7 @@ object PageSplitter {
         var pagesFound = 0
 
         // Запас в несколько пикселей, чтобы гарантировать, что последний символ/строка не будут обрезаны из-за погрешностей рендеринга
-        val maxPageHeight = height - 2
+        val maxPageHeight = height - (paint.textSize * 0.15f).toInt().coerceAtLeast(6)
 
         while (currentLineIdx < lineCount) {
             if (!isActive) break
