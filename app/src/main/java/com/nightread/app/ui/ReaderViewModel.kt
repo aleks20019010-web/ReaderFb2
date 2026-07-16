@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import com.nightread.app.service.TextCleaner
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.debounce
 
 class ReaderViewModel(application: Application) : AndroidViewModel(application) {
     private val bookDao = AppDatabase.getDatabase(application).bookDao()
@@ -77,13 +78,17 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     // Character start offsets of all pages
     private var pageStartOffsets = listOf<Int>()
+    private var repaginateJob: kotlinx.coroutines.Job? = null
 
     init {
         loadSettings()
         viewModelScope.launch {
-            SettingsManager.settingsChanged.collect {
-                loadSettings()
-            }
+            @OptIn(kotlinx.coroutines.FlowPreview::class)
+            SettingsManager.settingsChanged
+                .debounce(150)
+                .collect {
+                    loadSettings()
+                }
         }
     }
 
@@ -142,13 +147,17 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun fallbackPagination(book: BookEntity) {
         if (content.isEmpty()) {
-            _pagesState.value = listOf("Документ пуст.")
-            pageStartOffsets = listOf(0)
+            _pagesState.value = listOf("[BOOK_COVER]", "Документ пуст.")
+            pageStartOffsets = listOf(0, 0)
             return
         }
 
         val pages = mutableListOf<String>()
         val offsets = mutableListOf<Int>()
+        
+        pages.add("[BOOK_COVER]")
+        offsets.add(0)
+
         val pageSize = 1200
         var index = 0
         while (index < content.length) {
@@ -233,12 +242,23 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         if (content.isEmpty() || availableWidth <= 0 || availableHeight <= 0) return
         val book = _bookState.value ?: return
 
-        viewModelScope.launch(Dispatchers.Default) {
+        // Take snapshot of current state before launching async calculation
+        val currentOffsetsSnapshot = ArrayList(pageStartOffsets)
+        val currentPageSnapshot = _currentPage.value
+        val savedOffset = sharedPrefs.getInt("book_char_offset_${book.sha1}", book.currentProgressChar)
+        val savedPage = sharedPrefs.getInt("book_page_${book.sha1}", book.currentPageIndex)
+
+        repaginateJob?.cancel()
+        repaginateJob = viewModelScope.launch(Dispatchers.Default) {
             // 1. Determine current reading position (character offset)
-            val currentOffset: Int = if (pageStartOffsets.isNotEmpty() && _currentPage.value < pageStartOffsets.size) {
-                pageStartOffsets[_currentPage.value]
+            val currentOffset: Int = if (currentOffsetsSnapshot.isNotEmpty() && currentPageSnapshot < currentOffsetsSnapshot.size) {
+                if (currentPageSnapshot == 0) {
+                    -1
+                } else {
+                    currentOffsetsSnapshot[currentPageSnapshot]
+                }
             } else {
-                sharedPrefs.getInt("book_char_offset_${book.sha1}", book.currentProgressChar)
+                if (savedPage == 0) -1 else savedOffset
             }
 
             // 2. Measure and slice text into pages based on actual font parameters using PageSplitter
@@ -292,11 +312,18 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 val pages = splitResult.pages
                 
                 var newPageIndex = 0
-                for (i in 0 until offsets.size) {
-                    if (offsets[i] <= currentOffset) {
-                        newPageIndex = i
-                    } else {
-                        break
+                if (currentOffset == -1) {
+                    newPageIndex = 0
+                } else {
+                    for (i in 0 until offsets.size) {
+                        if (offsets[i] <= currentOffset) {
+                            newPageIndex = i
+                        } else {
+                            break
+                        }
+                    }
+                    if (newPageIndex == 0 && offsets.size > 1) {
+                        newPageIndex = 1
                     }
                 }
                 val clampedPageIndex = newPageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
@@ -313,7 +340,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             // Try disk cache next
             val cachedOffsets = PaginationDiskCache.getOffsets(appContext, book.sha1, currentKey)
             val textToFormat = if (hyphenationEnabled) {
-                com.nightread.app.ui.HyphenatorHelper.hyphenate(content)
+                com.nightread.app.ui.HyphenatorHelper.hyphenate(content, appContext, paint)
             } else {
                 content
             }
@@ -338,32 +365,45 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 
                 if (cacheValid && cachedOffsets.isNotEmpty()) {
                     val pages = ArrayList<CharSequence>()
+                    val finalOffsets = ArrayList<Int>()
                     try {
+                        // Prepend cover page
+                        pages.add("[BOOK_COVER]")
+                        finalOffsets.add(0)
+                        
                         for (i in cachedOffsets.indices) {
                             val startIdx = cachedOffsets[i]
                             val endIdx = if (i < cachedOffsets.size - 1) cachedOffsets[i + 1] else formattedText.length
                             pages.add(formattedText.subSequence(startIdx, endIdx))
+                            finalOffsets.add(startIdx)
                         }
                         
                         var newPageIndex = 0
-                        for (i in 0 until cachedOffsets.size) {
-                            if (cachedOffsets[i] <= currentOffset) {
-                                newPageIndex = i
-                            } else {
-                                break
+                        if (currentOffset == -1) {
+                            newPageIndex = 0
+                        } else {
+                            for (i in 0 until finalOffsets.size) {
+                                if (finalOffsets[i] <= currentOffset) {
+                                    newPageIndex = i
+                                } else {
+                                    break
+                                }
+                            }
+                            if (newPageIndex == 0 && finalOffsets.size > 1) {
+                                newPageIndex = 1
                             }
                         }
                         val clampedPageIndex = newPageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
 
                         viewModelScope.launch(Dispatchers.Main) {
                             _pagesState.value = pages
-                            pageStartOffsets = cachedOffsets
+                            pageStartOffsets = finalOffsets
                             _currentPage.value = clampedPageIndex
                             // Warm up in-memory cache
                             BookCache.sha1 = book.sha1
                             BookCache.content = content
                             BookCache.layoutKey = currentKey
-                            BookCache.splitResult = TextFormatter.PageResult(pages, ArrayList(cachedOffsets), true)
+                            BookCache.splitResult = TextFormatter.PageResult(pages, finalOffsets, true)
                         }
                         android.util.Log.d("ReaderViewModel", "Successfully loaded pagination from disk cache! Total pages: ${pages.size}")
                         return@launch
@@ -375,12 +415,13 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
 
+            val isJustify = alignment.lowercase() == "justify"
             val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
                 .setText(formattedText)
                 .setWidth(availableWidth)
                 .setHeight(availableHeight)
                 .setPaint(paint)
-                .setLetterSpacing(-0.02f)
+                .setLetterSpacing(if (isJustify) 0.01f else -0.02f)
                 .setLineSpacing(0f, lineSpacing)
                 .setFontFamily(family)
                 .setFontWeight(weightVal)
@@ -390,30 +431,44 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                     "center" -> android.text.Layout.Alignment.ALIGN_CENTER
                     else -> android.text.Layout.Alignment.ALIGN_NORMAL
                 })
-                .setJustify(alignment.lowercase() == "justify")
+                .setJustify(isJustify)
                 
             builder.buildPagination { offsets, finished ->
                 val pages = ArrayList<CharSequence>()
+                val finalOffsets = ArrayList<Int>()
+                
+                // Prepend cover page
+                pages.add("[BOOK_COVER]")
+                finalOffsets.add(0)
+                
                 for (i in offsets.indices) {
                     val startIdx = offsets[i]
                     val endIdx = if (i < offsets.size - 1) offsets[i + 1] else formattedText.length
                     pages.add(formattedText.subSequence(startIdx, endIdx))
+                    finalOffsets.add(startIdx)
                 }
                 
                 // 3. Find the best matching page in the new layout
                 var newPageIndex = 0
-                for (i in 0 until offsets.size) {
-                    if (offsets[i] <= currentOffset) {
-                        newPageIndex = i
-                    } else {
-                        break
+                if (currentOffset == -1) {
+                    newPageIndex = 0
+                } else {
+                    for (i in 0 until finalOffsets.size) {
+                        if (finalOffsets[i] <= currentOffset) {
+                            newPageIndex = i
+                        } else {
+                            break
+                        }
+                    }
+                    if (newPageIndex == 0 && finalOffsets.size > 1) {
+                        newPageIndex = 1
                     }
                 }
                 val clampedPageIndex = newPageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
 
                 viewModelScope.launch(Dispatchers.Main) {
                     _pagesState.value = pages
-                    pageStartOffsets = offsets
+                    pageStartOffsets = finalOffsets
                     _currentPage.value = clampedPageIndex
                     if (finished) {
                         saveProgress()
@@ -425,7 +480,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                         BookCache.sha1 = book.sha1
                         BookCache.content = content
                         BookCache.layoutKey = currentKey
-                        BookCache.splitResult = TextFormatter.PageResult(pages, ArrayList(offsets), true)
+                        BookCache.splitResult = TextFormatter.PageResult(pages, finalOffsets, true)
                     }
                 }
             }

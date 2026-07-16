@@ -64,6 +64,9 @@ class MainActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        com.nightread.app.ui.customlayout.PageSplitter.init(this)
+        com.nightread.app.ui.HyphenatorHelper.init(this)
+
         drawerLayout = findViewById(R.id.drawer_layout)
         navView = findViewById(R.id.nav_view)
 
@@ -449,7 +452,7 @@ class MainActivity : BaseActivity() {
                                     
                                     val hyphenationEnabled = SettingsManager.isHyphenationEnabled(this@MainActivity)
                                     val textToSplit = if (hyphenationEnabled) {
-                                        com.nightread.app.ui.HyphenatorHelper.hyphenate(bookContent)
+                                        com.nightread.app.ui.HyphenatorHelper.hyphenate(bookContent, this@MainActivity)
                                     } else {
                                         bookContent
                                     }

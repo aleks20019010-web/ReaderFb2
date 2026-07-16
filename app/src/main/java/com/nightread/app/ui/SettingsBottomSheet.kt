@@ -259,7 +259,7 @@ class SettingsBottomSheet : DialogFragment() {
         }
         spinnerAlignment.adapter = alignAdapter
 
-        val readerPrefs = context.getSharedPreferences("ReaderPrefs", android.content.Context.MODE_PRIVATE)
+        val readerPrefs = context.getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE)
         val currentAlign = readerPrefs.getString("saved_font_alignment", "justify") ?: "justify"
         val alignIdx = alignKeys.indexOf(currentAlign).coerceAtLeast(0)
         spinnerAlignment.setSelection(alignIdx)

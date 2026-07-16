@@ -1,5 +1,7 @@
 package com.nightread.app.ui
 
+import android.widget.ImageView
+import coil.load
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
@@ -10,6 +12,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.KeyEvent
 import android.widget.FrameLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -30,6 +33,7 @@ import kotlinx.coroutines.launch
 class BookReaderActivity : AppCompatActivity() {
 
     private lateinit var readerView: CustomReaderPageView
+    private lateinit var ivBookCoverPage: ImageView
     private lateinit var pageIndicatorView: TextView
     private lateinit var progressBar: ProgressBar
     private lateinit var rootLayout: FrameLayout
@@ -56,7 +60,11 @@ class BookReaderActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_book)
 
+        com.nightread.app.ui.customlayout.PageSplitter.init(this)
+        com.nightread.app.ui.HyphenatorHelper.init(this)
+
         readerView = findViewById(R.id.bookReaderView)
+        ivBookCoverPage = findViewById(R.id.ivBookCoverPage)
         rootLayout = findViewById(R.id.rootView)
         ambientGlowView = findViewById(R.id.ambientGlowView)
         amberFilterOverlay = findViewById(R.id.amberFilterOverlay)
@@ -321,6 +329,22 @@ class BookReaderActivity : AppCompatActivity() {
 
         val text = pages[pageIdx]
         
+        if (text.toString() == "[BOOK_COVER]") {
+            readerView.visibility = View.GONE
+            ivBookCoverPage.visibility = View.VISIBLE
+            val book = viewModel.bookState.value
+            if (book != null && !book.coverPath.isNullOrEmpty() && java.io.File(book.coverPath).exists()) {
+                ivBookCoverPage.load(java.io.File(book.coverPath))
+            } else {
+                ivBookCoverPage.setImageResource(R.drawable.ic_book_placeholder)
+            }
+            updatePageIndicator()
+            return
+        } else {
+            readerView.visibility = View.VISIBLE
+            ivBookCoverPage.visibility = View.GONE
+        }
+        
         val density = resources.displayMetrics.density
         val paint = TextPaint().apply {
             textSize = viewModel.fontSizeState.value * density
@@ -373,6 +397,9 @@ class BookReaderActivity : AppCompatActivity() {
             else -> Layout.Alignment.ALIGN_NORMAL
         }
         val isJustify = alignSetting == "justify"
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            paint.letterSpacing = if (isJustify) 0.01f else -0.02f
+        }
         val isHyphen = com.nightread.app.data.SettingsManager.isHyphenationEnabled(this)
         
         val layout = PageSplitter.createStaticLayout(
@@ -397,6 +424,9 @@ class BookReaderActivity : AppCompatActivity() {
         }
     }
 
+    private val activePageView: View
+        get() = if (viewModel.pagesState.value.getOrNull(viewModel.currentPage.value)?.toString() == "[BOOK_COVER]") ivBookCoverPage else readerView
+
     private fun updatePageWithAnimation(newPageIdx: Int) {
         val animMode = com.nightread.app.data.SettingsManager.getPageAnimation(this)
         val pages = viewModel.pagesState.value
@@ -407,14 +437,18 @@ class BookReaderActivity : AppCompatActivity() {
             return
         }
 
+        val currentView = activePageView
+
         when (animMode) {
             "fade" -> {
-                readerView.animate()
+                currentView.animate()
                     .alpha(0f)
                     .setDuration(150)
                     .withEndAction {
                         updatePage()
-                        readerView.animate()
+                        val nextView = activePageView
+                        nextView.alpha = 0f
+                        nextView.animate()
                             .alpha(1f)
                             .setDuration(150)
                             .start()
@@ -426,14 +460,15 @@ class BookReaderActivity : AppCompatActivity() {
                 val isForward = newPageIdx > lastPageAnimationIdx
                 val startTranslationX = if (isForward) screenWidth else -screenWidth
                 
-                readerView.animate()
+                currentView.animate()
                     .translationX(if (isForward) -screenWidth else screenWidth)
                     .alpha(0.5f)
                     .setDuration(200)
                     .withEndAction {
                         updatePage()
-                        readerView.translationX = startTranslationX
-                        readerView.animate()
+                        val nextView = activePageView
+                        nextView.translationX = startTranslationX
+                        nextView.animate()
                             .translationX(0f)
                             .alpha(1f)
                             .setDuration(200)
@@ -442,14 +477,18 @@ class BookReaderActivity : AppCompatActivity() {
                     .start()
             }
             "depth" -> {
-                readerView.animate()
+                currentView.animate()
                     .scaleX(0.8f)
                     .scaleY(0.8f)
                     .alpha(0f)
                     .setDuration(200)
                     .withEndAction {
                         updatePage()
-                        readerView.animate()
+                        val nextView = activePageView
+                        nextView.scaleX = 0.8f
+                        nextView.scaleY = 0.8f
+                        nextView.alpha = 0f
+                        nextView.animate()
                             .scaleX(1f)
                             .scaleY(1f)
                             .alpha(1f)
@@ -459,16 +498,18 @@ class BookReaderActivity : AppCompatActivity() {
                     .start()
             }
             "zoom" -> {
-                readerView.animate()
+                currentView.animate()
                     .scaleX(1.3f)
                     .scaleY(1.3f)
                     .alpha(0f)
                     .setDuration(200)
                     .withEndAction {
                         updatePage()
-                        readerView.scaleX = 0.7f
-                        readerView.scaleY = 0.7f
-                        readerView.animate()
+                        val nextView = activePageView
+                        nextView.scaleX = 0.7f
+                        nextView.scaleY = 0.7f
+                        nextView.alpha = 0f
+                        nextView.animate()
                             .scaleX(1f)
                             .scaleY(1f)
                             .alpha(1f)
@@ -478,12 +519,14 @@ class BookReaderActivity : AppCompatActivity() {
                     .start()
             }
             else -> {
-                readerView.animate()
+                currentView.animate()
                     .alpha(0f)
                     .setDuration(150)
                     .withEndAction {
                         updatePage()
-                        readerView.animate()
+                        val nextView = activePageView
+                        nextView.alpha = 0f
+                        nextView.animate()
                             .alpha(1f)
                             .setDuration(150)
                             .start()
@@ -679,6 +722,33 @@ class BookReaderActivity : AppCompatActivity() {
 
     fun loadPage(pageNumber: Int) {
         viewModel.setCurrentPage(pageNumber)
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val action = event.action
+        val keyCode = event.keyCode
+        when (keyCode) {
+            KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    val currentPage = viewModel.currentPage.value
+                    val totalPages = viewModel.pagesState.value.size
+                    if (currentPage < totalPages - 1) {
+                        viewModel.setCurrentPage(currentPage + 1)
+                    }
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_VOLUME_UP -> {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    val currentPage = viewModel.currentPage.value
+                    if (currentPage > 0) {
+                        viewModel.setCurrentPage(currentPage - 1)
+                    }
+                }
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     fun showFootnote(noteId: String) {}

@@ -323,6 +323,43 @@ object PageSplitter {
         return@withContext offsets
     }
 
+    val hyphenationPatternsMap = java.util.WeakHashMap<android.graphics.Paint, List<String>>()
+    val hyphenationEnabledMap = java.util.WeakHashMap<android.graphics.Paint, Boolean>()
+    val minLeftHyphenLimitMap = java.util.WeakHashMap<android.graphics.Paint, Int>()
+    val minRightHyphenLimitMap = java.util.WeakHashMap<android.graphics.Paint, Int>()
+    val maxConsecutiveHyphensMap = java.util.WeakHashMap<android.graphics.Paint, Int>()
+
+    private var isInitialized = false
+    private var globalPatterns: List<String>? = null
+
+    fun init(context: android.content.Context) {
+        if (isInitialized) return
+        try {
+            val patterns = ArrayList<String>()
+            val inputStream = context.resources.openRawResource(com.nightread.app.R.raw.hyph_ru_ru)
+            java.io.BufferedReader(java.io.InputStreamReader(inputStream, "UTF-8")).use { reader ->
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    patterns.add(line!!)
+                }
+            }
+            globalPatterns = patterns
+            isInitialized = true
+            Log.d("PageSplitter", "Successfully loaded hyphenation patterns globally! Patterns count: ${patterns.size}")
+        } catch (e: Exception) {
+            Log.e("PageSplitter", "Error loading hyphenation patterns globally", e)
+        }
+    }
+
+    fun loadHyphenationPatterns(context: android.content.Context, paint: android.text.TextPaint) {
+        init(context)
+        paint.hyphenationPatterns = globalPatterns
+        paint.isHyphenationEnabled = true
+        paint.minLeftHyphenLimit = 2
+        paint.minRightHyphenLimit = 2
+        paint.maxConsecutiveHyphens = 6
+    }
+
     fun createStaticLayout(
         source: CharSequence, start: Int, end: Int, 
         paint: TextPaint, width: Int, 
@@ -331,6 +368,14 @@ object PageSplitter {
         hyphenation: Boolean,
         justify: Boolean = false
     ): StaticLayout {
+        if (hyphenation && globalPatterns != null) {
+            paint.hyphenationPatterns = globalPatterns
+            paint.isHyphenationEnabled = true
+            paint.minLeftHyphenLimit = 2
+            paint.minRightHyphenLimit = 2
+            paint.maxConsecutiveHyphens = 6
+        }
+
         val strategy = if (hyphenation) android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY else android.graphics.text.LineBreaker.BREAK_STRATEGY_SIMPLE
         val frequency = if (hyphenation) android.text.Layout.HYPHENATION_FREQUENCY_FULL else android.text.Layout.HYPHENATION_FREQUENCY_NONE
         
@@ -345,7 +390,7 @@ object PageSplitter {
             builder.setHyphenationFrequency(frequency)
         }
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             if (justify) {
                 builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD)
             } else {
@@ -356,3 +401,38 @@ object PageSplitter {
         return builder.build()
     }
 }
+
+var android.graphics.Paint.hyphenationPatterns: List<String>?
+    get() = PageSplitter.hyphenationPatternsMap[this]
+    set(value) {
+        if (value != null) {
+            PageSplitter.hyphenationPatternsMap[this] = value
+        } else {
+            PageSplitter.hyphenationPatternsMap.remove(this)
+        }
+    }
+
+var android.graphics.Paint.isHyphenationEnabled: Boolean
+    get() = PageSplitter.hyphenationEnabledMap[this] ?: false
+    set(value) {
+        PageSplitter.hyphenationEnabledMap[this] = value
+    }
+
+var android.graphics.Paint.minLeftHyphenLimit: Int
+    get() = PageSplitter.minLeftHyphenLimitMap[this] ?: 2
+    set(value) {
+        PageSplitter.minLeftHyphenLimitMap[this] = value
+    }
+
+var android.graphics.Paint.minRightHyphenLimit: Int
+    get() = PageSplitter.minRightHyphenLimitMap[this] ?: 2
+    set(value) {
+        PageSplitter.minRightHyphenLimitMap[this] = value
+    }
+
+var android.graphics.Paint.maxConsecutiveHyphens: Int
+    get() = PageSplitter.maxConsecutiveHyphensMap[this] ?: 6
+    set(value) {
+        PageSplitter.maxConsecutiveHyphensMap[this] = value
+    }
+
