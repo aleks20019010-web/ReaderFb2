@@ -77,45 +77,86 @@ fun SyncAnimationScreen(state: YandexSyncState) {
 
 @Composable
 fun CentralIcon(color: Color, transition: InfiniteTransition) {
-    val rotation by transition.animateFloat(
+    val rotationSlow by transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(10000, easing = LinearEasing),
+            animation = tween(8000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "CloudRotation"
+        label = "CoreRotationSlow"
     )
     
-    val bounce by transition.animateFloat(
-        initialValue = -5f,
-        targetValue = 5f,
+    val rotationFast by transition.animateFloat(
+        initialValue = 360f,
+        targetValue = 0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
+            animation = tween(5000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "CoreRotationFast"
+    )
+    
+    val pulse by transition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "CloudBounce"
+        label = "CorePulse"
     )
 
-    Canvas(modifier = Modifier.size(80.dp)) {
-        val center = Offset(size.width / 2, size.height / 2 + bounce.dp.toPx())
-        rotate(rotation, center) {
-            // Stylized Cloud/Core
-            drawRoundRect(
-                color = color.copy(alpha = 0.8f),
-                topLeft = Offset(center.x - 30.dp.toPx(), center.y - 20.dp.toPx()),
-                size = Size(60.dp.toPx(), 40.dp.toPx()),
-                cornerRadius = CornerRadius(15.dp.toPx())
+    Canvas(modifier = Modifier.size(100.dp)) {
+        val center = Offset(size.width / 2, size.height / 2)
+        
+        // Central Core Glow
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(color.copy(alpha = 0.8f), color.copy(alpha = 0.2f), Color.Transparent),
+                center = center,
+                radius = 30.dp.toPx() * pulse
+            ),
+            center = center,
+            radius = 30.dp.toPx() * pulse
+        )
+
+        // Inner solid core
+        drawCircle(
+            color = color,
+            center = center,
+            radius = 12.dp.toPx()
+        )
+
+        // Orbit 1
+        rotate(rotationSlow, center) {
+            drawCircle(
+                color = color.copy(alpha = 0.5f),
+                center = center,
+                radius = 35.dp.toPx(),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
             )
+            // Small node on orbit
             drawCircle(
                 color = color,
-                center = Offset(center.x - 15.dp.toPx(), center.y - 25.dp.toPx()),
-                radius = 20.dp.toPx()
+                center = Offset(center.x + 35.dp.toPx(), center.y),
+                radius = 4.dp.toPx()
             )
+        }
+
+        // Orbit 2
+        rotate(rotationFast, center) {
             drawCircle(
-                color = color,
-                center = Offset(center.x + 10.dp.toPx(), center.y - 20.dp.toPx()),
-                radius = 25.dp.toPx()
+                color = color.copy(alpha = 0.4f),
+                center = center,
+                radius = 45.dp.toPx(),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
+            )
+            // Another node
+            drawCircle(
+                color = Color.White,
+                center = Offset(center.x, center.y - 45.dp.toPx()),
+                radius = 3.dp.toPx()
             )
         }
     }
@@ -123,7 +164,7 @@ fun CentralIcon(color: Color, transition: InfiniteTransition) {
 
 @Composable
 fun ScanningAnimation(color1: Color, color2: Color) {
-    val books = remember { List(8) { RandomBookState() } }
+    val books = remember { List(12) { RandomBookState() } }
     
     Box(modifier = Modifier.fillMaxSize()) {
         books.forEach { book ->
@@ -148,9 +189,9 @@ fun ScanningAnimation(color1: Color, color2: Color) {
             )
             val alpha by transition.animateFloat(
                 initialValue = 0.2f,
-                targetValue = 0.8f,
+                targetValue = 0.7f,
                 animationSpec = infiniteRepeatable(
-                    animation = tween(1000),
+                    animation = tween(book.duration / 2),
                     repeatMode = RepeatMode.Reverse
                 ),
                 label = "BookAlpha"
@@ -159,7 +200,8 @@ fun ScanningAnimation(color1: Color, color2: Color) {
             BookIcon(
                 modifier = Modifier.offset(x.dp, y.dp),
                 color = if (Random.nextBoolean()) color1 else color2,
-                alpha = alpha
+                alpha = alpha,
+                scale = 0.8f
             )
         }
     }
@@ -168,7 +210,8 @@ fun ScanningAnimation(color1: Color, color2: Color) {
 @Composable
 fun FlightAnimation(direction: Int, color: Color) {
     // direction: 1 for UP (Upload), -1 for DOWN (Download)
-    val books = remember { List(10) { RandomFlightState(direction) } }
+    // Increased book count to 20
+    val books = remember { List(20) { RandomFlightState(direction) } }
     
     Box(modifier = Modifier.fillMaxSize()) {
         books.forEach { book ->
@@ -184,23 +227,23 @@ fun FlightAnimation(direction: Int, color: Color) {
             )
 
             val currentY = if (direction == 1) {
-                // Upload: From bottom (220dp) to center (80dp)
+                // Upload: From bottom to center
                 220.dp - (140.dp * progress)
             } else {
-                // Download: From center (80dp) to bottom (220dp)
+                // Download: From center to bottom
                 80.dp + (140.dp * progress)
             }
             
-            // Wobble effect
-            val currentX = (book.fixedX).dp + (15.dp * sin(progress * 10f))
+            // Wobble effect + broad distribution (left and right)
+            val currentX = (book.fixedX).dp + (25.dp * sin(progress * 8f + book.delay))
             
-            val alpha = if (progress < 0.2f) progress * 5f else if (progress > 0.8f) (1f - progress) * 5f else 1f
+            val alpha = if (progress < 0.15f) progress * 6.6f else if (progress > 0.85f) (1f - progress) * 6.6f else 1f
 
             BookIcon(
                 modifier = Modifier.offset(currentX, currentY),
                 color = color,
                 alpha = alpha,
-                scale = 0.6f + (progress * 0.4f)
+                scale = 0.5f + (progress * 0.3f)
             )
         }
     }
@@ -251,7 +294,7 @@ class RandomBookState {
 }
 
 class RandomFlightState(val direction: Int) {
-    val fixedX = Random.nextInt(40, 300).toFloat()
-    val duration = Random.nextInt(1500, 2500)
-    val delay = Random.nextInt(0, 2000)
+    val fixedX = Random.nextInt(10, 350).toFloat()
+    val duration = Random.nextInt(1500, 3000)
+    val delay = Random.nextInt(0, 3000)
 }
