@@ -49,6 +49,8 @@ class TextLayoutBuilder {
     private var letterSpacing: Float = 0f
     private var alignment: Layout.Alignment = Layout.Alignment.ALIGN_NORMAL
     private var hyphenation: Boolean = true
+    private var fontFamily: String = ""
+    private var fontWeight: Int = 400
     
     fun setLetterSpacing(spacing: Float) = apply { this.letterSpacing = spacing }
 
@@ -62,9 +64,11 @@ class TextLayoutBuilder {
         this.lineSpacingMultiplier = multiplier
     }
     fun setHyphenation(enabled: Boolean) = apply { this.hyphenation = enabled }
+    fun setFontFamily(family: String) = apply { this.fontFamily = family }
+    fun setFontWeight(weight: Int) = apply { this.fontWeight = weight }
     
     val configKey: String
-        get() = "${text.length}_${width}_${height}_${paint.textSize}_${paint.typeface?.hashCode()}_${lineSpacingMultiplier}_${alignment.name}_${hyphenation}_${letterSpacing}_v2"
+        get() = "${text.length}_${width}_${height}_${paint.textSize}_${fontFamily}_${fontWeight}_${lineSpacingMultiplier}_${alignment.name}_${hyphenation}_${letterSpacing}_v3"
 
     private fun createStaticLayout(source: CharSequence, start: Int, end: Int): StaticLayout {
         paint.letterSpacing = letterSpacing

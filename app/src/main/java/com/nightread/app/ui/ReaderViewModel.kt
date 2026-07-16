@@ -270,6 +270,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
             val alignment = _fontAlignmentState.value
             val lineSpacing = _lineSpacingState.value
+            val family = _fontFamilyState.value
+            val weightVal = SettingsManager.getFontWeightAsInt(appContext)
             
             val formattedText = TextFormatter.formatChapterSpans(appContext, content, paint.textSize)
             val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
@@ -279,6 +281,14 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 .setPaint(paint)
                 .setLetterSpacing(-0.02f)
                 .setLineSpacing(0f, lineSpacing)
+                .setFontFamily(family)
+                .setFontWeight(weightVal)
+                .setAlignment(when (alignment.lowercase()) {
+                    "left" -> android.text.Layout.Alignment.ALIGN_NORMAL
+                    "right" -> android.text.Layout.Alignment.ALIGN_OPPOSITE
+                    "center" -> android.text.Layout.Alignment.ALIGN_CENTER
+                    else -> android.text.Layout.Alignment.ALIGN_NORMAL
+                })
                 
             builder.buildPagination { offsets, finished ->
                 val pages = ArrayList<CharSequence>()

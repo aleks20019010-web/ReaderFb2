@@ -36,6 +36,11 @@ class BookReaderActivity : AppCompatActivity() {
     private lateinit var ambientGlowView: View
     private lateinit var amberFilterOverlay: View
     private lateinit var extraDimOverlay: View
+    private lateinit var topToolbar: View
+    private lateinit var bottomToolbar: View
+    private var isBarsVisible = true
+    private var touchStartY: Float = 0f
+    private var touchStartTime: Long = 0L
 
     private lateinit var viewModel: ReaderViewModel
     private var touchStartX: Float = 0f
@@ -66,15 +71,9 @@ class BookReaderActivity : AppCompatActivity() {
             SettingsBottomSheet().show(supportFragmentManager, "settings")
         }
 
-        val topToolbar = findViewById<View>(R.id.topToolbar)
-        val bottomToolbar = findViewById<View>(R.id.bottomToolbar)
-        var isBarsVisible = true
-
-        readerView.setOnClickListener {
-            isBarsVisible = !isBarsVisible
-            topToolbar.visibility = if (isBarsVisible) View.VISIBLE else View.GONE
-            bottomToolbar.visibility = if (isBarsVisible) View.VISIBLE else View.GONE
-        }
+        topToolbar = findViewById(R.id.topToolbar)
+        bottomToolbar = findViewById(R.id.bottomToolbar)
+        isBarsVisible = true
         
         progressBar = ProgressBar(this).apply { visibility = View.GONE }
         val progressParams = FrameLayout.LayoutParams(
@@ -210,14 +209,50 @@ class BookReaderActivity : AppCompatActivity() {
             }
         }
 
+        // Collect font setting flows to update layout immediately
+        lifecycleScope.launch {
+            viewModel.fontSizeState.collectLatest {
+                updatePage()
+            }
+        }
+        lifecycleScope.launch {
+            viewModel.fontFamilyState.collectLatest {
+                updatePage()
+            }
+        }
+        lifecycleScope.launch {
+            viewModel.fontWeightState.collectLatest {
+                updatePage()
+            }
+        }
+        lifecycleScope.launch {
+            viewModel.lineSpacingState.collectLatest {
+                updatePage()
+            }
+        }
+        lifecycleScope.launch {
+            viewModel.fontAlignmentState.collectLatest {
+                updatePage()
+            }
+        }
+
         readerView.setOnTouchListener { _, event ->
             when (event.action) {
-                MotionEvent.ACTION_DOWN -> touchStartX = event.x
+                MotionEvent.ACTION_DOWN -> {
+                    touchStartX = event.x
+                    touchStartY = event.y
+                    touchStartTime = System.currentTimeMillis()
+                }
                 MotionEvent.ACTION_UP -> {
-                    val diff = event.x - touchStartX
-                    if (Math.abs(diff) > 100) {
-                        if (diff > 0) viewModel.setCurrentPage(viewModel.currentPage.value - 1)
+                    val diffX = event.x - touchStartX
+                    val diffY = event.y - touchStartY
+                    val duration = System.currentTimeMillis() - touchStartTime
+                    
+                    if (Math.abs(diffX) > 100 && Math.abs(diffX) > Math.abs(diffY) * 1.5 && duration < 500) {
+                        if (diffX > 0) viewModel.setCurrentPage(viewModel.currentPage.value - 1)
                         else viewModel.setCurrentPage(viewModel.currentPage.value + 1)
+                    } else if (Math.abs(diffX) < 25 && Math.abs(diffY) < 25 && duration < 300) {
+                        toggleToolbars()
                     }
                 }
             }
@@ -473,6 +508,58 @@ class BookReaderActivity : AppCompatActivity() {
             }
         }
         lastPageAnimationIdx = newPageIdx
+    }
+
+    private fun toggleToolbars() {
+        isBarsVisible = !isBarsVisible
+        
+        val duration = 250L
+        val interpolator = android.view.animation.DecelerateInterpolator()
+        
+        if (isBarsVisible) {
+            if (topToolbar.visibility == View.GONE) {
+                topToolbar.alpha = 0f
+                topToolbar.translationY = -topToolbar.height.toFloat()
+                topToolbar.visibility = View.VISIBLE
+            }
+            if (bottomToolbar.visibility == View.GONE) {
+                bottomToolbar.alpha = 0f
+                bottomToolbar.translationY = bottomToolbar.height.toFloat()
+                bottomToolbar.visibility = View.VISIBLE
+            }
+            
+            topToolbar.animate()
+                .translationY(0f)
+                .alpha(1f)
+                .setDuration(duration)
+                .setInterpolator(interpolator)
+                .withEndAction(null)
+                .start()
+                
+            bottomToolbar.animate()
+                .translationY(0f)
+                .alpha(1f)
+                .setDuration(duration)
+                .setInterpolator(interpolator)
+                .withEndAction(null)
+                .start()
+        } else {
+            topToolbar.animate()
+                .translationY(-topToolbar.height.toFloat())
+                .alpha(0f)
+                .setDuration(duration)
+                .setInterpolator(interpolator)
+                .withEndAction { topToolbar.visibility = View.GONE }
+                .start()
+                
+            bottomToolbar.animate()
+                .translationY(bottomToolbar.height.toFloat())
+                .alpha(0f)
+                .setDuration(duration)
+                .setInterpolator(interpolator)
+                .withEndAction { bottomToolbar.visibility = View.GONE }
+                .start()
+        }
     }
 
     private fun applyScreenSettings() {
