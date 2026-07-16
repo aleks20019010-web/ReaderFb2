@@ -1,5 +1,9 @@
 package com.nightread.app.ui
 
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.widget.ImageView
 import coil.load
 import android.content.res.ColorStateList
@@ -62,6 +66,7 @@ class BookReaderActivity : AppCompatActivity() {
     private var sleepTimerJob: kotlinx.coroutines.Job? = null
     private var sensorManager: android.hardware.SensorManager? = null
     private var accelerometer: android.hardware.Sensor? = null
+    private var lightSensor: android.hardware.Sensor? = null
     private var sensorListener: android.hardware.SensorEventListener? = null
     private var remainingTimeMs: Long = 0
 
@@ -443,14 +448,18 @@ class BookReaderActivity : AppCompatActivity() {
     private fun updatePage() {
         val pages = viewModel.pagesState.value
         val pageIdx = viewModel.currentPage.value
-        if (pages.isEmpty() || pageIdx !in pages.indices) return
-
-        val text = pages[pageIdx]
         
         val filePath = viewModel.bookState.value?.filePath ?: ""
-        val isFb2 = filePath.endsWith(".fb2", true) || 
-                    filePath.endsWith(".fb2.zip", true) || 
-                    (filePath.endsWith(".zip", true) && text.trim().startsWith("<?xml", ignoreCase = true))
+        val isWebViewBook = filePath.endsWith(".fb2", true) || 
+                           filePath.endsWith(".fb2.zip", true) || 
+                           filePath.endsWith(".zip", true)
+
+        if (pages.isEmpty()) return
+        
+        // Fix: Allow WebView books to proceed even if pageIdx is out of bounds for the temporary marker list
+        if (!isWebViewBook && pageIdx !in pages.indices) return
+
+        val text = if (pageIdx in pages.indices) pages[pageIdx] else pages.first()
         
         if (text.toString() == "[BOOK_COVER]") {
             readerView.visibility = View.GONE
@@ -465,7 +474,7 @@ class BookReaderActivity : AppCompatActivity() {
             }
             updatePageIndicator()
             return
-        } else if (text.toString().startsWith("WEBVIEW_CONTENT") || text.toString().startsWith("WEBVIEW_PAGE_") || isFb2) {
+        } else if (text.toString().startsWith("WEBVIEW_CONTENT") || text.toString().startsWith("WEBVIEW_PAGE_") || isWebViewBook) {
             readerView.visibility = View.GONE
             ivBookCoverPage.visibility = View.GONE
             webView.visibility = View.VISIBLE
@@ -637,7 +646,14 @@ class BookReaderActivity : AppCompatActivity() {
     private fun updatePageWithAnimation(newPageIdx: Int) {
         val animMode = com.nightread.app.data.SettingsManager.getPageAnimation(this)
         val pages = viewModel.pagesState.value
-        if (pages.isEmpty() || newPageIdx !in pages.indices) return
+        
+        val filePath = viewModel.bookState.value?.filePath ?: ""
+        val isWebViewBook = filePath.endsWith(".fb2", true) || 
+                           filePath.endsWith(".fb2.zip", true) || 
+                           filePath.endsWith(".zip", true)
+
+        if (pages.isEmpty()) return
+        if (!isWebViewBook && newPageIdx !in pages.indices) return
 
         if (animMode == "none") {
             updatePage()
@@ -939,19 +955,98 @@ class BookReaderActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        registerSensors()
+    }
+
     override fun onPause() {
         super.onPause()
         viewModel.saveProgress()
+        unregisterSensors()
+    }
+
+    private fun registerSensors() {
+        val context = this
+        if (sensorManager == null) {
+            sensorManager = getSystemService(android.content.Context.SENSOR_SERVICE) as? android.hardware.SensorManager
+        }
+        
+        val shakeEnabled = com.nightread.app.data.SettingsManager.isShakeToExtendEnabled(context)
+        val autoThemeEnabled = com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(context)
+        
+        if (sensorListener == null && (shakeEnabled || autoThemeEnabled)) {
+            sensorListener = object : android.hardware.SensorEventListener {
+                private var lastShakeTime = 0L
+                
+                override fun onSensorChanged(event: android.hardware.SensorEvent) {
+                    when (event.sensor.type) {
+                        android.hardware.Sensor.TYPE_ACCELEROMETER -> {
+                            if (!com.nightread.app.data.SettingsManager.isShakeToExtendEnabled(context)) return
+                            val x = event.values[0]
+                            val y = event.values[1]
+                            val z = event.values[2]
+                            val acceleration = Math.sqrt((x * x + y * y + z * z).toDouble()).toFloat() - android.hardware.SensorManager.GRAVITY_EARTH
+                            if (acceleration > 5.0f) {
+                                val now = System.currentTimeMillis()
+                                if (now - lastShakeTime > 3000) {
+                                    lastShakeTime = now
+                                    remainingTimeMs += 5 * 60 * 1000L
+                                    CustomToast.show(context, "Таймер сна продлен на 5 минут!", android.widget.Toast.LENGTH_SHORT)
+                                }
+                            }
+                        }
+                        android.hardware.Sensor.TYPE_LIGHT -> {
+                            if (!com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(context)) return
+                            val lux = event.values[0]
+                            handleLightSensorChanged(lux)
+                        }
+                    }
+                }
+                override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+            }
+        }
+
+        if (sensorListener != null) {
+            if (shakeEnabled) {
+                accelerometer = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
+                if (accelerometer != null) {
+                    sensorManager?.registerListener(sensorListener, accelerometer, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+                }
+            }
+            if (autoThemeEnabled) {
+                lightSensor = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_LIGHT)
+                if (lightSensor != null) {
+                    sensorManager?.registerListener(sensorListener, lightSensor, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+                }
+            }
+        }
+    }
+
+    private fun unregisterSensors() {
+        sensorManager?.unregisterListener(sensorListener)
+    }
+
+    private fun handleLightSensorChanged(lux: Float) {
+        val currentTheme = viewModel.themeState.value
+        // Thresholds: < 10 lux for night, > 40 lux for sepia
+        val targetTheme = if (lux < 10f) {
+            "dark"
+        } else if (lux > 40f) {
+            "sepia"
+        } else {
+            return // Middle ground, keep current
+        }
+        
+        if (currentTheme != targetTheme) {
+            com.nightread.app.data.SettingsManager.setReadingTheme(this, targetTheme)
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         sleepTimerJob?.cancel()
-        sensorManager?.let { sm ->
-            sensorListener?.let { sl ->
-                sm.unregisterListener(sl)
-            }
-        }
+        unregisterSensors()
     }
 
     fun loadPage(pageNumber: Int) {

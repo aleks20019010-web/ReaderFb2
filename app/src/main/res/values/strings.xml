@@ -5,8 +5,8 @@
     <string name="unknown_title">Неизвестно</string>
     <string name="local_txt">Локальный TXT</string>
     <string name="yandex_client_id">bfdea73d1e6242ba826f15d9d0374005</string>
-    <string name="auto_light_night_title">Сенсор освещения</string>
-    <string name="auto_light_night_desc">Авто-ночной режим при слабом свете</string>
+    <string name="auto_light_night_title">Авто тема</string>
+    <string name="auto_light_night_desc">Менять тему по датчику освещенности (Сепия/Ночь)</string>
     <string name="amber_filter_title">Защита зрения</string>
     <string name="amber_filter_desc">Теплый янтарный фильтр (Blue Light Filter)</string>
     <string name="amber_filter_intensity">Интенсивность фильтра</string>

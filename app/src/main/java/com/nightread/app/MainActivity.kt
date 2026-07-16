@@ -507,9 +507,9 @@ class MainActivity : BaseActivity() {
                     }
                 }
 
-                // 6. Ensure the splash screen is visible for at least 4 seconds (4000ms)
+                // 6. Ensure the splash screen is visible for at least 1.5 seconds (1500ms)
                 val elapsed = System.currentTimeMillis() - splashStartTime
-                val remaining = 4000L - elapsed
+                val remaining = 1500L - elapsed
                 if (remaining > 0) {
                     val steps = (remaining / 50L).toInt().coerceAtLeast(1)
                     val stepIncrement = (100 - 95) / steps.toFloat()

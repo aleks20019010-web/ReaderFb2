@@ -352,7 +352,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 val pages = splitResult.pages
                 
                 var newPageIndex = 0
-                if (currentOffset == -1) {
+                if (currentOffset == -1 || currentPageSnapshot == 0) {
                     newPageIndex = 0
                 } else {
                     for (i in 0 until offsets.size) {
@@ -416,7 +416,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                         }
                         
                         var newPageIndex = 0
-                        if (currentOffset == -1) {
+                        if (currentOffset == -1 || currentPageSnapshot == 0) {
                             newPageIndex = 0
                         } else {
                             for (i in 0 until finalOffsets.size) {
@@ -486,7 +486,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 
                 // 3. Find the best matching page in the new layout
                 var newPageIndex = 0
-                if (currentOffset == -1) {
+                if (currentOffset == -1 || currentPageSnapshot == 0) {
                     newPageIndex = 0
                 } else {
                     for (i in 0 until finalOffsets.size) {
