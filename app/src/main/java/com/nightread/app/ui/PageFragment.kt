@@ -230,7 +230,7 @@ class PageFragment : Fragment() {
                         $fontStyle
                         font-weight: ${SettingsManager.getFontWeightAsInt(context)};
                         letter-spacing: ${letterSpacing}em;
-                        text-align: justify;
+                        text-align: left;
                         -webkit-hyphens: manual;
                         hyphens: manual;
                         overflow: hidden;

@@ -209,32 +209,7 @@ class BookReaderActivity : AppCompatActivity() {
             }
         }
 
-        // Collect font setting flows to update layout immediately
-        lifecycleScope.launch {
-            viewModel.fontSizeState.collectLatest {
-                updatePage()
-            }
-        }
-        lifecycleScope.launch {
-            viewModel.fontFamilyState.collectLatest {
-                updatePage()
-            }
-        }
-        lifecycleScope.launch {
-            viewModel.fontWeightState.collectLatest {
-                updatePage()
-            }
-        }
-        lifecycleScope.launch {
-            viewModel.lineSpacingState.collectLatest {
-                updatePage()
-            }
-        }
-        lifecycleScope.launch {
-            viewModel.fontAlignmentState.collectLatest {
-                updatePage()
-            }
-        }
+
 
         readerView.setOnTouchListener { _, event ->
             when (event.action) {

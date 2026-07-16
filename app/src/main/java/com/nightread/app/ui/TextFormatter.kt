@@ -217,113 +217,124 @@ object TextFormatter {
     }
 
     fun formatChapterSpans(context: Context?, text: CharSequence, basePaintSize: Float): CharSequence {
-        var processedText = text.toString()
+        val lines = text.toString().split('\n')
+        val sb = java.lang.StringBuilder(text.length)
+        var lastWasEmpty = false
+        val indentDp = if (context != null) com.nightread.app.data.SettingsManager.getParagraphIndent(context) else 0
+        val indentStr = "    "
         
-        // 1. Remove multiple consecutive empty lines (including any spaces between them)
-        processedText = processedText.replace(Regex("([ \\t\\r ]*\\n[ \\t\\r ]*){2,}"), "\n")
-        
-        // 2. Strip any remaining spaces at the beginning of every line
-        processedText = processedText.replace(Regex("\\n[ \\t\\r ]+"), "\n")
-        
-        if (context != null) {
-            val indentDp = com.nightread.app.data.SettingsManager.getParagraphIndent(context)
-            if (indentDp > 0) {
-                val indentStr = "    "
-                // Add indent to all lines except those starting with a page break (\u000C)
-                processedText = processedText.replace(Regex("\\n([^\\n\\u000C])")) { match ->
-                    "\n" + indentStr + match.groupValues[1]
+        for (i in lines.indices) {
+            val line = lines[i]
+            val trimmedLine = line.trimStart(' ', '\t', '\r', ' ')
+            if (trimmedLine.isEmpty()) {
+                if (!lastWasEmpty) {
+                    lastWasEmpty = true
                 }
-                if (processedText.isNotEmpty() && processedText[0] != '\u000C') {
-                    processedText = indentStr + processedText.trimStart(' ', '\t', '\r', '\n', ' ')
+            } else {
+                if (sb.isNotEmpty()) {
+                    sb.append('\n')
                 }
-            }
-        }
-
-        val spannable = SpannableStringBuilder(processedText)
-        
-        // Helper to replace tags and apply spans
-        fun processTag(tagOpen: String, tagClose: String, spanFactory: () -> Any) {
-            while (true) {
-                val startTag = spannable.indexOf(tagOpen)
-                if (startTag == -1) break
-                spannable.replace(startTag, startTag + tagOpen.length, "")
+                lastWasEmpty = false
                 
-                val endTag = spannable.indexOf(tagClose, startTag)
-                if (endTag == -1) break
-                spannable.replace(endTag, endTag + tagClose.length, "")
-                
-                if (endTag > startTag) {
-                    spannable.setSpan(spanFactory(), startTag, endTag, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                if (indentDp > 0 && !trimmedLine.startsWith('\u000C') && !trimmedLine.contains("[CHAPTER]")) {
+                    sb.append(indentStr)
                 }
+                sb.append(trimmedLine)
             }
         }
+        val processedText = sb.toString()
 
-        // 1. Format [CHAPTER]...[/CHAPTER]
-        while (true) {
-            val startTag = spannable.indexOf("[CHAPTER]")
-            if (startTag == -1) break
-            
-            // Insert page break if it's not the very beginning of the book
-            if (startTag > 0 && spannable[startTag - 1] != '\u000C') {
-                spannable.insert(startTag, "\u000C")
-            }
-            
-            // Re-find tag after potential insertion
-            val newStartTag = spannable.indexOf("[CHAPTER]")
-            
-            spannable.replace(newStartTag, newStartTag + "[CHAPTER]".length, "")
-            
-            val endTag = spannable.indexOf("[/CHAPTER]", newStartTag)
-            if (endTag == -1) break
-            spannable.replace(endTag, endTag + "[/CHAPTER]".length, "")
-            
-            if (endTag > newStartTag) {
-                spannable.setSpan(AbsoluteSizeSpan((basePaintSize * 1.5f).toInt()), newStartTag, endTag, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                spannable.setSpan(StyleSpan(Typeface.BOLD), newStartTag, endTag, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                var alignStart = newStartTag
-                if (alignStart > 0 && spannable[alignStart - 1] == '\u000C') {
-                    alignStart--
-                }
-                spannable.setSpan(AlignmentSpan.Standard(Layout.Alignment.ALIGN_CENTER), alignStart, endTag, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            }
-        }
-
-        // 2. Format [CITE]...[/CITE]
-        processTag("[CITE]", "[/CITE]") { StyleSpan(Typeface.ITALIC) }
+        val spannable = SpannableStringBuilder()
+        val str = processedText
+        val len = str.length
+        var i = 0
         
-        // 3. Format [SUP]...[/SUP]
-        while (true) {
-            val startTag = spannable.indexOf("[SUP]")
-            if (startTag == -1) break
-            spannable.replace(startTag, startTag + "[SUP]".length, "")
+        while (i < len) {
+            var nextTagIdx = -1
+            var tagType = "" // "CHAPTER", "CITE", "SUP", "NOTE"
+            var tagLength = 0
+            var noteId = ""
             
-            val endTag = spannable.indexOf("[/SUP]", startTag)
-            if (endTag == -1) break
-            spannable.replace(endTag, endTag + "[/SUP]".length, "")
+            val idxChapter = str.indexOf("[CHAPTER]", i)
+            val idxCite = str.indexOf("[CITE]", i)
+            val idxSup = str.indexOf("[SUP]", i)
+            val idxNote = str.indexOf("[NOTE:", i)
             
-            if (endTag > startTag) {
-                spannable.setSpan(android.text.style.SuperscriptSpan(), startTag, endTag, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                spannable.setSpan(android.text.style.RelativeSizeSpan(0.6f), startTag, endTag, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            var minIdx = len
+            if (idxChapter != -1 && idxChapter < minIdx) { minIdx = idxChapter; tagType = "CHAPTER"; tagLength = "[CHAPTER]".length }
+            if (idxCite != -1 && idxCite < minIdx) { minIdx = idxCite; tagType = "CITE"; tagLength = "[CITE]".length }
+            if (idxSup != -1 && idxSup < minIdx) { minIdx = idxSup; tagType = "SUP"; tagLength = "[SUP]".length }
+            if (idxNote != -1 && idxNote < minIdx) {
+                val endBracket = str.indexOf("]", idxNote + "[NOTE:".length)
+                if (endBracket != -1) {
+                    minIdx = idxNote
+                    tagType = "NOTE"
+                    tagLength = endBracket - idxNote + 1
+                    noteId = str.substring(idxNote + "[NOTE:".length, endBracket)
+                }
             }
-        }
-
-        // 4. Notes
-        val noteRegex = Regex("""\[NOTE:([^\]]+)\]""")
-        while (true) {
-            val str = spannable.toString()
-            val match = noteRegex.find(str) ?: break
-            val noteId = match.groupValues[1]
-            val startTagLen = match.range.last - match.range.first + 1
-            spannable.replace(match.range.first, match.range.last + 1, "")
             
-            val endTag = spannable.indexOf("[/NOTE]", match.range.first)
-            if (endTag == -1) break
-            spannable.replace(endTag, endTag + "[/NOTE]".length, "")
+            if (minIdx == len) {
+                spannable.append(str.subSequence(i, len))
+                break
+            }
             
-            if (endTag > match.range.first) {
-                spannable.setSpan(android.text.style.SuperscriptSpan(), match.range.first, endTag, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                spannable.setSpan(android.text.style.RelativeSizeSpan(0.7f), match.range.first, endTag, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                spannable.setSpan(android.text.Annotation("note", noteId), match.range.first, endTag, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            if (minIdx > i) {
+                spannable.append(str.subSequence(i, minIdx))
+            }
+            
+            val closeTag = when (tagType) {
+                "CHAPTER" -> "[/CHAPTER]"
+                "CITE" -> "[/CITE]"
+                "SUP" -> "[/SUP]"
+                "NOTE" -> "[/NOTE]"
+                else -> ""
+            }
+            
+            val closeIdx = str.indexOf(closeTag, minIdx + tagLength)
+            if (closeIdx == -1) {
+                spannable.append(str.subSequence(minIdx, minIdx + tagLength))
+                i = minIdx + tagLength
+            } else {
+                val contentStart = spannable.length
+                val contentText = str.subSequence(minIdx + tagLength, closeIdx)
+                
+                if (tagType == "CHAPTER") {
+                    if (contentStart > 0 && spannable[contentStart - 1] != '\u000C') {
+                        spannable.append("\u000C")
+                    }
+                }
+                
+                val actualContentStart = spannable.length
+                spannable.append(contentText)
+                val contentEnd = spannable.length
+                
+                if (contentEnd > actualContentStart) {
+                    when (tagType) {
+                        "CHAPTER" -> {
+                            spannable.setSpan(AbsoluteSizeSpan((basePaintSize * 1.5f).toInt()), actualContentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            spannable.setSpan(StyleSpan(Typeface.BOLD), actualContentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            var alignStart = actualContentStart
+                            if (alignStart > 0 && spannable[alignStart - 1] == '\u000C') {
+                                alignStart--
+                            }
+                            spannable.setSpan(AlignmentSpan.Standard(Layout.Alignment.ALIGN_CENTER), alignStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        }
+                        "CITE" -> {
+                            spannable.setSpan(StyleSpan(Typeface.ITALIC), actualContentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        }
+                        "SUP" -> {
+                            spannable.setSpan(android.text.style.SuperscriptSpan(), actualContentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            spannable.setSpan(android.text.style.RelativeSizeSpan(0.6f), actualContentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        }
+                        "NOTE" -> {
+                            spannable.setSpan(android.text.style.SuperscriptSpan(), actualContentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            spannable.setSpan(android.text.style.RelativeSizeSpan(0.7f), actualContentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            spannable.setSpan(android.text.Annotation("note", noteId), actualContentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        }
+                    }
+                }
+                i = closeIdx + closeTag.length
             }
         }
 

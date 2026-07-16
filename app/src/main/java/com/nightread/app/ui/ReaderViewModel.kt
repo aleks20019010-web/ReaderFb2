@@ -55,7 +55,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     val fontWeightState: StateFlow<Int> = _fontWeightState.asStateFlow()
 
     // Font alignment state: "justify", "left", "right", "center"
-    private val _fontAlignmentState = MutableStateFlow("justify")
+    private val _fontAlignmentState = MutableStateFlow("left")
     val fontAlignmentState: StateFlow<String> = _fontAlignmentState.asStateFlow()
 
     // Page margins state: true / false
@@ -97,7 +97,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         val weightInt = SettingsManager.getFontWeightAsInt(context)
         _fontWeightState.value = if (weightInt >= 600) 1 else 0
         
-        _fontAlignmentState.value = sharedPrefs.getString("saved_font_alignment", "justify") ?: "justify"
+        val savedAlign = sharedPrefs.getString("saved_font_alignment", "left") ?: "left"
+        _fontAlignmentState.value = if (savedAlign == "justify") "left" else savedAlign
         _pageMarginsState.value = sharedPrefs.getBoolean("saved_page_margins", true)
         _scrollDirectionState.value = SettingsManager.getPageAnimation(context)
         _twoPagesLandscapeState.value = sharedPrefs.getBoolean("saved_two_pages_landscape", false)
@@ -111,16 +112,23 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             if (book != null) {
                 _bookState.value = book
                 
-                val file = java.io.File(book.filePath ?: "")
-                if (file.exists()) {
-                    val rawContent = if (file.extension.lowercase() == "zip") {
-                        readZipFile(file)
-                    } else {
-                        file.readText(java.nio.charset.StandardCharsets.UTF_8)
-                    }
-                    content = TextCleaner.cleanText(rawContent) as String
+                if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty()) {
+                    content = BookCache.content
                 } else {
-                    content = ""
+                    val file = java.io.File(book.filePath ?: "")
+                    if (file.exists()) {
+                        val rawContent = if (file.extension.lowercase() == "zip") {
+                            readZipFile(file)
+                        } else {
+                            file.readText(java.nio.charset.StandardCharsets.UTF_8)
+                        }
+                        content = TextCleaner.cleanText(rawContent) as String
+                    } else {
+                        content = ""
+                    }
+                    BookCache.clear()
+                    BookCache.sha1 = bookSha1
+                    BookCache.content = content
                 }
                 
                 if (availableWidth > 0 && availableHeight > 0) {
@@ -272,8 +280,71 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             val lineSpacing = _lineSpacingState.value
             val family = _fontFamilyState.value
             val weightVal = SettingsManager.getFontWeightAsInt(appContext)
+            val hyphenationEnabled = SettingsManager.isHyphenationEnabled(appContext)
             
+            val currentKey = "${availableWidth}_${availableHeight}_${paint.textSize}_${family}_${weightVal}_${lineSpacing}_hyphen=$hyphenationEnabled"
+            
+            // Try in-memory cache first
+            if (BookCache.sha1 == book.sha1 && BookCache.layoutKey == currentKey && BookCache.splitResult != null) {
+                val splitResult = BookCache.splitResult!!
+                val offsets = splitResult.offsets
+                val pages = splitResult.pages
+                
+                var newPageIndex = 0
+                for (i in 0 until offsets.size) {
+                    if (offsets[i] <= currentOffset) {
+                        newPageIndex = i
+                    } else {
+                        break
+                    }
+                }
+                val clampedPageIndex = newPageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
+
+                viewModelScope.launch(Dispatchers.Main) {
+                    _pagesState.value = pages
+                    pageStartOffsets = offsets
+                    _currentPage.value = clampedPageIndex
+                }
+                android.util.Log.d("ReaderViewModel", "Successfully reused BookCache splitResult! Total pages: ${pages.size}")
+                return@launch
+            }
+            
+            // Try disk cache next
+            val cachedOffsets = PaginationDiskCache.getOffsets(appContext, book.sha1, currentKey)
             val formattedText = TextFormatter.formatChapterSpans(appContext, content, paint.textSize)
+            
+            if (cachedOffsets != null) {
+                val pages = ArrayList<CharSequence>()
+                for (i in cachedOffsets.indices) {
+                    val startIdx = cachedOffsets[i]
+                    val endIdx = if (i < cachedOffsets.size - 1) cachedOffsets[i + 1] else formattedText.length
+                    pages.add(formattedText.subSequence(startIdx, endIdx))
+                }
+                
+                var newPageIndex = 0
+                for (i in 0 until cachedOffsets.size) {
+                    if (cachedOffsets[i] <= currentOffset) {
+                        newPageIndex = i
+                    } else {
+                        break
+                    }
+                }
+                val clampedPageIndex = newPageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
+
+                viewModelScope.launch(Dispatchers.Main) {
+                    _pagesState.value = pages
+                    pageStartOffsets = cachedOffsets
+                    _currentPage.value = clampedPageIndex
+                    // Warm up in-memory cache
+                    BookCache.sha1 = book.sha1
+                    BookCache.content = content
+                    BookCache.layoutKey = currentKey
+                    BookCache.splitResult = TextFormatter.PageResult(pages, ArrayList(cachedOffsets), true)
+                }
+                android.util.Log.d("ReaderViewModel", "Successfully loaded pagination from disk cache! Total pages: ${pages.size}")
+                return@launch
+            }
+
             val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
                 .setText(formattedText)
                 .setWidth(availableWidth)
@@ -289,6 +360,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                     "center" -> android.text.Layout.Alignment.ALIGN_CENTER
                     else -> android.text.Layout.Alignment.ALIGN_NORMAL
                 })
+                .setJustify(alignment.lowercase() == "justify")
                 
             builder.buildPagination { offsets, finished ->
                 val pages = ArrayList<CharSequence>()
@@ -315,6 +387,15 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                     _currentPage.value = clampedPageIndex
                     if (finished) {
                         saveProgress()
+                        // Save to disk cache
+                        viewModelScope.launch(Dispatchers.IO) {
+                            PaginationDiskCache.saveOffsets(appContext, book.sha1, currentKey, offsets)
+                        }
+                        // Save to in-memory cache
+                        BookCache.sha1 = book.sha1
+                        BookCache.content = content
+                        BookCache.layoutKey = currentKey
+                        BookCache.splitResult = TextFormatter.PageResult(pages, ArrayList(offsets), true)
                     }
                 }
             }

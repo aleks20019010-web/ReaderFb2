@@ -51,6 +51,7 @@ class TextLayoutBuilder {
     private var hyphenation: Boolean = true
     private var fontFamily: String = ""
     private var fontWeight: Int = 400
+    private var justify: Boolean = false
     
     fun setLetterSpacing(spacing: Float) = apply { this.letterSpacing = spacing }
 
@@ -66,9 +67,10 @@ class TextLayoutBuilder {
     fun setHyphenation(enabled: Boolean) = apply { this.hyphenation = enabled }
     fun setFontFamily(family: String) = apply { this.fontFamily = family }
     fun setFontWeight(weight: Int) = apply { this.fontWeight = weight }
+    fun setJustify(justify: Boolean) = apply { this.justify = justify }
     
     val configKey: String
-        get() = "${text.length}_${width}_${height}_${paint.textSize}_${fontFamily}_${fontWeight}_${lineSpacingMultiplier}_${alignment.name}_${hyphenation}_${letterSpacing}_v3"
+        get() = "${text.length}_${width}_${height}_${paint.textSize}_${fontFamily}_${fontWeight}_${lineSpacingMultiplier}_${alignment.name}_${hyphenation}_${letterSpacing}_${justify}_v3"
 
     private fun createStaticLayout(source: CharSequence, start: Int, end: Int): StaticLayout {
         paint.letterSpacing = letterSpacing
@@ -89,8 +91,12 @@ class TextLayoutBuilder {
         }
             
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Enable inter-word justification for high-quality text layout
-            builder.setJustificationMode(Layout.JUSTIFICATION_MODE_INTER_WORD)
+            // Enable inter-word justification only if justify is true
+            if (justify) {
+                builder.setJustificationMode(Layout.JUSTIFICATION_MODE_INTER_WORD)
+            } else {
+                builder.setJustificationMode(Layout.JUSTIFICATION_MODE_NONE)
+            }
         }
             
         return builder.build()
