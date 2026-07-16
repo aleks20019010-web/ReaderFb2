@@ -179,9 +179,22 @@ class BookReaderActivity : AppCompatActivity() {
 
         // Setup WebView
         webView.settings.apply {
-            javaScriptEnabled = false
+            javaScriptEnabled = true
+            domStorageEnabled = true
             loadWithOverviewMode = true
             useWideViewPort = true
+            textZoom = 100
+        }
+        webView.addJavascriptInterface(WebAppInterface(this), "AndroidInterface")
+        webView.webViewClient = object : android.webkit.WebViewClient() {
+            override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
+                progressBar.visibility = View.GONE
+                val pageIdx = viewModel.currentPage.value
+                val w = webView.width
+                if (w > 0) {
+                    webView.scrollTo(pageIdx * w, 0)
+                }
+            }
         }
 
         // Setup real content bounds listener for dynamic pagination scaling
@@ -239,28 +252,80 @@ class BookReaderActivity : AppCompatActivity() {
 
 
 
-        readerView.setOnTouchListener { _, event ->
+        var touchStartX = 0f
+        var touchStartY = 0f
+        var touchStartTime = 0L
+        var isDraggingVerticalLeft = false
+        var isDraggingVerticalRight = false
+        var initialGestureValue = 0f
+
+        val gestureTouchListener = View.OnTouchListener { view, event ->
+            val screenWidth = view.width.toFloat()
+            val screenHeight = view.height.toFloat()
+            if (screenWidth <= 0 || screenHeight <= 0) return@OnTouchListener false
+
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     touchStartX = event.x
                     touchStartY = event.y
                     touchStartTime = System.currentTimeMillis()
+                    isDraggingVerticalLeft = false
+                    isDraggingVerticalRight = false
+                    if (event.x < screenWidth * 0.35f) {
+                        isDraggingVerticalLeft = true
+                        val lp = window.attributes
+                        initialGestureValue = if (lp.screenBrightness < 0) 0.5f else lp.screenBrightness
+                    } else if (event.x > screenWidth * 0.65f) {
+                        isDraggingVerticalRight = true
+                        initialGestureValue = com.nightread.app.data.SettingsManager.getAmberFilterIntensity(this@BookReaderActivity).toFloat()
+                    }
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val diffX = event.x - touchStartX
+                    val diffY = event.y - touchStartY
+                    val duration = System.currentTimeMillis() - touchStartTime
+
+                    if (duration > 100 && Math.abs(diffY) > 50 && Math.abs(diffY) > Math.abs(diffX) * 2f) {
+                        if (isDraggingVerticalLeft) {
+                            val delta = -diffY / screenHeight
+                            val newBrightness = (initialGestureValue + delta).coerceIn(0.01f, 1.0f)
+                            val lp = window.attributes
+                            lp.screenBrightness = newBrightness
+                            window.attributes = lp
+                            com.nightread.app.data.SettingsManager.setBrightness(this@BookReaderActivity, newBrightness)
+                        } else if (isDraggingVerticalRight) {
+                            val delta = (-diffY / screenHeight) * 100f
+                            val newIntensity = (initialGestureValue + delta).coerceIn(0f, 100f).toInt()
+                            com.nightread.app.data.SettingsManager.setAmberFilterEnabled(this@BookReaderActivity, true)
+                            com.nightread.app.data.SettingsManager.setAmberFilterIntensity(this@BookReaderActivity, newIntensity)
+                            applyScreenSettings()
+                        }
+                    }
                 }
                 MotionEvent.ACTION_UP -> {
                     val diffX = event.x - touchStartX
                     val diffY = event.y - touchStartY
                     val duration = System.currentTimeMillis() - touchStartTime
-                    
+
                     if (Math.abs(diffX) > 100 && Math.abs(diffX) > Math.abs(diffY) * 1.5 && duration < 500) {
-                        if (diffX > 0) viewModel.setCurrentPage(viewModel.currentPage.value - 1)
-                        else viewModel.setCurrentPage(viewModel.currentPage.value + 1)
+                        if (diffX > 0) {
+                            viewModel.setCurrentPage(viewModel.currentPage.value - 1)
+                        } else {
+                            viewModel.setCurrentPage(viewModel.currentPage.value + 1)
+                        }
                     } else if (Math.abs(diffX) < 25 && Math.abs(diffY) < 25 && duration < 300) {
                         toggleToolbars()
                     }
+                    
+                    isDraggingVerticalLeft = false
+                    isDraggingVerticalRight = false
                 }
             }
             true
         }
+
+        readerView.setOnTouchListener(gestureTouchListener)
+        webView.setOnTouchListener(gestureTouchListener)
 
         lifecycleScope.launch {
             com.nightread.app.data.SettingsManager.settingsChanged.collectLatest {
@@ -371,18 +436,66 @@ class BookReaderActivity : AppCompatActivity() {
             }
             updatePageIndicator()
             return
-        } else if (text.toString() == "WEBVIEW_CONTENT" || isFb2) {
+        } else if (text.toString() == "WEBVIEW_CONTENT" || text.toString().startsWith("WEBVIEW_PAGE_") || isFb2) {
             readerView.visibility = View.GONE
             ivBookCoverPage.visibility = View.GONE
             webView.visibility = View.VISIBLE
-            progressBar.visibility = View.VISIBLE
             
-            lifecycleScope.launch(Dispatchers.IO) {
-                val fullContent = BookCache.content
-                val html = com.nightread.app.service.Fb2ToHtmlConverterAdvanced.convert(fullContent)
-                withContext(Dispatchers.Main) {
-                    progressBar.visibility = View.GONE
-                    webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
+            val themeKey = viewModel.themeState.value
+            val fontSize = viewModel.fontSizeState.value
+            val lineSpacing = viewModel.lineSpacingState.value
+            val fontFamily = viewModel.fontFamilyState.value
+            val fontWeight = viewModel.fontWeightState.value
+            val fontAlignment = viewModel.fontAlignmentState.value
+            val pageMargins = viewModel.pageMarginsState.value
+            
+            val density = resources.displayMetrics.density
+            val statusBarHeight = (24 * density).toInt()
+            val navBarHeight = (48 * density).toInt()
+            val paddingTop = statusBarHeight + (16 * density).toInt()
+            val paddingBottom = navBarHeight + (16 * density).toInt()
+            val paddingLeft = (16 * density).toInt()
+            val paddingRight = (16 * density).toInt()
+
+            val settingsKey = "${viewModel.bookState.value?.sha1}_${themeKey}_${fontSize}_${lineSpacing}_${fontFamily}_${fontWeight}_${fontAlignment}_${pageMargins}_${paddingTop}_${paddingBottom}"
+            val loadedKey = webView.tag as? String
+            
+            if (loadedKey != settingsKey) {
+                progressBar.visibility = View.VISIBLE
+                webView.tag = settingsKey
+                
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val fullContent = BookCache.content
+                    val html = com.nightread.app.service.Fb2ToHtmlConverterAdvanced.convert(
+                        fullContent,
+                        themeKey,
+                        fontSize,
+                        lineSpacing,
+                        fontFamily,
+                        fontWeight,
+                        fontAlignment,
+                        pageMargins,
+                        paddingTop,
+                        paddingBottom,
+                        paddingLeft,
+                        paddingRight
+                    )
+                    withContext(Dispatchers.Main) {
+                        progressBar.visibility = View.GONE
+                        webView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null)
+                        
+                        webView.postDelayed({
+                            val w = webView.width
+                            if (w > 0) {
+                                webView.scrollTo(pageIdx * w, 0)
+                            }
+                        }, 250)
+                    }
+                }
+            } else {
+                val w = webView.width
+                if (w > 0) {
+                    webView.scrollTo(pageIdx * w, 0)
                 }
             }
             updatePageIndicator()
@@ -836,4 +949,22 @@ class BookReaderActivity : AppCompatActivity() {
 
     fun showFootnote(noteId: String) {}
     fun performSmartSearch(word: String) {}
+
+    fun onWebViewPagesCalculated(totalPages: Int) {
+        viewModel.setWebViewPageCount(totalPages)
+        val pageIdx = viewModel.currentPage.value
+        val w = webView.width
+        if (w > 0) {
+            webView.scrollTo(pageIdx * w, 0)
+        }
+    }
+
+    class WebAppInterface(private val activity: BookReaderActivity) {
+        @android.webkit.JavascriptInterface
+        fun onPagesCalculated(totalPages: Int) {
+            activity.runOnUiThread {
+                activity.onWebViewPagesCalculated(totalPages)
+            }
+        }
+    }
 }

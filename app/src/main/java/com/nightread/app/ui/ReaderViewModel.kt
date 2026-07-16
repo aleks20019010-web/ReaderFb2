@@ -499,6 +499,14 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun setWebViewPageCount(count: Int) {
+        val dummyList = ArrayList<CharSequence>()
+        for (i in 0 until count.coerceAtLeast(1)) {
+            dummyList.add("WEBVIEW_PAGE_$i")
+        }
+        _pagesState.value = dummyList
+    }
+
     fun setCurrentPage(page: Int) {
         val maxPage = (_pagesState.value.size - 1).coerceAtLeast(0)
         val clamped = page.coerceIn(0, maxPage)
