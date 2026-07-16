@@ -12,7 +12,11 @@ object ThemeHelper {
     }
 
     fun applyTheme(context: Context) {
-        val targetMode = AppCompatDelegate.MODE_NIGHT_NO
+        val targetMode = if (shouldBeNightMode()) {
+            AppCompatDelegate.MODE_NIGHT_YES
+        } else {
+            AppCompatDelegate.MODE_NIGHT_NO
+        }
         
         if (AppCompatDelegate.getDefaultNightMode() != targetMode) {
             AppCompatDelegate.setDefaultNightMode(targetMode)

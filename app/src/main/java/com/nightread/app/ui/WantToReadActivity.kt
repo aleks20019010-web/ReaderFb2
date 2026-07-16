@@ -79,6 +79,23 @@ class WantToReadActivity : BaseActivity() {
         )
         rvWantToRead.adapter = adapter
 
+        val onBackPressedCallback = object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (intent.getBooleanExtra("from_menu", false)) {
+                    val mainIntent = Intent(this@WantToReadActivity, com.nightread.app.MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        putExtra("OPEN_DRAWER", true)
+                    }
+                    startActivity(mainIntent)
+                    finish()
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        }
+        onBackPressedDispatcher.addCallback(this, onBackPressedCallback)
+
         observeWantToReadBooks()
     }
 
@@ -100,22 +117,9 @@ class WantToReadActivity : BaseActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == android.R.id.home) {
-            onBackPressed()
+            onBackPressedDispatcher.onBackPressed()
             return true
         }
         return super.onOptionsItemSelected(item)
-    }
-
-    override fun onBackPressed() {
-        if (intent.getBooleanExtra("from_menu", false)) {
-            val mainIntent = Intent(this, com.nightread.app.MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra("OPEN_DRAWER", true)
-            }
-            startActivity(mainIntent)
-            finish()
-        } else {
-            super.onBackPressed()
-        }
     }
 }
