@@ -50,7 +50,7 @@ object Fb2ToHtmlConverterAdvanced {
             }
 
             // Margin/padding setup
-            val sideMarginPx = if (pageMargins) paddingLeft else 12
+            val sideMarginPx = paddingLeft
             val sideMargin = "${sideMarginPx}px"
             val columnWidthCss = "calc(100vw - ${sideMarginPx * 2}px)"
             val columnGapCss = "${sideMarginPx * 2}px"
@@ -62,7 +62,7 @@ object Fb2ToHtmlConverterAdvanced {
 
             return """
                 <!DOCTYPE html>
-                <html>
+                <html lang="ru">
                 <head>
                     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
                     <style>
@@ -95,6 +95,9 @@ object Fb2ToHtmlConverterAdvanced {
                             font-weight: $fontWeightCss;
                             line-height: $lineSpacing;
                             text-align: ${fontAlignment.lowercase()};
+                            -webkit-hyphens: auto;
+                            -ms-hyphens: auto;
+                            hyphens: auto;
                             -webkit-user-select: none;
                             user-select: none;
                         }

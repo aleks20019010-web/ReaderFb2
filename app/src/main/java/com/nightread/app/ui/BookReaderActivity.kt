@@ -55,6 +55,8 @@ class BookReaderActivity : AppCompatActivity() {
     private var touchStartX: Float = 0f
     private var lastPageAnimationIdx: Int = 0
     private var lastPage: Int = -1
+    private var systemTopInset: Int = 0
+    private var systemBottomInset: Int = 0
     private var sleepTimerJob: kotlinx.coroutines.Job? = null
     private var sensorManager: android.hardware.SensorManager? = null
     private var accelerometer: android.hardware.Sensor? = null
@@ -145,6 +147,9 @@ class BookReaderActivity : AppCompatActivity() {
             // Calculate status bar height dynamically; fallback to 24dp if hidden
             val statusBarHeight = if (statusBarInsets.top > 0) statusBarInsets.top else (24 * density).toInt()
             val topInset = maxOf(statusBarHeight, displayCutout.top)
+            
+            systemTopInset = topInset
+            systemBottomInset = navBarInsets.bottom
             
             // 1. Top toolbar handles status bar height and cutout
             topToolbar.setPadding(
@@ -454,10 +459,8 @@ class BookReaderActivity : AppCompatActivity() {
             val pageMargins = viewModel.pageMarginsState.value
             
             val density = resources.displayMetrics.density
-            val statusBarHeight = (24 * density).toInt()
-            val navBarHeight = (48 * density).toInt()
-            val paddingTop = statusBarHeight + (16 * density).toInt()
-            val paddingBottom = navBarHeight + (16 * density).toInt()
+            val paddingTop = systemTopInset + (8 * density).toInt()
+            val paddingBottom = systemBottomInset + (16 * density).toInt()
             val paddingLeft = (16 * density).toInt()
             val paddingRight = (16 * density).toInt()
 
