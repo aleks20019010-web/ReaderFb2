@@ -27,13 +27,16 @@ import androidx.core.graphics.ColorUtils
 import com.nightread.app.R
 import com.nightread.app.ui.customlayout.CustomReaderPageView
 import com.nightread.app.ui.customlayout.PageSplitter
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
 
 
 class BookReaderActivity : AppCompatActivity() {
 
     private lateinit var readerView: CustomReaderPageView
+    private lateinit var webView: android.webkit.WebView
     private lateinit var ivBookCoverPage: ImageView
     private lateinit var pageIndicatorView: TextView
     private lateinit var progressBar: ProgressBar
@@ -65,6 +68,7 @@ class BookReaderActivity : AppCompatActivity() {
         com.nightread.app.ui.HyphenatorHelper.init(this)
 
         readerView = findViewById(R.id.bookReaderView)
+        webView = findViewById(R.id.webView)
         ivBookCoverPage = findViewById(R.id.ivBookCoverPage)
         rootLayout = findViewById(R.id.rootView)
         ambientGlowView = findViewById(R.id.ambientGlowView)
@@ -171,6 +175,13 @@ class BookReaderActivity : AppCompatActivity() {
             )
             
             insets
+        }
+
+        // Setup WebView
+        webView.settings.apply {
+            javaScriptEnabled = false
+            loadWithOverviewMode = true
+            useWideViewPort = true
         }
 
         // Setup real content bounds listener for dynamic pagination scaling
@@ -343,8 +354,14 @@ class BookReaderActivity : AppCompatActivity() {
 
         val text = pages[pageIdx]
         
+        val filePath = viewModel.bookState.value?.filePath ?: ""
+        val isFb2 = filePath.endsWith(".fb2", true) || 
+                    filePath.endsWith(".fb2.zip", true) || 
+                    (filePath.endsWith(".zip", true) && text.trim().startsWith("<?xml", ignoreCase = true))
+        
         if (text.toString() == "[BOOK_COVER]") {
             readerView.visibility = View.GONE
+            webView.visibility = View.GONE
             ivBookCoverPage.visibility = View.VISIBLE
             val book = viewModel.bookState.value
             if (book != null && !book.coverPath.isNullOrEmpty() && java.io.File(book.coverPath).exists()) {
@@ -354,8 +371,24 @@ class BookReaderActivity : AppCompatActivity() {
             }
             updatePageIndicator()
             return
+        } else if (isFb2) {
+            readerView.visibility = View.GONE
+            ivBookCoverPage.visibility = View.GONE
+            webView.visibility = View.VISIBLE
+            progressBar.visibility = View.VISIBLE
+            
+            lifecycleScope.launch(Dispatchers.IO) {
+                val html = com.nightread.app.service.Fb2ToHtmlConverterAdvanced.convert(text.toString())
+                withContext(Dispatchers.Main) {
+                    progressBar.visibility = View.GONE
+                    webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
+                }
+            }
+            updatePageIndicator()
+            return
         } else {
             readerView.visibility = View.VISIBLE
+            webView.visibility = View.GONE
             ivBookCoverPage.visibility = View.GONE
         }
         

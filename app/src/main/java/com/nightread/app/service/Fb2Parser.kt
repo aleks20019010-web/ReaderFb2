@@ -45,14 +45,10 @@ object Fb2Parser : BookParser {
     override fun parse(file: File, defaultTitle: String): ParsedBook {
         return file.inputStream().use { inputStream ->
             val metadata = parse(inputStream, defaultTitle)
-            // For file-based parsing, we also need to read content.
-            // The InputStream-based parse only reads header for metadata.
-            // This is a bit of a workaround to maintain compatibility.
-            val fullContent = file.readText(Charsets.UTF_8)
             ParsedBook(
                 title = metadata.title,
                 author = metadata.author,
-                content = TextCleaner.cleanText(fullContent) as String
+                content = metadata.content
             )
         }
     }
