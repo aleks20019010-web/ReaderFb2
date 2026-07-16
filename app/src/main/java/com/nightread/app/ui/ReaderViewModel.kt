@@ -314,35 +314,59 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             val formattedText = TextFormatter.formatChapterSpans(appContext, content, paint.textSize)
             
             if (cachedOffsets != null) {
-                val pages = ArrayList<CharSequence>()
-                for (i in cachedOffsets.indices) {
-                    val startIdx = cachedOffsets[i]
-                    val endIdx = if (i < cachedOffsets.size - 1) cachedOffsets[i + 1] else formattedText.length
-                    pages.add(formattedText.subSequence(startIdx, endIdx))
-                }
-                
-                var newPageIndex = 0
-                for (i in 0 until cachedOffsets.size) {
-                    if (cachedOffsets[i] <= currentOffset) {
-                        newPageIndex = i
-                    } else {
+                var cacheValid = true
+                for (offset in cachedOffsets) {
+                    if (offset < 0 || offset > formattedText.length) {
+                        cacheValid = false
                         break
                     }
                 }
-                val clampedPageIndex = newPageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
-
-                viewModelScope.launch(Dispatchers.Main) {
-                    _pagesState.value = pages
-                    pageStartOffsets = cachedOffsets
-                    _currentPage.value = clampedPageIndex
-                    // Warm up in-memory cache
-                    BookCache.sha1 = book.sha1
-                    BookCache.content = content
-                    BookCache.layoutKey = currentKey
-                    BookCache.splitResult = TextFormatter.PageResult(pages, ArrayList(cachedOffsets), true)
+                if (cacheValid && cachedOffsets.isNotEmpty()) {
+                    for (i in 0 until cachedOffsets.size - 1) {
+                        if (cachedOffsets[i] >= cachedOffsets[i + 1]) {
+                            cacheValid = false
+                            break
+                        }
+                    }
                 }
-                android.util.Log.d("ReaderViewModel", "Successfully loaded pagination from disk cache! Total pages: ${pages.size}")
-                return@launch
+                
+                if (cacheValid && cachedOffsets.isNotEmpty()) {
+                    val pages = ArrayList<CharSequence>()
+                    try {
+                        for (i in cachedOffsets.indices) {
+                            val startIdx = cachedOffsets[i]
+                            val endIdx = if (i < cachedOffsets.size - 1) cachedOffsets[i + 1] else formattedText.length
+                            pages.add(formattedText.subSequence(startIdx, endIdx))
+                        }
+                        
+                        var newPageIndex = 0
+                        for (i in 0 until cachedOffsets.size) {
+                            if (cachedOffsets[i] <= currentOffset) {
+                                newPageIndex = i
+                            } else {
+                                break
+                            }
+                        }
+                        val clampedPageIndex = newPageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
+
+                        viewModelScope.launch(Dispatchers.Main) {
+                            _pagesState.value = pages
+                            pageStartOffsets = cachedOffsets
+                            _currentPage.value = clampedPageIndex
+                            // Warm up in-memory cache
+                            BookCache.sha1 = book.sha1
+                            BookCache.content = content
+                            BookCache.layoutKey = currentKey
+                            BookCache.splitResult = TextFormatter.PageResult(pages, ArrayList(cachedOffsets), true)
+                        }
+                        android.util.Log.d("ReaderViewModel", "Successfully loaded pagination from disk cache! Total pages: ${pages.size}")
+                        return@launch
+                    } catch (e: Exception) {
+                        android.util.Log.e("ReaderViewModel", "Disk cache offsets invalid on subSequence", e)
+                    }
+                } else {
+                    android.util.Log.w("ReaderViewModel", "Disk cache offsets out of bounds or invalid, ignoring cache.")
+                }
             }
 
             val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
