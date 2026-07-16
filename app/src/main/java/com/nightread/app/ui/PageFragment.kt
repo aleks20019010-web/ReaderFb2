@@ -209,7 +209,7 @@ class PageFragment : Fragment() {
 
         return """
             <!DOCTYPE html>
-            <html>
+            <html lang="ru">
             <head>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
                 <style>
@@ -230,9 +230,9 @@ class PageFragment : Fragment() {
                         $fontStyle
                         font-weight: ${SettingsManager.getFontWeightAsInt(context)};
                         letter-spacing: ${letterSpacing}em;
-                        text-align: left;
-                        -webkit-hyphens: manual;
-                        hyphens: manual;
+                        text-align: justify;
+                        -webkit-hyphens: auto;
+                        hyphens: auto;
                         overflow: hidden;
                         word-wrap: break-word;
                         user-select: none;
@@ -251,10 +251,11 @@ class PageFragment : Fragment() {
                     
                     .chapter {
                         display: block;
-                        text-align: center;
-                        font-weight: bold;
-                        margin-top: 1em;
-                        margin-bottom: 1em;
+                        text-align: center !important;
+                        font-weight: bold !important;
+                        font-size: 1.4em;
+                        margin-top: 1.2em;
+                        margin-bottom: 1.2em;
                     }
                 </style>
             </head>

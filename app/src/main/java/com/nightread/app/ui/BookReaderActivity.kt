@@ -361,17 +361,22 @@ class BookReaderActivity : AppCompatActivity() {
         }
         
         val availableWidth = readerView.width - readerView.paddingLeft - readerView.paddingRight
-        val align = when (viewModel.fontAlignmentState.value.lowercase()) {
+        val alignSetting = viewModel.fontAlignmentState.value.lowercase()
+        val align = when (alignSetting) {
             "left" -> Layout.Alignment.ALIGN_NORMAL
             "right" -> Layout.Alignment.ALIGN_OPPOSITE
             "center" -> Layout.Alignment.ALIGN_CENTER
             else -> Layout.Alignment.ALIGN_NORMAL
         }
+        val isJustify = alignSetting == "justify"
+        val isHyphen = com.nightread.app.data.SettingsManager.isHyphenationEnabled(this)
         
         val layout = PageSplitter.createStaticLayout(
             text, 0, text.length, paint, availableWidth,
             align,
-            viewModel.lineSpacingState.value, 0f, false
+            viewModel.lineSpacingState.value, 0f,
+            hyphenation = isHyphen,
+            justify = isJustify
         )
         readerView.setLayout(layout)
     }

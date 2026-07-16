@@ -98,7 +98,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         _fontWeightState.value = if (weightInt >= 600) 1 else 0
         
         val savedAlign = sharedPrefs.getString("saved_font_alignment", "left") ?: "left"
-        _fontAlignmentState.value = if (savedAlign == "justify") "left" else savedAlign
+        _fontAlignmentState.value = savedAlign
         _pageMarginsState.value = sharedPrefs.getBoolean("saved_page_margins", true)
         _scrollDirectionState.value = SettingsManager.getPageAnimation(context)
         _twoPagesLandscapeState.value = sharedPrefs.getBoolean("saved_two_pages_landscape", false)

@@ -95,6 +95,16 @@ object TextCleaner {
             .replace(Regex("<title[^>]*>", RegexOption.IGNORE_CASE), "\n\u000C[CHAPTER]")
             .replace(Regex("</title>", RegexOption.IGNORE_CASE), "[/CHAPTER]\n")
 
+        // Replace common block/paragraph tags (and Cyrillic equivalent <р> / </р>) with newlines to keep paragraph breaks
+        result = result
+            .replace(Regex("<p[^>]*>", RegexOption.IGNORE_CASE), "\n")
+            .replace(Regex("</p>", RegexOption.IGNORE_CASE), "\n")
+            .replace(Regex("<р[^>]*>", RegexOption.IGNORE_CASE), "\n") // Cyrillic р
+            .replace(Regex("</р>", RegexOption.IGNORE_CASE), "\n")   // Cyrillic р
+            .replace(Regex("<v[^>]*>", RegexOption.IGNORE_CASE), "\n")
+            .replace(Regex("</v>", RegexOption.IGNORE_CASE), "\n")
+            .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
+
         // 10. Удаляем HTML-теги
         result = result.replace(HTML_TAG_REGEX, "")
 
@@ -187,6 +197,16 @@ object TextCleaner {
         result = result
             .replace(Regex("<title[^>]*>", RegexOption.IGNORE_CASE), "\n\u000C[CHAPTER]")
             .replace(Regex("</title>", RegexOption.IGNORE_CASE), "[/CHAPTER]\n")
+
+        // Replace common block/paragraph tags (and Cyrillic equivalent <р> / </р>) with newlines to keep paragraph breaks
+        result = result
+            .replace(Regex("<p[^>]*>", RegexOption.IGNORE_CASE), "\n")
+            .replace(Regex("</p>", RegexOption.IGNORE_CASE), "\n")
+            .replace(Regex("<р[^>]*>", RegexOption.IGNORE_CASE), "\n") // Cyrillic р
+            .replace(Regex("</р>", RegexOption.IGNORE_CASE), "\n")   // Cyrillic р
+            .replace(Regex("<v[^>]*>", RegexOption.IGNORE_CASE), "\n")
+            .replace(Regex("</v>", RegexOption.IGNORE_CASE), "\n")
+            .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
 
         // 10. Удаляем HTML
         doReplace("HTML tags", HTML_TAG_REGEX, "", isRemoval = true)

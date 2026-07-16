@@ -48,7 +48,7 @@ object Fb2Parser : BookParser {
         return ParsedBook(
             title = metadata.title,
             author = metadata.author,
-            content = metadata.content
+            content = TextCleaner.cleanText(metadata.content) as String
         )
     }
 

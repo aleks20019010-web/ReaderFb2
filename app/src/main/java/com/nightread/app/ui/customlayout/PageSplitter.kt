@@ -238,7 +238,8 @@ object PageSplitter {
         alignment: android.text.Layout.Alignment,
         letterSpacing: Float,
         configKey: String,
-        onProgress: ((List<Int>, Boolean) -> Unit)? = null
+        onProgress: ((List<Int>, Boolean) -> Unit)? = null,
+        justify: Boolean = false
     ): List<Int> = withContext(Dispatchers.Default) {
         if (text.isEmpty() || width <= 0 || height <= 0) {
             val res = listOf(0)
@@ -257,20 +258,12 @@ object PageSplitter {
         paint.textLocale = java.util.Locale("ru", "RU")
 
         // 1. Разбиваем весь текст на строки через StaticLayout (один раз)
-        val layout = createStaticLayout(text, 0, text.length, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation)
+        val layout = createStaticLayout(text, 0, text.length, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
         val lineCount = layout.lineCount
-        val linesList = ArrayList<String>()
         val lineStartOffsets = ArrayList<Int>()
         for (i in 0 until lineCount) {
-            val start = layout.getLineStart(i)
-            val end = layout.getLineEnd(i)
-            linesList.add(text.subSequence(start, end).toString())
-            lineStartOffsets.add(start)
+            lineStartOffsets.add(layout.getLineStart(i))
         }
-
-        val maxLinesPerPage = getLinesPerPage(height, paint, lineSpacingMultiplier, lineSpacingExtra)
-        val minLinesPerPage = 3
-        val minLastLineWidthPercent = 0.3f
 
         val offsets = mutableListOf<Int>()
         offsets.add(0)
@@ -278,35 +271,31 @@ object PageSplitter {
         var currentLineIdx = 0
         var pagesFound = 0
 
+        // Запас в несколько пикселей, чтобы гарантировать, что последний символ/строка не будут обрезаны из-за погрешностей рендеринга
+        val maxPageHeight = height - 2
+
         while (currentLineIdx < lineCount) {
             if (!isActive) break
 
-            val tentativeEnd = minOf(currentLineIdx + maxLinesPerPage, lineCount)
-            var adjustedEnd = adjustPageBoundary(linesList, currentLineIdx, tentativeEnd)
-
-            if (adjustedEnd - currentLineIdx < minLinesPerPage && tentativeEnd < lineCount) {
-                adjustedEnd = tentativeEnd
-            }
-
-            // 7. Если страница заканчивается на короткой строке (< 30% ширины) - перенести ее на следующую
-            var pageLinesCount = adjustedEnd - currentLineIdx
-            while (pageLinesCount > minLinesPerPage) {
-                val lastLineIdx = currentLineIdx + pageLinesCount - 1
-                val lastLineText = linesList[lastLineIdx]
-                val lastLineWidth = paint.measureText(lastLineText.trimEnd())
-                val targetMin = width * minLastLineWidthPercent
-
-                if (lastLineWidth < targetMin) {
-                    adjustedEnd--
-                    pageLinesCount--
+            var endLineIdx = currentLineIdx
+            while (endLineIdx < lineCount) {
+                val nextLineIdx = endLineIdx + 1
+                val pageHeight = layout.getLineBottom(nextLineIdx - 1) - layout.getLineTop(currentLineIdx)
+                if (pageHeight <= maxPageHeight) {
+                    endLineIdx = nextLineIdx
                 } else {
                     break
                 }
             }
 
+            // Обеспечиваем продвижение вперед хотя бы на одну строку, чтобы избежать бесконечного цикла
+            if (endLineIdx == currentLineIdx) {
+                endLineIdx = currentLineIdx + 1
+            }
+
             // Добавляем смещение для следующей страницы
-            if (adjustedEnd < lineCount) {
-                val nextPageOffset = lineStartOffsets[adjustedEnd]
+            if (endLineIdx < lineCount) {
+                val nextPageOffset = lineStartOffsets[endLineIdx]
                 if (nextPageOffset < text.length) {
                     offsets.add(nextPageOffset)
                     pagesFound++
@@ -321,22 +310,8 @@ object PageSplitter {
                 }
             }
 
-            currentLineIdx = adjustedEnd
+            currentLineIdx = endLineIdx
             yield()
-        }
-
-        // 8. Если на последней странице мало строк, объединяем с предыдущей
-        if (offsets.size > 1) {
-            val lastPageStartOffset = offsets.last()
-            var lastPageLinesCount = 0
-            for (i in 0 until lineCount) {
-                if (lineStartOffsets[i] >= lastPageStartOffset) {
-                    lastPageLinesCount++
-                }
-            }
-            if (lastPageLinesCount < minLinesPerPage) {
-                offsets.removeAt(offsets.size - 1)
-            }
         }
 
         if (isActive) {
@@ -353,7 +328,8 @@ object PageSplitter {
         paint: TextPaint, width: Int, 
         alignment: android.text.Layout.Alignment,
         lineSpacingMultiplier: Float, lineSpacingExtra: Float,
-        hyphenation: Boolean
+        hyphenation: Boolean,
+        justify: Boolean = false
     ): StaticLayout {
         val strategy = if (hyphenation) android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY else android.graphics.text.LineBreaker.BREAK_STRATEGY_SIMPLE
         val frequency = if (hyphenation) android.text.Layout.HYPHENATION_FREQUENCY_FULL else android.text.Layout.HYPHENATION_FREQUENCY_NONE
@@ -367,6 +343,14 @@ object PageSplitter {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             builder.setBreakStrategy(strategy)
             builder.setHyphenationFrequency(frequency)
+        }
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            if (justify) {
+                builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD)
+            } else {
+                builder.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_NONE)
+            }
         }
         
         return builder.build()

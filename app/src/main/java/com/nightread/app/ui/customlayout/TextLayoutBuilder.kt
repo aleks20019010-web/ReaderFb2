@@ -114,7 +114,8 @@ class TextLayoutBuilder {
             alignment = alignment,
             letterSpacing = letterSpacing,
             configKey = configKey,
-            onProgress = onProgress
+            onProgress = onProgress,
+            justify = justify
         )
     }
 
