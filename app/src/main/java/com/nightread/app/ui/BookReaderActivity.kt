@@ -37,6 +37,7 @@ class BookReaderActivity : AppCompatActivity() {
 
     private lateinit var readerView: CustomReaderPageView
     private lateinit var webView: android.webkit.WebView
+    private lateinit var touchInterceptor: View
     private lateinit var ivBookCoverPage: ImageView
     private lateinit var pageIndicatorView: TextView
     private lateinit var progressBar: ProgressBar
@@ -69,6 +70,7 @@ class BookReaderActivity : AppCompatActivity() {
 
         readerView = findViewById(R.id.bookReaderView)
         webView = findViewById(R.id.webView)
+        touchInterceptor = findViewById(R.id.touchInterceptor)
         ivBookCoverPage = findViewById(R.id.ivBookCoverPage)
         rootLayout = findViewById(R.id.rootView)
         ambientGlowView = findViewById(R.id.ambientGlowView)
@@ -325,7 +327,7 @@ class BookReaderActivity : AppCompatActivity() {
         }
 
         readerView.setOnTouchListener(gestureTouchListener)
-        webView.setOnTouchListener(gestureTouchListener)
+        touchInterceptor.setOnTouchListener(gestureTouchListener)
 
         lifecycleScope.launch {
             com.nightread.app.data.SettingsManager.settingsChanged.collectLatest {
@@ -427,6 +429,7 @@ class BookReaderActivity : AppCompatActivity() {
         if (text.toString() == "[BOOK_COVER]") {
             readerView.visibility = View.GONE
             webView.visibility = View.GONE
+            touchInterceptor.visibility = View.GONE
             ivBookCoverPage.visibility = View.VISIBLE
             val book = viewModel.bookState.value
             if (book != null && !book.coverPath.isNullOrEmpty() && java.io.File(book.coverPath).exists()) {
@@ -436,10 +439,11 @@ class BookReaderActivity : AppCompatActivity() {
             }
             updatePageIndicator()
             return
-        } else if (text.toString() == "WEBVIEW_CONTENT" || text.toString().startsWith("WEBVIEW_PAGE_") || isFb2) {
+        } else if (text.toString().startsWith("WEBVIEW_CONTENT") || text.toString().startsWith("WEBVIEW_PAGE_") || isFb2) {
             readerView.visibility = View.GONE
             ivBookCoverPage.visibility = View.GONE
             webView.visibility = View.VISIBLE
+            touchInterceptor.visibility = View.VISIBLE
             
             val themeKey = viewModel.themeState.value
             val fontSize = viewModel.fontSizeState.value
@@ -503,6 +507,7 @@ class BookReaderActivity : AppCompatActivity() {
         } else {
             readerView.visibility = View.VISIBLE
             webView.visibility = View.GONE
+            touchInterceptor.visibility = View.GONE
             ivBookCoverPage.visibility = View.GONE
         }
         

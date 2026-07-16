@@ -50,7 +50,10 @@ object Fb2ToHtmlConverterAdvanced {
             }
 
             // Margin/padding setup
-            val sideMargin = if (pageMargins) "${paddingLeft}px" else "12px"
+            val sideMarginPx = if (pageMargins) paddingLeft else 12
+            val sideMargin = "${sideMarginPx}px"
+            val columnWidthCss = "calc(100vw - ${sideMarginPx * 2}px)"
+            val columnGapCss = "${sideMarginPx * 2}px"
             val topMargin = "${paddingTop}px"
             val bottomMargin = "${paddingBottom}px"
             val fontWeightCss = if (fontWeight > 0) "bold" else "normal"
@@ -81,10 +84,10 @@ object Fb2ToHtmlConverterAdvanced {
                             box-sizing: border-box;
                             overflow-x: scroll;
                             overflow-y: hidden;
-                            -webkit-column-width: 100vw;
-                            -webkit-column-gap: 0px;
-                            column-width: 100vw;
-                            column-gap: 0px;
+                            -webkit-column-width: $columnWidthCss;
+                            -webkit-column-gap: $columnGapCss;
+                            column-width: $columnWidthCss;
+                            column-gap: $columnGapCss;
                             background-color: $bgColor;
                             color: $textColor;
                             font-family: $cssFontFamily;

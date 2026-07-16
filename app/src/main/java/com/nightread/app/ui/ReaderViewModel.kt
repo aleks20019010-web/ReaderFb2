@@ -146,7 +146,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                     if (book.filePath?.endsWith(".fb2", true) == true || 
                         book.filePath?.endsWith(".fb2.zip", true) == true || 
                         book.filePath?.endsWith(".zip", true) == true) {
-                        _pagesState.value = listOf("WEBVIEW_CONTENT")
+                        _pagesState.value = listOf("WEBVIEW_CONTENT_${System.currentTimeMillis()}")
                     } else {
                         repaginate()
                     }
@@ -253,6 +253,15 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     fun repaginate() {
         if (content.isEmpty() || availableWidth <= 0 || availableHeight <= 0) return
         val book = _bookState.value ?: return
+
+        if (book.filePath?.endsWith(".fb2", true) == true || 
+            book.filePath?.endsWith(".fb2.zip", true) == true || 
+            book.filePath?.endsWith(".zip", true) == true) {
+            
+            // If it's already using WEBVIEW_PAGE_ list, keep it. Otherwise reset to WEBVIEW_CONTENT.
+            _pagesState.value = listOf("WEBVIEW_CONTENT_${System.currentTimeMillis()}")
+            return
+        }
 
         // Take snapshot of current state before launching async calculation
         val currentOffsetsSnapshot = ArrayList(pageStartOffsets)
