@@ -94,7 +94,7 @@ class MainApplication : Application(), ImageLoaderFactory {
 
         // Apply theme immediately on startup
         ThemeManager.applyTheme(this)
-        if (SettingsManager.isAutoThemeEnabled(this)) {
+        if (SettingsManager.isAutoLightNightEnabled(this)) {
             ThemeUpdateReceiver.scheduleNextThemeAlarm(this)
         }
     }

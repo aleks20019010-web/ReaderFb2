@@ -297,6 +297,12 @@ class SettingsBottomSheet : DialogFragment() {
         switchAutoLightNight.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked != SettingsManager.isAutoLightNightEnabled(context)) {
                 SettingsManager.setAutoLightNightEnabled(context, isChecked)
+                com.nightread.app.data.ThemeManager.applyTheme(context)
+                if (isChecked) {
+                    com.nightread.app.service.ThemeUpdateReceiver.scheduleNextThemeAlarm(context)
+                } else {
+                    com.nightread.app.service.ThemeUpdateReceiver.cancelAlarm(context)
+                }
             }
         }
 

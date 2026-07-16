@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 data class Sha1PathTuple(
     val sha1: String,
-    val filePath: String
+    val filePath: String?
 )
 
 @Dao
