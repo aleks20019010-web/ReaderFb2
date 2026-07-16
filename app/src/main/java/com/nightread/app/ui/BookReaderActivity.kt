@@ -382,7 +382,7 @@ class BookReaderActivity : AppCompatActivity() {
             hyphenation = isHyphen,
             justify = isJustify
         )
-        readerView.setLayout(layout)
+        readerView.setLayout(layout, isJustify)
     }
 
     private fun updatePageIndicator() {
