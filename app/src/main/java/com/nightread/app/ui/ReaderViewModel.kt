@@ -293,11 +293,12 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         repaginateJob?.cancel()
         repaginateJob = viewModelScope.launch(Dispatchers.Default) {
             // 1. Determine current reading position (character offset)
-            // Always use the real saved char offset instead of potentially dummy currentOffsetsSnapshot
-            val currentOffset: Int = if (currentPageSnapshot == 0 || savedPage == 0) {
-                -1
-            } else {
+            val currentOffset: Int = if (currentOffsetsSnapshot.isNotEmpty() && currentPageSnapshot < currentOffsetsSnapshot.size && currentPageSnapshot > 0) {
+                currentOffsetsSnapshot[currentPageSnapshot]
+            } else if (savedOffset > 0) {
                 savedOffset
+            } else {
+                -1
             }
 
             // 2. Measure and slice text into pages based on actual font parameters using PageSplitter
@@ -360,9 +361,6 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                         } else {
                             break
                         }
-                    }
-                    if (newPageIndex == 0 && offsets.size > 1) {
-                        newPageIndex = 1
                     }
                 }
                 val clampedPageIndex = newPageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
@@ -427,9 +425,6 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                                 } else {
                                     break
                                 }
-                            }
-                            if (newPageIndex == 0 && finalOffsets.size > 1) {
-                                newPageIndex = 1
                             }
                         }
                         val clampedPageIndex = newPageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
@@ -500,9 +495,6 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                         } else {
                             break
                         }
-                    }
-                    if (newPageIndex == 0 && finalOffsets.size > 1) {
-                        newPageIndex = 1
                     }
                 }
                 val clampedPageIndex = newPageIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0))

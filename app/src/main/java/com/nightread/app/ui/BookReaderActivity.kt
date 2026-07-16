@@ -360,7 +360,10 @@ class BookReaderActivity : AppCompatActivity() {
         applyScreenSettings()
 
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
-        if (sha1.isNotEmpty()) viewModel.loadBook(sha1)
+        if (sha1.isNotEmpty()) {
+            com.nightread.app.data.SettingsManager.setLastReadBookSha1(this, sha1)
+            viewModel.loadBook(sha1)
+        }
     }
 
     private fun getThemeColors(themeKey: String): Pair<Int, Int> {
@@ -934,6 +937,11 @@ class BookReaderActivity : AppCompatActivity() {
                 sensorManager?.registerListener(sensorListener, accelerometer, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
             }
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        viewModel.saveProgress()
     }
 
     override fun onDestroy() {

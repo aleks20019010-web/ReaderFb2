@@ -191,18 +191,13 @@ class MainActivity : BaseActivity() {
         // Set up Splash Screen
         val splashOverlay = findViewById<FrameLayout>(R.id.splash_overlay)
         
-        // Inject test book if library is empty
+        // Remove test book if it was previously injected
         lifecycleScope.launch(Dispatchers.IO) {
             val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
-            if (db.bookDao().getBooksCount() == 0) {
-                db.bookDao().insertBook(
-                    com.nightread.app.data.BookEntity(
-                        sha1 = "test_book_1",
-                        title = "Тестовая книга",
-                        author = "AI Agent",
-                        filePath = null
-                    )
-                )
+            try {
+                db.bookDao().deleteBookBySha1("test_book_1")
+            } catch (e: Exception) {
+                // Ignore
             }
         }
 
@@ -393,10 +388,8 @@ class MainActivity : BaseActivity() {
                         } else {
                             0
                         }
-                        if (percent < 100) {
-                            lastReadBookSha1 = lastReadSha1
-                            shouldAutoOpen = true
-                        }
+                        lastReadBookSha1 = lastReadSha1
+                        shouldAutoOpen = true
                     }
                 }
 
@@ -468,10 +461,13 @@ class MainActivity : BaseActivity() {
                                     }
                                     
                                     val paddingHorizontal = (32 * resources.displayMetrics.density).toInt()
-                                    val paddingVertical = (8 * resources.displayMetrics.density).toInt() + getTopInset()
+                                    val paddingVertical = (24 * resources.displayMetrics.density).toInt() + getTopInset() + getBottomInset()
                                     
                                     val availableWidth = width - paddingHorizontal
                                     val availableHeight = height - paddingVertical
+                                    
+                                    val alignment = getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE).getString("saved_font_alignment", "justify") ?: "justify"
+                                    val lineSpacing = SettingsManager.getLineSpacing(this@MainActivity)
                                     
                                     val formattedText = com.nightread.app.ui.TextFormatter.formatChapterSpans(this@MainActivity, textToSplit, paint.textSize)
                                     val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
@@ -479,7 +475,7 @@ class MainActivity : BaseActivity() {
                                         .setWidth(availableWidth)
                                         .setHeight(availableHeight)
                                         .setPaint(paint)
-                                        .setLineSpacing(0f, SettingsManager.getLineSpacing(this@MainActivity))
+                                        .setLineSpacing(0f, lineSpacing)
                                         .setHyphenation(hyphenationEnabled)
                                         
                                     val offsets = builder.buildPagination()
@@ -491,12 +487,12 @@ class MainActivity : BaseActivity() {
                                     }
                                     val splitResult = com.nightread.app.ui.TextFormatter.PageResult(pages, java.util.ArrayList(offsets), true)
                                     
-                                    val currentKey = "${width}_${height}_${paint.textSize}_${SettingsManager.getFontFamily(this@MainActivity)}_${SettingsManager.getFontWeightAsInt(this@MainActivity)}_${SettingsManager.getLineSpacing(this@MainActivity)}_align=${getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE).getString("saved_font_alignment", "justify")}_hyphen=$hyphenationEnabled"
+                                    val currentKey = "${availableWidth}_${availableHeight}_${paint.textSize}_${SettingsManager.getFontFamily(this@MainActivity)}_${SettingsManager.getFontWeightAsInt(this@MainActivity)}_${lineSpacing}_align=${alignment}_hyphen=$hyphenationEnabled"
                                     BookCache.layoutKey = currentKey
                                     BookCache.splitResult = splitResult
                                     
                                     android.util.Log.d("MainActivity", "Precalculated splitting finished during splash. Total pages: ${splitResult.pages.size}")
-                                    updateLoadingProgress(95, "Оформление страниц завершено!")
+                                    updateLoadingProgress(95, "Рассчитано страниц: ${splitResult.pages.size}. Открываем...")
                                 }
                             }
                         } catch (e: Exception) {
@@ -542,6 +538,15 @@ class MainActivity : BaseActivity() {
         }
         val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
         return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
+    }
+
+    private fun getBottomInset(): Int {
+        val insets = androidx.core.view.ViewCompat.getRootWindowInsets(window.decorView)
+        if (insets != null) {
+            val navBarInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
+            return navBarInsets.bottom
+        }
+        return 0
     }
 
     private fun parseBookFile(file: File): BookParser.ParsedBook {
