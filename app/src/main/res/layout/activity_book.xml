@@ -8,12 +8,7 @@
     <com.nightread.app.ui.customlayout.CustomReaderPageView
         android:id="@+id/bookReaderView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:paddingTop="56dp"
-        android:paddingBottom="56dp"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:fitsSystemWindows="true" />
+        android:layout_height="match_parent" />
 
     <LinearLayout
         android:id="@+id/topToolbar"
@@ -34,6 +29,7 @@
             android:src="@drawable/ic_arrow_back" />
 
         <TextView
+            android:id="@+id/tvBookTitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"

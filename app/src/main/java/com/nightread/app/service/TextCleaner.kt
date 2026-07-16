@@ -90,6 +90,11 @@ object TextCleaner {
     ): String {
         var result = text
 
+        // Convert title tags to CHAPTER tags for FB2 and other formats
+        result = result
+            .replace(Regex("<title[^>]*>", RegexOption.IGNORE_CASE), "\n\u000C[CHAPTER]")
+            .replace(Regex("</title>", RegexOption.IGNORE_CASE), "[/CHAPTER]\n")
+
         // 10. Удаляем HTML-теги
         result = result.replace(HTML_TAG_REGEX, "")
 
@@ -177,6 +182,11 @@ object TextCleaner {
                 if (isRemoval) removedCount += count else replacedCount += count
             }
         }
+
+        // Convert title tags to CHAPTER tags for FB2 and other formats
+        result = result
+            .replace(Regex("<title[^>]*>", RegexOption.IGNORE_CASE), "\n\u000C[CHAPTER]")
+            .replace(Regex("</title>", RegexOption.IGNORE_CASE), "[/CHAPTER]\n")
 
         // 10. Удаляем HTML
         doReplace("HTML tags", HTML_TAG_REGEX, "", isRemoval = true)
