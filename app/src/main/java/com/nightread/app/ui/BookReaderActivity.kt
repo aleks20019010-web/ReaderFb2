@@ -38,6 +38,24 @@ class BookReaderActivity : AppCompatActivity() {
         rootLayout = findViewById(R.id.rootView)
         viewModel = ViewModelProvider(this).get(ReaderViewModel::class.java)
 
+        val btnBack = findViewById<View>(R.id.btnBack)
+        btnBack.setOnClickListener { finish() }
+
+        val btnSettings = findViewById<View>(R.id.btnSettings)
+        btnSettings.setOnClickListener {
+            SettingsBottomSheet().show(supportFragmentManager, "settings")
+        }
+
+        val topToolbar = findViewById<View>(R.id.topToolbar)
+        val bottomToolbar = findViewById<View>(R.id.bottomToolbar)
+        var isBarsVisible = true
+
+        readerView.setOnClickListener {
+            isBarsVisible = !isBarsVisible
+            topToolbar.visibility = if (isBarsVisible) View.VISIBLE else View.GONE
+            bottomToolbar.visibility = if (isBarsVisible) View.VISIBLE else View.GONE
+        }
+        
         progressBar = ProgressBar(this).apply { visibility = View.GONE }
         val progressParams = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -46,19 +64,15 @@ class BookReaderActivity : AppCompatActivity() {
         )
         rootLayout.addView(progressBar, progressParams)
 
-        pageIndicatorView = TextView(this).apply {
-            setTextColor(Color.GRAY)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            gravity = Gravity.CENTER
-            val paddingPx = (8 * resources.displayMetrics.density).toInt()
-            setPadding(0, 0, 0, paddingPx)
-        }
-        val indicatorParams = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-        )
-        rootLayout.addView(pageIndicatorView, indicatorParams)
+        pageIndicatorView = findViewById(R.id.tvPageIndicator)
+        val seekBar = findViewById<android.widget.SeekBar>(R.id.seekBar)
+        seekBar.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) viewModel.setCurrentPage(progress)
+            }
+            override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
+        })
 
         readerView.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
@@ -68,10 +82,18 @@ class BookReaderActivity : AppCompatActivity() {
         })
 
         lifecycleScope.launch {
-            viewModel.currentPage.collectLatest { updatePage(); updatePageIndicator() }
+            viewModel.currentPage.collectLatest {
+                updatePage()
+                updatePageIndicator()
+                seekBar.progress = it
+            }
         }
         lifecycleScope.launch {
-            viewModel.pagesState.collectLatest { updatePage(); updatePageIndicator() }
+            viewModel.pagesState.collectLatest {
+                updatePage()
+                updatePageIndicator()
+                seekBar.max = if (it.isNotEmpty()) it.size - 1 else 0
+            }
         }
 
         readerView.setOnTouchListener { _, event ->
