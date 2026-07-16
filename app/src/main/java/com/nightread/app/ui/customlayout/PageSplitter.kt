@@ -3,6 +3,7 @@ package com.nightread.app.ui.customlayout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.Log
+import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -321,6 +322,95 @@ object PageSplitter {
             }
         }
         return@withContext offsets
+    }
+
+    // 9. Новая логика ленивой загрузки
+    private val pagesCache = java.util.concurrent.ConcurrentHashMap<Int, StaticLayout>()
+    private val renderQueue = java.util.concurrent.ConcurrentLinkedQueue<Int>()
+    private var isRendering = false
+
+    fun getPageLayout(
+        pageIndex: Int,
+        lines: List<String>,
+        paint: TextPaint,
+        width: Int,
+        alignment: android.text.Layout.Alignment,
+        lineSpacingMultiplier: Float,
+        lineSpacingExtra: Float,
+        hyphenation: Boolean,
+        justify: Boolean
+    ): StaticLayout? {
+        return pagesCache[pageIndex]
+    }
+
+    fun startBackgroundRendering(
+        pagesLines: List<List<String>>,
+        currentPage: Int,
+        paint: TextPaint,
+        width: Int,
+        alignment: android.text.Layout.Alignment,
+        lineSpacingMultiplier: Float,
+        lineSpacingExtra: Float,
+        hyphenation: Boolean,
+        justify: Boolean
+    ) {
+        // Заполняем очередь с учетом приоритетов
+        renderQueue.clear()
+        
+        // 1. Текущая (если нет)
+        if (!pagesCache.containsKey(currentPage)) renderQueue.add(currentPage)
+        
+        // 2. Вперед
+        for (i in 1..3) {
+            val p = currentPage + i
+            if (p < pagesLines.size && !pagesCache.containsKey(p)) renderQueue.add(p)
+        }
+        
+        // 3. Назад
+        for (i in 1..2) {
+            val p = currentPage - i
+            if (p >= 0 && !pagesCache.containsKey(p)) renderQueue.add(p)
+        }
+        
+        // 4. Остальное
+        for (i in pagesLines.indices) {
+            if (!pagesCache.containsKey(i) && !renderQueue.contains(i)) renderQueue.add(i)
+        }
+
+        if (!isRendering) {
+            isRendering = true
+            CoroutineScope(Dispatchers.IO).launch {
+                renderNext(pagesLines, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
+            }
+        }
+    }
+
+    private suspend fun renderNext(
+        pagesLines: List<List<String>>,
+        paint: TextPaint,
+        width: Int,
+        alignment: android.text.Layout.Alignment,
+        lineSpacingMultiplier: Float,
+        lineSpacingExtra: Float,
+        hyphenation: Boolean,
+        justify: Boolean
+    ) {
+        while (renderQueue.isNotEmpty()) {
+            val pageIdx = renderQueue.poll() ?: break
+            if (pagesCache.containsKey(pageIdx)) continue
+            
+            val lines = pagesLines[pageIdx]
+            val text = lines.joinToString("\n")
+            
+            val layout = createStaticLayout(text, 0, text.length, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
+            pagesCache[pageIdx] = layout
+        }
+        isRendering = false
+    }
+
+    fun clearCache() {
+        pagesCache.clear()
+        renderQueue.clear()
     }
 
     val hyphenationPatternsMap = java.util.WeakHashMap<android.graphics.Paint, List<String>>()

@@ -55,6 +55,13 @@ class CustomReaderPageView(context: Context, attrs: AttributeSet? = null) : View
     }
 
     private fun precomputeJustifiedLines(layout: StaticLayout) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            // На Android 10+ используем нативный высококачественный механизм выравнивания по ширине (StaticLayout).
+            // Он работает идеально на уровне системы, не ломает переносы и полностью решает проблему наложений.
+            this.justifiedLines = null
+            return
+        }
+
         val list = ArrayList<JustifiedLine>()
         val lineCount = layout.lineCount
         val paint = layout.paint
@@ -115,14 +122,14 @@ class CustomReaderPageView(context: Context, attrs: AttributeSet? = null) : View
                     } else {
                         // Если в строке только одно слово, рисуем его нормально
                         val tempPaint = TextPaint(paint)
-                        val builder = StaticLayout.Builder.obtain(lineText, 0, lineText.length, tempPaint, availableWidth)
+                        val builder = StaticLayout.Builder.obtain(lineText, 0, lineText.length, tempPaint, availableWidth + 200)
                             .setAlignment(lineAlignment)
                             .setLineSpacing(0f, 1f)
                             .setIncludePad(false)
                         list.add(JustifiedLine.NormalLine(builder.build(), lineTop))
                     }
                 } else {
-                    // Android 10+ — выключка по ширине с межбуквенной разрядкой
+                    // Fallback для систем без полноценного Q-API
                     val lineWidth = layout.getLineWidth(i)
                     val extraSpace = availableWidth - lineWidth
                     
@@ -154,7 +161,7 @@ class CustomReaderPageView(context: Context, attrs: AttributeSet? = null) : View
                         tempPaint.letterSpacing = letterSpacingToApply
                     }
                     
-                    val builder = StaticLayout.Builder.obtain(lineText, 0, lineText.length, tempPaint, availableWidth)
+                    val builder = StaticLayout.Builder.obtain(lineText, 0, lineText.length, tempPaint, availableWidth + 200)
                         .setAlignment(lineAlignment)
                         .setLineSpacing(0f, 1f)
                         .setIncludePad(false)

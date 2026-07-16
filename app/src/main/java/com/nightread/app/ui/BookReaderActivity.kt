@@ -23,6 +23,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.graphics.ColorUtils
 import com.nightread.app.R
 import com.nightread.app.ui.customlayout.CustomReaderPageView
 import com.nightread.app.ui.customlayout.PageSplitter
@@ -95,10 +96,18 @@ class BookReaderActivity : AppCompatActivity() {
         val seekBar = findViewById<SeekBar>(R.id.seekBar)
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) viewModel.setCurrentPage(progress)
+                if (fromUser) {
+                    // Update the page indicator text for real-time feedback without expensive re-rendering
+                    val total = viewModel.pagesState.value.size
+                    findViewById<TextView>(R.id.tvPageInfo).text = "Стр. ${progress + 1} из $total"
+                }
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                seekBar?.let {
+                    viewModel.setCurrentPage(it.progress)
+                }
+            }
         })
 
         // Enable full screen edge-to-edge transparency and hide the status bar to hide clock, battery icons, etc.
@@ -153,12 +162,12 @@ class BookReaderActivity : AppCompatActivity() {
             bottomParams.height = FrameLayout.LayoutParams.WRAP_CONTENT
             bottomToolbar.layoutParams = bottomParams
             
-            // 3. Reader view padding uses 16dp margins on the sides and bottom, and accounts for status bar at the top
+            // 3. Reader view padding uses 16dp margins on the sides and bottom, and accounts for status bar at the top and navigation bar at the bottom
             readerView.setPadding(
                 (16 * density).toInt(),
                 topInset + (8 * density).toInt(),
                 (16 * density).toInt(),
-                (16 * density).toInt()
+                navBarInsets.bottom + (16 * density).toInt()
             )
             
             insets
@@ -265,6 +274,11 @@ class BookReaderActivity : AppCompatActivity() {
 
     private fun applyTheme(themeKey: String) {
         val (bgColor, textColor) = getThemeColors(themeKey)
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = bgColor
+        }
+        
         rootLayout.setBackgroundColor(bgColor)
         
         val topToolbar = findViewById<View>(R.id.topToolbar)
@@ -514,6 +528,28 @@ class BookReaderActivity : AppCompatActivity() {
                             .scaleY(1f)
                             .alpha(1f)
                             .setDuration(200)
+                            .start()
+                    }
+                    .start()
+            }
+            "curl" -> {
+                val screenWidth = resources.displayMetrics.widthPixels.toFloat()
+                currentView.animate()
+                    .translationX(-screenWidth / 2f)
+                    .scaleX(0.8f)
+                    .alpha(0f)
+                    .setDuration(300)
+                    .withEndAction {
+                        updatePage()
+                        val nextView = activePageView
+                        nextView.translationX = screenWidth / 2f
+                        nextView.scaleX = 0.8f
+                        nextView.alpha = 0f
+                        nextView.animate()
+                            .translationX(0f)
+                            .scaleX(1f)
+                            .alpha(1f)
+                            .setDuration(300)
                             .start()
                     }
                     .start()
