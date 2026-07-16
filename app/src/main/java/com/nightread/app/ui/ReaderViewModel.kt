@@ -293,14 +293,11 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         repaginateJob?.cancel()
         repaginateJob = viewModelScope.launch(Dispatchers.Default) {
             // 1. Determine current reading position (character offset)
-            val currentOffset: Int = if (currentOffsetsSnapshot.isNotEmpty() && currentPageSnapshot < currentOffsetsSnapshot.size) {
-                if (currentPageSnapshot == 0) {
-                    -1
-                } else {
-                    currentOffsetsSnapshot[currentPageSnapshot]
-                }
+            // Always use the real saved char offset instead of potentially dummy currentOffsetsSnapshot
+            val currentOffset: Int = if (currentPageSnapshot == 0 || savedPage == 0) {
+                -1
             } else {
-                if (savedPage == 0) -1 else savedOffset
+                savedOffset
             }
 
             // 2. Measure and slice text into pages based on actual font parameters using PageSplitter
