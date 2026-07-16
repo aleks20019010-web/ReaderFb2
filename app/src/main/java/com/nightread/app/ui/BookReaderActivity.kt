@@ -324,6 +324,7 @@ class BookReaderActivity : AppCompatActivity() {
         val density = resources.displayMetrics.density
         val paint = TextPaint().apply {
             textSize = viewModel.fontSizeState.value * density
+            textLocale = java.util.Locale("ru", "RU")
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                 letterSpacing = -0.02f
             }

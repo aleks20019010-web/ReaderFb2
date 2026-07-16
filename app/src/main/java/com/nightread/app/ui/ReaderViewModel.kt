@@ -97,7 +97,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         val weightInt = SettingsManager.getFontWeightAsInt(context)
         _fontWeightState.value = if (weightInt >= 600) 1 else 0
         
-        val savedAlign = sharedPrefs.getString("saved_font_alignment", "left") ?: "left"
+        val savedAlign = sharedPrefs.getString("saved_font_alignment", "justify") ?: "justify"
         _fontAlignmentState.value = savedAlign
         _pageMarginsState.value = sharedPrefs.getBoolean("saved_page_margins", true)
         _scrollDirectionState.value = SettingsManager.getPageAnimation(context)
@@ -244,6 +244,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             // 2. Measure and slice text into pages based on actual font parameters using PageSplitter
             val paint = android.text.TextPaint().apply {
                 textSize = _fontSizeState.value * displayDensity
+                textLocale = java.util.Locale("ru", "RU")
                 
                 val weightVal = SettingsManager.getFontWeightAsInt(appContext)
                 val style = if (weightVal >= 600) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL
@@ -282,7 +283,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             val weightVal = SettingsManager.getFontWeightAsInt(appContext)
             val hyphenationEnabled = SettingsManager.isHyphenationEnabled(appContext)
             
-            val currentKey = "${availableWidth}_${availableHeight}_${paint.textSize}_${family}_${weightVal}_${lineSpacing}_hyphen=$hyphenationEnabled"
+            val currentKey = "${availableWidth}_${availableHeight}_${paint.textSize}_${family}_${weightVal}_${lineSpacing}_align=${alignment}_hyphen=$hyphenationEnabled"
             
             // Try in-memory cache first
             if (BookCache.sha1 == book.sha1 && BookCache.layoutKey == currentKey && BookCache.splitResult != null) {
@@ -311,7 +312,12 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             
             // Try disk cache next
             val cachedOffsets = PaginationDiskCache.getOffsets(appContext, book.sha1, currentKey)
-            val formattedText = TextFormatter.formatChapterSpans(appContext, content, paint.textSize)
+            val textToFormat = if (hyphenationEnabled) {
+                com.nightread.app.ui.HyphenatorHelper.hyphenate(content)
+            } else {
+                content
+            }
+            val formattedText = TextFormatter.formatChapterSpans(appContext, textToFormat, paint.textSize)
             
             if (cachedOffsets != null) {
                 var cacheValid = true

@@ -244,6 +244,36 @@ class SettingsBottomSheet : DialogFragment() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        // 5c. Text Alignment Selection (Spinner)
+        val alignKeys = listOf("left", "center", "right", "justify")
+        val alignNames = mapOf(
+            "left" to "По левому краю",
+            "center" to "По центру",
+            "right" to "По правому краю",
+            "justify" to "По ширине"
+        )
+        val alignDisplayNames = alignKeys.map { alignNames[it] ?: it }
+        val spinnerAlignment = view.findViewById<Spinner>(R.id.spinnerAlignment)
+        val alignAdapter = SettingsSpinnerAdapter(context, alignDisplayNames).apply {
+            setDropDownViewResource(R.layout.spinner_dropdown_item)
+        }
+        spinnerAlignment.adapter = alignAdapter
+
+        val readerPrefs = context.getSharedPreferences("ReaderPrefs", android.content.Context.MODE_PRIVATE)
+        val currentAlign = readerPrefs.getString("saved_font_alignment", "justify") ?: "justify"
+        val alignIdx = alignKeys.indexOf(currentAlign).coerceAtLeast(0)
+        spinnerAlignment.setSelection(alignIdx)
+        spinnerAlignment.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedKey = alignKeys[position]
+                if (selectedKey != readerPrefs.getString("saved_font_alignment", "justify")) {
+                    readerPrefs.edit().putString("saved_font_alignment", selectedKey).apply()
+                    SettingsManager.notifyChanged()
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
 
         // 7. Auto-Discovery Switch
         val switchAutoDiscovery = view.findViewById<SwitchCompat>(R.id.switchAutoDiscovery)
@@ -611,6 +641,7 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvFontWeightLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvThemeLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAnimationLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvAlignmentLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoDiscoveryDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoLightNightDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAmberFilterDesc)?.setTextColor(textSecondaryColor)
@@ -701,6 +732,8 @@ class SettingsBottomSheet : DialogFragment() {
         }
         rootView.findViewById<Spinner>(R.id.spinnerFont)?.background = spinnerBg
         rootView.findViewById<Spinner>(R.id.spinnerTheme)?.background = spinnerBg
+        rootView.findViewById<Spinner>(R.id.spinnerAnimation)?.background = spinnerBg
+        rootView.findViewById<Spinner>(R.id.spinnerAlignment)?.background = spinnerBg
 
         // 10. Programmatic background and text colors for quick font switching buttons
         val currentFont = SettingsManager.getFontFamily(context)
