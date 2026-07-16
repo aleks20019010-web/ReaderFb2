@@ -477,7 +477,6 @@ class BookReaderActivity : AppCompatActivity() {
                     val paddingBottomDp = (paddingBottom / density).toInt()
                     val paddingLeftDp = 16
                     val paddingRightDp = 16
-                    val hyphenationEnabled = com.nightread.app.data.SettingsManager.isHyphenationEnabled(this@BookReaderActivity)
                     val html = com.nightread.app.service.Fb2ToHtmlConverterAdvanced.convert(
                         fullContent,
                         themeKey,
@@ -490,9 +489,7 @@ class BookReaderActivity : AppCompatActivity() {
                         paddingTopDp,
                         paddingBottomDp,
                         paddingLeftDp,
-                        paddingRightDp,
-                        hyphenationEnabled,
-                        this@BookReaderActivity
+                        paddingRightDp
                     )
                     withContext(Dispatchers.Main) {
                         progressBar.visibility = View.GONE

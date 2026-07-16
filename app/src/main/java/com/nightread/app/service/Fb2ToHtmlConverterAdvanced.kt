@@ -19,14 +19,12 @@ object Fb2ToHtmlConverterAdvanced {
         paddingTop: Int,
         paddingBottom: Int,
         paddingLeft: Int,
-        paddingRight: Int,
-        hyphenationEnabled: Boolean,
-        context: android.content.Context
+        paddingRight: Int
     ): String {
         try {
             val factory = SAXParserFactory.newInstance()
             val saxParser = factory.newSAXParser()
-            val handler = Fb2SaxHandler(hyphenationEnabled, context)
+            val handler = Fb2SaxHandler()
             
             val inputStream = ByteArrayInputStream(fb2Xml.toByteArray(Charsets.UTF_8))
             saxParser.parse(inputStream, handler)
@@ -105,7 +103,7 @@ object Fb2ToHtmlConverterAdvanced {
                         }
                         p {
                             margin-top: 0;
-                            margin-bottom: 0.8em;
+                            margin-bottom: 0em;
                             text-indent: 1.5em;
                             text-align: justify;
                         }
@@ -164,10 +162,7 @@ object Fb2ToHtmlConverterAdvanced {
         }
     }
 
-    private class Fb2SaxHandler(
-        private val hyphenationEnabled: Boolean,
-        private val context: android.content.Context
-    ) : DefaultHandler() {
+    private class Fb2SaxHandler : DefaultHandler() {
         private val html = StringBuilder()
         private val binaryMap = HashMap<String, String>()
         private val currentText = StringBuilder()
@@ -179,12 +174,8 @@ object Fb2ToHtmlConverterAdvanced {
 
         private fun flushText() {
             if (currentText.isEmpty()) return
-            var text = currentText.toString()
+            val text = currentText.toString()
             currentText.setLength(0)
-            
-            if (hyphenationEnabled) {
-                text = com.nightread.app.ui.HyphenatorHelper.hyphenate(text, context, null)
-            }
             
             for (i in 0 until text.length) {
                 when (val c = text[i]) {

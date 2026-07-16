@@ -110,7 +110,6 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         var changed = false
         if (_fontSizeState.value != newFontSize) changed = true
         if (_lineSpacingState.value != newLineSpacing) changed = true
-        if (_themeState.value != newTheme) changed = true
         if (_fontFamilyState.value != newFontFamily) changed = true
         if (_fontWeightState.value != newFontWeight) changed = true
         if (_fontAlignmentState.value != newFontAlignment) changed = true
