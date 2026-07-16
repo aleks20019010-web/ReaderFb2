@@ -20,6 +20,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import android.os.Build
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.getValue
+import com.nightread.app.ui.theme.MyApplicationTheme
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.platform.ComposeView
 import com.nightread.app.MainActivity
 import com.nightread.app.R
 import com.nightread.app.data.YandexDiskManager
@@ -79,6 +84,8 @@ class YandexSyncFragment : Fragment() {
     private lateinit var txtCurrentFileName: TextView
     private lateinit var progressIndividual: ProgressBar
     private lateinit var txtIndividualProgressCount: TextView
+    
+    private lateinit var composeSyncAnimation: androidx.compose.ui.platform.ComposeView
     
     private lateinit var txtLastSync: TextView
 
@@ -146,6 +153,17 @@ class YandexSyncFragment : Fragment() {
         txtCurrentFileName = view.findViewById(R.id.txtCurrentFileName)
         progressIndividual = view.findViewById(R.id.progressIndividual)
         txtIndividualProgressCount = view.findViewById(R.id.txtIndividualProgressCount)
+        
+        composeSyncAnimation = view.findViewById(R.id.composeSyncAnimation)
+        composeSyncAnimation.apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                MyApplicationTheme {
+                    val syncState by YandexSyncState.state.collectAsStateWithLifecycle()
+                    SyncAnimationScreen(syncState)
+                }
+            }
+        }
         
         txtLastSync = view.findViewById(R.id.txtLastSync)
 
