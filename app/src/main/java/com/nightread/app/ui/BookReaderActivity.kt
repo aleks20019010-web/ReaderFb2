@@ -33,9 +33,19 @@ class BookReaderActivity : AppCompatActivity() {
     private lateinit var pageIndicatorView: TextView
     private lateinit var progressBar: ProgressBar
     private lateinit var rootLayout: FrameLayout
+    private lateinit var ambientGlowView: View
+    private lateinit var amberFilterOverlay: View
+    private lateinit var extraDimOverlay: View
 
     private lateinit var viewModel: ReaderViewModel
     private var touchStartX: Float = 0f
+    private var lastPageAnimationIdx: Int = 0
+    private var lastPage: Int = -1
+    private var sleepTimerJob: kotlinx.coroutines.Job? = null
+    private var sensorManager: android.hardware.SensorManager? = null
+    private var accelerometer: android.hardware.Sensor? = null
+    private var sensorListener: android.hardware.SensorEventListener? = null
+    private var remainingTimeMs: Long = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +53,9 @@ class BookReaderActivity : AppCompatActivity() {
 
         readerView = findViewById(R.id.bookReaderView)
         rootLayout = findViewById(R.id.rootView)
+        ambientGlowView = findViewById(R.id.ambientGlowView)
+        amberFilterOverlay = findViewById(R.id.amberFilterOverlay)
+        extraDimOverlay = findViewById(R.id.extraDimOverlay)
         viewModel = ViewModelProvider(this).get(ReaderViewModel::class.java)
 
         val btnBack = findViewById<View>(R.id.btnBack)
@@ -81,12 +94,22 @@ class BookReaderActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        // Enable full screen edge-to-edge transparency
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+        // Enable full screen edge-to-edge transparency and hide the status bar to hide clock, battery icons, etc.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false)
+            window.insetsController?.let { controller ->
+                controller.hide(android.view.WindowInsets.Type.statusBars())
+                controller.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility = (
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_FULLSCREEN
             )
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             window.statusBarColor = Color.TRANSPARENT
         }
 
@@ -94,34 +117,39 @@ class BookReaderActivity : AppCompatActivity() {
         ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { _, insets ->
             val statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
             val navBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            val displayCutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
             val density = resources.displayMetrics.density
             
-            // 1. Top toolbar handles status bar height
+            // Calculate status bar height dynamically; fallback to 24dp if hidden
+            val statusBarHeight = if (statusBarInsets.top > 0) statusBarInsets.top else (24 * density).toInt()
+            val topInset = maxOf(statusBarHeight, displayCutout.top)
+            
+            // 1. Top toolbar handles status bar height and cutout
             topToolbar.setPadding(
-                topToolbar.paddingLeft,
-                statusBarInsets.top,
-                topToolbar.paddingRight,
-                topToolbar.paddingBottom
+                (8 * density).toInt(),
+                topInset + (4 * density).toInt(),
+                (8 * density).toInt(),
+                (4 * density).toInt()
             )
             val topParams = topToolbar.layoutParams
-            topParams.height = (56 * density).toInt() + statusBarInsets.top
+            topParams.height = FrameLayout.LayoutParams.WRAP_CONTENT
             topToolbar.layoutParams = topParams
             
             // 2. Bottom toolbar handles navigation bar height
             bottomToolbar.setPadding(
-                bottomToolbar.paddingLeft,
-                bottomToolbar.paddingTop,
-                bottomToolbar.paddingRight,
-                navBarInsets.bottom
+                (16 * density).toInt(),
+                (12 * density).toInt(),
+                (16 * density).toInt(),
+                navBarInsets.bottom + (12 * density).toInt()
             )
             val bottomParams = bottomToolbar.layoutParams
-            bottomParams.height = (56 * density).toInt() + navBarInsets.bottom
+            bottomParams.height = FrameLayout.LayoutParams.WRAP_CONTENT
             bottomToolbar.layoutParams = bottomParams
             
             // 3. Reader view padding uses 16dp margins on the sides and bottom, and accounts for status bar at the top
             readerView.setPadding(
                 (16 * density).toInt(),
-                statusBarInsets.top + (8 * density).toInt(),
+                topInset + (8 * density).toInt(),
                 (16 * density).toInt(),
                 (16 * density).toInt()
             )
@@ -144,18 +172,24 @@ class BookReaderActivity : AppCompatActivity() {
         // Collect Current Page
         lifecycleScope.launch {
             viewModel.currentPage.collectLatest {
-                updatePage()
+                updatePageWithAnimation(it)
                 updatePageIndicator()
                 seekBar.progress = it
+                if (lastPage != -1 && lastPage != it) {
+                    triggerPageTurnHaptic()
+                }
+                lastPage = it
             }
         }
 
         // Collect Pages list
         lifecycleScope.launch {
             viewModel.pagesState.collectLatest {
-                updatePage()
-                updatePageIndicator()
-                seekBar.max = if (it.isNotEmpty()) it.size - 1 else 0
+                if (it.isNotEmpty()) {
+                    updatePage()
+                    updatePageIndicator()
+                    seekBar.max = it.size - 1
+                }
             }
         }
 
@@ -190,6 +224,13 @@ class BookReaderActivity : AppCompatActivity() {
             true
         }
 
+        lifecycleScope.launch {
+            com.nightread.app.data.SettingsManager.settingsChanged.collectLatest {
+                applyScreenSettings()
+            }
+        }
+        applyScreenSettings()
+
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
         if (sha1.isNotEmpty()) viewModel.loadBook(sha1)
     }
@@ -211,32 +252,28 @@ class BookReaderActivity : AppCompatActivity() {
         val topToolbar = findViewById<View>(R.id.topToolbar)
         val bottomToolbar = findViewById<View>(R.id.bottomToolbar)
         
-        val barBgColor = when (themeKey.lowercase()) {
-            "light", "beige" -> Color.parseColor("#EFE9D9")
-            "sepia", "sepia_contrast" -> Color.parseColor("#EADFCA")
-            "dark", "contrast" -> Color.parseColor("#1E1E1E")
-            "amoled" -> Color.parseColor("#0D0D0D")
-            else -> Color.parseColor("#EFE9D9")
-        }
+        // Define Purple Fog (App's Style) Colors for the Toolbars
+        val barBgColor = Color.parseColor("#2A1A3E")      // BgPanelDark / BgCardDark
+        val barTextColor = Color.parseColor("#E8D8F0")    // TextPrimaryDark / IconTintDark
+        val accentColor = Color.parseColor("#9B59B6")     // AccentDark
+        val progressBgColor = Color.parseColor("#3A2A4E")  // DividerDark
         
         topToolbar.setBackgroundColor(barBgColor)
         bottomToolbar.setBackgroundColor(barBgColor)
         
-        findViewById<TextView>(R.id.tvBookTitle)?.setTextColor(textColor)
-        pageIndicatorView.setTextColor(textColor)
+        findViewById<TextView>(R.id.tvBookTitle)?.setTextColor(barTextColor)
+        pageIndicatorView.setTextColor(barTextColor)
         
-        val buttonTint = ColorStateList.valueOf(textColor)
+        val buttonTint = ColorStateList.valueOf(barTextColor)
         findViewById<ImageButton>(R.id.btnBack).imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnSettings).imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnBookmark).imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnChapters).imageTintList = buttonTint
         
         val seekBar = findViewById<SeekBar>(R.id.seekBar)
-        seekBar.progressTintList = buttonTint
-        seekBar.thumbTintList = buttonTint
-        seekBar.progressBackgroundTintList = ColorStateList.valueOf(
-            if (themeKey.lowercase() in listOf("dark", "amoled", "contrast")) Color.DKGRAY else Color.LTGRAY
-        )
+        seekBar.progressTintList = ColorStateList.valueOf(accentColor)
+        seekBar.thumbTintList = ColorStateList.valueOf(accentColor)
+        seekBar.progressBackgroundTintList = ColorStateList.valueOf(progressBgColor)
         
         // Handle light/dark status bar icon appearances
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
@@ -278,13 +315,34 @@ class BookReaderActivity : AppCompatActivity() {
         val paint = TextPaint().apply {
             textSize = viewModel.fontSizeState.value * density
             
-            val style = if (viewModel.fontWeightState.value == 1) Typeface.BOLD else Typeface.NORMAL
-            typeface = when (viewModel.fontFamilyState.value) {
-                "Roboto", "Sans Serif" -> Typeface.create(Typeface.SANS_SERIF, style)
-                "Serif" -> Typeface.create(Typeface.SERIF, style)
-                "Monospace" -> Typeface.create(Typeface.MONOSPACE, style)
-                "Merriweather" -> Typeface.create("serif", style)
-                else -> Typeface.create(Typeface.DEFAULT, style)
+            val weightVal = com.nightread.app.data.SettingsManager.getFontWeightAsInt(this@BookReaderActivity)
+            val style = if (weightVal >= 600) Typeface.BOLD else Typeface.NORMAL
+            val family = viewModel.fontFamilyState.value
+            val fontResId = when (family) {
+                "EB Garamond" -> R.font.eb_garamond
+                "Literata" -> R.font.literata
+                "Lora" -> R.font.lora
+                else -> null
+            }
+            val baseTypeface = if (fontResId != null) {
+                try {
+                    androidx.core.content.res.ResourcesCompat.getFont(this@BookReaderActivity, fontResId) ?: Typeface.DEFAULT
+                } catch (e: Exception) {
+                    Typeface.DEFAULT
+                }
+            } else {
+                when (family) {
+                    "Roboto", "Sans Serif", "OpenDyslexic" -> Typeface.SANS_SERIF
+                    "Serif", "Times New Roman", "Georgia", "Merriweather" -> Typeface.SERIF
+                    "Monospace" -> Typeface.MONOSPACE
+                    else -> Typeface.DEFAULT
+                }
+            }
+            
+            typeface = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                Typeface.create(baseTypeface, weightVal, false)
+            } else {
+                Typeface.create(baseTypeface, style)
             }
             
             val themeKey = viewModel.themeState.value
@@ -312,6 +370,240 @@ class BookReaderActivity : AppCompatActivity() {
         val page = viewModel.currentPage.value + 1
         val total = viewModel.pagesState.value.size
         pageIndicatorView.text = "Стр. $page из $total"
+    }
+
+    private fun triggerPageTurnHaptic() {
+        if (com.nightread.app.data.SettingsManager.isHapticFeedbackEnabled(this)) {
+            readerView.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+        }
+    }
+
+    private fun updatePageWithAnimation(newPageIdx: Int) {
+        val animMode = com.nightread.app.data.SettingsManager.getPageAnimation(this)
+        val pages = viewModel.pagesState.value
+        if (pages.isEmpty() || newPageIdx !in pages.indices) return
+
+        if (animMode == "none") {
+            updatePage()
+            return
+        }
+
+        when (animMode) {
+            "fade" -> {
+                readerView.animate()
+                    .alpha(0f)
+                    .setDuration(150)
+                    .withEndAction {
+                        updatePage()
+                        readerView.animate()
+                            .alpha(1f)
+                            .setDuration(150)
+                            .start()
+                    }
+                    .start()
+            }
+            "slide" -> {
+                val screenWidth = resources.displayMetrics.widthPixels.toFloat()
+                val isForward = newPageIdx > lastPageAnimationIdx
+                val startTranslationX = if (isForward) screenWidth else -screenWidth
+                
+                readerView.animate()
+                    .translationX(if (isForward) -screenWidth else screenWidth)
+                    .alpha(0.5f)
+                    .setDuration(200)
+                    .withEndAction {
+                        updatePage()
+                        readerView.translationX = startTranslationX
+                        readerView.animate()
+                            .translationX(0f)
+                            .alpha(1f)
+                            .setDuration(200)
+                            .start()
+                    }
+                    .start()
+            }
+            "depth" -> {
+                readerView.animate()
+                    .scaleX(0.8f)
+                    .scaleY(0.8f)
+                    .alpha(0f)
+                    .setDuration(200)
+                    .withEndAction {
+                        updatePage()
+                        readerView.animate()
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .alpha(1f)
+                            .setDuration(200)
+                            .start()
+                    }
+                    .start()
+            }
+            "zoom" -> {
+                readerView.animate()
+                    .scaleX(1.3f)
+                    .scaleY(1.3f)
+                    .alpha(0f)
+                    .setDuration(200)
+                    .withEndAction {
+                        updatePage()
+                        readerView.scaleX = 0.7f
+                        readerView.scaleY = 0.7f
+                        readerView.animate()
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .alpha(1f)
+                            .setDuration(200)
+                            .start()
+                    }
+                    .start()
+            }
+            else -> {
+                readerView.animate()
+                    .alpha(0f)
+                    .setDuration(150)
+                    .withEndAction {
+                        updatePage()
+                        readerView.animate()
+                            .alpha(1f)
+                            .setDuration(150)
+                            .start()
+                    }
+                    .start()
+            }
+        }
+        lastPageAnimationIdx = newPageIdx
+    }
+
+    private fun applyScreenSettings() {
+        val context = this
+        
+        // 1. Amber Filter Overlay
+        val amberEnabled = com.nightread.app.data.SettingsManager.isAmberFilterEnabled(context)
+        if (amberEnabled) {
+            val intensity = com.nightread.app.data.SettingsManager.getAmberFilterIntensity(context)
+            val alphaFraction = (intensity / 100f) * 0.45f
+            val colorVal = Color.argb((alphaFraction * 255).toInt(), 255, 145, 0)
+            amberFilterOverlay.setBackgroundColor(colorVal)
+            amberFilterOverlay.visibility = View.VISIBLE
+        } else {
+            amberFilterOverlay.visibility = View.GONE
+        }
+
+        // 2. Extra Dim Overlay
+        val dimEnabled = com.nightread.app.data.SettingsManager.isExtraDimEnabled(context)
+        if (dimEnabled) {
+            val intensity = com.nightread.app.data.SettingsManager.getExtraDimIntensity(context)
+            val alphaFraction = (intensity / 100f) * 0.85f
+            val colorVal = Color.argb((alphaFraction * 255).toInt(), 0, 0, 0)
+            extraDimOverlay.setBackgroundColor(colorVal)
+            extraDimOverlay.visibility = View.VISIBLE
+        } else {
+            extraDimOverlay.visibility = View.GONE
+        }
+
+        // 3. Ambient Glow background center drawable
+        val glowEnabled = com.nightread.app.data.SettingsManager.isAmbientGlowEnabled(context)
+        if (glowEnabled) {
+            val intensity = com.nightread.app.data.SettingsManager.getAmbientGlowIntensity(context)
+            val colorKey = com.nightread.app.data.SettingsManager.getAmbientGlowColor(context)
+            val glowColorHex = when (colorKey) {
+                "amber" -> "#FF9800"
+                "moon" -> "#D2C5E3"
+                "indigo" -> "#3F51B5"
+                else -> "#D2C5E3"
+            }
+            val baseColor = Color.parseColor(glowColorHex)
+            val alphaVal = ((intensity / 100f) * 0.5f * 255).toInt()
+            val centerColor = Color.argb(alphaVal, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor))
+            val finalEdgeColor = Color.TRANSPARENT
+            
+            val maxRadius = Math.max(readerView.width, readerView.height).toFloat()
+            val radius = if (maxRadius > 0f) maxRadius * 0.8f else 500f
+            
+            val glowDrawable = android.graphics.drawable.GradientDrawable().apply {
+                gradientType = android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT
+                colors = intArrayOf(centerColor, finalEdgeColor)
+                gradientRadius = radius
+                setGradientCenter(0.5f, 0.5f)
+            }
+            ambientGlowView.background = glowDrawable
+            ambientGlowView.visibility = View.VISIBLE
+        } else {
+            ambientGlowView.visibility = View.GONE
+        }
+
+        // 4. Sleep Timer
+        setupSleepTimer()
+    }
+
+    private fun setupSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        
+        sensorManager?.let { sm ->
+            sensorListener?.let { sl ->
+                sm.unregisterListener(sl)
+            }
+        }
+        sensorListener = null
+
+        val context = this
+        val enabled = com.nightread.app.data.SettingsManager.isSleepTimerEnabled(context)
+        if (!enabled) return
+
+        val durationMinutes = com.nightread.app.data.SettingsManager.getSleepTimerDuration(context)
+        remainingTimeMs = durationMinutes * 60 * 1000L
+
+        sleepTimerJob = lifecycleScope.launch {
+            while (remainingTimeMs > 0) {
+                kotlinx.coroutines.delay(1000)
+                remainingTimeMs -= 1000
+                if (remainingTimeMs <= 0) {
+                    CustomToast.show(context, "Время чтения истекло. Приложение уходит в сон.", android.widget.Toast.LENGTH_LONG)
+                    finish()
+                }
+            }
+        }
+
+        val shakeEnabled = com.nightread.app.data.SettingsManager.isShakeToExtendEnabled(context)
+        if (shakeEnabled) {
+            sensorManager = getSystemService(android.content.Context.SENSOR_SERVICE) as? android.hardware.SensorManager
+            accelerometer = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
+            
+            if (accelerometer != null) {
+                var lastShakeTime = 0L
+                sensorListener = object : android.hardware.SensorEventListener {
+                    override fun onSensorChanged(event: android.hardware.SensorEvent) {
+                        val x = event.values[0]
+                        val y = event.values[1]
+                        val z = event.values[2]
+                        
+                        val acceleration = Math.sqrt((x * x + y * y + z * z).toDouble()).toFloat() - android.hardware.SensorManager.GRAVITY_EARTH
+                        if (acceleration > 5.0f) {
+                            val now = System.currentTimeMillis()
+                            if (now - lastShakeTime > 3000) {
+                                lastShakeTime = now
+                                remainingTimeMs += 5 * 60 * 1000L
+                                CustomToast.show(context, "Таймер сна продлен на 5 минут!", android.widget.Toast.LENGTH_SHORT)
+                            }
+                        }
+                    }
+                    override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+                }
+                sensorManager?.registerListener(sensorListener, accelerometer, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        sleepTimerJob?.cancel()
+        sensorManager?.let { sm ->
+            sensorListener?.let { sl ->
+                sm.unregisterListener(sl)
+            }
+        }
     }
 
     fun loadPage(pageNumber: Int) {

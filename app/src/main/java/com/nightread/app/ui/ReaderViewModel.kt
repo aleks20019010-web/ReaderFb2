@@ -79,16 +79,30 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private var pageStartOffsets = listOf<Int>()
 
     init {
-        // Restore saved settings
-        _fontSizeState.value = sharedPrefs.getFloat("saved_font_size", 18f)
-        _lineSpacingState.value = sharedPrefs.getFloat("saved_line_spacing", 1.2f)
-        _themeState.value = sharedPrefs.getString("reader_theme", "day") ?: "day"
-        _fontFamilyState.value = sharedPrefs.getString("saved_font_family", "Merriweather") ?: "Merriweather"
-        _fontWeightState.value = sharedPrefs.getInt("saved_font_weight", 0)
+        loadSettings()
+        viewModelScope.launch {
+            SettingsManager.settingsChanged.collect {
+                loadSettings()
+            }
+        }
+    }
+
+    private fun loadSettings() {
+        val context = appContext
+        _fontSizeState.value = SettingsManager.getFontSize(context)
+        _lineSpacingState.value = SettingsManager.getLineSpacing(context)
+        _themeState.value = SettingsManager.getReadingTheme(context)
+        _fontFamilyState.value = SettingsManager.getFontFamily(context)
+        
+        val weightInt = SettingsManager.getFontWeightAsInt(context)
+        _fontWeightState.value = if (weightInt >= 600) 1 else 0
+        
         _fontAlignmentState.value = sharedPrefs.getString("saved_font_alignment", "justify") ?: "justify"
         _pageMarginsState.value = sharedPrefs.getBoolean("saved_page_margins", true)
-        _scrollDirectionState.value = sharedPrefs.getString("saved_scroll_direction", "Горизонтально") ?: "Горизонтально"
+        _scrollDirectionState.value = SettingsManager.getPageAnimation(context)
         _twoPagesLandscapeState.value = sharedPrefs.getBoolean("saved_two_pages_landscape", false)
+        
+        repaginate()
     }
 
     fun loadBook(bookSha1: String) {
@@ -153,29 +167,21 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun changeFontSize(delta: Float) {
-        val newSize = (_fontSizeState.value + delta).coerceIn(12f, 48f) // Extend limit to 48 as in screenshot
-        _fontSizeState.value = newSize
-        sharedPrefs.edit().putFloat("saved_font_size", newSize).apply()
-        repaginate()
+        val newSize = (_fontSizeState.value + delta).coerceIn(12f, 48f)
+        SettingsManager.setFontSize(appContext, newSize)
     }
 
     fun changeLineSpacing(delta: Float) {
-        val newSpacing = (_lineSpacingState.value + delta).coerceIn(0.8f, 2.5f) // Wider spacing limits
-        _lineSpacingState.value = newSpacing
-        sharedPrefs.edit().putFloat("saved_line_spacing", newSpacing).apply()
-        repaginate()
+        val newSpacing = (_lineSpacingState.value + delta).coerceIn(0.8f, 2.5f)
+        SettingsManager.setLineSpacing(appContext, newSpacing)
     }
 
     fun setFontFamily(family: String) {
-        _fontFamilyState.value = family
-        sharedPrefs.edit().putString("saved_font_family", family).apply()
-        repaginate()
+        SettingsManager.setFontFamily(appContext, family)
     }
 
     fun setFontWeight(weight: Int) {
-        _fontWeightState.value = weight
-        sharedPrefs.edit().putInt("saved_font_weight", weight).apply()
-        repaginate()
+        SettingsManager.setFontWeight(appContext, weight.toString())
     }
 
     fun setFontAlignment(alignment: String) {
@@ -191,8 +197,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setScrollDirection(direction: String) {
-        _scrollDirectionState.value = direction
-        sharedPrefs.edit().putString("saved_scroll_direction", direction).apply()
+        SettingsManager.setPageAnimation(appContext, direction)
     }
 
     fun setTwoPagesLandscape(enabled: Boolean) {
@@ -201,8 +206,19 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setTheme(theme: String) {
-        _themeState.value = theme
-        sharedPrefs.edit().putString("reader_theme", theme).apply()
+        SettingsManager.setReadingTheme(appContext, theme)
+    }
+
+    fun toggleTheme() {
+        val current = SettingsManager.getReadingTheme(appContext)
+        val newTheme = when (current) {
+            "light", "beige" -> "sepia"
+            "sepia", "sepia_contrast" -> "dark"
+            "dark", "contrast" -> "amoled"
+            "amoled" -> "light"
+            else -> "light"
+        }
+        SettingsManager.setReadingTheme(appContext, newTheme)
     }
 
     fun repaginate() {
@@ -221,13 +237,34 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             val paint = android.text.TextPaint().apply {
                 textSize = _fontSizeState.value * displayDensity
                 
-                val style = if (_fontWeightState.value == 1) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL
-                typeface = when (_fontFamilyState.value) {
-                    "Roboto", "Sans Serif" -> android.graphics.Typeface.create(android.graphics.Typeface.SANS_SERIF, style)
-                    "Serif" -> android.graphics.Typeface.create(android.graphics.Typeface.SERIF, style)
-                    "Monospace" -> android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, style)
-                    "Merriweather" -> android.graphics.Typeface.create("serif", style)
-                    else -> android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, style)
+                val weightVal = SettingsManager.getFontWeightAsInt(appContext)
+                val style = if (weightVal >= 600) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL
+                val family = _fontFamilyState.value
+                val fontResId = when (family) {
+                    "EB Garamond" -> com.nightread.app.R.font.eb_garamond
+                    "Literata" -> com.nightread.app.R.font.literata
+                    "Lora" -> com.nightread.app.R.font.lora
+                    else -> null
+                }
+                val baseTypeface = if (fontResId != null) {
+                    try {
+                        androidx.core.content.res.ResourcesCompat.getFont(appContext, fontResId) ?: android.graphics.Typeface.DEFAULT
+                    } catch (e: Exception) {
+                        android.graphics.Typeface.DEFAULT
+                    }
+                } else {
+                    when (family) {
+                        "Roboto", "Sans Serif", "OpenDyslexic" -> android.graphics.Typeface.SANS_SERIF
+                        "Serif", "Times New Roman", "Georgia", "Merriweather" -> android.graphics.Typeface.SERIF
+                        "Monospace" -> android.graphics.Typeface.MONOSPACE
+                        else -> android.graphics.Typeface.DEFAULT
+                    }
+                }
+                
+                typeface = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    android.graphics.Typeface.create(baseTypeface, weightVal, false)
+                } else {
+                    android.graphics.Typeface.create(baseTypeface, style)
                 }
             }
 
@@ -281,15 +318,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         saveProgress()
     }
 
-    fun toggleTheme() {
-        val newTheme = when (_themeState.value) {
-            "day" -> "night"
-            "night" -> "sepia"
-            else -> "day"
-        }
-        _themeState.value = newTheme
-        sharedPrefs.edit().putString("reader_theme", newTheme).apply()
-    }
+
 
     fun saveProgress() {
         val book = _bookState.value ?: return

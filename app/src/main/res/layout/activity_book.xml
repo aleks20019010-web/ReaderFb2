@@ -5,6 +5,14 @@
     android:layout_height="match_parent"
     android:background="#FFFFFF">
 
+    <View
+        android:id="@+id/ambientGlowView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
+
     <com.nightread.app.ui.customlayout.CustomReaderPageView
         android:id="@+id/bookReaderView"
         android:layout_width="match_parent"
@@ -13,7 +21,7 @@
     <LinearLayout
         android:id="@+id/topToolbar"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="wrap_content"
         android:layout_gravity="top"
         android:background="#FFFFFF"
         android:gravity="center_vertical"
@@ -62,7 +70,7 @@
     <LinearLayout
         android:id="@+id/bottomToolbar"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:background="#FFFFFF"
         android:gravity="center_vertical"
@@ -87,5 +95,21 @@
             android:progressTint="#000000"
             android:progressBackgroundTint="#CCCCCC" />
     </LinearLayout>
+
+    <View
+        android:id="@+id/amberFilterOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
+
+    <View
+        android:id="@+id/extraDimOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
 
 </FrameLayout>
