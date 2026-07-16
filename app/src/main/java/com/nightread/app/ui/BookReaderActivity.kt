@@ -371,14 +371,15 @@ class BookReaderActivity : AppCompatActivity() {
             }
             updatePageIndicator()
             return
-        } else if (isFb2) {
+        } else if (text.toString() == "WEBVIEW_CONTENT" || isFb2) {
             readerView.visibility = View.GONE
             ivBookCoverPage.visibility = View.GONE
             webView.visibility = View.VISIBLE
             progressBar.visibility = View.VISIBLE
             
             lifecycleScope.launch(Dispatchers.IO) {
-                val html = com.nightread.app.service.Fb2ToHtmlConverterAdvanced.convert(text.toString())
+                val fullContent = BookCache.content
+                val html = com.nightread.app.service.Fb2ToHtmlConverterAdvanced.convert(fullContent)
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
                     webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)

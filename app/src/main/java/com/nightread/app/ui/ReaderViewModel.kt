@@ -137,7 +137,13 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 
                 if (availableWidth > 0 && availableHeight > 0) {
-                    repaginate()
+                    if (book.filePath?.endsWith(".fb2", true) == true || 
+                        book.filePath?.endsWith(".fb2.zip", true) == true || 
+                        book.filePath?.endsWith(".zip", true) == true) {
+                        _pagesState.value = listOf("WEBVIEW_CONTENT")
+                    } else {
+                        repaginate()
+                    }
                 } else {
                     fallbackPagination(book)
                 }

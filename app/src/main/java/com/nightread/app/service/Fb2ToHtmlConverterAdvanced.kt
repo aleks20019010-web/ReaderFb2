@@ -1,33 +1,20 @@
 package com.nightread.app.service
 
-import org.w3c.dom.Document
-import org.w3c.dom.Node
-import org.w3c.dom.NodeList
+import org.xml.sax.Attributes
+import org.xml.sax.helpers.DefaultHandler
 import java.io.ByteArrayInputStream
-import javax.xml.parsers.DocumentBuilderFactory
-import java.io.StringWriter
-import javax.xml.transform.TransformerFactory
-import javax.xml.transform.dom.DOMSource
-import javax.xml.transform.stream.StreamResult
+import javax.xml.parsers.SAXParserFactory
 
 object Fb2ToHtmlConverterAdvanced {
 
     fun convert(fb2Xml: String): String {
         try {
-            val factory = DocumentBuilderFactory.newInstance()
-            val builder = factory.newDocumentBuilder()
+            val factory = SAXParserFactory.newInstance()
+            val saxParser = factory.newSAXParser()
+            val handler = Fb2SaxHandler()
+            
             val inputStream = ByteArrayInputStream(fb2Xml.toByteArray(Charsets.UTF_8))
-            val document = builder.parse(inputStream)
-
-            // Normalize structure
-            document.documentElement.normalize()
-
-            // We need to extract the <body> and convert it to HTML
-            val bodies = document.getElementsByTagName("body")
-            val bodyNode = if (bodies.length > 0) bodies.item(0) else document.documentElement
-
-            // Convert XML DOM to HTML structure
-            val htmlContent = convertNodeToHtml(bodyNode)
+            saxParser.parse(inputStream, handler)
 
             return """
                 <!DOCTYPE html>
@@ -46,7 +33,7 @@ object Fb2ToHtmlConverterAdvanced {
                     </style>
                 </head>
                 <body>
-                    $htmlContent
+                    ${handler.getHtml()}
                 </body>
                 </html>
             """.trimIndent()
@@ -56,28 +43,42 @@ object Fb2ToHtmlConverterAdvanced {
         }
     }
 
-    private fun convertNodeToHtml(node: Node): String {
-        val html = StringBuilder()
-        val children = node.childNodes
-        for (i in 0 until children.length) {
-            val child = children.item(i)
-            when (child.nodeType) {
-                Node.ELEMENT_NODE -> {
-                    when (child.nodeName.lowercase()) {
-                        "p" -> html.append("<p>${convertNodeToHtml(child)}</p>")
-                        "title", "section" -> html.append("<div>${convertNodeToHtml(child)}</div>")
-                        "subtitle" -> html.append("<h3>${convertNodeToHtml(child)}</h3>")
-                        "strong", "b" -> html.append("<strong>${convertNodeToHtml(child)}</strong>")
-                        "emphasis", "i" -> html.append("<em>${convertNodeToHtml(child)}</em>")
-                        "empty-line" -> html.append("<br/>")
-                        else -> html.append(convertNodeToHtml(child))
-                    }
-                }
-                Node.TEXT_NODE -> {
-                    html.append(child.textContent)
+    private class Fb2SaxHandler : DefaultHandler() {
+        private val html = StringBuilder()
+        
+        fun getHtml(): String = html.toString()
+
+        override fun startElement(uri: String?, localName: String?, qName: String?, attributes: Attributes?) {
+            when (qName?.lowercase()) {
+                "p" -> html.append("<p>")
+                "title", "section" -> html.append("<div>")
+                "subtitle" -> html.append("<h3>")
+                "strong", "b" -> html.append("<strong>")
+                "emphasis", "i" -> html.append("<em>")
+                "empty-line" -> html.append("<br/>")
+            }
+        }
+
+        override fun endElement(uri: String?, localName: String?, qName: String?) {
+            when (qName?.lowercase()) {
+                "p" -> html.append("</p>")
+                "title", "section" -> html.append("</div>")
+                "subtitle" -> html.append("</h3>")
+                "strong", "b" -> html.append("</strong>")
+                "emphasis", "i" -> html.append("</em>")
+            }
+        }
+
+        override fun characters(ch: CharArray?, start: Int, length: Int) {
+            if (ch == null) return
+            for (i in start until start + length) {
+                when (val c = ch[i]) {
+                    '<' -> html.append("&lt;")
+                    '>' -> html.append("&gt;")
+                    '&' -> html.append("&amp;")
+                    else -> html.append(c)
                 }
             }
         }
-        return html.toString()
     }
 }
