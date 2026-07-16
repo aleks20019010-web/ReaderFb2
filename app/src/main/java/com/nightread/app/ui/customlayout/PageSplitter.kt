@@ -327,7 +327,8 @@ object PageSplitter {
     // 9. Новая логика ленивой загрузки
     private val pagesCache = java.util.concurrent.ConcurrentHashMap<Int, StaticLayout>()
     private val renderQueue = java.util.concurrent.ConcurrentLinkedQueue<Int>()
-    private var isRendering = false
+    private var renderJob: Job? = null
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     fun isPageCached(pageIndex: Int): Boolean {
         return pagesCache.containsKey(pageIndex)
@@ -352,7 +353,7 @@ object PageSplitter {
         }
 
         // Render asynchronously
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             val layout = createStaticLayout(text, 0, text.length, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
             pagesCache[pageIndex] = layout
             withContext(Dispatchers.Main) {
@@ -372,19 +373,20 @@ object PageSplitter {
         hyphenation: Boolean,
         justify: Boolean
     ) {
-        // Заполняем очередь с учетом приоритетов
+        // Cancel previous rendering to prevent flooding and race conditions
+        renderJob?.cancel()
         renderQueue.clear()
         
         // 1. Текущая (если нет)
         if (!pagesCache.containsKey(currentPage)) renderQueue.add(currentPage)
         
-        // 2. Вперед
+        // 2. Вперед (ближайшие 3)
         for (i in 1..3) {
             val p = currentPage + i
             if (p < pagesLines.size && !pagesCache.containsKey(p)) renderQueue.add(p)
         }
         
-        // 3. Назад
+        // 3. Назад (ближайшие 2)
         for (i in 1..2) {
             val p = currentPage - i
             if (p >= 0 && !pagesCache.containsKey(p)) renderQueue.add(p)
@@ -395,15 +397,13 @@ object PageSplitter {
             if (!pagesCache.containsKey(i) && !renderQueue.contains(i)) renderQueue.add(i)
         }
 
-        if (!isRendering) {
-            isRendering = true
-            CoroutineScope(Dispatchers.IO).launch {
-                renderNext(pagesLines, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
-            }
+        renderJob = scope.launch {
+            renderNext(this, pagesLines, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
         }
     }
 
     private suspend fun renderNext(
+        scope: CoroutineScope,
         pagesLines: List<List<String>>,
         paint: TextPaint,
         width: Int,
@@ -414,6 +414,7 @@ object PageSplitter {
         justify: Boolean
     ) {
         while (renderQueue.isNotEmpty()) {
+            if (!scope.isActive) break // Check for cancellation
             val pageIdx = renderQueue.poll() ?: break
             if (pagesCache.containsKey(pageIdx)) continue
             
@@ -422,11 +423,14 @@ object PageSplitter {
             
             val layout = createStaticLayout(text, 0, text.length, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
             pagesCache[pageIdx] = layout
+            
+            // Allow other coroutines to run
+            yield()
         }
-        isRendering = false
     }
 
     fun clearCache() {
+        renderJob?.cancel()
         pagesCache.clear()
         renderQueue.clear()
     }
