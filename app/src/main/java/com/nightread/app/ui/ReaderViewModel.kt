@@ -127,7 +127,13 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                         } else {
                             file.readText(java.nio.charset.StandardCharsets.UTF_8)
                         }
-                        content = TextCleaner.cleanText(rawContent) as String
+                        
+                        if (file.extension.lowercase() == "fb2" || file.extension.lowercase() == "zip") {
+                            // Keep raw content for FB2/ZIP, as Fb2ToHtmlConverterAdvanced needs XML tags
+                            content = rawContent
+                        } else {
+                            content = TextCleaner.cleanText(rawContent) as String
+                        }
                     } else {
                         content = ""
                     }

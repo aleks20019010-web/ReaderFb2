@@ -45,10 +45,17 @@ object Fb2ToHtmlConverterAdvanced {
 
     private class Fb2SaxHandler : DefaultHandler() {
         private val html = StringBuilder()
+        private var insideBody = false
         
         fun getHtml(): String = html.toString()
 
         override fun startElement(uri: String?, localName: String?, qName: String?, attributes: Attributes?) {
+            if (qName?.lowercase() == "body") {
+                insideBody = true
+                return
+            }
+            if (!insideBody) return
+
             when (qName?.lowercase()) {
                 "p" -> html.append("<p>")
                 "title", "section" -> html.append("<div>")
@@ -56,10 +63,20 @@ object Fb2ToHtmlConverterAdvanced {
                 "strong", "b" -> html.append("<strong>")
                 "emphasis", "i" -> html.append("<em>")
                 "empty-line" -> html.append("<br/>")
+                "image", "img" -> {
+                    val href = attributes?.getValue("l:href") ?: attributes?.getValue("href")
+                    if (href != null) html.append("<img src=\"data:image/png;base64,$href\" />")
+                }
             }
         }
 
         override fun endElement(uri: String?, localName: String?, qName: String?) {
+            if (qName?.lowercase() == "body") {
+                insideBody = false
+                return
+            }
+            if (!insideBody) return
+
             when (qName?.lowercase()) {
                 "p" -> html.append("</p>")
                 "title", "section" -> html.append("</div>")
@@ -70,7 +87,7 @@ object Fb2ToHtmlConverterAdvanced {
         }
 
         override fun characters(ch: CharArray?, start: Int, length: Int) {
-            if (ch == null) return
+            if (!insideBody || ch == null) return
             for (i in start until start + length) {
                 when (val c = ch[i]) {
                     '<' -> html.append("&lt;")
