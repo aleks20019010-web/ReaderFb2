@@ -19,12 +19,14 @@ object Fb2ToHtmlConverterAdvanced {
         paddingTop: Int,
         paddingBottom: Int,
         paddingLeft: Int,
-        paddingRight: Int
+        paddingRight: Int,
+        hyphenationEnabled: Boolean,
+        context: android.content.Context
     ): String {
         try {
             val factory = SAXParserFactory.newInstance()
             val saxParser = factory.newSAXParser()
-            val handler = Fb2SaxHandler()
+            val handler = Fb2SaxHandler(hyphenationEnabled, context)
             
             val inputStream = ByteArrayInputStream(fb2Xml.toByteArray(Charsets.UTF_8))
             saxParser.parse(inputStream, handler)
@@ -162,16 +164,40 @@ object Fb2ToHtmlConverterAdvanced {
         }
     }
 
-    private class Fb2SaxHandler : DefaultHandler() {
+    private class Fb2SaxHandler(
+        private val hyphenationEnabled: Boolean,
+        private val context: android.content.Context
+    ) : DefaultHandler() {
         private val html = StringBuilder()
         private val binaryMap = HashMap<String, String>()
+        private val currentText = StringBuilder()
         
         private var insideBody = false
         private var insideBinary = false
         private var currentBinaryId = ""
         private val currentBinaryContent = StringBuilder()
 
+        private fun flushText() {
+            if (currentText.isEmpty()) return
+            var text = currentText.toString()
+            currentText.setLength(0)
+            
+            if (hyphenationEnabled) {
+                text = com.nightread.app.ui.HyphenatorHelper.hyphenate(text, context, null)
+            }
+            
+            for (i in 0 until text.length) {
+                when (val c = text[i]) {
+                    '<' -> html.append("&lt;")
+                    '>' -> html.append("&gt;")
+                    '&' -> html.append("&amp;")
+                    else -> html.append(c)
+                }
+            }
+        }
+
         fun getHtml(): String {
+            flushText()
             var rawHtml = html.toString()
             // Replace image placeholders with actual base64 data
             for ((id, base64) in binaryMap) {
@@ -195,7 +221,9 @@ object Fb2ToHtmlConverterAdvanced {
             }
             
             if (!insideBody) return
-
+            
+            flushText()
+            
             when (element) {
                 "p" -> html.append("<p>")
                 "title", "section" -> html.append("<div>")
@@ -219,6 +247,7 @@ object Fb2ToHtmlConverterAdvanced {
             val element = qName?.lowercase() ?: ""
             
             if (element == "body") {
+                flushText()
                 insideBody = false
                 return
             }
@@ -231,7 +260,9 @@ object Fb2ToHtmlConverterAdvanced {
             }
             
             if (!insideBody) return
-
+            
+            flushText()
+            
             when (element) {
                 "p" -> html.append("</p>")
                 "title", "section" -> html.append("</div>")
@@ -246,14 +277,7 @@ object Fb2ToHtmlConverterAdvanced {
             if (insideBinary) {
                 currentBinaryContent.append(ch, start, length)
             } else if (insideBody) {
-                for (i in start until start + length) {
-                    when (val c = ch[i]) {
-                        '<' -> html.append("&lt;")
-                        '>' -> html.append("&gt;")
-                        '&' -> html.append("&amp;")
-                        else -> html.append(c)
-                    }
-                }
+                currentText.append(ch, start, length)
             }
         }
     }

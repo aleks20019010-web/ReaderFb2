@@ -94,21 +94,43 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun loadSettings() {
         val context = appContext
-        _fontSizeState.value = SettingsManager.getFontSize(context)
-        _lineSpacingState.value = SettingsManager.getLineSpacing(context)
-        _themeState.value = SettingsManager.getReadingTheme(context)
-        _fontFamilyState.value = SettingsManager.getFontFamily(context)
+        val newFontSize = SettingsManager.getFontSize(context)
+        val newLineSpacing = SettingsManager.getLineSpacing(context)
+        val newTheme = SettingsManager.getReadingTheme(context)
+        val newFontFamily = SettingsManager.getFontFamily(context)
         
         val weightInt = SettingsManager.getFontWeightAsInt(context)
-        _fontWeightState.value = if (weightInt >= 600) 1 else 0
+        val newFontWeight = if (weightInt >= 600) 1 else 0
         
-        val savedAlign = sharedPrefs.getString("saved_font_alignment", "justify") ?: "justify"
-        _fontAlignmentState.value = savedAlign
-        _pageMarginsState.value = sharedPrefs.getBoolean("saved_page_margins", true)
-        _scrollDirectionState.value = SettingsManager.getPageAnimation(context)
-        _twoPagesLandscapeState.value = sharedPrefs.getBoolean("saved_two_pages_landscape", false)
+        val newFontAlignment = sharedPrefs.getString("saved_font_alignment", "justify") ?: "justify"
+        val newPageMargins = sharedPrefs.getBoolean("saved_page_margins", true)
+        val newScrollDirection = SettingsManager.getPageAnimation(context)
+        val newTwoPagesLandscape = sharedPrefs.getBoolean("saved_two_pages_landscape", false)
         
-        repaginate()
+        var changed = false
+        if (_fontSizeState.value != newFontSize) changed = true
+        if (_lineSpacingState.value != newLineSpacing) changed = true
+        if (_themeState.value != newTheme) changed = true
+        if (_fontFamilyState.value != newFontFamily) changed = true
+        if (_fontWeightState.value != newFontWeight) changed = true
+        if (_fontAlignmentState.value != newFontAlignment) changed = true
+        if (_pageMarginsState.value != newPageMargins) changed = true
+        if (_scrollDirectionState.value != newScrollDirection) changed = true
+        if (_twoPagesLandscapeState.value != newTwoPagesLandscape) changed = true
+        
+        _fontSizeState.value = newFontSize
+        _lineSpacingState.value = newLineSpacing
+        _themeState.value = newTheme
+        _fontFamilyState.value = newFontFamily
+        _fontWeightState.value = newFontWeight
+        _fontAlignmentState.value = newFontAlignment
+        _pageMarginsState.value = newPageMargins
+        _scrollDirectionState.value = newScrollDirection
+        _twoPagesLandscapeState.value = newTwoPagesLandscape
+        
+        if (changed) {
+            repaginate()
+        }
     }
 
     fun loadBook(bookSha1: String) {
