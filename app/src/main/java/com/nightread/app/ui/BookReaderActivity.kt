@@ -67,7 +67,8 @@ class BookReaderActivity : AppCompatActivity() {
     private var sensorManager: android.hardware.SensorManager? = null
     private var accelerometer: android.hardware.Sensor? = null
     private var lightSensor: android.hardware.Sensor? = null
-    private var sensorListener: android.hardware.SensorEventListener? = null
+    private var accelerometerListener: android.hardware.SensorEventListener? = null
+    private var lightSensorListener: android.hardware.SensorEventListener? = null
     private var remainingTimeMs: Long = 0
     private var isWebViewLoading = false
 
@@ -948,17 +949,13 @@ class BookReaderActivity : AppCompatActivity() {
     private fun setupSleepTimer() {
         sleepTimerJob?.cancel()
         sleepTimerJob = null
-        
-        sensorManager?.let { sm ->
-            sensorListener?.let { sl ->
-                sm.unregisterListener(sl)
-            }
-        }
-        sensorListener = null
 
         val context = this
         val enabled = com.nightread.app.data.SettingsManager.isSleepTimerEnabled(context)
-        if (!enabled) return
+        if (!enabled) {
+            updateSensors()
+            return
+        }
 
         val durationMinutes = com.nightread.app.data.SettingsManager.getSleepTimerDuration(context)
         remainingTimeMs = durationMinutes * 60 * 1000L
@@ -974,33 +971,7 @@ class BookReaderActivity : AppCompatActivity() {
             }
         }
 
-        val shakeEnabled = com.nightread.app.data.SettingsManager.isShakeToExtendEnabled(context)
-        if (shakeEnabled) {
-            sensorManager = getSystemService(android.content.Context.SENSOR_SERVICE) as? android.hardware.SensorManager
-            accelerometer = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
-            
-            if (accelerometer != null) {
-                var lastShakeTime = 0L
-                sensorListener = object : android.hardware.SensorEventListener {
-                    override fun onSensorChanged(event: android.hardware.SensorEvent) {
-                        val x = event.values[0]
-                        val y = event.values[1]
-                        val z = event.values[2]
-                        
-                        val acceleration = Math.sqrt((x * x + y * y + z * z).toDouble()).toFloat() - android.hardware.SensorManager.GRAVITY_EARTH
-                        if (acceleration > 5.0f) {
-                            val now = System.currentTimeMillis()
-                            if (now - lastShakeTime > 3000) {
-                                lastShakeTime = now
-                                remainingTimeMs += 5 * 60 * 1000L
-                            }
-                        }
-                    }
-                    override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
-                }
-                sensorManager?.registerListener(sensorListener, accelerometer, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
-            }
-        }
+        updateSensors()
     }
 
     override fun onResume() {
@@ -1014,6 +985,11 @@ class BookReaderActivity : AppCompatActivity() {
         unregisterSensors()
     }
 
+    private fun updateSensors() {
+        unregisterSensors()
+        registerSensors()
+    }
+
     private fun registerSensors() {
         val context = this
         if (sensorManager == null) {
@@ -1024,15 +1000,12 @@ class BookReaderActivity : AppCompatActivity() {
         val shakeEnabled = com.nightread.app.data.SettingsManager.isShakeToExtendEnabled(context) && sleepTimerEnabled
         val autoThemeEnabled = com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(context)
         
-        if (sensorListener == null && (shakeEnabled || autoThemeEnabled)) {
-            sensorListener = object : android.hardware.SensorEventListener {
-                private var lastShakeTime = 0L
-                
-                override fun onSensorChanged(event: android.hardware.SensorEvent) {
-                    when (event.sensor.type) {
-                        android.hardware.Sensor.TYPE_ACCELEROMETER -> {
-                            if (!com.nightread.app.data.SettingsManager.isShakeToExtendEnabled(context) || 
-                                !com.nightread.app.data.SettingsManager.isSleepTimerEnabled(context)) return
+        if (shakeEnabled) {
+            if (accelerometerListener == null) {
+                accelerometerListener = object : android.hardware.SensorEventListener {
+                    private var lastShakeTime = 0L
+                    override fun onSensorChanged(event: android.hardware.SensorEvent) {
+                        if (event.sensor.type == android.hardware.Sensor.TYPE_ACCELEROMETER) {
                             val x = event.values[0]
                             val y = event.values[1]
                             val z = event.values[2]
@@ -1042,38 +1015,48 @@ class BookReaderActivity : AppCompatActivity() {
                                 if (now - lastShakeTime > 3000) {
                                     lastShakeTime = now
                                     remainingTimeMs += 5 * 60 * 1000L
+                                    CustomToast.show(context, "Время сна продлено на 5 минут", android.widget.Toast.LENGTH_SHORT)
                                 }
                             }
                         }
-                        android.hardware.Sensor.TYPE_LIGHT -> {
-                            if (!com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(context)) return
+                    }
+                    override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+                }
+            }
+            accelerometer = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
+            accelerometer?.let {
+                sensorManager?.registerListener(accelerometerListener, it, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+            }
+        }
+
+        if (autoThemeEnabled) {
+            if (lightSensorListener == null) {
+                lightSensorListener = object : android.hardware.SensorEventListener {
+                    override fun onSensorChanged(event: android.hardware.SensorEvent) {
+                        if (event.sensor.type == android.hardware.Sensor.TYPE_LIGHT) {
                             val lux = event.values[0]
                             handleLightSensorChanged(lux)
                         }
                     }
-                }
-                override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
-            }
-        }
-
-        if (sensorListener != null) {
-            if (shakeEnabled) {
-                accelerometer = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
-                if (accelerometer != null) {
-                    sensorManager?.registerListener(sensorListener, accelerometer, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+                    override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
                 }
             }
-            if (autoThemeEnabled) {
-                lightSensor = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_LIGHT)
-                if (lightSensor != null) {
-                    sensorManager?.registerListener(sensorListener, lightSensor, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
-                }
+            lightSensor = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_LIGHT)
+            lightSensor?.let {
+                sensorManager?.registerListener(lightSensorListener, it, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
             }
         }
     }
 
     private fun unregisterSensors() {
-        sensorManager?.unregisterListener(sensorListener)
+        accelerometerListener?.let {
+            sensorManager?.unregisterListener(it)
+        }
+        lightSensorListener?.let {
+            sensorManager?.unregisterListener(it)
+        }
+        accelerometerListener = null
+        lightSensorListener = null
     }
 
     private fun handleLightSensorChanged(lux: Float) {
