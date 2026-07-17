@@ -69,6 +69,7 @@ class BookReaderActivity : AppCompatActivity() {
     private var lightSensor: android.hardware.Sensor? = null
     private var sensorListener: android.hardware.SensorEventListener? = null
     private var remainingTimeMs: Long = 0
+    private var isWebViewLoading = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -214,6 +215,7 @@ class BookReaderActivity : AppCompatActivity() {
                                 // Retry once after 300ms if layout was not ready
                                 webView.postDelayed({
                                     webView.evaluateJavascript("scrollToParagraph('p_$pIndex');") { secondResult ->
+                                        isWebViewLoading = false
                                         if (secondResult != "true") {
                                             // Final fallback if paragraph scroll completely fails
                                             val pageIdx = viewModel.currentPage.value
@@ -225,18 +227,22 @@ class BookReaderActivity : AppCompatActivity() {
                                         }
                                     }
                                 }, 300)
-                            } else if (result != "true") {
-                                // If pIndex == 0 or not found, fall back to page index
-                                val pageIdx = viewModel.currentPage.value
-                                val w = webView.width
-                                if (w > 0 && pageIdx > 0) {
-                                    webView.scrollTo((pageIdx - 1) * w, 0)
-                                    webView.evaluateJavascript("reportCurrentParagraph();", null)
+                            } else {
+                                isWebViewLoading = false
+                                if (result != "true") {
+                                    // If pIndex == 0 or not found, fall back to page index
+                                    val pageIdx = viewModel.currentPage.value
+                                    val w = webView.width
+                                    if (w > 0 && pageIdx > 0) {
+                                        webView.scrollTo((pageIdx - 1) * w, 0)
+                                        webView.evaluateJavascript("reportCurrentParagraph();", null)
+                                    }
                                 }
                             }
                         }
                     }, 250)
                 } else {
+                    isWebViewLoading = false
                     val pageIdx = viewModel.currentPage.value
                     val w = webView.width
                     if (w > 0 && pageIdx > 0) {
@@ -531,6 +537,7 @@ class BookReaderActivity : AppCompatActivity() {
             val loadedKey = webView.tag as? String
             
             if (loadedKey != settingsKey) {
+                isWebViewLoading = true
                 progressBar.visibility = View.VISIBLE
                 webView.tag = settingsKey
                 
@@ -1122,11 +1129,13 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     fun onParagraphVisible(pId: String) {
+        if (isWebViewLoading) return
         val pIndex = pId.substringAfter("p_").toIntOrNull() ?: return
         viewModel.updateWebViewParagraphProgress(pIndex)
     }
 
     fun onWebViewPageRestored(pageIndex: Int) {
+        if (isWebViewLoading) return
         viewModel.setWebViewPageRestored(pageIndex + 1)
     }
 
