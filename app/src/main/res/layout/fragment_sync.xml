@@ -82,7 +82,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Яндекс Диск"
-                            android:textColor="@color/accent"
+                            android:textColor="@color/sync_header"
                             android:textSize="18sp"
                             android:textStyle="bold"
                             android:layout_marginBottom="12dp" />
@@ -97,7 +97,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Статус:"
-                                android:textColor="@color/text_secondary"
+                                android:textColor="@color/text_sync_secondary"
                                 android:textSize="14sp" />
 
                             <TextView
@@ -107,7 +107,7 @@
                                 android:layout_toEndOf="@id/statusLabel"
                                 android:layout_marginStart="8dp"
                                 android:text="Не авторизован"
-                                android:textColor="@color/text_primary"
+                                android:textColor="@color/text_sync_primary"
                                 android:textSize="14sp"
                                 android:textStyle="bold" />
                         </RelativeLayout>
@@ -126,7 +126,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Пользователь: -"
-                                android:textColor="@color/text_primary"
+                                android:textColor="@color/text_sync_primary"
                                 android:textSize="14sp"
                                 android:layout_marginBottom="8dp" />
 
@@ -135,7 +135,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Занято: 0 Б из 0 Б"
-                                android:textColor="@color/text_secondary"
+                                android:textColor="@color/text_sync_secondary"
                                 android:textSize="12sp"
                                 android:layout_marginBottom="4dp" />
 
@@ -197,7 +197,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Параметры синхронизации"
-                            android:textColor="@color/accent"
+                            android:textColor="@color/sync_header"
                             android:textSize="18sp"
                             android:textStyle="bold"
                             android:layout_marginBottom="12dp" />
@@ -206,7 +206,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="Синхронизация загружает ваши книги и обновляет прогресс чтения между всеми вашими устройствами с помощью Яндекс Диска."
-                            android:textColor="@color/text_secondary"
+                            android:textColor="@color/text_sync_secondary"
                             android:textSize="13sp"
                             android:layout_marginBottom="16dp" />
 
@@ -226,14 +226,14 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="Папка для синхронизации:"
-                                    android:textColor="@color/text_secondary"
+                                    android:textColor="@color/text_sync_secondary"
                                     android:textSize="12sp" />
                                 <TextView
                                     android:id="@+id/txtSyncFolder"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="/Books"
-                                    android:textColor="@color/text_primary"
+                                    android:textColor="@color/text_sync_primary"
                                     android:textSize="16sp"
                                     android:textStyle="bold" />
                             </LinearLayout>
@@ -262,14 +262,14 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="Локальная папка для скачивания:"
-                                    android:textColor="@color/text_secondary"
+                                    android:textColor="@color/text_sync_secondary"
                                     android:textSize="12sp" />
                                 <TextView
                                     android:id="@+id/txtLocalDownloadFolder"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="По умолчанию (/Books)"
-                                    android:textColor="@color/text_primary"
+                                    android:textColor="@color/text_sync_primary"
                                     android:textSize="16sp"
                                     android:textStyle="bold" />
                             </LinearLayout>
@@ -313,7 +313,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Синхронизация..."
-                                android:textColor="@color/text_primary"
+                                android:textColor="@color/text_sync_primary"
                                 android:textSize="14sp"
                                 android:layout_marginBottom="6dp" />
 
@@ -332,7 +332,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="0 / 0"
-                                android:textColor="@color/text_secondary"
+                                android:textColor="@color/text_sync_secondary"
                                 android:textSize="12sp" />
 
                             <!-- NEW: Individual File Progress Section -->
@@ -350,7 +350,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="Файл: name.fb2"
-                                    android:textColor="@color/text_primary"
+                                    android:textColor="@color/text_sync_primary"
                                     android:textSize="13sp"
                                     android:textStyle="italic"
                                     android:layout_marginBottom="4dp" />
@@ -370,7 +370,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="0 Б / 0 Б"
-                                    android:textColor="@color/text_secondary"
+                                    android:textColor="@color/text_sync_secondary"
                                     android:textSize="11sp" />
                             </LinearLayout>
 
@@ -378,7 +378,7 @@
                                 android:id="@+id/txtRemainingTime"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:textColor="@color/text_secondary"
+                                android:textColor="@color/text_sync_secondary"
                                 android:textSize="12sp"
                                 android:layout_marginTop="4dp"
                                 android:layout_marginBottom="4dp"
@@ -388,7 +388,7 @@
                                 android:id="@+id/txtSyncStatsDetail"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:textColor="@color/text_secondary"
+                                android:textColor="@color/text_sync_secondary"
                                 android:textSize="12sp"
                                 android:layout_marginBottom="8dp"
                                 android:text="Скачано: 0, Загружено: 0" />
@@ -409,7 +409,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Последняя синхронизация: никогда"
-                            android:textColor="@color/text_secondary"
+                            android:textColor="@color/text_sync_secondary"
                             android:textSize="12sp" />
 
                     </LinearLayout>

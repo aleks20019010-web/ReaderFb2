@@ -37,7 +37,7 @@
                 android:layout_centerVertical="true"
                 android:layout_marginStart="16dp"
                 android:text="@string/stats_title"
-                android:textColor="@color/text_primary"
+                android:textColor="@color/text_sync_primary"
                 android:textSize="20sp"
                 android:textStyle="bold" />
         </RelativeLayout>
@@ -90,7 +90,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/stats_rank_title"
-                                android:textColor="@color/text_secondary"
+                                android:textColor="@color/text_sync_secondary"
                                 android:textSize="12sp" />
 
                             <TextView
@@ -98,7 +98,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Полуночный Читатель"
-                                android:textColor="@color/text_title"
+                                android:textColor="@color/text_sync_primary"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:layout_marginTop="2dp" />
@@ -108,7 +108,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Очков опыта: 0 XP"
-                                android:textColor="@color/accent"
+                                android:textColor="@color/sync_header"
                                 android:textSize="13sp"
                                 android:textStyle="bold"
                                 android:layout_marginTop="4dp" />
@@ -129,7 +129,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="До следующего ранга: 100 XP"
-                                android:textColor="@color/text_secondary"
+                                android:textColor="@color/text_sync_secondary"
                                 android:textSize="10sp"
                                 android:layout_marginTop="4dp" />
                         </LinearLayout>
@@ -141,7 +141,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Статистика библиотеки"
-                    android:textColor="@color/text_primary"
+                    android:textColor="@color/text_sync_primary"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
@@ -183,7 +183,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="0"
-                                    android:textColor="@color/text_title"
+                                    android:textColor="@color/text_sync_primary"
                                     android:textSize="22sp"
                                     android:textStyle="bold" />
 
@@ -191,7 +191,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="@string/stats_total_books"
-                                    android:textColor="@color/text_secondary"
+                                    android:textColor="@color/text_sync_secondary"
                                     android:textSize="11sp"
                                     android:gravity="center" />
                             </LinearLayout>
@@ -208,7 +208,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="0"
-                                    android:textColor="@color/text_title"
+                                    android:textColor="@color/text_sync_primary"
                                     android:textSize="22sp"
                                     android:textStyle="bold" />
 
@@ -216,7 +216,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="@string/stats_completed_books"
-                                    android:textColor="@color/text_secondary"
+                                    android:textColor="@color/text_sync_secondary"
                                     android:textSize="11sp"
                                     android:gravity="center" />
                             </LinearLayout>
@@ -233,7 +233,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="0"
-                                    android:textColor="@color/text_title"
+                                    android:textColor="@color/text_sync_primary"
                                     android:textSize="22sp"
                                     android:textStyle="bold" />
 
@@ -241,7 +241,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="@string/stats_in_progress_books"
-                                    android:textColor="@color/text_secondary"
+                                    android:textColor="@color/text_sync_secondary"
                                     android:textSize="11sp"
                                     android:gravity="center" />
                             </LinearLayout>
@@ -266,7 +266,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="0"
-                                    android:textColor="@color/text_title"
+                                    android:textColor="@color/text_sync_primary"
                                     android:textSize="18sp"
                                     android:textStyle="bold" />
 
@@ -274,7 +274,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="@string/stats_favorites_books"
-                                    android:textColor="@color/text_secondary"
+                                    android:textColor="@color/text_sync_secondary"
                                     android:textSize="10sp"
                                     android:gravity="center" />
                             </LinearLayout>
@@ -291,7 +291,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="0"
-                                    android:textColor="@color/text_title"
+                                    android:textColor="@color/text_sync_primary"
                                     android:textSize="18sp"
                                     android:textStyle="bold" />
 
@@ -299,7 +299,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="Хочу прочесть"
-                                    android:textColor="@color/text_secondary"
+                                    android:textColor="@color/text_sync_secondary"
                                     android:textSize="10sp"
                                     android:gravity="center" />
                             </LinearLayout>
@@ -316,7 +316,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="0"
-                                    android:textColor="@color/text_title"
+                                    android:textColor="@color/text_sync_primary"
                                     android:textSize="18sp"
                                     android:textStyle="bold" />
 
@@ -324,7 +324,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="@string/stats_bookmarks"
-                                    android:textColor="@color/text_secondary"
+                                    android:textColor="@color/text_sync_secondary"
                                     android:textSize="10sp"
                                     android:gravity="center" />
                             </LinearLayout>
@@ -341,7 +341,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="0"
-                                    android:textColor="@color/text_title"
+                                    android:textColor="@color/text_sync_primary"
                                     android:textSize="18sp"
                                     android:textStyle="bold" />
 
@@ -349,7 +349,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="@string/stats_notes"
-                                    android:textColor="@color/text_secondary"
+                                    android:textColor="@color/text_sync_secondary"
                                     android:textSize="10sp"
                                     android:gravity="center" />
                             </LinearLayout>
@@ -362,7 +362,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/stats_achievements_title"
-                    android:textColor="@color/text_primary"
+                    android:textColor="@color/text_sync_primary"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />

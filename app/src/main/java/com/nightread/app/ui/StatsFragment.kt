@@ -208,11 +208,11 @@ class StatsFragment : Fragment() {
 
                     if (ach.isUnlocked) {
                         tvStatus.text = getString(R.string.stats_ach_unlocked_status)
-                        tvStatus.setTextColor(resources.getColor(R.color.accent, null))
+                        tvStatus.setTextColor(resources.getColor(R.color.sync_header, null))
                         achView.alpha = 1.0f
                     } else {
                         tvStatus.text = getString(R.string.stats_ach_locked_status)
-                        tvStatus.setTextColor(resources.getColor(R.color.text_secondary, null))
+                        tvStatus.setTextColor(resources.getColor(R.color.text_sync_secondary, null))
                         achView.alpha = 0.5f // Полупрозрачность для заблокированных
                     }
 

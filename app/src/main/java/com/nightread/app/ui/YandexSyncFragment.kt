@@ -409,7 +409,7 @@ class YandexSyncFragment : Fragment() {
     }
 
     private var duplicatesDialogShowing = false
-    private var duplicatesDialog: android.app.AlertDialog? = null
+    private var duplicatesDialog: androidx.appcompat.app.AlertDialog? = null
 
     /**
      * Подписка на обновление состояния фоновой синхронизации в реальном времени.
@@ -506,7 +506,7 @@ class YandexSyncFragment : Fragment() {
                     if (state.finished) {
                         // Показываем отчет при завершении
                         if (state.success) {
-                            android.app.AlertDialog.Builder(ctx)
+                            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
                                 .setTitle("Синхронизация завершена")
                                 .setMessage("Синхронизация с Яндекс Диском успешно выполнена!\n\n" +
                                         "Скачано новых книг: ${state.downloadedCount}\n" +
@@ -573,7 +573,7 @@ class YandexSyncFragment : Fragment() {
             val shaText = android.widget.TextView(context).apply {
                 text = "SHA-1: ${group.sha1.take(10)}..."
                 textSize = 12f
-                setTextColor(resources.getColor(R.color.text_secondary, null))
+                setTextColor(resources.getColor(R.color.text_sync_secondary, null))
                 setPadding(0, 0, 0, (4 * resources.displayMetrics.density).toInt())
             }
             container.addView(shaText)
@@ -585,7 +585,7 @@ class YandexSyncFragment : Fragment() {
                     val fileName = java.io.File(file.filePath).name
                     text = "$fileName ($sizeStr)$label"
                     isChecked = !file.isRecommended // по умолчанию все дубликаты, кроме основного, отмечены
-                    setTextColor(resources.getColor(R.color.text_primary, null))
+                    setTextColor(resources.getColor(R.color.text_sync_primary, null))
                     
                     if (file.isRecommended) {
                         setTypeface(null, android.graphics.Typeface.ITALIC)
@@ -596,7 +596,7 @@ class YandexSyncFragment : Fragment() {
             }
         }
 
-        duplicatesDialog = android.app.AlertDialog.Builder(context)
+        duplicatesDialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
             .setTitle("Обнаружены дубликаты книг")
             .setView(scrollView)
             .setCancelable(false)
@@ -645,7 +645,7 @@ class YandexSyncFragment : Fragment() {
             val folderNames = folders.map { it.name }.toMutableList()
             folderNames.add(0, "/") // Корневая папка
             
-            val builder = android.app.AlertDialog.Builder(context)
+            val builder = com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
             builder.setTitle("Выберите папку на диске")
             builder.setItems(folderNames.toTypedArray()) { _, which ->
                 val selectedPath = if (which == 0) "/" else folders[which - 1].path ?: "/Books"
