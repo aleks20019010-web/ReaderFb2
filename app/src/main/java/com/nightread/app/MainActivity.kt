@@ -31,7 +31,6 @@ import com.nightread.app.ui.TextFormatter
 import com.nightread.app.ui.BookCache
 import com.nightread.app.service.BookParser
 import com.nightread.app.service.Fb2Parser
-import com.nightread.app.service.EpubParser
 import com.nightread.app.service.TxtParser
 import com.google.android.material.navigation.NavigationView
 import android.graphics.Color
@@ -553,9 +552,6 @@ class MainActivity : BaseActivity() {
         return when (ext) {
             "fb2", "xml" -> {
                 Fb2Parser.parse(file, file.nameWithoutExtension)
-            }
-            "epub" -> {
-                EpubParser.parse(file, file.nameWithoutExtension)
             }
             "txt" -> {
                 TxtParser.parse(file, file.nameWithoutExtension)

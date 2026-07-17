@@ -506,81 +506,6 @@ class SettingsBottomSheet : DialogFragment() {
             )
         }
 
-        // 7e. Ambient Glow controls
-        val switchAmbientGlow = view.findViewById<SwitchCompat>(R.id.switchAmbientGlow)
-        val layoutAmbientGlow = view.findViewById<LinearLayout>(R.id.layoutAmbientGlow)
-        val tvAmbientGlowIntensityValue = view.findViewById<TextView>(R.id.tvAmbientGlowIntensityValue)
-        val seekBarAmbientGlowIntensity = view.findViewById<SeekBar>(R.id.seekBarAmbientGlowIntensity)
-
-        val initialAmbientGlowEnabled = SettingsManager.isAmbientGlowEnabled(context)
-        switchAmbientGlow.isChecked = initialAmbientGlowEnabled
-        layoutAmbientGlow.visibility = if (initialAmbientGlowEnabled) View.VISIBLE else View.GONE
-
-        val initialGlowIntensity = SettingsManager.getAmbientGlowIntensity(context)
-        tvAmbientGlowIntensityValue.text = "$initialGlowIntensity%"
-        seekBarAmbientGlowIntensity.progress = initialGlowIntensity
-
-        switchAmbientGlow.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked != SettingsManager.isAmbientGlowEnabled(context)) {
-                SettingsManager.setAmbientGlowEnabled(context, isChecked)
-                layoutAmbientGlow.visibility = if (isChecked) View.VISIBLE else View.GONE
-                if (isChecked) {
-                    view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
-                }
-            }
-        }
-
-        seekBarAmbientGlowIntensity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            private var lastProgress = initialGlowIntensity
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvAmbientGlowIntensityValue.text = "$progress%"
-                if (fromUser) {
-                    SettingsManager.setAmbientGlowIntensity(context, progress)
-                    if (progress != lastProgress && progress % 5 == 0) {
-                        seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                        lastProgress = progress
-                    }
-                }
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-
-        // Palette presets
-        val btnGlowColorAmber = view.findViewById<FrameLayout>(R.id.btnGlowColorAmber)
-        val btnGlowColorMoon = view.findViewById<FrameLayout>(R.id.btnGlowColorMoon)
-        val btnGlowColorIndigo = view.findViewById<FrameLayout>(R.id.btnGlowColorIndigo)
-
-        val ringGlowColorAmber = view.findViewById<View>(R.id.ringGlowColorAmber)
-        val ringGlowColorMoon = view.findViewById<View>(R.id.ringGlowColorMoon)
-        val ringGlowColorIndigo = view.findViewById<View>(R.id.ringGlowColorIndigo)
-
-        fun updateGlowSelection(selectedColor: String) {
-            ringGlowColorAmber.visibility = if (selectedColor == "amber") View.VISIBLE else View.INVISIBLE
-            ringGlowColorMoon.visibility = if (selectedColor == "moon") View.VISIBLE else View.INVISIBLE
-            ringGlowColorIndigo.visibility = if (selectedColor == "indigo") View.VISIBLE else View.INVISIBLE
-        }
-
-        updateGlowSelection(SettingsManager.getAmbientGlowColor(context))
-
-        btnGlowColorAmber.setOnClickListener {
-            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
-            SettingsManager.setAmbientGlowColor(context, "amber")
-            updateGlowSelection("amber")
-        }
-
-        btnGlowColorMoon.setOnClickListener {
-            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
-            SettingsManager.setAmbientGlowColor(context, "moon")
-            updateGlowSelection("moon")
-        }
-
-        btnGlowColorIndigo.setOnClickListener {
-            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
-            SettingsManager.setAmbientGlowColor(context, "indigo")
-            updateGlowSelection("indigo")
-        }
-
         // 7f. Haptic Feedback control
         val switchHapticFeedback = view.findViewById<SwitchCompat>(R.id.switchHapticFeedback)
         switchHapticFeedback.isChecked = SettingsManager.isHapticFeedbackEnabled(context)
@@ -636,8 +561,6 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvSleepTimerValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvShakeToExtendTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvBedtimeTitle)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvAmbientGlowTitle)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvAmbientGlowIntensityValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvHapticFeedbackTitle)?.setTextColor(textPrimaryColor)
 
         // 3. Secondary Labels and Descriptions
@@ -658,8 +581,6 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvSleepTimerDurationLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvShakeToExtendDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvBedtimeDesc)?.setTextColor(textSecondaryColor)
-        rootView.findViewById<TextView>(R.id.tvAmbientGlowDesc)?.setTextColor(textSecondaryColor)
-        rootView.findViewById<TextView>(R.id.tvAmbientGlowIntensityLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvHapticFeedbackDesc)?.setTextColor(textSecondaryColor)
 
         // 4. Content Dividers

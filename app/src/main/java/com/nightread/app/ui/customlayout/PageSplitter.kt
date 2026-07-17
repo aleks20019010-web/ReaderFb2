@@ -287,7 +287,26 @@ object PageSplitter {
                 while (endLineIdx < lineCount) {
                     val nextLineIdx = endLineIdx + 1
                     val pageHeight = layout.getLineBottom(nextLineIdx - 1) - layout.getLineTop(currentLineIdx)
+                    
                     if (pageHeight <= maxPageHeight) {
+                        // Check for Form Feed (\u000C) to force a page break
+                        val lineStart = currentOffset + layout.getLineStart(endLineIdx)
+                        val lineEnd = currentOffset + layout.getLineEnd(endLineIdx)
+                        
+                        var hasFormFeed = false
+                        for (i in lineStart until minOf(lineEnd, text.length)) {
+                            if (text[i] == '\u000C') {
+                                hasFormFeed = true
+                                break
+                            }
+                        }
+                        
+                        if (hasFormFeed && endLineIdx > currentLineIdx) {
+                            // If this line contains a page break and it's NOT the first line of the page,
+                            // we stop here so this line starts on a new page.
+                            break
+                        }
+                        
                         endLineIdx = nextLineIdx
                     } else {
                         break

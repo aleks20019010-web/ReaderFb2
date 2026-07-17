@@ -301,7 +301,9 @@ object TextFormatter {
                 
                 if (tagType == "CHAPTER") {
                     if (contentStart > 0 && spannable[contentStart - 1] != '\u000C') {
+                        val ffIdx = spannable.length
                         spannable.append("\u000C")
+                        spannable.setSpan(AbsoluteSizeSpan(0), ffIdx, ffIdx + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                     }
                 }
                 

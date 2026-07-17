@@ -944,7 +944,6 @@ class BookReaderActivity : AppCompatActivity() {
                             if (now - lastShakeTime > 3000) {
                                 lastShakeTime = now
                                 remainingTimeMs += 5 * 60 * 1000L
-                                CustomToast.show(context, "Таймер сна продлен на 5 минут!", android.widget.Toast.LENGTH_SHORT)
                             }
                         }
                     }
@@ -972,7 +971,8 @@ class BookReaderActivity : AppCompatActivity() {
             sensorManager = getSystemService(android.content.Context.SENSOR_SERVICE) as? android.hardware.SensorManager
         }
         
-        val shakeEnabled = com.nightread.app.data.SettingsManager.isShakeToExtendEnabled(context)
+        val sleepTimerEnabled = com.nightread.app.data.SettingsManager.isSleepTimerEnabled(context)
+        val shakeEnabled = com.nightread.app.data.SettingsManager.isShakeToExtendEnabled(context) && sleepTimerEnabled
         val autoThemeEnabled = com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(context)
         
         if (sensorListener == null && (shakeEnabled || autoThemeEnabled)) {
@@ -982,7 +982,8 @@ class BookReaderActivity : AppCompatActivity() {
                 override fun onSensorChanged(event: android.hardware.SensorEvent) {
                     when (event.sensor.type) {
                         android.hardware.Sensor.TYPE_ACCELEROMETER -> {
-                            if (!com.nightread.app.data.SettingsManager.isShakeToExtendEnabled(context)) return
+                            if (!com.nightread.app.data.SettingsManager.isShakeToExtendEnabled(context) || 
+                                !com.nightread.app.data.SettingsManager.isSleepTimerEnabled(context)) return
                             val x = event.values[0]
                             val y = event.values[1]
                             val z = event.values[2]
@@ -992,7 +993,6 @@ class BookReaderActivity : AppCompatActivity() {
                                 if (now - lastShakeTime > 3000) {
                                     lastShakeTime = now
                                     remainingTimeMs += 5 * 60 * 1000L
-                                    CustomToast.show(context, "Таймер сна продлен на 5 минут!", android.widget.Toast.LENGTH_SHORT)
                                 }
                             }
                         }

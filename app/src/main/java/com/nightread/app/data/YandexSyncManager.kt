@@ -176,7 +176,7 @@ class YandexSyncManager(private val context: Context) {
             // Фильтруем только поддерживаемые форматы книг
             val cloudBooks = cloudItems.filter {
                 val name = it.name.lowercase()
-                val isSupported = name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".epub")
+                val isSupported = name.endsWith(".fb2") || name.endsWith(".fb2.zip")
                 if (!isSupported) {
                     Log.d(TAG, "Файл не поддерживается: ${it.name}")
                 }
@@ -642,22 +642,30 @@ class YandexSyncManager(private val context: Context) {
                         }
                         
                         val bytes = tempFile.readBytes()
-                        val isEpub = originalName.lowercase().endsWith(".epub")
-                        if (isEpub) {
-                            val meta = com.nightread.app.service.EpubParser.parseEpub(tempFile, originalName.substringBeforeLast("."))
-                            val sha1 = computeSha1(bytes)
+                        val fb2Bytes = extractFb2Bytes(bytes, originalName)
+                        if (fb2Bytes.isNotEmpty()) {
+                            // Compute exact SHA-1 on the extracted fb2 content bytes
+                            val sha1 = computeSha1(fb2Bytes)
                             
-                            val titleText = meta.title
-                            val authorText = meta.author
-                            val seriesText: String? = null
-                            val seriesIdx: Int? = null
-                            val langText = meta.language
-                            val truncatedAnnotation = meta.annotation?.take(500)
-                            
+                            val titleText: String
+                            val authorText: String
+                            val seriesText: String?
+                            val seriesIdx: Int?
+                            val langText: String?
                             var coverPath: String? = null
-                            if (meta.coverBytes != null && meta.coverBytes.isNotEmpty()) {
-                                coverPath = NewCoverExtractor.saveCoverBytes(meta.coverBytes, sha1, context)
-                            }
+                            val truncatedAnnotation: String?
+                            
+                            // Decode fb2Bytes safely to String respecting XML and Russian Windows-1251 encoding
+                            val content = decodeBytesToString(fb2Bytes)
+                            // Parse FB2 correctly to get metadata
+                            val meta = Fb2Parser.parse(content, originalName)
+                            titleText = meta.title
+                            authorText = meta.author
+                            seriesText = meta.series
+                            seriesIdx = meta.seriesIndex
+                            langText = meta.language
+                            truncatedAnnotation = meta.annotation?.take(500)
+                            coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
                             
                             val localFile = File(booksDirectory, originalName)
                             tempFile.copyTo(localFile, overwrite = true)
@@ -680,87 +688,23 @@ class YandexSyncManager(private val context: Context) {
                                 coverPath = coverPath,
                                 currentPageIndex = progressPayload?.page ?: 0,
                                 currentProgressChar = progressPayload?.charOffset ?: 0,
-                                totalCharacters = progressPayload?.totalChars ?: meta.content.length,
+                                totalCharacters = progressPayload?.totalChars ?: 0,
                                 lastReadTime = progressPayload?.lastReadTime ?: 0L
                             )
                             if (repository.insertBookSafely(newBook)) {
                                 downloadedCount++
-                                Log.d(TAG, "Успешно скачана и импортирована книга EPUB: $originalName (SHA-1: $sha1)")
+                                Log.d(TAG, "Успешно скачана и импортирована книга: $originalName (SHA-1: $sha1)")
                                 try {
                                     cloudFileCache.save(sha1, cloudItem.path, cloudItem.lastModified, cloudItem.size)
-                                    Log.d(TAG, "Кэш SHA-1 обновлен для скачанной книги EPUB: $originalName")
+                                    Log.d(TAG, "Кэш SHA-1 обновлен для скачанной книги: $originalName")
                                 } catch (e: Exception) {
-                                    Log.e(TAG, "Ошибка сохранения SHA-1 в кэш для скачанной книги EPUB: $originalName", e)
+                                    Log.e(TAG, "Ошибка сохранения SHA-1 в кэш для скачанной книги: $originalName", e)
                                 }
                             } else {
-                                Log.e(TAG, "Ошибка вставки книги EPUB '$originalName' в базу")
+                                Log.e(TAG, "Ошибка вставки книги '$originalName' в базу")
                             }
                         } else {
-                            val fb2Bytes = extractFb2Bytes(bytes, originalName)
-                            if (fb2Bytes.isNotEmpty()) {
-                                // Compute exact SHA-1 on the extracted fb2 content bytes
-                                val sha1 = computeSha1(fb2Bytes)
-                                
-                                val titleText: String
-                                val authorText: String
-                                val seriesText: String?
-                                val seriesIdx: Int?
-                                val langText: String?
-                                var coverPath: String? = null
-                                val truncatedAnnotation: String?
-                                
-                                // Decode fb2Bytes safely to String respecting XML and Russian Windows-1251 encoding
-                                val content = decodeBytesToString(fb2Bytes)
-                                // Parse FB2 correctly to get metadata
-                                val meta = Fb2Parser.parse(content, originalName)
-                                titleText = meta.title
-                                authorText = meta.author
-                                seriesText = meta.series
-                                seriesIdx = meta.seriesIndex
-                                langText = meta.language
-                                truncatedAnnotation = meta.annotation?.take(500)
-                                coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
-                                
-                                val localFile = File(booksDirectory, originalName)
-                                tempFile.copyTo(localFile, overwrite = true)
-                                
-                                val progressPayload = cloudProgressMap[sha1]
-
-                                val newBook = BookEntity(
-                                    sha1 = sha1,
-                                    title = titleText,
-                                    author = authorText,
-                                    category = "Локальные",
-                                    
-                                    coverGradientStart = getRandomGradientStartColor(),
-                                    coverGradientEnd = getRandomGradientEndColor(),
-                                    filePath = localFile.absolutePath,
-                                    series = seriesText,
-                                    seriesIndex = seriesIdx,
-                                    language = langText,
-                                    annotation = truncatedAnnotation,
-                                    fileSize = bytes.size.toLong(),
-                                    coverPath = coverPath,
-                                    currentPageIndex = progressPayload?.page ?: 0,
-                                    currentProgressChar = progressPayload?.charOffset ?: 0,
-                                    totalCharacters = progressPayload?.totalChars ?: 0,
-                                    lastReadTime = progressPayload?.lastReadTime ?: 0L
-                                )
-                                if (repository.insertBookSafely(newBook)) {
-                                    downloadedCount++
-                                    Log.d(TAG, "Успешно скачана и импортирована книга: $originalName (SHA-1: $sha1)")
-                                    try {
-                                        cloudFileCache.save(sha1, cloudItem.path, cloudItem.lastModified, cloudItem.size)
-                                        Log.d(TAG, "Кэш SHA-1 обновлен для скачанной книги: $originalName")
-                                    } catch (e: Exception) {
-                                        Log.e(TAG, "Ошибка сохранения SHA-1 в кэш для скачанной книги: $originalName", e)
-                                    }
-                                } else {
-                                    Log.e(TAG, "Ошибка вставки книги '$originalName' в базу")
-                                }
-                            } else {
-                                Log.e(TAG, "Empty or missing FB2 content inside downloaded file: $originalName")
-                            }
+                            Log.e(TAG, "Empty or missing FB2 content inside downloaded file: $originalName")
                         }
                     } finally {
                         if (tempFile.exists()) tempFile.delete()

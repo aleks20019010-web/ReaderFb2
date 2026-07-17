@@ -25,7 +25,7 @@ class SyncReadingProgressUseCase(
      * 
      * @param token Токен OAuth Яндекс Диска
      * @param accountId Идентификатор аккаунта
-     * @param cloudPath Путь к книге на Яндекс Диске (например, "/Books/WarAndPeace.epub")
+     * @param cloudPath Путь к книге на Яндекс Диске (например, "/Books/WarAndPeace.fb2")
      * @param fileSize Размер файла на диске
      * @param fileModified Дата изменения файла на диске в формате ISO 8601
      * @param onConflict Калбек для ручного разрешения конфликтов. Если передан,

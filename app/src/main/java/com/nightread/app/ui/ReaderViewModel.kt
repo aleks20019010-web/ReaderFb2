@@ -281,8 +281,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
         if (book.filePath?.endsWith(".fb2", true) == true || 
             book.filePath?.endsWith(".fb2.zip", true) == true || 
-            book.filePath?.endsWith(".zip", true) == true ||
-            book.filePath?.endsWith(".epub", true) == true) {
+            book.filePath?.endsWith(".zip", true) == true) {
             
             // For WebView books, we reset pagesState to trigger a reload in Activity, 
             // but we MUST NOT reset _currentPage to 0 if it was already set.

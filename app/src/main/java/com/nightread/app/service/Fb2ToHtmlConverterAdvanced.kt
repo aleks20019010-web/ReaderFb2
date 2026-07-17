@@ -113,10 +113,19 @@ object Fb2ToHtmlConverterAdvanced {
                             font-weight: bold;
                             text-align: center;
                             page-break-after: avoid;
+                            break-after: avoid;
                         }
-                        h1 { font-size: 1.4em; }
+                        h1 { 
+                            font-size: 1.6em; 
+                            margin-top: 0.5em;
+                            margin-bottom: 1.2em;
+                        }
                         h2 { font-size: 1.3em; }
                         h3 { font-size: 1.2em; }
+                        .chapter-section {
+                            break-before: column;
+                            -webkit-column-break-before: always;
+                        }
                         strong { font-weight: bold; }
                         em { font-style: italic; }
                         img {
@@ -217,7 +226,8 @@ object Fb2ToHtmlConverterAdvanced {
             
             when (element) {
                 "p" -> html.append("<p>")
-                "title", "section" -> html.append("<div>")
+                "title" -> html.append("<h1>")
+                "section" -> html.append("<div class='chapter-section'>")
                 "subtitle" -> html.append("<h3>")
                 "strong", "b" -> html.append("<strong>")
                 "emphasis", "i" -> html.append("<em>")
@@ -256,7 +266,8 @@ object Fb2ToHtmlConverterAdvanced {
             
             when (element) {
                 "p" -> html.append("</p>")
-                "title", "section" -> html.append("</div>")
+                "title" -> html.append("</h1>")
+                "section" -> html.append("</div>")
                 "subtitle" -> html.append("</h3>")
                 "strong", "b" -> html.append("</strong>")
                 "emphasis", "i" -> html.append("</em>")

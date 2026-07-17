@@ -535,15 +535,6 @@ class BookDetailActivity : BaseActivity() {
 
     private suspend fun readAnnotationFromFile(filePath: String): String? = withContext(Dispatchers.IO) {
         val pathLower = filePath.lowercase(Locale.ROOT)
-        if (pathLower.endsWith(".epub")) {
-            return@withContext try {
-                val metadata = com.nightread.app.service.EpubParser.parseEpub(File(filePath), "")
-                metadata.annotation
-            } catch (e: Exception) {
-                Log.e("BookDetail", "Error parsing EPUB annotation from file $filePath", e)
-                null
-            }
-        }
         val bytes = readFirstBytesOfFb2(filePath)
         if (bytes == null || bytes.isEmpty()) return@withContext null
 

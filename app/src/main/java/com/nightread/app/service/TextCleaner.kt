@@ -113,8 +113,8 @@ object TextCleaner {
             HTML_ENTITIES[match.value.lowercase()] ?: match.value
         }
 
-        // 7. Заменяем переносы строк
-        result = result.replace("\u000C", "\n\n")
+        // 7. Переносы строк
+        // result = result.replace("\u000C", "\n\n") // Removed to preserve chapter page breaks
         result = result.replace("\r\n", "\n")
         result = result.replace("\r", "\n")
 
@@ -228,7 +228,7 @@ object TextCleaner {
         }
 
         // 7. Переносы строк
-        doReplaceStr("Form Feed", "\u000C", "\n\n", isRemoval = false)
+        // doReplaceStr("Form Feed", "\u000C", "\n\n", isRemoval = false) // Removed to preserve chapter page breaks
         doReplaceStr("CRLF", "\r\n", "\n", isRemoval = false)
         doReplaceStr("CR", "\r", "\n", isRemoval = false)
 
