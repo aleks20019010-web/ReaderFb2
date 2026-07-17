@@ -218,8 +218,8 @@ class BookReaderActivity : AppCompatActivity() {
                                             // Final fallback if paragraph scroll completely fails
                                             val pageIdx = viewModel.currentPage.value
                                             val w = webView.width
-                                            if (w > 0) {
-                                                webView.scrollTo(pageIdx * w, 0)
+                                            if (w > 0 && pageIdx > 0) {
+                                                webView.scrollTo((pageIdx - 1) * w, 0)
                                                 webView.evaluateJavascript("reportCurrentParagraph();", null)
                                             }
                                         }
@@ -229,8 +229,8 @@ class BookReaderActivity : AppCompatActivity() {
                                 // If pIndex == 0 or not found, fall back to page index
                                 val pageIdx = viewModel.currentPage.value
                                 val w = webView.width
-                                if (w > 0) {
-                                    webView.scrollTo(pageIdx * w, 0)
+                                if (w > 0 && pageIdx > 0) {
+                                    webView.scrollTo((pageIdx - 1) * w, 0)
                                     webView.evaluateJavascript("reportCurrentParagraph();", null)
                                 }
                             }
@@ -239,8 +239,8 @@ class BookReaderActivity : AppCompatActivity() {
                 } else {
                     val pageIdx = viewModel.currentPage.value
                     val w = webView.width
-                    if (w > 0) {
-                        webView.scrollTo(pageIdx * w, 0)
+                    if (w > 0 && pageIdx > 0) {
+                        webView.scrollTo((pageIdx - 1) * w, 0)
                     }
                 }
             }
@@ -561,8 +561,8 @@ class BookReaderActivity : AppCompatActivity() {
                 }
             } else {
                 val w = webView.width
-                if (w > 0) {
-                    webView.scrollTo(pageIdx * w, 0)
+                if (w > 0 && pageIdx > 0) {
+                    webView.scrollTo((pageIdx - 1) * w, 0)
                     webView.postDelayed({
                         webView.evaluateJavascript("reportCurrentParagraph();", null)
                     }, 100)
@@ -1116,8 +1116,8 @@ class BookReaderActivity : AppCompatActivity() {
         viewModel.setWebViewPageCount(totalPages)
         val pageIdx = viewModel.currentPage.value
         val w = webView.width
-        if (w > 0) {
-            webView.scrollTo(pageIdx * w, 0)
+        if (w > 0 && pageIdx > 0) {
+            webView.scrollTo((pageIdx - 1) * w, 0)
         }
     }
 
@@ -1127,7 +1127,7 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     fun onWebViewPageRestored(pageIndex: Int) {
-        viewModel.setWebViewPageRestored(pageIndex)
+        viewModel.setWebViewPageRestored(pageIndex + 1)
     }
 
     class WebAppInterface(private val activity: BookReaderActivity) {

@@ -543,6 +543,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun setWebViewPageCount(count: Int) {
         val dummyList = ArrayList<CharSequence>()
+        dummyList.add("[BOOK_COVER]")
         for (i in 0 until count.coerceAtLeast(1)) {
             dummyList.add("WEBVIEW_PAGE_$i")
         }
@@ -551,7 +552,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun setCurrentPage(page: Int) {
         val pages = _pagesState.value
-        val isWebViewBook = pages.any { it.toString().startsWith("WEBVIEW_CONTENT") }
+        val isWebViewBook = pages.any { it.toString().startsWith("WEBVIEW_CONTENT") || it.toString().startsWith("WEBVIEW_PAGE_") }
         
         if (isWebViewBook) {
             // For WebView books, the pagesState might temporarily have size 1 during repagination.
