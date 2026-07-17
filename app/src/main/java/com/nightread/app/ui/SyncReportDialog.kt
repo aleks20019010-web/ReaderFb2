@@ -77,11 +77,11 @@ class SyncReportDialog(
             layoutParams = params
         }
 
-        // Внутренний контейнер для карточки с темным полупрозрачным фоном
+        // Внутренний контейнер для карточки с прозрачным фоном
         val innerStatsLayout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(padding16, padding16, padding16, padding16)
-            setBackgroundColor(0xCC1A1A24.toInt()) // Полупрозрачный темный фон
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
         }
 
         val stats = listOf(
@@ -100,14 +100,14 @@ class SyncReportDialog(
             val txtLabel = TextView(context).apply {
                 text = label
                 textSize = 14f
-                setTextColor(context.resources.getColor(R.color.text_sync_secondary, null))
+                setTextColor(context.resources.getColor(R.color.text_secondary, null))
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
             val txtValue = TextView(context).apply {
                 text = value
                 textSize = 14f
                 setTypeface(null, Typeface.BOLD)
-                setTextColor(context.resources.getColor(R.color.text_sync_primary, null))
+                setTextColor(context.resources.getColor(R.color.text_primary, null))
                 gravity = Gravity.END
             }
             row.addView(txtLabel)
@@ -131,7 +131,7 @@ class SyncReportDialog(
             val downloadListLayout = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(padding8, padding4, padding8, padding8)
-                setBackgroundColor(0x33FFFFFF) // Тонкий полупрозрачный фон
+                setBackgroundColor(context.resources.getColor(R.color.bg_panel, null))
             }
 
             // Покажем первые 5 книг, остальные спрячем с пометкой
@@ -144,7 +144,7 @@ class SyncReportDialog(
                 val txtItem = TextView(context).apply {
                     text = "• $fileName ($sizeStr)"
                     textSize = 13f
-                    setTextColor(context.resources.getColor(R.color.text_sync_primary, null))
+                    setTextColor(context.resources.getColor(R.color.text_primary, null))
                     setPadding(0, padding4, 0, padding4)
                 }
                 downloadListLayout.addView(txtItem)
@@ -155,7 +155,7 @@ class SyncReportDialog(
                     text = "... и еще ${report.toDownload.size - 5} книг(и)"
                     textSize = 13f
                     setTypeface(null, Typeface.ITALIC)
-                    setTextColor(context.resources.getColor(R.color.text_sync_secondary, null))
+                    setTextColor(context.resources.getColor(R.color.text_secondary, null))
                     setPadding(0, padding4, 0, padding4)
                 }
                 downloadListLayout.addView(txtMore)
@@ -177,7 +177,7 @@ class SyncReportDialog(
             val uploadListLayout = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(padding8, padding4, padding8, padding8)
-                setBackgroundColor(0x33FFFFFF) // Тонкий полупрозрачный фон
+                setBackgroundColor(context.resources.getColor(R.color.bg_panel, null))
             }
 
             // Покажем первые 5 книг, остальные спрячем с пометкой
@@ -190,7 +190,7 @@ class SyncReportDialog(
                 val txtItem = TextView(context).apply {
                     text = "• ${book.title}$authorStr$sizeStr"
                     textSize = 13f
-                    setTextColor(context.resources.getColor(R.color.text_sync_primary, null))
+                    setTextColor(context.resources.getColor(R.color.text_primary, null))
                     setPadding(0, padding4, 0, padding4)
                 }
                 uploadListLayout.addView(txtItem)
@@ -201,7 +201,7 @@ class SyncReportDialog(
                     text = "... и еще ${report.toUpload.size - 5} книг(и)"
                     textSize = 13f
                     setTypeface(null, Typeface.ITALIC)
-                    setTextColor(context.resources.getColor(R.color.text_sync_secondary, null))
+                    setTextColor(context.resources.getColor(R.color.text_secondary, null))
                     setPadding(0, padding4, 0, padding4)
                 }
                 uploadListLayout.addView(txtMore)
@@ -215,7 +215,7 @@ class SyncReportDialog(
                 text = "🎉 Все ваши книги синхронизированы! Локальная библиотека и папка на Яндекс Диске полностью идентичны."
                 textSize = 14f
                 setTypeface(null, Typeface.ITALIC)
-                setTextColor(context.resources.getColor(R.color.text_sync_primary, null))
+                setTextColor(context.resources.getColor(R.color.text_primary, null))
                 gravity = Gravity.CENTER
                 setPadding(padding16, padding16, padding16, padding16)
             }
@@ -234,7 +234,7 @@ class SyncReportDialog(
 
         val btnCancel = Button(context, null, 0, com.google.android.material.R.style.Widget_Material3_Button_TextButton).apply {
             text = "Отмена"
-            setTextColor(context.resources.getColor(R.color.text_sync_secondary, null))
+            setTextColor(context.resources.getColor(R.color.text_secondary, null))
             setOnClickListener {
                 dialog?.dismiss()
             }
@@ -272,6 +272,5 @@ class SyncReportDialog(
             .create()
 
         dialog?.show()
-        dialog?.applyStarryBackground()
     }
 }

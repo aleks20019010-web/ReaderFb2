@@ -554,14 +554,25 @@ class SettingsBottomSheet : DialogFragment() {
         val cardRoot = rootView.findViewById<androidx.cardview.widget.CardView>(R.id.settingsCardRoot)
         cardRoot?.setCardBackgroundColor(cardBgColor)
 
+        // Bedtime mode card background morphing
+        val cardBedtime = rootView.findViewById<androidx.cardview.widget.CardView>(R.id.cardBedtimeMode)
+        cardBedtime?.setCardBackgroundColor(itemBgColor)
+
         // 2. Primary Titles and Text Values
         rootView.findViewById<TextView>(R.id.tvSettingsTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvFontSizeValue)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvFontWeightValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvSleepTimerTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvSleepTimerValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvShakeToExtendTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvBedtimeTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvHapticFeedbackTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvAutoDiscoveryTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvAutoLightNightTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvAmberFilterTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvAmberIntensityValue)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvExtraDimTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvExtraDimIntensityValue)?.setTextColor(textPrimaryColor)
 
         // 3. Secondary Labels and Descriptions
         rootView.findViewById<TextView>(R.id.tvColorSchemeLabel)?.setTextColor(textSecondaryColor)
@@ -697,7 +708,6 @@ class SettingsBottomSheet : DialogFragment() {
 
     override fun onStart() {
         super.onStart()
-        dialog?.applyStarryBackground()
         dialog?.window?.let { window ->
             val metrics = resources.displayMetrics
             
