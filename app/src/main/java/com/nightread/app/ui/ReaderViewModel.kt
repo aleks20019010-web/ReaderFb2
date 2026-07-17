@@ -80,6 +80,25 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private var pageStartOffsets = listOf<Int>()
     private var repaginateJob: kotlinx.coroutines.Job? = null
 
+    fun getPageForOffset(offset: Int): Int {
+        if (pageStartOffsets.isEmpty()) return 0
+        
+        var pageIdx = 0
+        for (i in pageStartOffsets.indices) {
+            if (pageStartOffsets[i] <= offset) {
+                pageIdx = i
+            } else {
+                break
+            }
+        }
+        return pageIdx
+    }
+
+    fun getOffsetForPage(page: Int): Int {
+        if (pageStartOffsets.isEmpty() || page < 0 || page >= pageStartOffsets.size) return 0
+        return pageStartOffsets[page]
+    }
+
     init {
         loadSettings()
         viewModelScope.launch {
