@@ -114,7 +114,6 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         if (_fontWeightState.value != newFontWeight) changed = true
         if (_fontAlignmentState.value != newFontAlignment) changed = true
         if (_pageMarginsState.value != newPageMargins) changed = true
-        if (_scrollDirectionState.value != newScrollDirection) changed = true
         if (_twoPagesLandscapeState.value != newTwoPagesLandscape) changed = true
         
         _fontSizeState.value = newFontSize

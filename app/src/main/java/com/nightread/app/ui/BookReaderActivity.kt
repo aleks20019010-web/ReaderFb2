@@ -567,13 +567,19 @@ class BookReaderActivity : AppCompatActivity() {
                     }
                 }
             } else {
+                isWebViewLoading = false
                 val w = webView.width
                 if (w > 0 && pageIdx > 0) {
                     webView.scrollTo((pageIdx - 1) * w, 0)
-                    webView.postDelayed({
-                        webView.evaluateJavascript("reportCurrentParagraph();", null)
-                    }, 100)
+                } else if (w > 0) {
+                    webView.scrollTo(0, 0)
                 }
+                webView.postDelayed({
+                    if (viewModel.pagesState.value.size <= 1) {
+                        webView.evaluateJavascript("calculatePages();", null)
+                    }
+                    webView.evaluateJavascript("reportCurrentParagraph();", null)
+                }, 100)
             }
             updatePageIndicator()
             return
@@ -677,7 +683,14 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     private val activePageView: View
-        get() = if (viewModel.pagesState.value.getOrNull(viewModel.currentPage.value)?.toString() == "[BOOK_COVER]") ivBookCoverPage else readerView
+        get() {
+            val isWebViewBook = viewModel.bookState.value?.filePath?.let {
+                it.endsWith(".fb2", true) || it.endsWith(".fb2.zip", true) || it.endsWith(".zip", true)
+            } == true
+            if (isWebViewBook) return webView
+            if (viewModel.pagesState.value.getOrNull(viewModel.currentPage.value)?.toString() == "[BOOK_COVER]") return ivBookCoverPage
+            return readerView
+        }
 
     private fun updatePageWithAnimation(newPageIdx: Int) {
         val animMode = com.nightread.app.data.SettingsManager.getPageAnimation(this)

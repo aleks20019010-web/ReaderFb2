@@ -158,7 +158,7 @@ object Fb2ToHtmlConverterAdvanced {
                             
                             for (var i = 0; i < elements.length; i++) {
                                 var rect = elements[i].getBoundingClientRect();
-                                if (rect.right > 5 && rect.left >= -5 && rect.left < pageWidth) {
+                                if (rect.right > 5 && rect.left < pageWidth) {
                                     if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onParagraphVisible) {
                                         AndroidInterface.onParagraphVisible(elements[i].id);
                                     }
