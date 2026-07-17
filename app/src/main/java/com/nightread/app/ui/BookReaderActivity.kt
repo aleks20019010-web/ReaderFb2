@@ -71,6 +71,7 @@ class BookReaderActivity : AppCompatActivity() {
     private var lightSensorListener: android.hardware.SensorEventListener? = null
     private var remainingTimeMs: Long = 0
     private var isWebViewLoading = false
+    private var brightnessAnimator: android.animation.ValueAnimator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -330,6 +331,7 @@ class BookReaderActivity : AppCompatActivity() {
                     touchStartX = event.x
                     touchStartY = event.y
                     touchStartTime = System.currentTimeMillis()
+                    brightnessAnimator?.cancel()
                     isDraggingVerticalLeft = false
                     isDraggingVerticalRight = false
                     if (event.x < screenWidth * 0.35f) {
@@ -977,10 +979,12 @@ class BookReaderActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         registerSensors()
+        animateBrightnessRise()
     }
 
     override fun onPause() {
         super.onPause()
+        brightnessAnimator?.cancel()
         viewModel.saveProgress()
         unregisterSensors()
     }
@@ -1077,8 +1081,35 @@ class BookReaderActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        brightnessAnimator?.cancel()
         sleepTimerJob?.cancel()
         unregisterSensors()
+    }
+
+    private fun animateBrightnessRise() {
+        val savedBrightness = com.nightread.app.data.SettingsManager.getBrightness(this)
+        val targetBrightness = if (savedBrightness >= 0.01f) savedBrightness else 0.5f
+        
+        val startBrightness = 0.01f
+        if (targetBrightness <= startBrightness) {
+            val lp = window.attributes
+            lp.screenBrightness = targetBrightness
+            window.attributes = lp
+            return
+        }
+
+        brightnessAnimator?.cancel()
+        brightnessAnimator = android.animation.ValueAnimator.ofFloat(startBrightness, targetBrightness).apply {
+            duration = 1500
+            interpolator = android.view.animation.DecelerateInterpolator()
+            addUpdateListener { animator ->
+                val value = animator.animatedValue as Float
+                val currentLp = window.attributes
+                currentLp.screenBrightness = value
+                window.attributes = currentLp
+            }
+            start()
+        }
     }
 
     fun loadPage(pageNumber: Int) {
