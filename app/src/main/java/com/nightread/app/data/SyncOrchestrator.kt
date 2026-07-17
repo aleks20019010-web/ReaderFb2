@@ -12,6 +12,8 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.io.File
 import java.nio.charset.StandardCharsets
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 
 /**
  * Оркестратор синхронизации с Яндекс Диском.
@@ -53,7 +55,77 @@ class SyncOrchestrator(
             throw Exception("Ошибка авторизации Яндекс Диска: отсутствует токен")
         }
 
+        val authHeader = "OAuth $token"
+        val progressFolder = "$syncFolder/Progress"
+        val cloudProgressMap = java.util.concurrent.ConcurrentHashMap<String, BookProgressPayload>()
+        val progressAdapter = YandexDiskManager.moshi.adapter(BookProgressPayload::class.java)
+
         try {
+            // Ensure sync and progress directories exist on Yandex Disk
+            val pathsToCreate = listOf(syncFolder, progressFolder)
+            for (path in pathsToCreate) {
+                try {
+                    YandexDiskManager.api.createDirectory(authHeader, path)
+                } catch (e: Exception) {
+                    Log.d(TAG, "Directory already exists: $path")
+                }
+            }
+
+            // Obtain local BookDao
+            val db = AppDatabase.getDatabase(context)
+            val bookDao = db.bookDao()
+
+            // Fetch progress items from Yandex Disk
+            val progressItems = try {
+                YandexDiskManager.getAllFilesFromFolder(context, authHeader, progressFolder)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch progress files list", e)
+                emptyList()
+            }
+
+            if (progressItems.isNotEmpty()) {
+                progressTracker.startStage("Синхронизация прогресса", progressItems.size, "Синхронизация прогресса чтения...")
+                val progressSemaphore = Semaphore(10)
+                coroutineScope {
+                    val progressJobs = progressItems.map { item ->
+                        async {
+                            if (item.name.endsWith(".json")) {
+                                progressSemaphore.withPermit {
+                                    if (isCancelled) return@async
+                                    try {
+                                        val cleanPath = YandexDiskManager.normalizePath(item.path ?: "$progressFolder/${item.name}")
+                                        val linkResponse = YandexDiskManager.api.getDownloadLink(authHeader, cleanPath)
+                                        val body = YandexDiskManager.api.downloadFile(linkResponse.href)
+                                        val jsonStr = body.string()
+                                        val cloudProgress = progressAdapter.fromJson(jsonStr)
+                                        if (cloudProgress != null) {
+                                            cloudProgressMap[cloudProgress.sha1] = cloudProgress
+                                            
+                                            val localBook = bookDao.getBookBySha1(cloudProgress.sha1)
+                                            if (localBook != null) {
+                                                if (cloudProgress.lastReadTime > localBook.lastReadTime) {
+                                                    bookDao.updateProgressAndPage(
+                                                        sha1 = cloudProgress.sha1,
+                                                        charOffset = cloudProgress.charOffset,
+                                                        pageIndex = cloudProgress.page,
+                                                        totalChars = cloudProgress.totalChars,
+                                                        timestamp = cloudProgress.lastReadTime
+                                                    )
+                                                    Log.d(TAG, "Updated local progress for: ${localBook.title} (offset: ${cloudProgress.charOffset}, page: ${cloudProgress.page})")
+                                                }
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error downloading or applying progress for ${item.name}", e)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    progressJobs.awaitAll()
+                }
+            }
+
             // Stage 1: Получение списка файлов с диска
             progressTracker.startStage("Получение списка файлов", 0, "Получение списка файлов с диска...")
             if (isCancelled) return
@@ -138,8 +210,6 @@ class SyncOrchestrator(
             // Stage 3: Получение локальных SHA-1 и сравнение
             progressTracker.startStage("Сравнение с библиотекой", 0, "Сравнение с библиотекой...")
             if (isCancelled) return
-            val db = AppDatabase.getDatabase(context)
-            val bookDao = db.bookDao()
             val repository = BookRepository(bookDao, db.noteDao())
             
             val localSha1s = try {
@@ -288,14 +358,14 @@ class SyncOrchestrator(
                                             tempFile.copyTo(localFile, overwrite = true)
 
                                             try {
+                                                val cloudProgress = cloudProgressMap[sha1]
                                                 val newBook = BookEntity(
                                                     sha1 = sha1,
                                                     title = meta.title,
                                                     author = meta.author ?: "Неизвестен",
                                                     category = "Локальные",
-                                                    currentProgressChar = 0,
-                                                    
-                                                    lastReadTime = System.currentTimeMillis(),
+                                                    currentProgressChar = cloudProgress?.charOffset ?: 0,
+                                                    lastReadTime = cloudProgress?.lastReadTime ?: System.currentTimeMillis(),
                                                     filePath = localFile.absolutePath,
                                                     series = meta.series,
                                                     seriesIndex = meta.seriesIndex,
@@ -305,7 +375,8 @@ class SyncOrchestrator(
                                                     isFavorite = false,
                                                     coverPath = coverPath,
                                                     annotation = truncatedAnnotation,
-                                                    currentPageIndex = 0,
+                                                    currentPageIndex = cloudProgress?.page ?: 0,
+                                                    totalCharacters = cloudProgress?.totalChars ?: 0,
                                                     coverGradientStart = getRandomGradientStartColor(),
                                                     coverGradientEnd = getRandomGradientEndColor()
                                                 )
@@ -381,6 +452,62 @@ class SyncOrchestrator(
                     )
                 }
                 return
+            }
+
+            // Upload local reading progress to Yandex Disk
+            val updatedLocalBooks = try {
+                bookDao.getAllBooksSync()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to get local books for progress upload", e)
+                emptyList()
+            }
+
+            if (updatedLocalBooks.isNotEmpty() && !isCancelled) {
+                progressTracker.startStage("Отправка прогресса", updatedLocalBooks.size, "Отправка прогресса чтения...")
+                val uploadProgressSemaphore = Semaphore(10)
+                coroutineScope {
+                    val progressUploadJobs = updatedLocalBooks.map { localBook ->
+                        async {
+                            val sha1 = localBook.sha1 ?: return@async
+                            if (sha1.isEmpty()) return@async
+                            
+                            val cloudProgressName = "$sha1.json"
+                            val cloudProgress = cloudProgressMap[sha1]
+
+                            val shouldUploadProgress = (cloudProgress == null && localBook.currentProgressChar > 0) || 
+                                                       (cloudProgress != null && localBook.lastReadTime > cloudProgress.lastReadTime)
+
+                            if (shouldUploadProgress) {
+                                uploadProgressSemaphore.withPermit {
+                                    if (isCancelled) return@async
+                                    try {
+                                        val totalChars = localBook.totalCharacters
+                                        val progressPercent = if (totalChars > 0) (localBook.currentProgressChar.toLong() * 100 / totalChars).toInt().coerceIn(0, 100) else 0
+                                        
+                                        val payload = BookProgressPayload(
+                                            sha1 = sha1,
+                                            page = localBook.currentPageIndex,
+                                            charOffset = localBook.currentProgressChar,
+                                            progress = progressPercent,
+                                            lastReadTime = localBook.lastReadTime,
+                                            totalChars = totalChars
+                                        )
+                                        val json = progressAdapter.toJson(payload)
+                                        val cleanPath = YandexDiskManager.normalizePath("$progressFolder/$cloudProgressName")
+                                        val link = YandexDiskManager.api.getUploadLink(authHeader, cleanPath)
+                                        
+                                        val requestBody = json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType())
+                                        YandexDiskManager.api.uploadFile(link.href, requestBody)
+                                        Log.d(TAG, "Uploaded progress to cloud for book: ${localBook.title} (offset: ${localBook.currentProgressChar}, page: ${localBook.currentPageIndex})")
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error uploading progress for '${localBook.title}'", e)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    progressUploadJobs.awaitAll()
+                }
             }
 
             // Finish
