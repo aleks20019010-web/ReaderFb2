@@ -5,11 +5,11 @@
     android:id="@+id/settingsCardRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:cardBackgroundColor="#E61A0D2A"
+    app:cardBackgroundColor="#F5F0F8"
     app:cardCornerRadius="16dp"
-    app:cardElevation="8dp"
+    app:cardElevation="0dp"
     app:cardPreventCornerOverlap="true"
-    app:cardUseCompatPadding="true">
+    app:cardUseCompatPadding="false">
 
     <ScrollView
         android:layout_width="match_parent"
@@ -58,7 +58,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginBottom="16dp"
-                android:background="#3A2A4E" />
+                android:background="#D2C5E3" />
 
             <!-- Bedtime Mode Quick Action Card -->
             <androidx.cardview.widget.CardView
@@ -69,7 +69,7 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:foreground="?android:attr/selectableItemBackground"
-                app:cardBackgroundColor="#4E3475"
+                app:cardBackgroundColor="#EAE2F3"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="2dp">
 
@@ -358,7 +358,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginBottom="16dp"
-                android:background="#3A2A4E" />
+                android:background="#D2C5E3" />
 
             <!-- Font Size -->
             <LinearLayout
@@ -806,7 +806,7 @@
                 android:layout_height="1dp"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
-                android:background="#3A2A4E" />
+                android:background="#D2C5E3" />
 
             <!-- Haptic Feedback Switch Row -->
             <RelativeLayout

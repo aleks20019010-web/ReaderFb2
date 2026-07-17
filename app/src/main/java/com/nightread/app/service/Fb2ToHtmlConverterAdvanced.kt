@@ -150,13 +150,54 @@ object Fb2ToHtmlConverterAdvanced {
                                 }
                             }
                         }
+
+                        function reportCurrentParagraph() {
+                            var elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
+                            var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft;
+                            var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                            
+                            for (var i = 0; i < elements.length; i++) {
+                                var rect = elements[i].getBoundingClientRect();
+                                if (rect.right > 5 && rect.left >= -5 && rect.left < pageWidth) {
+                                    if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onParagraphVisible) {
+                                        AndroidInterface.onParagraphVisible(elements[i].id);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+
+                        function scrollToParagraph(pId) {
+                            var element = document.getElementById(pId);
+                            if (element) {
+                                var rect = element.getBoundingClientRect();
+                                var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft;
+                                var targetX = scrollLeft + rect.left;
+                                var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                                if (pageWidth > 0) {
+                                    var pageIndex = Math.floor(targetX / pageWidth);
+                                    window.scrollTo(pageIndex * pageWidth, 0);
+                                    if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPageRestored) {
+                                        AndroidInterface.onPageRestored(pageIndex);
+                                    }
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }
+
+                        window.onscroll = function() {
+                            reportCurrentParagraph();
+                        };
                         
                         window.onload = function() {
                             setTimeout(calculatePages, 200);
+                            setTimeout(reportCurrentParagraph, 300);
                         };
 
                         window.onresize = function() {
                             setTimeout(calculatePages, 200);
+                            setTimeout(reportCurrentParagraph, 300);
                         };
                     </script>
                 </head>
@@ -175,6 +216,7 @@ object Fb2ToHtmlConverterAdvanced {
         private val html = StringBuilder()
         private val binaryMap = HashMap<String, String>()
         private val currentText = StringBuilder()
+        private var paragraphCounter = 0
         
         private var insideBody = false
         private var insideBinary = false
@@ -225,10 +267,19 @@ object Fb2ToHtmlConverterAdvanced {
             flushText()
             
             when (element) {
-                "p" -> html.append("<p>")
-                "title" -> html.append("<h1>")
+                "p" -> {
+                    html.append("<p id=\"p_$paragraphCounter\">")
+                    paragraphCounter++
+                }
+                "title" -> {
+                    html.append("<h1 id=\"p_$paragraphCounter\">")
+                    paragraphCounter++
+                }
                 "section" -> html.append("<div class='chapter-section'>")
-                "subtitle" -> html.append("<h3>")
+                "subtitle" -> {
+                    html.append("<h3 id=\"p_$paragraphCounter\">")
+                    paragraphCounter++
+                }
                 "strong", "b" -> html.append("<strong>")
                 "emphasis", "i" -> html.append("<em>")
                 "empty-line" -> html.append("<br/>")

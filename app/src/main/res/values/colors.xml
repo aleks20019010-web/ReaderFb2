@@ -6,13 +6,13 @@
     <color name="bg_gradient_start">#F5F0F8</color>
     <color name="bg_gradient_end">#FFFFFF</color>
     
-    <color name="text_primary">#2A1A36</color>
-    <color name="text_secondary">#5C4D6C</color>
+    <color name="text_primary">#E8D8F0</color>
+    <color name="text_secondary">#B8A0C8</color>
     <color name="text_sync_primary">#E8D8F0</color>
     <color name="text_sync_secondary">#B8A0C8</color>
     <color name="sync_header">#D4B3E2</color>
-    <color name="text_title">#12091A</color>
-    <color name="text_author">#5C4D6C</color>
+    <color name="text_title">#E8D8F0</color>
+    <color name="text_author">#B8A0C8</color>
     
     <!-- Reading Themes Colors -->
     <color name="reading_day_bg">#FFFFFF</color>

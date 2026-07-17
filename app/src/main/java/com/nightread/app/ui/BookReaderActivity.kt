@@ -205,10 +205,27 @@ class BookReaderActivity : AppCompatActivity() {
         webView.webViewClient = object : android.webkit.WebViewClient() {
             override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
                 progressBar.visibility = View.GONE
-                val pageIdx = viewModel.currentPage.value
-                val w = webView.width
-                if (w > 0) {
-                    webView.scrollTo(pageIdx * w, 0)
+                val book = viewModel.bookState.value
+                if (book != null) {
+                    val pIndex = book.currentProgressChar
+                    webView.postDelayed({
+                        webView.evaluateJavascript("scrollToParagraph('p_$pIndex');") { result ->
+                            if (result != "true") {
+                                val pageIdx = viewModel.currentPage.value
+                                val w = webView.width
+                                if (w > 0) {
+                                    webView.scrollTo(pageIdx * w, 0)
+                                    webView.evaluateJavascript("reportCurrentParagraph();", null)
+                                }
+                            }
+                        }
+                    }, 250)
+                } else {
+                    val pageIdx = viewModel.currentPage.value
+                    val w = webView.width
+                    if (w > 0) {
+                        webView.scrollTo(pageIdx * w, 0)
+                    }
                 }
             }
         }
@@ -524,19 +541,15 @@ class BookReaderActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         progressBar.visibility = View.GONE
                         webView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null)
-                        
-                        webView.postDelayed({
-                            val w = webView.width
-                            if (w > 0) {
-                                webView.scrollTo(pageIdx * w, 0)
-                            }
-                        }, 250)
                     }
                 }
             } else {
                 val w = webView.width
                 if (w > 0) {
                     webView.scrollTo(pageIdx * w, 0)
+                    webView.postDelayed({
+                        webView.evaluateJavascript("reportCurrentParagraph();", null)
+                    }, 100)
                 }
             }
             updatePageIndicator()
@@ -1092,11 +1105,34 @@ class BookReaderActivity : AppCompatActivity() {
         }
     }
 
+    fun onParagraphVisible(pId: String) {
+        val pIndex = pId.substringAfter("p_").toIntOrNull() ?: return
+        viewModel.updateWebViewParagraphProgress(pIndex)
+    }
+
+    fun onWebViewPageRestored(pageIndex: Int) {
+        viewModel.setWebViewPageRestored(pageIndex)
+    }
+
     class WebAppInterface(private val activity: BookReaderActivity) {
         @android.webkit.JavascriptInterface
         fun onPagesCalculated(totalPages: Int) {
             activity.runOnUiThread {
                 activity.onWebViewPagesCalculated(totalPages)
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun onParagraphVisible(pId: String) {
+            activity.runOnUiThread {
+                activity.onParagraphVisible(pId)
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun onPageRestored(pageIndex: Int) {
+            activity.runOnUiThread {
+                activity.onWebViewPageRestored(pageIndex)
             }
         }
     }

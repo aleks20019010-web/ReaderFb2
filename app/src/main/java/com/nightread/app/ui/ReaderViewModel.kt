@@ -293,8 +293,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         // Take snapshot of current state before launching async calculation
         val currentOffsetsSnapshot = ArrayList(pageStartOffsets)
         val currentPageSnapshot = _currentPage.value
-        val savedOffset = sharedPrefs.getInt("book_char_offset_${book.sha1}", book.currentProgressChar)
-        val savedPage = sharedPrefs.getInt("book_page_${book.sha1}", book.currentPageIndex)
+        val savedOffset = book.currentProgressChar
+        val savedPage = book.currentPageIndex
 
         repaginateJob?.cancel()
         repaginateJob = viewModelScope.launch(Dispatchers.Default) {
@@ -566,9 +566,89 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
 
 
+    fun updateWebViewParagraphProgress(pIndex: Int) {
+        val book = _bookState.value ?: return
+        
+        val totalParagraphs = BookCache.content.split(Regex("<p[\\s>]|<h[1-6][\\s>]")).size.coerceAtLeast(1)
+
+        _bookState.value = book.copy(
+            currentProgressChar = pIndex,
+            currentPageIndex = _currentPage.value,
+            totalCharacters = totalParagraphs,
+            lastReadTime = System.currentTimeMillis()
+        )
+
+        sharedPrefs.edit()
+            .putInt("book_page_${book.sha1}", _currentPage.value)
+            .putInt("book_char_offset_${book.sha1}", pIndex)
+            .apply()
+
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                bookDao.updateProgressAndPage(
+                    book.sha1,
+                    pIndex,
+                    _currentPage.value,
+                    totalParagraphs,
+                    System.currentTimeMillis()
+                )
+            }
+        }
+    }
+
+    fun setWebViewPageRestored(pageIndex: Int) {
+        _currentPage.value = pageIndex
+        val book = _bookState.value ?: return
+        
+        sharedPrefs.edit()
+            .putInt("book_page_${book.sha1}", pageIndex)
+            .apply()
+
+        _bookState.value = book.copy(
+            currentPageIndex = pageIndex,
+            lastReadTime = System.currentTimeMillis()
+        )
+
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                bookDao.updateProgressAndPage(
+                    book.sha1,
+                    book.currentProgressChar,
+                    pageIndex,
+                    book.totalCharacters,
+                    System.currentTimeMillis()
+                )
+            }
+        }
+    }
+
     fun saveProgress() {
         val book = _bookState.value ?: return
         val pageIdx = _currentPage.value
+        
+        val isWebViewBook = book.filePath?.endsWith(".fb2", true) == true || 
+                            book.filePath?.endsWith(".fb2.zip", true) == true || 
+                            book.filePath?.endsWith(".zip", true) == true
+
+        if (isWebViewBook) {
+            val savedParagraphIndex = sharedPrefs.getInt("book_char_offset_${book.sha1}", book.currentProgressChar)
+            val totalParagraphs = BookCache.content.split(Regex("<p[\\s>]|<h[1-6][\\s>]")).size.coerceAtLeast(1)
+            
+            _bookState.value = book.copy(
+                currentPageIndex = pageIdx,
+                currentProgressChar = savedParagraphIndex,
+                totalCharacters = totalParagraphs,
+                lastReadTime = System.currentTimeMillis()
+            )
+
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) {
+                    bookDao.updateProgressAndPage(book.sha1, savedParagraphIndex, pageIdx, totalParagraphs, System.currentTimeMillis())
+                }
+            }
+            return
+        }
+
         val charOffset = if (pageStartOffsets.isNotEmpty() && pageIdx < pageStartOffsets.size) {
             pageStartOffsets[pageIdx]
         } else {
@@ -579,6 +659,12 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             .putInt("book_page_${book.sha1}", pageIdx)
             .putInt("book_char_offset_${book.sha1}", charOffset)
             .apply()
+
+        _bookState.value = book.copy(
+            currentPageIndex = pageIdx,
+            currentProgressChar = charOffset,
+            lastReadTime = System.currentTimeMillis()
+        )
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
