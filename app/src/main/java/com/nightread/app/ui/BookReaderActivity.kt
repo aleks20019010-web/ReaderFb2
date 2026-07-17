@@ -105,6 +105,22 @@ class BookReaderActivity : AppCompatActivity() {
             SettingsBottomSheet().show(supportFragmentManager, "settings")
         }
 
+        val btnBookmark = findViewById<ImageButton>(R.id.btnBookmark)
+        btnBookmark.setOnClickListener {
+            val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
+            if (sha1.isNotEmpty()) {
+                BookmarksListBottomSheet.newInstance(sha1).show(supportFragmentManager, "bookmarks")
+            }
+        }
+
+        val btnChapters = findViewById<ImageButton>(R.id.btnChapters)
+        btnChapters.setOnClickListener {
+            val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
+            if (sha1.isNotEmpty() && BookCache.sha1 == sha1) {
+                ChapterListBottomSheet.newInstance(sha1, BookCache.content).show(supportFragmentManager, "chapters")
+            }
+        }
+
         topToolbar = findViewById(R.id.topToolbar)
         bottomToolbar = findViewById(R.id.bottomToolbar)
         isBarsVisible = true
