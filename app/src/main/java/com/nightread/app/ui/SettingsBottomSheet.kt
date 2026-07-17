@@ -524,16 +524,14 @@ class SettingsBottomSheet : DialogFragment() {
 
     private fun applyThemeColors(themeKey: String, rootView: View) {
         val context = requireContext()
+        val isDarkTheme = themeKey == "dark" || themeKey == "amoled" || themeKey == "contrast"
         
-        // The user requested to make all labels/texts/captions inside reading settings a single dark violet color.
-        // To ensure high contrast and readability of dark violet text, the settings panel maintains a consistent
-        // beautiful light purplish-cream theme, while the controls (seekbars, active rings, switch tracks)
-        // match the active theme's accent color.
-        val cardBgHex = "#F5F0F8"
-        val itemBgHex = "#EAE2F3"
-        val dividerHex = "#D2C5E3"
-        val textPrimaryHex = "#2A1A36" // Dark violet brand color
-        val textSecondaryHex = "#2A1A36" // Also dark violet, as requested
+        // Define colors based on theme
+        val cardBgHex = if (isDarkTheme) "#121212" else "#F5F0F8"
+        val itemBgHex = if (isDarkTheme) "#1E1E1E" else "#EAE2F3"
+        val dividerHex = if (isDarkTheme) "#333333" else "#D2C5E3"
+        val textPrimaryHex = if (isDarkTheme) "#E0E0E0" else "#2A1A36"
+        val textSecondaryHex = if (isDarkTheme) "#B0B0B0" else "#2A1A36"
 
         val accentHex = when (themeKey) {
             "light", "beige" -> "#D35400"
@@ -549,6 +547,7 @@ class SettingsBottomSheet : DialogFragment() {
         val textPrimaryColor = Color.parseColor(textPrimaryHex)
         val textSecondaryColor = Color.parseColor(textSecondaryHex)
         val dividerColor = Color.parseColor(dividerHex)
+
 
         // 1. Root CardView background color morphing
         val cardRoot = rootView.findViewById<androidx.cardview.widget.CardView>(R.id.settingsCardRoot)
@@ -673,6 +672,27 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<Spinner>(R.id.spinnerAnimation)?.background = spinnerBg
         rootView.findViewById<Spinner>(R.id.spinnerAlignment)?.background = spinnerBg
 
+        // 9b. Update Spinner Adapters colors
+        val fontAdapter = rootView.findViewById<Spinner>(R.id.spinnerFont)?.adapter as? SettingsSpinnerAdapter<*>
+        fontAdapter?.textColor = textPrimaryColor
+        fontAdapter?.itemBgColor = itemBgColor
+        fontAdapter?.notifyDataSetChanged()
+        
+        val themeAdapter = rootView.findViewById<Spinner>(R.id.spinnerTheme)?.adapter as? SettingsSpinnerAdapter<*>
+        themeAdapter?.textColor = textPrimaryColor
+        themeAdapter?.itemBgColor = itemBgColor
+        themeAdapter?.notifyDataSetChanged()
+        
+        val animAdapter = rootView.findViewById<Spinner>(R.id.spinnerAnimation)?.adapter as? SettingsSpinnerAdapter<*>
+        animAdapter?.textColor = textPrimaryColor
+        animAdapter?.itemBgColor = itemBgColor
+        animAdapter?.notifyDataSetChanged()
+        
+        val alignAdapter = rootView.findViewById<Spinner>(R.id.spinnerAlignment)?.adapter as? SettingsSpinnerAdapter<*>
+        alignAdapter?.textColor = textPrimaryColor
+        alignAdapter?.itemBgColor = itemBgColor
+        alignAdapter?.notifyDataSetChanged()
+
         // 10. Programmatic background and text colors for quick font switching buttons
         val currentFont = SettingsManager.getFontFamily(context)
         val isSansSelected = currentFont == "Roboto"
@@ -732,11 +752,13 @@ class SettingsBottomSheet : DialogFragment() {
         context: android.content.Context,
         objects: List<T>
     ) : ArrayAdapter<T>(context, R.layout.spinner_item, objects) {
+        var textColor: Int = Color.parseColor("#2A1A36")
+        var itemBgColor: Int = Color.parseColor("#EAE2F3")
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val view = super.getView(position, convertView, parent)
             if (view is TextView) {
-                view.setTextColor(Color.parseColor("#2A1A36")) // Dark violet text
+                view.setTextColor(textColor)
                 view.setBackgroundColor(Color.TRANSPARENT)
             }
             return view
@@ -745,8 +767,8 @@ class SettingsBottomSheet : DialogFragment() {
         override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
             val view = super.getDropDownView(position, convertView, parent)
             if (view is TextView) {
-                view.setTextColor(Color.parseColor("#2A1A36")) // Dark violet text
-                view.setBackgroundColor(Color.parseColor("#EAE2F3")) // Match item Bg color
+                view.setTextColor(textColor)
+                view.setBackgroundColor(itemBgColor)
             }
             return view
         }
