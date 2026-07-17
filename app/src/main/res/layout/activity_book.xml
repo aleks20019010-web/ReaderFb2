@@ -162,4 +162,71 @@
         android:visibility="gone"
         android:text="🌡 30%" />
 
+    <!-- Book Reader Loading / Splash Overlay -->
+    <FrameLayout
+        android:id="@+id/reader_splash_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#121212"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="visible">
+
+        <!-- Starry Background matching the Main Splash Screen -->
+        <com.nightread.app.ui.StarryNightView
+            android:id="@+id/reader_splash_starry_bg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="28dp">
+
+            <!-- Title -->
+            <TextView
+                android:id="@+id/tv_reader_splash_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="N I G H T R E A D"
+                android:textColor="#FFE3A8"
+                android:textSize="20sp"
+                android:fontFamily="sans-serif-thin"
+                android:letterSpacing="0.35" />
+
+            <TextView
+                android:id="@+id/tv_reader_splash_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="АТМОСФЕРА ПОЛУНОЧИ"
+                android:textColor="#8B7CA2"
+                android:textSize="10sp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.25" />
+
+            <TextView
+                android:id="@+id/tv_reader_splash_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:text="Настройка ночного уюта..."
+                android:textColor="#8B7CA2"
+                android:textSize="13sp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.05" />
+
+            <ProgressBar
+                android:id="@+id/pb_reader_splash"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="160dp"
+                android:layout_height="3dp"
+                android:layout_marginTop="16dp"
+                android:indeterminate="true"
+                android:progressDrawable="@drawable/bg_splash_progress" />
+        </LinearLayout>
+    </FrameLayout>
+
 </FrameLayout>

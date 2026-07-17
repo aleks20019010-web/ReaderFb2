@@ -90,6 +90,11 @@ class BookReaderActivity : AppCompatActivity() {
         extraDimOverlay = findViewById(R.id.extraDimOverlay)
         tvBrightness = findViewById(R.id.tvBrightness)
         tvWarmth = findViewById(R.id.tvWarmth)
+        
+        // Initialize Reader Splash Screen Background
+        val readerSplashStarryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.reader_splash_starry_bg)
+        readerSplashStarryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
+
         viewModel = ViewModelProvider(this).get(ReaderViewModel::class.java)
 
         val btnBack = findViewById<View>(R.id.btnBack)
@@ -227,6 +232,7 @@ class BookReaderActivity : AppCompatActivity() {
                                                 webView.evaluateJavascript("reportCurrentParagraph();", null)
                                             }
                                         }
+                                        hideReaderSplash()
                                     }
                                 }, 300)
                             } else {
@@ -240,6 +246,7 @@ class BookReaderActivity : AppCompatActivity() {
                                         webView.evaluateJavascript("reportCurrentParagraph();", null)
                                     }
                                 }
+                                hideReaderSplash()
                             }
                         }
                     }, 250)
@@ -250,6 +257,7 @@ class BookReaderActivity : AppCompatActivity() {
                     if (w > 0 && pageIdx > 0) {
                         webView.scrollTo((pageIdx - 1) * w, 0)
                     }
+                    hideReaderSplash()
                 }
             }
         }
@@ -515,6 +523,7 @@ class BookReaderActivity : AppCompatActivity() {
                 ivBookCoverPage.setImageResource(R.drawable.ic_book_placeholder)
             }
             updatePageIndicator()
+            hideReaderSplash()
             return
         } else if (text.toString().startsWith("WEBVIEW_CONTENT") || text.toString().startsWith("WEBVIEW_PAGE_") || isWebViewBook) {
             readerView.visibility = View.GONE
@@ -662,6 +671,7 @@ class BookReaderActivity : AppCompatActivity() {
         ) { layout ->
             progressBar.visibility = View.GONE
             readerView.setLayout(layout, isJustify)
+            hideReaderSplash()
         }
         
         // Show progress bar while loading
@@ -1109,6 +1119,21 @@ class BookReaderActivity : AppCompatActivity() {
                 window.attributes = currentLp
             }
             start()
+        }
+    }
+
+    private fun hideReaderSplash() {
+        runOnUiThread {
+            val splash = findViewById<View>(R.id.reader_splash_overlay) ?: return@runOnUiThread
+            if (splash.visibility == View.GONE || splash.alpha == 0f) return@runOnUiThread
+            
+            splash.animate()
+                .alpha(0f)
+                .setDuration(400)
+                .withEndAction {
+                    splash.visibility = View.GONE
+                }
+                .start()
         }
     }
 

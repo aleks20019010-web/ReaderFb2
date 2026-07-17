@@ -313,10 +313,10 @@ class MainActivity : BaseActivity() {
             if (shouldAutoOpen && lastReadBookSha1 != null) {
                 val openIntent = Intent(this@MainActivity, com.nightread.app.ui.BookReaderActivity::class.java).apply {
                     putExtra("BOOK_SHA1", lastReadBookSha1)
+                    putExtra("FROM_SPLASH", true)
                 }
                 startActivity(openIntent)
-                splashOverlay.visibility = View.GONE
-                isSplashActive = false
+                overridePendingTransition(0, 0)
             } else {
                 tvSplashTitle?.animate()?.alpha(0f)?.translationY(-60f)?.setDuration(550)?.start()
                 tvSplashSubtitle?.animate()?.alpha(0f)?.translationY(-60f)?.setDuration(550)?.start()
@@ -625,6 +625,13 @@ class MainActivity : BaseActivity() {
             intent.removeExtra("OPEN_DRAWER")
             openDrawer()
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        val splashOverlay = findViewById<android.view.View>(R.id.splash_overlay)
+        splashOverlay?.visibility = android.view.View.GONE
+        isSplashActive = false
     }
 
     override fun onNewIntent(intent: Intent) {
