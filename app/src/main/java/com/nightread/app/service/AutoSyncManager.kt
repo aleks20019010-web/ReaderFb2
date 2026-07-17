@@ -105,7 +105,7 @@ object AutoSyncManager {
 
             workManager.enqueueUniquePeriodicWork(
                 UNIQUE_WORK_NAME,
-                ExistingPeriodicWorkPolicy.UPDATE,
+                ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
                 workRequest
             )
             Log.d(TAG, "Scheduled auto sync: interval = $intervalHours hours, start time = $startTimeStr, wifiOnly = $wifiOnly, initial delay = ${initialDelayMs / 1000 / 60} mins")

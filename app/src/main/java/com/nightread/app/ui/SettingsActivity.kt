@@ -177,7 +177,7 @@ class SettingsActivity : BaseActivity() {
 
             workManager.enqueueUniquePeriodicWork(
                 "YandexAutoSyncWork",
-                androidx.work.ExistingPeriodicWorkPolicy.UPDATE,
+                androidx.work.ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
                 workRequest
             )
         } catch (e: Exception) {
