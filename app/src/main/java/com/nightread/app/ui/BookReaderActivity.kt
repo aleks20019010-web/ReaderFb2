@@ -747,16 +747,14 @@ class BookReaderActivity : AppCompatActivity() {
                 
                 currentView.animate()
                     .translationX(if (isForward) -screenWidth else screenWidth)
-                    .alpha(0.5f)
-                    .setDuration(200)
+                    .setDuration(50)
                     .withEndAction {
                         updatePage()
                         val nextView = activePageView
                         nextView.translationX = startTranslationX
                         nextView.animate()
                             .translationX(0f)
-                            .alpha(1f)
-                            .setDuration(200)
+                            .setDuration(50)
                             .start()
                     }
                     .start()
