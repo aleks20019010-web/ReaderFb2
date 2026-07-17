@@ -601,54 +601,8 @@ class LibraryFragment : Fragment() {
                 kotlinx.coroutines.delay(800)
             }
             booksFlow.collectLatest { books ->
-                if (viewModel.scanState.value.isScanning && allBooksList.isNotEmpty()) {
-                    val currentSha1s = allBooksList.map { it.sha1 }.toSet()
-                    val newBooks = books.filter { it.sha1 !in currentSha1s }
-                    
-                    if (newBooks.isNotEmpty()) {
-                        val chunks = newBooks.chunked(20) // process in batches of 20
-                        var tempAllBooks = allBooksList.toMutableList()
-                        
-                        for (chunk in chunks) {
-                            tempAllBooks.addAll(chunk)
-                            allBooksList = tempAllBooks.toList()
-                            scanAddedCount += chunk.size
-                            
-                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                if (::tvScanStatus.isInitialized) {
-                                    tvScanStatus.text = "Добавлено: $scanAddedCount книг"
-                                }
-                                // We don't call filterAndApplyBooks() directly because we want to use adapter.addBooks
-                                // But we must filter it. 
-                                val filtered = applyFilters(allBooksList)
-                                adapter.addBooks(chunk, filtered)
-                                updateBookCount(filtered.size)
-                                
-                                if (filtered.isEmpty()) {
-                                    layoutEmptyState.visibility = View.VISIBLE
-                                    rvBooks.visibility = View.GONE
-                                } else {
-                                    layoutEmptyState.visibility = View.GONE
-                                    rvBooks.visibility = View.VISIBLE
-                                }
-                            }
-                            kotlinx.coroutines.delay(100) // Small pause between chunks
-                        }
-                        
-                        // Ensure final state exactly matches DB to account for any deletions/updates
-                        allBooksList = books
-                        val finalFiltered = applyFilters(allBooksList)
-                        adapter.updateData(finalFiltered)
-                        updateBookCount(finalFiltered.size)
-                    } else {
-                        allBooksList = books
-                        filterAndApplyBooks()
-                    }
-                } else {
-                    scanAddedCount = 0
-                    allBooksList = books
-                    filterAndApplyBooks()
-                }
+                allBooksList = books
+                filterAndApplyBooks()
             }
         }
 

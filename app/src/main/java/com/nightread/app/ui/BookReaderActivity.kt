@@ -210,7 +210,23 @@ class BookReaderActivity : AppCompatActivity() {
                     val pIndex = book.currentProgressChar
                     webView.postDelayed({
                         webView.evaluateJavascript("scrollToParagraph('p_$pIndex');") { result ->
-                            if (result != "true") {
+                            if (result != "true" && pIndex > 0) {
+                                // Retry once after 300ms if layout was not ready
+                                webView.postDelayed({
+                                    webView.evaluateJavascript("scrollToParagraph('p_$pIndex');") { secondResult ->
+                                        if (secondResult != "true") {
+                                            // Final fallback if paragraph scroll completely fails
+                                            val pageIdx = viewModel.currentPage.value
+                                            val w = webView.width
+                                            if (w > 0) {
+                                                webView.scrollTo(pageIdx * w, 0)
+                                                webView.evaluateJavascript("reportCurrentParagraph();", null)
+                                            }
+                                        }
+                                    }
+                                }, 300)
+                            } else if (result != "true") {
+                                // If pIndex == 0 or not found, fall back to page index
                                 val pageIdx = viewModel.currentPage.value
                                 val w = webView.width
                                 if (w > 0) {

@@ -207,7 +207,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         _pagesState.value = pages
         pageStartOffsets = offsets
 
-        val savedPage = sharedPrefs.getInt("book_page_${book.sha1}", book.currentPageIndex)
+        val savedPage = book.currentPageIndex
         _currentPage.value = savedPage.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
     }
 
@@ -631,7 +631,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                             book.filePath?.endsWith(".zip", true) == true
 
         if (isWebViewBook) {
-            val savedParagraphIndex = sharedPrefs.getInt("book_char_offset_${book.sha1}", book.currentProgressChar)
+            val savedParagraphIndex = book.currentProgressChar
             val totalParagraphs = BookCache.content.split(Regex("<p[\\s>]|<h[1-6][\\s>]")).size.coerceAtLeast(1)
             
             _bookState.value = book.copy(
