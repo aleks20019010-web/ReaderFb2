@@ -38,6 +38,7 @@ object EpubIdentifierHelper {
             var opfPath: String? = null
             var opfContent: String? = null
             val zipFiles = mutableMapOf<String, ByteArray>()
+            var coverPath: String? = null
             
             ZipInputStream(file.inputStream().buffered()).use { zip ->
                 var entry = zip.nextEntry
@@ -64,6 +65,15 @@ object EpubIdentifierHelper {
                     val titleMatch = Regex("<dc:title[^>]*>([^<]+)</dc:title>", RegexOption.IGNORE_CASE).find(opfContent)
                     val authorMatch = Regex("<dc:creator[^>]*>([^<]+)</dc:creator>", RegexOption.IGNORE_CASE).find(opfContent)
                     
+                    // Identify cover
+                    val metaCoverMatch = Regex("<meta\\s+[^>]*name\\s*=\\s*[\"']cover[\"']\\s+content\\s*=\\s*[\"']([^\"']+)[\"']").find(opfContent)
+                    if (metaCoverMatch != null) {
+                        val coverId = metaCoverMatch.groupValues[1]
+                        val manifestMatches = Regex("<item\\s+[^>]*id\\s*=\\s*[\"']([^\"']+)[\"']\\s+href\\s*=\\s*[\"']([^\"']+)[\"']").findAll(opfContent)
+                        val manifestMap = manifestMatches.associate { it.groupValues[1] to it.groupValues[2] }
+                        coverPath = manifestMap[coverId]
+                    }
+
                     val identifier = idMatch?.groupValues?.get(1)?.trim() ?: ""
                     
                     // Parse Spine
@@ -81,12 +91,22 @@ object EpubIdentifierHelper {
                         val href = manifestMap[idref]
                         if (href != null) {
                             val fullPath = if (opfDir.isNotEmpty()) "$opfDir/$href" else href
-                            val xhtmlContent = zipFiles[fullPath]?.toString(Charsets.UTF_8)
-                            if (xhtmlContent != null) {
+                            val bytes = zipFiles[fullPath]
+                            if (bytes != null) {
+                                // Try UTF-8, then fall back to ISO-8859-1 if needed
+                                val xhtmlContent = try {
+                                    bytes.toString(Charsets.UTF_8)
+                                } catch (e: Exception) {
+                                    bytes.toString(Charsets.ISO_8859_1)
+                                }
+                                
                                 // Extract body content
                                 val bodyMatch = Regex("<body[^>]*>(.*?)</body>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(xhtmlContent)
                                 if (bodyMatch != null) {
-                                    contentBuilder.append(bodyMatch.groupValues[1])
+                                    // Remove HTML tags to leave only text, or keep as HTML if needed?
+                                    // The prompt mentioned "непонятные символы", likely issues with tags or encoding
+                                    contentBuilder.append(bodyMatch.groupValues[1].replace(Regex("<[^>]*>"), " "))
+                                    contentBuilder.append("\n\n")
                                 }
                             }
                         }
