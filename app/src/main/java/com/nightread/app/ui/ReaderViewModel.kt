@@ -167,12 +167,14 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                     if (file.exists()) {
                         val rawContent = if (file.extension.lowercase() == "zip") {
                             readZipFile(file)
+                        } else if (file.extension.lowercase() == "epub") {
+                            com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
                         } else {
                             file.readText(java.nio.charset.StandardCharsets.UTF_8)
                         }
                         
-                        if (file.extension.lowercase() == "fb2" || file.extension.lowercase() == "zip") {
-                            // Keep raw content for FB2/ZIP, as Fb2ToHtmlConverterAdvanced needs XML tags
+                        if (file.extension.lowercase() == "fb2" || file.extension.lowercase() == "zip" || file.extension.lowercase() == "epub") {
+                            // Keep raw content for FB2/ZIP/EPUB, as WebView needs the HTML/XML tags
                             content = rawContent
                         } else {
                             content = TextCleaner.cleanText(rawContent) as String
@@ -188,7 +190,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 if (availableWidth > 0 && availableHeight > 0) {
                     if (book.filePath?.endsWith(".fb2", true) == true || 
                         book.filePath?.endsWith(".fb2.zip", true) == true || 
-                        book.filePath?.endsWith(".zip", true) == true) {
+                        book.filePath?.endsWith(".zip", true) == true ||
+                        book.filePath?.endsWith(".epub", true) == true) {
                         _pagesState.value = listOf("WEBVIEW_CONTENT_${System.currentTimeMillis()}")
                     } else {
                         repaginate()

@@ -103,13 +103,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_settings_24dp" />
 
-        <ImageButton
-            android:id="@+id/btnTts"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_media_play"
-            android:visibility="visible" />
+
     </LinearLayout>
 
     <LinearLayout

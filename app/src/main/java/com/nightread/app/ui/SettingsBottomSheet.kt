@@ -274,40 +274,6 @@ class SettingsBottomSheet : DialogFragment() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        // 5d. TTS Voice Selection (Spinner)
-        val spinnerTtsVoice = view.findViewById<Spinner>(R.id.spinnerTtsVoice)
-        
-        // Use a temporary TTSManager to get voices
-        val tempTtsManager = com.nightread.app.service.TTSManager(requireContext(), {}, {}, null)
-        
-        // This is a bit hacky, but we need to wait for initialization. 
-        // Better: add a callback to TTSManager or initialize it properly.
-        // For now, let's just check if it's initialized and get voices.
-        
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            val voices = tempTtsManager.getAvailableVoiceNames()
-            android.util.Log.d("SettingsBottomSheet", "Voices found: ${voices.size}")
-            
-            val voiceAdapter = SettingsSpinnerAdapter(requireContext(), voices).apply {
-                setDropDownViewResource(R.layout.spinner_dropdown_item)
-            }
-            spinnerTtsVoice.adapter = voiceAdapter
-            
-            val currentVoice = SettingsManager.getTtsVoice(requireContext())
-            val voiceIdx = if (currentVoice != null) voices.indexOf(currentVoice).coerceAtLeast(0) else 0
-            spinnerTtsVoice.setSelection(voiceIdx)
-            
-            spinnerTtsVoice.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                    val selectedVoice = voices[position]
-                    if (selectedVoice != SettingsManager.getTtsVoice(requireContext())) {
-                        SettingsManager.setTtsVoice(requireContext(), selectedVoice)
-                    }
-                }
-                override fun onNothingSelected(parent: AdapterView<*>?) {}
-            }
-        }, 1000) // Delay to allow initialization
-
 
         // 7. Auto-Discovery Switch
         val switchAutoDiscovery = view.findViewById<SwitchCompat>(R.id.switchAutoDiscovery)
@@ -577,25 +543,7 @@ class SettingsBottomSheet : DialogFragment() {
             }
         }
 
-        // 7g. TTS Normalize Volume
-        val switchTtsNormalizeVolume = view.findViewById<SwitchCompat>(R.id.switchTtsNormalizeVolume)
-        switchTtsNormalizeVolume.isChecked = SettingsManager.getTtsNormalizeVolume(context)
-        switchTtsNormalizeVolume.setOnCheckedChangeListener { _, isChecked ->
-            SettingsManager.setTtsNormalizeVolume(context, isChecked)
-        }
-        
-        // 7h. TTS Speed Control
-        val seekBarTtsSpeed = view.findViewById<SeekBar>(R.id.seekBarTtsSpeed)
-        val currentSpeed = SettingsManager.getTtsSpeed(context)
-        seekBarTtsSpeed.progress = ((currentSpeed - 0.5f) / 1.5f * 20).toInt()
-        seekBarTtsSpeed.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val speed = 0.5f + (progress / 20.0f) * 1.5f
-                SettingsManager.setTtsSpeed(context, speed)
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
+
 
         // Apply initial colors based on current theme
         applyThemeColors(currentTheme, view)
@@ -727,13 +675,7 @@ class SettingsBottomSheet : DialogFragment() {
         switchShakeToExtend?.trackTintList = ColorStateList.valueOf(accentColor)
         switchShakeToExtend?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
 
-        val switchTtsNormalizeVolume = rootView.findViewById<SwitchCompat>(R.id.switchTtsNormalizeVolume)
-        switchTtsNormalizeVolume?.trackTintList = ColorStateList.valueOf(accentColor)
-        switchTtsNormalizeVolume?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
 
-        val seekBarTtsSpeed = rootView.findViewById<SeekBar>(R.id.seekBarTtsSpeed)
-        seekBarTtsSpeed?.progressTintList = ColorStateList.valueOf(accentColor)
-        seekBarTtsSpeed?.thumbTintList = ColorStateList.valueOf(accentColor)
 
         // 8. Custom Theme Circle selection ring highlights & colors
         val ringLight = rootView.findViewById<View>(R.id.ringThemeLight)

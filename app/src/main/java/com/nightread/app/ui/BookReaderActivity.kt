@@ -73,39 +73,7 @@ class BookReaderActivity : AppCompatActivity() {
     private var isWebViewLoading = false
     private var brightnessAnimator: android.animation.ValueAnimator? = null
     private var longPressRunnable: Runnable? = null
-    private var ttsService: com.nightread.app.service.TTSService? = null
-    private var isBound = false
-    private val ttsConnection = object : android.content.ServiceConnection {
-        override fun onServiceConnected(className: android.content.ComponentName, service: android.os.IBinder) {
-            val binder = service as com.nightread.app.service.TTSService.LocalBinder
-            ttsService = binder.getService()
-            ttsService?.onUtteranceDone = { utteranceId ->
-                runOnUiThread {
-                    onSentenceDone(utteranceId)
-                }
-            }
-            isBound = true
-        }
-        override fun onServiceDisconnected(arg0: android.content.ComponentName) {
-            isBound = false
-        }
-    }
-    private var isTtsPlaying = false
 
-    override fun onStart() {
-        super.onStart()
-        android.content.Intent(this, com.nightread.app.service.TTSService::class.java).also { intent ->
-            bindService(intent, ttsConnection, android.content.Context.BIND_AUTO_CREATE)
-        }
-    }
-
-    override fun onStop() {
-        super.onStop()
-        if (isBound) {
-            unbindService(ttsConnection)
-            isBound = false
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -139,29 +107,7 @@ class BookReaderActivity : AppCompatActivity() {
             SettingsBottomSheet().show(supportFragmentManager, "settings")
         }
 
-        val btnTts = findViewById<ImageButton>(R.id.btnTts)
-        btnTts.setOnClickListener {
-            val manager = ttsService?.getTtsManager()
-            if (isTtsPlaying) {
-                stopTts()
-            } else {
-                if (manager?.isInitialized() == true) {
-                    isTtsPlaying = true
-                    btnTts.setImageResource(android.R.drawable.ic_media_pause)
-                    
-                    // Apply voice from settings
-                    val savedVoice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
-                    if (savedVoice != null) {
-                        manager.setVoiceByName(savedVoice)
-                    }
-                    
-                    ttsService?.startForegroundPlayback()
-                    startReadingCurrentPage()
-                } else {
-                    android.widget.Toast.makeText(this, "TTS еще загружается", android.widget.Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
+
 
         val btnBookmark = findViewById<ImageButton>(R.id.btnBookmark)
         btnBookmark.visibility = View.GONE
@@ -329,6 +275,8 @@ class BookReaderActivity : AppCompatActivity() {
             loadWithOverviewMode = true
             useWideViewPort = true
             textZoom = 100
+            allowFileAccess = true
+            allowContentAccess = true
         }
         webView.addJavascriptInterface(WebAppInterface(this), "AndroidInterface")
         webView.webViewClient = object : android.webkit.WebViewClient() {
@@ -403,12 +351,7 @@ class BookReaderActivity : AppCompatActivity() {
                 seekBar.progress = it
                 if (lastPage != -1 && lastPage != it) {
                     triggerPageTurnHaptic()
-                    if (isTtsPlaying) {
-                        isAutoPageTurning = false
-                        webView.postDelayed({
-                            startReadingCurrentPage()
-                        }, 500)
-                    }
+
                 }
                 lastPage = it
             }
@@ -710,7 +653,8 @@ class BookReaderActivity : AppCompatActivity() {
                     val paddingLeftDp = 16
                     val paddingRightDp = 16
                     
-                    val isEpub = viewModel.bookState.value?.filePath?.endsWith(".epub", true) == true
+                    val book = viewModel.bookState.value
+                    val isEpub = book?.filePath?.endsWith(".epub", true) == true
                     
                     val html = if (isEpub) {
                         com.nightread.app.service.EpubToHtmlConverter.convert(
@@ -744,9 +688,31 @@ class BookReaderActivity : AppCompatActivity() {
                         )
                     }
                     
+                    var indexFile: java.io.File? = null
+                    if (isEpub && book != null) {
+                        val file = java.io.File(book.filePath ?: "")
+                        if (file.exists()) {
+                            val extractedDir = java.io.File(cacheDir, "extracted_epubs/${book.sha1}")
+                            com.nightread.app.data.EpubIdentifierHelper.unzip(file, extractedDir)
+                            val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(file)
+                            val opfDir = metadata?.opfDir ?: ""
+                            indexFile = java.io.File(extractedDir, if (opfDir.isNotEmpty()) "$opfDir/index_rendered.html" else "index_rendered.html")
+                            try {
+                                indexFile.parentFile?.mkdirs()
+                                indexFile.writeText(html, Charsets.UTF_8)
+                            } catch (e: Exception) {
+                                android.util.Log.e("BookReaderActivity", "Error writing EPUB index_rendered.html", e)
+                            }
+                        }
+                    }
+                    
                     withContext(Dispatchers.Main) {
                         progressBar.visibility = View.GONE
-                        webView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null)
+                        if (isEpub && indexFile != null && indexFile.exists()) {
+                            webView.loadUrl("file://" + indexFile.absolutePath)
+                        } else {
+                            webView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null)
+                        }
                     }
                 }
             } else {
@@ -1314,9 +1280,7 @@ class BookReaderActivity : AppCompatActivity() {
         val action = event.action
         val keyCode = event.keyCode
         
-        if (isTtsPlaying && (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP)) {
-            return super.dispatchKeyEvent(event)
-        }
+
 
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
@@ -1374,97 +1338,7 @@ class BookReaderActivity : AppCompatActivity() {
             .show(supportFragmentManager, "word_action")
     }
 
-    private var visibleSentences = listOf<Pair<String, String>>()
-    private var activeSentenceIndex = -1
-    private var isAutoPageTurning = false
 
-    private fun startReadingCurrentPage() {
-        if (!isBound || ttsService == null) return
-        webView.evaluateJavascript("getVisibleSentences();") { text ->
-            if (text != null && text != "null" && text.isNotEmpty()) {
-                val cleanJson = if (text.startsWith("\"") && text.endsWith("\"")) {
-                    try {
-                        org.json.JSONTokener(text).nextValue().toString()
-                    } catch (e: Exception) {
-                        text
-                    }
-                } else {
-                    text
-                }
-                
-                val sentences = mutableListOf<Pair<String, String>>()
-                try {
-                    val jsonArray = org.json.JSONArray(cleanJson)
-                    for (i in 0 until jsonArray.length()) {
-                        val obj = jsonArray.getJSONObject(i)
-                        val id = obj.getString("id")
-                        val sentenceText = obj.getString("text")
-                        if (sentenceText.trim().isNotEmpty()) {
-                            sentences.add(Pair(id, sentenceText))
-                        }
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("BookReaderActivity", "Error parsing sentences JSON: $text", e)
-                }
-
-                if (sentences.isNotEmpty()) {
-                    visibleSentences = sentences
-                    activeSentenceIndex = 0
-                    val firstSentence = visibleSentences[activeSentenceIndex]
-                    webView.evaluateJavascript("highlightSentence('${firstSentence.first}');", null)
-                    val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this@BookReaderActivity)
-                    ttsService?.getTtsManager()?.setSpeed(speed)
-                    ttsService?.getTtsManager()?.speak(firstSentence.second, firstSentence.first, this@BookReaderActivity)
-                } else {
-                    // Try to turn the page if no sentences found on this page
-                    val currentPage = viewModel.currentPage.value
-                    val totalPages = viewModel.pagesState.value.size
-                    if (currentPage < totalPages - 1) {
-                        isAutoPageTurning = true
-                        viewModel.setCurrentPage(currentPage + 1)
-                    } else {
-                        stopTts()
-                    }
-                }
-            }
-        }
-    }
-
-    private fun onSentenceDone(utteranceId: String) {
-        if (!isTtsPlaying) return
-        if (activeSentenceIndex >= 0 && activeSentenceIndex < visibleSentences.size) {
-            val expectedId = visibleSentences[activeSentenceIndex].first
-            if (utteranceId == expectedId) {
-                activeSentenceIndex++
-                if (activeSentenceIndex < visibleSentences.size) {
-                    val nextSentence = visibleSentences[activeSentenceIndex]
-                    webView.evaluateJavascript("highlightSentence('${nextSentence.first}');", null)
-                    val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this)
-                    ttsService?.getTtsManager()?.setSpeed(speed)
-                    ttsService?.getTtsManager()?.speak(nextSentence.second, nextSentence.first, this)
-                } else {
-                    val currentPage = viewModel.currentPage.value
-                    val totalPages = viewModel.pagesState.value.size
-                    if (currentPage < totalPages - 1) {
-                        isAutoPageTurning = true
-                        viewModel.setCurrentPage(currentPage + 1)
-                    } else {
-                        stopTts()
-                    }
-                }
-            }
-        }
-    }
-
-    private fun stopTts() {
-        isTtsPlaying = false
-        ttsService?.getTtsManager()?.pause()
-        ttsService?.stopForegroundPlayback()
-        runOnUiThread {
-            findViewById<ImageButton>(R.id.btnTts)?.setImageResource(android.R.drawable.ic_media_play)
-            webView.evaluateJavascript("clearTtsHighlight();", null)
-        }
-    }
 
     class WebAppInterface(private val activity: BookReaderActivity) {
         @android.webkit.JavascriptInterface

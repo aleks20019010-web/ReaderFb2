@@ -103,10 +103,7 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
             
-        <service 
-            android:name=".service.TTSService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+
 
         <receiver
             android:name=".service.ThemeUpdateReceiver"

@@ -11,7 +11,8 @@ data class EpubMetadata(
     val author: String,
     val content: String,
     val coverPath: String? = null,
-    val description: String? = null
+    val description: String? = null,
+    val opfDir: String = ""
 )
 
 object EpubIdentifierHelper {
@@ -130,7 +131,8 @@ object EpubIdentifierHelper {
                         coverPath = if (coverPath != null) {
                             if (opfDir.isNotEmpty()) "$opfDir/$coverPath" else coverPath
                         } else null,
-                        description = descMatch?.groupValues?.get(1)?.trim()
+                        description = descMatch?.groupValues?.get(1)?.trim(),
+                        opfDir = opfDir
                     )
                 }
             }
@@ -138,6 +140,32 @@ object EpubIdentifierHelper {
         } catch (e: Exception) {
             Log.e(TAG, "Error getting EPUB metadata: ${file.name}", e)
             null
+        }
+    }
+
+    fun unzip(zipFile: File, targetDirectory: File) {
+        if (targetDirectory.exists() && targetDirectory.list()?.isNotEmpty() == true) {
+            return // Already extracted
+        }
+        targetDirectory.mkdirs()
+        try {
+            ZipInputStream(zipFile.inputStream().buffered()).use { zip ->
+                var entry = zip.nextEntry
+                while (entry != null) {
+                    val file = File(targetDirectory, entry.name)
+                    if (entry.isDirectory) {
+                        file.mkdirs()
+                    } else {
+                        file.parentFile?.mkdirs()
+                        file.outputStream().use { output ->
+                            zip.copyTo(output)
+                        }
+                    }
+                    entry = zip.nextEntry
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unzipping file: ${zipFile.name}", e)
         }
     }
 }
