@@ -168,11 +168,11 @@ object EpubIdentifierHelper {
                                 // Improved encoding handling
                                 val xhtmlContent = try {
                                     val strUtf8 = String(bytes, Charsets.UTF_8)
-                                    // If we don't see replacement characters and we see an explicit UTF-8 declaration, trust it.
-                                    if (!strUtf8.contains("\uFFFD") && (strUtf8.contains("encoding=\"UTF-8\"") || strUtf8.contains("encoding='UTF-8'"))) {
+                                    // If it looks like valid UTF-8, trust it.
+                                    if (!strUtf8.contains("\uFFFD")) {
                                         strUtf8
                                     } else {
-                                        // Otherwise assume Windows-1251
+                                        // If it has replacement characters, try Windows-1251
                                         String(bytes, Charset.forName("windows-1251"))
                                     }
                                 } catch (e: Exception) {
@@ -198,11 +198,11 @@ object EpubIdentifierHelper {
                             if (bytes != null) {
                                 val xhtmlContent = try {
                                     val strUtf8 = String(bytes, Charsets.UTF_8)
-                                    // If we don't see replacement characters and we see an explicit UTF-8 declaration, trust it.
-                                    if (!strUtf8.contains("\uFFFD") && (strUtf8.contains("encoding=\"UTF-8\"") || strUtf8.contains("encoding='UTF-8'"))) {
+                                    // If it looks like valid UTF-8, trust it.
+                                    if (!strUtf8.contains("\uFFFD")) {
                                         strUtf8
                                     } else {
-                                        // Otherwise assume Windows-1251
+                                        // If it has replacement characters, try Windows-1251
                                         String(bytes, Charset.forName("windows-1251"))
                                     }
                                 } catch (e: Exception) {
