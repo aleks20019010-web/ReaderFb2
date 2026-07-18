@@ -20,6 +20,9 @@ object SettingsManager {
     const val KEY_BRIGHTNESS = "brightness"
     const val KEY_PAGE_ANIMATION = "page_animation"
     const val KEY_READING_THEME = "reading_theme"
+    const val KEY_TTS_VOICE = "tts_voice"
+    const val KEY_TTS_SPEED = "tts_speed"
+    const val KEY_TTS_NORMALIZE_VOLUME = "tts_normalize_volume"
 
     const val KEY_AUTO_DISCOVERY = "auto_discovery"
     const val KEY_AUTO_THEME = "auto_theme"
@@ -64,6 +67,7 @@ object SettingsManager {
     private var cachedPageAnimation: String? = null
     private var cachedHyphenationEnabled: Boolean? = null
     private var cachedReadingTheme: String? = null
+    private var cachedTtsVoice: String? = null
     private var cachedOnboardingCompleted: Boolean? = null 
     private var cachedAutoDiscovery: Boolean? = null
     private var cachedAutoTheme: Boolean? = null
@@ -435,6 +439,38 @@ object SettingsManager {
         if (cachedReadingTheme == theme) return
         cachedReadingTheme = theme
         getPrefs(context).edit().putString(KEY_READING_THEME, theme).apply()
+        notifyChanged()
+    }
+
+    fun getTtsVoice(context: Context): String? {
+        if (cachedTtsVoice == null) {
+            cachedTtsVoice = getPrefs(context).getString(KEY_TTS_VOICE, null)
+        }
+        return cachedTtsVoice
+    }
+
+    fun setTtsVoice(context: Context, voiceName: String?) {
+        if (cachedTtsVoice == voiceName) return
+        cachedTtsVoice = voiceName
+        getPrefs(context).edit().putString(KEY_TTS_VOICE, voiceName).apply()
+        notifyChanged()
+    }
+
+    fun getTtsNormalizeVolume(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_TTS_NORMALIZE_VOLUME, false)
+    }
+
+    fun setTtsNormalizeVolume(context: Context, normalize: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_TTS_NORMALIZE_VOLUME, normalize).apply()
+        notifyChanged()
+    }
+
+    fun getTtsSpeed(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_TTS_SPEED, 1.0f)
+    }
+
+    fun setTtsSpeed(context: Context, speed: Float) {
+        getPrefs(context).edit().putFloat(KEY_TTS_SPEED, speed).apply()
         notifyChanged()
     }
 

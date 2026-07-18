@@ -103,9 +103,8 @@ object EpubIdentifierHelper {
                                 // Extract body content
                                 val bodyMatch = Regex("<body[^>]*>(.*?)</body>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(xhtmlContent)
                                 if (bodyMatch != null) {
-                                    // Remove HTML tags to leave only text, or keep as HTML if needed?
-                                    // The prompt mentioned "непонятные символы", likely issues with tags or encoding
-                                    contentBuilder.append(bodyMatch.groupValues[1].replace(Regex("<[^>]*>"), " "))
+                                    // Keep HTML tags for the converter to process
+                                    contentBuilder.append(bodyMatch.groupValues[1])
                                     contentBuilder.append("\n\n")
                                 }
                             }

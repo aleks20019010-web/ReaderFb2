@@ -73,6 +73,8 @@ class BookReaderActivity : AppCompatActivity() {
     private var isWebViewLoading = false
     private var brightnessAnimator: android.animation.ValueAnimator? = null
     private var longPressRunnable: Runnable? = null
+    private var ttsManager: com.nightread.app.service.TTSManager? = null
+    private var isTtsPlaying = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,6 +98,10 @@ class BookReaderActivity : AppCompatActivity() {
         val readerSplashStarryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.reader_splash_starry_bg)
         readerSplashStarryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
+        ttsManager = com.nightread.app.service.TTSManager(this, { utteranceId ->
+            // Handle auto-scrolling here when an utterance starts
+        }, null)
+
         viewModel = ViewModelProvider(this).get(ReaderViewModel::class.java)
 
         val btnBack = findViewById<View>(R.id.btnBack)
@@ -106,7 +112,29 @@ class BookReaderActivity : AppCompatActivity() {
             SettingsBottomSheet().show(supportFragmentManager, "settings")
         }
 
+        val btnTts = findViewById<ImageButton>(R.id.btnTts)
+        btnTts.setOnClickListener {
+            if (isTtsPlaying) {
+                ttsManager?.pause()
+                isTtsPlaying = false
+                btnTts.setImageResource(android.R.drawable.ic_media_play)
+            } else {
+                // Get text from WebView and start TTS
+                webView.evaluateJavascript("(function() { return document.body.innerText; })();") { text ->
+                    val cleanText = text.replace("\\n", " ").replace("\"", "")
+                    val savedVoice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
+                    if (savedVoice != null) {
+                        ttsManager?.setVoiceByName(savedVoice)
+                    }
+                    ttsManager?.speak(cleanText, "book_text")
+                    isTtsPlaying = true
+                    btnTts.setImageResource(android.R.drawable.ic_media_pause)
+                }
+            }
+        }
+
         val btnBookmark = findViewById<ImageButton>(R.id.btnBookmark)
+        btnBookmark.visibility = View.GONE
         btnBookmark.setOnClickListener {
             val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
             if (sha1.isNotEmpty()) {
@@ -115,6 +143,7 @@ class BookReaderActivity : AppCompatActivity() {
         }
 
         val btnChapters = findViewById<ImageButton>(R.id.btnChapters)
+        btnChapters.visibility = View.GONE
         btnChapters.setOnClickListener {
             val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
             if (sha1.isNotEmpty()) {
@@ -131,6 +160,7 @@ class BookReaderActivity : AppCompatActivity() {
         }
 
         val bookmarkArea = findViewById<View>(R.id.bookmarkArea)
+        bookmarkArea.visibility = View.GONE
         bookmarkArea.setOnClickListener {
             val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
             val pageIdx = viewModel.currentPage.value
@@ -585,7 +615,8 @@ class BookReaderActivity : AppCompatActivity() {
         val filePath = viewModel.bookState.value?.filePath ?: ""
         val isWebViewBook = filePath.endsWith(".fb2", true) || 
                            filePath.endsWith(".fb2.zip", true) || 
-                           filePath.endsWith(".zip", true)
+                           filePath.endsWith(".zip", true) ||
+                           filePath.endsWith(".epub", true)
 
         if (pages.isEmpty()) return
         
@@ -642,20 +673,41 @@ class BookReaderActivity : AppCompatActivity() {
                     val paddingBottomDp = (paddingBottom / density).toInt()
                     val paddingLeftDp = 16
                     val paddingRightDp = 16
-                    val html = com.nightread.app.service.Fb2ToHtmlConverterAdvanced.convert(
-                        fullContent,
-                        themeKey,
-                        fontSize,
-                        lineSpacing,
-                        fontFamily,
-                        fontWeight,
-                        fontAlignment,
-                        pageMargins,
-                        paddingTopDp,
-                        paddingBottomDp,
-                        paddingLeftDp,
-                        paddingRightDp
-                    )
+                    
+                    val isEpub = viewModel.bookState.value?.filePath?.endsWith(".epub", true) == true
+                    
+                    val html = if (isEpub) {
+                        com.nightread.app.service.EpubToHtmlConverter.convert(
+                            fullContent,
+                            themeKey,
+                            fontSize,
+                            lineSpacing,
+                            fontFamily,
+                            fontWeight,
+                            fontAlignment,
+                            pageMargins,
+                            paddingTopDp,
+                            paddingBottomDp,
+                            paddingLeftDp,
+                            paddingRightDp
+                        )
+                    } else {
+                        com.nightread.app.service.Fb2ToHtmlConverterAdvanced.convert(
+                            fullContent,
+                            themeKey,
+                            fontSize,
+                            lineSpacing,
+                            fontFamily,
+                            fontWeight,
+                            fontAlignment,
+                            pageMargins,
+                            paddingTopDp,
+                            paddingBottomDp,
+                            paddingLeftDp,
+                            paddingRightDp
+                        )
+                    }
+                    
                     withContext(Dispatchers.Main) {
                         progressBar.visibility = View.GONE
                         webView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null)
@@ -781,7 +833,7 @@ class BookReaderActivity : AppCompatActivity() {
     private val activePageView: View
         get() {
             val isWebViewBook = viewModel.bookState.value?.filePath?.let {
-                it.endsWith(".fb2", true) || it.endsWith(".fb2.zip", true) || it.endsWith(".zip", true)
+                it.endsWith(".fb2", true) || it.endsWith(".fb2.zip", true) || it.endsWith(".zip", true) || it.endsWith(".epub", true)
             } == true
             if (isWebViewBook) return webView
             if (viewModel.pagesState.value.getOrNull(viewModel.currentPage.value)?.toString() == "[BOOK_COVER]") return ivBookCoverPage
@@ -1172,6 +1224,7 @@ class BookReaderActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        ttsManager?.shutdown()
         brightnessAnimator?.cancel()
         sleepTimerJob?.cancel()
         unregisterSensors()
