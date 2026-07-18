@@ -176,7 +176,7 @@ class YandexSyncManager(private val context: Context) {
             // Фильтруем только поддерживаемые форматы книг
             val cloudBooks = cloudItems.filter {
                 val name = it.name.lowercase()
-                val isSupported = name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".epub")
+                val isSupported = name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip") || name.endsWith(".epub")
                 if (!isSupported) {
                     Log.d(TAG, "Файл не поддерживается: ${it.name}")
                 }
@@ -646,31 +646,54 @@ class YandexSyncManager(private val context: Context) {
                         }
                         
                         val bytes = tempFile.readBytes()
-                        val fb2Bytes = extractFb2Bytes(bytes, originalName)
-                        if (fb2Bytes.isNotEmpty()) {
-                            // Compute exact SHA-1 on the extracted fb2 content bytes
-                            val sha1 = computeSha1(fb2Bytes)
-                            
-                            val titleText: String
-                            val authorText: String
-                            val seriesText: String?
-                            val seriesIdx: Int?
-                            val langText: String?
-                            var coverPath: String? = null
-                            val truncatedAnnotation: String?
-                            
-                            // Decode fb2Bytes safely to String respecting XML and Russian Windows-1251 encoding
-                            val content = decodeBytesToString(fb2Bytes)
-                            // Parse FB2 correctly to get metadata
-                            val meta = Fb2Parser.parse(content, originalName)
-                            titleText = meta.title
-                            authorText = meta.author
-                            seriesText = meta.series
-                            seriesIdx = meta.seriesIndex
-                            langText = meta.language
-                            truncatedAnnotation = meta.annotation?.take(500)
-                            coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
-                            
+                        val isEpub = originalName.lowercase().endsWith(".epub") || EpubIdentifierHelper.isEpub(tempFile)
+                        
+                        var sha1: String? = null
+                        var titleText: String? = null
+                        var authorText: String? = null
+                        var seriesText: String? = null
+                        var seriesIdx: Int? = null
+                        var langText: String? = null
+                        var coverPath: String? = null
+                        var truncatedAnnotation: String? = null
+                        
+                        var processSuccess = false
+                        
+                        if (isEpub) {
+                            val metadata = EpubIdentifierHelper.getEpubMetadata(tempFile)
+                            if (metadata != null) {
+                                sha1 = metadata.identifier
+                                titleText = metadata.title
+                                authorText = metadata.author
+                                seriesText = null
+                                seriesIdx = null
+                                langText = "Unknown"
+                                truncatedAnnotation = metadata.description?.take(1000)
+                                coverPath = EpubIdentifierHelper.extractAndSaveEpubCover(tempFile, metadata.coverPath, sha1, context)
+                                processSuccess = true
+                            } else {
+                                Log.e(TAG, "Failed to get metadata for downloaded EPUB: $originalName")
+                            }
+                        } else {
+                            val fb2Bytes = extractFb2Bytes(bytes, originalName)
+                            if (fb2Bytes.isNotEmpty()) {
+                                sha1 = computeSha1(fb2Bytes)
+                                val content = decodeBytesToString(fb2Bytes)
+                                val meta = Fb2Parser.parse(content, originalName)
+                                titleText = meta.title
+                                authorText = meta.author
+                                seriesText = meta.series
+                                seriesIdx = meta.seriesIndex
+                                langText = meta.language
+                                truncatedAnnotation = meta.annotation?.take(1000)
+                                coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
+                                processSuccess = true
+                            } else {
+                                Log.e(TAG, "Empty or missing FB2 content inside downloaded file: $originalName")
+                            }
+                        }
+                        
+                        if (processSuccess && sha1 != null && titleText != null && authorText != null) {
                             val localFile = File(booksDirectory, originalName)
                             tempFile.copyTo(localFile, overwrite = true)
                             
@@ -707,8 +730,6 @@ class YandexSyncManager(private val context: Context) {
                             } else {
                                 Log.e(TAG, "Ошибка вставки книги '$originalName' в базу")
                             }
-                        } else {
-                            Log.e(TAG, "Empty or missing FB2 content inside downloaded file: $originalName")
                         }
                     } finally {
                         if (tempFile.exists()) tempFile.delete()
