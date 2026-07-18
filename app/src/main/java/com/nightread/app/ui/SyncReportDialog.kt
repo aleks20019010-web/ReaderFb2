@@ -272,5 +272,12 @@ class SyncReportDialog(
             .create()
 
         dialog?.show()
+        dialog?.applyStarryBackground()
+        dialog?.window?.apply {
+            setLayout(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
     }
 }

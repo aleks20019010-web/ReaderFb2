@@ -364,6 +364,7 @@ class YandexSyncFragment : Fragment() {
             setMessage("Подготовка...")
             setCancelable(false)
             show()
+            applyStarryBackground()
         }
 
         lifecycleScope.launch {
@@ -506,13 +507,15 @@ class YandexSyncFragment : Fragment() {
                     if (state.finished) {
                         // Показываем отчет при завершении
                         if (state.success) {
-                            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                            val syncDialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
                                 .setTitle("Синхронизация завершена")
                                 .setMessage("Синхронизация с Яндекс Диском успешно выполнена!\n\n" +
                                         "Скачано новых книг: ${state.downloadedCount}\n" +
                                         "Загружено книг в облако: ${state.uploadedCount}")
                                 .setPositiveButton("Отлично", null)
-                                .show()
+                                .create()
+                            syncDialog.applyStarryBackground()
+                            syncDialog.show()
                         } else {
                             val errorMsg = state.error ?: "Неизвестная ошибка во время синхронизации."
                             if (errorMsg != "Синхронизация отменена") {
@@ -596,7 +599,7 @@ class YandexSyncFragment : Fragment() {
             }
         }
 
-        duplicatesDialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+        val d = com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
             .setTitle("Обнаружены дубликаты книг")
             .setView(scrollView)
             .setCancelable(false)
@@ -614,7 +617,10 @@ class YandexSyncFragment : Fragment() {
                 com.nightread.app.data.YandexSyncState.duplicateResolution?.complete(emptyList())
                 duplicatesDialogShowing = false
             }
-            .show()
+            .create()
+        d.applyStarryBackground()
+        d.show()
+        duplicatesDialog = d
     }
 
     override fun onDestroyView() {
@@ -636,6 +642,7 @@ class YandexSyncFragment : Fragment() {
             pd.setMessage("Загрузка папок...")
             pd.setCancelable(false)
             pd.show()
+            pd.applyStarryBackground()
             
             val folders = withContext(Dispatchers.IO) {
                 YandexDiskManager.getFolders(context, "/")
@@ -653,7 +660,9 @@ class YandexSyncFragment : Fragment() {
                 updateUi()
             }
             builder.setNegativeButton("Отмена", null)
-            builder.show()
+            val d = builder.create()
+            d.applyStarryBackground()
+            d.show()
         }
     }
 
