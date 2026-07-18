@@ -137,10 +137,10 @@ class SyncOrchestrator(
             }
             Log.d(TAG, "Found ${cloudFiles.size} files in $syncFolder")
 
-            // Filter for supported formats: .fb2, .fb2.zip, .zip 
+            // Filter for supported formats: .fb2, .fb2.zip, .zip, .epub
             val filteredCloudFiles = cloudFiles.filter {
                 val name = it.name.lowercase()
-                name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip")
+                name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip") || name.endsWith(".epub")
             }
             Log.d(TAG, "Filtered ${filteredCloudFiles.size} books to process")
 
@@ -346,14 +346,51 @@ class SyncOrchestrator(
                                     val success = cloudService.downloadFile(remotePath, tempFile)
                                     if (success && tempFile.exists()) {
                                         val bytes = tempFile.readBytes()
-                                        val fb2Bytes = extractFb2Bytes(bytes, originalName)
-                                        if (fb2Bytes.isNotEmpty()) {
-                                            val sha1 = computeSha1(fb2Bytes)
-                                            val content = decodeBytesToString(fb2Bytes)
-                                            val meta = Fb2Parser.parse(content, originalName)
-                                            val coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
-                                            val truncatedAnnotation = meta.annotation?.take(500)
+                                        val isEpub = originalName.lowercase().endsWith(".epub") || EpubIdentifierHelper.isEpub(tempFile)
+                                        
+                                        var sha1: String? = null
+                                        var titleText: String? = null
+                                        var authorText: String? = null
+                                        var seriesText: String? = null
+                                        var seriesIdx: Int? = null
+                                        var langText: String? = null
+                                        var coverPath: String? = null
+                                        var truncatedAnnotation: String? = null
+                                        var processSuccess = false
 
+                                        if (isEpub) {
+                                            val metadata = EpubIdentifierHelper.getEpubMetadata(tempFile)
+                                            if (metadata != null) {
+                                                sha1 = metadata.identifier
+                                                titleText = metadata.title
+                                                authorText = metadata.author
+                                                seriesText = null
+                                                seriesIdx = null
+                                                langText = "Unknown"
+                                                truncatedAnnotation = metadata.description?.take(1000)
+                                                coverPath = EpubIdentifierHelper.extractAndSaveEpubCover(tempFile, metadata.coverPath, sha1, context)
+                                                processSuccess = true
+                                            } else {
+                                                Log.e(TAG, "Failed to get metadata for downloaded EPUB: $originalName")
+                                            }
+                                        } else {
+                                            val fb2Bytes = extractFb2Bytes(bytes, originalName)
+                                            if (fb2Bytes.isNotEmpty()) {
+                                                sha1 = computeSha1(fb2Bytes)
+                                                val content = decodeBytesToString(fb2Bytes)
+                                                val meta = Fb2Parser.parse(content, originalName)
+                                                titleText = meta.title
+                                                authorText = meta.author ?: "Неизвестен"
+                                                seriesText = meta.series
+                                                seriesIdx = meta.seriesIndex
+                                                langText = meta.language ?: "ru"
+                                                truncatedAnnotation = meta.annotation?.take(500)
+                                                coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
+                                                processSuccess = true
+                                            }
+                                        }
+
+                                        if (processSuccess && sha1 != null && titleText != null) {
                                             val localFile = File(booksDirectory, originalName)
                                             tempFile.copyTo(localFile, overwrite = true)
 
@@ -361,15 +398,15 @@ class SyncOrchestrator(
                                                 val cloudProgress = cloudProgressMap[sha1]
                                                 val newBook = BookEntity(
                                                     sha1 = sha1,
-                                                    title = meta.title,
-                                                    author = meta.author ?: "Неизвестен",
+                                                    title = titleText,
+                                                    author = authorText ?: "Неизвестен",
                                                     category = "Локальные",
                                                     currentProgressChar = cloudProgress?.charOffset ?: 0,
                                                     lastReadTime = cloudProgress?.lastReadTime ?: System.currentTimeMillis(),
                                                     filePath = localFile.absolutePath,
-                                                    series = meta.series,
-                                                    seriesIndex = meta.seriesIndex,
-                                                    language = meta.language ?: "ru",
+                                                    series = seriesText,
+                                                    seriesIndex = seriesIdx,
+                                                    language = langText ?: "ru",
                                                     fileSize = bytes.size.toLong(),
                                                     review = null,
                                                     isFavorite = false,
@@ -384,7 +421,7 @@ class SyncOrchestrator(
                                                 val inserted = bookDao.insertBookSafely(newBook)
 
                                                 if (inserted) {
-                                                    Log.d(TAG, "Successfully inserted book: ${meta.title} ($sha1)")
+                                                    Log.d(TAG, "Successfully inserted book: $titleText ($sha1)")
                                                     downloadedCount.incrementAndGet()
                                                     // Save to cache
                                                     try {
@@ -397,10 +434,10 @@ class SyncOrchestrator(
                                                         Log.e(TAG, "Error caching after download", e)
                                                     }
                                                 } else {
-                                                    Log.e(TAG, "Failed to insert book: ${meta.title} ($sha1)")
+                                                    Log.e(TAG, "Failed to insert book: $titleText ($sha1)")
                                                 }
                                             } catch (e: Exception) {
-                                                Log.e(TAG, "Exception creating or inserting BookEntity for ${meta.title}", e)
+                                                Log.e(TAG, "Exception creating or inserting BookEntity for $titleText", e)
                                             }
                                         }
                                     }
