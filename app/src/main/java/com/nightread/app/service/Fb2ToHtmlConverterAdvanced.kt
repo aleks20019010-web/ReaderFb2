@@ -225,6 +225,80 @@ object Fb2ToHtmlConverterAdvanced {
                             setTimeout(calculatePages, 200);
                             setTimeout(reportCurrentParagraph, 300);
                         };
+
+                        function prepareTtsSpans() {
+                            if (document.querySelector('.tts-sentence')) return;
+                            
+                            var elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, div.title, div.subtitle');
+                            for (var i = 0; i < elements.length; i++) {
+                                var el = elements[i];
+                                if (el.querySelector('img')) continue;
+                                
+                                var text = el.innerText;
+                                if (!text || text.trim().length === 0) continue;
+                                
+                                var sentences = text.match(/[^.!?]+[.!?]+(?=\s|$)|\s*[^.!?]+$/g);
+                                if (sentences && sentences.length > 0) {
+                                    var newHtml = "";
+                                    for (var j = 0; j < sentences.length; j++) {
+                                        var sText = sentences[j].trim();
+                                        if (sText.length > 0) {
+                                            var sId = "tts_" + i + "_" + j;
+                                            newHtml += '<span id="' + sId + '" class="tts-sentence" data-text="' + encodeURIComponent(sText) + '">' + sentences[j] + '</span> ';
+                                        } else {
+                                            newHtml += sentences[j];
+                                        }
+                                    }
+                                    el.innerHTML = newHtml;
+                                }
+                            }
+                        }
+
+                        function getVisibleSentences() {
+                            prepareTtsSpans();
+                            
+                            var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                            var sentences = document.querySelectorAll('.tts-sentence');
+                            var visible = [];
+                            
+                            for (var i = 0; i < sentences.length; i++) {
+                                var rect = sentences[i].getBoundingClientRect();
+                                if (rect.right > 5 && rect.left < pageWidth - 5) {
+                                    visible.push({
+                                        id: sentences[i].id,
+                                        text: decodeURIComponent(sentences[i].getAttribute('data-text'))
+                                    });
+                                }
+                            }
+                            return JSON.stringify(visible);
+                        }
+
+                        function highlightSentence(spanId) {
+                            var active = document.querySelectorAll('.tts-highlight');
+                            for (var i = 0; i < active.length; i++) {
+                                active[i].classList.remove('tts-highlight');
+                                active[i].style.backgroundColor = "";
+                                active[i].style.color = "";
+                            }
+                            
+                            var element = document.getElementById(spanId);
+                            if (element) {
+                                element.classList.add('tts-highlight');
+                                element.style.backgroundColor = "rgba(255, 235, 59, 0.45)";
+                                element.style.borderRadius = "3px";
+                                element.style.padding = "1px 2px";
+                                element.style.color = "black";
+                            }
+                        }
+
+                        function clearTtsHighlight() {
+                            var active = document.querySelectorAll('.tts-highlight');
+                            for (var i = 0; i < active.length; i++) {
+                                active[i].classList.remove('tts-highlight');
+                                active[i].style.backgroundColor = "";
+                                active[i].style.color = "";
+                            }
+                        }
                     </script>
                 </head>
                 <body>

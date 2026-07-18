@@ -15,7 +15,11 @@ import com.nightread.app.R
 class TTSService : Service() {
     private val binder = LocalBinder()
     private var ttsManager: TTSManager? = null
+    
+    var onUtteranceStart: ((String) -> Unit)? = null
+    var onUtteranceDone: ((String) -> Unit)? = null
     var onRangeStart: ((Int, Int) -> Unit)? = null
+    
     private val NOTIFICATION_ID = 1001
     private val CHANNEL_ID = "TTS_SERVICE_CHANNEL"
 
@@ -26,7 +30,12 @@ class TTSService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        ttsManager = TTSManager(this, { }, { _, start, end -> onRangeStart?.invoke(start, end) })
+        ttsManager = TTSManager(
+            this,
+            { utteranceId -> onUtteranceStart?.invoke(utteranceId) },
+            { utteranceId -> onUtteranceDone?.invoke(utteranceId) },
+            { _, start, end -> onRangeStart?.invoke(start, end) }
+        )
     }
 
     private fun createNotificationChannel() {
@@ -42,10 +51,17 @@ class TTSService : Service() {
     }
 
     fun startForegroundPlayback() {
+        val notificationIntent = Intent(this, com.nightread.app.ui.BookReaderActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, notificationIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("NightRead TTS")
-            .setContentText("Читаем книгу...")
+            .setContentText("Читаем книгу вслух...")
             .setSmallIcon(android.R.drawable.ic_media_play)
+            .setContentIntent(pendingIntent)
             .build()
         startForeground(NOTIFICATION_ID, notification)
     }

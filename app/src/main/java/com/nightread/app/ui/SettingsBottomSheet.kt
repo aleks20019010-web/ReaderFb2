@@ -278,7 +278,7 @@ class SettingsBottomSheet : DialogFragment() {
         val spinnerTtsVoice = view.findViewById<Spinner>(R.id.spinnerTtsVoice)
         
         // Use a temporary TTSManager to get voices
-        val tempTtsManager = com.nightread.app.service.TTSManager(requireContext(), {}, null)
+        val tempTtsManager = com.nightread.app.service.TTSManager(requireContext(), {}, {}, null)
         
         // This is a bit hacky, but we need to wait for initialization. 
         // Better: add a callback to TTSManager or initialize it properly.
