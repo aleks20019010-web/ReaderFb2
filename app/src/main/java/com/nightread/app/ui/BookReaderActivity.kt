@@ -122,6 +122,14 @@ class BookReaderActivity : AppCompatActivity() {
             }
         }
 
+        val btnNotes = findViewById<ImageButton>(R.id.btnNotes)
+        btnNotes.setOnClickListener {
+            val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
+            if (sha1.isNotEmpty()) {
+                BookNavigationDialog.newInstance(sha1, 2).show(supportFragmentManager, "navigation")
+            }
+        }
+
         val bookmarkArea = findViewById<View>(R.id.bookmarkArea)
         bookmarkArea.setOnClickListener {
             val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
@@ -534,6 +542,7 @@ class BookReaderActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.btnSettings).imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnBookmark).imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnChapters).imageTintList = buttonTint
+        findViewById<ImageButton>(R.id.btnNotes).imageTintList = buttonTint
         
         val seekBar = findViewById<SeekBar>(R.id.seekBar)
         seekBar.progressTintList = ColorStateList.valueOf(accentColor)

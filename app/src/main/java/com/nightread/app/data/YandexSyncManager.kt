@@ -176,7 +176,7 @@ class YandexSyncManager(private val context: Context) {
             // Фильтруем только поддерживаемые форматы книг
             val cloudBooks = cloudItems.filter {
                 val name = it.name.lowercase()
-                val isSupported = name.endsWith(".fb2") || name.endsWith(".fb2.zip")
+                val isSupported = name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".epub")
                 if (!isSupported) {
                     Log.d(TAG, "Файл не поддерживается: ${it.name}")
                 }
@@ -247,9 +247,13 @@ class YandexSyncManager(private val context: Context) {
                                             }
                                         }
                                         synchronized(this@YandexSyncManager) {
-                                            onProgress("Вычисление SHA-1: ${processedCount + 1} из $totalToProcess")
+                                            onProgress("Вычисление идентификатора: ${processedCount + 1} из $totalToProcess")
                                         }
-                                        val sha1 = Sha1Helper.computeSha1FromContent(tempFile)
+                                        val sha1 = if (EpubIdentifierHelper.isEpub(tempFile)) {
+                                            EpubIdentifierHelper.getEpubIdentifier(tempFile)
+                                        } else {
+                                            Sha1Helper.computeSha1FromContent(tempFile)
+                                        }
                                         if (sha1 != null && sha1.isNotEmpty()) {
                                             cloudFileCache.save(sha1, cleanItemPath, item.modified ?: "", item.size ?: 0L)
                                             

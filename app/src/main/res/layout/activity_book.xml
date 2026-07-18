@@ -90,6 +90,13 @@
             android:src="@drawable/ic_bookmarks_list" />
 
         <ImageButton
+            android:id="@+id/btnNotes"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_note" />
+
+        <ImageButton
             android:id="@+id/btnSettings"
             android:layout_width="48dp"
             android:layout_height="48dp"

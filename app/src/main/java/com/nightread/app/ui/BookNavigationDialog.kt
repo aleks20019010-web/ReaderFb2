@@ -41,6 +41,8 @@ class BookNavigationDialog : DialogFragment() {
     private lateinit var layoutBookmarksEmpty: View
     private lateinit var rvQuotes: RecyclerView
     private lateinit var layoutQuotesEmpty: View
+    private lateinit var etSearchQuotes: android.widget.EditText
+    private var allNotes: List<com.nightread.app.data.NoteEntity> = emptyList()
 
     private lateinit var navigationCardRoot: CardView
     private lateinit var navigationToolbar: View
@@ -123,6 +125,7 @@ class BookNavigationDialog : DialogFragment() {
         layoutBookmarksEmpty = view.findViewById(R.id.layoutBookmarksEmpty)
         rvQuotes = view.findViewById(R.id.rvQuotes)
         layoutQuotesEmpty = view.findViewById(R.id.layoutQuotesEmpty)
+        etSearchQuotes = view.findViewById(R.id.etSearchQuotes)
 
         rvChapters.layoutManager = LinearLayoutManager(context)
         rvBookmarks.layoutManager = LinearLayoutManager(context)
@@ -180,22 +183,12 @@ class BookNavigationDialog : DialogFragment() {
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Default) {
             val chapterOffsets = mutableListOf<Int>()
-            val markers = listOf("\n\n\n", "\u000C")
-            var lastPos = 0
-
-            for (marker in markers) {
-                var pos = content.indexOf(marker)
-                while (pos != -1) {
-                    if (pos > lastPos + 500) { // minimum chapter length
-                        chapterOffsets.add(lastPos)
-                        lastPos = pos + marker.length
-                    }
-                    pos = content.indexOf(marker, pos + marker.length)
-                }
-            }
-
-            if (lastPos < content.length) {
-                chapterOffsets.add(lastPos)
+            val marker = "<div class='chapter-section'>"
+            
+            var pos = content.indexOf(marker)
+            while (pos != -1) {
+                chapterOffsets.add(pos)
+                pos = content.indexOf(marker, pos + marker.length)
             }
 
             withContext(Dispatchers.Main) {
@@ -280,6 +273,19 @@ class BookNavigationDialog : DialogFragment() {
         )
         rvQuotes.adapter = noteAdapter
 
+        etSearchQuotes.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val query = s.toString().lowercase()
+                val filtered = allNotes.filter {
+                    it.noteText.lowercase().contains(query) || it.selectedText.lowercase().contains(query) || it.bookTitle.lowercase().contains(query)
+                }
+                noteAdapter.submitList(filtered)
+                layoutQuotesEmpty.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
+            }
+        })
+
         val swipeCallback = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
             override fun onMove(
                 recyclerView: RecyclerView,
@@ -301,6 +307,7 @@ class BookNavigationDialog : DialogFragment() {
 
         lifecycleScope.launch {
             viewModel.getNotesForBook(bookSha1).collectLatest { notes ->
+                allNotes = notes
                 if (notes.isEmpty()) {
                     rvQuotes.visibility = View.GONE
                     layoutQuotesEmpty.visibility = View.VISIBLE
@@ -433,6 +440,11 @@ class BookNavigationDialog : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvQuotesEmptyTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvQuotesEmptyMessage)?.setTextColor(textSecondaryColor)
         rootView.findViewById<ImageView>(R.id.ivQuotesEmptyIcon)?.imageTintList = ColorStateList.valueOf(accentColor)
+        rootView.findViewById<android.widget.EditText>(R.id.etSearchQuotes)?.let {
+            it.setTextColor(textPrimaryColor)
+            it.setHintTextColor(textSecondaryColor)
+            it.background.setTint(textSecondaryColor) // Simple tint for background
+        }
     }
 
     override fun onStart() {

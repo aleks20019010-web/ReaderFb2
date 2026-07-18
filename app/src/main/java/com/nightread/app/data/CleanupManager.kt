@@ -80,7 +80,11 @@ class CleanupManager(
             val progressText = "Анализ файла [${index + 1}/$totalFiles]: ${file.name}"
             onProgress(index + 1, totalFiles, progressText)
             
-            val sha1 = Sha1Helper.computeSha1FromContent(file)
+            val sha1 = if (EpubIdentifierHelper.isEpub(file)) {
+                EpubIdentifierHelper.getEpubIdentifier(file)
+            } else {
+                Sha1Helper.computeSha1FromContent(file)
+            }
             if (sha1 != null) {
                 if (!fileGroups.containsKey(sha1)) {
                     fileGroups[sha1] = mutableListOf()
@@ -167,7 +171,7 @@ class CleanupManager(
                 gatherFilesRecursive(file, list, depth + 1)
             } else {
                 val ext = file.extension.lowercase()
-                if (ext == "fb2" || ext == "zip") {
+                if (ext == "fb2" || ext == "zip" || ext == "epub") {
                     if (file.length() > 0 && file.length() < 30 * 1024 * 1024) {
                         list.add(file)
                     }
