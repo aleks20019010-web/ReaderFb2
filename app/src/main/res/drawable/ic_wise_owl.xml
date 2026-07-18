@@ -1,141 +1,269 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="160dp"
-    android:height="160dp"
-    android:viewportWidth="120"
-    android:viewportHeight="120">
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
 
-    <!-- Soft Ambient Backlight Glow -->
+    <!-- LAYER 1: Ambient Background Golden Aura Glow -->
     <path
-        android:fillColor="#15FFFFFF"
-        android:pathData="M60,60 m-48,0 a48,48 0 1,1 96,0 a48,48 0 1,1 -96,0" />
-
-    <!-- Left Ear/Tuft -->
+        android:fillColor="#08FFD54F"
+        android:pathData="M100,100 m-90,0 a90,90 0 1,1 180,0 a90,90 0 1,1 -180,0" />
     <path
-        android:fillColor="#8D5B4C"
-        android:pathData="M35,42 C26,24 43,26 46,36 Z" />
-
-    <!-- Right Ear/Tuft -->
+        android:fillColor="#12FFD54F"
+        android:pathData="M100,100 m-70,0 a70,70 0 1,1 140,0 a70,70 0 1,1 -140,0" />
     <path
-        android:fillColor="#8D5B4C"
-        android:pathData="M85,42 C94,24 77,26 74,36 Z" />
+        android:fillColor="#1AFFFFFF"
+        android:pathData="M100,100 m-50,0 a50,50 0 1,1 100,0 a50,50 0 1,1 -100,0" />
 
-    <!-- Main Body and Head Base -->
+    <!-- LAYER 2: Back Wings & Feathers Silhouette (Adds depth behind body) -->
+    <!-- Left Wing Shadow -->
     <path
-        android:fillColor="#9C6654"
-        android:pathData="M60,32 C78,32 90,40 90,58 C90,74 86,92 72,96 C65,98 55,98 48,96 C34,92 30,74 30,58 C30,40 42,32 60,32 Z" />
+        android:fillColor="#3E2723"
+        android:pathData="M52,90 C32,95 24,125 45,145 C50,135 51,110 52,90 Z" />
+    <!-- Right Wing Shadow -->
+    <path
+        android:fillColor="#3E2723"
+        android:pathData="M148,90 C168,95 176,125 155,145 C150,135 149,110 148,90 Z" />
 
-    <!-- Belly Chest Plate (Cream White) -->
+    <!-- Left Ear Tufts / Horns (Sleek multi-layered feathers) -->
+    <path
+        android:fillColor="#4E342E"
+        android:pathData="M54,65 C38,30 65,35 70,55 Z" />
+    <path
+        android:fillColor="#5D4037"
+        android:pathData="M58,63 C46,38 66,41 70,55 Z" />
+    <path
+        android:fillColor="#8D6E63"
+        android:pathData="M62,61 C54,45 67,47 70,55 Z" />
+
+    <!-- Right Ear Tufts / Horns -->
+    <path
+        android:fillColor="#4E342E"
+        android:pathData="M146,65 C162,30 135,35 130,55 Z" />
+    <path
+        android:fillColor="#5D4037"
+        android:pathData="M142,63 C154,38 134,41 130,55 Z" />
+    <path
+        android:fillColor="#8D6E63"
+        android:pathData="M138,61 C146,45 133,47 130,55 Z" />
+
+    <!-- LAYER 3: Main Head & Body base (With elegant 3D volume styling) -->
+    <path
+        android:fillColor="#6D4C41"
+        android:pathData="M100,50 C128,50 146,62 146,90 C146,115 140,143 118,149 C108,152 92,152 82,149 C60,143 54,115 54,90 C54,62 72,50 100,50 Z" />
+
+    <!-- Head Highlight (Top crown light reflection) -->
+    <path
+        android:fillColor="#8D6E63"
+        android:pathData="M100,53 C120,53 134,60 138,72 C120,60 80,60 62,72 C66,60 80,53 100,53 Z" />
+
+    <!-- LAYER 4: Beautiful Facial Disks (Large owl-eyes background contours) -->
+    <!-- Left facial disk -->
+    <path
+        android:fillColor="#D7CCC8"
+        android:pathData="M83,90 C66,90 58,102 58,114 C58,126 70,132 83,124 C96,132 100,120 100,114 C100,102 100,90 83,90 Z" />
+    <!-- Right facial disk -->
+    <path
+        android:fillColor="#D7CCC8"
+        android:pathData="M117,90 C134,90 142,102 142,114 C142,126 130,132 117,124 C104,132 100,120 100,114 C100,102 100,90 117,90 Z" />
+
+    <!-- Inner soft-cream face plate -->
     <path
         android:fillColor="#FBE9E7"
-        android:pathData="M60,62 C70,62 76,70 76,82 C76,93 68,96 60,96 C52,96 44,93 44,82 C44,70 50,62 60,62 Z" />
-
-    <!-- Chest Feather Details -->
+        android:pathData="M83,93 C70,93 64,103 64,114 C64,125 74,128 83,122 C92,128 97,120 97,114 C97,103 96,93 83,93 Z" />
     <path
-        android:fillColor="#D84315"
-        android:pathData="M56,70 Q60,74 64,70 M50,76 Q54,80 58,76 M62,76 Q66,80 70,76 M56,82 Q60,86 64,82"
-        android:strokeColor="#FFAB91"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="round" />
+        android:fillColor="#FBE9E7"
+        android:pathData="M117,93 C130,93 136,103 136,114 C136,125 126,128 117,122 C108,128 103,120 103,114 C103,103 104,93 117,93 Z" />
 
-    <!-- Face Mask (Light Cream-Tan) -->
+    <!-- LAYER 5: Deep Expressive Eyes (Multi-layered Iris + Pupils + Highlights) -->
+    <!-- Left Iris (Glowing warm Amber-Gold) -->
     <path
-        android:fillColor="#FFF3E0"
-        android:pathData="M60,44 C50,44 41,48 41,58 C41,68 50,72 60,66 C70,72 79,68 79,58 C79,48 70,44 60,44 Z" />
+        android:fillColor="#FF9800"
+        android:pathData="M83,114 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" />
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M83,114 m-12,0 a12,12 0 1,1 24,0 a12,12 0 1,1 -24,0" />
+    <!-- Left Pupil -->
+    <path
+        android:fillColor="#1A1A1A"
+        android:pathData="M83,114 m-8.5,0 a8.5,8.5 0 1,1 17,0 a8.5,8.5 0 1,1 -17,0" />
 
-    <!-- Eye Sockets (Warm Brown Borders) -->
+    <!-- Right Iris -->
     <path
-        android:fillColor="#FFE0B2"
-        android:pathData="M49,58 m-11,0 a11,11 0 1,1 22,0 a11,11 0 1,1 -22,0" />
+        android:fillColor="#FF9800"
+        android:pathData="M117,114 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" />
     <path
-        android:fillColor="#FFE0B2"
-        android:pathData="M71,58 m-11,0 a11,11 0 1,1 22,0 a11,11 0 1,1 -22,0" />
+        android:fillColor="#FFD54F"
+        android:pathData="M117,114 m-12,0 a12,12 0 1,1 24,0 a12,12 0 1,1 -24,0" />
+    <!-- Right Pupil -->
+    <path
+        android:fillColor="#1A1A1A"
+        android:pathData="M117,114 m-8.5,0 a8.5,8.5 0 1,1 17,0 a8.5,8.5 0 1,1 -17,0" />
 
-    <!-- Left Eye Pupil -->
-    <path
-        android:fillColor="#212121"
-        android:pathData="M49,58 m-7.5,0 a7.5,7.5 0 1,1 15,0 a7.5,7.5 0 1,1 -15,0" />
-
-    <!-- Right Eye Pupil -->
-    <path
-        android:fillColor="#212121"
-        android:pathData="M71,58 m-7.5,0 a7.5,7.5 0 1,1 15,0 a7.5,7.5 0 1,1 -15,0" />
-
-    <!-- Left Eye Highlights -->
+    <!-- Specular Light Highlights (Creates that alive, adorable gaze) -->
+    <!-- Left eye shine -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M46.5,55.5 m-2.5,0 a2.5,2.5 0 1,1 5,0 a2.5,2.5 0 1,1 -5,0" />
+        android:pathData="M79,110 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M51,61 m-1,0 a1,1 0 1,1 2,0 a1,1 0 1,1 -2,0" />
+        android:pathData="M86,117 m-1.5,0 a1.5,1.5 0 1,1 3,0 a1.5,1.5 0 1,1 -3,0" />
+    <!-- Right eye shine -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M113,110 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M120,117 m-1.5,0 a1.5,1.5 0 1,1 3,0 a1.5,1.5 0 1,1 -3,0" />
 
-    <!-- Right Eye Highlights -->
+    <!-- LAYER 6: Beautiful Shaded Beak -->
+    <!-- Back beak shadow -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M68.5,55.5 m-2.5,0 a2.5,2.5 0 1,1 5,0 a2.5,2.5 0 1,1 -5,0" />
+        android:fillColor="#E65100"
+        android:pathData="M100,119 L94,130 C100,134 100,134 106,130 Z" />
+    <!-- Front beak body -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M73,61 m-1,0 a1,1 0 1,1 2,0 a1,1 0 1,1 -2,0" />
+        android:fillColor="#FF5722"
+        android:pathData="M100,119 L96,128 C100,132 100,132 104,128 Z" />
+    <!-- Beak top highlight -->
+    <path
+        android:fillColor="#FFAB91"
+        android:pathData="M100,120 L98,124 L102,124 Z" />
 
-    <!-- Round Glasses Frames (Retro Gold-Yellow) -->
+    <!-- LAYER 7: Intelligent Golden Wire Glasses (With Rim Thickness & Specular Lens Glare!) -->
+    <!-- Left Rim -->
     <path
-        android:strokeColor="#FFB300"
-        android:strokeWidth="2.5"
-        android:pathData="M49,58 m-12.5,0 a12.5,12.5 0 1,1 25,0 a12.5,12.5 0 1,1 -25,0" />
+        android:strokeColor="#FFC107"
+        android:strokeWidth="3.5"
+        android:pathData="M83,114 m-19,0 a19,19 0 1,1 38,0 a19,19 0 1,1 -38,0" />
     <path
-        android:strokeColor="#FFB300"
-        android:strokeWidth="2.5"
-        android:pathData="M71,58 m-12.5,0 a12.5,12.5 0 1,1 25,0 a12.5,12.5 0 1,1 -25,0" />
+        android:strokeColor="#FFE082"
+        android:strokeWidth="1.2"
+        android:pathData="M83,114 m-17.5,0 a17.5,17.5 0 1,1 35,0 a17.5,17.5 0 1,1 -35,0" />
+
+    <!-- Right Rim -->
+    <path
+        android:strokeColor="#FFC107"
+        android:strokeWidth="3.5"
+        android:pathData="M117,114 m-19,0 a19,19 0 1,1 38,0 a19,19 0 1,1 -38,0" />
+    <path
+        android:strokeColor="#FFE082"
+        android:strokeWidth="1.2"
+        android:pathData="M117,114 m-17.5,0 a17.5,17.5 0 1,1 35,0 a17.5,17.5 0 1,1 -35,0" />
 
     <!-- Glasses Bridge -->
     <path
-        android:strokeColor="#FFB300"
-        android:strokeWidth="2.5"
+        android:strokeColor="#FFC107"
+        android:strokeWidth="3.5"
         android:strokeLineCap="round"
-        android:pathData="M59.5,58 L61.5,58" />
+        android:pathData="M102,114 Q100,111 98,114" />
 
-    <!-- Beak (Cute Orange Triangle) -->
+    <!-- Glass Lens Diagonal Glare Reflections (Semi-transparent white overlays) -->
     <path
-        android:fillColor="#FF5722"
-        android:pathData="M60,61 L56,69 C60,72 60,72 64,69 Z" />
-
-    <!-- Left Folded Wing -->
+        android:fillColor="#15FFFFFF"
+        android:pathData="M70,105 L90,125 L85,129 L66,110 Z" />
     <path
-        android:fillColor="#794F43"
-        android:pathData="M31,60 C23,66 22,86 35,90 C33,84 32,70 31,60 Z" />
+        android:fillColor="#20FFFFFF"
+        android:pathData="M104,105 L124,125 L119,129 L100,110 Z" />
 
-    <!-- Right Folded Wing -->
+    <!-- LAYER 8: Owl Chest Plate & Cute Detailed Feather Vanes -->
+    <!-- Chest Plate Cream-White Base -->
     <path
-        android:fillColor="#794F43"
-        android:pathData="M89,60 C97,66 98,86 85,90 C87,84 88,70 89,60 Z" />
+        android:fillColor="#ECEFF1"
+        android:pathData="M100,132 C116,132 126,140 126,155 C126,168 114,171 100,171 C86,171 74,168 74,155 C74,140 84,132 100,132 Z" />
 
-    <!-- Cozy Open Book (Hardcover Backing - Deep Red) -->
+    <!-- Beautiful Curved Shaded Chest Feathers -->
     <path
-        android:fillColor="#B71C1C"
-        android:pathData="M26,94 L60,102 L94,94 L94,101 L60,109 L26,101 Z" />
+        android:strokeColor="#CFD8DC"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M94,142 Q100,147 106,142 M84,150 Q90,155 96,150 M104,150 Q110,155 116,150 M94,158 Q100,163 106,158" />
 
-    <!-- Warm Cozy Pages Base -->
+    <!-- LAYER 9: Cozy Side Folded Wings -->
+    <!-- Left Wing (Rich textures & color transitions) -->
+    <path
+        android:fillColor="#5D4037"
+        android:pathData="M55,100 C43,108 42,138 60,144 C57,134 56,115 55,100 Z" />
+    <path
+        android:fillColor="#4E342E"
+        android:pathData="M52,105 C42,112 41,135 55,141 C53,131 53,117 52,105 Z" />
+    <path
+        android:fillColor="#8D6E63"
+        android:pathData="M57,112 C52,117 50,130 60,136 C58,128 58,119 57,112 Z" />
+
+    <!-- Right Wing -->
+    <path
+        android:fillColor="#5D4037"
+        android:pathData="M145,100 C157,108 158,138 140,144 C143,134 144,115 145,100 Z" />
+    <path
+        android:fillColor="#4E342E"
+        android:pathData="M148,105 C158,112 159,135 145,141 C147,131 147,117 148,105 Z" />
+    <path
+        android:fillColor="#8D6E63"
+        android:pathData="M143,112 C148,117 150,130 140,136 C142,128 142,119 143,112 Z" />
+
+
+    <!-- LAYER 10: Highly Detailed 3D Cozy Open Book -->
+    <!-- Hardcover Backing Base (Deep Elegant Crimson Burgundy) -->
+    <path
+        android:fillColor="#4A148C"
+        android:pathData="M42,165 L100,174 L158,165 L158,174 L100,183 L42,174 Z" />
+    <path
+        android:fillColor="#880E4F"
+        android:pathData="M44,163 L100,172 L156,163 L156,171 L100,180 L44,171 Z" />
+
+    <!-- Inner Spine Shadow Cover Rim -->
+    <path
+        android:fillColor="#AD1457"
+        android:pathData="M46,162 L100,171 L154,162 L154,165 L100,174 L46,165 Z" />
+
+    <!-- Shaded Paper Cream Pages (With realistic curvature/thickness) -->
+    <!-- Pages bottom stack layer (warmer tan cream) -->
+    <path
+        android:fillColor="#FFE082"
+        android:pathData="M46,160 Q73,166 100,169 Q127,166 154,160 L154,166 Q127,172 100,175 Q73,172 46,166 Z" />
+
+    <!-- Pages top reading layer (bright cozy light cream) -->
     <path
         android:fillColor="#FFFDE7"
-        android:pathData="M28,92 L60,99 L92,92 L92,98 L60,105 L28,98 Z" />
+        android:pathData="M48,157 Q74,163 100,166 Q126,163 152,157 L152,163 Q126,169 100,172 Q74,169 48,163 Z" />
 
-    <!-- Secondary Pages Detail Layer -->
+    <!-- Shadow Crease / Spine of the Book -->
     <path
-        android:fillColor="#FFF9C4"
-        android:pathData="M30,90 C45,95 45,95 60,97 C75,95 75,95 90,90 L90,95 C75,100 75,100 60,102 C45,100 45,100 30,95 Z" />
+        android:strokeColor="#D7CCC8"
+        android:strokeWidth="1.8"
+        android:pathData="M100,166 L100,172" />
 
-    <!-- Book Spine Line -->
+    <!-- Elegant Gold/Amber Satin Ribbon Bookmark hanging down -->
     <path
-        android:strokeColor="#D84315"
-        android:strokeWidth="1.5"
-        android:pathData="M60,97 L60,105" />
+        android:fillColor="#FFC107"
+        android:pathData="M98,166 L102,166 L103,184 L99,182 L95,184 Z" />
+    <path
+        android:fillColor="#FF8F00"
+        android:pathData="M98,166 L100,166 L100,182 L98,181 Z" />
 
-    <!-- Smart Little Feet -->
+    <!-- Printed wisdom / Text Lines on Pages (Thin artistic line gestures) -->
+    <!-- Left page text lines -->
     <path
-        android:fillColor="#FF5722"
-        android:pathData="M48,97 Q48,101 45,101 M52,97 Q52,101 49,101 M68,97 Q68,101 65,101 M72,97 Q72,101 69,101"
-        android:strokeColor="#FF5722"
-        android:strokeWidth="2.5"
+        android:strokeColor="#B0BEC5"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:pathData="M54,161 H72 M53,164 H68 M55,167 H75" />
+    <!-- Right page text lines -->
+    <path
+        android:strokeColor="#B0BEC5"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:pathData="M128,161 H146 M132,164 H147 M125,167 H145" />
+
+
+    <!-- LAYER 11: Cozy Claw Feet resting on the Book -->
+    <path
+        android:fillColor="#FF7043"
+        android:pathData="M82,160 Q82,165 78,165 M88,160 Q88,165 84,165 M118,160 Q118,165 114,165 M124,160 Q124,165 120,165"
+        android:strokeColor="#E64A19"
+        android:strokeWidth="2.8"
         android:strokeLineCap="round" />
 
 </vector>
