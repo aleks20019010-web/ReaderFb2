@@ -126,10 +126,7 @@ object EpubIdentifierHelper {
                         coverPath = manifestMap[coverId]
                     }
 
-                    var identifier = idMatch?.groupValues?.get(1)?.trim() ?: ""
-                    if (identifier.isEmpty()) {
-                        identifier = computeFileSha1(file) ?: java.util.UUID.randomUUID().toString()
-                    }
+                    var identifier = computeFileSha1(file) ?: idMatch?.groupValues?.get(1)?.trim() ?: java.util.UUID.randomUUID().toString()
                     
                     // Parse Spine
                     val spineMatch = Regex("<spine[^>]*>(.*?)</spine>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(opfContent)

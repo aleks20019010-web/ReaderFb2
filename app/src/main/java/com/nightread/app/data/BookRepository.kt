@@ -17,7 +17,7 @@ class BookRepository(
         if (showAll) return books
         return books.filter { book ->
             val path = book.filePath?.lowercase() ?: ""
-            path.endsWith(".fb2") || path.endsWith(".fb2.zip") || path.endsWith(".zip") || book.filePath.isNullOrEmpty()
+            path.endsWith(".fb2") || path.endsWith(".fb2.zip") || path.endsWith(".zip") || path.endsWith(".epub") || book.filePath.isNullOrEmpty()
         }
     }
 
