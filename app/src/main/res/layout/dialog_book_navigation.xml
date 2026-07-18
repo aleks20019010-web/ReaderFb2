@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/navigationCardRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:cardBackgroundColor="#1A0D2A"
+    app:cardCornerRadius="0dp"
+    app:cardElevation="0dp"
+    app:cardPreventCornerOverlap="true"
+    app:cardUseCompatPadding="false">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Top Toolbar Row (Back, Title, Menu) -->
+        <RelativeLayout
+            android:id="@+id/navigationToolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:paddingHorizontal="12dp"
+            android:background="#150924">
+
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_arrow_back"
+                android:contentDescription="Назад"
+                app:tint="#E8D8F0" />
+
+            <TextView
+                android:id="@+id/tvBookTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toEndOf="@id/btnBack"
+                android:layout_toStartOf="@+id/btnMenu"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="8dp"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:text="Название книги"
+                android:textColor="#E8D8F0"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btnMenu"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_more"
+                android:contentDescription="Меню"
+                app:tint="#E8D8F0" />
+        </RelativeLayout>
+
+        <!-- TabLayout -->
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#1C0E2E"
+            app:tabGravity="fill"
+            app:tabMode="fixed"
+            app:tabIndicatorColor="#9B59B6"
+            app:tabIndicatorHeight="3dp"
+            app:tabTextColor="#B8A0C8"
+            app:tabSelectedTextColor="#E8D8F0"
+            app:tabTextAppearance="@android:style/TextAppearance.Widget.TabWidget" />
+
+        <!-- Divider line below TabLayout -->
+        <View
+            android:id="@+id/dividerTabs"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#3A2A4E" />
+
+        <!-- Content Area: Stacked pages toggled by TabLayout selection -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="12dp">
+
+            <!-- PAGE 1: CHAPTERS (ОГЛАВЛЕНИЕ) -->
+            <RelativeLayout
+                android:id="@+id/pageChapters"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="visible">
+
+                <ProgressBar
+                    android:id="@+id/chaptersProgressBar"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:indeterminate="true"
+                    android:visibility="gone"
+                    android:layout_alignParentTop="true" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvChapters"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_below="@id/chaptersProgressBar"
+                    android:scrollbars="vertical"
+                    android:clipToPadding="false"
+                    android:paddingBottom="16dp" />
+
+                <LinearLayout
+                    android:id="@+id/layoutChaptersEmpty"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:visibility="gone"
+                    android:padding="24dp">
+
+                    <ImageView
+                        android:id="@+id/ivChaptersEmptyIcon"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:src="@drawable/ic_custom_list"
+                        android:contentDescription="Главы не найдены"
+                        app:tint="#9B59B6"
+                        android:layout_marginBottom="12dp" />
+
+                    <TextView
+                        android:id="@+id/tvChaptersEmptyTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Главы не найдены"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#E8D8F0"
+                        android:layout_marginBottom="6dp" />
+
+                    <TextView
+                        android:id="@+id/tvChaptersEmptyMessage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="В этой книге не обнаружено структуры глав."
+                        android:textSize="13sp"
+                        android:textColor="#B8A0C8"
+                        android:gravity="center" />
+                </LinearLayout>
+            </RelativeLayout>
+
+            <!-- PAGE 2: BOOKMARKS (ЗАКЛАДКИ) -->
+            <RelativeLayout
+                android:id="@+id/pageBookmarks"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvBookmarks"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scrollbars="vertical"
+                    android:clipToPadding="false"
+                    android:paddingBottom="16dp" />
+
+                <LinearLayout
+                    android:id="@+id/layoutBookmarksEmpty"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:visibility="gone"
+                    android:padding="24dp">
+
+                    <ImageView
+                        android:id="@+id/ivBookmarksEmptyIcon"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:src="@drawable/ic_bookmark"
+                        android:contentDescription="Закладок нет"
+                        app:tint="#9B59B6"
+                        android:layout_marginBottom="12dp" />
+
+                    <TextView
+                        android:id="@+id/tvBookmarksEmptyTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Закладок нет"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#E8D8F0"
+                        android:layout_marginBottom="6dp" />
+
+                    <TextView
+                        android:id="@+id/tvBookmarksEmptyMessage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Тапните по верхнему правому углу во время чтения, чтобы создать закладку."
+                        android:textSize="13sp"
+                        android:textColor="#B8A0C8"
+                        android:gravity="center" />
+                </LinearLayout>
+            </RelativeLayout>
+
+            <!-- PAGE 3: QUOTES (ЦИТАТЫ) -->
+            <RelativeLayout
+                android:id="@+id/pageQuotes"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvQuotes"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scrollbars="vertical"
+                    android:clipToPadding="false"
+                    android:paddingBottom="16dp" />
+
+                <LinearLayout
+                    android:id="@+id/layoutQuotesEmpty"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="24dp">
+
+                    <ImageView
+                        android:id="@+id/ivQuotesEmptyIcon"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:src="@drawable/ic_word_explain"
+                        android:contentDescription="Цитат нет"
+                        app:tint="#9B59B6"
+                        android:layout_marginBottom="12dp" />
+
+                    <TextView
+                        android:id="@+id/tvQuotesEmptyTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Цитат нет"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#E8D8F0"
+                        android:layout_marginBottom="6dp" />
+
+                    <TextView
+                        android:id="@+id/tvQuotesEmptyMessage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Вы можете сохранять цитаты, выделяя важные фразы и слова во время чтения."
+                        android:textSize="13sp"
+                        android:textColor="#B8A0C8"
+                        android:gravity="center" />
+                </LinearLayout>
+            </RelativeLayout>
+
+        </FrameLayout>
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

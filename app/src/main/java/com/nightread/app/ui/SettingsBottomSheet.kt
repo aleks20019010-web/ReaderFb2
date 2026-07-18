@@ -415,6 +415,31 @@ class SettingsBottomSheet : DialogFragment() {
             }
         }
 
+        // 7e. Line Spacing SeekBar Hookup
+        val tvLineSpacingValue = view.findViewById<TextView>(R.id.tvLineSpacingValue)
+        val seekBarLineSpacing = view.findViewById<SeekBar>(R.id.seekBarLineSpacing)
+        
+        val currentLineSpacing = SettingsManager.getLineSpacing(context)
+        tvLineSpacingValue.text = String.format("%.1f", currentLineSpacing)
+        seekBarLineSpacing.progress = ((currentLineSpacing - 1.0f) * 10).toInt().coerceIn(0, 10)
+        var lastLineSpacingProgress = seekBarLineSpacing.progress
+        
+        seekBarLineSpacing.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val newSpacing = 1.0f + (progress / 10f)
+                tvLineSpacingValue.text = String.format("%.1f", newSpacing)
+                if (fromUser) {
+                    SettingsManager.setLineSpacing(context, newSpacing)
+                    if (progress != lastLineSpacingProgress) {
+                        seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                        lastLineSpacingProgress = progress
+                    }
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
         // 8. Color Scheme Circle Buttons Hookup
         val btnThemeLight = view.findViewById<FrameLayout>(R.id.btnThemeLight)
         val btnThemeSepia = view.findViewById<FrameLayout>(R.id.btnThemeSepia)
@@ -572,6 +597,7 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvAmberIntensityValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvExtraDimTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvExtraDimIntensityValue)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvLineSpacingValue)?.setTextColor(textPrimaryColor)
 
         // 3. Secondary Labels and Descriptions
         rootView.findViewById<TextView>(R.id.tvColorSchemeLabel)?.setTextColor(textSecondaryColor)
@@ -587,6 +613,7 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvAmberIntensityLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvExtraDimDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvExtraDimIntensityLabel)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvLineSpacingLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvSleepTimerDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvSleepTimerDurationLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvShakeToExtendDesc)?.setTextColor(textSecondaryColor)
@@ -607,6 +634,7 @@ class SettingsBottomSheet : DialogFragment() {
         val seekBarAmberIntensity = rootView.findViewById<SeekBar>(R.id.seekBarAmberIntensity)
         val seekBarExtraDimIntensity = rootView.findViewById<SeekBar>(R.id.seekBarExtraDimIntensity)
         val seekBarSleepTimer = rootView.findViewById<SeekBar>(R.id.seekBarSleepTimer)
+        val seekBarLineSpacing = rootView.findViewById<SeekBar>(R.id.seekBarLineSpacing)
         seekBarFontSize?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarFontSize?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarFontWeight?.progressTintList = ColorStateList.valueOf(accentColor)
@@ -617,6 +645,8 @@ class SettingsBottomSheet : DialogFragment() {
         seekBarExtraDimIntensity?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarSleepTimer?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarSleepTimer?.thumbTintList = ColorStateList.valueOf(accentColor)
+        seekBarLineSpacing?.progressTintList = ColorStateList.valueOf(accentColor)
+        seekBarLineSpacing?.thumbTintList = ColorStateList.valueOf(accentColor)
 
         // 7. Auto-discovery SwitchCompat coloring
         val switchAutoDiscovery = rootView.findViewById<SwitchCompat>(R.id.switchAutoDiscovery)

@@ -84,6 +84,35 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
             val prompt = "Вы — профессиональный переводчик. Переведите слово или выражение \"$word\" на русский язык (или на английский, если оно уже на русском). Если есть контекст: \"$contextSnippet\", переведите с его учётом. Дайте только перевод и краткие варианты перевода без лишнего текста."
             queryGemini(prompt, layoutAiResponse, pbAiLoading, tvAiResponse)
         }
+
+        val btnCreateNote = view.findViewById<View>(R.id.btnCreateNote)
+        val layoutNoteInput = view.findViewById<View>(R.id.layoutNoteInput)
+        val etNoteText = view.findViewById<android.widget.EditText>(R.id.etNoteText)
+        val btnSaveNote = view.findViewById<View>(R.id.btnSaveNote)
+
+        btnCreateNote.setOnClickListener {
+            layoutNoteInput.visibility = View.VISIBLE
+            layoutAiResponse.visibility = View.GONE
+            etNoteText.requestFocus()
+            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+            imm?.showSoftInput(etNoteText, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
+
+        btnSaveNote.setOnClickListener {
+            val noteText = etNoteText.text.toString().trim()
+            if (noteText.isEmpty()) {
+                CustomToast.show(requireContext(), "Пожалуйста, введите текст заметки", Toast.LENGTH_SHORT)
+                return@setOnClickListener
+            }
+            val bookReaderActivity = activity as? BookReaderActivity
+            if (bookReaderActivity != null) {
+                bookReaderActivity.saveNoteForBook(word, noteText)
+                CustomToast.show(requireContext(), "Заметка успешно сохранена", Toast.LENGTH_SHORT)
+                dismiss()
+            } else {
+                CustomToast.show(requireContext(), "Ошибка: экран чтения недоступен", Toast.LENGTH_SHORT)
+            }
+        }
     }
 
     private fun queryGemini(

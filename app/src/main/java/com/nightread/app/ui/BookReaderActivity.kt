@@ -72,6 +72,7 @@ class BookReaderActivity : AppCompatActivity() {
     private var remainingTimeMs: Long = 0
     private var isWebViewLoading = false
     private var brightnessAnimator: android.animation.ValueAnimator? = null
+    private var longPressRunnable: Runnable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,20 +110,15 @@ class BookReaderActivity : AppCompatActivity() {
         btnBookmark.setOnClickListener {
             val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
             if (sha1.isNotEmpty()) {
-                BookmarksListBottomSheet.newInstance(sha1).show(supportFragmentManager, "bookmarks")
+                BookNavigationDialog.newInstance(sha1, 1).show(supportFragmentManager, "navigation")
             }
         }
 
         val btnChapters = findViewById<ImageButton>(R.id.btnChapters)
         btnChapters.setOnClickListener {
             val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
-            if (sha1.isNotEmpty() && BookCache.sha1 == sha1) {
-                val chapterDialog = ChapterListBottomSheet.newInstance(sha1, BookCache.content)
-                chapterDialog.setOnChapterClickListener { offset ->
-                    val pageIdx = viewModel.getPageForOffset(offset)
-                    loadPage(pageIdx)
-                }
-                chapterDialog.show(supportFragmentManager, "chapters")
+            if (sha1.isNotEmpty()) {
+                BookNavigationDialog.newInstance(sha1, 0).show(supportFragmentManager, "navigation")
             }
         }
 
@@ -396,6 +392,16 @@ class BookReaderActivity : AppCompatActivity() {
                     touchStartX = event.x
                     touchStartY = event.y
                     touchStartTime = System.currentTimeMillis()
+
+                    longPressRunnable = Runnable {
+                        val currentTextOnPage = viewModel.pagesState.value.getOrNull(viewModel.currentPage.value)?.toString() ?: ""
+                        if (currentTextOnPage.isNotEmpty() && currentTextOnPage != "[BOOK_COVER]") {
+                            val contextSnippet = if (currentTextOnPage.length > 150) currentTextOnPage.substring(0, 150) + "..." else currentTextOnPage
+                            showWordActionOrNoteDialog(currentTextOnPage, contextSnippet)
+                        }
+                    }
+                    handler.postDelayed(longPressRunnable!!, 600)
+
                     brightnessAnimator?.cancel()
                     isDraggingVerticalLeft = false
                     isDraggingVerticalRight = false
@@ -412,6 +418,13 @@ class BookReaderActivity : AppCompatActivity() {
                     val diffX = event.x - touchStartX
                     val diffY = event.y - touchStartY
                     val duration = System.currentTimeMillis() - touchStartTime
+
+                    if (Math.abs(diffX) > 15 || Math.abs(diffY) > 15) {
+                        longPressRunnable?.let {
+                            handler.removeCallbacks(it)
+                            longPressRunnable = null
+                        }
+                    }
 
                     if (duration > 100 && Math.abs(diffY) > 50 && Math.abs(diffY) > Math.abs(diffX) * 2f) {
                         if (isDraggingVerticalLeft) {
@@ -439,6 +452,10 @@ class BookReaderActivity : AppCompatActivity() {
                     }
                 }
                 MotionEvent.ACTION_UP -> {
+                    longPressRunnable?.let {
+                        handler.removeCallbacks(it)
+                        longPressRunnable = null
+                    }
                     val diffX = event.x - touchStartX
                     val diffY = event.y - touchStartY
                     val duration = System.currentTimeMillis() - touchStartTime
@@ -1246,6 +1263,15 @@ class BookReaderActivity : AppCompatActivity() {
         viewModel.setWebViewPageRestored(pageIndex + 1)
     }
 
+    fun saveNoteForBook(selectedText: String, noteText: String) {
+        viewModel.addNote(selectedText, noteText)
+    }
+
+    fun showWordActionOrNoteDialog(selectedText: String, contextSnippet: String) {
+        WordActionBottomSheet.newInstance(selectedText, contextSnippet)
+            .show(supportFragmentManager, "word_action")
+    }
+
     class WebAppInterface(private val activity: BookReaderActivity) {
         @android.webkit.JavascriptInterface
         fun onPagesCalculated(totalPages: Int) {
@@ -1265,6 +1291,13 @@ class BookReaderActivity : AppCompatActivity() {
         fun onPageRestored(pageIndex: Int) {
             activity.runOnUiThread {
                 activity.onWebViewPageRestored(pageIndex)
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun onTextSelected(selectedText: String, contextSnippet: String) {
+            activity.runOnUiThread {
+                activity.showWordActionOrNoteDialog(selectedText, contextSnippet)
             }
         }
     }

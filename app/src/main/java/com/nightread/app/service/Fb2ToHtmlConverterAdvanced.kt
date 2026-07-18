@@ -186,6 +186,32 @@ object Fb2ToHtmlConverterAdvanced {
                             return false;
                         }
 
+                        document.addEventListener('touchend', function() {
+                            handleTextSelection();
+                        });
+                        document.addEventListener('mouseup', function() {
+                            handleTextSelection();
+                        });
+
+                        function handleTextSelection() {
+                            var selection = window.getSelection();
+                            var selectedText = selection.toString().trim();
+                            if (selectedText.length > 0) {
+                                var container = null;
+                                if (selection.rangeCount > 0) {
+                                    var range = selection.getRangeAt(0);
+                                    container = range.commonAncestorContainer;
+                                    while (container && container.nodeType !== 1) {
+                                        container = container.parentNode;
+                                    }
+                                }
+                                var contextSnippet = container ? container.innerText || "" : "";
+                                if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onTextSelected) {
+                                    AndroidInterface.onTextSelected(selectedText, contextSnippet);
+                                }
+                            }
+                        }
+
                         window.onscroll = function() {
                             reportCurrentParagraph();
                         };

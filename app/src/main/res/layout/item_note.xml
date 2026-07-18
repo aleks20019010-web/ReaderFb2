@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_glass_panel"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginVertical="6dp"
+    android:padding="16dp"
+    android:elevation="2dp"
+    android:clickable="true"
+    android:focusable="true">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Left: Note Icon -->
+        <ImageView
+            android:id="@+id/ivNoteIcon"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_note"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            app:tint="@color/accent"
+            android:contentDescription="Заметка" />
+
+        <!-- Middle: Note Details -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_toEndOf="@id/ivNoteIcon"
+            android:layout_toStartOf="@id/btnDeleteNote"
+            android:paddingHorizontal="12dp">
+
+            <TextView
+                android:id="@+id/tvNoteBookTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_title"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tvNotePageAndDate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp" />
+
+        </LinearLayout>
+
+        <!-- Right: Delete Button -->
+        <ImageButton
+            android:id="@+id/btnDeleteNote"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_delete"
+            app:tint="@color/accent"
+            android:contentDescription="Удалить" />
+
+    </RelativeLayout>
+
+    <!-- Citation/Selected text snippet -->
+    <TextView
+        android:id="@+id/tvSelectedText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        android:fontFamily="sans-serif-italic"
+        android:background="#15000000"
+        android:padding="8dp"
+        android:lineSpacingMultiplier="1.1"
+        android:maxLines="3"
+        android:ellipsize="end" />
+
+    <!-- User Note text -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="8dp"
+        android:padding="8dp"
+        android:background="#209B59B6">
+
+        <TextView
+            android:id="@+id/tvNoteText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:lineSpacingMultiplier="1.2" />
+    </LinearLayout>
+
+</LinearLayout>

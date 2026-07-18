@@ -707,4 +707,29 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         }
         return ""
     }
+
+    fun getNotesForBook(bookSha1: String): kotlinx.coroutines.flow.Flow<List<com.nightread.app.data.NoteEntity>> {
+        return repository.getNotesForBook(bookSha1)
+    }
+
+    fun addNote(selectedText: String, noteText: String) {
+        val book = _bookState.value ?: return
+        val offset = getOffsetForPage(_currentPage.value)
+        viewModelScope.launch(Dispatchers.IO) {
+            val note = com.nightread.app.data.NoteEntity(
+                bookId = book.sha1,
+                bookTitle = book.title ?: "Unknown",
+                selectedText = selectedText,
+                noteText = noteText,
+                charOffset = offset
+            )
+            repository.insertNote(note)
+        }
+    }
+
+    fun deleteNote(noteId: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            noteDao.deleteNoteById(noteId)
+        }
+    }
 }
