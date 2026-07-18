@@ -417,7 +417,21 @@ object YandexDiskManager {
         try {
             val originalName = File(cleanPath).name
             val totalSize = fileBytes.size.toLong()
-            val sha1 = computeSha1(fileBytes) // Calculate SHA-1 here!
+            
+            // Align SHA-1 calculation with uncompressed FB2 bytes or EPUB metadata identifier
+            val tempFileForSha1 = File(context.cacheDir, "temp_upload_${System.nanoTime()}_$originalName")
+            val sha1 = try {
+                tempFileForSha1.writeBytes(fileBytes)
+                if (com.nightread.app.data.EpubIdentifierHelper.isEpub(tempFileForSha1)) {
+                    com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(tempFileForSha1)?.identifier
+                } else {
+                    com.nightread.app.data.Sha1Helper.computeSha1FromContent(tempFileForSha1)
+                }
+            } finally {
+                if (tempFileForSha1.exists()) {
+                    tempFileForSha1.delete()
+                }
+            } ?: computeSha1(fileBytes)
             
             YandexSyncState.update {
                 it.copy(

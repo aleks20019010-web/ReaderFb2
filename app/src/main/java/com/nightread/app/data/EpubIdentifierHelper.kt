@@ -29,6 +29,9 @@ object EpubIdentifierHelper {
                         val content = zip.readBytes().toString(Charsets.UTF_8).trim()
                         return content.contains("application/epub+zip")
                     }
+                    if (normalizedName == "meta-inf/container.xml" || normalizedName.endsWith(".opf")) {
+                        return true
+                    }
                     entry = zip.nextEntry
                 }
             }
@@ -85,10 +88,17 @@ object EpubIdentifierHelper {
                 }
             }
             
+            if (opfPath == null) {
+                opfPath = zipFiles.keys.firstOrNull { it.endsWith(".opf") }
+            }
+            
             if (opfPath != null) {
-                val normalizedOpfPath = normalizeZipPath(opfPath!!)
-                val opfDir = opfPath!!.substringBeforeLast("/", "")
+                val decodedOpf = try { java.net.URLDecoder.decode(opfPath!!, "UTF-8") } catch (e: Exception) { opfPath!! }
+                val normalizedOpfPath = normalizeZipPath(decodedOpf)
+                val opfDir = decodedOpf.substringBeforeLast("/", "")
                 opfContent = zipFiles[normalizedOpfPath]?.toString(Charsets.UTF_8)
+                    ?: zipFiles[normalizeZipPath(opfPath!!)]?.toString(Charsets.UTF_8)
+                    ?: zipFiles.values.firstOrNull { it.isNotEmpty() && (it.size > 100) && String(it.take(100).toByteArray()).contains("<package", ignoreCase = true) }?.toString(Charsets.UTF_8)
                 
                 if (opfContent != null) {
                     val idMatch = Regex("<(?:\\w+:)?identifier[^>]*>([^<]+)</(?:\\w+:)?identifier>", RegexOption.IGNORE_CASE).find(opfContent)
@@ -145,8 +155,15 @@ object EpubIdentifierHelper {
                     for (idref in idrefs) {
                         val href = manifestMap[idref]
                         if (href != null) {
-                            val fullPath = if (opfDir.isNotEmpty()) "$opfDir/$href" else href
-                            val bytes = zipFiles[normalizeZipPath(fullPath)]
+                            val decodedHref = try { java.net.URLDecoder.decode(href, "UTF-8") } catch (e: Exception) { href }
+                            val fullPath = if (opfDir.isNotEmpty()) "$opfDir/$decodedHref" else decodedHref
+                            var bytes = zipFiles[normalizeZipPath(fullPath)]
+                            if (bytes == null) {
+                                bytes = zipFiles[normalizeZipPath(decodedHref)]
+                            }
+                            if (bytes == null) {
+                                bytes = zipFiles[normalizeZipPath(href)]
+                            }
                             if (bytes != null) {
                                 // Improved encoding handling
                                 val xhtmlContent = try {
@@ -173,13 +190,46 @@ object EpubIdentifierHelper {
                         }
                     }
                     
+                    if (contentBuilder.isEmpty()) {
+                        // Fallback: read all .html, .xhtml, .htm files from zipFiles in alphabetical order
+                        val htmlFiles = zipFiles.keys.filter { it.endsWith(".xhtml") || it.endsWith(".html") || it.endsWith(".htm") }.sorted()
+                        for (path in htmlFiles) {
+                            val bytes = zipFiles[path]
+                            if (bytes != null) {
+                                val xhtmlContent = try {
+                                    val str = String(bytes, Charsets.UTF_8)
+                                    if (str.contains("encoding=\"UTF-8\"") || str.contains("encoding='UTF-8'")) {
+                                        str
+                                    } else {
+                                        String(bytes, Charset.forName("windows-1251"))
+                                    }
+                                } catch (e: Exception) {
+                                    String(bytes, Charsets.ISO_8859_1)
+                                }
+                                val bodyMatch = Regex("<body[^>]*>(.*?)</body>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(xhtmlContent)
+                                if (bodyMatch != null) {
+                                    contentBuilder.append(bodyMatch.groupValues[1])
+                                } else {
+                                    // Strip tags and append
+                                    contentBuilder.append(xhtmlContent.replace(Regex("<[^>]+>"), " "))
+                                }
+                                contentBuilder.append("\n\n")
+                            }
+                        }
+                    }
+                    
+                    if (contentBuilder.isEmpty()) {
+                        contentBuilder.append("Книга успешно импортирована.")
+                    }
+                    
                     return EpubMetadata(
                         identifier = identifier,
                         title = titleMatch?.groupValues?.get(1)?.trim() ?: "Unknown",
                         author = authorMatch?.groupValues?.get(1)?.trim() ?: "Unknown",
                         content = contentBuilder.toString(),
                         coverPath = if (coverPath != null) {
-                            if (opfDir.isNotEmpty()) "$opfDir/$coverPath" else coverPath
+                            val decodedCover = try { java.net.URLDecoder.decode(coverPath!!, "UTF-8") } catch (e: Exception) { coverPath!! }
+                            if (opfDir.isNotEmpty()) "$opfDir/$decodedCover" else decodedCover
                         } else null,
                         description = descMatch?.groupValues?.get(1)?.trim(),
                         opfDir = opfDir
