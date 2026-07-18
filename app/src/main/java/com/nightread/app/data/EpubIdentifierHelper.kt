@@ -2,13 +2,16 @@ package com.nightread.app.data
 
 import android.util.Log
 import java.io.File
+import java.nio.charset.Charset
 import java.util.zip.ZipInputStream
 
 data class EpubMetadata(
     val identifier: String,
     val title: String,
     val author: String,
-    val content: String
+    val content: String,
+    val coverPath: String? = null,
+    val description: String? = null
 )
 
 object EpubIdentifierHelper {
@@ -64,6 +67,7 @@ object EpubIdentifierHelper {
                     val idMatch = Regex("<dc:identifier[^>]*>([^<]+)</dc:identifier>", RegexOption.IGNORE_CASE).find(opfContent)
                     val titleMatch = Regex("<dc:title[^>]*>([^<]+)</dc:title>", RegexOption.IGNORE_CASE).find(opfContent)
                     val authorMatch = Regex("<dc:creator[^>]*>([^<]+)</dc:creator>", RegexOption.IGNORE_CASE).find(opfContent)
+                    val descMatch = Regex("<dc:description[^>]*>([^<]+)</dc:description>", RegexOption.IGNORE_CASE).find(opfContent)
                     
                     // Identify cover
                     val metaCoverMatch = Regex("<meta\\s+[^>]*name\\s*=\\s*[\"']cover[\"']\\s+content\\s*=\\s*[\"']([^\"']+)[\"']").find(opfContent)
@@ -93,11 +97,18 @@ object EpubIdentifierHelper {
                             val fullPath = if (opfDir.isNotEmpty()) "$opfDir/$href" else href
                             val bytes = zipFiles[fullPath]
                             if (bytes != null) {
-                                // Try UTF-8, then fall back to ISO-8859-1 if needed
+                                // Improved encoding handling
                                 val xhtmlContent = try {
-                                    bytes.toString(Charsets.UTF_8)
+                                    val str = String(bytes, Charsets.UTF_8)
+                                    // Check if it's likely UTF-8 by looking for common replacement chars or encoding declaration
+                                    if (str.contains("encoding=\"UTF-8\"") || str.contains("encoding='UTF-8'")) {
+                                        str
+                                    } else {
+                                        // Try other common encodings
+                                        String(bytes, Charset.forName("windows-1251"))
+                                    }
                                 } catch (e: Exception) {
-                                    bytes.toString(Charsets.ISO_8859_1)
+                                    String(bytes, Charsets.ISO_8859_1)
                                 }
                                 
                                 // Extract body content
@@ -115,7 +126,11 @@ object EpubIdentifierHelper {
                         identifier = identifier,
                         title = titleMatch?.groupValues?.get(1)?.trim() ?: "Unknown",
                         author = authorMatch?.groupValues?.get(1)?.trim() ?: "Unknown",
-                        content = contentBuilder.toString()
+                        content = contentBuilder.toString(),
+                        coverPath = if (coverPath != null) {
+                            if (opfDir.isNotEmpty()) "$opfDir/$coverPath" else coverPath
+                        } else null,
+                        description = descMatch?.groupValues?.get(1)?.trim()
                     )
                 }
             }

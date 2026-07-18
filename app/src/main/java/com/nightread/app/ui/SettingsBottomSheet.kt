@@ -276,26 +276,32 @@ class SettingsBottomSheet : DialogFragment() {
 
         // 5d. TTS Voice Selection (Spinner)
         val spinnerTtsVoice = view.findViewById<Spinner>(R.id.spinnerTtsVoice)
-        val tts = android.speech.tts.TextToSpeech(context, null)
-        val voices = tts.voices?.map { it.name }?.toList() ?: emptyList()
-        val voiceAdapter = SettingsSpinnerAdapter(context, voices).apply {
-            setDropDownViewResource(R.layout.spinner_dropdown_item)
-        }
-        spinnerTtsVoice.adapter = voiceAdapter
-        
-        val currentVoice = SettingsManager.getTtsVoice(context)
-        val voiceIdx = if (currentVoice != null) voices.indexOf(currentVoice).coerceAtLeast(0) else 0
-        spinnerTtsVoice.setSelection(voiceIdx)
-        spinnerTtsVoice.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val selectedVoice = voices[position]
-                if (selectedVoice != SettingsManager.getTtsVoice(context)) {
-                    SettingsManager.setTtsVoice(context, selectedVoice)
+        var tts: android.speech.tts.TextToSpeech? = null
+        tts = android.speech.tts.TextToSpeech(context, { status ->
+            if (status == android.speech.tts.TextToSpeech.SUCCESS) {
+                val voices = tts?.voices?.map { it.name }?.toList() ?: emptyList()
+                spinnerTtsVoice.post {
+                    val voiceAdapter = SettingsSpinnerAdapter(requireContext(), voices).apply {
+                        setDropDownViewResource(R.layout.spinner_dropdown_item)
+                    }
+                    spinnerTtsVoice.adapter = voiceAdapter
+                    
+                    val currentVoice = SettingsManager.getTtsVoice(context)
+                    val voiceIdx = if (currentVoice != null) voices.indexOf(currentVoice).coerceAtLeast(0) else 0
+                    spinnerTtsVoice.setSelection(voiceIdx)
+                    
+                    spinnerTtsVoice.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                            val selectedVoice = voices[position]
+                            if (selectedVoice != SettingsManager.getTtsVoice(context)) {
+                                SettingsManager.setTtsVoice(context, selectedVoice)
+                            }
+                        }
+                        override fun onNothingSelected(parent: AdapterView<*>?) {}
+                    }
                 }
             }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-        tts.shutdown()
+        })
 
 
         // 7. Auto-Discovery Switch

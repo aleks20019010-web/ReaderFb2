@@ -119,16 +119,20 @@ class BookReaderActivity : AppCompatActivity() {
                 isTtsPlaying = false
                 btnTts.setImageResource(android.R.drawable.ic_media_play)
             } else {
-                // Get text from WebView and start TTS
-                webView.evaluateJavascript("(function() { return document.body.innerText; })();") { text ->
-                    val cleanText = text.replace("\\n", " ").replace("\"", "")
-                    val savedVoice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
-                    if (savedVoice != null) {
-                        ttsManager?.setVoiceByName(savedVoice)
+                if (ttsManager?.isInitialized() == true) {
+                    // Get text from WebView and start TTS
+                    webView.evaluateJavascript("(function() { return document.body.innerText; })();") { text ->
+                        val cleanText = text.replace("\\n", " ").replace("\"", "")
+                        val savedVoice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
+                        if (savedVoice != null) {
+                            ttsManager?.setVoiceByName(savedVoice)
+                        }
+                        ttsManager?.speak(cleanText, "book_text")
+                        isTtsPlaying = true
+                        btnTts.setImageResource(android.R.drawable.ic_media_pause)
                     }
-                    ttsManager?.speak(cleanText, "book_text")
-                    isTtsPlaying = true
-                    btnTts.setImageResource(android.R.drawable.ic_media_pause)
+                } else {
+                    android.widget.Toast.makeText(this, "TTS еще загружается", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -1278,6 +1282,11 @@ class BookReaderActivity : AppCompatActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val action = event.action
         val keyCode = event.keyCode
+        
+        if (isTtsPlaying && (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP)) {
+            return super.dispatchKeyEvent(event)
+        }
+
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
                 if (action == KeyEvent.ACTION_DOWN) {

@@ -42,6 +42,8 @@ class TTSManager(
         }
     }
 
+    fun isInitialized(): Boolean = isInitialized
+
     fun getAvailableVoices(): Set<android.speech.tts.Voice>? {
         return tts?.voices
     }
