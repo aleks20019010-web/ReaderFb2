@@ -167,16 +167,16 @@ object EpubIdentifierHelper {
                             if (bytes != null) {
                                 // Improved encoding handling
                                 val xhtmlContent = try {
-                                    val str = String(bytes, Charsets.UTF_8)
-                                    // Check if it's likely UTF-8 by looking for common replacement chars or encoding declaration
-                                    if (str.contains("encoding=\"UTF-8\"") || str.contains("encoding='UTF-8'")) {
-                                        str
+                                    val strUtf8 = String(bytes, Charsets.UTF_8)
+                                    // If we don't see replacement characters and we see an explicit UTF-8 declaration, trust it.
+                                    if (!strUtf8.contains("\uFFFD") && (strUtf8.contains("encoding=\"UTF-8\"") || strUtf8.contains("encoding='UTF-8'"))) {
+                                        strUtf8
                                     } else {
-                                        // Try other common encodings
+                                        // Otherwise assume Windows-1251
                                         String(bytes, Charset.forName("windows-1251"))
                                     }
                                 } catch (e: Exception) {
-                                    String(bytes, Charsets.ISO_8859_1)
+                                    String(bytes, Charset.forName("windows-1251"))
                                 }
                                 
                                 // Extract body content
@@ -197,14 +197,16 @@ object EpubIdentifierHelper {
                             val bytes = zipFiles[path]
                             if (bytes != null) {
                                 val xhtmlContent = try {
-                                    val str = String(bytes, Charsets.UTF_8)
-                                    if (str.contains("encoding=\"UTF-8\"") || str.contains("encoding='UTF-8'")) {
-                                        str
+                                    val strUtf8 = String(bytes, Charsets.UTF_8)
+                                    // If we don't see replacement characters and we see an explicit UTF-8 declaration, trust it.
+                                    if (!strUtf8.contains("\uFFFD") && (strUtf8.contains("encoding=\"UTF-8\"") || strUtf8.contains("encoding='UTF-8'"))) {
+                                        strUtf8
                                     } else {
+                                        // Otherwise assume Windows-1251
                                         String(bytes, Charset.forName("windows-1251"))
                                     }
                                 } catch (e: Exception) {
-                                    String(bytes, Charsets.ISO_8859_1)
+                                    String(bytes, Charset.forName("windows-1251"))
                                 }
                                 val bodyMatch = Regex("<body[^>]*>(.*?)</body>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(xhtmlContent)
                                 if (bodyMatch != null) {
