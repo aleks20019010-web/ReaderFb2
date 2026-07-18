@@ -81,7 +81,7 @@ class CleanupManager(
             onProgress(index + 1, totalFiles, progressText)
             
             val sha1 = if (EpubIdentifierHelper.isEpub(file)) {
-                EpubIdentifierHelper.getEpubIdentifier(file)
+                EpubIdentifierHelper.getEpubMetadata(file)?.identifier
             } else {
                 Sha1Helper.computeSha1FromContent(file)
             }

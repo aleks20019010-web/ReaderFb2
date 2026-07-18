@@ -250,7 +250,7 @@ class YandexSyncManager(private val context: Context) {
                                             onProgress("Вычисление идентификатора: ${processedCount + 1} из $totalToProcess")
                                         }
                                         val sha1 = if (EpubIdentifierHelper.isEpub(tempFile)) {
-                                            EpubIdentifierHelper.getEpubIdentifier(tempFile)
+                                            EpubIdentifierHelper.getEpubMetadata(tempFile)?.identifier
                                         } else {
                                             Sha1Helper.computeSha1FromContent(tempFile)
                                         }

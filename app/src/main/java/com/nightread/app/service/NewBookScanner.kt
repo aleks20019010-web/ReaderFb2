@@ -9,6 +9,7 @@ import android.os.Environment
 import android.util.Log
 import com.nightread.app.data.BookDao
 import com.nightread.app.data.BookEntity
+import com.nightread.app.data.EpubIdentifierHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -681,6 +682,62 @@ class NewBookScanner(
             } catch (e: Throwable) {
                 Log.e(TAG, "Error opening zip archive: ${file.absolutePath}", e)
             }
+        } else if (ext == "epub") {
+            try {
+                if (!file.exists() || !file.canRead()) {
+                    Log.w(TAG, "EPUB file does not exist or is not readable: ${file.absolutePath}")
+                    return
+                }
+                
+                val metadata = EpubIdentifierHelper.getEpubMetadata(file)
+                if (metadata == null) {
+                    Log.w(TAG, "Failed to get metadata or ID for EPUB: ${file.absolutePath}")
+                    return
+                }
+                
+                val identifier = metadata.identifier
+                
+                if (sha1ToPathMap.containsKey(identifier)) {
+                    val existingPath = sha1ToPathMap[identifier]
+                    if (existingPath != file.absolutePath) {
+                        Log.d(TAG, "Book with ID $identifier already exists but path changed from '$existingPath' to '${file.absolutePath}'. Updating path in database.")
+                        try {
+                            kotlinx.coroutines.runBlocking {
+                                bookDao.updateFilePath(identifier, file.absolutePath)
+                            }
+                            sha1ToPathMap[identifier] = file.absolutePath
+                        } catch (ex: Exception) {
+                            Log.e(TAG, "Failed to update file path in DB during scanning for ID: $identifier", ex)
+                        }
+                    } else {
+                        Log.d(TAG, "Skipped existing EPUB book by ID ($identifier): ${file.name}")
+                    }
+                    onStatsUpdated(0, 1)
+                    return
+                }
+                
+                val book = BookEntity(
+                    sha1 = identifier,
+                    title = metadata.title,
+                    author = metadata.author,
+                    coverGradientStart = getRandomGradientStartColor(),
+                    coverGradientEnd = getRandomGradientEndColor(),
+                    category = "Local",
+                    filePath = file.absolutePath,
+                    coverPath = null,
+                    annotation = "",
+                    fileSize = file.length(),
+                    series = null,
+                    seriesIndex = null,
+                    language = "Unknown",
+                    isNew = true
+                )
+                batchList.add(book)
+                sha1ToPathMap[identifier] = file.absolutePath
+                onStatsUpdated(1, 0)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error handling epub file: ${file.absolutePath}", e)
+            }
         }
     }
 
@@ -729,7 +786,7 @@ class NewBookScanner(
                     gatherFilesRecursive(file, list, depth + 1)
                 } else {
                     val ext = file.extension.lowercase()
-                    if (ext == "fb2" || ext == "zip") {
+                    if (ext == "fb2" || ext == "zip" || ext == "epub") {
                         if (file.length() > 0 && file.length() < 30 * 1024 * 1024) {
                             list.add(file)
                         } else {
