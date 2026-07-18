@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <!-- Owl Body -->
+    <path
+        android:fillColor="#FFE3A8"
+        android:pathData="M60,30 C35,30 35,90 60,90 C85,90 85,30 60,30 Z" />
+    <!-- Eyes -->
+    <path android:fillColor="#000000" android:pathData="M45,50 A5,5 0 1,1 45,50.1 Z" />
+    <path android:fillColor="#000000" android:pathData="M75,50 A5,5 0 1,1 75,50.1 Z" />
+    <!-- Book -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,80 L80,80 L80,100 L40,100 Z" />
+</vector>
