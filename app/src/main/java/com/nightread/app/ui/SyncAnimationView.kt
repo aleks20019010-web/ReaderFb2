@@ -109,56 +109,43 @@ fun CentralIcon(color: Color, transition: InfiniteTransition) {
 
     Canvas(modifier = Modifier.size(100.dp)) {
         val center = Offset(size.width / 2, size.height / 2)
+        val owlColor = color
+        val bookColor = Color.White
+
+        // Body
+        drawOval(
+            color = owlColor,
+            topLeft = Offset(center.x - 25.dp.toPx(), center.y - 20.dp.toPx()),
+            size = Size(50.dp.toPx(), 60.dp.toPx())
+        )
+
+        // Eyes
+        drawCircle(Color.Black, radius = 8.dp.toPx(), center = Offset(center.x - 12.dp.toPx(), center.y - 10.dp.toPx()))
+        drawCircle(Color.Black, radius = 8.dp.toPx(), center = Offset(center.x + 12.dp.toPx(), center.y - 10.dp.toPx()))
         
-        // Central Core Glow
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(color.copy(alpha = 0.8f), color.copy(alpha = 0.2f), Color.Transparent),
-                center = center,
-                radius = 30.dp.toPx() * pulse
-            ),
-            center = center,
-            radius = 30.dp.toPx() * pulse
+        // Glasses
+        drawCircle(Color.White, radius = 10.dp.toPx(), center = Offset(center.x - 12.dp.toPx(), center.y - 10.dp.toPx()), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()))
+        drawCircle(Color.White, radius = 10.dp.toPx(), center = Offset(center.x + 12.dp.toPx(), center.y - 10.dp.toPx()), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()))
+        drawLine(Color.White, start = Offset(center.x - 2.dp.toPx(), center.y - 10.dp.toPx()), end = Offset(center.x + 2.dp.toPx(), center.y - 10.dp.toPx()), strokeWidth = 2.dp.toPx())
+
+        // Beak
+        drawPath(
+            path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(center.x, center.y - 2.dp.toPx())
+                lineTo(center.x - 5.dp.toPx(), center.y + 5.dp.toPx())
+                lineTo(center.x + 5.dp.toPx(), center.y + 5.dp.toPx())
+                close()
+            },
+            color = Color(0xFFFFD600)
         )
 
-        // Inner solid core
-        drawCircle(
-            color = color,
-            center = center,
-            radius = 12.dp.toPx()
+        // Book
+        drawRect(
+            color = bookColor,
+            topLeft = Offset(center.x - 20.dp.toPx(), center.y + 20.dp.toPx()),
+            size = Size(40.dp.toPx(), 20.dp.toPx())
         )
-
-        // Orbit 1
-        rotate(rotationSlow, center) {
-            drawCircle(
-                color = color.copy(alpha = 0.5f),
-                center = center,
-                radius = 35.dp.toPx(),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
-            )
-            // Small node on orbit
-            drawCircle(
-                color = color,
-                center = Offset(center.x + 35.dp.toPx(), center.y),
-                radius = 4.dp.toPx()
-            )
-        }
-
-        // Orbit 2
-        rotate(rotationFast, center) {
-            drawCircle(
-                color = color.copy(alpha = 0.4f),
-                center = center,
-                radius = 45.dp.toPx(),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
-            )
-            // Another node
-            drawCircle(
-                color = Color.White,
-                center = Offset(center.x, center.y - 45.dp.toPx()),
-                radius = 3.dp.toPx()
-            )
-        }
+        drawLine(Color.Black, start = Offset(center.x, center.y + 20.dp.toPx()), end = Offset(center.x, center.y + 40.dp.toPx()), strokeWidth = 1.dp.toPx())
     }
 }
 
