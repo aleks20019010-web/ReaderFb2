@@ -331,22 +331,46 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 
                 val digest = java.security.MessageDigest.getInstance("SHA-1")
                 digest.update(finalBytesForSha1)
-                val computedSha1 = digest.digest().joinToString("") { String.format("%02x", it) }
+                val fileSha1 = digest.digest().joinToString("") { String.format("%02x", it) }
                 
+                var computedSha1 = fileSha1
+                var parsedTitle = fileName.substringBeforeLast(".")
+                var parsedAuthor = "Неизвестен"
+                var parsedContent = ""
+                var parsedSeries: String? = null
+                var parsedSeriesIndex: Int? = null
+                var parsedLanguage: String? = "ru"
+                var parsedAnnotation: String? = null
+                var coverPath: String? = null
+                
+                val importedFolder = java.io.File(context.filesDir, "imported_books")
+                if (!importedFolder.exists()) {
+                    importedFolder.mkdirs()
+                }
 
+                // If it is an EPUB, parse its identifier first
+                if (ext == "epub") {
+                    val tempLocalFile = java.io.File(importedFolder, "temp_$fileSha1.epub")
+                    tempLocalFile.writeBytes(bytes)
+                    val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(tempLocalFile)
+                    if (metadata != null) {
+                        computedSha1 = metadata.identifier
+                        parsedTitle = metadata.title
+                        parsedAuthor = metadata.author
+                        parsedContent = metadata.content
+                        parsedAnnotation = metadata.description
+                    }
+                    try { tempLocalFile.delete() } catch (ignored: Exception) {}
+                }
+
+                val localFile = java.io.File(importedFolder, "$computedSha1.$ext")
+                localFile.writeBytes(bytes)
 
                 Log.d("BookScanner", "[MANUAL-SHA1] Calculated SHA-1: $computedSha1 for manual imported file: $fileName")
                 
                 // Query database directly to avoid any flow latency/cache duplication issues
                 val duplicate = repository.getBookBySha1(computedSha1)
                 
-                val importedFolder = java.io.File(context.filesDir, "imported_books")
-                if (!importedFolder.exists()) {
-                    importedFolder.mkdirs()
-                }
-                val localFile = java.io.File(importedFolder, "$computedSha1.$ext")
-                localFile.writeBytes(bytes)
-
                 if (duplicate != null) {
                     Log.d("BookScanner", "[MANUAL-DUPLICATE] Book with SHA-1 $computedSha1 already exists in database. Updating its file path to ${localFile.absolutePath}")
                     val updatedBook = duplicate.copy(filePath = localFile.absolutePath)
@@ -356,14 +380,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     return@launch
                 }
-                
-                var parsedTitle = fileName.substringBeforeLast(".")
-                var parsedAuthor = "Неизвестен"
-                var parsedContent = ""
-                var parsedSeries: String? = null
-                var parsedSeriesIndex: Int? = null
-                var parsedLanguage: String? = "ru"
-                var parsedAnnotation: String? = null
                 
                 if (ext == "fb2") {
                     val rawText = decodeBytesToString(bytes)
@@ -375,6 +391,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     parsedSeriesIndex = parsed.seriesIndex
                     parsedLanguage = parsed.language
                     parsedAnnotation = parsed.annotation
+                    coverPath = extractAndSaveCover(localFile, computedSha1)
                 } else if (ext == "zip") {
                     // Extract data from the uncompressed bytes we found earlier
                     val rawText = decodeBytesToString(finalBytesForSha1)
@@ -386,6 +403,12 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     parsedSeriesIndex = parsed.seriesIndex
                     parsedLanguage = parsed.language
                     parsedAnnotation = parsed.annotation
+                    coverPath = extractAndSaveCover(localFile, computedSha1)
+                } else if (ext == "epub") {
+                    val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(localFile)
+                    if (metadata != null) {
+                        coverPath = com.nightread.app.data.EpubIdentifierHelper.extractAndSaveEpubCover(localFile, metadata.coverPath, computedSha1, context)
+                    }
                 } else {
                     parsedContent = decodeBytesToString(bytes)
                     parsedAuthor = "Локальный TXT"
@@ -397,8 +420,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     return@launch
                 }
-                
-                val coverPath = extractAndSaveCover(localFile, computedSha1)
                 
                 val strippedContent = if (localFile.extension.lowercase() == "fb2") {
                     com.nightread.app.service.NewCoverExtractor.stripBinarySections(parsedContent)

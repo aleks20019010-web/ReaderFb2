@@ -19,13 +19,15 @@ object EpubIdentifierHelper {
     private const val TAG = "EpubIdentifierHelper"
 
     fun isEpub(file: File): Boolean {
+        if (file.extension.lowercase() == "epub") return true
         return try {
             ZipInputStream(file.inputStream().buffered()).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
-                    if (entry.name == "mimetype") {
+                    val normalizedName = entry.name.replace("\\", "/").trim().lowercase()
+                    if (normalizedName == "mimetype") {
                         val content = zip.readBytes().toString(Charsets.UTF_8).trim()
-                        return content == "application/epub+zip"
+                        return content.contains("application/epub+zip")
                     }
                     entry = zip.nextEntry
                 }
@@ -34,6 +36,29 @@ object EpubIdentifierHelper {
         } catch (e: Exception) {
             Log.e(TAG, "Error checking if file is EPUB: ${file.name}", e)
             false
+        }
+    }
+
+    private fun normalizeZipPath(path: String): String {
+        return path.replace("\\", "/").replace("//", "/").trim().lowercase()
+    }
+
+    fun computeFileSha1(file: File): String? {
+        if (!file.exists() || !file.isFile) return null
+        return try {
+            java.io.FileInputStream(file).use { fis ->
+                val digest = java.security.MessageDigest.getInstance("SHA-1")
+                val buffer = ByteArray(8192)
+                var bytesRead: Int
+                while (fis.read(buffer).also { bytesRead = it } != -1) {
+                    digest.update(buffer, 0, bytesRead)
+                }
+                val sha1Bytes = digest.digest()
+                sha1Bytes.joinToString("") { "%02x".format(it) }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to compute SHA-1 of local file: ${file.absolutePath}", e)
+            null
         }
     }
 
@@ -48,55 +73,83 @@ object EpubIdentifierHelper {
                 var entry = zip.nextEntry
                 while (entry != null) {
                     val content = zip.readBytes()
-                    if (entry.name == "META-INF/container.xml") {
+                    val normalizedName = normalizeZipPath(entry.name)
+                    if (normalizedName == "meta-inf/container.xml") {
                         val strContent = content.toString(Charsets.UTF_8)
                         val match = Regex("<rootfile\\s+[^>]*full-path\\s*=\\s*[\"']([^\"']+)[\"']").find(strContent)
                         opfPath = match?.groupValues?.get(1)
                     } else {
-                        zipFiles[entry.name] = content
+                        zipFiles[normalizedName] = content
                     }
                     entry = zip.nextEntry
                 }
             }
             
             if (opfPath != null) {
-                // OPF is relative to container, handle potential directory structures
+                val normalizedOpfPath = normalizeZipPath(opfPath!!)
                 val opfDir = opfPath!!.substringBeforeLast("/", "")
-                opfContent = zipFiles[opfPath]?.toString(Charsets.UTF_8)
+                opfContent = zipFiles[normalizedOpfPath]?.toString(Charsets.UTF_8)
                 
                 if (opfContent != null) {
-                    val idMatch = Regex("<dc:identifier[^>]*>([^<]+)</dc:identifier>", RegexOption.IGNORE_CASE).find(opfContent)
-                    val titleMatch = Regex("<dc:title[^>]*>([^<]+)</dc:title>", RegexOption.IGNORE_CASE).find(opfContent)
-                    val authorMatch = Regex("<dc:creator[^>]*>([^<]+)</dc:creator>", RegexOption.IGNORE_CASE).find(opfContent)
-                    val descMatch = Regex("<dc:description[^>]*>([^<]+)</dc:description>", RegexOption.IGNORE_CASE).find(opfContent)
+                    val idMatch = Regex("<(?:\\w+:)?identifier[^>]*>([^<]+)</(?:\\w+:)?identifier>", RegexOption.IGNORE_CASE).find(opfContent)
+                    val titleMatch = Regex("<(?:\\w+:)?title[^>]*>([^<]+)</(?:\\w+:)?title>", RegexOption.IGNORE_CASE).find(opfContent)
+                    val authorMatch = Regex("<(?:\\w+:)?creator[^>]*>([^<]+)</(?:\\w+:)?creator>", RegexOption.IGNORE_CASE).find(opfContent)
+                    val descMatch = Regex("<(?:\\w+:)?description[^>]*>([^<]+)</(?:\\w+:)?description>", RegexOption.IGNORE_CASE).find(opfContent)
                     
                     // Identify cover
-                    val metaCoverMatch = Regex("<meta\\s+[^>]*name\\s*=\\s*[\"']cover[\"']\\s+content\\s*=\\s*[\"']([^\"']+)[\"']").find(opfContent)
-                    if (metaCoverMatch != null) {
-                        val coverId = metaCoverMatch.groupValues[1]
-                        val manifestMatches = Regex("<item\\s+[^>]*id\\s*=\\s*[\"']([^\"']+)[\"']\\s+href\\s*=\\s*[\"']([^\"']+)[\"']").findAll(opfContent)
-                        val manifestMap = manifestMatches.associate { it.groupValues[1] to it.groupValues[2] }
+                    var coverId: String? = null
+                    val metaMatches = Regex("<meta\\s+([^>]+)>", RegexOption.IGNORE_CASE).findAll(opfContent)
+                    for (meta in metaMatches) {
+                        val attrs = meta.groupValues[1]
+                        if (attrs.contains("name=\"cover\"", ignoreCase = true) || attrs.contains("name='cover'", ignoreCase = true)) {
+                            val contentMatch = Regex("content\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
+                            if (contentMatch != null) {
+                                coverId = contentMatch.groupValues[1]
+                                break
+                            }
+                        }
+                    }
+
+                    // Map IDs to file paths robustly to handle attributes in arbitrary order
+                    val manifestMap = mutableMapOf<String, String>()
+                    val itemMatches = Regex("<item\\s+([^>]+)>", RegexOption.IGNORE_CASE).findAll(opfContent)
+                    for (item in itemMatches) {
+                        val attrs = item.groupValues[1]
+                        val idM = Regex("id\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
+                        val hrefM = Regex("href\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
+                        if (idM != null && hrefM != null) {
+                            manifestMap[idM.groupValues[1]] = hrefM.groupValues[1]
+                        }
+                    }
+
+                    if (coverId != null) {
                         coverPath = manifestMap[coverId]
                     }
 
-                    val identifier = idMatch?.groupValues?.get(1)?.trim() ?: ""
+                    var identifier = idMatch?.groupValues?.get(1)?.trim() ?: ""
+                    if (identifier.isEmpty()) {
+                        identifier = computeFileSha1(file) ?: java.util.UUID.randomUUID().toString()
+                    }
                     
                     // Parse Spine
                     val spineMatch = Regex("<spine[^>]*>(.*?)</spine>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(opfContent)
                     val spine = spineMatch?.groupValues?.get(1) ?: ""
-                    val itemrefMatches = Regex("<itemref\\s+[^>]*idref\\s*=\\s*[\"']([^\"']+)[\"']").findAll(spine)
-                    
-                    // Map IDs to file paths
-                    val manifestMatches = Regex("<item\\s+[^>]*id\\s*=\\s*[\"']([^\"']+)[\"']\\s+href\\s*=\\s*[\"']([^\"']+)[\"']").findAll(opfContent)
-                    val manifestMap = manifestMatches.associate { it.groupValues[1] to it.groupValues[2] }
+                    val itemrefMatches = Regex("<itemref\\s+([^>]+)>", RegexOption.IGNORE_CASE).findAll(spine)
+                    val idrefs = mutableListOf<String>()
+                    for (itemref in itemrefMatches) {
+                        val attrs = itemref.groupValues[1]
+                        val idrefM = Regex("idref\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
+                        if (idrefM != null) {
+                            idrefs.add(idrefM.groupValues[1])
+                        }
+                    }
                     
                     val contentBuilder = StringBuilder()
-                    for (itemref in itemrefMatches) {
-                        val idref = itemref.groupValues[1]
+                    for (idref in idrefs) {
                         val href = manifestMap[idref]
                         if (href != null) {
                             val fullPath = if (opfDir.isNotEmpty()) "$opfDir/$href" else href
-                            val bytes = zipFiles[fullPath]
+                            val bytes = zipFiles[normalizeZipPath(fullPath)]
                             if (bytes != null) {
                                 // Improved encoding handling
                                 val xhtmlContent = try {
@@ -166,6 +219,42 @@ object EpubIdentifierHelper {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error unzipping file: ${zipFile.name}", e)
+        }
+    }
+
+    fun extractAndSaveEpubCover(file: File, coverPath: String?, sha1: String, context: android.content.Context): String? {
+        if (coverPath.isNullOrEmpty()) return null
+        return try {
+            val normalizedCoverPath = normalizeZipPath(coverPath)
+            var coverBytes: ByteArray? = null
+            
+            ZipInputStream(file.inputStream().buffered()).use { zip ->
+                var entry = zip.nextEntry
+                while (entry != null) {
+                    val normalizedName = normalizeZipPath(entry.name)
+                    if (normalizedName == normalizedCoverPath) {
+                        coverBytes = zip.readBytes()
+                        break
+                    }
+                    entry = zip.nextEntry
+                }
+            }
+            
+            if (coverBytes != null && coverBytes!!.isNotEmpty()) {
+                val cacheDir = context.cacheDir
+                val coversDir = File(cacheDir, "covers")
+                if (!coversDir.exists()) {
+                    coversDir.mkdirs()
+                }
+                val coverFile = File(coversDir, "${sha1}.jpg")
+                coverFile.writeBytes(coverBytes!!)
+                coverFile.absolutePath
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting EPUB cover: ${file.name}", e)
+            null
         }
     }
 }

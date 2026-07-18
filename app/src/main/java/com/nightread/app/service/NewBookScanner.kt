@@ -716,6 +716,7 @@ class NewBookScanner(
                     return
                 }
                 
+                val savedCoverPath = EpubIdentifierHelper.extractAndSaveEpubCover(file, metadata.coverPath, identifier, context)
                 val book = BookEntity(
                     sha1 = identifier,
                     title = metadata.title,
@@ -724,7 +725,7 @@ class NewBookScanner(
                     coverGradientEnd = getRandomGradientEndColor(),
                     category = "Local",
                     filePath = file.absolutePath,
-                    coverPath = metadata.coverPath,
+                    coverPath = savedCoverPath,
                     annotation = metadata.description,
                     fileSize = file.length(),
                     series = null,
