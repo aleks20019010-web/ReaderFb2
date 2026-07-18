@@ -1,42 +1,255 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="120dp"
-    android:height="120dp"
-    android:viewportWidth="120"
-    android:viewportHeight="120">
+    android:width="220dp"
+    android:height="220dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- LAYER 1: Ultra-Soft Majestic Outer Cosmic Halos (Realistic Light Dispersion) -->
+    <path
+        android:fillColor="#04FFF6D1"
+        android:pathData="M100,100 m-98,0 a98,98 0 1,1 196,0 a98,98 0 1,1 -196,0" />
+    <path
+        android:fillColor="#07FFE8AB"
+        android:pathData="M100,100 m-85,0 a85,85 0 1,1 170,0 a85,85 0 1,1 -170,0" />
+    <path
+        android:fillColor="#0BFFDF87"
+        android:pathData="M100,100 m-72,0 a72,72 0 1,1 144,0 a72,72 0 1,1 -144,0" />
+    <path
+        android:fillColor="#15FFD86B"
+        android:pathData="M100,100 m-60,0 a60,60 0 1,1 120,0 a60,60 0 1,1 -120,0" />
+    <path
+        android:fillColor="#22FFE194"
+        android:pathData="M100,100 m-51,0 a51,51 0 1,1 102,0 a51,51 0 1,1 -102,0" />
+    <path
+        android:fillColor="#35FFF5D9"
+        android:pathData="M100,100 m-46,0 a46,46 0 1,1 92,0 a46,46 0 1,1 -92,0" />
+
+    <!-- LAYER 2: Core Moon Sphere (Warm Pearl/Silver Sand Base) -->
+    <path
+        android:fillColor="#FFFDF4"
+        android:pathData="M100,100 m-45,0 a45,45 0 1,1 90,0 a45,45 0 1,1 -90,0" />
+
+    <!-- LAYER 3: Intricate Lunar Seas (Maria) - Advanced Layered Organic Terrains -->
+    <!-- Oceanus Procellarum (The vast western plain) -->
+    <path
+        android:fillColor="#1CD0B484"
+        android:pathData="M65,85 C56,88 56,108 58,118 C60,128 66,134 76,132 C82,130 86,120 84,108 C82,96 74,82 65,85 Z" />
+    <!-- Mare Imbrium (Giant northwestern basin) -->
+    <path
+        android:fillColor="#26D5BC8A"
+        android:pathData="M80,68 C71,68 64,78 68,90 C72,96 82,96 88,90 C94,84 89,68 80,68 Z" />
+    <!-- Sinus Iridum (Bay of Rainbows - detail extension of Imbrium) -->
+    <path
+        android:fillColor="#2CD5BC8A"
+        android:pathData="M69,76 C65,76 63,82 67,85 C71,88 73,82 69,76 Z" />
+    <!-- Mare Serenitatis (Sea of Serenity - central-east) -->
+    <path
+        android:fillColor="#28D2B986"
+        android:pathData="M108,72 C100,72 96,82 100,90 C104,96 114,94 116,88 C118,82 116,72 108,72 Z" />
+    <!-- Mare Tranquillitatis (Sea of Tranquility - Apollo 11 landing site) -->
+    <path
+        android:fillColor="#2BD4BA85"
+        android:pathData="M116,86 C108,86 104,95 108,103 C112,109 122,107 124,100 C126,93 124,86 116,86 Z" />
+    <!-- Mare Crisium (Sea of Crises - sharp, circular dark plain on the east) -->
+    <path
+        android:fillColor="#33CEB27B"
+        android:pathData="M132,86 C128,86 125,92 128,97 C131,102 137,100 137,94 C137,88 136,86 132,86 Z" />
+    <!-- Mare Fecunditatis (Sea of Fertility - lower east) -->
+    <path
+        android:fillColor="#1ED4B680"
+        android:pathData="M126,102 C118,102 116,114 121,121 C126,128 133,124 135,115 C137,106 134,102 126,102 Z" />
+    <!-- Mare Nectaris (Sea of Nectar) -->
+    <path
+        android:fillColor="#22D4B680"
+        android:pathData="M112,112 C108,112 105,118 108,122 C111,126 116,124 116,118 C116,112 116,112 112,112 Z" />
+    <!-- Mare Nubium (Sea of Clouds - southern mid-west) -->
+    <path
+        android:fillColor="#1ED4B680"
+        android:pathData="M78,116 C70,116 68,126 72,133 C76,140 86,138 88,128 C90,118 86,116 78,116 Z" />
+    <!-- Mare Humorum (Sea of Moisture - lower far-west) -->
+    <path
+        android:fillColor="#24CEB27B"
+        android:pathData="M64,118 C58,118 56,124 59,129 C62,134 68,132 68,125 C68,118 69,118 64,118 Z" />
+
+    <!-- LAYER 4: Surface Micro-Textures & Highland Accents (Bright peaks and textured dust) -->
+    <!-- Bright Highland Ridges -->
+    <path
+        android:strokeColor="#1EFFFFFF"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:pathData="M95,58 Q100,56 108,59 M80,60 Q85,58 90,62 M102,141 Q108,142 114,139" />
+    <!-- Micro Speckles for fine-grain terrain depth -->
+    <path android:fillColor="#1AD4B680" android:pathData="M84,105 m-1,0 a1,1 0 1,1 2,0 a1,1 0 1,1 -1,0" />
+    <path android:fillColor="#1AD4B680" android:pathData="M92,118 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -2,0" />
+    <path android:fillColor="#1AD4B680" android:pathData="M115,110 m-1.5,0 a1.5,1.5 0 1,1 3,0 a1.5,1.5 0 1,1 -1.5,0" />
+    <path android:fillColor="#1AD4B680" android:pathData="M108,122 m-1,0 a1,1 0 1,1 2,0 a1,1 -1,0" />
+    <path android:fillColor="#1AD4B680" android:pathData="M72,82 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -2,0" />
+    <path android:fillColor="#1AD4B680" android:pathData="M125,76 m-1,0 a1,1 0 1,1 2,0 a1,1 0 1,1 -1,0" />
+    <path android:fillColor="#1AD4B680" android:pathData="M61,96 m-1.5,0 a1.5,1.5 0 1,1 3,0 a1.5,1.5 0 1,1 -1.5,0" />
+
+    <!-- LAYER 5: 3D Multi-Layered Crater Systems (Shadow, Base, and Glowing Rims) -->
     
-    <!-- Outer ambient glowing rings -->
+    <!-- Crater A: Tycho (The Spectacular Southern Jewel with Ray System) -->
+    <!-- Radiant Ray System (Faint, elegant white rays spreading out across the moon face) -->
     <path
-        android:pathData="M 60,10 A 50,50 0 1,1 59.99,10 Z"
-        android:strokeColor="#20FFE3A8"
-        android:strokeWidth="1" />
+        android:strokeColor="#22FFFFFF"
+        android:strokeWidth="1.0"
+        android:strokeLineCap="round"
+        android:pathData="M100,134 L90,118 M100,134 L110,122 M100,134 L82,128 M100,134 L118,131 M100,134 L96,144 M100,134 L104,144 M100,134 L74,124 M100,134 L126,124 M100,134 L100,95" />
+    <!-- Tycho Shadow Base -->
     <path
-        android:pathData="M 60,18 A 42,42 0 1,1 59.99,18 Z"
-        android:strokeColor="#10FFE3A8"
-        android:strokeWidth="1.5" />
-        
-    <!-- Premium Golden Crescent Moon -->
+        android:fillColor="#40C2A573"
+        android:pathData="M100,134 m-4.8,0 a4.8,4.8 0 1,1 9.6,0 a4.8,4.8 0 1,1 -9.6,0" />
+    <!-- Tycho Central Peak and Floor Shadow -->
     <path
-        android:fillColor="#FFE3A8"
-        android:pathData="M75,25 C50,25 35,45 35,65 C35,85 50,100 75,100 C60,100 48,88 48,65 C48,42 60,25 75,25 Z" />
+        android:fillColor="#507E633C"
+        android:pathData="M99.5,133.5 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0" />
+    <path
+        android:fillColor="#A0FFFFFF"
+        android:pathData="M100,133.5 m-1,0 a1,1 0 1,1 2,0 a1,1 0 1,1 -2,0" /> <!-- Central peak star -->
+    <!-- Tycho High-Contrast Rim Highlight -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="0.9"
+        android:pathData="M95.5,134.8 Q100,139.8 104.5,134.8" />
+    <path
+        android:strokeColor="#D5C5A8"
+        android:strokeWidth="0.8"
+        android:pathData="M95.5,134.8 Q100,129.8 104.5,134.8" />
 
-    <!-- Sparkly Star 1 (Inside/Near moon center) -->
+    <!-- Crater B: Copernicus (Middle-West, complex terraced walls) -->
+    <path
+        android:fillColor="#45C2A573"
+        android:pathData="M78,100 m-4,0 a4,4 0 1,1 8,0 a4,4 0 1,1 -8,0" />
+    <path
+        android:fillColor="#5A7E633C"
+        android:pathData="M77.5,99.5 m-2.8,0 a2.8,2.8 0 1,1 5.6,0 a2.8,2.8 0 1,1 -5.6,0" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="0.9"
+        android:pathData="M74.4,101.2 Q78,104.5 81.6,101.2" />
+    <path
+        android:strokeColor="#D5C5A8"
+        android:strokeWidth="0.8"
+        android:pathData="M74.4,101.2 Q78,97.2 81.6,101.2" />
+
+    <!-- Crater C: Kepler (Lower-West, bright ray origin) -->
+    <!-- Kepler Rays -->
+    <path
+        android:strokeColor="#18FFFFFF"
+        android:strokeWidth="0.8"
+        android:pathData="M70,112 L60,110 M70,112 L80,114 M70,112 L72,102 M70,112 L66,122" />
+    <path
+        android:fillColor="#3CC2A573"
+        android:pathData="M70,112 m-2.8,0 a2.8,2.8 0 1,1 5.6,0 a2.8,2.8 0 1,1 -5.6,0" />
+    <path
+        android:fillColor="#4C7E633C"
+        android:pathData="M69.6,111.6 m-1.8,0 a1.8,1.8 0 1,1 3.6,0 a1.8,1.8 0 1,1 -3.6,0" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="0.8"
+        android:pathData="M67.5,113 Q70,115.5 72.5,113" />
+
+    <!-- Crater D: Plato (Top-Center, dark flat volcanic floor) -->
+    <path
+        android:fillColor="#5558452D"
+        android:pathData="M96,65 m-3.2,0 a3.2,3.2 0 1,1 6.4,0 a3.2,3.2 0 1,1 -6.4,0" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="0.9"
+        android:pathData="M93.1,66 Q96,68.8 98.9,66" />
+    <path
+        android:strokeColor="#8A7655"
+        android:strokeWidth="0.7"
+        android:pathData="M93.1,66 Q96,63.2 98.9,66" />
+
+    <!-- Crater E: Gassendi (Edge of Mare Humorum) -->
+    <path
+        android:fillColor="#40C2A573"
+        android:pathData="M66,126 m-2.5,0 a2.5,2.5 0 1,1 5,0 a2.5,2.5 0 1,1 -5,0" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="0.8"
+        android:pathData="M63.8,127.2 Q66,129.2 68.2,127.2" />
+
+    <!-- Crater F: Aristarchus (Stunningly bright white point, northwest) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M69,90 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0" />
+    <path
+        android:fillColor="#4FFFCA3E"
+        android:pathData="M69,90 m-1,0 a1,1 0 1,1 2,0 a1,1 0 1,1 -2,0" />
+    <!-- Bright halos around Aristarchus -->
+    <path
+        android:fillColor="#15FFFFFF"
+        android:pathData="M69,90 m-6,0 a6,6 0 1,1 12,0 a6,6 0 1,1 -12,0" />
+
+    <!-- Crater G: Langrenus (Circular eastern sentinel) -->
+    <path
+        android:fillColor="#38C2A573"
+        android:pathData="M132,112 m-3,0 a3,3 0 1,1 6,0 a3,3 0 1,1 -6,0" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="0.8"
+        android:pathData="M129.2,113.5 Q132,116 134.8,113.5" />
+
+    <!-- Crater H: Petavius (Large crater with prominent central fracture line) -->
+    <path
+        android:fillColor="#3CC2A573"
+        android:pathData="M128,122 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="0.8"
+        android:pathData="M124.8,123.5 Q128,126.5 131.2,123.5" />
+    <!-- Central Fracture Line -->
+    <path
+        android:strokeColor="#30000000"
+        android:strokeWidth="0.8"
+        android:pathData="M126.5,122 L129.5,122" />
+
+    <!-- LAYER 6: 3D Spherical Terminal Crescent Shadows (Dynamic Volumetric Shading) -->
+    <!-- Ambient dark surface shading (Warm cosmic grey-amber terminator) -->
+    <path
+        android:fillColor="#151E1200"
+        android:pathData="M100,55 C124,55 145,75 145,100 C145,125 124,145 100,145 C113,145 122,128 122,100 C122,72 113,55 100,55 Z" />
+    <!-- Main Crescent Shadow Phase (Slightly deeper eclipse) -->
+    <path
+        android:fillColor="#30231600"
+        android:pathData="M100,55 C124,55 145,75 145,100 C145,125 124,145 100,145 C117,145 127,128 127,100 C127,72 117,55 100,55 Z" />
+    <!-- Deepest Edge Shadow (For smooth rim blending in dark themes) -->
+    <path
+        android:fillColor="#450C0500"
+        android:pathData="M100,55 C124,55 145,75 145,100 C145,125 124,145 100,145 C121,145 132,128 132,100 C132,72 121,55 100,55 Z" />
+
+    <!-- LAYER 7: Sparkling Celestial Environment (Twinkling Stars & Distant Sparkles) -->
+    <!-- Star A: Elegant 4-Point Golden Twinkle Star (Upper Left) -->
+    <path
+        android:fillColor="#FFFBEC"
+        android:pathData="M38,40 Q40,40 40,38 Q40,40 42,40 Q40,40 40,42 Q40,40 38,40" />
+    <path
+        android:fillColor="#FFEAA1"
+        android:pathData="M39,40 Q40,40 40,39 Q40,40 41,40 Q40,40 40,41 Q40,40 39,40" />
+    <!-- Star B: Twin Tiny Twinkle (Lower Right) -->
+    <path
+        android:fillColor="#FFF4D0"
+        android:pathData="M162,148 Q163.5,148 163.5,146.5 Q163.5,148 165,148 Q163.5,148 163.5,149.5 Q163.5,148 162,148" />
+    <!-- Star C: Deep Cosmic Sparkle (Upper Right) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M80,48 L82.5,53 L87.5,53 L83.5,56 L85,61 L80,58 L75,61 L76.5,56 L72.5,53 L77.5,53 Z" />
-
-    <!-- Tiny Star 2 (Top Left) -->
+        android:pathData="M152,56 Q153,56 153,55 Q153,56 154,56 Q153,56 153,57 Q153,56 152,56" />
+    <!-- Distant Cosmic Dust Specs -->
     <path
-        android:fillColor="#FFE875"
-        android:pathData="M35,32 L36.5,34.5 L39.5,34.5 L37,36.5 L38,39.5 L35,37.5 L32,39.5 L33,36.5 L30.5,34.5 L33.5,34.5 Z" />
-
-    <!-- Tiny Star 3 (Bottom Left) -->
+        android:fillColor="#80FFFFFF"
+        android:pathData="M48,52 m-0.8,0 a0.8,0.8 0 1,1 1.6,0 a0.8,0.8 0 1,1 -1.6,0" />
     <path
-        android:fillColor="#FFE875"
-        android:pathData="M40,82 L41.5,84 L43.5,84 L41.7,85.5 L42.5,87.5 L40,86 L37.5,87.5 L38.3,85.5 L36.5,84 L38.5,84 Z" />
-
-    <!-- Sparkly Star 4 (Right side) -->
+        android:fillColor="#80FFE391"
+        android:pathData="M142,138 m-0.6,0 a0.6,0.6 0 1,1 1.2,0 a0.6,0.6 0 1,1 -1.2,0" />
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M92,72 L93.5,75.5 L97,75.5 L94,77.5 L95.5,81 L92,79 L88.5,81 L90,77.5 L87,75.5 L90.5,75.5 Z" />
+        android:fillColor="#A0FFFFFF"
+        android:pathData="M156,75 m-0.7,0 a0.7,0.7 0 1,1 1.4,0 a0.7,0.7 0 1,1 -1.4,0" />
+    <path
+        android:fillColor="#60FFFFFF"
+        android:pathData="M32,124 m-0.5,0 a0.5,0.5 0 1,1 1.0,0 a0.5,0.5 0 1,1 -1.0,0" />
+
 </vector>

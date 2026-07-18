@@ -108,7 +108,7 @@
                                 android:layout_height="match_parent"
                                 android:layout_gravity="center"
                                 android:scaleType="fitCenter"
-                                android:src="@drawable/ic_wise_owl" />
+                                android:src="@drawable/ic_premium_moon" />
                         </FrameLayout>
 
                         <!-- Mood Title -->
