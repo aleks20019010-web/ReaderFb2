@@ -73,8 +73,40 @@ class BookReaderActivity : AppCompatActivity() {
     private var isWebViewLoading = false
     private var brightnessAnimator: android.animation.ValueAnimator? = null
     private var longPressRunnable: Runnable? = null
-    private var ttsManager: com.nightread.app.service.TTSManager? = null
+    private var ttsService: com.nightread.app.service.TTSService? = null
+    private var isBound = false
+    private val ttsConnection = object : android.content.ServiceConnection {
+        override fun onServiceConnected(className: android.content.ComponentName, service: android.os.IBinder) {
+            val binder = service as com.nightread.app.service.TTSService.LocalBinder
+            ttsService = binder.getService()
+            ttsService?.onRangeStart = { start, end ->
+                // Basic implementation: Scroll to start index
+                // Since mapping index to element is hard, we can try to scroll to a specific position
+                // or just log for now to ensure synchronization callback is firing.
+                android.util.Log.d("BookReaderActivity", "Sync: $start - $end")
+            }
+            isBound = true
+        }
+        override fun onServiceDisconnected(arg0: android.content.ComponentName) {
+            isBound = false
+        }
+    }
     private var isTtsPlaying = false
+
+    override fun onStart() {
+        super.onStart()
+        android.content.Intent(this, com.nightread.app.service.TTSService::class.java).also { intent ->
+            bindService(intent, ttsConnection, android.content.Context.BIND_AUTO_CREATE)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (isBound) {
+            unbindService(ttsConnection)
+            isBound = false
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,10 +130,6 @@ class BookReaderActivity : AppCompatActivity() {
         val readerSplashStarryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.reader_splash_starry_bg)
         readerSplashStarryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
-        ttsManager = com.nightread.app.service.TTSManager(this, { utteranceId ->
-            // Handle auto-scrolling here when an utterance starts
-        }, null)
-
         viewModel = ViewModelProvider(this).get(ReaderViewModel::class.java)
 
         val btnBack = findViewById<View>(R.id.btnBack)
@@ -114,20 +142,23 @@ class BookReaderActivity : AppCompatActivity() {
 
         val btnTts = findViewById<ImageButton>(R.id.btnTts)
         btnTts.setOnClickListener {
+            val manager = ttsService?.getTtsManager()
             if (isTtsPlaying) {
-                ttsManager?.pause()
+                manager?.pause()
                 isTtsPlaying = false
                 btnTts.setImageResource(android.R.drawable.ic_media_play)
             } else {
-                if (ttsManager?.isInitialized() == true) {
+                if (manager?.isInitialized() == true) {
                     // Get text from WebView and start TTS
                     webView.evaluateJavascript("(function() { return document.body.innerText; })();") { text ->
-                        val cleanText = text.replace("\\n", " ").replace("\"", "")
+                        // Remove leading/trailing quotes and handle escaped newlines
+                        val cleanText = text.trim('"').replace("\\n", " ").replace("\\\\n", " ")
                         val savedVoice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
                         if (savedVoice != null) {
-                            ttsManager?.setVoiceByName(savedVoice)
+                            manager?.setVoiceByName(savedVoice)
                         }
-                        ttsManager?.speak(cleanText, "book_text")
+                        manager?.setSpeed(com.nightread.app.data.SettingsManager.getTtsSpeed(this))
+                        manager?.speak(cleanText, "book_text")
                         isTtsPlaying = true
                         btnTts.setImageResource(android.R.drawable.ic_media_pause)
                     }
@@ -1228,7 +1259,6 @@ class BookReaderActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        ttsManager?.shutdown()
         brightnessAnimator?.cancel()
         sleepTimerJob?.cancel()
         unregisterSensors()

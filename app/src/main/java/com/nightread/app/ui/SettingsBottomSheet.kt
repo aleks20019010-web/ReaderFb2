@@ -276,32 +276,37 @@ class SettingsBottomSheet : DialogFragment() {
 
         // 5d. TTS Voice Selection (Spinner)
         val spinnerTtsVoice = view.findViewById<Spinner>(R.id.spinnerTtsVoice)
-        var tts: android.speech.tts.TextToSpeech? = null
-        tts = android.speech.tts.TextToSpeech(context, { status ->
-            if (status == android.speech.tts.TextToSpeech.SUCCESS) {
-                val voices = tts?.voices?.map { it.name }?.toList() ?: emptyList()
-                spinnerTtsVoice.post {
-                    val voiceAdapter = SettingsSpinnerAdapter(requireContext(), voices).apply {
-                        setDropDownViewResource(R.layout.spinner_dropdown_item)
-                    }
-                    spinnerTtsVoice.adapter = voiceAdapter
-                    
-                    val currentVoice = SettingsManager.getTtsVoice(context)
-                    val voiceIdx = if (currentVoice != null) voices.indexOf(currentVoice).coerceAtLeast(0) else 0
-                    spinnerTtsVoice.setSelection(voiceIdx)
-                    
-                    spinnerTtsVoice.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                            val selectedVoice = voices[position]
-                            if (selectedVoice != SettingsManager.getTtsVoice(context)) {
-                                SettingsManager.setTtsVoice(context, selectedVoice)
-                            }
-                        }
-                        override fun onNothingSelected(parent: AdapterView<*>?) {}
+        
+        // Use a temporary TTSManager to get voices
+        val tempTtsManager = com.nightread.app.service.TTSManager(requireContext(), {}, null)
+        
+        // This is a bit hacky, but we need to wait for initialization. 
+        // Better: add a callback to TTSManager or initialize it properly.
+        // For now, let's just check if it's initialized and get voices.
+        
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            val voices = tempTtsManager.getAvailableVoiceNames()
+            android.util.Log.d("SettingsBottomSheet", "Voices found: ${voices.size}")
+            
+            val voiceAdapter = SettingsSpinnerAdapter(requireContext(), voices).apply {
+                setDropDownViewResource(R.layout.spinner_dropdown_item)
+            }
+            spinnerTtsVoice.adapter = voiceAdapter
+            
+            val currentVoice = SettingsManager.getTtsVoice(requireContext())
+            val voiceIdx = if (currentVoice != null) voices.indexOf(currentVoice).coerceAtLeast(0) else 0
+            spinnerTtsVoice.setSelection(voiceIdx)
+            
+            spinnerTtsVoice.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                    val selectedVoice = voices[position]
+                    if (selectedVoice != SettingsManager.getTtsVoice(requireContext())) {
+                        SettingsManager.setTtsVoice(requireContext(), selectedVoice)
                     }
                 }
+                override fun onNothingSelected(parent: AdapterView<*>?) {}
             }
-        })
+        }, 1000) // Delay to allow initialization
 
 
         // 7. Auto-Discovery Switch

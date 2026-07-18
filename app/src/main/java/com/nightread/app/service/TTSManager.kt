@@ -20,25 +20,35 @@ class TTSManager(
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            val result = tts?.setLanguage(Locale.getDefault())
+            var result = tts?.setLanguage(Locale.getDefault())
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                Log.e("TTSManager", "Language not supported")
+                Log.e("TTSManager", "Language ${Locale.getDefault()} not supported, trying US")
+                result = tts?.setLanguage(Locale.US)
+                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    Log.e("TTSManager", "US locale also not supported")
+                }
             }
             tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {
+                    Log.d("TTSManager", "TTS Started: $utteranceId")
                     utteranceId?.let { onUtteranceStart(it) }
                 }
 
                 override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
+                    Log.d("TTSManager", "TTS Range Start: $start, $end")
                     utteranceId?.let { onRangeStart?.invoke(it, start, end) }
                 }
 
-                override fun onDone(utteranceId: String?) {}
-                override fun onError(utteranceId: String?) {}
+                override fun onDone(utteranceId: String?) {
+                    Log.d("TTSManager", "TTS Done: $utteranceId")
+                }
+                override fun onError(utteranceId: String?) {
+                    Log.e("TTSManager", "TTS Error: $utteranceId")
+                }
             })
             isInitialized = true
         } else {
-            Log.e("TTSManager", "TTS initialization failed")
+            Log.e("TTSManager", "TTS initialization failed: $status")
         }
     }
 

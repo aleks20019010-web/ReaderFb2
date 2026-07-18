@@ -15,6 +15,7 @@ import com.nightread.app.R
 class TTSService : Service() {
     private val binder = LocalBinder()
     private var ttsManager: TTSManager? = null
+    var onRangeStart: ((Int, Int) -> Unit)? = null
     private val NOTIFICATION_ID = 1001
     private val CHANNEL_ID = "TTS_SERVICE_CHANNEL"
 
@@ -25,7 +26,7 @@ class TTSService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        ttsManager = TTSManager(this, { }, null)
+        ttsManager = TTSManager(this, { }, { _, start, end -> onRangeStart?.invoke(start, end) })
     }
 
     private fun createNotificationChannel() {
