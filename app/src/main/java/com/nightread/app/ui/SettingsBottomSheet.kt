@@ -244,6 +244,7 @@ class SettingsBottomSheet : DialogFragment() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        /*
         // 5c. Text Alignment Selection (Spinner)
         val alignKeys = listOf("left", "center", "right", "justify")
         val alignNames = mapOf(
@@ -273,6 +274,8 @@ class SettingsBottomSheet : DialogFragment() {
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
+        */
+
 
 
         // 7. Auto-Discovery Switch
@@ -704,7 +707,7 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<Spinner>(R.id.spinnerFont)?.background = spinnerBg
         rootView.findViewById<Spinner>(R.id.spinnerTheme)?.background = spinnerBg
         rootView.findViewById<Spinner>(R.id.spinnerAnimation)?.background = spinnerBg
-        rootView.findViewById<Spinner>(R.id.spinnerAlignment)?.background = spinnerBg
+        // rootView.findViewById<Spinner>(R.id.spinnerAlignment)?.background = spinnerBg
 
         // 9b. Update Spinner Adapters colors
         val fontAdapter = rootView.findViewById<Spinner>(R.id.spinnerFont)?.adapter as? SettingsSpinnerAdapter<*>
@@ -722,10 +725,11 @@ class SettingsBottomSheet : DialogFragment() {
         animAdapter?.itemBgColor = itemBgColor
         animAdapter?.notifyDataSetChanged()
         
-        val alignAdapter = rootView.findViewById<Spinner>(R.id.spinnerAlignment)?.adapter as? SettingsSpinnerAdapter<*>
-        alignAdapter?.textColor = textPrimaryColor
-        alignAdapter?.itemBgColor = itemBgColor
-        alignAdapter?.notifyDataSetChanged()
+        // val alignAdapter = rootView.findViewById<Spinner>(R.id.spinnerAlignment)?.adapter as? SettingsSpinnerAdapter<*>
+        // alignAdapter?.textColor = textPrimaryColor
+        // alignAdapter?.itemBgColor = itemBgColor
+        // alignAdapter?.notifyDataSetChanged()
+
 
         // 10. Programmatic background and text colors for quick font switching buttons
         val currentFont = SettingsManager.getFontFamily(context)
