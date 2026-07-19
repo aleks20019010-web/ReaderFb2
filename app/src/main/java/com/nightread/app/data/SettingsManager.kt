@@ -66,7 +66,8 @@ object SettingsManager {
     private var cachedPageAnimation: String? = null
     private var cachedHyphenationEnabled: Boolean? = null
     private var cachedReadingTheme: String? = null
-    private var cachedUserPreferredTheme: String? = null
+    private var cachedUserPreferredDayTheme: String? = null
+    private var cachedUserPreferredNightTheme: String? = null
 
     private var cachedOnboardingCompleted: Boolean? = null 
     private var cachedAutoDiscovery: Boolean? = null
@@ -437,23 +438,46 @@ object SettingsManager {
         return cachedReadingTheme!!
     }
 
+    fun isNightTheme(theme: String): Boolean {
+        return theme == "dark" || theme == "amoled" || theme == "contrast"
+    }
+
     fun setReadingTheme(context: Context, theme: String) {
         cachedReadingTheme = theme
-        cachedUserPreferredTheme = theme
-        getPrefs(context).edit()
-            .putString(KEY_READING_THEME, theme)
-            .putString("user_preferred_theme", theme)
-            .apply()
+        val editor = getPrefs(context).edit().putString(KEY_READING_THEME, theme)
+        
+        if (isNightTheme(theme)) {
+            cachedUserPreferredNightTheme = theme
+            editor.putString("user_preferred_night_theme", theme)
+        } else {
+            cachedUserPreferredDayTheme = theme
+            editor.putString("user_preferred_day_theme", theme)
+        }
+        
+        editor.apply()
         notifyChanged()
     }
 
-    fun getUserPreferredTheme(context: Context): String {
-        if (cachedUserPreferredTheme == null) {
-            cachedUserPreferredTheme = getPrefs(context).getString("user_preferred_theme", null)
-                ?: getPrefs(context).getString(KEY_READING_THEME, "sepia")
-                ?: "sepia"
+    fun getUserPreferredDayTheme(context: Context): String {
+        if (cachedUserPreferredDayTheme == null) {
+            cachedUserPreferredDayTheme = getPrefs(context).getString("user_preferred_day_theme", null)
+            if (cachedUserPreferredDayTheme == null) {
+                val current = getPrefs(context).getString(KEY_READING_THEME, "sepia") ?: "sepia"
+                cachedUserPreferredDayTheme = if (!isNightTheme(current)) current else "sepia"
+            }
         }
-        return cachedUserPreferredTheme!!
+        return cachedUserPreferredDayTheme!!
+    }
+
+    fun getUserPreferredNightTheme(context: Context): String {
+        if (cachedUserPreferredNightTheme == null) {
+            cachedUserPreferredNightTheme = getPrefs(context).getString("user_preferred_night_theme", null)
+            if (cachedUserPreferredNightTheme == null) {
+                val current = getPrefs(context).getString(KEY_READING_THEME, "dark") ?: "dark"
+                cachedUserPreferredNightTheme = if (isNightTheme(current)) current else "dark"
+            }
+        }
+        return cachedUserPreferredNightTheme!!
     }
 
     fun setAutoReadingTheme(context: Context, theme: String) {

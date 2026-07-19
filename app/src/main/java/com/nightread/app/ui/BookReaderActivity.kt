@@ -98,6 +98,7 @@ class BookReaderActivity : AppCompatActivity() {
     private var lightSensor: android.hardware.Sensor? = null
     private var accelerometerListener: android.hardware.SensorEventListener? = null
     private var lightSensorListener: android.hardware.SensorEventListener? = null
+    private var lastKnownLux: Float? = null
     private var remainingTimeMs: Long = 0
     private var isWebViewLoading = false
     private var brightnessAnimator: android.animation.ValueAnimator? = null
@@ -446,6 +447,7 @@ class BookReaderActivity : AppCompatActivity() {
             viewModel.themeState.collectLatest { theme ->
                 applyTheme(theme)
                 updatePage()
+                reEvaluateAutoTheme()
             }
         }
 
@@ -1421,6 +1423,7 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     private fun handleLightSensorChanged(lux: Float) {
+        lastKnownLux = lux
         val antiGlare = lux > 10000f
         if (isAntiGlareActive != antiGlare) {
             isAntiGlareActive = antiGlare
@@ -1433,15 +1436,20 @@ class BookReaderActivity : AppCompatActivity() {
             webView.evaluateJavascript("if (typeof applyAntiGlare !== 'undefined') { applyAntiGlare($antiGlare, '$textColorHex'); }", null)
         }
 
+        reEvaluateAutoTheme()
+    }
+
+    private fun reEvaluateAutoTheme() {
+        val lux = lastKnownLux ?: return
         if (com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(this)) {
             val currentTheme = viewModel.themeState.value
-            val preferredTheme = com.nightread.app.data.SettingsManager.getUserPreferredTheme(this)
+            val preferredDayTheme = com.nightread.app.data.SettingsManager.getUserPreferredDayTheme(this)
+            val preferredNightTheme = com.nightread.app.data.SettingsManager.getUserPreferredNightTheme(this)
             
-            // Optimized thresholds: < 12 lux for night, > 20 lux for restoring preferred theme
             val targetTheme = if (lux < 12f) {
-                "dark"
+                preferredNightTheme
             } else if (lux > 20f) {
-                preferredTheme
+                preferredDayTheme
             } else {
                 return // Middle ground, keep current
             }
