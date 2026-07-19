@@ -84,6 +84,12 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private var pageStartOffsets = listOf<Int>()
     private var repaginateJob: kotlinx.coroutines.Job? = null
 
+    fun getParagraphIndexFromOffset(offset: Int): Int {
+        val subContent = content.substring(0, offset.coerceAtMost(content.length))
+        val tagRegex = Regex("<(p|title|subtitle|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>", RegexOption.IGNORE_CASE)
+        return tagRegex.findAll(subContent).count()
+    }
+
     fun getPageForOffset(offset: Int): Int {
         if (pageStartOffsets.isEmpty()) return 0
         

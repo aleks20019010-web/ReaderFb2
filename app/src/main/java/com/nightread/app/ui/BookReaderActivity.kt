@@ -1550,6 +1550,22 @@ class BookReaderActivity : AppCompatActivity() {
         }
     }
 
+    fun navigateToOffset(offset: Int) {
+        val filePath = viewModel.bookState.value?.filePath ?: ""
+        val isWebViewBook = filePath.endsWith(".fb2", true) || 
+                           filePath.endsWith(".fb2.zip", true) || 
+                           filePath.endsWith(".zip", true) ||
+                           filePath.endsWith(".epub", true)
+        
+        if (isWebViewBook) {
+            val pIndex = viewModel.getParagraphIndexFromOffset(offset)
+            navigateToParagraph(pIndex)
+        } else {
+            val pageIdx = viewModel.getPageForOffset(offset)
+            loadPage(pageIdx)
+        }
+    }
+
     fun loadPage(pageNumber: Int) {
         viewModel.setCurrentPage(pageNumber)
     }
