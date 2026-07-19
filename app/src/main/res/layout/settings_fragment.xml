@@ -312,16 +312,16 @@
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="12dp"
-                android:textColor="#FF6B6B"
+                android:textColor="#E8D8F0"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:text="@string/settings_clear_library"
-                app:strokeColor="#33FF4D4D"
-                app:rippleColor="#1AFF4D4D"
+                app:strokeColor="#4DFFFFFF"
+                app:rippleColor="#26FFFFFF"
                 app:cornerRadius="12dp"
                 app:icon="@android:drawable/ic_menu_delete"
                 app:iconGravity="textStart"
-                app:iconTint="#FF6B6B" />
+                app:iconTint="#E8D8F0" />
 
             <!-- Info -->
             <TextView

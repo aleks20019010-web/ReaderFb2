@@ -89,7 +89,8 @@ object SettingsManager {
 
     private fun getPrefs(context: Context): SharedPreferences {
         if (prefs == null) {
-            prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val appContext = context.applicationContext ?: context
+            prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         }
         return prefs!!
     }
