@@ -66,6 +66,7 @@ object SettingsManager {
     private var cachedPageAnimation: String? = null
     private var cachedHyphenationEnabled: Boolean? = null
     private var cachedReadingTheme: String? = null
+    private var cachedUserPreferredTheme: String? = null
 
     private var cachedOnboardingCompleted: Boolean? = null 
     private var cachedAutoDiscovery: Boolean? = null
@@ -437,6 +438,25 @@ object SettingsManager {
     }
 
     fun setReadingTheme(context: Context, theme: String) {
+        cachedReadingTheme = theme
+        cachedUserPreferredTheme = theme
+        getPrefs(context).edit()
+            .putString(KEY_READING_THEME, theme)
+            .putString("user_preferred_theme", theme)
+            .apply()
+        notifyChanged()
+    }
+
+    fun getUserPreferredTheme(context: Context): String {
+        if (cachedUserPreferredTheme == null) {
+            cachedUserPreferredTheme = getPrefs(context).getString("user_preferred_theme", null)
+                ?: getPrefs(context).getString(KEY_READING_THEME, "sepia")
+                ?: "sepia"
+        }
+        return cachedUserPreferredTheme!!
+    }
+
+    fun setAutoReadingTheme(context: Context, theme: String) {
         if (cachedReadingTheme == theme) return
         cachedReadingTheme = theme
         getPrefs(context).edit().putString(KEY_READING_THEME, theme).apply()

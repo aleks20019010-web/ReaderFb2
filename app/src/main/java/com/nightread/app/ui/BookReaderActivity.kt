@@ -1404,7 +1404,7 @@ class BookReaderActivity : AppCompatActivity() {
             }
             lightSensor = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_LIGHT)
             lightSensor?.let {
-                sensorManager?.registerListener(lightSensorListener, it, android.hardware.SensorManager.SENSOR_DELAY_UI)
+                sensorManager?.registerListener(lightSensorListener, it, android.hardware.SensorManager.SENSOR_DELAY_FASTEST)
             }
         }
     }
@@ -1435,17 +1435,19 @@ class BookReaderActivity : AppCompatActivity() {
 
         if (com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(this)) {
             val currentTheme = viewModel.themeState.value
-            // Optimized thresholds: < 12 lux for night, > 20 lux for sepia
+            val preferredTheme = com.nightread.app.data.SettingsManager.getUserPreferredTheme(this)
+            
+            // Optimized thresholds: < 12 lux for night, > 20 lux for restoring preferred theme
             val targetTheme = if (lux < 12f) {
                 "dark"
             } else if (lux > 20f) {
-                "sepia"
+                preferredTheme
             } else {
                 return // Middle ground, keep current
             }
             
             if (currentTheme != targetTheme) {
-                com.nightread.app.data.SettingsManager.setReadingTheme(this, targetTheme)
+                com.nightread.app.data.SettingsManager.setAutoReadingTheme(this, targetTheme)
             }
         }
     }
