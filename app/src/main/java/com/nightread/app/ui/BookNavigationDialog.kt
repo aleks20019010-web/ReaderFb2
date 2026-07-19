@@ -47,7 +47,6 @@ class BookNavigationDialog : DialogFragment() {
     private lateinit var navigationCardRoot: CardView
     private lateinit var navigationToolbar: View
     private lateinit var btnBack: ImageButton
-    private lateinit var btnMenu: ImageButton
     private lateinit var tvBookTitle: TextView
     private lateinit var dividerTabs: View
 
@@ -101,10 +100,7 @@ class BookNavigationDialog : DialogFragment() {
         navigationToolbar = view.findViewById(R.id.navigationToolbar)
         btnBack = view.findViewById(R.id.btnBack)
         btnBack.setOnClickListener { dismiss() }
-        btnMenu = view.findViewById(R.id.btnMenu)
-        btnMenu.setOnClickListener {
-            CustomToast.show(context, "Настройки навигации")
-        }
+        // btnMenu was removed
         tvBookTitle = view.findViewById(R.id.tvBookTitle)
         dividerTabs = view.findViewById(R.id.dividerTabs)
 
@@ -545,7 +541,6 @@ class BookNavigationDialog : DialogFragment() {
         // 2. Toolbar Elements
         tvBookTitle.setTextColor(textPrimaryColor)
         btnBack.imageTintList = ColorStateList.valueOf(textPrimaryColor)
-        btnMenu.imageTintList = ColorStateList.valueOf(textPrimaryColor)
 
         // 3. TabLayout Colors
         tabLayout.setBackgroundColor(toolbarBgColor)
@@ -596,7 +591,6 @@ class BookNavigationDialog : DialogFragment() {
 
         inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val tvTitle: TextView = view.findViewById(R.id.tvChapterTitle)
-            val tvPage: TextView = view.findViewById(R.id.tvChapterPage)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -608,28 +602,6 @@ class BookNavigationDialog : DialogFragment() {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val offset = offsets[position]
             holder.tvTitle.text = titles.getOrNull(position) ?: "Глава ${position + 1}"
-
-            // Dynamically query chapter page number using offset
-            val filePath = viewModel.bookState.value?.filePath ?: ""
-            val isWebViewBook = filePath.endsWith(".fb2", true) || 
-                               filePath.endsWith(".fb2.zip", true) || 
-                               filePath.endsWith(".zip", true) ||
-                               filePath.endsWith(".epub", true)
-            
-            val pageNum = if (isWebViewBook) {
-                val totalLength = BookCache.content.length
-                val totalPages = viewModel.pagesState.value.size
-                if (totalLength > 0 && totalPages > 1) {
-                    val ratio = offset.toFloat() / totalLength.toFloat()
-                    val estimatedIdx = 1 + (ratio * (totalPages - 1)).toInt().coerceIn(0, totalPages - 2)
-                    estimatedIdx + 1
-                } else {
-                    1
-                }
-            } else {
-                viewModel.getPageForOffset(offset) + 1
-            }
-            holder.tvPage.text = pageNum.toString()
 
             // Map and style backgrounds matching activeTheme
             val itemBgHex = when (activeTheme) {
@@ -644,12 +616,6 @@ class BookNavigationDialog : DialogFragment() {
                 "contrast" -> "#FFFFFF"
                 else -> "#E8D8F0"
             }
-            val textSecondaryHex = when (activeTheme) {
-                "light", "beige" -> "#7F8C8D"
-                "sepia", "sepia_contrast" -> "#8F7365"
-                "contrast" -> "#AAAAAA"
-                else -> "#B8A0C8"
-            }
 
             val itemBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
@@ -658,7 +624,6 @@ class BookNavigationDialog : DialogFragment() {
             }
             holder.itemView.background = itemBg
             holder.tvTitle.setTextColor(Color.parseColor(textPrimaryHex))
-            holder.tvPage.setTextColor(Color.parseColor(textSecondaryHex))
 
             holder.itemView.setOnClickListener { onClick(offset) }
         }

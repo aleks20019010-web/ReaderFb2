@@ -59,6 +59,7 @@
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_menu_more"
                 android:contentDescription="Меню"
+                android:visibility="gone"
                 app:tint="#E8D8F0" />
         </RelativeLayout>
 
