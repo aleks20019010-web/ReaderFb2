@@ -21,15 +21,7 @@ object ThemeHelper {
     }
 
     fun applyTheme(context: Context) {
-        val targetMode = if (SettingsManager.isAutoLightNightEnabled(context)) {
-            if (shouldBeNightMode()) {
-                AppCompatDelegate.MODE_NIGHT_YES
-            } else {
-                AppCompatDelegate.MODE_NIGHT_NO
-            }
-        } else {
-            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-        }
+        val targetMode = AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
         
         if (AppCompatDelegate.getDefaultNightMode() != targetMode) {
             AppCompatDelegate.setDefaultNightMode(targetMode)

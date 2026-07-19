@@ -1404,7 +1404,7 @@ class BookReaderActivity : AppCompatActivity() {
             }
             lightSensor = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_LIGHT)
             lightSensor?.let {
-                sensorManager?.registerListener(lightSensorListener, it, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+                sensorManager?.registerListener(lightSensorListener, it, android.hardware.SensorManager.SENSOR_DELAY_UI)
             }
         }
     }
@@ -1435,10 +1435,10 @@ class BookReaderActivity : AppCompatActivity() {
 
         if (com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(this)) {
             val currentTheme = viewModel.themeState.value
-            // Thresholds: < 10 lux for night, > 40 lux for sepia
-            val targetTheme = if (lux < 10f) {
+            // Optimized thresholds: < 12 lux for night, > 20 lux for sepia
+            val targetTheme = if (lux < 12f) {
                 "dark"
-            } else if (lux > 40f) {
+            } else if (lux > 20f) {
                 "sepia"
             } else {
                 return // Middle ground, keep current

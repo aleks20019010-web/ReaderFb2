@@ -103,8 +103,5 @@ class MainApplication : Application(), ImageLoaderFactory, androidx.work.Configu
 
         // Apply theme immediately on startup
         ThemeManager.applyTheme(this)
-        if (SettingsManager.isAutoLightNightEnabled(this)) {
-            ThemeUpdateReceiver.scheduleNextThemeAlarm(this)
-        }
     }
 }
