@@ -83,7 +83,7 @@
     <path android:fillColor="#1AD4B680" android:pathData="M84,105 m-1,0 a1,1 0 1,1 2,0 a1,1 0 1,1 -1,0" />
     <path android:fillColor="#1AD4B680" android:pathData="M92,118 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -2,0" />
     <path android:fillColor="#1AD4B680" android:pathData="M115,110 m-1.5,0 a1.5,1.5 0 1,1 3,0 a1.5,1.5 0 1,1 -1.5,0" />
-    <path android:fillColor="#1AD4B680" android:pathData="M108,122 m-1,0 a1,1 0 1,1 2,0 a1,1 -1,0" />
+    <path android:fillColor="#1AD4B680" android:pathData="M108,122 m-1,0 a1,1 0 1,1 2,0 a1,1 0 1,1 -2,0" />
     <path android:fillColor="#1AD4B680" android:pathData="M72,82 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -2,0" />
     <path android:fillColor="#1AD4B680" android:pathData="M125,76 m-1,0 a1,1 0 1,1 2,0 a1,1 0 1,1 -1,0" />
     <path android:fillColor="#1AD4B680" android:pathData="M61,96 m-1.5,0 a1.5,1.5 0 1,1 3,0 a1.5,1.5 0 1,1 -1.5,0" />
