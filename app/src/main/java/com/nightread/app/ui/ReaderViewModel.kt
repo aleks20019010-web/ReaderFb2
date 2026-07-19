@@ -161,15 +161,13 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun loadBook(bookSha1: String) {
+    private var pendingTargetOffset: Int = -1
+
+    fun loadBook(bookSha1: String, targetOffset: Int = -1) {
         viewModelScope.launch(Dispatchers.IO) {
             val book = bookDao.getBookBySha1(bookSha1)
             if (book != null) {
-                withContext(Dispatchers.Main) {
-                    _bookState.value = book
-                    // Correctly restore current page on book load
-                    _currentPage.value = book.currentPageIndex
-                }
+                pendingTargetOffset = targetOffset
                 
                 if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty()) {
                     content = BookCache.content
@@ -185,7 +183,6 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                         }
                         
                         if (file.extension.lowercase() == "fb2" || file.extension.lowercase() == "zip" || file.extension.lowercase() == "epub") {
-                            // Keep raw content for FB2/ZIP/EPUB, as WebView needs the HTML/XML tags
                             content = rawContent
                         } else {
                             content = TextCleaner.cleanText(rawContent) as String
@@ -198,17 +195,30 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                     BookCache.content = content
                 }
                 
+                val isWebView = book.filePath?.endsWith(".fb2", true) == true || 
+                                book.filePath?.endsWith(".fb2.zip", true) == true || 
+                                book.filePath?.endsWith(".zip", true) == true ||
+                                book.filePath?.endsWith(".epub", true) == true
+                
+                val finalBook = if (targetOffset != -1 && isWebView) {
+                    book.copy(currentProgressChar = getParagraphIndexFromOffset(targetOffset))
+                } else {
+                    book
+                }
+
+                withContext(Dispatchers.Main) {
+                    _bookState.value = finalBook
+                    _currentPage.value = finalBook.currentPageIndex
+                }
+                
                 if (availableWidth > 0 && availableHeight > 0) {
-                    if (book.filePath?.endsWith(".fb2", true) == true || 
-                        book.filePath?.endsWith(".fb2.zip", true) == true || 
-                        book.filePath?.endsWith(".zip", true) == true ||
-                        book.filePath?.endsWith(".epub", true) == true) {
+                    if (isWebView) {
                         _pagesState.value = listOf("WEBVIEW_CONTENT_${System.currentTimeMillis()}")
                     } else {
                         repaginate()
                     }
                 } else {
-                    fallbackPagination(book)
+                    fallbackPagination(finalBook)
                 }
             }
         }
@@ -332,13 +342,18 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         repaginateJob?.cancel()
         repaginateJob = viewModelScope.launch(Dispatchers.Default) {
             // 1. Determine current reading position (character offset)
-            val currentOffset: Int = if (currentOffsetsSnapshot.isNotEmpty() && currentPageSnapshot < currentOffsetsSnapshot.size && currentPageSnapshot > 0) {
+            val currentOffset: Int = if (pendingTargetOffset != -1) {
+                pendingTargetOffset
+            } else if (currentOffsetsSnapshot.isNotEmpty() && currentPageSnapshot < currentOffsetsSnapshot.size && currentPageSnapshot > 0) {
                 currentOffsetsSnapshot[currentPageSnapshot]
             } else if (savedOffset > 0) {
                 savedOffset
             } else {
                 -1
             }
+            
+            // clear the pending target offset so subsequent repaginations (like font changes) keep the current page
+            pendingTargetOffset = -1
 
             // 2. Measure and slice text into pages based on actual font parameters using PageSplitter
             val paint = android.text.TextPaint().apply {
@@ -391,7 +406,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 val pages = splitResult.pages
                 
                 var newPageIndex = 0
-                if (currentOffset == -1 || currentPageSnapshot == 0) {
+                if (currentOffset == -1) {
                     newPageIndex = 0
                 } else {
                     for (i in 0 until offsets.size) {
@@ -455,7 +470,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                         }
                         
                         var newPageIndex = 0
-                        if (currentOffset == -1 || currentPageSnapshot == 0) {
+                        if (currentOffset == -1) {
                             newPageIndex = 0
                         } else {
                             for (i in 0 until finalOffsets.size) {
@@ -525,7 +540,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 
                 // 3. Find the best matching page in the new layout
                 var newPageIndex = 0
-                if (currentOffset == -1 || currentPageSnapshot == 0) {
+                if (currentOffset == -1) {
                     newPageIndex = 0
                 } else {
                     for (i in 0 until finalOffsets.size) {

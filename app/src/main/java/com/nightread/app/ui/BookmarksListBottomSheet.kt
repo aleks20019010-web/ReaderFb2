@@ -17,6 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.nightread.app.MainActivity
 import com.nightread.app.R
 import com.nightread.app.data.BookmarkDatabase
 import com.nightread.app.data.BookmarkEntity
@@ -94,7 +95,16 @@ class BookmarksListBottomSheet : DialogFragment() {
             onBookmarkClicked = { bookmark ->
                 // Navigate to this bookmark in BookReaderActivity
                 dismiss()
-                (activity as? BookReaderActivity)?.navigateToOffset(bookmark.charOffset)
+                val currentActivity = activity
+                if (currentActivity is BookReaderActivity) {
+                    currentActivity.navigateToOffset(bookmark.charOffset)
+                } else if (currentActivity is MainActivity) {
+                    val intent = android.content.Intent(currentActivity, BookReaderActivity::class.java).apply {
+                        putExtra("BOOK_SHA1", bookmark.bookSha1)
+                        putExtra("NAVIGATE_TO_OFFSET", bookmark.charOffset)
+                    }
+                    currentActivity.startActivity(intent)
+                }
             },
             onBookmarkDeleteClicked = { bookmark ->
                 confirmAndDeleteBookmark(bookmark)

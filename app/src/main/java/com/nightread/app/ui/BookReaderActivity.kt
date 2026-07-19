@@ -586,9 +586,10 @@ class BookReaderActivity : AppCompatActivity() {
         applyScreenSettings()
 
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
+        val targetOffset = intent.getIntExtra("NAVIGATE_TO_OFFSET", -1)
         if (sha1.isNotEmpty()) {
             com.nightread.app.data.SettingsManager.setLastReadBookSha1(this, sha1)
-            viewModel.loadBook(sha1)
+            viewModel.loadBook(sha1, targetOffset)
         }
     }
 
