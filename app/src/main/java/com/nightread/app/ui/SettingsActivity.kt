@@ -54,14 +54,41 @@ class SettingsActivity : BaseActivity() {
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "Настройки"
+        supportActionBar?.title = getString(R.string.drawer_settings)
         toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+
+        // --- ЯЗЫК ИНТЕРФЕЙСА ---
+        val spinnerLanguage = findViewById<Spinner>(R.id.spinnerLanguage)
+        val languages = listOf(getString(R.string.language_russian), getString(R.string.language_english))
+        val languageCodes = listOf("ru", "en")
+        
+        val languageAdapter = ArrayAdapter(this, R.layout.spinner_item, languages)
+        languageAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
+        spinnerLanguage.adapter = languageAdapter
+        
+        val currentLang = SettingsManager.getLanguage(this)
+        val langIndex = languageCodes.indexOf(currentLang).coerceAtLeast(0)
+        spinnerLanguage.setSelection(langIndex, false)
+        
+        spinnerLanguage.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedLang = languageCodes[position]
+                if (SettingsManager.getLanguage(this@SettingsActivity) != selectedLang) {
+                    SettingsManager.setLanguage(this@SettingsActivity, selectedLang)
+                    // Apply locale using AppCompatDelegate (Standard Jetpack localization)
+                    val localeList = androidx.core.os.LocaleListCompat.forLanguageTags(selectedLang)
+                    androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList)
+                    recreate()
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
 
         // --- НАСТРОЙКИ БИБЛИОТЕКИ ---
         // Buttons
         findViewById<Button>(R.id.btnScanLibrary).setOnClickListener {
             viewModel.startLocalBookScan()
-            CustomToast.show(this, "Сканирование библиотеки запущено")
+            CustomToast.show(this, getString(R.string.settings_toast_scan_started))
         }
 
         findViewById<Button>(R.id.btnManualImport).setOnClickListener {
@@ -82,7 +109,13 @@ class SettingsActivity : BaseActivity() {
         }
 
         // Sync Period Spinner
-        val periods = listOf("1 день", "2 дня", "3 дня", "7 дней")
+        // Localized period days label
+        val isEn = SettingsManager.getLanguage(this) == "en"
+        val periods = if (isEn) {
+            listOf("1 day", "2 days", "3 days", "7 days")
+        } else {
+            listOf("1 день", "2 дня", "3 дня", "7 дней")
+        }
         val periodValues = listOf(1, 2, 3, 7)
         val periodAdapter = ArrayAdapter(this, R.layout.spinner_item, periods)
         periodAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
@@ -129,24 +162,24 @@ class SettingsActivity : BaseActivity() {
         // --- ОЧИСТКА И ВОССТАНОВЛЕНИЕ ---
         findViewById<Button>(R.id.btnResetCache).setOnClickListener {
             viewModel.clearScanCache()
-            CustomToast.show(this, "Кэш сканирования успешно сброшен")
+            CustomToast.show(this, getString(R.string.settings_toast_cache_reset))
         }
 
         findViewById<Button>(R.id.btnClearLibrary).setOnClickListener {
             AlertDialog.Builder(this)
-                .setTitle("Очистить библиотеку?")
-                .setMessage("Все книги будут удалены из базы данных приложения. Это действие необратимо.")
-                .setPositiveButton("Удалить всё") { _, _ ->
+                .setTitle(R.string.settings_clear_library_confirm_title)
+                .setMessage(R.string.settings_clear_library_confirm_msg)
+                .setPositiveButton(R.string.settings_clear_library_confirm_ok) { _, _ ->
                     viewModel.clearLibrary()
                     viewModel.cancelAllScanningTasks()
-                    CustomToast.show(this, "Библиотека полностью очищена")
+                    CustomToast.show(this, getString(R.string.settings_toast_library_cleared))
                 }
-                .setNegativeButton("Отмена", null)
+                .setNegativeButton(R.string.settings_clear_library_confirm_cancel, null)
                 .show()
         }
 
         // App Version
-        findViewById<TextView>(R.id.tvAppVersion).text = "Версия: ${com.nightread.app.BuildConfig.VERSION_NAME}"
+        findViewById<TextView>(R.id.tvAppVersion).text = getString(R.string.settings_app_version, com.nightread.app.BuildConfig.VERSION_NAME)
     }
 
     private fun scheduleAutoSync(context: Context) {

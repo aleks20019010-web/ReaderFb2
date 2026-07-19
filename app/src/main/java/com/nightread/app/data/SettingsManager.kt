@@ -612,4 +612,38 @@ object SettingsManager {
         getPrefs(context).edit().putBoolean(KEY_SILENT_MODE_ENABLED, enabled).apply()
         notifyChanged()
     }
+
+    const val KEY_LANGUAGE = "language"
+    private var cachedLanguage: String? = null
+
+    fun getLanguage(context: Context): String {
+        if (cachedLanguage == null) {
+            cachedLanguage = getPrefs(context).getString(KEY_LANGUAGE, "ru") ?: "ru"
+        }
+        return cachedLanguage!!
+    }
+
+    fun setLanguage(context: Context, lang: String) {
+        if (cachedLanguage == lang) return
+        cachedLanguage = lang
+        getPrefs(context).edit().putString(KEY_LANGUAGE, lang).apply()
+        notifyChanged()
+    }
+
+    fun applyLocale(context: Context): Context {
+        val lang = getLanguage(context)
+        val locale = java.util.Locale(lang)
+        java.util.Locale.setDefault(locale)
+        val config = android.content.res.Configuration(context.resources.configuration)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            config.setLocale(locale)
+            return context.createConfigurationContext(config)
+        } else {
+            @Suppress("DEPRECATION")
+            config.locale = locale
+            @Suppress("DEPRECATION")
+            context.resources.updateConfiguration(config, context.resources.displayMetrics)
+            return context
+        }
+    }
 }

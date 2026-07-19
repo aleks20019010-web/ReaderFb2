@@ -22,8 +22,10 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.SeekBar
 import android.widget.ImageButton
+import android.content.Context
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import com.nightread.app.data.SettingsManager
 import androidx.lifecycle.lifecycleScope
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -39,6 +41,10 @@ import kotlinx.coroutines.flow.collectLatest
 
 class BookReaderActivity : AppCompatActivity() {
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(SettingsManager.applyLocale(newBase))
+    }
+
     private lateinit var readerView: CustomReaderPageView
     private lateinit var webView: android.webkit.WebView
     private lateinit var touchInterceptor: View
@@ -51,6 +57,7 @@ class BookReaderActivity : AppCompatActivity() {
     private lateinit var extraDimOverlay: View
     private lateinit var glassyTransitionOverlay: View
     private var isReaderReady = false
+    private var hasRunDawnAnimation = false
     private lateinit var topToolbar: View
     private lateinit var bottomToolbar: View
     private lateinit var tvBrightness: TextView
@@ -95,10 +102,12 @@ class BookReaderActivity : AppCompatActivity() {
     private var isWebViewLoading = false
     private var brightnessAnimator: android.animation.ValueAnimator? = null
     private var longPressRunnable: Runnable? = null
+    private var currentLanguage: String? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        currentLanguage = SettingsManager.getLanguage(this)
         setContentView(R.layout.activity_book)
 
         com.nightread.app.ui.customlayout.PageSplitter.init(this)
@@ -124,6 +133,35 @@ class BookReaderActivity : AppCompatActivity() {
 
         val btnBack = findViewById<View>(R.id.btnBack)
         btnBack.setOnClickListener { finish() }
+
+        val warningOverlay = findViewById<View>(R.id.accidentalExitWarning)
+        var lastBackTime = 0L
+        
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val now = System.currentTimeMillis()
+                if (now - lastBackTime < 2000L) {
+                    finish()
+                } else {
+                    lastBackTime = now
+                    warningOverlay.animate().cancel()
+                    warningOverlay.visibility = View.VISIBLE
+                    warningOverlay.alpha = 0f
+                    warningOverlay.animate()
+                        .alpha(1f)
+                        .setDuration(300)
+                        .withEndAction {
+                            warningOverlay.animate()
+                                .alpha(0f)
+                                .setStartDelay(2000)
+                                .setDuration(300)
+                                .withEndAction { warningOverlay.visibility = View.GONE }
+                                .start()
+                        }
+                        .start()
+                }
+            }
+        })
 
         val btnSettings = findViewById<View>(R.id.btnSettings)
         btnSettings.setOnClickListener {
@@ -512,7 +550,10 @@ class BookReaderActivity : AppCompatActivity() {
                             tvWarmth.text = "🌡 $newIntensity%"
                             handler.removeCallbacks(hideIndicatorsRunnable)
                         } else if (isDraggingVerticalCenter && diffY < 0 && !isBarsVisible) {
-                            showFullscreenHUD()
+                            val dragDistance = -diffY
+                            val maxDragDistance = 350f
+                            val progress = (dragDistance / maxDragDistance).coerceIn(0f, 1f)
+                            showFullscreenHUDProgress(progress)
                         }
                     }
                 }
@@ -525,8 +566,12 @@ class BookReaderActivity : AppCompatActivity() {
                     val diffY = event.y - touchStartY
                     val duration = System.currentTimeMillis() - touchStartTime
 
-                    if (isDraggingVerticalCenter && diffY < -50 && !isBarsVisible) {
-                        showFullscreenHUD()
+                    if (isDraggingVerticalCenter && !isBarsVisible) {
+                        if (diffY < -50) {
+                            showFullscreenHUD()
+                        } else {
+                            hideFullscreenHUD()
+                        }
                     } else if (Math.abs(diffX) > 100 && Math.abs(diffX) > Math.abs(diffY) * 1.5 && duration < 500) {
                         if (diffX > 0) {
                             viewModel.setCurrentPage(viewModel.currentPage.value - 1)
@@ -1283,6 +1328,12 @@ class BookReaderActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        val lang = SettingsManager.getLanguage(this)
+        if (lang != currentLanguage) {
+            currentLanguage = lang
+            recreate()
+            return
+        }
         registerSensors()
         animateBrightnessRise()
     }
@@ -1437,6 +1488,11 @@ class BookReaderActivity : AppCompatActivity() {
             isReaderReady = true
             val splash = findViewById<View>(R.id.reader_splash_overlay) ?: return@runOnUiThread
             if (splash.visibility == View.GONE || splash.alpha == 0f) return@runOnUiThread
+            
+            if (!hasRunDawnAnimation) {
+                hasRunDawnAnimation = true
+                readerView.startDawnAnimation()
+            }
             
             splash.animate()
                 .alpha(0f)
@@ -1719,25 +1775,50 @@ class BookReaderActivity : AppCompatActivity() {
         
         handler.removeCallbacks(hideFullscreenHUDRunnable)
         
+        fullscreenTopHUD.animate().cancel()
         if (fullscreenTopHUD.visibility != View.VISIBLE) {
             fullscreenTopHUD.visibility = View.VISIBLE
-            fullscreenTopHUD.animate()
-                .alpha(1f)
-                .setDuration(250)
-                .setListener(null)
-                .start()
         }
+        fullscreenTopHUD.animate()
+            .alpha(1f)
+            .setDuration(250)
+            .setListener(null)
+            .start()
+        
+        fullscreenBottomHUD.animate().cancel()
+        if (fullscreenBottomHUD.visibility != View.VISIBLE) {
+            fullscreenBottomHUD.visibility = View.VISIBLE
+        }
+        fullscreenBottomHUD.animate()
+            .alpha(1f)
+            .setDuration(250)
+            .setListener(null)
+            .start()
+        
+        handler.postDelayed(hideFullscreenHUDRunnable, 2000)
+    }
+
+    private fun showFullscreenHUDProgress(progress: Float) {
+        if (isBarsVisible) return // Only show in fullscreen mode
+        if (!::fullscreenTopHUD.isInitialized || !::fullscreenBottomHUD.isInitialized) return
+        
+        updateFullscreenHUDData()
+        
+        handler.removeCallbacks(hideFullscreenHUDRunnable)
+        
+        val alphaVal = progress.coerceIn(0f, 1f)
+        
+        if (fullscreenTopHUD.visibility != View.VISIBLE) {
+            fullscreenTopHUD.visibility = View.VISIBLE
+        }
+        fullscreenTopHUD.animate().cancel()
+        fullscreenTopHUD.alpha = alphaVal
         
         if (fullscreenBottomHUD.visibility != View.VISIBLE) {
             fullscreenBottomHUD.visibility = View.VISIBLE
-            fullscreenBottomHUD.animate()
-                .alpha(1f)
-                .setDuration(250)
-                .setListener(null)
-                .start()
         }
-        
-        handler.postDelayed(hideFullscreenHUDRunnable, 2000)
+        fullscreenBottomHUD.animate().cancel()
+        fullscreenBottomHUD.alpha = alphaVal
     }
 
     private fun hideFullscreenHUD() {

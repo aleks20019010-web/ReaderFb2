@@ -4,40 +4,40 @@
         <item
             android:id="@+id/nav_library"
             android:icon="@android:drawable/ic_menu_agenda"
-            android:title="Библиотека" />
+            android:title="@string/drawer_library" />
         <item
             android:id="@+id/nav_reading"
             android:icon="@android:drawable/ic_menu_recent_history"
-            android:title="Читаю" />
+            android:title="@string/drawer_reading" />
         <item
             android:id="@+id/nav_read"
             android:icon="@android:drawable/ic_menu_view"
-            android:title="Прочитано" />
+            android:title="@string/drawer_read" />
         <item
             android:id="@+id/nav_bookmarks"
             android:icon="@drawable/ic_bookmark"
-            android:title="Закладки" />
+            android:title="@string/drawer_bookmarks" />
         <item
             android:id="@+id/nav_favorites"
             android:icon="@android:drawable/btn_star_big_on"
-            android:title="Избранное" />
+            android:title="@string/drawer_favorites" />
         <item
             android:id="@+id/nav_new_books"
             android:icon="@drawable/ic_book_new"
-            android:title="Новые книги" />
+            android:title="@string/drawer_new_books" />
         <item
             android:id="@+id/nav_want_to_read"
             android:icon="@drawable/ic_pin"
-            android:title="Хочу прочитать" />
+            android:title="@string/drawer_want_to_read" />
         <item
             android:id="@+id/nav_stats"
             android:icon="@drawable/ic_stats"
-            android:title="Статистика и достижения" />
+            android:title="@string/drawer_stats_achievements" />
 
         <item
             android:id="@+id/nav_sync"
             android:icon="@android:drawable/stat_notify_sync"
-            android:title="Синхронизация" />
+            android:title="@string/drawer_sync" />
     </group>
 
     <!-- Settings item visually separated in its own group at the bottom -->
@@ -45,6 +45,6 @@
         <item
             android:id="@+id/nav_settings"
             android:icon="@drawable/ic_settings_24dp"
-            android:title="Настройки" />
+            android:title="@string/drawer_settings" />
     </group>
 </menu>

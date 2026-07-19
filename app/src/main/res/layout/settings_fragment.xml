@@ -14,7 +14,8 @@
         android:layout_height="?attr/actionBarSize"
         android:background="@android:color/transparent"
         app:titleTextColor="#E8D8F0"
-        app:title="Настройки" />
+        app:navigationIconTint="#E8D8F0"
+        app:title="@string/drawer_settings" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -27,13 +28,61 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- ================= СИНХРОНИЗАЦИЯ ================= -->
+            <!-- ================= ЯЗЫК ИНТЕРФЕЙСА ================= -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
-                android:text="СИНХРОНИЗАЦИЯ"
+                android:text="@string/settings_section_language"
+                android:textColor="#B0A4C4"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.1" />
+
+            <!-- Language Selector (Spinner) -->
+            <LinearLayout
+                android:id="@+id/layoutLanguage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="6dp"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:background="@drawable/bg_glass_panel">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_language_title"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_language_desc"
+                    android:textColor="#CCCCCC"
+                    android:textSize="12sp"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginBottom="8dp" />
+
+                <Spinner
+                    android:id="@+id/spinnerLanguage"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:spinnerMode="dropdown"
+                    android:popupBackground="#2A1A3E"
+                    android:textColor="#FFFFFF" />
+            </LinearLayout>
+
+            <!-- ================= СИНХРОНИЗАЦИЯ ================= -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/settings_section_sync"
                 android:textColor="#B0A4C4"
                 android:textSize="12sp"
                 android:textStyle="bold"
@@ -60,7 +109,7 @@
                         android:id="@+id/tvAutoSyncLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Авто-синхронизация"
+                        android:text="@string/settings_auto_sync"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -68,7 +117,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Синхронизация книг в фоновом режиме"
+                        android:text="@string/settings_auto_sync_desc"
                         android:textColor="#CCCCCC"
                         android:textSize="12sp"
                         android:layout_marginTop="2dp" />
@@ -95,7 +144,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Период авто-синхронизации"
+                    android:text="@string/settings_sync_period"
                     android:textColor="#FFFFFF"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -103,7 +152,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Как часто запускать фоновую синхронизацию"
+                    android:text="@string/settings_sync_period_desc"
                     android:textColor="#CCCCCC"
                     android:textSize="12sp"
                     android:layout_marginTop="2dp"
@@ -142,7 +191,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Время запуска"
+                        android:text="@string/settings_sync_time"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -150,7 +199,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Предпочтительное время запуска (ночью)"
+                        android:text="@string/settings_sync_time_desc"
                         android:textColor="#CCCCCC"
                         android:textSize="12sp"
                         android:layout_marginTop="2dp" />
@@ -174,83 +223,105 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="8dp"
-                android:text="НАСТРОЙКИ БИБЛИОТЕКИ"
+                android:text="@string/settings_section_library"
                 android:textColor="#B0A4C4"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.1" />
 
             <!-- Scan library -->
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnScanLibrary"
+                style="@style/ButtonStyle"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="8dp"
-                android:backgroundTint="#6200EE"
-                android:textColor="#FFFFFF"
                 android:textSize="15sp"
                 android:textStyle="bold"
-                android:text="Сканировать библиотеку" />
+                android:text="@string/settings_scan_library"
+                app:icon="@drawable/ic_custom_scan"
+                app:iconGravity="textStart"
+                app:iconTint="@color/white" />
 
             <!-- Manual Import -->
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnManualImport"
+                style="@style/ButtonStyle"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
-                android:layout_marginTop="8dp"
-                android:backgroundTint="#3700B3"
-                android:textColor="#FFFFFF"
+                android:layout_marginTop="12dp"
                 android:textSize="15sp"
                 android:textStyle="bold"
-                android:text="Ручной импорт" />
+                android:text="@string/settings_manual_import"
+                app:icon="@drawable/ic_custom_import"
+                app:iconGravity="textStart"
+                app:iconTint="@color/white" />
 
             <!-- Find & Delete Duplicates -->
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDeleteDuplicates"
+                style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
-                android:layout_marginTop="8dp"
-                android:backgroundTint="#018786"
-                android:textColor="#FFFFFF"
+                android:layout_marginTop="12dp"
+                android:textColor="#E8D8F0"
                 android:textSize="15sp"
                 android:textStyle="bold"
-                android:text="Найти и удалить дубликаты книг" />
+                android:text="@string/settings_delete_duplicates"
+                app:strokeColor="#4DFFFFFF"
+                app:rippleColor="#26FFFFFF"
+                app:cornerRadius="12dp"
+                app:icon="@android:drawable/ic_menu_search"
+                app:iconGravity="textStart"
+                app:iconTint="#E8D8F0" />
 
             <!-- ================= ОЧИСТКА И ВОССТАНОВЛЕНИЕ ================= -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="20dp"
                 android:layout_marginBottom="8dp"
-                android:text="ОЧИСТКА И ВОССТАНОВЛЕНИЕ"
+                android:text="@string/settings_section_cleanup"
                 android:textColor="#B0A4C4"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.1" />
 
             <!-- Reset Cache -->
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnResetCache"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="6dp"
-                android:backgroundTint="#FF9800"
-                android:textColor="#FFFFFF"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:text="Сбросить кэш сканирования" />
-
-            <!-- Clear Library -->
-            <Button
-                android:id="@+id/btnClearLibrary"
+                style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="8dp"
-                android:backgroundTint="#E91E63"
-                android:textColor="#FFFFFF"
+                android:textColor="#E8D8F0"
                 android:textSize="15sp"
                 android:textStyle="bold"
-                android:text="Очистить библиотеку" />
+                android:text="@string/settings_reset_cache"
+                app:strokeColor="#4DFFFFFF"
+                app:rippleColor="#26FFFFFF"
+                app:cornerRadius="12dp"
+                app:icon="@android:drawable/stat_notify_sync"
+                app:iconGravity="textStart"
+                app:iconTint="#E8D8F0" />
+
+            <!-- Clear Library -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnClearLibrary"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
+                android:textColor="#FF6B6B"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:text="@string/settings_clear_library"
+                app:strokeColor="#33FF4D4D"
+                app:rippleColor="#1AFF4D4D"
+                app:cornerRadius="12dp"
+                app:icon="@android:drawable/ic_menu_delete"
+                app:iconGravity="textStart"
+                app:iconTint="#FF6B6B" />
 
             <!-- Info -->
             <TextView

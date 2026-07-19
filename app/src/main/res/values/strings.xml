@@ -40,4 +40,95 @@
     <string name="stats_achievements_title">Ночные достижения</string>
     <string name="stats_ach_unlocked_status">Получено 🌟</string>
     <string name="stats_ach_locked_status">Заблокировано 🔒</string>
+
+    <!-- Navigation Drawer -->
+    <string name="drawer_library">Библиотека</string>
+    <string name="drawer_reading">Читаю</string>
+    <string name="drawer_read">Прочитано</string>
+    <string name="drawer_bookmarks">Закладки</string>
+    <string name="drawer_favorites">Избранное</string>
+    <string name="drawer_new_books">Новые книги</string>
+    <string name="drawer_want_to_read">Хочу прочитать</string>
+    <string name="drawer_stats_achievements">Статистика и достижения</string>
+    <string name="drawer_sync">Синхронизация</string>
+    <string name="drawer_settings">Настройки</string>
+
+    <!-- Language Settings -->
+    <string name="settings_section_language">ЯЗЫК ИНТЕРФЕЙСА / INTERFACE LANGUAGE</string>
+    <string name="settings_language_title">Язык приложения / App Language</string>
+    <string name="settings_language_desc">Выберите предпочитаемый язык интерфейса</string>
+    <string name="language_russian">Русский</string>
+    <string name="language_english">English</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_section_sync">СИНХРОНИЗАЦИЯ</string>
+    <string name="settings_auto_sync">Авто-синхронизация</string>
+    <string name="settings_auto_sync_desc">Синхронизация книг в фоновом режиме</string>
+    <string name="settings_sync_period">Период авто-синхронизации</string>
+    <string name="settings_sync_period_desc">Как часто запускать фоновую синхронизацию</string>
+    <string name="settings_sync_time">Время запуска</string>
+    <string name="settings_sync_time_desc">Предпочтительное время запуска (ночью)</string>
+    <string name="settings_section_library">НАСТРОЙКИ БИБЛИОТЕКИ</string>
+    <string name="settings_scan_library">Сканировать библиотеку</string>
+    <string name="settings_manual_import">Ручной импорт</string>
+    <string name="settings_delete_duplicates">Найти и удалить дубликаты книг</string>
+    <string name="settings_section_cleanup">ОЧИСТКА И ВОССТАНОВЛЕНИЕ</string>
+    <string name="settings_reset_cache">Сбросить кэш сканирования</string>
+    <string name="settings_clear_library">Очистить библиотеку</string>
+    <string name="settings_clear_library_confirm_title">Очистить библиотеку?</string>
+    <string name="settings_clear_library_confirm_msg">Все книги будут удалены из базы данных приложения. Это действие необратимо.</string>
+    <string name="settings_clear_library_confirm_ok">Удалить всё</string>
+    <string name="settings_clear_library_confirm_cancel">Отмена</string>
+    <string name="settings_toast_scan_started">Сканирование библиотеки запущено</string>
+    <string name="settings_toast_cache_reset">Кэш сканирования успешно сброшен</string>
+    <string name="settings_toast_library_cleared">Библиотека полностью очищена</string>
+    <string name="settings_app_version">Версия: %1$s</string>
+
+    <!-- Main Splash -->
+    <string name="app_subtitle">АТМОСФЕРА ПОЛУНОЧИ</string>
+    <string name="app_mood_title">Золотая Галактика</string>
+    <string name="app_mood_subtitle">ПРЕМИУМ ОФЛАЙН ЧТЕНИЕ</string>
+    <string name="app_mood_quote">Когда весь мир засыпает, открываются страницы великих тайн. Читайте в идеальной темноте и уюте.</string>
+    <string name="app_init_loading">Инициализация приложения...</string>
+
+    <!-- Bottom Sheet Settings -->
+    <string name="bs_color_scheme">Цветовая схема</string>
+    <string name="bs_font">Шрифт</string>
+    <string name="bs_theme">Тема</string>
+    <string name="bs_page_animation">Анимация листания</string>
+    <string name="bs_text_alignment">Выравнивание текста</string>
+    <string name="bs_font_size">Размер шрифта</string>
+    <string name="bs_font_weight">Жирность</string>
+    <string name="bs_line_spacing">Межстрочный интервал</string>
+    <string name="bs_haptic_feedback">Тактильный отклик (Haptic)</string>
+    <string name="bs_haptic_feedback_desc">Приятные микровибрации при листании и действиях</string>
+    <string name="bs_normal_weight">Обычный</string>
+    <string name="bs_medium_weight">Средний</string>
+    <string name="bs_bold_weight">Жирный</string>
+    <string name="bs_extrabold_weight">Очень жирный</string>
+    <string name="bs_minutes">мин</string>
+    <string name="warning_swipe_to_exit">Проведите пальцем еще раз для выхода</string>
+    <string name="toast_prev_sync_interrupted">Предыдущая фоновая синхронизация была прервана</string>
+
+    <!-- Book Detail Screen -->
+    <string name="book_detail_generate_ai">Сгенерировать аннотацию (AI)</string>
+    <string name="book_detail_read_more">...читать далее</string>
+    <string name="book_detail_ai_functions">AI ФУНКЦИИ</string>
+    <string name="book_detail_summary">Краткое содержание книги</string>
+    <string name="book_detail_characters">Персонажи книги</string>
+    <string name="book_detail_info_section">ИНФОРМАЦИЯ</string>
+    <string name="book_detail_doc_lang">Язык документа</string>
+    <string name="book_detail_bookmark_time">Текущая закладка и время последнего чтения</string>
+    <string name="book_detail_file_format">Формат и размер файла</string>
+    <string name="book_detail_file_sha">Идентификатор файла документа (SHA-1)</string>
+    <string name="book_detail_file_copies">Копии файла документа</string>
+    <string name="book_detail_read_button">ЧИТАТЬ</string>
+
+    <!-- Reading Screen -->
+    <string name="reading_chapter_toc">Содержание главы</string>
+
+    <!-- Item Achievement -->
+    <string name="achievement_default_title">Название</string>
+    <string name="achievement_default_desc">Описание достижения...</string>
+    <string name="achievement_unlocked">Получено 🌟</string>
 </resources>

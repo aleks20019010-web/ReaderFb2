@@ -48,6 +48,10 @@ class MainApplication : Application(), ImageLoaderFactory, androidx.work.Configu
             .build()
     }
 
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(SettingsManager.applyLocale(base))
+    }
+
     override fun onCreate() {
         super.onCreate()
         

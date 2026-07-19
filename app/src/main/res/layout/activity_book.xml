@@ -193,8 +193,8 @@
         android:layout_gravity="bottom"
         android:orientation="vertical"
         android:gravity="center"
-        android:paddingHorizontal="48dp"
-        android:paddingBottom="36dp"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="12dp"
         android:paddingTop="12dp"
         android:clickable="false"
         android:focusable="false"
@@ -209,18 +209,42 @@
             android:letterSpacing="0.05"
             android:fontFamily="sans-serif"
             android:textColor="#FFFFFF"
-            android:layout_marginBottom="6dp"
+            android:layout_marginBottom="8dp"
             android:text="Стр. 1 из 100" />
 
         <ProgressBar
             android:id="@+id/pbFullscreenProgress"
             style="@android:style/Widget.ProgressBar.Horizontal"
             android:layout_width="match_parent"
-            android:layout_height="3dp"
+            android:layout_height="4dp"
             android:max="100"
             android:progress="0"
             android:progressBackgroundTint="#33CCCCCC"
             android:progressTint="#FFFFFF" />
+    </LinearLayout>
+
+    <!-- Accidental Exit Warning -->
+    <LinearLayout
+        android:id="@+id/accidentalExitWarning"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="80dp"
+        android:background="@drawable/bg_toast"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="10dp"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        android:alpha="0"
+        android:clickable="false"
+        android:focusable="false">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/warning_swipe_to_exit"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:fontFamily="sans-serif-medium" />
     </LinearLayout>
 
     <!-- Brightness Indicator -->

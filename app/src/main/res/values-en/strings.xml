@@ -1,0 +1,134 @@
+<resources>
+    <string name="app_name">NightRead</string>
+    <string name="unknown_author">Unknown</string>
+    <string name="unknown_series">Unknown series</string>
+    <string name="unknown_title">Unknown</string>
+    <string name="local_txt">Local TXT</string>
+    <string name="yandex_client_id">bfdea73d1e6242ba826f15d9d0374005</string>
+    <string name="auto_light_night_title">Auto Theme</string>
+    <string name="auto_light_night_desc">Change theme based on light sensor (Sepia/Night)</string>
+    <string name="amber_filter_title">Eye Protection</string>
+    <string name="amber_filter_desc">Warm amber filter (Blue Light Filter)</string>
+    <string name="amber_filter_intensity">Filter intensity</string>
+    <string name="sleep_timer_title">Sleep Timer</string>
+    <string name="sleep_timer_desc">Automatically closes the reader</string>
+    <string name="sleep_timer_duration">Time to shutdown</string>
+    <string name="shake_to_extend_title">Shake to Extend</string>
+    <string name="shake_to_extend_desc">Shake your phone to add 10 minutes</string>
+    <string name="extra_dim_title">Extra Dim</string>
+    <string name="extra_dim_desc">Dim screen below system minimum</string>
+    <string name="extra_dim_intensity">Dim level</string>
+    <string name="silent_mode_title">Silent Mode</string>
+    <string name="silent_mode_desc">Mute notifications/vibration at high speed (>400 c/min) and gentle wake-up shake if falling asleep/thoughtful (&lt;100 c/min after 2 min)</string>
+    <string name="bedtime_mode_title">Bedtime Mode</string>
+    <string name="bedtime_mode_desc" formatted="false">Instant night profile: black theme, amber filter 50%, extra dim 30%, and 30 min timer</string>
+    <string name="bedtime_mode_activated">Bedtime Mode activated! Happy reading 🌙</string>
+    
+    <!-- Stats & Achievements strings -->
+    <string name="stats_title">Stats &amp; Achievements</string>
+    <string name="stats_rank_title">Your Nightly Rank</string>
+    <string name="stats_points">Experience Points: %1$d</string>
+    <string name="stats_next_rank">To next rank: %1$d XP</string>
+    <string name="stats_total_books">Total Books</string>
+    <string name="stats_completed_books">Completed</string>
+    <string name="stats_in_progress_books">In progress</string>
+    <string name="stats_favorites_books">Favorites</string>
+    <string name="stats_want_to_read">Want to Read</string>
+    <string name="stats_bookmarks">Bookmarks</string>
+    <string name="stats_notes">Notes</string>
+    <string name="stats_categories">Popular Genres</string>
+    <string name="stats_achievements_title">Nightly Achievements</string>
+    <string name="stats_ach_unlocked_status">Unlocked 🌟</string>
+    <string name="stats_ach_locked_status">Locked 🔒</string>
+
+    <!-- Navigation Drawer -->
+    <string name="drawer_library">Library</string>
+    <string name="drawer_reading">Reading</string>
+    <string name="drawer_read">Completed</string>
+    <string name="drawer_bookmarks">Bookmarks</string>
+    <string name="drawer_favorites">Favorites</string>
+    <string name="drawer_new_books">New Books</string>
+    <string name="drawer_want_to_read">Want to Read</string>
+    <string name="drawer_stats_achievements">Stats &amp; Achievements</string>
+    <string name="drawer_sync">Sync</string>
+    <string name="drawer_settings">Settings</string>
+
+    <!-- Language Settings -->
+    <string name="settings_section_language">INTERFACE LANGUAGE / ЯЗЫК ИНТЕРФЕЙСА</string>
+    <string name="settings_language_title">App Language / Язык приложения</string>
+    <string name="settings_language_desc">Choose your preferred interface language</string>
+    <string name="language_russian">Русский</string>
+    <string name="language_english">English</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_section_sync">SYNCHRONIZATION</string>
+    <string name="settings_auto_sync">Auto-Sync</string>
+    <string name="settings_auto_sync_desc">Sync books in the background</string>
+    <string name="settings_sync_period">Auto-Sync Period</string>
+    <string name="settings_sync_period_desc">How often to run background synchronization</string>
+    <string name="settings_sync_time">Start Time</string>
+    <string name="settings_sync_time_desc">Preferred start time (at night)</string>
+    <string name="settings_section_library">LIBRARY SETTINGS</string>
+    <string name="settings_scan_library">Scan Library</string>
+    <string name="settings_manual_import">Manual Import</string>
+    <string name="settings_delete_duplicates">Find &amp; Delete Duplicate Books</string>
+    <string name="settings_section_cleanup">CLEANUP &amp; RECOVERY</string>
+    <string name="settings_reset_cache">Reset Scan Cache</string>
+    <string name="settings_clear_library">Clear Library</string>
+    <string name="settings_clear_library_confirm_title">Clear Library?</string>
+    <string name="settings_clear_library_confirm_msg">All books will be deleted from the application database. This action is irreversible.</string>
+    <string name="settings_clear_library_confirm_ok">Delete All</string>
+    <string name="settings_clear_library_confirm_cancel">Cancel</string>
+    <string name="settings_toast_scan_started">Library scan started</string>
+    <string name="settings_toast_cache_reset">Scan cache successfully reset</string>
+    <string name="settings_toast_library_cleared">Library completely cleared</string>
+    <string name="settings_app_version">Version: %1$s</string>
+
+    <!-- Main Splash -->
+    <string name="app_subtitle">ATMOSPHERE OF MIDNIGHT</string>
+    <string name="app_mood_title">Golden Galaxy</string>
+    <string name="app_mood_subtitle">PREMIUM OFFLINE READING</string>
+    <string name="app_mood_quote">When the whole world falls asleep, pages of great secrets open. Read in perfect darkness and comfort.</string>
+    <string name="app_init_loading">Initializing application...</string>
+
+    <!-- Bottom Sheet Settings -->
+    <string name="bs_color_scheme">Color Scheme</string>
+    <string name="bs_font">Font</string>
+    <string name="bs_theme">Theme</string>
+    <string name="bs_page_animation">Page Animation</string>
+    <string name="bs_text_alignment">Text Alignment</string>
+    <string name="bs_font_size">Font Size</string>
+    <string name="bs_font_weight">Font Weight</string>
+    <string name="bs_line_spacing">Line Spacing</string>
+    <string name="bs_haptic_feedback">Haptic Feedback</string>
+    <string name="bs_haptic_feedback_desc">Pleasant microvibrations on page turning and actions</string>
+    <string name="bs_normal_weight">Normal</string>
+    <string name="bs_medium_weight">Medium</string>
+    <string name="bs_bold_weight">Bold</string>
+    <string name="bs_extrabold_weight">Extra Bold</string>
+    <string name="bs_minutes">min</string>
+    <string name="warning_swipe_to_exit">Swipe again to exit</string>
+    <string name="toast_prev_sync_interrupted">Previous background sync was interrupted</string>
+
+    <!-- Book Detail Screen -->
+    <string name="book_detail_generate_ai">Generate Annotation (AI)</string>
+    <string name="book_detail_read_more">...read more</string>
+    <string name="book_detail_ai_functions">AI FUNCTIONS</string>
+    <string name="book_detail_summary">Book Summary</string>
+    <string name="book_detail_characters">Book Characters</string>
+    <string name="book_detail_info_section">INFORMATION</string>
+    <string name="book_detail_doc_lang">Document Language</string>
+    <string name="book_detail_bookmark_time">Current bookmark and last read time</string>
+    <string name="book_detail_file_format">File format and size</string>
+    <string name="book_detail_file_sha">Document SHA-1 ID</string>
+    <string name="book_detail_file_copies">Document file copies</string>
+    <string name="book_detail_read_button">READ</string>
+
+    <!-- Reading Screen -->
+    <string name="reading_chapter_toc">Chapter Contents</string>
+
+    <!-- Item Achievement -->
+    <string name="achievement_default_title">Title</string>
+    <string name="achievement_default_desc">Achievement description...</string>
+    <string name="achievement_unlocked">Unlocked 🌟</string>
+</resources>

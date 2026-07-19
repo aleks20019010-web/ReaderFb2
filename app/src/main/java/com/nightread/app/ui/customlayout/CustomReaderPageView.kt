@@ -179,6 +179,25 @@ class CustomReaderPageView(context: Context, attrs: AttributeSet? = null) : View
         this.justifiedLines = list
     }
 
+    private var dawnProgress = 1f
+    private var dawnAnimator: android.animation.ValueAnimator? = null
+
+    fun startDawnAnimation() {
+        dawnAnimator?.cancel()
+        dawnProgress = 0f
+        invalidate()
+        
+        val animator = android.animation.ValueAnimator.ofFloat(0f, 1f)
+        animator.duration = 600
+        animator.interpolator = android.view.animation.DecelerateInterpolator(1.2f)
+        animator.addUpdateListener { animation ->
+            dawnProgress = animation.animatedValue as Float
+            invalidate()
+        }
+        dawnAnimator = animator
+        animator.start()
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val currentLayout = layout ?: return
@@ -188,34 +207,121 @@ class CustomReaderPageView(context: Context, attrs: AttributeSet? = null) : View
         
         val lines = justifiedLines
         if (lines != null) {
-            for (line in lines) {
-                when (line) {
-                    is JustifiedLine.NormalLine -> {
-                        canvas.save()
-                        canvas.translate(0f, line.lineTop)
-                        line.singleLineLayout.draw(canvas)
-                        canvas.restore()
-                    }
-                    is JustifiedLine.LetterSpacedLine -> {
-                        canvas.save()
-                        canvas.translate(0f, line.lineTop)
-                        line.singleLineLayout.draw(canvas)
-                        canvas.restore()
-                    }
-                    is JustifiedLine.WordSpacedLine -> {
-                        canvas.save()
-                        canvas.translate(0f, line.lineTop + line.lineBaseline)
-                        var x = 0f
-                        for (word in line.words) {
-                            canvas.drawText(word, x, 0f, line.paint)
-                            x += line.paint.measureText(word) + line.gapWidth
+            val lineCount = lines.size
+            if (dawnProgress < 1f && lineCount > 0) {
+                val centerIndex = lineCount / 2
+                val maxDistance = Math.max(centerIndex, lineCount - 1 - centerIndex).toFloat().coerceAtLeast(1f)
+                
+                for (idx in 0 until lineCount) {
+                    val line = lines[idx]
+                    
+                    val distanceFromCenter = Math.abs(idx - centerIndex)
+                    val adjustedDistance = if (distanceFromCenter <= 1) 0f else distanceFromCenter.toFloat()
+                    val startProgress = (adjustedDistance / maxDistance) * 0.4f
+                    val lineProgress = ((dawnProgress - startProgress) / 0.5f).coerceIn(0f, 1f)
+                    val lineAlpha = lineProgress
+                    
+                    val alphaInt = (lineAlpha * 255).toInt().coerceIn(0, 255)
+                    if (alphaInt == 0) continue
+                    
+                    val useLayer = alphaInt < 255
+                    if (useLayer) {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                            canvas.saveLayerAlpha(0f, 0f, width.toFloat(), height.toFloat(), alphaInt)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            canvas.saveLayerAlpha(0f, 0f, width.toFloat(), height.toFloat(), alphaInt, Canvas.ALL_SAVE_FLAG)
                         }
-                        canvas.restore()
+                    } else {
+                        canvas.save()
+                    }
+                    
+                    when (line) {
+                        is JustifiedLine.NormalLine -> {
+                            canvas.translate(0f, line.lineTop)
+                            line.singleLineLayout.draw(canvas)
+                        }
+                        is JustifiedLine.LetterSpacedLine -> {
+                            canvas.translate(0f, line.lineTop)
+                            line.singleLineLayout.draw(canvas)
+                        }
+                        is JustifiedLine.WordSpacedLine -> {
+                            canvas.translate(0f, line.lineTop + line.lineBaseline)
+                            var x = 0f
+                            for (word in line.words) {
+                                canvas.drawText(word, x, 0f, line.paint)
+                                x += line.paint.measureText(word) + line.gapWidth
+                            }
+                        }
+                    }
+                    canvas.restore()
+                }
+            } else {
+                for (line in lines) {
+                    when (line) {
+                        is JustifiedLine.NormalLine -> {
+                            canvas.save()
+                            canvas.translate(0f, line.lineTop)
+                            line.singleLineLayout.draw(canvas)
+                            canvas.restore()
+                        }
+                        is JustifiedLine.LetterSpacedLine -> {
+                            canvas.save()
+                            canvas.translate(0f, line.lineTop)
+                            line.singleLineLayout.draw(canvas)
+                            canvas.restore()
+                        }
+                        is JustifiedLine.WordSpacedLine -> {
+                            canvas.save()
+                            canvas.translate(0f, line.lineTop + line.lineBaseline)
+                            var x = 0f
+                            for (word in line.words) {
+                                canvas.drawText(word, x, 0f, line.paint)
+                                x += line.paint.measureText(word) + line.gapWidth
+                            }
+                            canvas.restore()
+                        }
                     }
                 }
             }
         } else {
-            currentLayout.draw(canvas)
+            val lineCount = currentLayout.lineCount
+            if (dawnProgress < 1f && lineCount > 0) {
+                val centerIndex = lineCount / 2
+                val maxDistance = Math.max(centerIndex, lineCount - 1 - centerIndex).toFloat().coerceAtLeast(1f)
+                
+                for (idx in 0 until lineCount) {
+                    val lineTop = currentLayout.getLineTop(idx).toFloat()
+                    val lineBottom = currentLayout.getLineBottom(idx).toFloat()
+                    
+                    val distanceFromCenter = Math.abs(idx - centerIndex)
+                    val adjustedDistance = if (distanceFromCenter <= 1) 0f else distanceFromCenter.toFloat()
+                    val startProgress = (adjustedDistance / maxDistance) * 0.4f
+                    val lineProgress = ((dawnProgress - startProgress) / 0.5f).coerceIn(0f, 1f)
+                    val lineAlpha = lineProgress
+                    
+                    val alphaInt = (lineAlpha * 255).toInt().coerceIn(0, 255)
+                    if (alphaInt == 0) continue
+                    
+                    val useLayer = alphaInt < 255
+                    if (useLayer) {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                            canvas.saveLayerAlpha(0f, 0f, width.toFloat(), height.toFloat(), alphaInt)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            canvas.saveLayerAlpha(0f, 0f, width.toFloat(), height.toFloat(), alphaInt, Canvas.ALL_SAVE_FLAG)
+                        }
+                    } else {
+                        canvas.save()
+                    }
+                    
+                    canvas.clipRect(0f, lineTop, width.toFloat(), lineBottom)
+                    currentLayout.draw(canvas)
+                    canvas.restore()
+                }
+            } else {
+                currentLayout.draw(canvas)
+            }
         }
         
         canvas.restore()
