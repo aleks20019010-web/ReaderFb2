@@ -47,7 +47,20 @@
         <item name="android:alertDialogTheme">@style/Theme.NightRead.Dialog</item>
         <item name="android:spinnerItemStyle">@style/NightReadSpinnerItem</item>
         <item name="android:spinnerDropDownItemStyle">@style/NightReadSpinnerDropdown</item>
+        <item name="android:windowActivityTransitions">true</item>
+        <item name="android:windowAnimationStyle">@style/CrossfadeActivityAnimation</item>
 
+    </style>
+
+    <style name="CrossfadeActivityAnimation" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/fade_in_custom</item>
+        <item name="android:activityOpenExitAnimation">@anim/fade_out_custom</item>
+        <item name="android:activityCloseEnterAnimation">@anim/fade_in_custom</item>
+        <item name="android:activityCloseExitAnimation">@anim/fade_out_custom</item>
+        <item name="android:taskOpenEnterAnimation">@anim/fade_in_custom</item>
+        <item name="android:taskOpenExitAnimation">@anim/fade_out_custom</item>
+        <item name="android:taskCloseEnterAnimation">@anim/fade_in_custom</item>
+        <item name="android:taskCloseExitAnimation">@anim/fade_out_custom</item>
     </style>
 
     <style name="Theme.NightRead" parent="Theme.MyApplication" />

@@ -51,7 +51,7 @@ class BookmarksFragment : Fragment(R.layout.fragment_bookmarks) {
                     putExtra("TARGET_OFFSET", bookmark.charOffset)
                 }
                 startActivity(intent)
-                activity?.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                activity?.overridePendingTransition(R.anim.fade_in_custom, R.anim.fade_out_custom)
             },
             onBookmarkDeleteClicked = { bookmark ->
                 lifecycleScope.launch(Dispatchers.IO) {

@@ -155,7 +155,7 @@ class BookDetailActivity : BaseActivity() {
                 putExtra("BOOK_SHA1", bookSha1)
             }
             startActivity(intent)
-            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+            overridePendingTransition(R.anim.fade_in_custom, R.anim.fade_out_custom)
         }
 
         ivFavorite.setOnClickListener {
@@ -294,7 +294,7 @@ class BookDetailActivity : BaseActivity() {
                         putExtra("AUTHOR_NAME", authorName)
                     }
                     startActivity(intent)
-                    overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                    overridePendingTransition(R.anim.fade_in_custom, R.anim.fade_out_custom)
                 }
 
                 // Series setup
@@ -308,7 +308,7 @@ class BookDetailActivity : BaseActivity() {
                             putExtra("SERIES_NAME", book.series)
                         }
                         startActivity(intent)
-                        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                        overridePendingTransition(R.anim.fade_in_custom, R.anim.fade_out_custom)
                     }
 
                     // Series Banner Setup
@@ -319,7 +319,7 @@ class BookDetailActivity : BaseActivity() {
                             putExtra("SERIES_NAME", book.series)
                         }
                         startActivity(intent)
-                        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                        overridePendingTransition(R.anim.fade_in_custom, R.anim.fade_out_custom)
                     }
                 } else {
                     llSeriesContainer.visibility = View.GONE

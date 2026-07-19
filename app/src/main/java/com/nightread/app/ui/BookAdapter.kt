@@ -304,7 +304,7 @@ class BookAdapter(
                 }
                 itemView.context.startActivity(intent)
                 if (itemView.context is Activity) {
-                    (itemView.context as Activity).overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                    (itemView.context as Activity).overridePendingTransition(R.anim.fade_in_custom, R.anim.fade_out_custom)
                 }
             }
 
@@ -317,7 +317,7 @@ class BookAdapter(
                     }
                     itemView.context.startActivity(intent)
                 if (itemView.context is Activity) {
-                    (itemView.context as Activity).overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                    (itemView.context as Activity).overridePendingTransition(R.anim.fade_in_custom, R.anim.fade_out_custom)
                 }
                 }
             } else {
