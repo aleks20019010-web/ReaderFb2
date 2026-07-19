@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import com.nightread.app.service.TextCleaner
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -70,6 +71,9 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     // Two pages in landscape: true / false
     private val _twoPagesLandscapeState = MutableStateFlow(false)
     val twoPagesLandscapeState: StateFlow<Boolean> = _twoPagesLandscapeState.asStateFlow()
+
+    private val _fontSettingsChanged = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val fontSettingsChanged = _fontSettingsChanged.asSharedFlow()
 
     // Local dimension tracking
     private var availableWidth = 0
@@ -146,6 +150,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         _twoPagesLandscapeState.value = newTwoPagesLandscape
         
         if (changed) {
+            _fontSettingsChanged.tryEmit(Unit)
             repaginate()
         }
     }
@@ -302,7 +307,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
         if (book.filePath?.endsWith(".fb2", true) == true || 
             book.filePath?.endsWith(".fb2.zip", true) == true || 
-            book.filePath?.endsWith(".zip", true) == true) {
+            book.filePath?.endsWith(".zip", true) == true ||
+            book.filePath?.endsWith(".epub", true) == true) {
             
             // For WebView books, we reset pagesState to trigger a reload in Activity, 
             // but we MUST NOT reset _currentPage to 0 if it was already set.

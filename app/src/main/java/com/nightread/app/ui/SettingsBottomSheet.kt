@@ -546,6 +546,18 @@ class SettingsBottomSheet : DialogFragment() {
             }
         }
 
+        // 7g. Silent Mode control
+        val switchSilentMode = view.findViewById<SwitchCompat>(R.id.switchSilentMode)
+        switchSilentMode.isChecked = SettingsManager.isSilentModeEnabled(context)
+        switchSilentMode.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != SettingsManager.isSilentModeEnabled(context)) {
+                SettingsManager.setSilentModeEnabled(context, isChecked)
+                if (isChecked) {
+                    view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                }
+            }
+        }
+
 
 
         // Apply initial colors based on current theme
@@ -596,6 +608,7 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvShakeToExtendTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvBedtimeTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvHapticFeedbackTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvSilentModeTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoDiscoveryTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoLightNightTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAmberFilterTitle)?.setTextColor(textPrimaryColor)
@@ -624,6 +637,7 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvShakeToExtendDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvBedtimeDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvHapticFeedbackDesc)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvSilentModeDesc)?.setTextColor(textSecondaryColor)
 
         // 4. Content Dividers
         rootView.findViewById<View>(R.id.dividerTop)?.setBackgroundColor(dividerColor)
@@ -677,6 +691,14 @@ class SettingsBottomSheet : DialogFragment() {
         val switchShakeToExtend = rootView.findViewById<SwitchCompat>(R.id.switchShakeToExtend)
         switchShakeToExtend?.trackTintList = ColorStateList.valueOf(accentColor)
         switchShakeToExtend?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
+
+        val switchHapticFeedback = rootView.findViewById<SwitchCompat>(R.id.switchHapticFeedback)
+        switchHapticFeedback?.trackTintList = ColorStateList.valueOf(accentColor)
+        switchHapticFeedback?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
+
+        val switchSilentMode = rootView.findViewById<SwitchCompat>(R.id.switchSilentMode)
+        switchSilentMode?.trackTintList = ColorStateList.valueOf(accentColor)
+        switchSilentMode?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
 
 
 

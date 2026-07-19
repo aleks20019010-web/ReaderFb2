@@ -888,6 +888,47 @@
                     app:trackTint="#9B59B6" />
             </RelativeLayout>
 
+            <!-- Silent Mode Switch Row -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="8dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/switchSilentMode"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvSilentModeTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/silent_mode_title"
+                        android:textColor="#E8D8F0"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvSilentModeDesc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/silent_mode_desc"
+                        android:textColor="#B8A0C8"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchSilentMode"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    app:thumbTint="@color/white"
+                    app:trackTint="#9B59B6" />
+            </RelativeLayout>
+
 
 
         </LinearLayout>

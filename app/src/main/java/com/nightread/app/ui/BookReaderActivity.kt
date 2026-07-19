@@ -49,6 +49,8 @@ class BookReaderActivity : AppCompatActivity() {
     private lateinit var ambientGlowView: View
     private lateinit var amberFilterOverlay: View
     private lateinit var extraDimOverlay: View
+    private lateinit var glassyTransitionOverlay: View
+    private var isReaderReady = false
     private lateinit var topToolbar: View
     private lateinit var bottomToolbar: View
     private lateinit var tvBrightness: TextView
@@ -57,6 +59,18 @@ class BookReaderActivity : AppCompatActivity() {
     private var touchStartY: Float = 0f
     private var touchStartTime: Long = 0L
 
+    // Fullscreen HUD Elements
+    private lateinit var fullscreenTopHUD: View
+    private lateinit var fullscreenBottomHUD: View
+    private lateinit var tvFullscreenTimeBattery: TextView
+    private lateinit var tvFullscreenProgressLabel: TextView
+    private lateinit var pbFullscreenProgress: ProgressBar
+    private var isDraggingVerticalCenter = false
+    private val hideFullscreenHUDRunnable = Runnable { hideFullscreenHUD() }
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var currentTextPaint: android.text.TextPaint? = null
+    private var isAntiGlareActive = false
+
     private lateinit var viewModel: ReaderViewModel
     private var touchStartX: Float = 0f
     private var lastPageAnimationIdx: Int = 0
@@ -64,6 +78,14 @@ class BookReaderActivity : AppCompatActivity() {
     private var systemTopInset: Int = 0
     private var systemBottomInset: Int = 0
     private var sleepTimerJob: kotlinx.coroutines.Job? = null
+    private var silentModeJob: kotlinx.coroutines.Job? = null
+    private var currentPageOpenTime: Long = System.currentTimeMillis()
+    private var currentPageWordCount: Int = 0
+    private var currentWpm: Float = 250f
+    private var enteredLowSpeedTime: Long = 0L
+    private var triggeredLowSpeedVibration: Boolean = false
+    private var isDndActiveByApp: Boolean = false
+    private var originalInterruptionFilter: Int = -1
     private var sensorManager: android.hardware.SensorManager? = null
     private var accelerometer: android.hardware.Sensor? = null
     private var lightSensor: android.hardware.Sensor? = null
@@ -90,6 +112,7 @@ class BookReaderActivity : AppCompatActivity() {
         ambientGlowView = findViewById(R.id.ambientGlowView)
         amberFilterOverlay = findViewById(R.id.amberFilterOverlay)
         extraDimOverlay = findViewById(R.id.extraDimOverlay)
+        glassyTransitionOverlay = findViewById(R.id.glassyTransitionOverlay)
         tvBrightness = findViewById(R.id.tvBrightness)
         tvWarmth = findViewById(R.id.tvWarmth)
         
@@ -185,6 +208,11 @@ class BookReaderActivity : AppCompatActivity() {
         rootLayout.addView(progressBar, progressParams)
 
         pageIndicatorView = findViewById(R.id.tvPageIndicator)
+        fullscreenTopHUD = findViewById(R.id.fullscreenTopHUD)
+        fullscreenBottomHUD = findViewById(R.id.fullscreenBottomHUD)
+        tvFullscreenTimeBattery = findViewById(R.id.tvFullscreenTimeBattery)
+        tvFullscreenProgressLabel = findViewById(R.id.tvFullscreenProgressLabel)
+        pbFullscreenProgress = findViewById(R.id.pbFullscreenProgress)
         val seekBar = findViewById<SeekBar>(R.id.seekBar)
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -282,6 +310,12 @@ class BookReaderActivity : AppCompatActivity() {
         webView.webViewClient = object : android.webkit.WebViewClient() {
             override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
                 progressBar.visibility = View.GONE
+                if (isAntiGlareActive) {
+                    val themeKey = viewModel.themeState.value
+                    val (_, textColor) = getThemeColors(themeKey)
+                    val textColorHex = String.format("#%06X", 0xFFFFFF and textColor)
+                    webView.evaluateJavascript("if (typeof applyAntiGlare !== 'undefined') { applyAntiGlare(true, '$textColorHex'); }", null)
+                }
                 val book = viewModel.bookState.value
                 if (book != null) {
                     val pIndex = book.currentProgressChar
@@ -349,6 +383,7 @@ class BookReaderActivity : AppCompatActivity() {
                 updatePageWithAnimation(it)
                 updatePageIndicator()
                 seekBar.progress = it
+                onPageChangedForSpeedTracker(it)
                 if (lastPage != -1 && lastPage != it) {
                     triggerPageTurnHaptic()
 
@@ -385,6 +420,15 @@ class BookReaderActivity : AppCompatActivity() {
             }
         }
 
+        // Collect Font Settings changes to show glassy transitions
+        lifecycleScope.launch {
+            viewModel.fontSettingsChanged.collect {
+                triggerGlassTransition()
+            }
+        }
+
+        startSilentModeTracker()
+
 
 
         var touchStartX = 0f
@@ -393,7 +437,6 @@ class BookReaderActivity : AppCompatActivity() {
         var isDraggingVerticalLeft = false
         var isDraggingVerticalRight = false
         var initialGestureValue = 0f
-        val handler = android.os.Handler(android.os.Looper.getMainLooper())
         val hideIndicatorsRunnable = Runnable {
             tvBrightness.visibility = View.GONE
             tvWarmth.visibility = View.GONE
@@ -422,6 +465,7 @@ class BookReaderActivity : AppCompatActivity() {
                     brightnessAnimator?.cancel()
                     isDraggingVerticalLeft = false
                     isDraggingVerticalRight = false
+                    isDraggingVerticalCenter = false
                     if (event.x < screenWidth * 0.35f) {
                         isDraggingVerticalLeft = true
                         val lp = window.attributes
@@ -429,6 +473,8 @@ class BookReaderActivity : AppCompatActivity() {
                     } else if (event.x > screenWidth * 0.65f) {
                         isDraggingVerticalRight = true
                         initialGestureValue = com.nightread.app.data.SettingsManager.getAmberFilterIntensity(this@BookReaderActivity).toFloat()
+                    } else {
+                        isDraggingVerticalCenter = true
                     }
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -465,6 +511,8 @@ class BookReaderActivity : AppCompatActivity() {
                             tvWarmth.visibility = View.VISIBLE
                             tvWarmth.text = "🌡 $newIntensity%"
                             handler.removeCallbacks(hideIndicatorsRunnable)
+                        } else if (isDraggingVerticalCenter && diffY < 0 && !isBarsVisible) {
+                            showFullscreenHUD()
                         }
                     }
                 }
@@ -477,7 +525,9 @@ class BookReaderActivity : AppCompatActivity() {
                     val diffY = event.y - touchStartY
                     val duration = System.currentTimeMillis() - touchStartTime
 
-                    if (Math.abs(diffX) > 100 && Math.abs(diffX) > Math.abs(diffY) * 1.5 && duration < 500) {
+                    if (isDraggingVerticalCenter && diffY < -50 && !isBarsVisible) {
+                        showFullscreenHUD()
+                    } else if (Math.abs(diffX) > 100 && Math.abs(diffX) > Math.abs(diffY) * 1.5 && duration < 500) {
                         if (diffX > 0) {
                             viewModel.setCurrentPage(viewModel.currentPage.value - 1)
                         } else {
@@ -489,6 +539,7 @@ class BookReaderActivity : AppCompatActivity() {
                     
                     isDraggingVerticalLeft = false
                     isDraggingVerticalRight = false
+                    isDraggingVerticalCenter = false
                     handler.postDelayed(hideIndicatorsRunnable, 1000)
                 }
             }
@@ -522,14 +573,59 @@ class BookReaderActivity : AppCompatActivity() {
         }
     }
 
-    private fun applyTheme(themeKey: String) {
+    private fun applyTheme(themeKey: String, animate: Boolean = false) {
         val (bgColor, textColor) = getThemeColors(themeKey)
         
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = bgColor
+        if (animate) {
+            val oldBgColor = (rootLayout.background as? android.graphics.drawable.ColorDrawable)?.color ?: getThemeColors(themeKey).first
+            val bgAnimation = android.animation.ValueAnimator.ofObject(
+                android.animation.ArgbEvaluator(),
+                oldBgColor,
+                bgColor
+            )
+            bgAnimation.duration = 800
+            bgAnimation.addUpdateListener { animator ->
+                val color = animator.animatedValue as Int
+                rootLayout.setBackgroundColor(color)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    window.statusBarColor = color
+                }
+            }
+            bgAnimation.start()
+
+            val textOldColor = if (::tvFullscreenTimeBattery.isInitialized) tvFullscreenTimeBattery.currentTextColor else textColor
+            val txtAnimation = android.animation.ValueAnimator.ofObject(
+                android.animation.ArgbEvaluator(),
+                textOldColor,
+                textColor
+            )
+            txtAnimation.duration = 800
+            txtAnimation.addUpdateListener { animator ->
+                val color = animator.animatedValue as Int
+                if (::tvFullscreenTimeBattery.isInitialized) {
+                    tvFullscreenTimeBattery.setTextColor(color)
+                }
+                if (::tvFullscreenProgressLabel.isInitialized) {
+                    tvFullscreenProgressLabel.setTextColor(color)
+                }
+                currentTextPaint?.color = color
+                readerView.invalidate()
+            }
+            txtAnimation.start()
+        } else {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                window.statusBarColor = bgColor
+            }
+            rootLayout.setBackgroundColor(bgColor)
+            if (::tvFullscreenTimeBattery.isInitialized) {
+                tvFullscreenTimeBattery.setTextColor(textColor)
+            }
+            if (::tvFullscreenProgressLabel.isInitialized) {
+                tvFullscreenProgressLabel.setTextColor(textColor)
+            }
+            currentTextPaint?.color = textColor
+            readerView.invalidate()
         }
-        
-        rootLayout.setBackgroundColor(bgColor)
         
         val topToolbar = findViewById<View>(R.id.topToolbar)
         val bottomToolbar = findViewById<View>(R.id.bottomToolbar)
@@ -557,6 +653,13 @@ class BookReaderActivity : AppCompatActivity() {
         seekBar.progressTintList = ColorStateList.valueOf(accentColor)
         seekBar.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBar.progressBackgroundTintList = ColorStateList.valueOf(progressBgColor)
+
+        if (::pbFullscreenProgress.isInitialized && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            pbFullscreenProgress.progressTintList = ColorStateList.valueOf(accentColor)
+            // A subtle background tint using the primary text color with alpha
+            val bgTrackColor = (textColor and 0x00FFFFFF) or 0x22000000
+            pbFullscreenProgress.progressBackgroundTintList = ColorStateList.valueOf(bgTrackColor)
+        }
         
         // Handle light/dark status bar icon appearances
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
@@ -641,7 +744,41 @@ class BookReaderActivity : AppCompatActivity() {
             val settingsKey = "${viewModel.bookState.value?.sha1}_${themeKey}_${fontSize}_${lineSpacing}_${fontFamily}_${fontWeight}_${fontAlignment}_${pageMargins}_${paddingTop}_${paddingBottom}"
             val loadedKey = webView.tag as? String
             
-            if (loadedKey != settingsKey) {
+            val currentBookSha1 = viewModel.bookState.value?.sha1 ?: ""
+            val isSameBook = loadedKey != null && currentBookSha1.isNotEmpty() && loadedKey.startsWith(currentBookSha1)
+            
+            if (isSameBook && loadedKey != settingsKey) {
+                val parts = loadedKey!!.split("_")
+                val oldTheme = if (parts.size > 1) parts[1] else ""
+                val oldFontSize = if (parts.size > 2) parts[2].toFloatOrNull() ?: 16f else 16f
+                val oldLineSpacing = if (parts.size > 3) parts[3].toFloatOrNull() ?: 1.2f else 1.2f
+                val oldFontFamily = if (parts.size > 4) parts[4] else ""
+                val oldFontWeight = if (parts.size > 5) parts[5].toIntOrNull() ?: 0 else 0
+                val oldFontAlignment = if (parts.size > 6) parts[6] else ""
+                
+                webView.tag = settingsKey
+                isWebViewLoading = false
+                
+                if (oldTheme != themeKey) {
+                    val (bgColor, textColor) = getThemeColors(themeKey)
+                    val bgColorHex = String.format("#%06X", 0xFFFFFF and bgColor)
+                    val textColorHex = String.format("#%06X", 0xFFFFFF and textColor)
+                    
+                    webView.evaluateJavascript("if (typeof applyThemeChange !== 'undefined') { applyThemeChange('$bgColorHex', '$textColorHex', 800); }", null)
+                    applyTheme(themeKey, animate = true)
+                } else {
+                    applyTheme(themeKey, animate = false)
+                }
+                
+                if (oldFontSize != fontSize || oldLineSpacing != lineSpacing || oldFontFamily != fontFamily || oldFontWeight != fontWeight || oldFontAlignment != fontAlignment) {
+                    webView.evaluateJavascript(
+                        "if (typeof applyFontChange !== 'undefined') { applyFontChange('$fontFamily', $fontSize, $lineSpacing, '$fontAlignment', $fontWeight); }",
+                        null
+                    )
+                }
+                
+                updatePageIndicator()
+            } else if (loadedKey != settingsKey) {
                 isWebViewLoading = true
                 progressBar.visibility = View.VISIBLE
                 webView.tag = settingsKey
@@ -779,8 +916,16 @@ class BookReaderActivity : AppCompatActivity() {
             
             val themeKey = viewModel.themeState.value
             val (_, textColor) = getThemeColors(themeKey)
-            color = textColor
+            if (isAntiGlareActive) {
+                isFakeBoldText = true
+                val isLight = themeKey.lowercase() in listOf("light", "beige", "sepia", "sepia_contrast")
+                color = if (isLight) Color.BLACK else Color.WHITE
+            } else {
+                isFakeBoldText = false
+                color = textColor
+            }
         }
+        currentTextPaint = paint
         
         val availableWidth = readerView.width - readerView.paddingLeft - readerView.paddingRight
         val alignSetting = viewModel.fontAlignmentState.value.lowercase()
@@ -827,6 +972,10 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     private fun triggerPageTurnHaptic() {
+        if (com.nightread.app.data.SettingsManager.isSilentModeEnabled(this) && currentWpm > 400f) {
+            // Silence all vibrations at high reading speeds
+            return
+        }
         if (com.nightread.app.data.SettingsManager.isHapticFeedbackEnabled(this)) {
             readerView.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
         }
@@ -986,6 +1135,17 @@ class BookReaderActivity : AppCompatActivity() {
         val interpolator = android.view.animation.DecelerateInterpolator()
         
         if (isBarsVisible) {
+            // Hide the fullscreen HUD immediately if main bars are shown
+            handler.removeCallbacks(hideFullscreenHUDRunnable)
+            if (::fullscreenTopHUD.isInitialized) {
+                fullscreenTopHUD.visibility = View.GONE
+                fullscreenTopHUD.alpha = 0f
+            }
+            if (::fullscreenBottomHUD.isInitialized) {
+                fullscreenBottomHUD.visibility = View.GONE
+                fullscreenBottomHUD.alpha = 0f
+            }
+
             if (topToolbar.visibility == View.GONE) {
                 topToolbar.alpha = 0f
                 topToolbar.translationY = -topToolbar.height.toFloat()
@@ -1132,6 +1292,7 @@ class BookReaderActivity : AppCompatActivity() {
         brightnessAnimator?.cancel()
         viewModel.saveProgress()
         unregisterSensors()
+        restoreDndFilter()
     }
 
     private fun updateSensors() {
@@ -1178,7 +1339,7 @@ class BookReaderActivity : AppCompatActivity() {
             }
         }
 
-        if (autoThemeEnabled) {
+        if (autoThemeEnabled || true) { // Always register to support both auto-theme and anti-glare
             if (lightSensorListener == null) {
                 lightSensorListener = object : android.hardware.SensorEventListener {
                     override fun onSensorChanged(event: android.hardware.SensorEvent) {
@@ -1209,18 +1370,32 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     private fun handleLightSensorChanged(lux: Float) {
-        val currentTheme = viewModel.themeState.value
-        // Thresholds: < 10 lux for night, > 40 lux for sepia
-        val targetTheme = if (lux < 10f) {
-            "dark"
-        } else if (lux > 40f) {
-            "sepia"
-        } else {
-            return // Middle ground, keep current
+        val antiGlare = lux > 10000f
+        if (isAntiGlareActive != antiGlare) {
+            isAntiGlareActive = antiGlare
+            updatePage()
+            
+            // Update WebView styling
+            val themeKey = viewModel.themeState.value
+            val (_, textColor) = getThemeColors(themeKey)
+            val textColorHex = String.format("#%06X", 0xFFFFFF and textColor)
+            webView.evaluateJavascript("if (typeof applyAntiGlare !== 'undefined') { applyAntiGlare($antiGlare, '$textColorHex'); }", null)
         }
-        
-        if (currentTheme != targetTheme) {
-            com.nightread.app.data.SettingsManager.setReadingTheme(this, targetTheme)
+
+        if (com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(this)) {
+            val currentTheme = viewModel.themeState.value
+            // Thresholds: < 10 lux for night, > 40 lux for sepia
+            val targetTheme = if (lux < 10f) {
+                "dark"
+            } else if (lux > 40f) {
+                "sepia"
+            } else {
+                return // Middle ground, keep current
+            }
+            
+            if (currentTheme != targetTheme) {
+                com.nightread.app.data.SettingsManager.setReadingTheme(this, targetTheme)
+            }
         }
     }
 
@@ -1259,6 +1434,7 @@ class BookReaderActivity : AppCompatActivity() {
 
     private fun hideReaderSplash() {
         runOnUiThread {
+            isReaderReady = true
             val splash = findViewById<View>(R.id.reader_splash_overlay) ?: return@runOnUiThread
             if (splash.visibility == View.GONE || splash.alpha == 0f) return@runOnUiThread
             
@@ -1267,6 +1443,60 @@ class BookReaderActivity : AppCompatActivity() {
                 .setDuration(400)
                 .withEndAction {
                     splash.visibility = View.GONE
+                }
+                .start()
+        }
+    }
+
+    private var glassTransitionRunnable: Runnable? = null
+
+    fun triggerGlassTransition() {
+        if (!isReaderReady) return
+        
+        runOnUiThread {
+            val overlay = glassyTransitionOverlay
+            overlay.animate().cancel()
+            
+            glassTransitionRunnable?.let { handler.removeCallbacks(it) }
+            
+            val themeKey = viewModel.themeState.value
+            val (bgColor, _) = getThemeColors(themeKey)
+            val alphaColor = Color.argb(190, Color.red(bgColor), Color.green(bgColor), Color.blue(bgColor))
+            overlay.setBackgroundColor(alphaColor)
+            
+            overlay.alpha = 0f
+            overlay.visibility = View.VISIBLE
+            
+            overlay.animate()
+                .alpha(1f)
+                .setDuration(120)
+                .withEndAction {
+                    val run = Runnable {
+                        val viewToAnimate = activePageView
+                        viewToAnimate.animate().cancel()
+                        viewToAnimate.alpha = 0.7f
+                        viewToAnimate.scaleX = 0.98f
+                        viewToAnimate.scaleY = 0.98f
+                        
+                        viewToAnimate.animate()
+                            .alpha(1f)
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .setDuration(700)
+                            .setInterpolator(android.view.animation.DecelerateInterpolator(1.2f))
+                            .start()
+                        
+                        overlay.animate()
+                            .alpha(0f)
+                            .setDuration(650)
+                            .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+                            .withEndAction {
+                                overlay.visibility = View.GONE
+                            }
+                            .start()
+                    }
+                    glassTransitionRunnable = run
+                    handler.postDelayed(run, 100)
                 }
                 .start()
         }
@@ -1367,6 +1597,191 @@ class BookReaderActivity : AppCompatActivity() {
             activity.runOnUiThread {
                 activity.showWordActionOrNoteDialog(selectedText, contextSnippet)
             }
+        }
+    }
+
+    private fun onPageChangedForSpeedTracker(pageIndex: Int) {
+        currentPageOpenTime = System.currentTimeMillis()
+        val pages = viewModel.pagesState.value
+        val textOnPage = pages.getOrNull(pageIndex)?.toString() ?: ""
+        currentPageWordCount = countWords(textOnPage)
+        currentWpm = 250f
+        enteredLowSpeedTime = 0L
+        triggeredLowSpeedVibration = false
+    }
+
+    private fun countWords(text: String): Int {
+        if (text.isBlank() || text == "[BOOK_COVER]") return 0
+        return text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
+    }
+
+    private fun startSilentModeTracker() {
+        silentModeJob?.cancel()
+        silentModeJob = lifecycleScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(1000)
+                val context = this@BookReaderActivity
+                if (!com.nightread.app.data.SettingsManager.isSilentModeEnabled(context)) {
+                    restoreDndFilter()
+                    continue
+                }
+
+                val elapsedMs = System.currentTimeMillis() - currentPageOpenTime
+                val elapsedSeconds = elapsedMs / 1000f
+
+                if (elapsedSeconds >= 5f && currentPageWordCount > 0) {
+                    currentWpm = (currentPageWordCount.toFloat() / (elapsedSeconds / 60f))
+                } else {
+                    currentWpm = 250f
+                }
+
+                // 1. High speed condition (> 400 WPM)
+                if (currentWpm > 400f) {
+                    activateDndFilter()
+                } else {
+                    restoreDndFilter()
+                }
+
+                // 2. Low speed condition (< 100 WPM)
+                if (currentWpm < 100f) {
+                    if (enteredLowSpeedTime == 0L) {
+                        enteredLowSpeedTime = System.currentTimeMillis()
+                    } else {
+                        val timeInLowSpeed = System.currentTimeMillis() - enteredLowSpeedTime
+                        if (timeInLowSpeed >= 2 * 60 * 1000L && !triggeredLowSpeedVibration) {
+                            triggerLightVibration()
+                            triggeredLowSpeedVibration = true
+                        }
+                    }
+                } else {
+                    enteredLowSpeedTime = 0L
+                    triggeredLowSpeedVibration = false
+                }
+            }
+        }
+    }
+
+    private fun triggerLightVibration() {
+        val vibrator = getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+        if (vibrator != null && vibrator.hasVibrator()) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator.vibrate(android.os.VibrationEffect.createOneShot(150, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(150)
+            }
+        }
+    }
+
+    private fun activateDndFilter() {
+        if (!com.nightread.app.data.SettingsManager.isSilentModeEnabled(this)) return
+        if (isDndActiveByApp) return
+
+        val notificationManager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+        if (notificationManager != null) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                try {
+                    if (notificationManager.isNotificationPolicyAccessGranted) {
+                        originalInterruptionFilter = notificationManager.getCurrentInterruptionFilter()
+                        notificationManager.setInterruptionFilter(android.app.NotificationManager.INTERRUPTION_FILTER_PRIORITY)
+                        isDndActiveByApp = true
+                    }
+                } catch (e: Exception) {
+                    // Gracefully ignore
+                }
+            }
+        }
+    }
+
+    private fun restoreDndFilter() {
+        if (!isDndActiveByApp) return
+
+        val notificationManager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+        if (notificationManager != null) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                try {
+                    if (notificationManager.isNotificationPolicyAccessGranted && originalInterruptionFilter != -1) {
+                        notificationManager.setInterruptionFilter(originalInterruptionFilter)
+                    }
+                } catch (e: Exception) {
+                    // Gracefully ignore
+                }
+            }
+        }
+        isDndActiveByApp = false
+        originalInterruptionFilter = -1
+    }
+
+    private fun showFullscreenHUD() {
+        if (isBarsVisible) return // Only show in fullscreen mode
+        
+        updateFullscreenHUDData()
+        
+        handler.removeCallbacks(hideFullscreenHUDRunnable)
+        
+        if (fullscreenTopHUD.visibility != View.VISIBLE) {
+            fullscreenTopHUD.visibility = View.VISIBLE
+            fullscreenTopHUD.animate()
+                .alpha(1f)
+                .setDuration(250)
+                .setListener(null)
+                .start()
+        }
+        
+        if (fullscreenBottomHUD.visibility != View.VISIBLE) {
+            fullscreenBottomHUD.visibility = View.VISIBLE
+            fullscreenBottomHUD.animate()
+                .alpha(1f)
+                .setDuration(250)
+                .setListener(null)
+                .start()
+        }
+        
+        handler.postDelayed(hideFullscreenHUDRunnable, 2000)
+    }
+
+    private fun hideFullscreenHUD() {
+        if (!::fullscreenTopHUD.isInitialized || !::fullscreenBottomHUD.isInitialized) return
+        
+        fullscreenTopHUD.animate()
+            .alpha(0f)
+            .setDuration(250)
+            .withEndAction { fullscreenTopHUD.visibility = View.GONE }
+            .start()
+            
+        fullscreenBottomHUD.animate()
+            .alpha(0f)
+            .setDuration(250)
+            .withEndAction { fullscreenBottomHUD.visibility = View.GONE }
+            .start()
+    }
+
+    private fun updateFullscreenHUDData() {
+        if (!::tvFullscreenTimeBattery.isInitialized || !::tvFullscreenProgressLabel.isInitialized || !::pbFullscreenProgress.isInitialized) return
+        
+        // 1. Update Time
+        val sdf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+        val currentTimeStr = sdf.format(java.util.Date())
+        
+        // 2. Update Battery percentage
+        val batteryStatus: android.content.Intent? = registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
+        val level: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val batteryPct = if (level >= 0 && scale > 0) (level * 100 / scale.toFloat()).toInt() else -1
+        val batteryStr = if (batteryPct != -1) "  •  🔋 $batteryPct%" else ""
+        
+        tvFullscreenTimeBattery.text = "$currentTimeStr$batteryStr"
+        
+        // 3. Update Page Progress Bar
+        val currentPage = viewModel.currentPage.value
+        val totalPages = viewModel.pagesState.value.size
+        if (totalPages > 0) {
+            tvFullscreenProgressLabel.text = "Стр. ${currentPage + 1} из $totalPages"
+            pbFullscreenProgress.max = totalPages
+            pbFullscreenProgress.progress = currentPage + 1
+        } else {
+            tvFullscreenProgressLabel.text = ""
+            pbFullscreenProgress.progress = 0
         }
     }
 }

@@ -48,6 +48,7 @@ object SettingsManager {
     const val KEY_HAPTIC_FEEDBACK_ENABLED = "haptic_feedback_enabled"
     const val KEY_LETTER_SPACING = "letter_spacing"
     const val KEY_PARAGRAPH_INDENT = "paragraph_indent"
+    const val KEY_SILENT_MODE_ENABLED = "silent_mode_enabled"
 
     private val _settingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val settingsChanged: SharedFlow<Unit> = _settingsChanged.asSharedFlow()
@@ -84,6 +85,7 @@ object SettingsManager {
     private var cachedHapticFeedbackEnabled: Boolean? = null
     private var cachedLetterSpacing: Float? = null
     private var cachedParagraphIndent: Int? = null
+    private var cachedSilentModeEnabled: Boolean? = null
 
     private fun getPrefs(context: Context): SharedPreferences {
         if (prefs == null) {
@@ -594,6 +596,20 @@ object SettingsManager {
         if (cachedParagraphIndent == indent) return
         cachedParagraphIndent = indent
         getPrefs(context).edit().putInt(KEY_PARAGRAPH_INDENT, indent).apply()
+        notifyChanged()
+    }
+
+    fun isSilentModeEnabled(context: Context): Boolean {
+        if (cachedSilentModeEnabled == null) {
+            cachedSilentModeEnabled = getPrefs(context).getBoolean(KEY_SILENT_MODE_ENABLED, false)
+        }
+        return cachedSilentModeEnabled!!
+    }
+
+    fun setSilentModeEnabled(context: Context, enabled: Boolean) {
+        if (cachedSilentModeEnabled == enabled) return
+        cachedSilentModeEnabled = enabled
+        getPrefs(context).edit().putBoolean(KEY_SILENT_MODE_ENABLED, enabled).apply()
         notifyChanged()
     }
 }

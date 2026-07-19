@@ -151,6 +151,78 @@
         android:focusable="false"
         android:visibility="gone" />
 
+    <View
+        android:id="@+id/glassyTransitionOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone"
+        android:alpha="0" />
+
+    <!-- Fullscreen HUD Overlays -->
+    <LinearLayout
+        android:id="@+id/fullscreenTopHUD"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingTop="36dp"
+        android:paddingBottom="12dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone"
+        android:alpha="0">
+
+        <TextView
+            android:id="@+id/tvFullscreenTimeBattery"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:letterSpacing="0.1"
+            android:fontFamily="sans-serif-medium"
+            android:textColor="#FFFFFF"
+            android:text="12:00  •  🔋 100%" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/fullscreenBottomHUD"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingHorizontal="48dp"
+        android:paddingBottom="36dp"
+        android:paddingTop="12dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone"
+        android:alpha="0">
+
+        <TextView
+            android:id="@+id/tvFullscreenProgressLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:letterSpacing="0.05"
+            android:fontFamily="sans-serif"
+            android:textColor="#FFFFFF"
+            android:layout_marginBottom="6dp"
+            android:text="Стр. 1 из 100" />
+
+        <ProgressBar
+            android:id="@+id/pbFullscreenProgress"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:max="100"
+            android:progress="0"
+            android:progressBackgroundTint="#33CCCCCC"
+            android:progressTint="#FFFFFF" />
+    </LinearLayout>
+
     <!-- Brightness Indicator -->
     <TextView
         android:id="@+id/tvBrightness"
