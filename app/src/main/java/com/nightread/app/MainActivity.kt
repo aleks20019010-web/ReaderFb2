@@ -125,8 +125,6 @@ class MainActivity : BaseActivity() {
                 openSyncFragment()
             } else if (menuItem.itemId == R.id.nav_stats) {
                 openStatsFragment()
-            } else if (menuItem.itemId == R.id.nav_bookmarks) {
-                openBookmarksFragment()
             } else if (menuItem.itemId == R.id.nav_favorites) {
                 val intent = Intent(this, com.nightread.app.ui.FavoriteBooksActivity::class.java)
                 startActivity(intent)

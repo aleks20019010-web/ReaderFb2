@@ -211,7 +211,7 @@ class BookReaderActivity : AppCompatActivity() {
         }
 
         val bookmarkArea = findViewById<View>(R.id.bookmarkArea)
-        bookmarkArea.visibility = View.GONE
+        bookmarkArea.visibility = View.VISIBLE
         bookmarkArea.setOnClickListener {
             toggleBookmark()
         }
@@ -999,6 +999,18 @@ class BookReaderActivity : AppCompatActivity() {
         val page = viewModel.currentPage.value + 1
         val total = viewModel.pagesState.value.size
         pageIndicatorView.text = "Стр. $page из $total"
+        
+        // Update dog-ear bookmark status
+        val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
+        val offset = viewModel.getOffsetForPage(viewModel.currentPage.value)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val db = com.nightread.app.data.BookmarkDatabase.getDatabase(this@BookReaderActivity)
+            val isBookmarked = db.bookmarkDao().getBookmarkAtOffset(sha1, offset) != null
+            withContext(Dispatchers.Main) {
+                val ivDogEar = findViewById<ImageView>(R.id.ivDogEar)
+                ivDogEar?.visibility = if (isBookmarked) View.VISIBLE else View.GONE
+            }
+        }
     }
 
     private fun triggerPageTurnHaptic() {
@@ -1598,19 +1610,29 @@ class BookReaderActivity : AppCompatActivity() {
                     dao.deleteBookmark(existing)
                     withContext(Dispatchers.Main) {
                         CustomToast.show(this@BookReaderActivity, "Закладка удалена")
+                        updatePageIndicator()
                     }
                 } else {
+                    var snippetText = "..."
+                    val pages = viewModel.pagesState.value
+                    if (!pages.isEmpty() && pageIdx in pages.indices) {
+                        val fullText = pages[pageIdx].toString()
+                        val plainText = fullText.replace(Regex("<[^>]*>"), "")
+                        snippetText = if (plainText.length > 80) plainText.take(80) + "..." else plainText
+                    }
+
                     val newBookmark = com.nightread.app.data.BookmarkEntity(
                         bookSha1 = sha1,
                         bookTitle = title,
                         charOffset = offset,
                         pageIndex = pageIdx,
-                        snippet = "...",
+                        snippet = snippetText,
                         timestamp = System.currentTimeMillis()
                     )
                     dao.insertBookmark(newBookmark)
                     withContext(Dispatchers.Main) {
                         CustomToast.show(this@BookReaderActivity, "Закладка добавлена")
+                        updatePageIndicator()
                     }
                 }
             }

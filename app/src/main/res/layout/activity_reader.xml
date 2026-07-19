@@ -12,6 +12,19 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Dog-ear Bookmark -->
+    <ImageView
+        android:id="@+id/ivDogEar"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_gravity="top|end"
+        android:src="@drawable/ic_bookmark_filled"
+        android:scaleType="fitXY"
+        android:visibility="gone"
+        android:alpha="0.8"
+        app:tint="@color/accent"
+        android:contentDescription="Bookmark Dog-ear" />
+
     <!-- Clickable overlay to detect center tap, gestures -->
     <View
         android:id="@+id/touchOverlay"

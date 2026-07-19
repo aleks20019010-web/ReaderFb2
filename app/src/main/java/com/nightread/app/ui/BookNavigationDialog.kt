@@ -129,8 +129,8 @@ class BookNavigationDialog : DialogFragment() {
 
         // Setup tabs (hidden but kept for compatibility/safe references)
         setupTabLayout()
-        tabLayout.visibility = View.GONE
-        dividerTabs.visibility = View.GONE
+        tabLayout.visibility = View.VISIBLE
+        dividerTabs.visibility = View.VISIBLE
 
         // Setup Chapters logic
         setupChaptersList()
@@ -332,7 +332,7 @@ class BookNavigationDialog : DialogFragment() {
         bookmarkAdapter = BookBookmarkAdapter(
             themeKey = activeTheme,
             onBookmarkClicked = { bookmark ->
-                (activity as? BookReaderActivity)?.loadPage(bookmark.pageIndex)
+                (activity as? BookReaderActivity)?.navigateToOffset(bookmark.charOffset)
                 dismiss()
             },
             onBookmarkDeleteClicked = { bookmark ->
