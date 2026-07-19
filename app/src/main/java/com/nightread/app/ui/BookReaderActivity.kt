@@ -198,41 +198,22 @@ class BookReaderActivity : AppCompatActivity() {
             }
         }
 
+        val btnBottomBookmark = findViewById<ImageButton>(R.id.btnBottomBookmark)
+        btnBottomBookmark.setOnClickListener {
+            toggleBookmark()
+        }
+        btnBottomBookmark.setOnLongClickListener {
+            val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
+            if (sha1.isNotEmpty()) {
+                BookNavigationDialog.newInstance(sha1, 1).show(supportFragmentManager, "navigation")
+            }
+            true
+        }
+
         val bookmarkArea = findViewById<View>(R.id.bookmarkArea)
         bookmarkArea.visibility = View.GONE
         bookmarkArea.setOnClickListener {
-            val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
-            val pageIdx = viewModel.currentPage.value
-            val offset = viewModel.getOffsetForPage(pageIdx)
-            val title = findViewById<TextView>(R.id.tvBookTitle).text.toString()
-
-            if (sha1.isNotEmpty()) {
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val db = com.nightread.app.data.BookmarkDatabase.getDatabase(this@BookReaderActivity)
-                    val dao = db.bookmarkDao()
-                    val existing = dao.getBookmarkAtOffset(sha1, offset)
-
-                    if (existing != null) {
-                        dao.deleteBookmark(existing)
-                        withContext(Dispatchers.Main) {
-                            CustomToast.show(this@BookReaderActivity, "Закладка удалена")
-                        }
-                    } else {
-                        val newBookmark = com.nightread.app.data.BookmarkEntity(
-                            bookSha1 = sha1,
-                            bookTitle = title,
-                            charOffset = offset,
-                            pageIndex = pageIdx,
-                            snippet = "...",
-                            timestamp = System.currentTimeMillis()
-                        )
-                        dao.insertBookmark(newBookmark)
-                        withContext(Dispatchers.Main) {
-                            CustomToast.show(this@BookReaderActivity, "Закладка создана")
-                        }
-                    }
-                }
-            }
+            toggleBookmark()
         }
 
         topToolbar = findViewById(R.id.topToolbar)
@@ -1571,6 +1552,52 @@ class BookReaderActivity : AppCompatActivity() {
 
     fun loadPage(pageNumber: Int) {
         viewModel.setCurrentPage(pageNumber)
+    }
+
+    fun navigateToParagraph(pIndex: Int) {
+        viewModel.updateWebViewParagraphProgress(pIndex)
+        webView.evaluateJavascript("scrollToParagraph('p_$pIndex');") { result ->
+            if (result != "true") {
+                webView.postDelayed({
+                    webView.evaluateJavascript("scrollToParagraph('p_$pIndex');", null)
+                }, 300)
+            }
+        }
+    }
+
+    private fun toggleBookmark() {
+        val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
+        val pageIdx = viewModel.currentPage.value
+        val offset = viewModel.getOffsetForPage(pageIdx)
+        val title = findViewById<TextView>(R.id.tvBookTitle).text.toString()
+
+        if (sha1.isNotEmpty()) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                val db = com.nightread.app.data.BookmarkDatabase.getDatabase(this@BookReaderActivity)
+                val dao = db.bookmarkDao()
+                val existing = dao.getBookmarkAtOffset(sha1, offset)
+
+                if (existing != null) {
+                    dao.deleteBookmark(existing)
+                    withContext(Dispatchers.Main) {
+                        CustomToast.show(this@BookReaderActivity, "Закладка удалена")
+                    }
+                } else {
+                    val newBookmark = com.nightread.app.data.BookmarkEntity(
+                        bookSha1 = sha1,
+                        bookTitle = title,
+                        charOffset = offset,
+                        pageIndex = pageIdx,
+                        snippet = "...",
+                        timestamp = System.currentTimeMillis()
+                    )
+                    dao.insertBookmark(newBookmark)
+                    withContext(Dispatchers.Main) {
+                        CustomToast.show(this@BookReaderActivity, "Закладка добавлена")
+                    }
+                }
+            }
+        }
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

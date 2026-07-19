@@ -123,12 +123,12 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
     ) {
         layoutAiResponse.visibility = View.VISIBLE
         pbAiLoading.visibility = View.VISIBLE
-        tvAiResponse.text = "ИИ думает..."
+        tvAiResponse.text = "Выполняется поиск..."
 
         val apiKey = BuildConfig.GEMINI_API_KEY
         if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
             pbAiLoading.visibility = View.GONE
-            tvAiResponse.text = "Ключ API Gemini не настроен. Настройте его через панель Secrets в AI Studio, чтобы использовать ИИ-ассистента."
+            tvAiResponse.text = "Словарь не настроен. Настройте ключ API Gemini через панель Secrets в AI Studio, чтобы использовать эту функцию."
             return
         }
 
@@ -151,7 +151,7 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
                     if (textResponse != null) {
                         tvAiResponse.text = textResponse.trim()
                     } else {
-                        tvAiResponse.text = "Не удалось получить ответ от ИИ."
+                        tvAiResponse.text = "Не удалось получить ответ."
                     }
                 }
             } catch (e: Exception) {

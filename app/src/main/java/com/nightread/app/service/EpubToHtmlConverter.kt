@@ -45,6 +45,22 @@ object EpubToHtmlConverter {
         val bottomMargin = "${paddingBottom}px"
         val fontWeightCss = if (fontWeight > 0) "bold" else "normal"
 
+        // Inject IDs into paragraphs and headings to support chapter/bookmark navigation
+        var paragraphCounter = 0
+        val tagRegex = Regex("<(p|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>", RegexOption.IGNORE_CASE)
+        val modifiedContent = tagRegex.replace(xhtmlContent) { match ->
+            val tag = match.groupValues[1]
+            var attrs = match.groupValues[2]
+            
+            if (attrs.contains("id=", ignoreCase = true)) {
+                attrs = attrs.replace(Regex("id\\s*=\\s*['\"][^'\"]*['\"]", RegexOption.IGNORE_CASE), "")
+            }
+            
+            val replacement = "<$tag id=\"p_$paragraphCounter\"$attrs>"
+            paragraphCounter++
+            replacement
+        }
+
         return """
             <!DOCTYPE html>
             <html lang="ru">
@@ -197,6 +213,42 @@ object EpubToHtmlConverter {
                             }
                         }
                     }
+
+                    function reportCurrentParagraph() {
+                        var elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
+                        var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft;
+                        var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                        
+                        for (var i = 0; i < elements.length; i++) {
+                            var rect = elements[i].getBoundingClientRect();
+                            if (rect.right > 5 && rect.left < pageWidth) {
+                                if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onParagraphVisible) {
+                                    AndroidInterface.onParagraphVisible(elements[i].id);
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    function scrollToParagraph(pId) {
+                        var element = document.getElementById(pId);
+                        if (element) {
+                            var rect = element.getBoundingClientRect();
+                            var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft;
+                            var targetX = scrollLeft + rect.left;
+                            var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                            if (pageWidth > 0) {
+                                var pageIndex = Math.floor(targetX / pageWidth);
+                                window.scrollTo(pageIndex * pageWidth, 0);
+                                if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPageRestored) {
+                                    AndroidInterface.onPageRestored(pageIndex);
+                                }
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+
                     window.onload = function() { setTimeout(calculatePages, 200); };
                     window.onresize = function() { setTimeout(calculatePages, 200); };
 
@@ -204,7 +256,7 @@ object EpubToHtmlConverter {
                 </script>
             </head>
             <body>
-                $xhtmlContent
+                $modifiedContent
             </body>
             </html>
         """.trimIndent()

@@ -148,10 +148,11 @@ class BookNavigationDialog : DialogFragment() {
         // Apply theme-specific colors and backgrounds dynamically
         applyThemeColors(activeTheme, view)
 
-        // Pre-select initial tab (always chapters now)
+        // Pre-select initial tab
         tabLayout.post {
-            tabLayout.getTabAt(0)?.select()
-            switchPage(0)
+            val tab = tabLayout.getTabAt(initialTab)
+            tab?.select()
+            switchPage(initialTab)
         }
     }
 
@@ -292,8 +293,22 @@ class BookNavigationDialog : DialogFragment() {
                     rvChapters.visibility = View.VISIBLE
                     layoutChaptersEmpty.visibility = View.GONE
                     rvChapters.adapter = ChapterNavigationAdapter(chapterOffsets, chapterTitles) { offset ->
-                        val pageIdx = viewModel.getPageForOffset(offset)
-                        (activity as? BookReaderActivity)?.loadPage(pageIdx)
+                        val filePath = viewModel.bookState.value?.filePath ?: ""
+                        val isWebViewBook = filePath.endsWith(".fb2", true) || 
+                                           filePath.endsWith(".fb2.zip", true) || 
+                                           filePath.endsWith(".zip", true) ||
+                                           filePath.endsWith(".epub", true)
+                        
+                        val readerActivity = activity as? BookReaderActivity
+                        if (isWebViewBook && readerActivity != null) {
+                            val subContent = content.substring(0, offset.coerceAtMost(content.length))
+                            val tagRegex = Regex("<(p|title|subtitle|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>", RegexOption.IGNORE_CASE)
+                            val pIndex = tagRegex.findAll(subContent).count()
+                            readerActivity.navigateToParagraph(pIndex)
+                        } else {
+                            val pageIdx = viewModel.getPageForOffset(offset)
+                            readerActivity?.loadPage(pageIdx)
+                        }
                         dismiss()
                     }
                 }
@@ -595,7 +610,25 @@ class BookNavigationDialog : DialogFragment() {
             holder.tvTitle.text = titles.getOrNull(position) ?: "Глава ${position + 1}"
 
             // Dynamically query chapter page number using offset
-            val pageNum = viewModel.getPageForOffset(offset) + 1
+            val filePath = viewModel.bookState.value?.filePath ?: ""
+            val isWebViewBook = filePath.endsWith(".fb2", true) || 
+                               filePath.endsWith(".fb2.zip", true) || 
+                               filePath.endsWith(".zip", true) ||
+                               filePath.endsWith(".epub", true)
+            
+            val pageNum = if (isWebViewBook) {
+                val totalLength = BookCache.content.length
+                val totalPages = viewModel.pagesState.value.size
+                if (totalLength > 0 && totalPages > 1) {
+                    val ratio = offset.toFloat() / totalLength.toFloat()
+                    val estimatedIdx = 1 + (ratio * (totalPages - 1)).toInt().coerceIn(0, totalPages - 2)
+                    estimatedIdx + 1
+                } else {
+                    1
+                }
+            } else {
+                viewModel.getPageForOffset(offset) + 1
+            }
             holder.tvPage.text = pageNum.toString()
 
             // Map and style backgrounds matching activeTheme

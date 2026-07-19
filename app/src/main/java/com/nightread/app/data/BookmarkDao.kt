@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BookmarkDao {
+    @Query("SELECT DISTINCT bookSha1 FROM bookmarks")
+    fun getBookSha1sWithBookmarks(): Flow<List<String>>
+
     @Query("SELECT * FROM bookmarks ORDER BY timestamp DESC")
     fun getAllBookmarks(): Flow<List<BookmarkEntity>>
 

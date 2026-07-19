@@ -133,6 +133,14 @@
             android:thumbTint="#000000"
             android:progressTint="#000000"
             android:progressBackgroundTint="#CCCCCC" />
+
+        <ImageButton
+            android:id="@+id/btnBottomBookmark"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_bookmark"
+            android:contentDescription="Закладка" />
     </LinearLayout>
 
     <View

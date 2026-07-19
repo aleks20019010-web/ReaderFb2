@@ -593,7 +593,7 @@ class MainActivity : BaseActivity() {
     private fun openLibraryFragment(filter: String) {
         val fragment = LibraryFragment.newInstance(filter)
         supportFragmentManager.beginTransaction()
-            .setCustomAnimations(R.anim.fade_in_custom, R.anim.fade_out_custom)
+            .setTransition(androidx.fragment.app.FragmentTransaction.TRANSIT_FRAGMENT_FADE)
             .replace(R.id.fragment_container, fragment)
             .commit()
     }
@@ -601,15 +601,15 @@ class MainActivity : BaseActivity() {
     private fun openSyncFragment() {
         val fragment = com.nightread.app.ui.YandexSyncFragment.newInstance()
         supportFragmentManager.beginTransaction()
-            .setCustomAnimations(R.anim.fade_in_custom, R.anim.fade_out_custom)
+            .setTransition(androidx.fragment.app.FragmentTransaction.TRANSIT_FRAGMENT_FADE)
             .replace(R.id.fragment_container, fragment)
             .commit()
     }
 
     private fun openBookmarksFragment() {
-        val fragment = com.nightread.app.ui.BookmarksFragment.newInstance()
+        val fragment = com.nightread.app.ui.BookmarksLibraryFragment.newInstance()
         supportFragmentManager.beginTransaction()
-            .setCustomAnimations(R.anim.fade_in_custom, R.anim.fade_out_custom)
+            .setTransition(androidx.fragment.app.FragmentTransaction.TRANSIT_FRAGMENT_FADE)
             .replace(R.id.fragment_container, fragment)
             .commit()
     }
@@ -617,7 +617,7 @@ class MainActivity : BaseActivity() {
     private fun openStatsFragment() {
         val fragment = com.nightread.app.ui.StatsFragment.newInstance()
         supportFragmentManager.beginTransaction()
-            .setCustomAnimations(R.anim.fade_in_custom, R.anim.fade_out_custom)
+            .setTransition(androidx.fragment.app.FragmentTransaction.TRANSIT_FRAGMENT_FADE)
             .replace(R.id.fragment_container, fragment)
             .commit()
     }
