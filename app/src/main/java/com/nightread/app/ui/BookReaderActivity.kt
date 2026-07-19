@@ -181,7 +181,7 @@ class BookReaderActivity : AppCompatActivity() {
         }
 
         val btnChapters = findViewById<ImageButton>(R.id.btnChapters)
-        btnChapters.visibility = View.GONE
+        btnChapters.visibility = View.VISIBLE
         btnChapters.setOnClickListener {
             val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
             if (sha1.isNotEmpty()) {
@@ -190,6 +190,7 @@ class BookReaderActivity : AppCompatActivity() {
         }
 
         val btnNotes = findViewById<ImageButton>(R.id.btnNotes)
+        btnNotes.visibility = View.GONE
         btnNotes.setOnClickListener {
             val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
             if (sha1.isNotEmpty()) {

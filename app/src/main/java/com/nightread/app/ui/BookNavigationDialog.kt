@@ -131,8 +131,10 @@ class BookNavigationDialog : DialogFragment() {
         rvBookmarks.layoutManager = LinearLayoutManager(context)
         rvQuotes.layoutManager = LinearLayoutManager(context)
 
-        // Setup tabs
+        // Setup tabs (hidden but kept for compatibility/safe references)
         setupTabLayout()
+        tabLayout.visibility = View.GONE
+        dividerTabs.visibility = View.GONE
 
         // Setup Chapters logic
         setupChaptersList()
@@ -146,10 +148,10 @@ class BookNavigationDialog : DialogFragment() {
         // Apply theme-specific colors and backgrounds dynamically
         applyThemeColors(activeTheme, view)
 
-        // Pre-select initial tab
+        // Pre-select initial tab (always chapters now)
         tabLayout.post {
-            tabLayout.getTabAt(initialTab)?.select()
-            switchPage(initialTab)
+            tabLayout.getTabAt(0)?.select()
+            switchPage(0)
         }
     }
 
@@ -183,12 +185,103 @@ class BookNavigationDialog : DialogFragment() {
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Default) {
             val chapterOffsets = mutableListOf<Int>()
-            val marker = "<div class='chapter-section'>"
-            
-            var pos = content.indexOf(marker)
-            while (pos != -1) {
-                chapterOffsets.add(pos)
-                pos = content.indexOf(marker, pos + marker.length)
+            val chapterTitles = mutableListOf<String>()
+
+            // 1. Try to find standard HTML heading tags <h1>, <h2>, <h3>, <h4>
+            val headingRegex = Regex("<h([1-4])[^>]*>(.*?)</h\\1>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+            val divSectionRegex = Regex("<div\\s+class\\s*=\\s*['\"]chapter-section['\"]>", RegexOption.IGNORE_CASE)
+
+            val tempMatches = mutableListOf<Pair<Int, String>>()
+
+            val headingMatches = headingRegex.findAll(content)
+            for (match in headingMatches) {
+                val offset = match.range.first
+                val rawTitle = match.groupValues[2]
+                val cleanTitle = cleanHtmlText(rawTitle)
+                if (cleanTitle.isNotEmpty() && cleanTitle.length < 150) {
+                    tempMatches.add(Pair(offset, cleanTitle))
+                }
+            }
+
+            // 2. Also look for <div class='chapter-section'> divs and map them
+            val sectionMatches = divSectionRegex.findAll(content)
+            for (match in sectionMatches) {
+                val offset = match.range.first
+                if (tempMatches.none { Math.abs(it.first - offset) < 200 }) {
+                    // Try to extract a title from the next 300 characters
+                    val searchEnd = (offset + 300).coerceAtMost(content.length)
+                    val searchArea = content.substring(offset, searchEnd)
+                    val titleMatch = Regex("<h[1-4][^>]*>(.*?)</h[1-4]>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).find(searchArea)
+                    val title = if (titleMatch != null) {
+                        cleanHtmlText(titleMatch.groupValues[1])
+                    } else {
+                        val paraMatch = Regex("<p[^>]*>(.*?)</p>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).find(searchArea)
+                        if (paraMatch != null) {
+                            val cleanPara = cleanHtmlText(paraMatch.groupValues[1])
+                            if (cleanPara.length > 50) cleanPara.take(47) + "..." else cleanPara
+                        } else {
+                            ""
+                        }
+                    }
+                    if (title.isNotEmpty()) {
+                        tempMatches.add(Pair(offset, title))
+                    } else {
+                        tempMatches.add(Pair(offset, "Глава ${tempMatches.size + 1}"))
+                    }
+                }
+            }
+
+            // 3. Fallback for plain text or books with no structural headings
+            if (tempMatches.isEmpty()) {
+                val paraRegex = Regex("<p[^>]*>(.*?)</p>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+                val paraMatches = paraRegex.findAll(content)
+                for (match in paraMatches) {
+                    val offset = match.range.first
+                    val rawText = cleanHtmlText(match.groupValues[1])
+                    if (rawText.startsWith("Глава", ignoreCase = true) || 
+                        rawText.startsWith("Chapter", ignoreCase = true) || 
+                        rawText.startsWith("Часть", ignoreCase = true) ||
+                        rawText.startsWith("Раздел", ignoreCase = true) ||
+                        rawText.startsWith("Оглавление", ignoreCase = true) ||
+                        rawText.startsWith("Введение", ignoreCase = true) ||
+                        rawText.startsWith("Пролог", ignoreCase = true) ||
+                        rawText.startsWith("Эпилог", ignoreCase = true) ||
+                        rawText.startsWith("Заключение", ignoreCase = true)) {
+                        
+                        val cleanTitle = if (rawText.length > 80) rawText.take(80) + "..." else rawText
+                        tempMatches.add(Pair(offset, cleanTitle))
+                    }
+                }
+            }
+
+            // Sort chronologically by offset
+            val sortedMatches = tempMatches.sortedBy { it.first }
+
+            // Deduplicate matching close offsets
+            val uniqueMatches = mutableListOf<Pair<Int, String>>()
+            for (match in sortedMatches) {
+                if (uniqueMatches.isEmpty() || match.first - uniqueMatches.last().first > 500) {
+                    uniqueMatches.add(match)
+                }
+            }
+
+            // 4. Ultimate synthetic fallback if still no chapters found
+            if (uniqueMatches.isEmpty()) {
+                val totalLength = content.length
+                if (totalLength > 10000) {
+                    val step = totalLength / 10
+                    for (i in 0 until 10) {
+                        val offset = i * step
+                        uniqueMatches.add(Pair(offset, "Часть ${i + 1}"))
+                    }
+                } else {
+                    uniqueMatches.add(Pair(0, "Начало книги"))
+                }
+            }
+
+            for (match in uniqueMatches) {
+                chapterOffsets.add(match.first)
+                chapterTitles.add(match.second)
             }
 
             withContext(Dispatchers.Main) {
@@ -198,7 +291,7 @@ class BookNavigationDialog : DialogFragment() {
                 } else {
                     rvChapters.visibility = View.VISIBLE
                     layoutChaptersEmpty.visibility = View.GONE
-                    rvChapters.adapter = ChapterNavigationAdapter(chapterOffsets) { offset ->
+                    rvChapters.adapter = ChapterNavigationAdapter(chapterOffsets, chapterTitles) { offset ->
                         val pageIdx = viewModel.getPageForOffset(offset)
                         (activity as? BookReaderActivity)?.loadPage(pageIdx)
                         dismiss()
@@ -206,6 +299,22 @@ class BookNavigationDialog : DialogFragment() {
                 }
             }
         }
+    }
+
+    private fun cleanHtmlText(text: String): String {
+        return text.replace(Regex("<[^>]+>"), "")
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&quot;", "\"")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&apos;", "'")
+            .replace("&#171;", "«")
+            .replace("&#187;", "»")
+            .replace("&laquo;", "«")
+            .replace("&raquo;", "»")
+            .replace(Regex("\\s+"), " ")
+            .trim()
     }
 
     private fun setupBookmarksList() {
@@ -466,6 +575,7 @@ class BookNavigationDialog : DialogFragment() {
     // CHAPTER ADAPTER FOR UNIFIED SCREEN
     private inner class ChapterNavigationAdapter(
         private val offsets: List<Int>,
+        private val titles: List<String>,
         private val onClick: (Int) -> Unit
     ) : RecyclerView.Adapter<ChapterNavigationAdapter.ViewHolder>() {
 
@@ -482,7 +592,7 @@ class BookNavigationDialog : DialogFragment() {
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val offset = offsets[position]
-            holder.tvTitle.text = "Глава ${position + 1}"
+            holder.tvTitle.text = titles.getOrNull(position) ?: "Глава ${position + 1}"
 
             // Dynamically query chapter page number using offset
             val pageNum = viewModel.getPageForOffset(offset) + 1
