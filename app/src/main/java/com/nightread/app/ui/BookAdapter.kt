@@ -107,11 +107,13 @@ class BookAdapter(
     override fun onViewAttachedToWindow(holder: BookViewHolder) {
         super.onViewAttachedToWindow(holder)
         holder.registerParallax()
+        holder.startPulseAnimation()
     }
 
     override fun onViewDetachedFromWindow(holder: BookViewHolder) {
         super.onViewDetachedFromWindow(holder)
         holder.unregisterParallax()
+        holder.stopPulseAnimation()
     }
 
 
@@ -220,6 +222,33 @@ class BookAdapter(
                 glow.scaleX = 1f
                 glow.scaleY = 1f
             }
+        }
+
+        private var pulseAnimX: ObjectAnimator? = null
+        private var pulseAnimY: ObjectAnimator? = null
+
+        fun startPulseAnimation() {
+            if (pulseAnimX == null) {
+                pulseAnimX = ObjectAnimator.ofFloat(cvBookCover, View.SCALE_X, 1f, 1.03f).apply {
+                    duration = 1500
+                    repeatCount = ObjectAnimator.INFINITE
+                    repeatMode = ObjectAnimator.REVERSE
+                }
+                pulseAnimY = ObjectAnimator.ofFloat(cvBookCover, View.SCALE_Y, 1f, 1.03f).apply {
+                    duration = 1500
+                    repeatCount = ObjectAnimator.INFINITE
+                    repeatMode = ObjectAnimator.REVERSE
+                }
+            }
+            if (pulseAnimX?.isRunning == false) pulseAnimX?.start()
+            if (pulseAnimY?.isRunning == false) pulseAnimY?.start()
+        }
+
+        fun stopPulseAnimation() {
+            pulseAnimX?.cancel()
+            pulseAnimY?.cancel()
+            cvBookCover.scaleX = 1f
+            cvBookCover.scaleY = 1f
         }
 
         private fun getDominantColor(bitmap: android.graphics.Bitmap): Int {
