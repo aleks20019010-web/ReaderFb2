@@ -82,6 +82,7 @@ class BookReaderActivity : AppCompatActivity() {
     private var touchStartX: Float = 0f
     private var lastPageAnimationIdx: Int = 0
     private var lastPage: Int = -1
+    private var lastBookmarkCheckedPageIdx: Int = -1
     private var systemTopInset: Int = 0
     private var systemBottomInset: Int = 0
     private var sleepTimerJob: kotlinx.coroutines.Job? = null
@@ -313,6 +314,24 @@ class BookReaderActivity : AppCompatActivity() {
                 (16 * density).toInt(),
                 navBarInsets.bottom + (16 * density).toInt()
             )
+
+            val ivDogEar = findViewById<ImageView>(R.id.ivDogEar)
+            if (ivDogEar != null) {
+                val dogEarParams = ivDogEar.layoutParams as? FrameLayout.LayoutParams
+                if (dogEarParams != null) {
+                    dogEarParams.topMargin = topInset
+                    ivDogEar.layoutParams = dogEarParams
+                }
+            }
+
+            val bookmarkArea = findViewById<View>(R.id.bookmarkArea)
+            if (bookmarkArea != null) {
+                val areaParams = bookmarkArea.layoutParams as? FrameLayout.LayoutParams
+                if (areaParams != null) {
+                    areaParams.topMargin = topInset
+                    bookmarkArea.layoutParams = areaParams
+                }
+            }
             
             insets
         }
@@ -1008,7 +1027,48 @@ class BookReaderActivity : AppCompatActivity() {
             val isBookmarked = db.bookmarkDao().getBookmarkAtOffset(sha1, offset) != null
             withContext(Dispatchers.Main) {
                 val ivDogEar = findViewById<ImageView>(R.id.ivDogEar)
-                ivDogEar?.visibility = if (isBookmarked) View.VISIBLE else View.GONE
+                if (ivDogEar != null) {
+                    val currentPageIdx = viewModel.currentPage.value
+                    val isPageChange = currentPageIdx != lastBookmarkCheckedPageIdx
+                    lastBookmarkCheckedPageIdx = currentPageIdx
+
+                    val currentlyVisible = ivDogEar.visibility == View.VISIBLE && ivDogEar.alpha > 0.1f
+
+                    if (isPageChange) {
+                        // Instant display without animation during page changes
+                        ivDogEar.animate().cancel()
+                        ivDogEar.translationY = 0f
+                        ivDogEar.alpha = 1.0f
+                        ivDogEar.visibility = if (isBookmarked) View.VISIBLE else View.GONE
+                    } else {
+                        // Interactive toggle on the same page - play gorgeous slide/fade animations
+                        val density = resources.displayMetrics.density
+                        val slideOffset = if (ivDogEar.height > 0) ivDogEar.height.toFloat() else 52f * density
+                        if (isBookmarked && !currentlyVisible) {
+                            ivDogEar.animate().cancel()
+                            ivDogEar.visibility = View.VISIBLE
+                            ivDogEar.translationY = -slideOffset
+                            ivDogEar.alpha = 0f
+                            ivDogEar.animate()
+                                .translationY(0f)
+                                .alpha(1.0f)
+                                .setDuration(300)
+                                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                                .start()
+                        } else if (!isBookmarked && currentlyVisible) {
+                            ivDogEar.animate().cancel()
+                            ivDogEar.animate()
+                                .translationY(-slideOffset)
+                                .alpha(0f)
+                                .setDuration(250)
+                                .setInterpolator(android.view.animation.AccelerateInterpolator())
+                                .withEndAction {
+                                    ivDogEar.visibility = View.GONE
+                                }
+                                .start()
+                        }
+                    }
+                }
             }
         }
     }
