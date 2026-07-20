@@ -8,6 +8,8 @@ object BookCache {
     var splitResult: TextFormatter.PageResult? = null
     var hyphenatedContent: CharSequence? = null
     var isHyphenated: Boolean? = null
+    var paragraphOffsets: List<Int> = emptyList()
+    var totalParagraphCount: Int = 1
 
     fun clear() {
         sha1 = ""
@@ -17,6 +19,8 @@ object BookCache {
         splitResult = null
         hyphenatedContent = null
         isHyphenated = null
+        paragraphOffsets = emptyList()
+        totalParagraphCount = 1
     }
 
     fun getCachedText(targetSha1: String): String? {

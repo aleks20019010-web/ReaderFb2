@@ -440,6 +440,20 @@ class MainActivity : BaseActivity() {
                                     BookCache.content = bookContent
                                     BookCache.notes = bookNotes
                                     
+                                    val isWebView = filePath.endsWith(".fb2", true) || 
+                                                    filePath.endsWith(".fb2.zip", true) || 
+                                                    filePath.endsWith(".zip", true) ||
+                                                    filePath.endsWith(".epub", true)
+                                    if (isWebView) {
+                                        val tagRegex = Regex("<(p|title|subtitle|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>", RegexOption.IGNORE_CASE)
+                                        val offsets = tagRegex.findAll(bookContent).map { it.range.first }.toList()
+                                        BookCache.paragraphOffsets = offsets
+                                        BookCache.totalParagraphCount = offsets.size.coerceAtLeast(1)
+                                    } else {
+                                        BookCache.paragraphOffsets = emptyList()
+                                        BookCache.totalParagraphCount = 1
+                                    }
+                                    
                                     val hyphenationEnabled = SettingsManager.isHyphenationEnabled(this@MainActivity)
                                     val textToSplit = if (hyphenationEnabled) {
                                         com.nightread.app.ui.HyphenatorHelper.hyphenate(bookContent, this@MainActivity)

@@ -39,18 +39,7 @@ class AutoDiscoveryWorker(
     }
 
     private fun showNewBooksNotification(addedCount: Int) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-        val text = if (addedCount == 1) "Добавлена 1 новая книга" else "Добавлено $addedCount новых книг"
-        
-        val notification = androidx.core.app.NotificationCompat.Builder(context, "AutoDiscoveryChannel")
-            .setContentTitle("Новые книги!")
-            .setContentText(text)
-            .setSmallIcon(com.nightread.app.R.drawable.ic_custom_list)
-            .setAutoCancel(true)
-            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
-            .build()
-            
-        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+        // Disabled as requested - show no notifications except TTS
     }
 
     companion object {

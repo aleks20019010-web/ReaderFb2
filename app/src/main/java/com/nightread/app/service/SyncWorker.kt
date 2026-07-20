@@ -95,11 +95,14 @@ class SyncWorker(
             // 2. Убедиться, что канал уведомлений создаётся до показа уведомления
             createNotificationChannel(context)
 
+            // Commented out to prevent sync notifications as requested
+            /*
             try {
                 setForeground(getForegroundInfo())
             } catch (e: Throwable) {
                 Log.e("SYNC_WORKER", "Не удалось запустить foreground режим для WorkManager", e)
             }
+            */
 
             // 5. Проверить разрешения
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {

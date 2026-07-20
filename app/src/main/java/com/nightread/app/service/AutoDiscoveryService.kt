@@ -104,18 +104,7 @@ class AutoDiscoveryService : Service() {
     }
 
     private fun showNewBooksNotification(addedCount: Int) {
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val text = if (addedCount == 1) "Добавлена 1 новая книга" else "Добавлено $addedCount новых книг"
-        
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Новые книги!")
-            .setContentText(text)
-            .setSmallIcon(R.drawable.ic_custom_list)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
-            
-        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+        // Disabled as requested - show no notifications except TTS
     }
 
     override fun onDestroy() {

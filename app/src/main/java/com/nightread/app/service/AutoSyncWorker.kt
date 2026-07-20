@@ -68,11 +68,14 @@ class AutoSyncWorker(
             stateRepo.updateState(true, "STARTED", 0)
             createNotificationChannel(context)
 
+            // Commented out to prevent auto sync notifications as requested
+            /*
             try {
                 setForeground(getForegroundInfo())
             } catch (e: Throwable) {
                 Log.e("AUTO_SYNC_WORKER", "Не удалось запустить foreground режим для AutoSyncWorker", e)
             }
+            */
 
             // Проверить разрешения
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {

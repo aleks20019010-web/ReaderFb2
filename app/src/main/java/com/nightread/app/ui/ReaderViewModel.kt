@@ -84,10 +84,25 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private var pageStartOffsets = listOf<Int>()
     private var repaginateJob: kotlinx.coroutines.Job? = null
 
+    var paragraphOffsets: List<Int> = emptyList()
+    var totalParagraphCount: Int = 1
+
     fun getParagraphIndexFromOffset(offset: Int): Int {
-        val subContent = content.substring(0, offset.coerceAtMost(content.length))
-        val tagRegex = Regex("<(p|title|subtitle|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>", RegexOption.IGNORE_CASE)
-        return tagRegex.findAll(subContent).count()
+        val offsets = paragraphOffsets
+        if (offsets.isEmpty()) return 0
+        var low = 0
+        var high = offsets.size - 1
+        var ans = 0
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            if (offsets[mid] <= offset) {
+                ans = mid
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+        return ans
     }
 
     fun getPageForOffset(offset: Int): Int {
@@ -110,13 +125,12 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun getOffsetForParagraphIndex(pIndex: Int): Int {
-        if (pIndex <= 0) return 0
-        val tagRegex = Regex("<(p|title|subtitle|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>", RegexOption.IGNORE_CASE)
-        val matches = tagRegex.findAll(content).toList()
-        if (pIndex in matches.indices) {
-            return matches[pIndex].range.first
+        val offsets = paragraphOffsets
+        if (offsets.isEmpty()) return 0
+        if (pIndex in offsets.indices) {
+            return offsets[pIndex]
         }
-        return if (matches.isNotEmpty()) matches.last().range.first else 0
+        return offsets.last()
     }
 
     init {
@@ -179,36 +193,54 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             if (book != null) {
                 pendingTargetOffset = targetOffset
                 
-                if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty()) {
-                    content = BookCache.content
-                } else {
-                    val file = java.io.File(book.filePath ?: "")
-                    if (file.exists()) {
-                        val rawContent = if (file.extension.lowercase() == "zip") {
-                            readZipFile(file)
-                        } else if (file.extension.lowercase() == "epub") {
-                            com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
-                        } else {
-                            file.readText(java.nio.charset.StandardCharsets.UTF_8)
-                        }
-                        
-                        if (file.extension.lowercase() == "fb2" || file.extension.lowercase() == "zip" || file.extension.lowercase() == "epub") {
-                            content = rawContent
-                        } else {
-                            content = TextCleaner.cleanText(rawContent) as String
-                        }
-                    } else {
-                        content = ""
-                    }
-                    BookCache.clear()
-                    BookCache.sha1 = bookSha1
-                    BookCache.content = content
-                }
-                
                 val isWebView = book.filePath?.endsWith(".fb2", true) == true || 
                                 book.filePath?.endsWith(".fb2.zip", true) == true || 
                                 book.filePath?.endsWith(".zip", true) == true ||
                                 book.filePath?.endsWith(".epub", true) == true
+
+                if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty() && BookCache.paragraphOffsets.isNotEmpty()) {
+                    content = BookCache.content
+                    paragraphOffsets = BookCache.paragraphOffsets
+                    totalParagraphCount = BookCache.totalParagraphCount
+                } else {
+                    if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty()) {
+                        content = BookCache.content
+                    } else {
+                        val file = java.io.File(book.filePath ?: "")
+                        if (file.exists()) {
+                            val rawContent = if (file.extension.lowercase() == "zip") {
+                                readZipFile(file)
+                            } else if (file.extension.lowercase() == "epub") {
+                                com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
+                            } else {
+                                file.readText(java.nio.charset.StandardCharsets.UTF_8)
+                            }
+                            
+                            if (file.extension.lowercase() == "fb2" || file.extension.lowercase() == "zip" || file.extension.lowercase() == "epub") {
+                                content = rawContent
+                            } else {
+                                content = TextCleaner.cleanText(rawContent) as String
+                            }
+                        } else {
+                            content = ""
+                        }
+                    }
+                    
+                    if (isWebView && content.isNotEmpty()) {
+                        val tagRegex = Regex("<(p|title|subtitle|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>", RegexOption.IGNORE_CASE)
+                        paragraphOffsets = tagRegex.findAll(content).map { it.range.first }.toList()
+                        totalParagraphCount = paragraphOffsets.size.coerceAtLeast(1)
+                    } else {
+                        paragraphOffsets = emptyList()
+                        totalParagraphCount = 1
+                    }
+                    
+                    BookCache.clear()
+                    BookCache.sha1 = bookSha1
+                    BookCache.content = content
+                    BookCache.paragraphOffsets = paragraphOffsets
+                    BookCache.totalParagraphCount = totalParagraphCount
+                }
                 
                 val finalBook = if (targetOffset != -1 && isWebView) {
                     book.copy(currentProgressChar = getParagraphIndexFromOffset(targetOffset))
@@ -628,7 +660,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     fun updateWebViewParagraphProgress(pIndex: Int) {
         val book = _bookState.value ?: return
         
-        val totalParagraphs = BookCache.content.split(Regex("<p[\\s>]|<h[1-6][\\s>]")).size.coerceAtLeast(1)
+        val totalParagraphs = BookCache.totalParagraphCount
 
         _bookState.value = book.copy(
             currentProgressChar = pIndex,
@@ -692,7 +724,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
         if (isWebViewBook) {
             val savedParagraphIndex = book.currentProgressChar
-            val totalParagraphs = BookCache.content.split(Regex("<p[\\s>]|<h[1-6][\\s>]")).size.coerceAtLeast(1)
+            val totalParagraphs = BookCache.totalParagraphCount
             
             _bookState.value = book.copy(
                 currentPageIndex = pageIdx,

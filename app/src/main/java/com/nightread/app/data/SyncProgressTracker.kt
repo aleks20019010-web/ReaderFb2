@@ -144,29 +144,11 @@ class SyncProgressTracker(private val context: Context) {
 
     fun showFinalNotification(title: String, text: String, success: Boolean) {
         cancelTimer()
-        val notification = NotificationCompat.Builder(context, channelId)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setOngoing(false)
-            .setAutoCancel(true)
-            .setProgress(0, 0, false)
-            .setContentIntent(getMainActivityPendingIntent())
-            .build()
-        notificationManager.notify(notificationId, notification)
+        // Disabled as requested - show no notifications except TTS
     }
 
     private fun updateNotification(text: String, progress: Int, max: Int, indeterminate: Boolean) {
-        val notification = NotificationCompat.Builder(context, channelId)
-            .setContentTitle("Синхронизация с Яндекс Диском")
-            .setContentText(text)
-            .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setProgress(max, progress, indeterminate)
-            .setContentIntent(getMainActivityPendingIntent())
-            .build()
-        notificationManager.notify(notificationId, notification)
+        // Disabled as requested - show no notifications except TTS
     }
 
     private fun getMainActivityPendingIntent(): PendingIntent {
