@@ -161,10 +161,25 @@
                 android:layout_height="match_parent"
                 android:visibility="gone">
 
+                <EditText
+                    android:id="@+id/etSearchBookmarks"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginBottom="8dp"
+                    android:hint="Поиск по закладкам"
+                    android:paddingHorizontal="12dp"
+                    android:background="#20FFFFFF"
+                    android:textColor="#E8D8F0"
+                    android:textColorHint="#B8A0C8"
+                    android:textSize="14sp"
+                    android:inputType="text"
+                    android:maxLines="1" />
+
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rvBookmarks"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
+                    android:layout_below="@id/etSearchBookmarks"
                     android:scrollbars="vertical"
                     android:clipToPadding="false"
                     android:paddingBottom="16dp" />

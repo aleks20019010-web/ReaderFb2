@@ -20,7 +20,9 @@ class BookBookmarkAdapter(
     private val themeKey: String,
     private val onBookmarkClicked: (BookmarkEntity) -> Unit,
     private val onBookmarkDeleteClicked: (BookmarkEntity) -> Unit,
-    private val onBookmarkLongClicked: (BookmarkEntity) -> Unit = {}
+    private val onBookmarkLongClicked: (BookmarkEntity) -> Unit = {},
+    private val onBookmarkEditClicked: (BookmarkEntity) -> Unit = {},
+    private val onBookmarkShareClicked: (BookmarkEntity) -> Unit = {}
 ) : RecyclerView.Adapter<BookBookmarkAdapter.ViewHolder>() {
 
     private var list: List<BookmarkEntity> = emptyList()
@@ -50,6 +52,8 @@ class BookBookmarkAdapter(
         private val ivIcon: ImageView = itemView.findViewById(R.id.ivIcon)
         private val tvPageNumber: TextView = itemView.findViewById(R.id.tvPageNumber)
         private val tvTimestamp: TextView = itemView.findViewById(R.id.tvTimestamp)
+        private val btnShare: ImageButton = itemView.findViewById(R.id.btnShare)
+        private val btnEdit: ImageButton = itemView.findViewById(R.id.btnEdit)
         private val btnDelete: ImageButton = itemView.findViewById(R.id.btnDelete)
         private val tvSnippet: TextView = itemView.findViewById(R.id.tvSnippet)
 
@@ -132,6 +136,8 @@ class BookBookmarkAdapter(
 
             // Tint icons
             ivIcon.imageTintList = ColorStateList.valueOf(accentColor)
+            btnShare.imageTintList = ColorStateList.valueOf(if (themeKey == "contrast") Color.parseColor("#FFFFFF") else Color.parseColor("#3498DB"))
+            btnEdit.imageTintList = ColorStateList.valueOf(if (themeKey == "contrast") Color.parseColor("#FFFFFF") else Color.parseColor("#F1C40F"))
             btnDelete.imageTintList = ColorStateList.valueOf(if (themeKey == "contrast") Color.parseColor("#FFFFFF") else Color.parseColor("#E74C3C"))
 
             itemView.setOnClickListener {
@@ -141,6 +147,14 @@ class BookBookmarkAdapter(
             itemView.setOnLongClickListener {
                 onBookmarkLongClicked(bookmark)
                 true
+            }
+
+            btnShare.setOnClickListener {
+                onBookmarkShareClicked(bookmark)
+            }
+
+            btnEdit.setOnClickListener {
+                onBookmarkEditClicked(bookmark)
             }
 
             btnDelete.setOnClickListener {

@@ -42,7 +42,9 @@ class BookNavigationDialog : DialogFragment() {
     private lateinit var rvQuotes: RecyclerView
     private lateinit var layoutQuotesEmpty: View
     private lateinit var etSearchQuotes: android.widget.EditText
+    private lateinit var etSearchBookmarks: android.widget.EditText
     private var allNotes: List<com.nightread.app.data.NoteEntity> = emptyList()
+    private var allBookmarks: List<com.nightread.app.data.BookmarkEntity> = emptyList()
 
     private lateinit var navigationCardRoot: CardView
     private lateinit var navigationToolbar: View
@@ -122,6 +124,7 @@ class BookNavigationDialog : DialogFragment() {
         rvQuotes = view.findViewById(R.id.rvQuotes)
         layoutQuotesEmpty = view.findViewById(R.id.layoutQuotesEmpty)
         etSearchQuotes = view.findViewById(R.id.etSearchQuotes)
+        etSearchBookmarks = view.findViewById(R.id.etSearchBookmarks)
 
         rvChapters.layoutManager = LinearLayoutManager(context)
         rvBookmarks.layoutManager = LinearLayoutManager(context)
@@ -340,9 +343,28 @@ class BookNavigationDialog : DialogFragment() {
             },
             onBookmarkLongClicked = { bookmark ->
                 confirmAndDeleteBookmark(bookmark)
+            },
+            onBookmarkEditClicked = { bookmark ->
+                showEditBookmarkDialog(bookmark)
+            },
+            onBookmarkShareClicked = { bookmark ->
+                shareBookmark(bookmark)
             }
         )
         rvBookmarks.adapter = bookmarkAdapter
+
+        etSearchBookmarks.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val query = s.toString().lowercase()
+                val filtered = allBookmarks.filter {
+                    it.snippet.lowercase().contains(query) || "страница ${it.pageIndex + 1}".contains(query)
+                }
+                bookmarkAdapter.submitList(filtered)
+                layoutBookmarksEmpty.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
+            }
+        })
 
         // Swipe gesture to delete bookmark
         val swipeCallback = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
@@ -368,16 +390,120 @@ class BookNavigationDialog : DialogFragment() {
         lifecycleScope.launch {
             val db = BookmarkDatabase.getDatabase(requireContext())
             db.bookmarkDao().getBookmarksForBook(bookSha1).collectLatest { bookmarks ->
-                if (bookmarks.isEmpty()) {
+                allBookmarks = bookmarks
+                val query = etSearchBookmarks.text.toString().lowercase()
+                val filtered = bookmarks.filter {
+                    it.snippet.lowercase().contains(query) || "страница ${it.pageIndex + 1}".contains(query)
+                }
+                if (filtered.isEmpty()) {
                     rvBookmarks.visibility = View.GONE
                     layoutBookmarksEmpty.visibility = View.VISIBLE
                 } else {
                     rvBookmarks.visibility = View.VISIBLE
                     layoutBookmarksEmpty.visibility = View.GONE
-                    bookmarkAdapter.submitList(bookmarks)
+                    bookmarkAdapter.submitList(filtered)
                 }
             }
         }
+    }
+
+    private fun showEditBookmarkDialog(bookmark: BookmarkEntity) {
+        val cardBgHex: String
+        val accentHex: String
+        val textPrimaryHex: String
+        val textSecondaryHex: String
+        when (activeTheme) {
+            "light", "beige" -> {
+                cardBgHex = "#FAF6F0"
+                accentHex = "#D35400"
+                textPrimaryHex = "#2C3E50"
+                textSecondaryHex = "#7F8C8D"
+            }
+            "sepia", "sepia_contrast" -> {
+                cardBgHex = "#F4ECD8"
+                accentHex = "#8E44AD"
+                textPrimaryHex = "#5B3A29"
+                textSecondaryHex = "#8F7365"
+            }
+            "contrast" -> {
+                cardBgHex = "#000000"
+                accentHex = "#FFFFFF"
+                textPrimaryHex = "#FFFFFF"
+                textSecondaryHex = "#AAAAAA"
+            }
+            else -> {
+                cardBgHex = "#1A0D2A"
+                accentHex = "#9B59B6"
+                textPrimaryHex = "#E8D8F0"
+                textSecondaryHex = "#B8A0C8"
+            }
+        }
+
+        val cardBgColor = Color.parseColor(cardBgHex)
+        val accentColor = Color.parseColor(accentHex)
+        val textPrimaryColor = Color.parseColor(textPrimaryHex)
+        val textSecondaryColor = Color.parseColor(textSecondaryHex)
+
+        val builder = androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.SettingsDialogStyle)
+        builder.setTitle("Редактировать закладку")
+
+        val input = android.widget.EditText(requireContext()).apply {
+            setText(bookmark.snippet)
+            setSelection(bookmark.snippet.length)
+            setTextColor(textPrimaryColor)
+            setHintTextColor(textSecondaryColor)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                cornerRadius = 8f
+                setColor(Color.parseColor(when (activeTheme) {
+                    "light", "beige" -> "#10000000"
+                    "sepia", "sepia_contrast" -> "#0A000000"
+                    "contrast" -> "#22ffffff"
+                    else -> "#15ffffff"
+                }))
+            }
+            setPadding(32, 32, 32, 32)
+        }
+
+        val container = android.widget.FrameLayout(requireContext()).apply {
+            addView(input)
+            setPadding(32, 16, 32, 16)
+        }
+        builder.setView(container)
+
+        builder.setPositiveButton("Сохранить") { dialog, _ ->
+            val updatedText = input.text.toString()
+            lifecycleScope.launch(Dispatchers.IO) {
+                val db = BookmarkDatabase.getDatabase(requireContext())
+                val updatedBookmark = bookmark.copy(snippet = updatedText, timestamp = System.currentTimeMillis())
+                db.bookmarkDao().insertBookmark(updatedBookmark)
+                withContext(Dispatchers.Main) {
+                    CustomToast.show(requireContext(), "Закладка обновлена")
+                }
+            }
+            dialog.dismiss()
+        }
+        builder.setNegativeButton("Отмена") { dialog, _ ->
+            dialog.dismiss()
+        }
+
+        val dialog = builder.create()
+        dialog.setOnShowListener {
+            dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(cardBgColor))
+            dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.setTextColor(accentColor)
+            dialog.getButton(android.content.DialogInterface.BUTTON_NEGATIVE)?.setTextColor(textSecondaryColor)
+        }
+        dialog.show()
+    }
+
+    private fun shareBookmark(bookmark: BookmarkEntity) {
+        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(android.content.Intent.EXTRA_SUBJECT, "Закладка из книги")
+            val shareText = "Закладка из книги \"${bookmark.bookTitle}\" (Страница ${bookmark.pageIndex + 1}):\n\n${bookmark.snippet}"
+            putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+        }
+        startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться закладкой"))
     }
 
     private fun setupQuotesList() {
@@ -562,7 +688,12 @@ class BookNavigationDialog : DialogFragment() {
         rootView.findViewById<android.widget.EditText>(R.id.etSearchQuotes)?.let {
             it.setTextColor(textPrimaryColor)
             it.setHintTextColor(textSecondaryColor)
-            it.background.setTint(textSecondaryColor) // Simple tint for background
+            it.background?.setTint(textSecondaryColor) // Simple tint for background
+        }
+        rootView.findViewById<android.widget.EditText>(R.id.etSearchBookmarks)?.let {
+            it.setTextColor(textPrimaryColor)
+            it.setHintTextColor(textSecondaryColor)
+            it.background?.setTint(textSecondaryColor) // Simple tint for background
         }
     }
 
