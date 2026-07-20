@@ -341,7 +341,8 @@ class BookDetailActivity : BaseActivity() {
 
                 // Progress & Date setup
                 val percent = if (book.totalCharacters > 0) {
-                    ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt().coerceIn(0, 100)
+                    val calculated = ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt().coerceIn(0, 100)
+                    if (calculated >= 98) 100 else calculated
                 } else {
                     0
                 }

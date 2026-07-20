@@ -94,7 +94,7 @@ interface BookDao {
     @Query("DELETE FROM books")
     suspend fun deleteAllBooks()
 
-    @Query("SELECT * FROM books WHERE lastReadTime > 0 AND (totalCharacters = 0 OR (currentProgressChar * 100 / totalCharacters) < 100) ORDER BY lastReadTime DESC")
+    @Query("SELECT * FROM books WHERE lastReadTime > 0 AND (totalCharacters = 0 OR (currentProgressChar * 100 / totalCharacters) < 98) ORDER BY lastReadTime DESC")
     fun getReadingBooks(): Flow<List<BookEntity>>
 
     @Query("SELECT * FROM books WHERE isFavorite = 1 ORDER BY title ASC")

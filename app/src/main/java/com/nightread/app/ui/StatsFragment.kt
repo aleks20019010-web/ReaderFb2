@@ -108,12 +108,13 @@ class StatsFragment : Fragment() {
                 }
 
                 val percent = if (book.totalCharacters > 0) {
-                    ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt()
+                    val calculated = ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt().coerceIn(0, 100)
+                    if (calculated >= 98) 100 else calculated
                 } else {
                     0
                 }
 
-                if (percent >= 98 || percent == 100) {
+                if (percent == 100) {
                     completedBooks++
                 } else if (book.currentProgressChar > 0 || book.lastReadTime > 0) {
                     inProgressBooks++

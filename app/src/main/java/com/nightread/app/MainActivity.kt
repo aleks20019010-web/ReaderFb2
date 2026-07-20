@@ -381,7 +381,8 @@ class MainActivity : BaseActivity() {
                     val book = db.bookDao().getBookBySha1(lastReadSha1)
                     if (book != null) {
                         val percent = if (book.totalCharacters > 0) {
-                            ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt()
+                            val calculated = ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt().coerceIn(0, 100)
+                            if (calculated >= 98) 100 else calculated
                         } else {
                             0
                         }
@@ -680,6 +681,11 @@ class MainActivity : BaseActivity() {
         if (intent.getBooleanExtra("OPEN_DRAWER", false)) {
             openDrawer()
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        hasShownSplash = false
     }
 
     private fun hasStoragePermission(): Boolean {
