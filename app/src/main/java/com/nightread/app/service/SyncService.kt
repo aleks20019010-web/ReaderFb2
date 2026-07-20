@@ -59,6 +59,13 @@ class SyncService : Service() {
     private fun startSync() {
         startForegroundServiceCompat()
 
+        // Launch a coroutine to update the notification dynamically based on sync state
+        serviceScope.launch {
+            YandexSyncState.state.collect { state ->
+                updateNotification(state)
+            }
+        }
+
         syncJob = serviceScope.launch {
             val context = applicationContext
             val cloudService = CloudFileService(context)
@@ -113,6 +120,39 @@ class SyncService : Service() {
             .build()
 
         startForeground(notificationId, notification)
+    }
+
+    private fun updateNotification(state: YandexSyncState) {
+        if (!state.isRunning) return
+
+        val title = "Синхронизация (${state.percent}%)"
+        
+        var contentText = state.statusText
+        if (state.stage == YandexSyncState.Stage.DOWNLOADING || state.stage == YandexSyncState.Stage.UPLOADING) {
+            if (state.currentFileName != null) {
+                contentText = "${state.statusText}: ${state.currentFileName}"
+            }
+        }
+
+        val max = if (state.total > 0) state.total else 100
+        val progress = if (state.total > 0) state.completed else 0
+        val isIndeterminate = state.stage == YandexSyncState.Stage.SCANNING || state.stage == YandexSyncState.Stage.PREPARING
+
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setContentTitle(title)
+            .setContentText(contentText)
+            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setProgress(max, progress, isIndeterminate)
+            .setContentIntent(getMainActivityPendingIntent())
+            .build()
+            
+        try {
+            notificationManager.notify(notificationId, notification)
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Notification permission missing", e)
+        }
     }
 
     private fun getMainActivityPendingIntent(): PendingIntent {

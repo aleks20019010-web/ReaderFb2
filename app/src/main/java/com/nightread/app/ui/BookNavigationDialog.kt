@@ -300,9 +300,7 @@ class BookNavigationDialog : DialogFragment() {
                         
                         val readerActivity = activity as? BookReaderActivity
                         if (isWebViewBook && readerActivity != null) {
-                            val subContent = content.substring(0, offset.coerceAtMost(content.length))
-                            val tagRegex = Regex("<(p|title|subtitle|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>", RegexOption.IGNORE_CASE)
-                            val pIndex = tagRegex.findAll(subContent).count()
+                            val pIndex = viewModel.getParagraphIndexFromOffset(offset)
                             readerActivity.navigateToParagraph(pIndex)
                         } else {
                             val pageIdx = viewModel.getPageForOffset(offset)

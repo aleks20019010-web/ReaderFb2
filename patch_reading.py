@@ -3,19 +3,20 @@ import re
 with open('app/src/main/java/com/nightread/app/ui/ReaderViewModel.kt', 'r') as f:
     content = f.read()
 
-old_code = r"""                    if (isWebView && content.isNotEmpty()) {
+old_code = """if (isWebView && content.isNotEmpty()) {
                         val tagRegex = Regex("<(p|title|subtitle|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>", RegexOption.IGNORE_CASE)
                         paragraphOffsets = tagRegex.findAll(content).map { it.range.first }.toList()
                         totalParagraphCount = paragraphOffsets.size.coerceAtLeast(1)
                     } else {"""
 
-new_code = r"""                    if (isWebView && content.isNotEmpty()) {
+new_code = """if (isWebView && content.isNotEmpty()) {
                         val offsets = mutableListOf<Int>()
                         var i = 0
                         val len = content.length
                         while (i < len) {
                             val nextTagStart = content.indexOf('<', i)
                             if (nextTagStart == -1) break
+                            
                             i = nextTagStart + 1
                             if (i < len && content[i] != '/') {
                                 var endNameIdx = i
@@ -36,11 +37,8 @@ new_code = r"""                    if (isWebView && content.isNotEmpty()) {
                         totalParagraphCount = paragraphOffsets.size.coerceAtLeast(1)
                     } else {"""
 
-if old_code in content:
-    content = content.replace(old_code, new_code)
-    with open('app/src/main/java/com/nightread/app/ui/ReaderViewModel.kt', 'w') as f:
-        f.write(content)
-    print("Patched ReaderViewModel.kt")
-else:
-    print("old_code not found in ReaderViewModel.kt")
+content = content.replace(old_code, new_code)
+
+with open('app/src/main/java/com/nightread/app/ui/ReaderViewModel.kt', 'w') as f:
+    f.write(content)
 

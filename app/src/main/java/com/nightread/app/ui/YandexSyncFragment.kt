@@ -208,19 +208,7 @@ class YandexSyncFragment : Fragment() {
         btnSyncNow.alpha = 1.0f
 
         btnSyncNow.setOnClickListener {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                if (androidx.core.content.ContextCompat.checkSelfPermission(
-                        requireContext(),
-                        android.Manifest.permission.POST_NOTIFICATIONS
-                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                ) {
-                    startForegroundSync()
-                } else {
-                    requestNotificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                }
-            } else {
-                startForegroundSync()
-            }
+            startSyncWithPermissionsCheck()
         }
 
         btnCancelSync.setOnClickListener {
@@ -334,6 +322,22 @@ class YandexSyncFragment : Fragment() {
     /**
      * Запуск фоновой синхронизации через WorkManager.
      */
+    private fun startSyncWithPermissionsCheck() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(
+                    requireContext(),
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                startForegroundSync()
+            } else {
+                requestNotificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            startForegroundSync()
+        }
+    }
+
     private fun startForegroundSync() {
         val context = requireContext()
         try {
@@ -409,7 +413,7 @@ class YandexSyncFragment : Fragment() {
                 if (isAdded) {
                     if (report != null) {
                         SyncReportDialog(context, report) {
-                            startForegroundSync()
+                            startSyncWithPermissionsCheck()
                         }.show()
                     } else {
                         CustomToast.show(context, "Не удалось выполнить анализ диска. Проверьте авторизацию.")
@@ -559,7 +563,7 @@ class YandexSyncFragment : Fragment() {
                     btnSyncNow.alpha = 1.0f
 
                     btnSyncNow.setOnClickListener {
-                        startForegroundSync()
+                        startSyncWithPermissionsCheck()
                     }
                     btnSelectFolder.isEnabled = true
                     btnSelectLocalFolder.isEnabled = true
