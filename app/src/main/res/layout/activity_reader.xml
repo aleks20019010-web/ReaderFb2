@@ -15,9 +15,10 @@
     <!-- Dog-ear Bookmark -->
     <ImageView
         android:id="@+id/ivDogEar"
-        android:layout_width="64dp"
-        android:layout_height="64dp"
+        android:layout_width="18dp"
+        android:layout_height="33dp"
         android:layout_gravity="top|end"
+        android:layout_marginEnd="8dp"
         android:src="@drawable/ic_bookmark_filled"
         android:scaleType="fitXY"
         android:visibility="gone"

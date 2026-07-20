@@ -60,6 +60,7 @@ class BookReaderActivity : AppCompatActivity() {
     private var ttsTimerMinutes = 0
     private var ttsTimerJob: kotlinx.coroutines.Job? = null
     private var isMovingToPrevPageForTts = false
+    private val REQUEST_CODE_NOTIFICATION_PERMISSION = 1010
 
     data class SentenceInfo(
         val text: String,
@@ -347,7 +348,7 @@ class BookReaderActivity : AppCompatActivity() {
             if (ivDogEar != null) {
                 val dogEarParams = ivDogEar.layoutParams as? FrameLayout.LayoutParams
                 if (dogEarParams != null) {
-                    dogEarParams.topMargin = topInset
+                    dogEarParams.topMargin = (topInset * 0.15f).toInt()
                     ivDogEar.layoutParams = dogEarParams
                 }
             }
@@ -356,7 +357,7 @@ class BookReaderActivity : AppCompatActivity() {
             if (bookmarkArea != null) {
                 val areaParams = bookmarkArea.layoutParams as? FrameLayout.LayoutParams
                 if (areaParams != null) {
-                    areaParams.topMargin = topInset
+                    areaParams.topMargin = 0
                     bookmarkArea.layoutParams = areaParams
                 }
             }
@@ -1077,7 +1078,19 @@ class BookReaderActivity : AppCompatActivity() {
         
         // Update dog-ear bookmark status
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
-        val offset = viewModel.getOffsetForPage(viewModel.currentPage.value)
+        val filePath = viewModel.bookState.value?.filePath ?: ""
+        val isWebViewBook = filePath.endsWith(".fb2", true) || 
+                           filePath.endsWith(".fb2.zip", true) || 
+                           filePath.endsWith(".zip", true) ||
+                           filePath.endsWith(".epub", true)
+        
+        val offset = if (isWebViewBook) {
+            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
+            viewModel.getOffsetForParagraphIndex(pIndex)
+        } else {
+            viewModel.getOffsetForPage(viewModel.currentPage.value)
+        }
+
         lifecycleScope.launch(Dispatchers.IO) {
             val db = com.nightread.app.data.BookmarkDatabase.getDatabase(this@BookReaderActivity)
             val isBookmarked = db.bookmarkDao().getBookmarkAtOffset(sha1, offset) != null
@@ -1099,7 +1112,7 @@ class BookReaderActivity : AppCompatActivity() {
                     } else {
                         // Interactive toggle on the same page - play gorgeous slide/fade animations
                         val density = resources.displayMetrics.density
-                        val slideOffset = if (ivDogEar.height > 0) ivDogEar.height.toFloat() else 52f * density
+                        val slideOffset = if (ivDogEar.height > 0) ivDogEar.height.toFloat() else 33f * density
                         if (isBookmarked && !currentlyVisible) {
                             ivDogEar.animate().cancel()
                             ivDogEar.visibility = View.VISIBLE
@@ -1459,6 +1472,22 @@ class BookReaderActivity : AppCompatActivity() {
         restoreDndFilter()
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CODE_NOTIFICATION_PERMISSION) {
+            if (grantResults.isNotEmpty() && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                startTts()
+            } else {
+                CustomToast.show(this, "Разрешение на уведомления отклонено. Чтение в фоне может быть ограничено системой.")
+                startTts()
+            }
+        }
+    }
+
     private fun updateSensors() {
         unregisterSensors()
         registerSensors()
@@ -1718,7 +1747,18 @@ class BookReaderActivity : AppCompatActivity() {
     private fun toggleBookmark() {
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
         val pageIdx = viewModel.currentPage.value
-        val offset = viewModel.getOffsetForPage(pageIdx)
+        val filePath = viewModel.bookState.value?.filePath ?: ""
+        val isWebViewBook = filePath.endsWith(".fb2", true) || 
+                           filePath.endsWith(".fb2.zip", true) || 
+                           filePath.endsWith(".zip", true) ||
+                           filePath.endsWith(".epub", true)
+        
+        val offset = if (isWebViewBook) {
+            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
+            viewModel.getOffsetForParagraphIndex(pIndex)
+        } else {
+            viewModel.getOffsetForPage(pageIdx)
+        }
         val title = findViewById<TextView>(R.id.tvBookTitle).text.toString()
 
         if (sha1.isNotEmpty()) {
@@ -1735,11 +1775,37 @@ class BookReaderActivity : AppCompatActivity() {
                     }
                 } else {
                     var snippetText = "..."
-                    val pages = viewModel.pagesState.value
-                    if (!pages.isEmpty() && pageIdx in pages.indices) {
-                        val fullText = pages[pageIdx].toString()
-                        val plainText = fullText.replace(Regex("<[^>]*>"), "")
-                        snippetText = if (plainText.length > 80) plainText.take(80) + "..." else plainText
+                    if (isWebViewBook) {
+                        try {
+                            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
+                            val tagRegex = Regex("<(p|title|subtitle|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>(.*?)</\\1>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+                            val matches = tagRegex.findAll(BookCache.content).toList()
+                            if (pIndex in matches.indices) {
+                                val rawText = matches[pIndex].groupValues[3]
+                                val plainText = rawText.replace(Regex("<[^>]+>"), "").trim()
+                                snippetText = if (plainText.length > 80) plainText.take(80) + "..." else plainText
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                        if (snippetText == "..." || snippetText.isEmpty()) {
+                            try {
+                                val startOffset = offset
+                                val endOffset = (startOffset + 150).coerceAtMost(BookCache.content.length)
+                                val subText = BookCache.content.substring(startOffset, endOffset)
+                                val plainText = subText.replace(Regex("<[^>]*>"), "").trim()
+                                snippetText = if (plainText.length > 80) plainText.take(80) + "..." else plainText
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                    } else {
+                        val pages = viewModel.pagesState.value
+                        if (!pages.isEmpty() && pageIdx in pages.indices) {
+                            val fullText = pages[pageIdx].toString()
+                            val plainText = fullText.replace(Regex("<[^>]*>"), "")
+                            snippetText = if (plainText.length > 80) plainText.take(80) + "..." else plainText
+                        }
                     }
 
                     val newBookmark = com.nightread.app.data.BookmarkEntity(
@@ -2073,6 +2139,47 @@ class BookReaderActivity : AppCompatActivity() {
         TtsBottomSheet().show(supportFragmentManager, "tts")
     }
 
+    private fun isWebViewBook(): Boolean {
+        val filePath = viewModel.bookState.value?.filePath ?: ""
+        return filePath.endsWith(".fb2", true) || 
+               filePath.endsWith(".fb2.zip", true) || 
+               filePath.endsWith(".zip", true) ||
+               filePath.endsWith(".epub", true)
+    }
+
+    private fun cleanHtmlText(text: String): String {
+        return text.replace(Regex("<[^>]+>"), "")
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&quot;", "\"")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&apos;", "'")
+            .replace("&#171;", "«")
+            .replace("&#187;", "»")
+            .replace("&laquo;", "«")
+            .replace("&raquo;", "»")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
+
+    private fun getParagraphTextForTts(pIndex: Int): String {
+        if (BookCache.content.isEmpty()) return ""
+        val totalParagraphs = BookCache.content.split(Regex("<p[\\s>]|<h[1-6][\\s>]")).size.coerceAtLeast(1)
+        if (pIndex !in 0 until totalParagraphs) return ""
+        val startOffset = viewModel.getOffsetForParagraphIndex(pIndex)
+        val endOffset = if (pIndex + 1 < totalParagraphs) {
+            viewModel.getOffsetForParagraphIndex(pIndex + 1)
+        } else {
+            BookCache.content.length
+        }
+        if (startOffset in 0..BookCache.content.length && endOffset in startOffset..BookCache.content.length) {
+            val raw = BookCache.content.substring(startOffset, endOffset)
+            return cleanHtmlText(raw)
+        }
+        return ""
+    }
+
     private fun initTts() {
         tts = android.speech.tts.TextToSpeech(this) { status ->
             if (status == android.speech.tts.TextToSpeech.SUCCESS) {
@@ -2099,7 +2206,11 @@ class BookReaderActivity : AppCompatActivity() {
                     t.setPitch(ttsPitch)
                     
                     // Auto-detect language
-                    val pageText = getPageTextForTts()
+                    val pageText = if (isWebViewBook()) {
+                        getParagraphTextForTts(0)
+                    } else {
+                        getPageTextForTts()
+                    }
                     val detectedLocale = detectLanguageOfText(pageText)
                     t.language = detectedLocale
                     ttsLanguage = detectedLocale
@@ -2156,11 +2267,31 @@ class BookReaderActivity : AppCompatActivity() {
         }
     }
 
+    private fun checkNotificationPermissionAndStartTts() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                androidx.core.app.ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                    REQUEST_CODE_NOTIFICATION_PERMISSION
+                )
+            } else {
+                startTts()
+            }
+        } else {
+            startTts()
+        }
+    }
+
     fun toggleTtsPlayPause() {
         if (isTtsPlaying) {
             pauseTts()
         } else {
-            startTts()
+            checkNotificationPermissionAndStartTts()
         }
     }
 
@@ -2195,36 +2326,84 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     fun skipNextTtsSentence() {
-        if (ttsSentences.isEmpty()) return
-        val nextIdx = currentTtsSentenceIdx + 1
-        if (nextIdx < ttsSentences.size) {
-            currentTtsSentenceIdx = nextIdx
-            speakSentence(viewModel.currentPage.value, nextIdx)
-        } else {
-            val pageIdx = viewModel.currentPage.value
-            val totalPages = viewModel.pagesState.value.size
-            if (pageIdx < totalPages - 1) {
-                currentTtsSentenceIdx = 0
-                viewModel.setCurrentPage(pageIdx + 1)
+        val isWebView = isWebViewBook()
+        if (isWebView) {
+            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
+            if (ttsSentences.isEmpty()) return
+            val nextIdx = currentTtsSentenceIdx + 1
+            if (nextIdx < ttsSentences.size) {
+                currentTtsSentenceIdx = nextIdx
+                speakSentence(pIndex, nextIdx)
             } else {
-                CustomToast.show(this, "Конец книги")
+                val totalParagraphs = BookCache.content.split(Regex("<p[\\s>]|<h[1-6][\\s>]")).size.coerceAtLeast(1)
+                if (pIndex < totalParagraphs - 1) {
+                    currentTtsSentenceIdx = 0
+                    viewModel.updateWebViewParagraphProgress(pIndex + 1)
+                    runOnUiThread {
+                        webView.evaluateJavascript("scrollToParagraph('p_${pIndex + 1}');", null)
+                        startTtsPlayback()
+                    }
+                } else {
+                    CustomToast.show(this, "Конец книги")
+                }
+            }
+        } else {
+            if (ttsSentences.isEmpty()) return
+            val nextIdx = currentTtsSentenceIdx + 1
+            if (nextIdx < ttsSentences.size) {
+                currentTtsSentenceIdx = nextIdx
+                speakSentence(viewModel.currentPage.value, nextIdx)
+            } else {
+                val pageIdx = viewModel.currentPage.value
+                val totalPages = viewModel.pagesState.value.size
+                if (pageIdx < totalPages - 1) {
+                    currentTtsSentenceIdx = 0
+                    viewModel.setCurrentPage(pageIdx + 1)
+                } else {
+                    CustomToast.show(this, "Конец книги")
+                }
             }
         }
     }
 
     fun skipPrevTtsSentence() {
-        if (ttsSentences.isEmpty()) return
-        val prevIdx = currentTtsSentenceIdx - 1
-        if (prevIdx >= 0) {
-            currentTtsSentenceIdx = prevIdx
-            speakSentence(viewModel.currentPage.value, prevIdx)
-        } else {
-            val pageIdx = viewModel.currentPage.value
-            if (pageIdx > 0) {
-                isMovingToPrevPageForTts = true
-                viewModel.setCurrentPage(pageIdx - 1)
+        val isWebView = isWebViewBook()
+        if (isWebView) {
+            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
+            if (ttsSentences.isEmpty()) return
+            val prevIdx = currentTtsSentenceIdx - 1
+            if (prevIdx >= 0) {
+                currentTtsSentenceIdx = prevIdx
+                speakSentence(pIndex, prevIdx)
             } else {
-                CustomToast.show(this, "Начало книги")
+                if (pIndex > 0) {
+                    val prevPIndex = pIndex - 1
+                    val prevText = getParagraphTextForTts(prevPIndex)
+                    val prevSentences = extractSentences(prevText)
+                    currentTtsSentenceIdx = if (prevSentences.isNotEmpty()) prevSentences.size - 1 else 0
+                    viewModel.updateWebViewParagraphProgress(prevPIndex)
+                    runOnUiThread {
+                        webView.evaluateJavascript("scrollToParagraph('p_$prevPIndex');", null)
+                        startTtsPlayback()
+                    }
+                } else {
+                    CustomToast.show(this, "Начало книги")
+                }
+            }
+        } else {
+            if (ttsSentences.isEmpty()) return
+            val prevIdx = currentTtsSentenceIdx - 1
+            if (prevIdx >= 0) {
+                currentTtsSentenceIdx = prevIdx
+                speakSentence(viewModel.currentPage.value, prevIdx)
+            } else {
+                val pageIdx = viewModel.currentPage.value
+                if (pageIdx > 0) {
+                    isMovingToPrevPageForTts = true
+                    viewModel.setCurrentPage(pageIdx - 1)
+                } else {
+                    CustomToast.show(this, "Начало книги")
+                }
             }
         }
     }
@@ -2269,27 +2448,69 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     private fun startTtsPlayback() {
-        val pageText = getPageTextForTts()
-        if (pageText.isEmpty()) return
-
-        ttsSentences = extractSentences(pageText)
-        if (ttsSentences.isEmpty()) {
-            val pageIdx = viewModel.currentPage.value
-            val totalPages = viewModel.pagesState.value.size
-            if (pageIdx < totalPages - 1) {
-                viewModel.setCurrentPage(pageIdx + 1)
+        val isWebView = isWebViewBook()
+        if (isWebView) {
+            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
+            val text = getParagraphTextForTts(pIndex)
+            if (text.isEmpty()) {
+                val totalParagraphs = BookCache.content.split(Regex("<p[\\s>]|<h[1-6][\\s>]")).size.coerceAtLeast(1)
+                if (pIndex < totalParagraphs - 1) {
+                    viewModel.updateWebViewParagraphProgress(pIndex + 1)
+                    runOnUiThread {
+                        webView.evaluateJavascript("scrollToParagraph('p_${pIndex + 1}');", null)
+                        startTtsPlayback()
+                    }
+                } else {
+                    stopTts()
+                    CustomToast.show(this, "Книга завершена")
+                }
+                return
             }
-            return
-        }
 
-        if (isMovingToPrevPageForTts) {
-            isMovingToPrevPageForTts = false
-            currentTtsSentenceIdx = ttsSentences.size - 1
-        } else if (currentTtsSentenceIdx !in ttsSentences.indices) {
-            currentTtsSentenceIdx = 0
-        }
+            ttsSentences = extractSentences(text)
+            if (ttsSentences.isEmpty()) {
+                val totalParagraphs = BookCache.content.split(Regex("<p[\\s>]|<h[1-6][\\s>]")).size.coerceAtLeast(1)
+                if (pIndex < totalParagraphs - 1) {
+                    viewModel.updateWebViewParagraphProgress(pIndex + 1)
+                    runOnUiThread {
+                        webView.evaluateJavascript("scrollToParagraph('p_${pIndex + 1}');", null)
+                        startTtsPlayback()
+                    }
+                } else {
+                    stopTts()
+                    CustomToast.show(this, "Книга завершена")
+                }
+                return
+            }
 
-        speakSentence(viewModel.currentPage.value, currentTtsSentenceIdx)
+            if (currentTtsSentenceIdx !in ttsSentences.indices) {
+                currentTtsSentenceIdx = 0
+            }
+
+            speakSentence(pIndex, currentTtsSentenceIdx)
+        } else {
+            val pageText = getPageTextForTts()
+            if (pageText.isEmpty()) return
+
+            ttsSentences = extractSentences(pageText)
+            if (ttsSentences.isEmpty()) {
+                val pageIdx = viewModel.currentPage.value
+                val totalPages = viewModel.pagesState.value.size
+                if (pageIdx < totalPages - 1) {
+                    viewModel.setCurrentPage(pageIdx + 1)
+                }
+                return
+            }
+
+            if (isMovingToPrevPageForTts) {
+                isMovingToPrevPageForTts = false
+                currentTtsSentenceIdx = ttsSentences.size - 1
+            } else if (currentTtsSentenceIdx !in ttsSentences.indices) {
+                currentTtsSentenceIdx = 0
+            }
+
+            speakSentence(viewModel.currentPage.value, currentTtsSentenceIdx)
+        }
     }
 
     private fun speakSentence(pageIdx: Int, sentenceIdx: Int) {
@@ -2298,8 +2519,12 @@ class BookReaderActivity : AppCompatActivity() {
             val sentenceInfo = sentences[sentenceIdx]
             val cleanText = cleanTextForTts(sentenceInfo.text)
 
-            ttsHighlightRange = Pair(sentenceInfo.startOffset, sentenceInfo.endOffset)
-            updatePage()
+            if (isWebViewBook()) {
+                ttsHighlightRange = null
+            } else {
+                ttsHighlightRange = Pair(sentenceInfo.startOffset, sentenceInfo.endOffset)
+                updatePage()
+            }
 
             ttsBottomSheet?.updateCurrentSentenceText(sentenceInfo.text)
 
@@ -2312,26 +2537,56 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     private fun onTtsSentenceDone(pageIdx: Int, sentenceIdx: Int) {
-        if (isTtsPlaying && pageIdx == viewModel.currentPage.value && sentenceIdx == currentTtsSentenceIdx) {
-            speakNextSentence()
+        if (isWebViewBook()) {
+            val currentPIndex = viewModel.bookState.value?.currentProgressChar ?: 0
+            if (isTtsPlaying && pageIdx == currentPIndex && sentenceIdx == currentTtsSentenceIdx) {
+                speakNextSentence()
+            }
+        } else {
+            if (isTtsPlaying && pageIdx == viewModel.currentPage.value && sentenceIdx == currentTtsSentenceIdx) {
+                speakNextSentence()
+            }
         }
     }
 
     private fun speakNextSentence() {
-        val pageIdx = viewModel.currentPage.value
-        val sentences = ttsSentences
-        val nextIdx = currentTtsSentenceIdx + 1
-        if (nextIdx < sentences.size) {
-            currentTtsSentenceIdx = nextIdx
-            speakSentence(pageIdx, nextIdx)
-        } else {
-            val totalPages = viewModel.pagesState.value.size
-            if (pageIdx < totalPages - 1) {
-                currentTtsSentenceIdx = 0
-                viewModel.setCurrentPage(pageIdx + 1)
+        if (isWebViewBook()) {
+            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
+            val sentences = ttsSentences
+            val nextIdx = currentTtsSentenceIdx + 1
+            if (nextIdx < sentences.size) {
+                currentTtsSentenceIdx = nextIdx
+                speakSentence(pIndex, nextIdx)
             } else {
-                stopTts()
-                CustomToast.show(this, "Книга завершена")
+                val totalParagraphs = BookCache.content.split(Regex("<p[\\s>]|<h[1-6][\\s>]")).size.coerceAtLeast(1)
+                if (pIndex < totalParagraphs - 1) {
+                    currentTtsSentenceIdx = 0
+                    viewModel.updateWebViewParagraphProgress(pIndex + 1)
+                    runOnUiThread {
+                        webView.evaluateJavascript("scrollToParagraph('p_${pIndex + 1}');", null)
+                        startTtsPlayback()
+                    }
+                } else {
+                    stopTts()
+                    CustomToast.show(this, "Книга завершена")
+                }
+            }
+        } else {
+            val pageIdx = viewModel.currentPage.value
+            val sentences = ttsSentences
+            val nextIdx = currentTtsSentenceIdx + 1
+            if (nextIdx < sentences.size) {
+                currentTtsSentenceIdx = nextIdx
+                speakSentence(pageIdx, nextIdx)
+            } else {
+                val totalPages = viewModel.pagesState.value.size
+                if (pageIdx < totalPages - 1) {
+                    currentTtsSentenceIdx = 0
+                    viewModel.setCurrentPage(pageIdx + 1)
+                } else {
+                    stopTts()
+                    CustomToast.show(this, "Книга завершена")
+                }
             }
         }
     }

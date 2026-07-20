@@ -109,6 +109,16 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         return pageStartOffsets[page]
     }
 
+    fun getOffsetForParagraphIndex(pIndex: Int): Int {
+        if (pIndex <= 0) return 0
+        val tagRegex = Regex("<(p|title|subtitle|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>", RegexOption.IGNORE_CASE)
+        val matches = tagRegex.findAll(content).toList()
+        if (pIndex in matches.indices) {
+            return matches[pIndex].range.first
+        }
+        return if (matches.isNotEmpty()) matches.last().range.first else 0
+    }
+
     init {
         loadSettings()
         viewModelScope.launch {
@@ -677,7 +687,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         
         val isWebViewBook = book.filePath?.endsWith(".fb2", true) == true || 
                             book.filePath?.endsWith(".fb2.zip", true) == true || 
-                            book.filePath?.endsWith(".zip", true) == true
+                            book.filePath?.endsWith(".zip", true) == true ||
+                            book.filePath?.endsWith(".epub", true) == true
 
         if (isWebViewBook) {
             val savedParagraphIndex = book.currentProgressChar
