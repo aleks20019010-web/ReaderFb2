@@ -116,6 +116,19 @@ class YandexSyncFragment : Fragment() {
         }
     }
 
+    private val requestNotificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            startForegroundSync()
+        } else {
+            context?.let { ctx ->
+                CustomToast.show(ctx, "Разрешение отклонено. Синхронизация запустится без уведомлений.")
+            }
+            startForegroundSync()
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -195,7 +208,19 @@ class YandexSyncFragment : Fragment() {
         btnSyncNow.alpha = 1.0f
 
         btnSyncNow.setOnClickListener {
-            startForegroundSync()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (androidx.core.content.ContextCompat.checkSelfPermission(
+                        requireContext(),
+                        android.Manifest.permission.POST_NOTIFICATIONS
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    startForegroundSync()
+                } else {
+                    requestNotificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                }
+            } else {
+                startForegroundSync()
+            }
         }
 
         btnCancelSync.setOnClickListener {

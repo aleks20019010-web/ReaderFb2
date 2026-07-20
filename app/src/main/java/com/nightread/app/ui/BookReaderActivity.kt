@@ -37,8 +37,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
-import android.speech.tts.TextToSpeech
-import java.util.Locale
 
 
 class BookReaderActivity : AppCompatActivity() {
@@ -46,31 +44,6 @@ class BookReaderActivity : AppCompatActivity() {
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(SettingsManager.applyLocale(newBase))
     }
-
-    // TTS Properties
-    private var tts: android.speech.tts.TextToSpeech? = null
-    private var ttsSentences = listOf<SentenceInfo>()
-    private var currentTtsSentenceIdx = -1
-    private var isTtsPlaying = false
-    private var ttsSpeed = 1.0f
-    private var ttsPitch = 1.0f
-    private var ttsLanguage: java.util.Locale = java.util.Locale.getDefault()
-    private var ttsHighlightRange: Pair<Int, Int>? = null
-    private var ttsBottomSheet: TtsBottomSheet? = null
-    private var ttsTimerMinutes = 0
-    private var ttsTimerJob: kotlinx.coroutines.Job? = null
-    private var isMovingToPrevPageForTts = false
-    private val REQUEST_CODE_NOTIFICATION_PERMISSION = 1010
-
-    private val TTS_NOTIFICATION_ID = 20260720
-    private val TTS_CHANNEL_ID = "tts_playback_channel"
-    private var ttsReceiver: android.content.BroadcastReceiver? = null
-
-    data class SentenceInfo(
-        val text: String,
-        val startOffset: Int,
-        val endOffset: Int
-    )
 
     private lateinit var readerView: CustomReaderPageView
     private lateinit var webView: android.webkit.WebView
@@ -196,14 +169,6 @@ class BookReaderActivity : AppCompatActivity() {
         btnSettings.setOnClickListener {
             SettingsBottomSheet().show(supportFragmentManager, "settings")
         }
-
-        val btnTts = findViewById<View>(R.id.btnTts)
-        btnTts.setOnClickListener {
-            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
-            showTtsBottomSheet()
-        }
-
-
 
         val btnBookmark = findViewById<ImageButton>(R.id.btnBookmark)
         btnBookmark.visibility = View.GONE
@@ -462,9 +427,6 @@ class BookReaderActivity : AppCompatActivity() {
 
                 }
                 lastPage = it
-                if (isTtsPlaying) {
-                    startTtsPlayback()
-                }
             }
         }
 
@@ -647,37 +609,7 @@ class BookReaderActivity : AppCompatActivity() {
             viewModel.loadBook(sha1, targetOffset)
         }
 
-        // Initialize and register TTS controls broadcast receiver
-        ttsReceiver = object : android.content.BroadcastReceiver() {
-            override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
-                when (intent.action) {
-                    "com.nightread.app.ACTION_TTS_PLAY_PAUSE" -> {
-                        toggleTtsPlayPause()
-                    }
-                    "com.nightread.app.ACTION_TTS_PREV" -> {
-                        skipPrevTtsSentence()
-                    }
-                    "com.nightread.app.ACTION_TTS_NEXT" -> {
-                        skipNextTtsSentence()
-                    }
-                    "com.nightread.app.ACTION_TTS_STOP" -> {
-                        stopTts()
-                        cancelTtsNotification()
-                    }
-                }
-            }
-        }
-        val filter = android.content.IntentFilter().apply {
-            addAction("com.nightread.app.ACTION_TTS_PLAY_PAUSE")
-            addAction("com.nightread.app.ACTION_TTS_PREV")
-            addAction("com.nightread.app.ACTION_TTS_NEXT")
-            addAction("com.nightread.app.ACTION_TTS_STOP")
-        }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(ttsReceiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(ttsReceiver, filter)
-        }
+
     }
 
     private fun getThemeColors(themeKey: String): Pair<Int, Int> {
@@ -765,7 +697,6 @@ class BookReaderActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.btnBookmark).imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnChapters).imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnNotes).imageTintList = buttonTint
-        findViewById<ImageButton>(R.id.btnTts).imageTintList = buttonTint
         
         val seekBar = findViewById<SeekBar>(R.id.seekBar)
         seekBar.progressTintList = ColorStateList.valueOf(accentColor)
@@ -1059,29 +990,7 @@ class BookReaderActivity : AppCompatActivity() {
         }
         val isHyphen = com.nightread.app.data.SettingsManager.isHyphenationEnabled(this)
         
-        var textToRender = text
-        val tRange = ttsHighlightRange
-        if (tRange != null && pageIdx == viewModel.currentPage.value) {
-            val start = tRange.first
-            val end = tRange.second
-            if (start in 0..text.length && end in 0..text.length && start < end) {
-                val spannable = android.text.SpannableStringBuilder(text)
-                val themeKey = viewModel.themeState.value
-                val highlightColor = when (themeKey) {
-                    "light", "beige" -> Color.parseColor("#FFE082")
-                    "sepia", "sepia_contrast" -> Color.parseColor("#E1D2B5")
-                    "contrast" -> Color.parseColor("#444444")
-                    else -> Color.parseColor("#4A2868")
-                }
-                spannable.setSpan(
-                    android.text.style.BackgroundColorSpan(highlightColor),
-                    start,
-                    end,
-                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-                textToRender = spannable
-            }
-        }
+        val textToRender = text
 
         PageSplitter.getPageLayout(
             pageIdx,
@@ -1508,21 +1417,7 @@ class BookReaderActivity : AppCompatActivity() {
         restoreDndFilter()
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CODE_NOTIFICATION_PERMISSION) {
-            if (grantResults.isNotEmpty() && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                startTts()
-            } else {
-                CustomToast.show(this, "Разрешение на уведомления отклонено. Чтение в фоне может быть ограничено системой.")
-                startTts()
-            }
-        }
-    }
+
 
     private fun updateSensors() {
         unregisterSensors()
@@ -1641,19 +1536,6 @@ class BookReaderActivity : AppCompatActivity() {
         brightnessAnimator?.cancel()
         sleepTimerJob?.cancel()
         unregisterSensors()
-        tts?.let {
-            it.stop()
-            it.shutdown()
-        }
-        ttsTimerJob?.cancel()
-        ttsReceiver?.let {
-            try {
-                unregisterReceiver(it)
-            } catch (e: Exception) {
-                // ignore
-            }
-        }
-        cancelTtsNotification()
     }
 
     private fun animateBrightnessRise() {
@@ -1822,7 +1704,7 @@ class BookReaderActivity : AppCompatActivity() {
                     if (isWebViewBook) {
                         try {
                             val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
-                            val plainText = getParagraphTextForTts(pIndex)
+                            val plainText = getParagraphText(pIndex)
                             snippetText = if (plainText.length > 80) plainText.take(80) + "..." else plainText
                         } catch (e: Exception) {
                             e.printStackTrace()
@@ -2052,6 +1934,7 @@ class BookReaderActivity : AppCompatActivity() {
         }
     }
 
+    @android.annotation.SuppressLint("WrongConstant")
     private fun restoreDndFilter() {
         if (!isDndActiveByApp) return
 
@@ -2169,40 +2052,7 @@ class BookReaderActivity : AppCompatActivity() {
         }
     }
 
-    // --- TTS CONTROL METHODS ---
-
-    private fun showTtsBottomSheet() {
-        if (tts == null) {
-            initTts()
-        }
-        TtsBottomSheet().show(supportFragmentManager, "tts")
-    }
-
-    private fun isWebViewBook(): Boolean {
-        val filePath = viewModel.bookState.value?.filePath ?: ""
-        return filePath.endsWith(".fb2", true) || 
-               filePath.endsWith(".fb2.zip", true) || 
-               filePath.endsWith(".zip", true) ||
-               filePath.endsWith(".epub", true)
-    }
-
-    private fun cleanHtmlText(text: String): String {
-        return text.replace(Regex("<[^>]+>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&amp;", "&")
-            .replace("&quot;", "\"")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&apos;", "'")
-            .replace("&#171;", "«")
-            .replace("&#187;", "»")
-            .replace("&laquo;", "«")
-            .replace("&raquo;", "»")
-            .replace(Regex("\\s+"), " ")
-            .trim()
-    }
-
-    private fun getParagraphTextForTts(pIndex: Int): String {
+    private fun getParagraphText(pIndex: Int): String {
         if (BookCache.content.isEmpty()) return ""
         val totalParagraphs = BookCache.totalParagraphCount
         if (pIndex !in 0 until totalParagraphs) return ""
@@ -2214,566 +2064,21 @@ class BookReaderActivity : AppCompatActivity() {
         }
         if (startOffset in 0..BookCache.content.length && endOffset in startOffset..BookCache.content.length) {
             val raw = BookCache.content.substring(startOffset, endOffset)
-            return cleanHtmlText(raw)
+            return raw.replace(Regex("<[^>]+>"), "")
+                .replace("&nbsp;", " ")
+                .replace("&amp;", "&")
+                .replace("&quot;", "\"")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&apos;", "'")
+                .replace("&#171;", "«")
+                .replace("&#187;", "»")
+                .replace("&laquo;", "«")
+                .replace("&raquo;", "»")
+                .replace(Regex("\\s+"), " ")
+                .trim()
         }
         return ""
     }
 
-    private fun initTts() {
-        tts = android.speech.tts.TextToSpeech(this) { status ->
-            if (status == android.speech.tts.TextToSpeech.SUCCESS) {
-                tts?.let { t ->
-                    t.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
-                        override fun onStart(utteranceId: String?) {}
-                        
-                        override fun onDone(utteranceId: String?) {
-                            utteranceId?.let { id ->
-                                val parts = id.split(":")
-                                if (parts.size == 2) {
-                                    val pIdx = parts[0].toIntOrNull() ?: -1
-                                    val sIdx = parts[1].toIntOrNull() ?: -1
-                                    runOnUiThread {
-                                        onTtsSentenceDone(pIdx, sIdx)
-                                    }
-                                }
-                            }
-                        }
-                        
-                        override fun onError(utteranceId: String?) {}
-                    })
-                    t.setSpeechRate(ttsSpeed)
-                    t.setPitch(ttsPitch)
-                    
-                    // Auto-detect language
-                    val pageText = if (isWebViewBook()) {
-                        getParagraphTextForTts(0)
-                    } else {
-                        getPageTextForTts()
-                    }
-                    val detectedLocale = detectLanguageOfText(pageText)
-                    t.language = detectedLocale
-                    ttsLanguage = detectedLocale
-                    
-                    runOnUiThread {
-                        ttsBottomSheet?.populateVoices()
-                        if (isTtsPlaying) {
-                            startTtsPlayback()
-                        }
-                    }
-                }
-            } else {
-                runOnUiThread {
-                    CustomToast.show(this, "Не удалось инициализировать TTS")
-                }
-            }
-        }
-    }
-
-    fun getTtsSpeed() = ttsSpeed
-    fun getTtsPitch() = ttsPitch
-    fun getTtsLanguage() = ttsLanguage
-    fun getTtsTimerMinutes() = ttsTimerMinutes
-    fun isTtsActiveAndPlaying() = isTtsPlaying
-
-    fun setTtsSpeed(speed: Float) {
-        ttsSpeed = speed
-        tts?.setSpeechRate(speed)
-    }
-
-    fun setTtsPitch(pitch: Float) {
-        ttsPitch = pitch
-        tts?.setPitch(pitch)
-    }
-
-    fun setTtsLanguage(locale: java.util.Locale) {
-        ttsLanguage = locale
-        tts?.language = locale
-    }
-
-    fun registerTtsBottomSheet(sheet: TtsBottomSheet) {
-        ttsBottomSheet = sheet
-    }
-
-    fun unregisterTtsBottomSheet() {
-        ttsBottomSheet = null
-    }
-
-    fun getCurrentSpeakingSentence(): String {
-        return if (currentTtsSentenceIdx in ttsSentences.indices) {
-            ttsSentences[currentTtsSentenceIdx].text
-        } else {
-            ""
-        }
-    }
-
-    private fun checkNotificationPermissionAndStartTts() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            if (androidx.core.content.ContextCompat.checkSelfPermission(
-                    this,
-                    android.Manifest.permission.POST_NOTIFICATIONS
-                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
-            ) {
-                androidx.core.app.ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
-                    REQUEST_CODE_NOTIFICATION_PERMISSION
-                )
-            } else {
-                startTts()
-            }
-        } else {
-            startTts()
-        }
-    }
-
-    fun toggleTtsPlayPause() {
-        if (isTtsPlaying) {
-            pauseTts()
-        } else {
-            checkNotificationPermissionAndStartTts()
-        }
-    }
-
-    fun startTts() {
-        isTtsPlaying = true
-        ttsBottomSheet?.updatePlayPauseButtonIcon(true)
-        if (tts == null) {
-            initTts()
-        } else {
-            startTtsPlayback()
-        }
-        updateTtsNotification()
-    }
-
-    fun pauseTts() {
-        isTtsPlaying = false
-        tts?.stop()
-        ttsHighlightRange = null
-        updatePage()
-        ttsBottomSheet?.updatePlayPauseButtonIcon(false)
-        updateTtsNotification()
-    }
-
-    fun stopTts() {
-        isTtsPlaying = false
-        tts?.stop()
-        ttsHighlightRange = null
-        updatePage()
-        ttsTimerJob?.cancel()
-        ttsTimerMinutes = 0
-        currentTtsSentenceIdx = -1
-        ttsBottomSheet?.updatePlayPauseButtonIcon(false)
-        ttsBottomSheet?.updateCurrentSentenceText("Нажмите Play для начала чтения вслух...")
-        cancelTtsNotification()
-    }
-
-    fun skipNextTtsSentence() {
-        val isWebView = isWebViewBook()
-        if (isWebView) {
-            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
-            if (ttsSentences.isEmpty()) return
-            val nextIdx = currentTtsSentenceIdx + 1
-            if (nextIdx < ttsSentences.size) {
-                currentTtsSentenceIdx = nextIdx
-                speakSentence(pIndex, nextIdx)
-            } else {
-                val totalParagraphs = BookCache.totalParagraphCount
-                if (pIndex < totalParagraphs - 1) {
-                    currentTtsSentenceIdx = 0
-                    viewModel.updateWebViewParagraphProgress(pIndex + 1)
-                    runOnUiThread {
-                        webView.evaluateJavascript("scrollToParagraph('p_${pIndex + 1}');", null)
-                        startTtsPlayback()
-                    }
-                } else {
-                    CustomToast.show(this, "Конец книги")
-                }
-            }
-        } else {
-            if (ttsSentences.isEmpty()) return
-            val nextIdx = currentTtsSentenceIdx + 1
-            if (nextIdx < ttsSentences.size) {
-                currentTtsSentenceIdx = nextIdx
-                speakSentence(viewModel.currentPage.value, nextIdx)
-            } else {
-                val pageIdx = viewModel.currentPage.value
-                val totalPages = viewModel.pagesState.value.size
-                if (pageIdx < totalPages - 1) {
-                    currentTtsSentenceIdx = 0
-                    viewModel.setCurrentPage(pageIdx + 1)
-                } else {
-                    CustomToast.show(this, "Конец книги")
-                }
-            }
-        }
-    }
-
-    fun skipPrevTtsSentence() {
-        val isWebView = isWebViewBook()
-        if (isWebView) {
-            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
-            if (ttsSentences.isEmpty()) return
-            val prevIdx = currentTtsSentenceIdx - 1
-            if (prevIdx >= 0) {
-                currentTtsSentenceIdx = prevIdx
-                speakSentence(pIndex, prevIdx)
-            } else {
-                if (pIndex > 0) {
-                    val prevPIndex = pIndex - 1
-                    val prevText = getParagraphTextForTts(prevPIndex)
-                    val prevSentences = extractSentences(prevText)
-                    currentTtsSentenceIdx = if (prevSentences.isNotEmpty()) prevSentences.size - 1 else 0
-                    viewModel.updateWebViewParagraphProgress(prevPIndex)
-                    runOnUiThread {
-                        webView.evaluateJavascript("scrollToParagraph('p_$prevPIndex');", null)
-                        startTtsPlayback()
-                    }
-                } else {
-                    CustomToast.show(this, "Начало книги")
-                }
-            }
-        } else {
-            if (ttsSentences.isEmpty()) return
-            val prevIdx = currentTtsSentenceIdx - 1
-            if (prevIdx >= 0) {
-                currentTtsSentenceIdx = prevIdx
-                speakSentence(viewModel.currentPage.value, prevIdx)
-            } else {
-                val pageIdx = viewModel.currentPage.value
-                if (pageIdx > 0) {
-                    isMovingToPrevPageForTts = true
-                    viewModel.setCurrentPage(pageIdx - 1)
-                } else {
-                    CustomToast.show(this, "Начало книги")
-                }
-            }
-        }
-    }
-
-    fun setTtsTimer(minutes: Int) {
-        ttsTimerMinutes = minutes
-        ttsTimerJob?.cancel()
-        if (minutes > 0) {
-            ttsTimerJob = lifecycleScope.launch {
-                kotlinx.coroutines.delay(minutes * 60 * 1000L)
-                stopTts()
-                CustomToast.show(this@BookReaderActivity, "Таймер сна сработал")
-            }
-        }
-    }
-
-    fun getAvailableTtsLanguages(): List<Pair<String, java.util.Locale>> {
-        return listOf(
-            Pair("Русский", java.util.Locale("ru", "RU")),
-            Pair("English (US)", java.util.Locale("en", "US")),
-            Pair("English (GB)", java.util.Locale("en", "GB")),
-            Pair("Deutsch", java.util.Locale("de", "DE")),
-            Pair("Français", java.util.Locale("fr", "FR")),
-            Pair("Español", java.util.Locale("es", "ES"))
-        )
-    }
-
-    private fun detectLanguageOfText(text: String): java.util.Locale {
-        val cyrillicPattern = Regex("[а-яА-ЯёЁ]")
-        return if (cyrillicPattern.containsMatchIn(text)) {
-            java.util.Locale("ru", "RU")
-        } else {
-            java.util.Locale("en", "US")
-        }
-    }
-
-    private fun getPageTextForTts(): String {
-        val pages = viewModel.pagesState.value
-        val pageIdx = viewModel.currentPage.value
-        if (pages.isEmpty() || pageIdx !in pages.indices) return ""
-        return pages[pageIdx].toString()
-    }
-
-    private fun startTtsPlayback() {
-        if (BookCache.content.isEmpty()) {
-            android.util.Log.d("BookReaderActivity", "startTtsPlayback: Book content is empty, delaying playback")
-            return
-        }
-        val isWebView = isWebViewBook()
-        if (isWebView && BookCache.paragraphOffsets.isEmpty()) {
-            android.util.Log.d("BookReaderActivity", "startTtsPlayback: Paragraph offsets are empty for webview book, delaying playback")
-            return
-        }
-        if (isWebView) {
-            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
-            val text = getParagraphTextForTts(pIndex)
-            if (text.isEmpty()) {
-                val totalParagraphs = BookCache.totalParagraphCount
-                if (pIndex < totalParagraphs - 1) {
-                    viewModel.updateWebViewParagraphProgress(pIndex + 1)
-                    runOnUiThread {
-                        webView.evaluateJavascript("scrollToParagraph('p_${pIndex + 1}');", null)
-                        startTtsPlayback()
-                    }
-                } else {
-                    stopTts()
-                    CustomToast.show(this, "Книга завершена")
-                }
-                return
-            }
-
-            ttsSentences = extractSentences(text)
-            if (ttsSentences.isEmpty()) {
-                val totalParagraphs = BookCache.totalParagraphCount
-                if (pIndex < totalParagraphs - 1) {
-                    viewModel.updateWebViewParagraphProgress(pIndex + 1)
-                    runOnUiThread {
-                        webView.evaluateJavascript("scrollToParagraph('p_${pIndex + 1}');", null)
-                        startTtsPlayback()
-                    }
-                } else {
-                    stopTts()
-                    CustomToast.show(this, "Книга завершена")
-                }
-                return
-            }
-
-            if (currentTtsSentenceIdx !in ttsSentences.indices) {
-                currentTtsSentenceIdx = 0
-            }
-
-            speakSentence(pIndex, currentTtsSentenceIdx)
-        } else {
-            val pageText = getPageTextForTts()
-            if (pageText.isEmpty()) return
-
-            ttsSentences = extractSentences(pageText)
-            if (ttsSentences.isEmpty()) {
-                val pageIdx = viewModel.currentPage.value
-                val totalPages = viewModel.pagesState.value.size
-                if (pageIdx < totalPages - 1) {
-                    viewModel.setCurrentPage(pageIdx + 1)
-                }
-                return
-            }
-
-            if (isMovingToPrevPageForTts) {
-                isMovingToPrevPageForTts = false
-                currentTtsSentenceIdx = ttsSentences.size - 1
-            } else if (currentTtsSentenceIdx !in ttsSentences.indices) {
-                currentTtsSentenceIdx = 0
-            }
-
-            speakSentence(viewModel.currentPage.value, currentTtsSentenceIdx)
-        }
-    }
-
-    private fun speakSentence(pageIdx: Int, sentenceIdx: Int) {
-        val sentences = ttsSentences
-        if (sentenceIdx in sentences.indices) {
-            val sentenceInfo = sentences[sentenceIdx]
-            val cleanText = cleanTextForTts(sentenceInfo.text)
-
-            if (isWebViewBook()) {
-                ttsHighlightRange = null
-            } else {
-                ttsHighlightRange = Pair(sentenceInfo.startOffset, sentenceInfo.endOffset)
-                updatePage()
-            }
-
-            ttsBottomSheet?.updateCurrentSentenceText(sentenceInfo.text)
-
-            val params = Bundle().apply {
-                putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "$pageIdx:$sentenceIdx")
-            }
-
-            tts?.speak(cleanText, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "$pageIdx:$sentenceIdx")
-            updateTtsNotification()
-        }
-    }
-
-    private fun onTtsSentenceDone(pageIdx: Int, sentenceIdx: Int) {
-        if (isWebViewBook()) {
-            val currentPIndex = viewModel.bookState.value?.currentProgressChar ?: 0
-            if (isTtsPlaying && pageIdx == currentPIndex && sentenceIdx == currentTtsSentenceIdx) {
-                speakNextSentence()
-            }
-        } else {
-            if (isTtsPlaying && pageIdx == viewModel.currentPage.value && sentenceIdx == currentTtsSentenceIdx) {
-                speakNextSentence()
-            }
-        }
-    }
-
-    private fun speakNextSentence() {
-        if (isWebViewBook()) {
-            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
-            val sentences = ttsSentences
-            val nextIdx = currentTtsSentenceIdx + 1
-            if (nextIdx < sentences.size) {
-                currentTtsSentenceIdx = nextIdx
-                speakSentence(pIndex, nextIdx)
-            } else {
-                val totalParagraphs = BookCache.totalParagraphCount
-                if (pIndex < totalParagraphs - 1) {
-                    currentTtsSentenceIdx = 0
-                    viewModel.updateWebViewParagraphProgress(pIndex + 1)
-                    runOnUiThread {
-                        webView.evaluateJavascript("scrollToParagraph('p_${pIndex + 1}');", null)
-                        startTtsPlayback()
-                    }
-                } else {
-                    stopTts()
-                    CustomToast.show(this, "Книга завершена")
-                }
-            }
-        } else {
-            val pageIdx = viewModel.currentPage.value
-            val sentences = ttsSentences
-            val nextIdx = currentTtsSentenceIdx + 1
-            if (nextIdx < sentences.size) {
-                currentTtsSentenceIdx = nextIdx
-                speakSentence(pageIdx, nextIdx)
-            } else {
-                val totalPages = viewModel.pagesState.value.size
-                if (pageIdx < totalPages - 1) {
-                    currentTtsSentenceIdx = 0
-                    viewModel.setCurrentPage(pageIdx + 1)
-                } else {
-                    stopTts()
-                    CustomToast.show(this, "Книга завершена")
-                }
-            }
-        }
-    }
-
-    private fun cleanTextForTts(text: String): String {
-        return text.replace("\u00AD", "")
-            .replace("\n", " ")
-            .replace(Regex(" {2,}"), " ")
-            .trim()
-    }
-
-    private fun extractSentences(text: String): List<SentenceInfo> {
-        val sentences = mutableListOf<SentenceInfo>()
-        val length = text.length
-        var start = 0
-        var i = 0
-        while (i < length) {
-            val char = text[i]
-            if (char == '.' || char == '!' || char == '?' || char == '\n') {
-                while (i + 1 < length && (text[i + 1] == '.' || text[i + 1] == '!' || text[i + 1] == '?' || text[i + 1] == ')' || text[i + 1] == '"' || text[i + 1] == '»')) {
-                    i++
-                }
-                val sentenceText = text.substring(start, i + 1).trim()
-                if (sentenceText.isNotEmpty() && sentenceText != "[BOOK_COVER]" && !sentenceText.startsWith("WEBVIEW_")) {
-                    sentences.add(SentenceInfo(sentenceText, start, i + 1))
-                }
-                start = i + 1
-            }
-            i++
-        }
-        if (start < length) {
-            val sentenceText = text.substring(start, length).trim()
-            if (sentenceText.isNotEmpty() && sentenceText != "[BOOK_COVER]" && !sentenceText.startsWith("WEBVIEW_")) {
-                sentences.add(SentenceInfo(sentenceText, start, length))
-            }
-        }
-        return sentences
-    }
-
-    private fun createTtsNotificationChannel() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val name = "Чтение вслух (TTS)"
-            val descriptionText = "Управление воспроизведением чтения вслух"
-            val importance = android.app.NotificationManager.IMPORTANCE_LOW
-            val channel = android.app.NotificationChannel(TTS_CHANNEL_ID, name, importance).apply {
-                description = descriptionText
-            }
-            val notificationManager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
-    }
-
-    private fun updateTtsNotification() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            if (androidx.core.content.ContextCompat.checkSelfPermission(
-                    this,
-                    android.Manifest.permission.POST_NOTIFICATIONS
-                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
-            ) {
-                return
-            }
-        }
-
-        createTtsNotificationChannel()
-        val notificationManager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-        
-        val openIntent = android.content.Intent(this, BookReaderActivity::class.java).apply {
-            flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("BOOK_SHA1", intent.getStringExtra("BOOK_SHA1"))
-        }
-        val flags = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
-        } else {
-            android.app.PendingIntent.FLAG_UPDATE_CURRENT
-        }
-        val openPendingIntent = android.app.PendingIntent.getActivity(this, 1, openIntent, flags)
-
-        val playPauseIntent = android.content.Intent("com.nightread.app.ACTION_TTS_PLAY_PAUSE")
-        val playPausePendingIntent = android.app.PendingIntent.getBroadcast(this, 2, playPauseIntent, flags)
-
-        val prevIntent = android.content.Intent("com.nightread.app.ACTION_TTS_PREV")
-        val prevPendingIntent = android.app.PendingIntent.getBroadcast(this, 3, prevIntent, flags)
-
-        val nextIntent = android.content.Intent("com.nightread.app.ACTION_TTS_NEXT")
-        val nextPendingIntent = android.app.PendingIntent.getBroadcast(this, 4, nextIntent, flags)
-
-        val stopIntent = android.content.Intent("com.nightread.app.ACTION_TTS_STOP")
-        val stopPendingIntent = android.app.PendingIntent.getBroadcast(this, 5, stopIntent, flags)
-
-        val bookTitle = findViewById<android.widget.TextView>(com.nightread.app.R.id.tvBookTitle)?.text?.toString() ?: "Книга"
-        
-        val activeText = if (isWebViewBook()) {
-            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
-            if (ttsSentences.isNotEmpty() && currentTtsSentenceIdx in ttsSentences.indices) {
-                ttsSentences[currentTtsSentenceIdx].text
-            } else {
-                getParagraphTextForTts(pIndex)
-            }
-        } else {
-            if (ttsSentences.isNotEmpty() && currentTtsSentenceIdx in ttsSentences.indices) {
-                ttsSentences[currentTtsSentenceIdx].text
-            } else {
-                "Чтение книги..."
-            }
-        }
-        val cleanActiveText = if (activeText.length > 100) activeText.take(100) + "..." else activeText
-
-        val playPauseIcon = if (isTtsPlaying) {
-            android.R.drawable.ic_media_pause
-        } else {
-            android.R.drawable.ic_media_play
-        }
-        val playPauseText = if (isTtsPlaying) "Пауза" else "Старт"
-
-        val builder = androidx.core.app.NotificationCompat.Builder(this, TTS_CHANNEL_ID)
-            .setSmallIcon(com.nightread.app.R.drawable.ic_custom_list)
-            .setContentTitle(bookTitle)
-            .setContentText(cleanActiveText)
-            .setOngoing(isTtsPlaying)
-            .setContentIntent(openPendingIntent)
-            .setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PUBLIC)
-            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_LOW)
-            .addAction(android.R.drawable.ic_media_previous, "Назад", prevPendingIntent)
-            .addAction(playPauseIcon, playPauseText, playPausePendingIntent)
-            .addAction(android.R.drawable.ic_media_next, "Вперед", nextPendingIntent)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Закрыть", stopPendingIntent)
-
-        try {
-            notificationManager.notify(TTS_NOTIFICATION_ID, builder.build())
-        } catch (e: SecurityException) {
-            android.util.Log.e("BookReaderActivity", "Notification permission not granted", e)
-        }
-    }
-
-    private fun cancelTtsNotification() {
-        val notificationManager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-        notificationManager.cancel(TTS_NOTIFICATION_ID)
-    }
 }

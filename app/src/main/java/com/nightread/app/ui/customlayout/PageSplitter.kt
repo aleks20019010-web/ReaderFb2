@@ -533,6 +533,7 @@ object PageSplitter {
         paint.maxConsecutiveHyphens = 6
     }
 
+    @android.annotation.SuppressLint("WrongConstant")
     fun createStaticLayout(
         source: CharSequence, start: Int, end: Int, 
         paint: TextPaint, width: Int, 

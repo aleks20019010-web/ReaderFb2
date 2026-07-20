@@ -118,9 +118,7 @@ android {
 
 androidComponents {
   beforeVariants { variantBuilder ->
-    if (variantBuilder.buildType == "release") {
-      variantBuilder.enable = false
-    }
+    // Release build is now allowed
   }
 }
 

@@ -104,7 +104,7 @@ class AutoDiscoveryService : Service() {
     }
 
     private fun showNewBooksNotification(addedCount: Int) {
-        // Disabled as requested - show no notifications except TTS
+        // Disabled as requested
     }
 
     override fun onDestroy() {

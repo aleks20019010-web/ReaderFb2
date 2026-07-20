@@ -72,6 +72,7 @@ class TextLayoutBuilder {
     val configKey: String
         get() = "${text.length}_${width}_${height}_${paint.textSize}_${fontFamily}_${fontWeight}_${lineSpacingMultiplier}_${alignment.name}_${hyphenation}_${letterSpacing}_${justify}_v3"
 
+    @android.annotation.SuppressLint("WrongConstant")
     private fun createStaticLayout(source: CharSequence, start: Int, end: Int): StaticLayout {
         paint.letterSpacing = letterSpacing
         val strategy = if (hyphenation) android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY else android.graphics.text.LineBreaker.BREAK_STRATEGY_SIMPLE
