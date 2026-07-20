@@ -37,6 +37,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 
 
 class BookReaderActivity : AppCompatActivity() {
@@ -44,6 +46,26 @@ class BookReaderActivity : AppCompatActivity() {
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(SettingsManager.applyLocale(newBase))
     }
+
+    // TTS Properties
+    private var tts: android.speech.tts.TextToSpeech? = null
+    private var ttsSentences = listOf<SentenceInfo>()
+    private var currentTtsSentenceIdx = -1
+    private var isTtsPlaying = false
+    private var ttsSpeed = 1.0f
+    private var ttsPitch = 1.0f
+    private var ttsLanguage: java.util.Locale = java.util.Locale.getDefault()
+    private var ttsHighlightRange: Pair<Int, Int>? = null
+    private var ttsBottomSheet: TtsBottomSheet? = null
+    private var ttsTimerMinutes = 0
+    private var ttsTimerJob: kotlinx.coroutines.Job? = null
+    private var isMovingToPrevPageForTts = false
+
+    data class SentenceInfo(
+        val text: String,
+        val startOffset: Int,
+        val endOffset: Int
+    )
 
     private lateinit var readerView: CustomReaderPageView
     private lateinit var webView: android.webkit.WebView
@@ -168,6 +190,12 @@ class BookReaderActivity : AppCompatActivity() {
         val btnSettings = findViewById<View>(R.id.btnSettings)
         btnSettings.setOnClickListener {
             SettingsBottomSheet().show(supportFragmentManager, "settings")
+        }
+
+        val btnTts = findViewById<View>(R.id.btnTts)
+        btnTts.setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            showTtsBottomSheet()
         }
 
 
@@ -429,6 +457,9 @@ class BookReaderActivity : AppCompatActivity() {
 
                 }
                 lastPage = it
+                if (isTtsPlaying) {
+                    startTtsPlayback()
+                }
             }
         }
 
@@ -697,6 +728,7 @@ class BookReaderActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.btnBookmark).imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnChapters).imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnNotes).imageTintList = buttonTint
+        findViewById<ImageButton>(R.id.btnTts).imageTintList = buttonTint
         
         val seekBar = findViewById<SeekBar>(R.id.seekBar)
         seekBar.progressTintList = ColorStateList.valueOf(accentColor)
@@ -990,9 +1022,33 @@ class BookReaderActivity : AppCompatActivity() {
         }
         val isHyphen = com.nightread.app.data.SettingsManager.isHyphenationEnabled(this)
         
+        var textToRender = text
+        val tRange = ttsHighlightRange
+        if (tRange != null && pageIdx == viewModel.currentPage.value) {
+            val start = tRange.first
+            val end = tRange.second
+            if (start in 0..text.length && end in 0..text.length && start < end) {
+                val spannable = android.text.SpannableStringBuilder(text)
+                val themeKey = viewModel.themeState.value
+                val highlightColor = when (themeKey) {
+                    "light", "beige" -> Color.parseColor("#FFE082")
+                    "sepia", "sepia_contrast" -> Color.parseColor("#E1D2B5")
+                    "contrast" -> Color.parseColor("#444444")
+                    else -> Color.parseColor("#4A2868")
+                }
+                spannable.setSpan(
+                    android.text.style.BackgroundColorSpan(highlightColor),
+                    start,
+                    end,
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                textToRender = spannable
+            }
+        }
+
         PageSplitter.getPageLayout(
             pageIdx,
-            text,
+            textToRender,
             paint,
             availableWidth,
             align,
@@ -1520,6 +1576,11 @@ class BookReaderActivity : AppCompatActivity() {
         brightnessAnimator?.cancel()
         sleepTimerJob?.cancel()
         unregisterSensors()
+        tts?.let {
+            it.stop()
+            it.shutdown()
+        }
+        ttsTimerJob?.cancel()
     }
 
     private fun animateBrightnessRise() {
@@ -2001,5 +2062,312 @@ class BookReaderActivity : AppCompatActivity() {
             tvFullscreenProgressLabel.text = ""
             pbFullscreenProgress.progress = 0
         }
+    }
+
+    // --- TTS CONTROL METHODS ---
+
+    private fun showTtsBottomSheet() {
+        if (tts == null) {
+            initTts()
+        }
+        TtsBottomSheet().show(supportFragmentManager, "tts")
+    }
+
+    private fun initTts() {
+        tts = android.speech.tts.TextToSpeech(this) { status ->
+            if (status == android.speech.tts.TextToSpeech.SUCCESS) {
+                tts?.let { t ->
+                    t.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+                        override fun onStart(utteranceId: String?) {}
+                        
+                        override fun onDone(utteranceId: String?) {
+                            utteranceId?.let { id ->
+                                val parts = id.split(":")
+                                if (parts.size == 2) {
+                                    val pIdx = parts[0].toIntOrNull() ?: -1
+                                    val sIdx = parts[1].toIntOrNull() ?: -1
+                                    runOnUiThread {
+                                        onTtsSentenceDone(pIdx, sIdx)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        override fun onError(utteranceId: String?) {}
+                    })
+                    t.setSpeechRate(ttsSpeed)
+                    t.setPitch(ttsPitch)
+                    
+                    // Auto-detect language
+                    val pageText = getPageTextForTts()
+                    val detectedLocale = detectLanguageOfText(pageText)
+                    t.language = detectedLocale
+                    ttsLanguage = detectedLocale
+                    
+                    runOnUiThread {
+                        ttsBottomSheet?.populateVoices()
+                        if (isTtsPlaying) {
+                            startTtsPlayback()
+                        }
+                    }
+                }
+            } else {
+                runOnUiThread {
+                    CustomToast.show(this, "Не удалось инициализировать TTS")
+                }
+            }
+        }
+    }
+
+    fun getTtsSpeed() = ttsSpeed
+    fun getTtsPitch() = ttsPitch
+    fun getTtsLanguage() = ttsLanguage
+    fun getTtsTimerMinutes() = ttsTimerMinutes
+    fun isTtsActiveAndPlaying() = isTtsPlaying
+
+    fun setTtsSpeed(speed: Float) {
+        ttsSpeed = speed
+        tts?.setSpeechRate(speed)
+    }
+
+    fun setTtsPitch(pitch: Float) {
+        ttsPitch = pitch
+        tts?.setPitch(pitch)
+    }
+
+    fun setTtsLanguage(locale: java.util.Locale) {
+        ttsLanguage = locale
+        tts?.language = locale
+    }
+
+    fun registerTtsBottomSheet(sheet: TtsBottomSheet) {
+        ttsBottomSheet = sheet
+    }
+
+    fun unregisterTtsBottomSheet() {
+        ttsBottomSheet = null
+    }
+
+    fun getCurrentSpeakingSentence(): String {
+        return if (currentTtsSentenceIdx in ttsSentences.indices) {
+            ttsSentences[currentTtsSentenceIdx].text
+        } else {
+            ""
+        }
+    }
+
+    fun toggleTtsPlayPause() {
+        if (isTtsPlaying) {
+            pauseTts()
+        } else {
+            startTts()
+        }
+    }
+
+    fun startTts() {
+        isTtsPlaying = true
+        ttsBottomSheet?.updatePlayPauseButtonIcon(true)
+        if (tts == null) {
+            initTts()
+        } else {
+            startTtsPlayback()
+        }
+    }
+
+    fun pauseTts() {
+        isTtsPlaying = false
+        tts?.stop()
+        ttsHighlightRange = null
+        updatePage()
+        ttsBottomSheet?.updatePlayPauseButtonIcon(false)
+    }
+
+    fun stopTts() {
+        isTtsPlaying = false
+        tts?.stop()
+        ttsHighlightRange = null
+        updatePage()
+        ttsTimerJob?.cancel()
+        ttsTimerMinutes = 0
+        currentTtsSentenceIdx = -1
+        ttsBottomSheet?.updatePlayPauseButtonIcon(false)
+        ttsBottomSheet?.updateCurrentSentenceText("Нажмите Play для начала чтения вслух...")
+    }
+
+    fun skipNextTtsSentence() {
+        if (ttsSentences.isEmpty()) return
+        val nextIdx = currentTtsSentenceIdx + 1
+        if (nextIdx < ttsSentences.size) {
+            currentTtsSentenceIdx = nextIdx
+            speakSentence(viewModel.currentPage.value, nextIdx)
+        } else {
+            val pageIdx = viewModel.currentPage.value
+            val totalPages = viewModel.pagesState.value.size
+            if (pageIdx < totalPages - 1) {
+                currentTtsSentenceIdx = 0
+                viewModel.setCurrentPage(pageIdx + 1)
+            } else {
+                CustomToast.show(this, "Конец книги")
+            }
+        }
+    }
+
+    fun skipPrevTtsSentence() {
+        if (ttsSentences.isEmpty()) return
+        val prevIdx = currentTtsSentenceIdx - 1
+        if (prevIdx >= 0) {
+            currentTtsSentenceIdx = prevIdx
+            speakSentence(viewModel.currentPage.value, prevIdx)
+        } else {
+            val pageIdx = viewModel.currentPage.value
+            if (pageIdx > 0) {
+                isMovingToPrevPageForTts = true
+                viewModel.setCurrentPage(pageIdx - 1)
+            } else {
+                CustomToast.show(this, "Начало книги")
+            }
+        }
+    }
+
+    fun setTtsTimer(minutes: Int) {
+        ttsTimerMinutes = minutes
+        ttsTimerJob?.cancel()
+        if (minutes > 0) {
+            ttsTimerJob = lifecycleScope.launch {
+                kotlinx.coroutines.delay(minutes * 60 * 1000L)
+                stopTts()
+                CustomToast.show(this@BookReaderActivity, "Таймер сна сработал")
+            }
+        }
+    }
+
+    fun getAvailableTtsLanguages(): List<Pair<String, java.util.Locale>> {
+        return listOf(
+            Pair("Русский", java.util.Locale("ru", "RU")),
+            Pair("English (US)", java.util.Locale("en", "US")),
+            Pair("English (GB)", java.util.Locale("en", "GB")),
+            Pair("Deutsch", java.util.Locale("de", "DE")),
+            Pair("Français", java.util.Locale("fr", "FR")),
+            Pair("Español", java.util.Locale("es", "ES"))
+        )
+    }
+
+    private fun detectLanguageOfText(text: String): java.util.Locale {
+        val cyrillicPattern = Regex("[а-яА-ЯёЁ]")
+        return if (cyrillicPattern.containsMatchIn(text)) {
+            java.util.Locale("ru", "RU")
+        } else {
+            java.util.Locale("en", "US")
+        }
+    }
+
+    private fun getPageTextForTts(): String {
+        val pages = viewModel.pagesState.value
+        val pageIdx = viewModel.currentPage.value
+        if (pages.isEmpty() || pageIdx !in pages.indices) return ""
+        return pages[pageIdx].toString()
+    }
+
+    private fun startTtsPlayback() {
+        val pageText = getPageTextForTts()
+        if (pageText.isEmpty()) return
+
+        ttsSentences = extractSentences(pageText)
+        if (ttsSentences.isEmpty()) {
+            val pageIdx = viewModel.currentPage.value
+            val totalPages = viewModel.pagesState.value.size
+            if (pageIdx < totalPages - 1) {
+                viewModel.setCurrentPage(pageIdx + 1)
+            }
+            return
+        }
+
+        if (isMovingToPrevPageForTts) {
+            isMovingToPrevPageForTts = false
+            currentTtsSentenceIdx = ttsSentences.size - 1
+        } else if (currentTtsSentenceIdx !in ttsSentences.indices) {
+            currentTtsSentenceIdx = 0
+        }
+
+        speakSentence(viewModel.currentPage.value, currentTtsSentenceIdx)
+    }
+
+    private fun speakSentence(pageIdx: Int, sentenceIdx: Int) {
+        val sentences = ttsSentences
+        if (sentenceIdx in sentences.indices) {
+            val sentenceInfo = sentences[sentenceIdx]
+            val cleanText = cleanTextForTts(sentenceInfo.text)
+
+            ttsHighlightRange = Pair(sentenceInfo.startOffset, sentenceInfo.endOffset)
+            updatePage()
+
+            ttsBottomSheet?.updateCurrentSentenceText(sentenceInfo.text)
+
+            val params = Bundle().apply {
+                putString(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "$pageIdx:$sentenceIdx")
+            }
+
+            tts?.speak(cleanText, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, "$pageIdx:$sentenceIdx")
+        }
+    }
+
+    private fun onTtsSentenceDone(pageIdx: Int, sentenceIdx: Int) {
+        if (isTtsPlaying && pageIdx == viewModel.currentPage.value && sentenceIdx == currentTtsSentenceIdx) {
+            speakNextSentence()
+        }
+    }
+
+    private fun speakNextSentence() {
+        val pageIdx = viewModel.currentPage.value
+        val sentences = ttsSentences
+        val nextIdx = currentTtsSentenceIdx + 1
+        if (nextIdx < sentences.size) {
+            currentTtsSentenceIdx = nextIdx
+            speakSentence(pageIdx, nextIdx)
+        } else {
+            val totalPages = viewModel.pagesState.value.size
+            if (pageIdx < totalPages - 1) {
+                currentTtsSentenceIdx = 0
+                viewModel.setCurrentPage(pageIdx + 1)
+            } else {
+                stopTts()
+                CustomToast.show(this, "Книга завершена")
+            }
+        }
+    }
+
+    private fun cleanTextForTts(text: String): String {
+        return text.replace("\u00AD", "")
+            .replace("\n", " ")
+            .replace(Regex(" {2,}"), " ")
+            .trim()
+    }
+
+    private fun extractSentences(text: String): List<SentenceInfo> {
+        val sentences = mutableListOf<SentenceInfo>()
+        val length = text.length
+        var start = 0
+        var i = 0
+        while (i < length) {
+            val char = text[i]
+            if (char == '.' || char == '!' || char == '?' || char == '\n') {
+                while (i + 1 < length && (text[i + 1] == '.' || text[i + 1] == '!' || text[i + 1] == '?' || text[i + 1] == ')' || text[i + 1] == '"' || text[i + 1] == '»')) {
+                    i++
+                }
+                val sentenceText = text.substring(start, i + 1).trim()
+                if (sentenceText.isNotEmpty() && sentenceText != "[BOOK_COVER]" && !sentenceText.startsWith("WEBVIEW_")) {
+                    sentences.add(SentenceInfo(sentenceText, start, i + 1))
+                }
+                start = i + 1
+            }
+            i++
+        }
+        if (start < length) {
+            val sentenceText = text.substring(start, length).trim()
+            if (sentenceText.isNotEmpty() && sentenceText != "[BOOK_COVER]" && !sentenceText.startsWith("WEBVIEW_")) {
+                sentences.add(SentenceInfo(sentenceText, start, length))
+            }
+        }
+        return sentences
     }
 }
