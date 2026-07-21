@@ -98,8 +98,8 @@ object Fb2ToHtmlConverterAdvanced {
                             -webkit-hyphens: auto;
                             -ms-hyphens: auto;
                             hyphens: auto;
-                            -webkit-user-select: none;
-                            user-select: none;
+                            
+                            
                         }
                         p {
                             margin-top: 0;

@@ -251,11 +251,10 @@
 
                         <Button
                             android:id="@+id/btnInitModel"
-                            style="@style/Widget.Material3.Button.TonalButton"
+                            style="@style/Widget.App.Button"
                             android:layout_width="match_parent"
                             android:layout_height="52dp"
                             android:text="Инициализировать модель"
-                            android:textColor="@color/text_primary"
                             android:textStyle="bold"
                             android:visibility="gone"
                             android:layout_marginBottom="8dp"
@@ -263,11 +262,10 @@
 
                         <Button
                             android:id="@+id/btnUploadCustomRules"
-                            style="@style/Widget.Material3.Button.TonalButton"
+                            style="@style/Widget.App.Button"
                             android:layout_width="match_parent"
                             android:layout_height="52dp"
                             android:text="Импортировать правила/словарь (.json)"
-                            android:textColor="@color/text_primary"
                             android:textStyle="bold"
                             app:cornerRadius="12dp" />
 
@@ -323,7 +321,7 @@
 
                                 <Button
                                     android:id="@+id/chipPhilosophy"
-                                    style="@style/Widget.Material3.Button.ElevatedButton"
+                                    style="@style/Widget.App.Button"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="Что такое бытие?"
@@ -332,7 +330,7 @@
 
                                 <Button
                                     android:id="@+id/chipAuthor"
-                                    style="@style/Widget.Material3.Button.ElevatedButton"
+                                    style="@style/Widget.App.Button"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="Каков стиль автора?"
@@ -341,7 +339,7 @@
 
                                 <Button
                                     android:id="@+id/chipPlot"
-                                    style="@style/Widget.Material3.Button.ElevatedButton"
+                                    style="@style/Widget.App.Button"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="О чем сюжет книги?"

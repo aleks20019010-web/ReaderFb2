@@ -235,8 +235,8 @@ class PageFragment : Fragment() {
                         hyphens: auto;
                         overflow: hidden;
                         word-wrap: break-word;
-                        user-select: none;
-                        -webkit-user-select: none;
+                        
+                        
                     }
                     
                     p {

@@ -495,8 +495,12 @@ class BookReaderActivity : AppCompatActivity() {
                     longPressRunnable = Runnable {
                         val currentTextOnPage = viewModel.pagesState.value.getOrNull(viewModel.currentPage.value)?.toString() ?: ""
                         if (currentTextOnPage.isNotEmpty() && currentTextOnPage != "[BOOK_COVER]") {
-                            val contextSnippet = if (currentTextOnPage.length > 150) currentTextOnPage.substring(0, 150) + "..." else currentTextOnPage
-                            showWordActionOrNoteDialog(currentTextOnPage, contextSnippet)
+                            val isWebViewBk = viewModel.bookState.value?.filePath?.let { it.endsWith(".epub", true) || it.endsWith(".fb2", true) } == true
+                            val isWebViewPage = currentTextOnPage.startsWith("WEBVIEW_CONTENT") || currentTextOnPage.startsWith("WEBVIEW_PAGE_") || isWebViewBk
+                            if (!isWebViewPage) {
+                                val contextSnippet = if (currentTextOnPage.length > 150) currentTextOnPage.substring(0, 150) + "..." else currentTextOnPage
+                                showWordActionOrNoteDialog(currentTextOnPage, contextSnippet)
+                            }
                         }
                     }
                     handler.postDelayed(longPressRunnable!!, 600)
@@ -589,11 +593,12 @@ class BookReaderActivity : AppCompatActivity() {
                     handler.postDelayed(hideIndicatorsRunnable, 1000)
                 }
             }
-            true
+            if (view == webView) false else true
         }
 
         readerView.setOnTouchListener(gestureTouchListener)
         touchInterceptor.setOnTouchListener(gestureTouchListener)
+        webView.setOnTouchListener(gestureTouchListener)
 
         lifecycleScope.launch {
             com.nightread.app.data.SettingsManager.settingsChanged.collectLatest {
@@ -774,8 +779,7 @@ class BookReaderActivity : AppCompatActivity() {
             readerView.visibility = View.GONE
             ivBookCoverPage.visibility = View.GONE
             webView.visibility = View.VISIBLE
-            touchInterceptor.visibility = View.VISIBLE
-            
+            touchInterceptor.visibility = View.GONE
             val themeKey = viewModel.themeState.value
             val fontSize = viewModel.fontSizeState.value
             val lineSpacing = viewModel.lineSpacingState.value
