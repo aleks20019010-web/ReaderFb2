@@ -4,178 +4,154 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingTop="12dp"
-    android:paddingBottom="24dp"
-    android:background="@drawable/bg_dark_purple_bottom_sheet">
+    android:paddingTop="10dp"
+    android:paddingBottom="16dp"
+    android:background="@drawable/bg_floating_bar">
 
-    <!-- Drag handle in M3 style -->
+    <!-- Handle indicator -->
     <View
         android:layout_width="32dp"
         android:layout_height="4dp"
         android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="8dp"
         android:background="#4D9B59B6" />
 
-    <TextView
-        android:id="@+id/tvSelectedWord"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:paddingHorizontal="24dp"
-        android:text="Слово"
-        android:textColor="@color/text_primary"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:maxLines="3"
-        android:ellipsize="end" />
-
+    <!-- Compact Selected Text Banner -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:paddingHorizontal="24dp"
-        android:layout_marginBottom="16dp">
-        
-        <LinearLayout
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:layout_marginBottom="10dp">
+
+        <TextView
+            android:id="@+id/tvSelectedWord"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="«Выделенный текст»"
+            android:textColor="#F0E6FF"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:maxLines="2"
+            android:ellipsize="end" />
+
+        <!-- Quick actions: Copy & Search -->
+        <ImageButton
             android:id="@+id/btnCopy"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true">
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_word_copy"
-                app:tint="@color/accent" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Копия"
-                android:textSize="12sp"
-                android:textColor="@color/text_primary" />
-        </LinearLayout>
-        
-        <LinearLayout
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_word_copy"
+            android:contentDescription="Копировать"
+            android:layout_marginStart="8dp"
+            app:tint="@color/accent" />
+
+        <ImageButton
             android:id="@+id/btnFind"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true">
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_custom_search"
-                app:tint="@color/accent" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Найти"
-                android:textSize="12sp"
-                android:textColor="@color/text_primary" />
-        </LinearLayout>
-        
-        <LinearLayout
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_custom_search"
+            android:contentDescription="Найти"
+            android:layout_marginStart="4dp"
+            app:tint="@color/accent" />
+
+        <ImageButton
             android:id="@+id/btnCreateNote"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true">
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_note"
-                app:tint="@color/accent" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Заметка"
-                android:textSize="12sp"
-                android:textColor="@color/text_primary" />
-        </LinearLayout>
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_note"
+            android:contentDescription="Заметка"
+            android:layout_marginStart="4dp"
+            app:tint="@color/accent" />
     </LinearLayout>
-    
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#3A2A4E"
-        android:layout_marginBottom="16dp" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:text="✨ ИИ-Помощник (Llama 3.2)"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        android:textColor="@color/accent"
-        android:layout_marginBottom="12dp" />
-
+    <!-- AI Questions Bar (Transparent chips without heavy background) -->
     <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:clipToPadding="false"
-        android:paddingHorizontal="24dp"
+        android:paddingHorizontal="16dp"
         android:scrollbars="none"
-        android:layout_marginBottom="16dp">
-        
+        android:layout_marginBottom="6dp">
+
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
-            
-            <Button
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
                 android:id="@+id/btnAiExplain"
-                style="@style/Widget.Material3.Button.TonalButton" android:textColor="@color/text_primary" android:backgroundTint="@color/bg_panel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Толкование"
+                android:text="💡 Толкование"
+                android:textColor="#E8D8F0"
+                android:textSize="13sp"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="8dp"
+                android:background="@drawable/bg_ai_chip_transparent"
+                android:clickable="true"
+                android:focusable="true"
                 android:layout_marginEnd="8dp" />
-                
-            <Button
+
+            <TextView
                 android:id="@+id/btnAiTranslate"
-                style="@style/Widget.Material3.Button.TonalButton" android:textColor="@color/text_primary" android:backgroundTint="@color/bg_panel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Перевод"
+                android:text="🌐 Перевод"
+                android:textColor="#E8D8F0"
+                android:textSize="13sp"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="8dp"
+                android:background="@drawable/bg_ai_chip_transparent"
+                android:clickable="true"
+                android:focusable="true"
                 android:layout_marginEnd="8dp" />
-                
-            <Button
+
+            <TextView
                 android:id="@+id/btnAiSummarize"
-                style="@style/Widget.Material3.Button.TonalButton" android:textColor="@color/text_primary" android:backgroundTint="@color/bg_panel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Краткий пересказ"
+                android:text="📝 Пересказ"
+                android:textColor="#E8D8F0"
+                android:textSize="13sp"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="8dp"
+                android:background="@drawable/bg_ai_chip_transparent"
+                android:clickable="true"
+                android:focusable="true"
                 android:layout_marginEnd="8dp" />
-                
-            <Button
+
+            <TextView
                 android:id="@+id/btnAiCharacter"
-                style="@style/Widget.Material3.Button.TonalButton" android:textColor="@color/text_primary" android:backgroundTint="@color/bg_panel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Кто это?"
+                android:text="👤 Кто это?"
+                android:textColor="#E8D8F0"
+                android:textSize="13sp"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="8dp"
+                android:background="@drawable/bg_ai_chip_transparent"
+                android:clickable="true"
+                android:focusable="true"
                 android:layout_marginEnd="8dp" />
-                
-            <Button
+
+            <TextView
                 android:id="@+id/btnAiSimplify"
-                style="@style/Widget.Material3.Button.TonalButton" android:textColor="@color/text_primary" android:backgroundTint="@color/bg_panel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Упростить текст" />
+                android:text="⚡ Упростить"
+                android:textColor="#E8D8F0"
+                android:textSize="13sp"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="8dp"
+                android:background="@drawable/bg_ai_chip_transparent"
+                android:clickable="true"
+                android:focusable="true" />
         </LinearLayout>
     </HorizontalScrollView>
 
@@ -186,31 +162,31 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:visibility="gone"
-        android:paddingHorizontal="24dp"
-        android:paddingBottom="8dp">
+        android:paddingHorizontal="16dp"
+        android:paddingTop="8dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Ваша заметка к тексту:"
-            android:textSize="14sp"
+            android:text="Заметка к тексту:"
+            android:textSize="13sp"
             android:textStyle="bold"
             android:textColor="@color/accent"
-            android:layout_marginBottom="8dp" />
+            android:layout_marginBottom="6dp" />
 
         <EditText
             android:id="@+id/etNoteText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minLines="3"
+            android:minLines="2"
             android:gravity="top|start"
             android:background="@drawable/bg_edittext_rounded"
-            android:padding="12dp"
+            android:padding="10dp"
             android:hint="Текст заметки..."
             android:textColor="@color/text_primary"
             android:textColorHint="#6B5980"
-            android:textSize="15sp"
-            android:layout_marginBottom="12dp" />
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
 
         <Button
             android:id="@+id/btnSaveNote"
@@ -222,37 +198,65 @@
             android:textColor="@color/btn_text" />
     </LinearLayout>
 
-    <!-- AI Response Container -->
+    <!-- AI Response Container (Expands inside bar) -->
     <LinearLayout
         android:id="@+id/layoutAiResponse"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:visibility="gone"
-        android:paddingHorizontal="24dp"
-        android:paddingBottom="8dp">
+        android:paddingHorizontal="16dp"
+        android:paddingTop="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="✨ Ответ локального ИИ:"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="@color/accent" />
+
+            <ImageView
+                android:id="@+id/btnCloseResponse"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                app:tint="#A080C0"
+                android:contentDescription="Закрыть"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true" />
+        </LinearLayout>
 
         <ProgressBar
             android:id="@+id/pbAiLoading"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:layout_gravity="center_horizontal"
-            android:layout_margin="12dp"
+            android:layout_margin="8dp"
             android:indeterminateTint="@color/accent"
             android:visibility="gone" />
 
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1">
-            
+            android:maxHeight="180dp">
+
             <TextView
                 android:id="@+id/tvAiResponse"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="15sp"
+                android:textSize="14sp"
                 android:textColor="@color/text_primary"
-                android:layout_marginBottom="12dp"
+                android:paddingBottom="4dp"
                 android:textIsSelectable="true" />
         </ScrollView>
     </LinearLayout>

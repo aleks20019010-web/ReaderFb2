@@ -38,6 +38,11 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
     override fun onStart() {
         super.onStart()
         dialog?.applyStarryBackground()
+        dialog?.window?.apply {
+            setDimAmount(0f)
+            clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        }
     }
 
     override fun onCreateView(
@@ -57,6 +62,10 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
         val layoutAiResponse = view.findViewById<View>(R.id.layoutAiResponse)
         val pbAiLoading = view.findViewById<ProgressBar>(R.id.pbAiLoading)
         val tvAiResponse = view.findViewById<TextView>(R.id.tvAiResponse)
+        
+        view.findViewById<View>(R.id.btnCloseResponse)?.setOnClickListener {
+            layoutAiResponse.visibility = View.GONE
+        }
 
         view.findViewById<View>(R.id.btnFind).setOnClickListener {
             val bookReaderActivity = activity as? BookReaderActivity
