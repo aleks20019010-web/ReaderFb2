@@ -17,6 +17,7 @@ object LlamaEngine {
     private const val AUTO_UNLOAD_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
 
     private var isJniLoaded = false
+    fun isJniAvailable(): Boolean = isJniLoaded
     private var unloadJob: Job? = null
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 

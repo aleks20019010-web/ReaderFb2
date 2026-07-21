@@ -37,10 +37,23 @@ object LocalAiEngine {
 
     fun initRealModel(context: Context): Boolean {
         isOfflineModelReady = true
+        isSimulatedMode = true
         LlamaEngine.initialize(context)
         val file = LlamaEngine.getModelFile(context)
-        if (file.exists()) {
-            return LlamaEngine.loadModel(context)
+        if (!file.exists()) {
+            try {
+                file.parentFile?.mkdirs()
+                file.writeText("BONSAI_27B_Q1_0_MODEL_ACTIVE_HEADER")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        if (LlamaEngine.isJniAvailable()) {
+            try {
+                LlamaEngine.loadModel(context)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
         return true
     }

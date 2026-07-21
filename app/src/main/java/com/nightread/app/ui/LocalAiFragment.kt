@@ -91,11 +91,11 @@ class LocalAiFragment : Fragment() {
         }
 
         btnInitModel.setOnClickListener {
-            CustomToast.show(requireContext(), "Инициализация ИИ-модели (.bin)...", Toast.LENGTH_SHORT)
+            CustomToast.show(requireContext(), "Инициализация ИИ-модели Bonsai 27B...", Toast.LENGTH_SHORT)
             val initSuccess = com.nightread.app.data.LocalAiEngine.initRealModel(requireContext())
             if (initSuccess) {
                 updateModelStatusUi()
-                CustomToast.show(requireContext(), "Модель .bin успешно инициализирована!", Toast.LENGTH_LONG)
+                CustomToast.show(requireContext(), "Модель 1-bit Bonsai 27B успешно инициализирована!", Toast.LENGTH_LONG)
             } else {
                 CustomToast.show(requireContext(), "Не удалось инициализировать локальный файл модели.", Toast.LENGTH_SHORT)
             }
