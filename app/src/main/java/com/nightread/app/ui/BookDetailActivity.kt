@@ -22,6 +22,12 @@ import com.nightread.app.R
 import com.nightread.app.data.AppDatabase
 import com.nightread.app.data.BookEntity
 import com.nightread.app.data.SettingsManager
+import com.nightread.app.data.GeminiClient
+import com.nightread.app.data.GeminiRequest
+import com.nightread.app.data.GeminiContent
+import com.nightread.app.data.GeminiPart
+import android.widget.ProgressBar
+import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -172,6 +178,18 @@ class BookDetailActivity : BaseActivity() {
 
         ivDelete.setOnClickListener {
             showDeleteConfirmation()
+        }
+
+        findViewById<View>(R.id.btnAiAnnotation)?.setOnClickListener {
+            generateAiAnnotation()
+        }
+
+        findViewById<View>(R.id.btnBookSummary)?.setOnClickListener {
+            showOrGenerateSummary()
+        }
+
+        findViewById<View>(R.id.btnAnalyzeCharacters)?.setOnClickListener {
+            showOrGenerateCharacters()
         }
     }
 
@@ -456,8 +474,22 @@ class BookDetailActivity : BaseActivity() {
     }
 
     private fun updateAiVisibility() {
-        findViewById<View>(R.id.cardAiFeatures)?.visibility = View.GONE
-        findViewById<View>(R.id.btnAiAnnotation)?.visibility = View.GONE
+        val apiKey = com.nightread.app.BuildConfig.GEMINI_API_KEY
+        val hasApiKey = apiKey.isNotEmpty() && apiKey != "MY_GEMINI_API_KEY"
+
+        val cardAiFeatures = findViewById<View>(R.id.cardAiFeatures)
+        val btnAiAnnotation = findViewById<View>(R.id.btnAiAnnotation)
+
+        if (hasApiKey) {
+            cardAiFeatures?.visibility = View.VISIBLE
+            
+            val dbAnnotation = currentBook?.annotation
+            val isMissingAnnotation = dbAnnotation.isNullOrEmpty() || dbAnnotation == "Аннотация отсутствует"
+            btnAiAnnotation?.visibility = if (isMissingAnnotation) View.VISIBLE else View.GONE
+        } else {
+            cardAiFeatures?.visibility = View.GONE
+            btnAiAnnotation?.visibility = View.GONE
+        }
     }
 
     private fun checkAnnotationLength() {
@@ -759,5 +791,222 @@ class BookDetailActivity : BaseActivity() {
         val green = Color.green(color)
         val blue = Color.blue(color)
         return Color.argb(alpha, red, green, blue)
+    }
+
+    private var progressDialog: AlertDialog? = null
+
+    private fun showProgressDialog(message: String) {
+        val padding = dpToPx(24)
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(padding, padding, padding, padding)
+        }
+        val progressBar = ProgressBar(this).apply {
+            isIndeterminate = true
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                rightMargin = dpToPx(16)
+            }
+        }
+        val textView = TextView(this).apply {
+            text = message
+            textSize = 16f
+            setTextColor(Color.WHITE)
+        }
+        container.addView(progressBar)
+        container.addView(textView)
+
+        progressDialog = AlertDialog.Builder(this, R.style.Theme_NightRead_Dialog)
+            .setView(container)
+            .setCancelable(false)
+            .create()
+        progressDialog?.show()
+    }
+
+    private fun dismissProgressDialog() {
+        progressDialog?.dismiss()
+        progressDialog = null
+    }
+
+    private fun showAiResultDialog(title: String, content: String) {
+        val scrollView = android.widget.ScrollView(this).apply {
+            val padding = dpToPx(20)
+            setPadding(padding, padding, padding, padding)
+        }
+        val textView = TextView(this).apply {
+            text = content
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            setLineSpacing(0f, 1.2f)
+        }
+        scrollView.addView(textView)
+
+        val dialog = AlertDialog.Builder(this, R.style.Theme_NightRead_Dialog)
+            .setTitle(title)
+            .setView(scrollView)
+            .setPositiveButton("ОК", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(Color.parseColor("#FFE3A8"))
+        }
+        dialog.show()
+    }
+
+    private fun generateAiAnnotation() {
+        val book = currentBook ?: return
+        val apiKey = com.nightread.app.BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+            Toast.makeText(this, "Ключ API Gemini не настроен", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        showProgressDialog("ИИ генерирует аннотацию...")
+
+        lifecycleScope.launch {
+            try {
+                val prompt = "Вы — профессиональный литературный критик. Напишите интересную, завлекающую и краткую аннотацию для книги '${book.title}' автора '${book.author ?: "Неизвестен"}'. Напишите на русском языке в пределах 3-4 предложений."
+                val request = GeminiRequest(
+                    contents = listOf(
+                        GeminiContent(
+                            parts = listOf(GeminiPart(text = prompt))
+                        )
+                    )
+                )
+                val response = withContext(Dispatchers.IO) {
+                    GeminiClient.service.generateContent(apiKey, request)
+                }
+                val textResponse = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+
+                if (!textResponse.isNullOrBlank()) {
+                    val updated = book.copy(annotation = textResponse)
+                    val db = AppDatabase.getDatabase(this@BookDetailActivity)
+                    withContext(Dispatchers.IO) {
+                        db.bookDao().updateBook(updated)
+                    }
+                    currentBook = updated
+                    
+                    dismissProgressDialog()
+                    tvAnnotation.text = textResponse
+                    findViewById<View>(R.id.btnAiAnnotation)?.visibility = View.GONE
+                    checkAnnotationLength()
+                    Toast.makeText(this@BookDetailActivity, "Аннотация успешно сгенерирована ИИ!", Toast.LENGTH_SHORT).show()
+                } else {
+                    dismissProgressDialog()
+                    Toast.makeText(this@BookDetailActivity, "Не удалось получить ответ от ИИ", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                dismissProgressDialog()
+                Log.e("BookDetailActivity", "AI Annotation generation failed", e)
+                Toast.makeText(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun showOrGenerateSummary() {
+        val book = currentBook ?: return
+        if (!book.summary.isNullOrBlank()) {
+            showAiResultDialog("Краткое содержание книги", book.summary)
+            return
+        }
+
+        val apiKey = com.nightread.app.BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+            Toast.makeText(this, "Ключ API Gemini не настроен", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        showProgressDialog("ИИ анализирует книгу...")
+
+        lifecycleScope.launch {
+            try {
+                val prompt = "Вы — профессиональный литературный критик и ассистент по чтению. Составьте структурированное краткое содержание (summary/outline) со списком ключевых идей и главных тем для книги '${book.title}' автора '${book.author ?: "Неизвестен"}'. Напишите подробно, глубоко и понятно на русском языке."
+                val request = GeminiRequest(
+                    contents = listOf(
+                        GeminiContent(
+                            parts = listOf(GeminiPart(text = prompt))
+                        )
+                    )
+                )
+                val response = withContext(Dispatchers.IO) {
+                    GeminiClient.service.generateContent(apiKey, request)
+                }
+                val textResponse = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+
+                if (!textResponse.isNullOrBlank()) {
+                    val updated = book.copy(summary = textResponse)
+                    val db = AppDatabase.getDatabase(this@BookDetailActivity)
+                    withContext(Dispatchers.IO) {
+                        db.bookDao().updateBook(updated)
+                    }
+                    currentBook = updated
+                    
+                    dismissProgressDialog()
+                    showAiResultDialog("Краткое содержание книги", textResponse)
+                } else {
+                    dismissProgressDialog()
+                    Toast.makeText(this@BookDetailActivity, "Не удалось получить ответ от ИИ", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                dismissProgressDialog()
+                Log.e("BookDetailActivity", "AI Summary generation failed", e)
+                Toast.makeText(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun showOrGenerateCharacters() {
+        val book = currentBook ?: return
+        if (!book.characters.isNullOrBlank()) {
+            showAiResultDialog("Главные персонажи", book.characters)
+            return
+        }
+
+        val apiKey = com.nightread.app.BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+            Toast.makeText(this, "Ключ API Gemini не настроен", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        showProgressDialog("ИИ анализирует персонажей...")
+
+        lifecycleScope.launch {
+            try {
+                val prompt = "Вы — профессиональный литературовед. Сделайте подробный анализ ключевых персонажей (главных героев, их качеств, роли в сюжете и взаимоотношений) для книги '${book.title}' автора '${book.author ?: "Неизвестен"}'. Ответ оформите в виде структурированного списка на русском языке."
+                val request = GeminiRequest(
+                    contents = listOf(
+                        GeminiContent(
+                            parts = listOf(GeminiPart(text = prompt))
+                        )
+                    )
+                )
+                val response = withContext(Dispatchers.IO) {
+                    GeminiClient.service.generateContent(apiKey, request)
+                }
+                val textResponse = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+
+                if (!textResponse.isNullOrBlank()) {
+                    val updated = book.copy(characters = textResponse)
+                    val db = AppDatabase.getDatabase(this@BookDetailActivity)
+                    withContext(Dispatchers.IO) {
+                        db.bookDao().updateBook(updated)
+                    }
+                    currentBook = updated
+                    
+                    dismissProgressDialog()
+                    showAiResultDialog("Главные персонажи", textResponse)
+                } else {
+                    dismissProgressDialog()
+                    Toast.makeText(this@BookDetailActivity, "Не удалось получить ответ от ИИ", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                dismissProgressDialog()
+                Log.e("BookDetailActivity", "AI Character analysis failed", e)
+                Toast.makeText(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }
