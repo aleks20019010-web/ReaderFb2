@@ -238,10 +238,20 @@
                         <!-- Action Buttons -->
 
                         <Button
+                            android:id="@+id/btnSetGeminiKey"
+                            style="@style/Widget.App.Button"
+                            android:layout_width="match_parent"
+                            android:layout_height="52dp"
+                            android:text="🔑 Настроить API-ключ Gemini (Cloud ИИ)"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="8dp"
+                            app:cornerRadius="12dp" />
+
+                        <Button
                             android:id="@+id/btnDownloadModel"
                             android:layout_width="match_parent"
                             android:layout_height="52dp"
-                            android:text="Скачать Llama 3.2 1B (~800 МБ)"
+                            android:text="Скачать ИИ-модель (.bin)"
                             android:backgroundTint="@color/btn_bg"
                             android:textColor="@color/btn_text"
                             android:textStyle="bold"
@@ -256,7 +266,7 @@
                             android:layout_height="52dp"
                             android:text="Инициализировать модель"
                             android:textStyle="bold"
-                            android:visibility="gone"
+                            android:visibility="visible"
                             android:layout_marginBottom="8dp"
                             app:cornerRadius="12dp" />
 

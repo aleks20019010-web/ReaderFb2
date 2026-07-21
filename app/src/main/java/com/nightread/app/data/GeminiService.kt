@@ -44,6 +44,12 @@ interface GeminiApiService {
         @Query("key") apiKey: String,
         @Body request: GeminiRequest
     ): GeminiResponse
+
+    @POST("v1beta/models/gemini-3.5-flash:generateContent")
+    fun generateContentCall(
+        @Query("key") apiKey: String,
+        @Body request: GeminiRequest
+    ): retrofit2.Call<GeminiResponse>
 }
 
 object GeminiClient {

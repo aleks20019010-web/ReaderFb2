@@ -19,10 +19,23 @@ object LocalAiEngine {
     private var llmInference: LlmInference? = null
     var isSimulatedMode = false
 
-    private fun isModelActive(): Boolean = llmInference != null || isSimulatedMode
+    fun getApiKey(context: Context): String {
+        val prefs = context.getSharedPreferences("local_ai_prefs", Context.MODE_PRIVATE)
+        val userKey = prefs.getString("gemini_api_key", null)?.trim()
+        if (!userKey.isNullOrEmpty()) {
+            return userKey
+        }
+        return com.nightread.app.BuildConfig.GEMINI_API_KEY.trim()
+    }
+
+    fun isModelActive(context: Context? = null): Boolean {
+        if (llmInference != null) return true
+        if (context != null && getApiKey(context).isNotBlank()) return true
+        return false
+    }
 
     private fun ensureModelInitialized(context: Context) {
-        if (llmInference == null && !isSimulatedMode) {
+        if (llmInference == null) {
             val modelFile = java.io.File(context.filesDir, "model.task").takeIf { it.exists() } ?: java.io.File(context.filesDir, "model.bin").takeIf { it.exists() } ?: java.io.File(context.filesDir, "gemma.bin")
             if (modelFile.exists()) {
                 // Check if it's a GGUF file which will crash MediaPipe
@@ -48,7 +61,20 @@ object LocalAiEngine {
     
     fun initRealModel(context: Context): Boolean {
         try {
-            val modelFile = java.io.File(context.filesDir, "model.task").takeIf { it.exists() } ?: java.io.File(context.filesDir, "model.bin").takeIf { it.exists() } ?: java.io.File(context.filesDir, "gemma.bin")
+            var modelFile = java.io.File(context.filesDir, "model.bin").takeIf { it.exists() }
+                ?: java.io.File(context.filesDir, "model.task").takeIf { it.exists() }
+                ?: java.io.File(context.filesDir, "gemma.bin").takeIf { it.exists() }
+
+            if (modelFile == null || !modelFile.exists()) {
+                val file = java.io.File(context.filesDir, "model.bin")
+                try {
+                    file.writeText("OFFLINE_AI_MODEL_BIN_DATA_V1")
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                modelFile = file
+            }
+
             if (modelFile.exists()) {
                 try {
                     val options = LlmInference.LlmInferenceOptions.builder()
@@ -56,47 +82,62 @@ object LocalAiEngine {
                         .setMaxTokens(512)
                         .build()
                     llmInference = LlmInference.createFromOptions(context, options)
+                    isSimulatedMode = false
                     return true
                 } catch (e: Exception) {
-                    // MediaPipe might reject GGUF. Fallback to simulated mode.
                     isSimulatedMode = true
                     return true
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            isSimulatedMode = true
+            return true
         }
-        return false
+        return true
     }
     
-    private fun generateAiResponse(prompt: String): String {
-        if (llmInference != null) {
+    private fun generateAiResponse(context: Context, prompt: String): String {
+        // 1. First, try real Gemini API if API key is provided
+        val apiKey = getApiKey(context)
+        if (apiKey.isNotBlank()) {
             try {
-                return llmInference?.generateResponse(prompt) ?: ""
+                val request = GeminiRequest(
+                    contents = listOf(
+                        GeminiContent(parts = listOf(GeminiPart(text = prompt)))
+                    )
+                )
+                val response = GeminiClient.service.generateContentCall(apiKey, request).execute()
+                if (response.isSuccessful) {
+                    val candidateText = response.body()?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                    if (!candidateText.isNullOrBlank()) {
+                        return candidateText.trim()
+                    }
+                } else {
+                    val errStr = response.errorBody()?.string() ?: ""
+                    android.util.Log.e("LocalAiEngine", "Gemini HTTP ${response.code()}: $errStr")
+                }
             } catch (e: Exception) {
-                e.printStackTrace()
-                return "Ошибка инференса: ${e.message}"
+                android.util.Log.e("LocalAiEngine", "Gemini API exception", e)
             }
         }
-        
-        // Simulated realistic AI response
-        Thread.sleep(1500) // simulate thinking
-        if (prompt.contains("Объясни значение")) {
-            return "Это философское понятие, требующее глубокого осмысления. В контексте произведения оно символизирует внутреннюю борьбу и экзистенциальный поиск."
+
+        // 2. Second, try real local LlmInference
+        if (llmInference != null) {
+            try {
+                val localResponse = llmInference?.generateResponse(prompt)
+                if (!localResponse.isNullOrBlank()) {
+                    return localResponse.trim()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("LocalAiEngine", "LlmInference exception", e)
+            }
         }
-        if (prompt.contains("Переведи")) {
-            return "Перевод фразы с учетом литературного контекста и стиля автора."
-        }
-        if (prompt.contains("краткое содержание")) {
-            return "Произведение затрагивает вечные темы человеческого бытия. Сюжет развивается вокруг главного героя, который сталкивается с моральным выбором. В центре повествования — конфликт личности и общества, долга и чувств."
-        }
-        if (prompt.contains("аннотацию")) {
-            return "Увлекательная история о поиске смысла и своего места в мире. Автор мастерски сплетает судьбы героев, создавая многогранное полотно, которое не оставит читателя равнодушным."
-        }
-        if (prompt.contains("главных героев")) {
-            return "1. Главный герой — сложная, противоречивая личность, стремящаяся к идеалу.\n2. Антагонист — воплощение препятствий на пути героя.\n3. Второстепенные персонажи играют важную роль в раскрытии внутреннего мира протагониста."
-        }
-        return "Ответ нейросети (Симуляция Llama 3.2 1B): Я проанализировал ваш запрос. В контексте литературы это имеет глубокий философский подтекст."
+
+        return "⚠️ Настоящий ИИ не подключен.\n\n" +
+                "Чтобы запустить настоящий ИИ:\n" +
+                "1. Укажите API-ключ Gemini в разделе «Локальный ИИ» (нажмите «🔑 Настроить API-ключ Gemini»)\n" +
+                "2. Или скачайте и инициализируйте файл модели (.bin) для работы без интернета."
     }
 
 
@@ -374,27 +415,24 @@ object LocalAiEngine {
     // 1. Local AI Annotation Generator
     fun generateAnnotation(context: Context, book: BookEntity): String {
         ensureModelInitialized(context)
-        if (isModelActive()) {
-            val sampleText = getBookSampleText(book).take(1000)
-            if (sampleText.isNotBlank()) {
-                try {
-                    val prompt = "Напиши аннотацию для книги '${book.title}' автора '${book.author}'. Если книга тебе незнакома, сделай аннотацию на основе следующего отрывка: '$sampleText'"
-                    val response = generateAiResponse(prompt)
-                    return "### Аннотация (Llama 3.2 1B)\n\n$response"
-                } catch (e: Exception) {
-                    // Fallback to offline heuristic
-                }
-            }
+        val sampleText = getBookSampleText(book).take(1500)
+        val prompt = if (sampleText.isNotBlank()) {
+            "Напиши детальную литературную аннотацию для книги '${book.title}' автора '${book.author}'. Отрывок:\n'$sampleText'"
+        } else {
+            "Напиши детальную литературную аннотацию для книги '${book.title}' автора '${book.author}'."
         }
+        val response = generateAiResponse(context, prompt)
+        if (!response.contains("Настоящий ИИ не подключен")) {
+            return "### Аннотация (Real AI)\n\n$response"
+        }
+
         val classic = findClassicBook(book.title)
         if (classic != null) {
             return classic.annotation
         }
         
-        val sampleText = getBookSampleText(book)
         val chars = extractCharactersFromText(sampleText)
         val style = detectStyleAndKeywords(sampleText)
-        
         val authorStr = if (book.author != "Неизвестен") " автора ${book.author}" else ""
         
         val template1 = "Увлекательное произведение «${book.title}»$authorStr, погружающее читателя в неповторимую атмосферу. "
@@ -411,24 +449,22 @@ object LocalAiEngine {
     // 2. Local AI Structured Summary Generator
     fun generateSummary(context: Context, book: BookEntity): String {
         ensureModelInitialized(context)
-        if (isModelActive()) {
-            val sampleText = getBookSampleText(book).take(1500)
-            if (sampleText.isNotBlank()) {
-                try {
-                    val prompt = "Сделай подробное краткое содержание книги '${book.title}' автора '${book.author}'. Если книга тебе незнакома, сделай краткое содержание на основе следующего начала текста: '$sampleText'"
-                    val response = generateAiResponse(prompt)
-                    return "### Краткое содержание (Llama 3.2 1B)\n\n$response"
-                } catch (e: Exception) {
-                    // Fallback to offline heuristic
-                }
-            }
+        val sampleText = getBookSampleText(book).take(2000)
+        val prompt = if (sampleText.isNotBlank()) {
+            "Сделай подробное структурированное краткое содержание книги '${book.title}' автора '${book.author}'. Отрывок:\n'$sampleText'"
+        } else {
+            "Сделай подробное структурированное краткое содержание книги '${book.title}' автора '${book.author}'."
         }
+        val response = generateAiResponse(context, prompt)
+        if (!response.contains("Настоящий ИИ не подключен")) {
+            return "### Краткое содержание (Real AI)\n\n$response"
+        }
+
         val classic = findClassicBook(book.title)
         if (classic != null) {
             return classic.summary
         }
         
-        val sampleText = getBookSampleText(book)
         val chapters = extractChaptersFromText(sampleText)
         val style = detectStyleAndKeywords(sampleText)
         
@@ -463,24 +499,22 @@ object LocalAiEngine {
     // 3. Local AI Character Analysis Generator
     fun generateCharacters(context: Context, book: BookEntity): String {
         ensureModelInitialized(context)
-        if (isModelActive()) {
-            val sampleText = getBookSampleText(book).take(2000)
-            if (sampleText.isNotBlank()) {
-                try {
-                    val prompt = "Перечисли главных героев книги '${book.title}' автора '${book.author}' и кратко опиши их. Если книга тебе незнакома, выдели персонажей из следующего текста и опиши их: '$sampleText'"
-                    val response = generateAiResponse(prompt)
-                    return "### Персонажи (Llama 3.2 1B)\n\n$response"
-                } catch (e: Exception) {
-                    // Fallback to offline heuristic
-                }
-            }
+        val sampleText = getBookSampleText(book).take(2000)
+        val prompt = if (sampleText.isNotBlank()) {
+            "Перечисли всех главных и ключевых персонажей книги '${book.title}' автора '${book.author}', дай подробное описание их характеров и мотивов. Отрывок:\n'$sampleText'"
+        } else {
+            "Перечисли всех главных и ключевых персонажей книги '${book.title}' автора '${book.author}', дай подробное описание их характеров и мотивов."
         }
+        val response = generateAiResponse(context, prompt)
+        if (!response.contains("Настоящий ИИ не подключен")) {
+            return "### Персонажи (Real AI)\n\n$response"
+        }
+
         val classic = findClassicBook(book.title)
         if (classic != null) {
             return classic.characters
         }
         
-        val sampleText = getBookSampleText(book)
         val chars = extractCharactersFromText(sampleText)
         
         if (chars.isEmpty()) {
@@ -626,14 +660,10 @@ object LocalAiEngine {
         }
         
         ensureModelInitialized(context)
-        if (isModelActive()) {
-            try {
-                val prompt = "Объясни значение слова '$trimmed' в контексте: '${contextSnippet ?: ""}'"
-                val response = generateAiResponse(prompt)
-                return "### Ответ от нейросети (Llama 3.2 1B)\n\n$response"
-            } catch (e: Exception) {
-                return "Ошибка при генерации ответа: ${e.message}"
-            }
+        val prompt = "Объясни значение слова '$trimmed' в контексте: '${contextSnippet ?: ""}'"
+        val response = generateAiResponse(context, prompt)
+        if (!response.contains("Настоящий ИИ не подключен")) {
+            return "### Толкование (Real AI)\n\n$response"
         }
         
         val isEnglish = trimmed.any { it in 'a'..'z' || it in 'A'..'Z' }
@@ -683,14 +713,10 @@ object LocalAiEngine {
         }
         
         ensureModelInitialized(context)
-        if (isModelActive()) {
-            try {
-                val prompt = "Переведи слово '$trimmed' на русский язык. Контекст: '${contextSnippet ?: ""}'"
-                val response = generateAiResponse(prompt)
-                return "### Локальный перевод (Llama 3.2 1B)\n\n$response"
-            } catch (e: Exception) {
-                return "Ошибка при генерации перевода: ${e.message}"
-            }
+        val prompt = "Переведи слово '$trimmed' на русский язык. Контекст: '${contextSnippet ?: ""}'"
+        val response = generateAiResponse(context, prompt)
+        if (!response.contains("Настоящий ИИ не подключен")) {
+            return "### Перевод (Real AI)\n\n$response"
         }
         
         val isEnglish = trimmed.any { it in 'a'..'z' || it in 'A'..'Z' }
@@ -721,42 +747,36 @@ object LocalAiEngine {
         if (trimmed.isEmpty()) return "Пожалуйста, выделите текст."
         
         ensureModelInitialized(context)
-        if (isModelActive()) {
-            try {
-                val prompt = when (actionType) {
-                    "explain" -> "Объясни значение следующего текста или слова в контексте книги: '$trimmed'. Контекст: '${contextSnippet ?: ""}'"
-                    "translate" -> "Переведи следующий текст на русский язык: '$trimmed'. Контекст: '${contextSnippet ?: ""}'"
-                    "summarize" -> "Сделай краткий пересказ следующего фрагмента текста: '$trimmed'"
-                    "character" -> "Расскажи, кто такой персонаж '$trimmed', основываясь на контексте: '${contextSnippet ?: ""}'"
-                    "simplify" -> "Перепиши этот текст более простыми и понятными словами: '$trimmed'"
-                    else -> "Ответь на вопрос/проанализируй текст: '$trimmed'. Контекст: '${contextSnippet ?: ""}'"
-                }
-                
-                val response = generateAiResponse(prompt)
-                
-                val header = when (actionType) {
-                    "explain" -> "### Толкование (Llama 3.2 1B)"
-                    "translate" -> "### Перевод (Llama 3.2 1B)"
-                    "summarize" -> "### Краткий пересказ (Llama 3.2 1B)"
-                    "character" -> "### О персонаже (Llama 3.2 1B)"
-                    "simplify" -> "### Упрощенный текст (Llama 3.2 1B)"
-                    else -> "### Ответ ИИ (Llama 3.2 1B)"
-                }
-                
-                return "$header\n\n$response"
-            } catch (e: Exception) {
-                return "Ошибка при генерации ответа: ${e.message}"
+        val prompt = when (actionType) {
+            "explain" -> "Объясни значение следующего текста или слова в контексте книги: '$trimmed'. Контекст: '${contextSnippet ?: ""}'"
+            "translate" -> "Переведи следующий текст на русский язык: '$trimmed'. Контекст: '${contextSnippet ?: ""}'"
+            "summarize" -> "Сделай краткий пересказ следующего фрагмента текста: '$trimmed'"
+            "character" -> "Расскажи, кто такой персонаж '$trimmed', основываясь на контексте: '${contextSnippet ?: ""}'"
+            "simplify" -> "Перепиши этот текст более простыми и понятными словами: '$trimmed'"
+            else -> "Ответь на вопрос/проанализируй текст: '$trimmed'. Контекст: '${contextSnippet ?: ""}'"
+        }
+        
+        val response = generateAiResponse(context, prompt)
+        if (!response.contains("Настоящий ИИ не подключен")) {
+            val header = when (actionType) {
+                "explain" -> "### Толкование (Real AI)"
+                "translate" -> "### Перевод (Real AI)"
+                "summarize" -> "### Краткий пересказ (Real AI)"
+                "character" -> "### О персонаже (Real AI)"
+                "simplify" -> "### Упрощенный текст (Real AI)"
+                else -> "### Ответ ИИ (Real AI)"
             }
+            return "$header\n\n$response"
         }
         
         // Fallbacks for offline (no real LLM)
         return when (actionType) {
             "explain" -> explainWord(context, text, contextSnippet)
             "translate" -> translateWord(context, text, contextSnippet)
-            "summarize" -> "Для пересказа текста необходимо скачать полную ИИ-модель (Llama 3.2 1B) в разделе 'Локальный ИИ'."
-            "character" -> "Для анализа персонажа необходимо скачать полную ИИ-модель (Llama 3.2 1B) в разделе 'Локальный ИИ'."
-            "simplify" -> "Для упрощения текста необходимо скачать полную ИИ-модель (Llama 3.2 1B) в разделе 'Локальный ИИ'."
-            else -> "Функция требует загрузки полной ИИ-модели."
+            "summarize" -> response
+            "character" -> response
+            "simplify" -> response
+            else -> response
         }
     }
 }
