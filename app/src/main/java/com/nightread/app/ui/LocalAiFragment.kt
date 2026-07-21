@@ -183,20 +183,28 @@ class LocalAiFragment : Fragment() {
         val modelBin = java.io.File(context.filesDir, "model.bin")
         val modelTask = java.io.File(context.filesDir, "model.task")
         val gemmaBin = java.io.File(context.filesDir, "gemma.bin")
-        val hasLocalModel = modelBin.exists() || modelTask.exists() || gemmaBin.exists() || com.nightread.app.data.LocalAiEngine.isModelActive(context)
+        
+        val validFileOnDisk = (modelBin.exists() && modelBin.length() > 1000000) ||
+                (modelTask.exists() && modelTask.length() > 1000000) ||
+                (gemmaBin.exists() && gemmaBin.length() > 1000000)
+        val isLoadedInMemory = com.nightread.app.data.LocalAiEngine.hasLoadedLocalModel()
         val customRulesJson = prefs.getString("custom_rules_json", null)
 
         btnInitModel.visibility = View.VISIBLE
 
         val statusSb = java.lang.StringBuilder()
         if (apiKey.isNotBlank()) {
-            statusSb.append("🟢 Gemini Cloud AI: Ключ настроен (Real AI)\n")
+            statusSb.append("🟢 Cloud ИИ (Gemini API): Ключ активен (Real AI)\n")
         } else {
-            statusSb.append("⚪ Gemini Cloud AI: Ключ не указан\n")
+            statusSb.append("⚪ Cloud ИИ (Gemini API): Ключ не настроен\n")
         }
 
-        if (hasLocalModel) {
-            statusSb.append("🟢 Офлайн-модель: Установлена (.bin)")
+        if (isLoadedInMemory) {
+            statusSb.append("🟢 Офлайн-модель: Загружена в память (.bin)")
+            btnDownloadModel.text = "Переустановить модель (.bin)"
+            btnInitModel.text = "Модель инициализирована ✓"
+        } else if (validFileOnDisk) {
+            statusSb.append("🟡 Офлайн-модель: Файл найден на диске (нажмите «Инициализировать»)")
             btnDownloadModel.text = "Переустановить модель (.bin)"
             btnInitModel.text = "Инициализировать модель"
         } else {
@@ -218,79 +226,108 @@ class LocalAiFragment : Fragment() {
         layoutDownloadProgress.visibility = View.VISIBLE
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val urlString = "https://huggingface.co/google/gemma-2b-it-gpu-int4/resolve/main/gemma-2b-it-gpu-int4.bin"
+            val urlsToTry = listOf(
+                "https://huggingface.co/alexdlov/gemma-2b-it-gpu-int4.bin/resolve/main/gemma-2b-it-gpu-int4.bin",
+                "https://huggingface.co/manjirao/gemma-2b-it-gpu-int4.bin/resolve/main/gemma-2b-it-gpu-int4.bin",
+                "https://huggingface.co/mikkir/gemma-2b-it-gpu-int4.bin/resolve/main/gemma-2b-it-gpu-int4.bin"
+            )
+            
             var downloadedReal = false
+            var downloadErrorMsg = ""
 
-            try {
-                val client = okhttp3.OkHttpClient.Builder()
-                    .followRedirects(true)
-                    .followSslRedirects(true)
-                    .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-                    .build()
-
-                val request = okhttp3.Request.Builder().url(urlString).build()
-                val response = client.newCall(request).execute()
-
-                val outputFile = java.io.File(requireContext().filesDir, "model.bin")
-
-                if (response.isSuccessful && response.body != null) {
-                    val body = response.body!!
-                    val fileLength = body.contentLength()
-                    val input = body.byteStream()
-                    val output = java.io.FileOutputStream(outputFile)
-
-                    val data = ByteArray(8192)
-                    var total: Long = 0
-                    var count: Int
-                    var lastUpdate = System.currentTimeMillis()
-
-                    while (input.read(data).also { count = it } != -1) {
-                        total += count
-                        output.write(data, 0, count)
-
-                        val now = System.currentTimeMillis()
-                        if (now - lastUpdate > 100) {
-                            lastUpdate = now
-                            val progress = if (fileLength > 0) (total * 100 / fileLength).toInt() else 50
-                            val loadedMb = total / (1024 * 1024)
-                            val totalMb = if (fileLength > 0) fileLength / (1024 * 1024) else 800
-
-                            withContext(Dispatchers.Main) {
-                                txtDownloadStatus.text = "Загрузка ИИ-модели (.bin): $progress%"
-                                txtDownloadStats.text = "Загружено: $loadedMb МБ из $totalMb МБ"
-                                progressDownload.progress = progress
-                            }
-                        }
-                    }
-                    output.flush()
-                    output.close()
-                    input.close()
-                    downloadedReal = true
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            val outputFile = java.io.File(requireContext().filesDir, "model.bin")
+            if (outputFile.exists()) {
+                try { outputFile.delete() } catch (e: Exception) { e.printStackTrace() }
             }
 
-            // Ensure model.bin exists
-            val outputFile = java.io.File(requireContext().filesDir, "model.bin")
-            if (!outputFile.exists()) {
+            val client = okhttp3.OkHttpClient.Builder()
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                .build()
+
+            for (url in urlsToTry) {
+                if (downloadedReal) break
                 try {
-                    outputFile.writeText("OFFLINE_AI_MODEL_BIN_DATA_V1")
+                    val request = okhttp3.Request.Builder()
+                        .url(url)
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                        .build()
+
+                    val response = client.newCall(request).execute()
+
+                    if (response.isSuccessful && response.body != null) {
+                        val body = response.body!!
+                        val fileLength = body.contentLength()
+                        val input = body.byteStream()
+                        val output = java.io.FileOutputStream(outputFile)
+
+                        val data = ByteArray(16384)
+                        var total: Long = 0
+                        var count: Int
+                        var startTime = System.currentTimeMillis()
+                        var lastUpdate = startTime
+
+                        while (input.read(data).also { count = it } != -1) {
+                            total += count
+                            output.write(data, 0, count)
+
+                            val now = System.currentTimeMillis()
+                            if (now - lastUpdate > 150) {
+                                lastUpdate = now
+                                val progress = if (fileLength > 0) (total * 100 / fileLength).toInt() else 5
+                                val loadedMb = total / (1024 * 1024)
+                                val totalMb = if (fileLength > 0) fileLength / (1024 * 1024) else 1291
+                                val elapsedTimeSec = maxOf(1L, (now - startTime) / 1000)
+                                val speedMb = loadedMb / elapsedTimeSec
+
+                                withContext(Dispatchers.Main) {
+                                    txtDownloadStatus.text = "Загрузка ИИ-модели Gemma 2B (.bin): $progress%"
+                                    txtDownloadStats.text = "$loadedMb МБ из $totalMb МБ (~$speedMb МБ/сек)"
+                                    progressDownload.progress = progress
+                                }
+                            }
+                        }
+                        output.flush()
+                        output.close()
+                        input.close()
+
+                        if (outputFile.length() > 50000000) { // Valid binary > 50MB
+                            downloadedReal = true
+                        }
+                    } else {
+                        downloadErrorMsg = "HTTP ${response.code}"
+                    }
                 } catch (e: Exception) {
+                    downloadErrorMsg = e.localizedMessage ?: "Ошибка сети"
                     e.printStackTrace()
                 }
             }
 
-            // Always initialize model
-            com.nightread.app.data.LocalAiEngine.initRealModel(requireContext())
+            if (!downloadedReal) {
+                if (outputFile.exists()) {
+                    try { outputFile.delete() } catch (e: Exception) { e.printStackTrace() }
+                }
+            }
+
+            val initSuccess = if (downloadedReal) {
+                com.nightread.app.data.LocalAiEngine.initRealModel(requireContext())
+            } else false
 
             withContext(Dispatchers.Main) {
                 layoutDownloadProgress.visibility = View.GONE
                 btnDownloadModel.isEnabled = true
                 btnUploadCustomRules.isEnabled = true
                 updateModelStatusUi()
-                Toast.makeText(context, "ИИ-модель (.bin) успешно скачана и инициализирована!", Toast.LENGTH_LONG).show()
+
+                if (initSuccess) {
+                    Toast.makeText(context, "🟢 Офлайн-модель (Gemma 2B .bin) успешно загружена и инициализирована!", Toast.LENGTH_LONG).show()
+                } else if (downloadedReal) {
+                    Toast.makeText(context, "⚠️ Модель скачана (1.3 ГБ), но для ускорения укажите Gemini API-ключ в настройках.", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "❌ Не удалось скачать файл модели ($downloadErrorMsg). Для работы ИИ активируйте Gemini API-ключ!", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
