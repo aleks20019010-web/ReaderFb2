@@ -22,10 +22,6 @@ import com.nightread.app.R
 import com.nightread.app.data.AppDatabase
 import com.nightread.app.data.BookEntity
 import com.nightread.app.data.SettingsManager
-import com.nightread.app.data.GeminiClient
-import com.nightread.app.data.GeminiRequest
-import com.nightread.app.data.GeminiContent
-import com.nightread.app.data.GeminiPart
 import android.widget.ProgressBar
 import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
@@ -826,23 +822,6 @@ class BookDetailActivity : BaseActivity() {
     private fun dismissProgressDialog() {
         progressDialog?.dismiss()
         progressDialog = null
-    }
-
-    private fun showMissingApiKeyDialog() {
-        val message = "Для работы ИИ-функций требуется указать API-ключ Gemini.\n\n" +
-                "1. Получите бесплатный ключ в Google AI Studio.\n" +
-                "2. Укажите его в панели Secrets в AI Studio под именем GEMINI_API_KEY или добавьте в ваш .env файл.\n\n" +
-                "После этого ИИ-функции (аннотации, краткие содержания, анализ персонажей) станут доступны!"
-                
-        AlertDialog.Builder(this, R.style.Theme_NightRead_Dialog)
-            .setTitle("Настройка Gemini AI")
-            .setMessage(message)
-            .setPositiveButton("ОК", null)
-            .setNegativeButton("Открыть AI Studio") { _, _ ->
-                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://aistudio.google.com/"))
-                startActivity(intent)
-            }
-            .show()
     }
 
     private fun showActionMenu(anchorView: View, onShow: () -> Unit, onRegenerate: () -> Unit) {

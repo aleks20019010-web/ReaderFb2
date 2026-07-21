@@ -20,18 +20,7 @@ object LocalAiEngine {
     var isSimulatedMode = false
     var isOfflineModelReady = false
 
-    fun getApiKey(context: Context): String {
-        val prefs = context.getSharedPreferences("local_ai_prefs", Context.MODE_PRIVATE)
-        val userKey = prefs.getString("gemini_api_key", null)?.trim()
-        if (!userKey.isNullOrEmpty()) {
-            return userKey
-        }
-        return com.nightread.app.BuildConfig.GEMINI_API_KEY.trim()
-    }
-
     fun isModelActive(context: Context? = null): Boolean {
-        if (llmInference != null || isOfflineModelReady || isSimulatedMode) return true
-        if (context != null && getApiKey(context).isNotBlank()) return true
         return true
     }
 
@@ -97,32 +86,8 @@ object LocalAiEngine {
         }
     }
     
-    private fun generateAiResponse(context: Context, prompt: String): String {
-        // 1. First, try real Gemini API if API key is provided
-        val apiKey = getApiKey(context)
-        if (apiKey.isNotBlank()) {
-            try {
-                val request = GeminiRequest(
-                    contents = listOf(
-                        GeminiContent(parts = listOf(GeminiPart(text = prompt)))
-                    )
-                )
-                val response = GeminiClient.service.generateContentCall(apiKey, request).execute()
-                if (response.isSuccessful) {
-                    val candidateText = response.body()?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-                    if (!candidateText.isNullOrBlank()) {
-                        return candidateText.trim()
-                    }
-                } else {
-                    val errStr = response.errorBody()?.string() ?: ""
-                    android.util.Log.e("LocalAiEngine", "Gemini HTTP ${response.code()}: $errStr")
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("LocalAiEngine", "Gemini API exception", e)
-            }
-        }
-
-        // 2. Second, try real local LlmInference
+    private fun generateAiResponse(context: Context, prompt: String): String? {
+        // Try real local LlmInference
         if (llmInference != null) {
             try {
                 val localResponse = llmInference?.generateResponse(prompt)
@@ -134,10 +99,7 @@ object LocalAiEngine {
             }
         }
 
-        return "⚠️ Настоящий ИИ не подключен.\n\n" +
-                "Чтобы запустить настоящий ИИ:\n" +
-                "1. Укажите API-ключ Gemini в разделе «Локальный ИИ» (нажмите «🔑 Настроить API-ключ Gemini»)\n" +
-                "2. Или скачайте и инициализируйте файл модели (.bin) для работы без интернета."
+        return null
     }
 
 
@@ -224,43 +186,108 @@ object LocalAiEngine {
                     "- **Аркадий Кирсанов** — Друг Базарова, мягкий, романтичный юноша, подсознательно стремящийся к семейному уюту, а не к революции.\n" +
                     "- **Павел Петрович Кирсанов** — Аристократ старой закалки, изящный, принципиальный оппонент Базарова, защищающий дворянские идеалы.\n" +
                     "- **Анна Одинцова** — Умная, холодная, независимая вдова, покорившая Базарова, но испугавшаяся сильных потрясений."
+        ),
+        "1984" to ClassicBookData(
+            annotation = "Культовый антиутопический роман Джорджа Оруэлла о тоталитарном государстве, тотальном контроле за мыслями, «двоемыслии» и разрушении человеческой личности под воздействием партии Большого Брата.",
+            summary = "### Ключевые темы\n\n" +
+                    "- **Тотальный контроль и Новояз**: Уничтожение языка и исторической памяти как инструмент манипуляции обществом.\n" +
+                    "- **Бунт личности**: Уинстон Смит пытается сохранить человечность и способность самостоятельно мыслить.\n" +
+                    "- **Ломающая сила страха**: Комната 101 и трагедия предательства собственных идеалов.",
+            characters = "- **Уинстон Смит** — Рядовой сотрудник Министерства Правды, скрытно восстающий против системы.\n" +
+                    "- **Джулия** — Возлюбленная Уинстона, бунтующая против партии ради личных радостей и свободы.\n" +
+                    "- **О’Брайен** — Член Внутренней Партии, умный, циничный фанатик, руководящий допросом Уинстона.\n" +
+                    "- **Большой Брат** — Загадочный и всевидящий лидер партии, символ неограниченной власти."
+        ),
+        "герой нашего времени" to ClassicBookData(
+            annotation = "Первый в русской литературе лирико-психологический роман Михаила Лермонтова. История Григория Печорина — человека редкого ума и энергии, растрачивающего свою жизнь впустую из-за душевной пустоты и эгоизма.",
+            summary = "### Ключевые смыслы\n\n" +
+                    "- **Трагедия лишнего человека**: Печорин сознает свои пороки и силу ума, но не может найти им достойного применения.\n" +
+                    "- **Психологический портрет**: Хронологически сложная структура («Бэла», «Максим Максымыч», «Тамань», «Княжна Мери», «Фаталист») раскрывает глубины души героя.",
+            characters = "- **Григорий Печорин** — Прапорщик, глубоко рефлексирующий, эгоистичный и противоречивый офицер.\n" +
+                    "- **Максим Максымыч** — Добрый, душевный штабс-капитан, искренне привязанный к Печорину.\n" +
+                    "- **Княжна Мери** — Благородная, романтичная девушка, ставшая жертвой любовной игры Печорина.\n" +
+                    "- **Грушницкий** — Самолюбивый юнкер, антипод Печорина, погибающий на дуэли."
+        ),
+        "собачье сердце" to ClassicBookData(
+            annotation = "Гениальная сатирическая повесть Михаила Булгакова об опасности искусственного вмешательства в природу человека и общественное устройство на примере превращения бродячего пса Шарика в гражданина Шарикова.",
+            summary = "### Ключевые идеи\n\n" +
+                    "- **Опасность разрушения традиций**: Профессор Преображенский понимает, что ласка и эволюция лучше насилия и революций.\n" +
+                    "- **Феномен «шариковщины»**: Наглость, хамство и агрессия, поддерживаемые демагогами вроде Швондера.",
+            characters = "- **Профессор Преображенский** — Великий хирург, аристократ духа и науки.\n" +
+                    "- **Шариков (Полиграф Полиграфович)** — Очеловеченный пес, унаследовавший пороки донора Клима Чугункина.\n" +
+                    "- **Доктор Борменталь** — Преданный ассистент Преображенского.\n" +
+                    "- **Швондер** — Председатель домкома, натравливающий Шарикова на его создателя."
+        ),
+        "гарри поттер" to ClassicBookData(
+            annotation = "Знаменитая фэнтези-эпопея Джоан Роулинг о сироте Гарри Поттере, узнавшем о своем магическом происхождении, обучении в школе Хогвартс и многолетнем противостоянии с темным лордом Волан-де-Мортом.",
+            summary = "### Ключевые идеи\n\n" +
+                    "- **Сила любви и дружбы**: Жертва матери Гарри и верность друзей становятся главным оружием против зла.\n" +
+                    "- **Выбор делает человека**: Наш выбор определяет нас гораздо больше, чем наши способности.",
+            characters = "- **Гарри Поттер** — «Мальчик, который выжил», храбрый и верный юный волшебник.\n" +
+                    "- **Гермиона Грейнджер** — Умнейшая волшебница своего курса, верная подруга Гарри.\n" +
+                    "- **Рон Уизли** — Преданный друг Гарри из многодетной чистокровной семьи волшебников.\n" +
+                    "- **Альбус Дамблдор** — Величайший маг, директор школы Хогвартс и наставник Гарри."
+        ),
+        "граф монте-кристо" to ClassicBookData(
+            annotation = "Приключенческий роман Александра Дюма о несправедливо заточенном в замок Иф моряке Эдмоне Дантесе, который спустя годы обретает сказочные богатства и совершает изощренное правосудие над предателями.",
+            summary = "### Ключевые мысли\n\n" +
+                    "- **Возмездие и милосердие**: Граф Монте-Кристо выступает орудием судьбы, но в конце осознает силу прощения.\n" +
+                    "- **Ждать и надеяться**: Вся человеческая мудрость заключена в этих двух словах.",
+            characters = "- **Эдмон Дантес (Граф Монте-Кристо)** — Бывший моряк, ставший таинственным, бесстрашным мстителем.\n" +
+                    "- **Аббат Фариа** — Ученый узник замка Иф, открывший Дантесу тайну сокровища на острове Монте-Кристо.\n" +
+                    "- **Мерседес** — Невеста Дантеса, вынужденно вышедшая замуж за его врага Фернана.\n" +
+                    "- **Фернан, Данглар, Вильфор** — Завистники и враги, отправившие невиновного Дантеса на пожизненную каторгу."
         )
     )
 
-    // Helper to find a matching classic
+    // Helper to find a matching classic (Disabled per user request for 100% dynamic book analysis)
     private fun findClassicBook(title: String): ClassicBookData? {
-        val normTitle = title.lowercase(Locale.ROOT)
-            .replace(Regex("[^a-zа-яё0-9\\s]"), "")
-            .trim()
-        
-        for ((key, data) in CLASSICS_DATABASE) {
-            if (normTitle.contains(key) || key.contains(normTitle)) {
-                return data
-            }
-        }
         return null
     }
 
-    // Safely reads a portion of the book text to feed the analyzer
+    // Clean raw text from XML/HTML tags and normalize whitespace
+    fun cleanBookText(raw: String): String {
+        if (raw.isBlank()) return ""
+        var text = raw
+        val bodyIdx = text.indexOf("<body", ignoreCase = true)
+        if (bodyIdx != -1) {
+            text = text.substring(bodyIdx)
+        }
+        text = text.replace(Regex("<[^>]*>"), " ")
+        text = text.replace("&quot;", "\"")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&amp;", "&")
+            .replace("&apos;", "'")
+            .replace("&nbsp;", " ")
+        return text.replace(Regex("\\s+"), " ").trim()
+    }
+
+    // Safely reads substantial clean portions of the book text across beginning, middle, and late sections
     private fun getBookSampleText(book: BookEntity): String {
         val path = book.filePath ?: return ""
         val file = File(path)
         if (!file.exists()) return ""
         return try {
             val extension = file.extension.lowercase(Locale.ROOT)
-            if (extension == "zip") {
+            val fullRawText = if (extension == "zip") {
                 readFirstZipEntryText(file)
             } else if (extension == "epub") {
                 com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
             } else {
-                val reader = file.bufferedReader(StandardCharsets.UTF_8)
-                val charBuffer = CharArray(100000)
-                val readCount = reader.read(charBuffer, 0, 100000)
-                if (readCount > 0) {
-                    String(charBuffer, 0, readCount)
-                } else {
-                    ""
-                }
+                file.readText(StandardCharsets.UTF_8)
+            }
+            val cleaned = cleanBookText(fullRawText)
+            if (cleaned.length <= 15000) {
+                cleaned
+            } else {
+                val len = cleaned.length
+                val part1 = cleaned.substring(0, minOf(5000, len))
+                val midStart = len / 3
+                val part2 = cleaned.substring(midStart, minOf(midStart + 5000, len))
+                val lateStart = (len * 2) / 3
+                val part3 = cleaned.substring(lateStart, minOf(lateStart + 5000, len))
+                "$part1\n\n...[продолжение книги]...\n\n$part2\n\n...[кульминация книги]...\n\n$part3"
             }
         } catch (e: Exception) {
             ""
@@ -273,12 +300,7 @@ object LocalAiEngine {
                 var entry = zis.nextEntry
                 while (entry != null) {
                     if (!entry.isDirectory && (entry.name.endsWith(".fb2", true) || entry.name.endsWith(".txt", true))) {
-                        val reader = zis.bufferedReader(StandardCharsets.UTF_8)
-                        val charBuffer = CharArray(100000)
-                        val readCount = reader.read(charBuffer, 0, 100000)
-                        if (readCount > 0) {
-                            return String(charBuffer, 0, readCount)
-                        }
+                        return zis.bufferedReader(StandardCharsets.UTF_8).readText()
                     }
                     entry = zis.nextEntry
                 }
@@ -412,85 +434,185 @@ object LocalAiEngine {
         }
     }
 
+    // Dynamic extraction of characters from book text with actual context quotes
+    private fun extractCharactersWithContext(text: String, author: String = "", title: String = ""): List<Pair<String, String>> {
+        if (text.isBlank()) return emptyList()
+        
+        val cleanedText = cleanBookText(text)
+        val sentences = cleanedText.split(Regex("[.!?]+\\s+")).filter { it.length in 15..300 }
+        val properNounCounts = mutableMapOf<String, Int>()
+        val properNounQuotes = mutableMapOf<String, String>()
+        
+        val wordRegex = Regex("^[А-ЯЁA-Z][а-яёa-z]{2,15}$")
+        
+        // Build dynamic stop words from book metadata + standard publisher/formatting terms
+        val dynamicStopWords = mutableSetOf(
+            "Он", "Она", "Они", "Оно", "Мы", "Вы", "Его", "Ее", "Её", "Их", "Ему", "Ей", "Ими", "Нам", "Вам", "Мне", "Тебе", "Себе",
+            "Этот", "Эта", "Это", "Эти", "Тот", "Та", "То", "Те", "Мой", "Твой", "Наш", "Ваш", "Свой", "Своя", "Свое", "Свои",
+            "Кто", "Что", "Где", "Как", "Когда", "Почему", "Зачем", "Куда", "Откуда", "Какая", "Какой", "Какое", "Какие",
+            "Был", "Была", "Было", "Были", "Стал", "Стала", "Стали", "Будет", "Будут", "Есть", "Нет", "Если", "Хотя", "Чтобы",
+            "Или", "Даже", "Лишь", "Только", "Тоже", "Также", "Один", "Одна", "Одно", "Одни", "Два", "Три", "Первый", "Второй",
+            "Вдруг", "Потом", "Тогда", "Опять", "Снова", "Здесь", "Там", "Тут", "Очень", "Слишком", "Почти", "Около",
+            "Бог", "Бога", "Господь", "Господи", "Земля", "Небо", "Мир", "Человек", "Люди", "Глаза", "Рука", "Нога", "Лицо", "Голова",
+            "День", "Ночь", "Утро", "Вечер", "Год", "Время", "Жизнь", "Слово", "Дело", "Дом", "Комната", "Дверь", "Окно", "Стол",
+            "Автор", "Книга", "Глава", "Часть", "Конец", "Начало", "Имя", "Фамилия", "Россия", "Москва", "Петербург", "Лондон",
+            "Париж", "Англия", "Франция", "Европа", "Германия", "США", "Рим", "Капитан", "Генерал", "Майор", "Доктор", "Профессор",
+            "Мистер", "Миссис", "Мисс", "Граф", "Князь", "Сударь", "Сэр", "Лорд", "Барон", "Издательство", "Перевод", "Эксмо",
+            "Аст", "ЛитРес", "Литрес", "Аннотация", "Предисловие", "Введение", "Редактор", "Художник", "Корректор", "Серия", "Том"
+        )
+        
+        // Add words from author and title to stop words so author/title isn't detected as a book character
+        for (part in (author + " " + title).split(Regex("[\\s,.:\"'-]+"))) {
+            if (part.length >= 2) {
+                dynamicStopWords.add(part.lowercase().replaceFirstChar { it.uppercase() })
+                dynamicStopWords.add(part)
+            }
+        }
+        
+        for (sentence in sentences) {
+            val words = sentence.trim().split(Regex("[\\s,;:\"'()«»\\-—]+"))
+            if (words.size < 3) continue
+            
+            for (i in 1 until words.size) {
+                val w = words[i].replace(Regex("[^a-zA-Zа-яА-ЯёЁ]"), "")
+                if (w.matches(wordRegex) && !dynamicStopWords.contains(w)) {
+                    properNounCounts[w] = (properNounCounts[w] ?: 0) + 1
+                    if (!properNounQuotes.containsKey(w)) {
+                        properNounQuotes[w] = sentence.trim()
+                    }
+                }
+            }
+        }
+        
+        val topNames = properNounCounts.entries
+            .filter { it.value >= 2 }
+            .sortedByDescending { it.value }
+            .take(8)
+            .map { Pair(it.key, properNounQuotes[it.key] ?: "") }
+            
+        return topNames
+    }
+
+    // Extract meaningful story narrative paragraphs from text
+    private fun extractNarrativeParagraphs(text: String): List<String> {
+        val cleaned = cleanBookText(text)
+        if (cleaned.isBlank()) return emptyList()
+        val rawParas = cleaned.split(Regex("\\.\\s+"))
+        val paras = mutableListOf<String>()
+        var currentChunk = StringBuilder()
+        
+        for (para in rawParas) {
+            val p = para.trim()
+            if (p.length < 20 || p.contains("...") || p.startsWith("[")) continue
+            currentChunk.append(p).append(". ")
+            if (currentChunk.length >= 250) {
+                paras.add(currentChunk.toString().trim())
+                currentChunk = StringBuilder()
+            }
+            if (paras.size >= 8) break
+        }
+        if (currentChunk.length >= 50 && paras.size < 8) {
+            paras.add(currentChunk.toString().trim())
+        }
+        return paras
+    }
+
     // 1. Local AI Annotation Generator
     fun generateAnnotation(context: Context, book: BookEntity): String {
         ensureModelInitialized(context)
-        val sampleText = getBookSampleText(book).take(1500)
+        val sampleText = getBookSampleText(book).take(6000)
         val prompt = if (sampleText.isNotBlank()) {
-            "Напиши детальную литературную аннотацию для книги '${book.title}' автора '${book.author}'. Отрывок:\n'$sampleText'"
+            "Напиши детальную литературную аннотацию для книги '${book.title}' автора '${book.author}'. Текст книги:\n'$sampleText'"
         } else {
             "Напиши детальную литературную аннотацию для книги '${book.title}' автора '${book.author}'."
         }
         val response = generateAiResponse(context, prompt)
-        if (!response.contains("Настоящий ИИ не подключен")) {
-            return "### Аннотация (Real AI)\n\n$response"
+        if (!response.isNullOrBlank()) {
+            return response
         }
 
-        val classic = findClassicBook(book.title)
-        if (classic != null) {
-            return classic.annotation
+        // Try extracting built-in FB2 annotation if present
+        val fb2Anno = try {
+            val file = book.filePath?.let { File(it) }
+            if (file != null && file.exists() && file.extension.equals("fb2", true)) {
+                com.nightread.app.service.Fb2Parser.extractAnnotation(file.readText(StandardCharsets.UTF_8))
+            } else null
+        } catch (e: Exception) { null }
+
+        if (!fb2Anno.isNullOrBlank() && fb2Anno.length >= 30) {
+            return "### Аннотация\n\n$fb2Anno"
         }
         
-        val chars = extractCharactersFromText(sampleText)
-        val style = detectStyleAndKeywords(sampleText)
+        val chars = extractCharactersWithContext(sampleText, book.author ?: "", book.title ?: "")
+        val paras = extractNarrativeParagraphs(sampleText)
         val authorStr = if (book.author != "Неизвестен") " автора ${book.author}" else ""
         
-        val template1 = "Увлекательное произведение «${book.title}»$authorStr, погружающее читателя в неповторимую атмосферу. "
-        val template2 = if (chars.isNotEmpty()) {
-            "В центре повествования находятся яркие персонажи, среди которых выделяется ${chars.first()}, преодолевающий жизненные вызовы и формирующий ход событий. "
-        } else {
-            "В центре повествования — глубокие моральные конфликты и неожиданные переплетения судеб героев. "
-        }
-        val template3 = "Книга написана в утонченном стиле (${style.first}) и держит в напряжении от первой до последней страницы, заставляя задуматься о вечных ценностях."
+        val ssb = StringBuilder()
+        ssb.append("### Аннотация\n\n")
+        ssb.append("Произведение «${book.title}»$authorStr — книга с глубоким сюжетным повествованием.\n\n")
         
-        return template1 + template2 + template3
+        if (paras.isNotEmpty()) {
+            ssb.append("**Сюжетный эпизод**:\n> «${paras.first()}»\n\n")
+        }
+        
+        if (chars.isNotEmpty()) {
+            ssb.append("В центре событий находится персонаж **${chars.first().first}**, вокруг которого развиваются ключевые действия произведения. ")
+        } else {
+            ssb.append("Повествование раскрывает напряженные конфликты и развитие главных героев. ")
+        }
+        ssb.append("Книга держит читателя в напряжении и заставляет задуматься о важных вопросах.")
+        
+        return ssb.toString()
     }
 
     // 2. Local AI Structured Summary Generator
     fun generateSummary(context: Context, book: BookEntity): String {
         ensureModelInitialized(context)
-        val sampleText = getBookSampleText(book).take(2000)
+        val sampleText = getBookSampleText(book).take(8000)
         val prompt = if (sampleText.isNotBlank()) {
-            "Сделай подробное структурированное краткое содержание книги '${book.title}' автора '${book.author}'. Отрывок:\n'$sampleText'"
+            "Сделай подробное структурированное краткое содержание книги '${book.title}' автора '${book.author}'. Вот отрывок из книги:\n'$sampleText'"
         } else {
             "Сделай подробное структурированное краткое содержание книги '${book.title}' автора '${book.author}'."
         }
         val response = generateAiResponse(context, prompt)
-        if (!response.contains("Настоящий ИИ не подключен")) {
-            return "### Краткое содержание (Real AI)\n\n$response"
+        if (!response.isNullOrBlank()) {
+            return response
         }
 
-        val classic = findClassicBook(book.title)
-        if (classic != null) {
-            return classic.summary
-        }
-        
-        val chapters = extractChaptersFromText(sampleText)
+        val paras = extractNarrativeParagraphs(sampleText)
+        val chars = extractCharactersWithContext(sampleText, book.author ?: "", book.title ?: "")
         val style = detectStyleAndKeywords(sampleText)
         
-        val wordCount = if (book.totalCharacters > 0) book.totalCharacters / 6 else 45000
-        val readingTime = maxOf(15, wordCount / 180)
-        
         val ssb = StringBuilder()
-        ssb.append("### Ключевые идеи и метаданные книги\n\n")
-        ssb.append("- **Жанровый профиль**: ${style.first}\n")
-        ssb.append("- **Общий объем (оценка)**: ~$wordCount слов (~${book.totalCharacters} символов)\n")
-        ssb.append("- **Ориентировочное время чтения**: ~$readingTime мин.\n")
-        ssb.append("- **Сложность восприятия**: Средняя (комфортный слог)\n\n")
+        ssb.append("### Краткое содержание: «${book.title}»\n\n")
+        ssb.append("- **Жанровая направленность**: ${style.first}\n")
+        if (book.author != "Неизвестен") {
+            ssb.append("- **Автор**: ${book.author}\n")
+        }
+        ssb.append("\n### Ключевые сюжетные линии\n\n")
         
-        ssb.append("### Главная тема произведения\n\n")
-        ssb.append("${style.second}\n\n")
-        
-        if (chapters.isNotEmpty()) {
-            ssb.append("### Структурный план и главы\n\n")
-            ssb.append("По данным локального анализа текста, в произведении выделяются следующие разделы:\n\n")
-            for ((idx, ch) in chapters.withIndex()) {
-                ssb.append("${idx + 1}. **$ch**\n")
+        if (paras.isNotEmpty()) {
+            for ((idx, p) in paras.take(4).withIndex()) {
+                val title = when(idx) {
+                    0 -> "**Экспозиция и начало**"
+                    1 -> "**Развитие конфликта**"
+                    2 -> "**Кульминационный фрагмент**"
+                    else -> "**Развязка / Финал**"
+                }
+                ssb.append("$title:\n> «$p»\n\n")
             }
         } else {
-            ssb.append("### Композиционные особенности\n\n")
-            ssb.append("Книга имеет плавную, последовательную композицию, в которой экспозиция постепенно переходит в завязку конфликта. ")
-            ssb.append("Локальный анализ показывает, что сюжет строится на чередовании динамичных диалогов и глубоких внутренних размышлений главных героев.")
+            ssb.append("${style.second}\n\n")
+        }
+        
+        if (chars.isNotEmpty()) {
+            ssb.append("### Главные действующие лица в тексте\n\n")
+            for ((charName, quote) in chars.take(5)) {
+                ssb.append("- **$charName**\n")
+                if (quote.isNotBlank()) {
+                    ssb.append("  > *В тексте:* «$quote»\n")
+                }
+            }
         }
         
         return ssb.toString()
@@ -499,43 +621,46 @@ object LocalAiEngine {
     // 3. Local AI Character Analysis Generator
     fun generateCharacters(context: Context, book: BookEntity): String {
         ensureModelInitialized(context)
-        val sampleText = getBookSampleText(book).take(2000)
+        val sampleText = getBookSampleText(book).take(8000)
         val prompt = if (sampleText.isNotBlank()) {
-            "Перечисли всех главных и ключевых персонажей книги '${book.title}' автора '${book.author}', дай подробное описание их характеров и мотивов. Отрывок:\n'$sampleText'"
+            "Перечисли всех главных и ключевых персонажей книги '${book.title}' автора '${book.author}', дай подробное описание их характеров и мотивов. Вот отрывок из книги:\n'$sampleText'"
         } else {
             "Перечисли всех главных и ключевых персонажей книги '${book.title}' автора '${book.author}', дай подробное описание их характеров и мотивов."
         }
         val response = generateAiResponse(context, prompt)
-        if (!response.contains("Настоящий ИИ не подключен")) {
-            return "### Персонажи (Real AI)\n\n$response"
+        if (!response.isNullOrBlank()) {
+            return response
         }
 
-        val classic = findClassicBook(book.title)
-        if (classic != null) {
-            return classic.characters
-        }
-        
-        val chars = extractCharactersFromText(sampleText)
+        val chars = extractCharactersWithContext(sampleText, book.author ?: "", book.title ?: "")
         
         if (chars.isEmpty()) {
-            return "### Действующие лица произведения\n\n" +
-                    "- **Главный герой** — Центральная фигура романа, проходящая сложный путь развития и преодоления ключевого конфликта.\n" +
-                    "- **Антагонист/Оппонент** — Персонаж или среда, создающая препятствия для главного героя и запускающая цепь событий.\n" +
-                    "- **Второстепенные персонажи** — Друзья, наставники и окружение, помогающее раскрыть глубину художественного замысла автора."
+            return "### Анализ персонажей книги «${book.title}»\n\n" +
+                    "- **Главный герой** — Центральная фигура повествования, проходящая развитие через ключевые события сюжета.\n" +
+                    "- **Второстепенные персонажи** — Окружение, помогающее раскрыть глубину конфликта и атмосферу произведения."
         }
         
         val ssb = StringBuilder()
-        ssb.append("### Ключевые персонажи произведения\n\n")
-        ssb.append("Локальный ИИ проанализировал текст книги и определил самых упоминаемых действующих лиц:\n\n")
+        ssb.append("### Персонажи книги «${book.title}»\n\n")
+        ssb.append("Локальный ИИ проанализировал текст произведения и определил ключевых действующих лиц:\n\n")
         
-        for ((idx, char) in chars.withIndex()) {
+        for ((idx, charPair) in chars.withIndex()) {
+            val charName = charPair.first
+            val quote = charPair.second
+            
             val role = when (idx) {
-                0 -> "Главный герой. Ведущий персонаж повествования, на долю которого выпадают основные испытания сюжета."
-                1 -> "Ключевая фигура. Оказывает значительное влияние на судьбу главного героя и развитие центрального конфликта."
-                2 -> "Важный персонаж. Выступает катализатором ключевых диалогов и двигателем сюжетной линии."
-                else -> "Действующее лицо. Помогает раскрыть атмосферу произведения и подчеркнуть многообразие мира книги."
+                0 -> "**Главный герой** — Центральное действующее лицо сюжетной линии."
+                1 -> "**Ключевой персонаж** — Влияет на развитие центральных событий."
+                2 -> "**Важная фигура** — Двигатель диалогов и участник конфликтов."
+                else -> "**Действующее лицо** — Раскрывает атмосферу произведения."
             }
-            ssb.append("- **$char** — $role\n")
+            
+            ssb.append("#### ${idx + 1}. $charName\n")
+            ssb.append("- **Роль**: $role\n")
+            if (quote.isNotBlank()) {
+                ssb.append("- **Эпизод в тексте**:\n  > «$quote»\n")
+            }
+            ssb.append("\n")
         }
         return ssb.toString()
     }
@@ -662,8 +787,8 @@ object LocalAiEngine {
         ensureModelInitialized(context)
         val prompt = "Объясни значение слова '$trimmed' в контексте: '${contextSnippet ?: ""}'"
         val response = generateAiResponse(context, prompt)
-        if (!response.contains("Настоящий ИИ не подключен")) {
-            return "### Толкование (Real AI)\n\n$response"
+        if (!response.isNullOrBlank()) {
+            return "### Толкование\n\n$response"
         }
         
         val isEnglish = trimmed.any { it in 'a'..'z' || it in 'A'..'Z' }
@@ -715,8 +840,8 @@ object LocalAiEngine {
         ensureModelInitialized(context)
         val prompt = "Переведи слово '$trimmed' на русский язык. Контекст: '${contextSnippet ?: ""}'"
         val response = generateAiResponse(context, prompt)
-        if (!response.contains("Настоящий ИИ не подключен")) {
-            return "### Перевод (Real AI)\n\n$response"
+        if (!response.isNullOrBlank()) {
+            return "### Перевод\n\n$response"
         }
         
         val isEnglish = trimmed.any { it in 'a'..'z' || it in 'A'..'Z' }
@@ -757,14 +882,14 @@ object LocalAiEngine {
         }
         
         val response = generateAiResponse(context, prompt)
-        if (!response.contains("Настоящий ИИ не подключен")) {
+        if (!response.isNullOrBlank()) {
             val header = when (actionType) {
-                "explain" -> "### Толкование (Real AI)"
-                "translate" -> "### Перевод (Real AI)"
-                "summarize" -> "### Краткий пересказ (Real AI)"
-                "character" -> "### О персонаже (Real AI)"
-                "simplify" -> "### Упрощенный текст (Real AI)"
-                else -> "### Ответ ИИ (Real AI)"
+                "explain" -> "### Толкование"
+                "translate" -> "### Перевод"
+                "summarize" -> "### Краткий пересказ"
+                "character" -> "### О персонаже"
+                "simplify" -> "### Упрощенный текст"
+                else -> "### Ответ ИИ"
             }
             return "$header\n\n$response"
         }

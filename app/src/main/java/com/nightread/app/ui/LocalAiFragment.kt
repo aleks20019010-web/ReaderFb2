@@ -36,7 +36,6 @@ class LocalAiFragment : Fragment() {
     private lateinit var txtDownloadStatus: TextView
     private lateinit var txtDownloadStats: TextView
     private lateinit var progressDownload: ProgressBar
-    private lateinit var btnSetGeminiKey: Button
     private lateinit var btnDownloadModel: Button
     private lateinit var btnUploadCustomRules: Button
     private lateinit var btnInitModel: Button
@@ -66,7 +65,6 @@ class LocalAiFragment : Fragment() {
         txtDownloadStatus = view.findViewById(R.id.txtDownloadStatus)
         txtDownloadStats = view.findViewById(R.id.txtDownloadStats)
         progressDownload = view.findViewById(R.id.progressDownload)
-        btnSetGeminiKey = view.findViewById(R.id.btnSetGeminiKey)
         btnDownloadModel = view.findViewById(R.id.btnDownloadModel)
         btnUploadCustomRules = view.findViewById(R.id.btnUploadCustomRules)
         btnInitModel = view.findViewById(R.id.btnInitModel)
@@ -88,10 +86,6 @@ class LocalAiFragment : Fragment() {
     }
 
     private fun setupListeners() {
-        btnSetGeminiKey.setOnClickListener {
-            showSetGeminiKeyDialog()
-        }
-
         btnDownloadModel.setOnClickListener {
             startDirectBinDownload()
         }
@@ -128,58 +122,10 @@ class LocalAiFragment : Fragment() {
         }
     }
 
-    private fun showSetGeminiKeyDialog() {
-        val context = context ?: return
-        val builder = com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
-        builder.setTitle("🔑 API-ключ Gemini (Cloud ИИ)")
-
-        val input = EditText(context)
-        input.setHint("Вставьте API-ключ Gemini (AIZAsy...)")
-        input.setTextColor(android.graphics.Color.WHITE)
-        input.setHintTextColor(android.graphics.Color.GRAY)
-
-        val currentKey = com.nightread.app.data.LocalAiEngine.getApiKey(context)
-        if (currentKey.isNotBlank()) {
-            input.setText(currentKey)
-        }
-
-        val padding = (16 * context.resources.displayMetrics.density).toInt()
-        val container = android.widget.FrameLayout(context)
-        val params = android.widget.FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-        params.setMargins(padding, padding, padding, padding)
-        input.layoutParams = params
-        container.addView(input)
-        builder.setView(container)
-
-        builder.setPositiveButton("Сохранить") { dialog, _ ->
-            val keyText = input.text.toString().trim()
-            context.getSharedPreferences("local_ai_prefs", Context.MODE_PRIVATE)
-                .edit()
-                .putString("gemini_api_key", keyText)
-                .apply()
-
-            updateModelStatusUi()
-            CustomToast.show(context, if (keyText.isNotEmpty()) "API-ключ Gemini сохранен!" else "Ключ удален", Toast.LENGTH_SHORT)
-            dialog.dismiss()
-        }
-        builder.setNeutralButton("Получить ключ") { _, _ ->
-            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://aistudio.google.com/"))
-            startActivity(intent)
-        }
-        builder.setNegativeButton("Отмена") { dialog, _ ->
-            dialog.cancel()
-        }
-        builder.show()
-    }
-
     private fun updateModelStatusUi() {
         val context = context ?: return
         val prefs = context.getSharedPreferences("local_ai_prefs", Context.MODE_PRIVATE)
 
-        val apiKey = com.nightread.app.data.LocalAiEngine.getApiKey(context)
         val modelBin = java.io.File(context.filesDir, "model.bin")
         val modelTask = java.io.File(context.filesDir, "model.task")
         val gemmaBin = java.io.File(context.filesDir, "gemma.bin")
@@ -193,23 +139,17 @@ class LocalAiFragment : Fragment() {
         btnInitModel.visibility = View.VISIBLE
 
         val statusSb = java.lang.StringBuilder()
-        if (apiKey.isNotBlank()) {
-            statusSb.append("🟢 Cloud ИИ (Gemini API): Ключ активен (Real AI)\n")
-        } else {
-            statusSb.append("⚪ Cloud ИИ (Gemini API): Ключ не настроен\n")
-        }
-
         if (isLoadedInMemory) {
-            statusSb.append("🟢 Офлайн-модель: Загружена в память (.bin)")
+            statusSb.append("🟢 Локальная модель: Загружена в память (.bin)")
             btnDownloadModel.text = "Переустановить модель (.bin)"
             btnInitModel.text = "Модель инициализирована ✓"
         } else if (validFileOnDisk) {
-            statusSb.append("🟡 Офлайн-модель: Файл найден на диске (нажмите «Инициализировать»)")
+            statusSb.append("🟡 Локальная модель: Файл найден на диске (нажмите «Инициализировать»)")
             btnDownloadModel.text = "Переустановить модель (.bin)"
             btnInitModel.text = "Инициализировать модель"
         } else {
-            statusSb.append("⚪ Офлайн-модель: Не установлена")
-            btnDownloadModel.text = "Скачать ИИ-модель (.bin)"
+            statusSb.append("⚪ Локальная модель: Работает встроенный алгоритм анализа")
+            btnDownloadModel.text = "Скачать локальную ИИ-модель (.bin)"
             btnInitModel.text = "Инициализировать модель"
         }
 
@@ -323,11 +263,11 @@ class LocalAiFragment : Fragment() {
                 updateModelStatusUi()
 
                 if (initSuccess) {
-                    CustomToast.show(ctx, "🟢 Офлайн-модель (Gemma 2B .bin) успешно загружена и инициализирована!", Toast.LENGTH_LONG)
+                    CustomToast.show(ctx, "🟢 Локальная модель (Gemma 2B .bin) успешно загружена и инициализирована!", Toast.LENGTH_LONG)
                 } else if (downloadedReal) {
-                    CustomToast.show(ctx, "⚠️ Модель скачана (1.3 ГБ), но для ускорения укажите Gemini API-ключ в настройках.", Toast.LENGTH_LONG)
+                    CustomToast.show(ctx, "⚠️ Модель скачана (1.3 ГБ), нажмите «Инициализировать модель».", Toast.LENGTH_LONG)
                 } else {
-                    CustomToast.show(ctx, "❌ Не удалось скачать файл модели ($downloadErrorMsg). Для работы ИИ активируйте Gemini API-ключ!", Toast.LENGTH_LONG)
+                    CustomToast.show(ctx, "❌ Не удалось скачать файл модели ($downloadErrorMsg).", Toast.LENGTH_LONG)
                 }
             }
         }

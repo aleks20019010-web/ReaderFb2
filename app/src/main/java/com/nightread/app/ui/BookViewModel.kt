@@ -129,7 +129,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     var selectedCategory by mutableStateOf("Все")
     var noteSearchQuery by mutableStateOf("")
 
-    // Gemini API States
+    // Local AI States
     var aiLoading by mutableStateOf(false)
     var aiResult by mutableStateOf("")
     var aiError by mutableStateOf<String?>(null)
@@ -676,7 +676,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Local AI integration
-    fun askGemini(prompt: String) {
+    fun askLocalAi(prompt: String) {
         aiLoading = true
         aiError = null
         aiResult = "ИИ думает..."

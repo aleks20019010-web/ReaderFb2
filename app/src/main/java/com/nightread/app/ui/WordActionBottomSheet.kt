@@ -13,12 +13,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.nightread.app.BuildConfig
 import com.nightread.app.R
-import com.nightread.app.data.GeminiClient
-import com.nightread.app.data.GeminiContent
-import com.nightread.app.data.GeminiPart
-import com.nightread.app.data.GeminiRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

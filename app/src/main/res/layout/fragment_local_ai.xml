@@ -238,16 +238,6 @@
                         <!-- Action Buttons -->
 
                         <Button
-                            android:id="@+id/btnSetGeminiKey"
-                            style="@style/Widget.App.Button"
-                            android:layout_width="match_parent"
-                            android:layout_height="52dp"
-                            android:text="🔑 Настроить API-ключ Gemini (Cloud ИИ)"
-                            android:textStyle="bold"
-                            android:layout_marginBottom="8dp"
-                            app:cornerRadius="12dp" />
-
-                        <Button
                             android:id="@+id/btnDownloadModel"
                             android:layout_width="match_parent"
                             android:layout_height="52dp"
