@@ -224,7 +224,19 @@
                                 android:progressBackgroundTint="@color/divider" />
                         </LinearLayout>
 
+
+                        <!-- Explanation for AI Model -->
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Примечание: генерация краткого содержания, аннотаций и анализ персонажей работают только при установленной полной ИИ-модели."
+                            android:textColor="@color/accent"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="12dp"
+                            android:textAlignment="center" />
+
                         <!-- Action Buttons -->
+
                         <Button
                             android:id="@+id/btnDownloadModel"
                             android:layout_width="match_parent"
@@ -233,6 +245,19 @@
                             android:backgroundTint="@color/btn_bg"
                             android:textColor="@color/btn_text"
                             android:textStyle="bold"
+                            android:layout_marginBottom="8dp"
+                            app:cornerRadius="12dp" />
+
+
+                        <Button
+                            android:id="@+id/btnInitModel"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="52dp"
+                            android:text="Инициализировать модель"
+                            android:textColor="@color/text_primary"
+                            android:textStyle="bold"
+                            android:visibility="gone"
                             android:layout_marginBottom="8dp"
                             app:cornerRadius="12dp" />
 

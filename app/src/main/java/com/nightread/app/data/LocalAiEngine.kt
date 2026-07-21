@@ -319,6 +319,19 @@ object LocalAiEngine {
 
     // 1. Local AI Annotation Generator
     fun generateAnnotation(context: Context, book: BookEntity): String {
+        ensureModelInitialized(context)
+        if (llmInference != null) {
+            val sampleText = getBookSampleText(book).take(1000)
+            if (sampleText.isNotBlank()) {
+                try {
+                    val prompt = "Напиши аннотацию для книги '${book.title}' автора '${book.author}'. Если книга тебе незнакома, сделай аннотацию на основе следующего отрывка: '$sampleText'"
+                    val response = llmInference!!.generateResponse(prompt)
+                    return "### Аннотация (Llama 3.2 1B)\n\n$response"
+                } catch (e: Exception) {
+                    // Fallback to offline heuristic
+                }
+            }
+        }
         val classic = findClassicBook(book.title)
         if (classic != null) {
             return classic.annotation
@@ -343,6 +356,19 @@ object LocalAiEngine {
 
     // 2. Local AI Structured Summary Generator
     fun generateSummary(context: Context, book: BookEntity): String {
+        ensureModelInitialized(context)
+        if (llmInference != null) {
+            val sampleText = getBookSampleText(book).take(1500)
+            if (sampleText.isNotBlank()) {
+                try {
+                    val prompt = "Сделай подробное краткое содержание книги '${book.title}' автора '${book.author}'. Если книга тебе незнакома, сделай краткое содержание на основе следующего начала текста: '$sampleText'"
+                    val response = llmInference!!.generateResponse(prompt)
+                    return "### Краткое содержание (Llama 3.2 1B)\n\n$response"
+                } catch (e: Exception) {
+                    // Fallback to offline heuristic
+                }
+            }
+        }
         val classic = findClassicBook(book.title)
         if (classic != null) {
             return classic.summary
@@ -382,6 +408,19 @@ object LocalAiEngine {
 
     // 3. Local AI Character Analysis Generator
     fun generateCharacters(context: Context, book: BookEntity): String {
+        ensureModelInitialized(context)
+        if (llmInference != null) {
+            val sampleText = getBookSampleText(book).take(2000)
+            if (sampleText.isNotBlank()) {
+                try {
+                    val prompt = "Перечисли главных героев книги '${book.title}' автора '${book.author}' и кратко опиши их. Если книга тебе незнакома, выдели персонажей из следующего текста и опиши их: '$sampleText'"
+                    val response = llmInference!!.generateResponse(prompt)
+                    return "### Персонажи (Llama 3.2 1B)\n\n$response"
+                } catch (e: Exception) {
+                    // Fallback to offline heuristic
+                }
+            }
+        }
         val classic = findClassicBook(book.title)
         if (classic != null) {
             return classic.characters

@@ -44,6 +44,7 @@ class LocalAiFragment : Fragment() {
     private lateinit var progressDownload: ProgressBar
     private lateinit var btnDownloadModel: Button
     private lateinit var btnUploadCustomRules: Button
+    private lateinit var btnInitModel: Button
 
     private lateinit var etTestPrompt: EditText
     private lateinit var btnRunTest: Button
@@ -76,6 +77,7 @@ class LocalAiFragment : Fragment() {
         progressDownload = view.findViewById(R.id.progressDownload)
         btnDownloadModel = view.findViewById(R.id.btnDownloadModel)
         btnUploadCustomRules = view.findViewById(R.id.btnUploadCustomRules)
+        btnInitModel = view.findViewById(R.id.btnInitModel)
 
         // Bind interactive console
         etTestPrompt = view.findViewById(R.id.etTestPrompt)
@@ -98,6 +100,17 @@ class LocalAiFragment : Fragment() {
     private fun setupListeners() {
         btnDownloadModel.setOnClickListener {
             startModelDownloadSimulation()
+        }
+
+        
+        btnInitModel.setOnClickListener {
+            Toast.makeText(requireContext(), "Инициализация ИИ-модели...", Toast.LENGTH_SHORT).show()
+            val initSuccess = com.nightread.app.data.LocalAiEngine.initRealModel(requireContext())
+            if (initSuccess) {
+                Toast.makeText(requireContext(), "Модель успешно инициализирована!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(requireContext(), "Не удалось инициализировать модель.", Toast.LENGTH_SHORT).show()
+            }
         }
 
         btnUploadCustomRules.setOnClickListener {
@@ -124,18 +137,20 @@ class LocalAiFragment : Fragment() {
     private fun updateModelStatusUi() {
         val context = context ?: return
         val prefs = context.getSharedPreferences("local_ai_prefs", Context.MODE_PRIVATE)
-        val isInstalled = prefs.getBoolean("model_installed", false)
+        val isInstalled = java.io.File(context.filesDir, "gemma.bin").exists()
         val customRulesJson = prefs.getString("custom_rules_json", null)
 
+        
         if (isInstalled) {
             modelStatusValue.text = "Установлена (активна модель Llama 3.2 1B - GGUF)"
             btnDownloadModel.text = "Переустановить модель"
+            btnInitModel.visibility = View.VISIBLE
         } else {
             modelStatusValue.text = "Не установлена (активен базовый офлайн-пакет)"
             btnDownloadModel.text = "Скачать Llama 3.2 1B (~800 МБ)"
+            btnInitModel.visibility = View.GONE
         }
-
-        if (customRulesJson != null) {
+if (customRulesJson != null) {
             modelStatusValue.append("\n• Активен пользовательский словарь")
         }
     }
@@ -213,7 +228,7 @@ class LocalAiFragment : Fragment() {
                     btnUploadCustomRules.isEnabled = true
                     
                     val prefs = requireContext().getSharedPreferences("local_ai_prefs", Context.MODE_PRIVATE)
-                    prefs.edit().putBoolean("is_model_downloaded", true).apply()
+                    
                     updateModelStatusUi()
                     
                     if (initialized) {
