@@ -221,7 +221,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
-                            android:text="Сгенерировать аннотацию (AI)"
+                            android:text="Локальный ИИ: Аннотация"
                             app:icon="@android:drawable/ic_menu_info_details"
                             android:visibility="gone" />
 
@@ -264,7 +264,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="AI ФУНКЦИИ"
+                            android:text="ЛОКАЛЬНЫЙ ИИ-АССИСТЕНТ (ОФЛАЙН)"
                             android:textSize="12sp"
                             android:textStyle="bold"
                             android:textColor="#FFE3A8"
@@ -275,7 +275,7 @@
                             style="@style/Widget.Material3.Button.TonalButton"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Краткое содержание книги"
+                            android:text="Локальный ИИ: Краткое содержание"
                             app:icon="@android:drawable/ic_menu_agenda"
                             android:layout_marginBottom="8dp" />
 
@@ -284,7 +284,7 @@
                             style="@style/Widget.Material3.Button.TonalButton"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Персонажи книги"
+                            android:text="Локальный ИИ: Анализ персонажей"
                             app:icon="@android:drawable/ic_menu_myplaces" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>

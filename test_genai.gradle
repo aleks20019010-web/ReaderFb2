@@ -1,0 +1,10 @@
+plugins {
+    id 'java'
+}
+repositories {
+    google()
+    mavenCentral()
+}
+dependencies {
+    implementation("com.google.mediapipe:tasks-genai:0.10.14")
+}

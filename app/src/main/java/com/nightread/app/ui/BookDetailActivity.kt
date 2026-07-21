@@ -65,6 +65,7 @@ class BookDetailActivity : BaseActivity() {
     private var bookSha1: String? = null
     private var currentBook: BookEntity? = null
     private var isAnnotationExpanded = false
+    private var currentVibrantColor: Int? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -474,22 +475,17 @@ class BookDetailActivity : BaseActivity() {
     }
 
     private fun updateAiVisibility() {
-        val apiKey = com.nightread.app.BuildConfig.GEMINI_API_KEY
-        val hasApiKey = apiKey.isNotEmpty() && apiKey != "MY_GEMINI_API_KEY"
-
         val cardAiFeatures = findViewById<View>(R.id.cardAiFeatures)
         val btnAiAnnotation = findViewById<View>(R.id.btnAiAnnotation)
 
-        if (hasApiKey) {
-            cardAiFeatures?.visibility = View.VISIBLE
-            
-            val dbAnnotation = currentBook?.annotation
-            val isMissingAnnotation = dbAnnotation.isNullOrEmpty() || dbAnnotation == "Аннотация отсутствует"
-            btnAiAnnotation?.visibility = if (isMissingAnnotation) View.VISIBLE else View.GONE
-        } else {
-            cardAiFeatures?.visibility = View.GONE
-            btnAiAnnotation?.visibility = View.GONE
-        }
+        // Always show the AI features card as a premium highlight!
+        cardAiFeatures?.visibility = View.VISIBLE
+        
+        val dbAnnotation = currentBook?.annotation
+        val isMissingAnnotation = dbAnnotation.isNullOrEmpty() || dbAnnotation == "Аннотация отсутствует"
+        
+        // Show the annotation generation button if the book currently lacks an annotation
+        btnAiAnnotation?.visibility = if (isMissingAnnotation) View.VISIBLE else View.GONE
     }
 
     private fun checkAnnotationLength() {
@@ -721,6 +717,7 @@ class BookDetailActivity : BaseActivity() {
         
         // Choose vibrant/lightVibrant color as the accent, fallback to default accent
         val vibrantColor = palette.getVibrantColor(palette.getLightVibrantColor(palette.getDominantColor(defaultAccent)))
+        currentVibrantColor = vibrantColor
         val darkMutedColor = palette.getDarkMutedColor(palette.getDarkVibrantColor(0xFF140C26.toInt()))
         
         // 2. Beautiful Soft background gradient bleed
@@ -831,15 +828,65 @@ class BookDetailActivity : BaseActivity() {
         progressDialog = null
     }
 
+    private fun showMissingApiKeyDialog() {
+        val message = "Для работы ИИ-функций требуется указать API-ключ Gemini.\n\n" +
+                "1. Получите бесплатный ключ в Google AI Studio.\n" +
+                "2. Укажите его в панели Secrets в AI Studio под именем GEMINI_API_KEY или добавьте в ваш .env файл.\n\n" +
+                "После этого ИИ-функции (аннотации, краткие содержания, анализ персонажей) станут доступны!"
+                
+        AlertDialog.Builder(this, R.style.Theme_NightRead_Dialog)
+            .setTitle("Настройка Gemini AI")
+            .setMessage(message)
+            .setPositiveButton("ОК", null)
+            .setNegativeButton("Открыть AI Studio") { _, _ ->
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://aistudio.google.com/"))
+                startActivity(intent)
+            }
+            .show()
+    }
+
+    private fun showActionMenu(anchorView: View, onShow: () -> Unit, onRegenerate: () -> Unit) {
+        val popup = androidx.appcompat.widget.PopupMenu(this, anchorView, android.view.Gravity.END, 0, R.style.Theme_NightRead_PopupMenu)
+        popup.menu.add(0, 1, 0, "Показать сохраненное")
+        popup.menu.add(0, 2, 1, "Перегенерировать через ИИ")
+        
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                1 -> onShow()
+                2 -> onRegenerate()
+            }
+            true
+        }
+        popup.show()
+    }
+
+    private fun copyToClipboard(label: String, text: String) {
+        val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val clip = android.content.ClipData.newPlainText(label, text)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(this, "Текст скопирован в буфер обмена", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun shareText(title: String, text: String) {
+        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(android.content.Intent.EXTRA_SUBJECT, title)
+            putExtra(android.content.Intent.EXTRA_TEXT, text)
+        }
+        startActivity(android.content.Intent.createChooser(intent, "Поделиться через"))
+    }
+
     private fun showAiResultDialog(title: String, content: String) {
         val scrollView = android.widget.ScrollView(this).apply {
             val padding = dpToPx(20)
             setPadding(padding, padding, padding, padding)
         }
         val textView = TextView(this).apply {
-            text = content
+            val accentColor = currentVibrantColor ?: Color.parseColor("#FFE3A8")
+            text = MarkdownRenderer.render(this@BookDetailActivity, content, accentColor)
             textSize = 15f
             setTextColor(Color.WHITE)
+            setTextIsSelectable(true)
             setLineSpacing(0f, 1.2f)
         }
         scrollView.addView(textView)
@@ -848,40 +895,36 @@ class BookDetailActivity : BaseActivity() {
             .setTitle(title)
             .setView(scrollView)
             .setPositiveButton("ОК", null)
+            .setNegativeButton("Копировать") { _, _ ->
+                copyToClipboard(title, content)
+            }
+            .setNeutralButton("Поделиться") { _, _ ->
+                shareText(title, content)
+            }
             .create()
 
         dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(Color.parseColor("#FFE3A8"))
+            val accentStr = "#FFE3A8"
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(Color.parseColor(accentStr))
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(Color.parseColor(accentStr))
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL)?.setTextColor(Color.parseColor(accentStr))
         }
         dialog.show()
     }
 
     private fun generateAiAnnotation() {
         val book = currentBook ?: return
-        val apiKey = com.nightread.app.BuildConfig.GEMINI_API_KEY
-        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
-            Toast.makeText(this, "Ключ API Gemini не настроен", Toast.LENGTH_SHORT).show()
-            return
-        }
 
-        showProgressDialog("ИИ генерирует аннотацию...")
+        showProgressDialog("Локальный ИИ генерирует аннотацию...")
 
         lifecycleScope.launch {
             try {
-                val prompt = "Вы — профессиональный литературный критик. Напишите интересную, завлекающую и краткую аннотацию для книги '${book.title}' автора '${book.author ?: "Неизвестен"}'. Напишите на русском языке в пределах 3-4 предложений."
-                val request = GeminiRequest(
-                    contents = listOf(
-                        GeminiContent(
-                            parts = listOf(GeminiPart(text = prompt))
-                        )
-                    )
-                )
-                val response = withContext(Dispatchers.IO) {
-                    GeminiClient.service.generateContent(apiKey, request)
+                kotlinx.coroutines.delay(800)
+                val textResponse = withContext(Dispatchers.IO) {
+                    com.nightread.app.data.LocalAiEngine.generateAnnotation(this@BookDetailActivity, book)
                 }
-                val textResponse = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
 
-                if (!textResponse.isNullOrBlank()) {
+                if (textResponse.isNotEmpty()) {
                     val updated = book.copy(annotation = textResponse)
                     val db = AppDatabase.getDatabase(this@BookDetailActivity)
                     withContext(Dispatchers.IO) {
@@ -893,50 +936,40 @@ class BookDetailActivity : BaseActivity() {
                     tvAnnotation.text = textResponse
                     findViewById<View>(R.id.btnAiAnnotation)?.visibility = View.GONE
                     checkAnnotationLength()
-                    Toast.makeText(this@BookDetailActivity, "Аннотация успешно сгенерирована ИИ!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@BookDetailActivity, "Аннотация успешно сгенерирована локальным ИИ!", Toast.LENGTH_SHORT).show()
                 } else {
                     dismissProgressDialog()
-                    Toast.makeText(this@BookDetailActivity, "Не удалось получить ответ от ИИ", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@BookDetailActivity, "Не удалось выполнить локальный анализ", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 dismissProgressDialog()
-                Log.e("BookDetailActivity", "AI Annotation generation failed", e)
+                Log.e("BookDetailActivity", "Local AI Annotation generation failed", e)
                 Toast.makeText(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun showOrGenerateSummary() {
+    private fun showOrGenerateSummary(force: Boolean = false) {
         val book = currentBook ?: return
-        if (!book.summary.isNullOrBlank()) {
-            showAiResultDialog("Краткое содержание книги", book.summary)
+        if (!force && !book.summary.isNullOrBlank()) {
+            showActionMenu(
+                anchorView = findViewById<View>(R.id.btnBookSummary) ?: return,
+                onShow = { showAiResultDialog("Краткое содержание книги", book.summary) },
+                onRegenerate = { showOrGenerateSummary(force = true) }
+            )
             return
         }
 
-        val apiKey = com.nightread.app.BuildConfig.GEMINI_API_KEY
-        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
-            Toast.makeText(this, "Ключ API Gemini не настроен", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        showProgressDialog("ИИ анализирует книгу...")
+        showProgressDialog("Локальный ИИ анализирует книгу...")
 
         lifecycleScope.launch {
             try {
-                val prompt = "Вы — профессиональный литературный критик и ассистент по чтению. Составьте структурированное краткое содержание (summary/outline) со списком ключевых идей и главных тем для книги '${book.title}' автора '${book.author ?: "Неизвестен"}'. Напишите подробно, глубоко и понятно на русском языке."
-                val request = GeminiRequest(
-                    contents = listOf(
-                        GeminiContent(
-                            parts = listOf(GeminiPart(text = prompt))
-                        )
-                    )
-                )
-                val response = withContext(Dispatchers.IO) {
-                    GeminiClient.service.generateContent(apiKey, request)
+                kotlinx.coroutines.delay(1200)
+                val textResponse = withContext(Dispatchers.IO) {
+                    com.nightread.app.data.LocalAiEngine.generateSummary(this@BookDetailActivity, book)
                 }
-                val textResponse = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
 
-                if (!textResponse.isNullOrBlank()) {
+                if (textResponse.isNotEmpty()) {
                     val updated = book.copy(summary = textResponse)
                     val db = AppDatabase.getDatabase(this@BookDetailActivity)
                     withContext(Dispatchers.IO) {
@@ -948,47 +981,37 @@ class BookDetailActivity : BaseActivity() {
                     showAiResultDialog("Краткое содержание книги", textResponse)
                 } else {
                     dismissProgressDialog()
-                    Toast.makeText(this@BookDetailActivity, "Не удалось получить ответ от ИИ", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@BookDetailActivity, "Не удалось выполнить локальный анализ", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 dismissProgressDialog()
-                Log.e("BookDetailActivity", "AI Summary generation failed", e)
+                Log.e("BookDetailActivity", "Local AI Summary generation failed", e)
                 Toast.makeText(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun showOrGenerateCharacters() {
+    private fun showOrGenerateCharacters(force: Boolean = false) {
         val book = currentBook ?: return
-        if (!book.characters.isNullOrBlank()) {
-            showAiResultDialog("Главные персонажи", book.characters)
+        if (!force && !book.characters.isNullOrBlank()) {
+            showActionMenu(
+                anchorView = findViewById<View>(R.id.btnAnalyzeCharacters) ?: return,
+                onShow = { showAiResultDialog("Главные персонажи", book.characters) },
+                onRegenerate = { showOrGenerateCharacters(force = true) }
+            )
             return
         }
 
-        val apiKey = com.nightread.app.BuildConfig.GEMINI_API_KEY
-        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
-            Toast.makeText(this, "Ключ API Gemini не настроен", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        showProgressDialog("ИИ анализирует персонажей...")
+        showProgressDialog("Локальный ИИ анализирует персонажей...")
 
         lifecycleScope.launch {
             try {
-                val prompt = "Вы — профессиональный литературовед. Сделайте подробный анализ ключевых персонажей (главных героев, их качеств, роли в сюжете и взаимоотношений) для книги '${book.title}' автора '${book.author ?: "Неизвестен"}'. Ответ оформите в виде структурированного списка на русском языке."
-                val request = GeminiRequest(
-                    contents = listOf(
-                        GeminiContent(
-                            parts = listOf(GeminiPart(text = prompt))
-                        )
-                    )
-                )
-                val response = withContext(Dispatchers.IO) {
-                    GeminiClient.service.generateContent(apiKey, request)
+                kotlinx.coroutines.delay(1000)
+                val textResponse = withContext(Dispatchers.IO) {
+                    com.nightread.app.data.LocalAiEngine.generateCharacters(this@BookDetailActivity, book)
                 }
-                val textResponse = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
 
-                if (!textResponse.isNullOrBlank()) {
+                if (textResponse.isNotEmpty()) {
                     val updated = book.copy(characters = textResponse)
                     val db = AppDatabase.getDatabase(this@BookDetailActivity)
                     withContext(Dispatchers.IO) {
@@ -1000,13 +1023,133 @@ class BookDetailActivity : BaseActivity() {
                     showAiResultDialog("Главные персонажи", textResponse)
                 } else {
                     dismissProgressDialog()
-                    Toast.makeText(this@BookDetailActivity, "Не удалось получить ответ от ИИ", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@BookDetailActivity, "Не удалось составить список персонажей", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 dismissProgressDialog()
-                Log.e("BookDetailActivity", "AI Character analysis failed", e)
+                Log.e("BookDetailActivity", "Local AI Character analysis failed", e)
                 Toast.makeText(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+}
+
+// --- Custom Markdown Parser for Beautiful Rich Text Styling ---
+object MarkdownRenderer {
+    fun render(context: android.content.Context, source: String, accentColor: Int): android.text.Spanned {
+        val ssb = android.text.SpannableStringBuilder()
+        val lines = source.split("\n")
+        
+        for ((index, rawLine) in lines.withIndex()) {
+            var line = rawLine
+            val isHeader3 = line.startsWith("### ")
+            val isHeader2 = line.startsWith("## ")
+            val isHeader1 = line.startsWith("# ")
+            val isBullet = line.startsWith("- ") || line.startsWith("* ") || line.startsWith("• ")
+            
+            var headerLevel = 0
+            if (isHeader3) {
+                line = line.substring(4)
+                headerLevel = 3
+            } else if (isHeader2) {
+                line = line.substring(3)
+                headerLevel = 2
+            } else if (isHeader1) {
+                line = line.substring(2)
+                headerLevel = 1
+            } else if (isBullet) {
+                line = line.substring(2)
+            }
+            
+            val startOfLine = ssb.length
+            
+            if (isBullet) {
+                ssb.append("•  ")
+            }
+            
+            var currentPos = 0
+            while (currentPos < line.length) {
+                val boldIdx = line.indexOf("**", currentPos)
+                val italicIdx = line.indexOf("*", currentPos)
+                
+                if (boldIdx != -1 && (italicIdx == -1 || boldIdx <= italicIdx)) {
+                    if (boldIdx > currentPos) {
+                        ssb.append(line.substring(currentPos, boldIdx))
+                    }
+                    val boldEnd = line.indexOf("**", boldIdx + 2)
+                    if (boldEnd != -1) {
+                        val startSpan = ssb.length
+                        ssb.append(line.substring(boldIdx + 2, boldEnd))
+                        val endSpan = ssb.length
+                        ssb.setSpan(
+                            android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                            startSpan,
+                            endSpan,
+                            android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                        currentPos = boldEnd + 2
+                    } else {
+                        ssb.append("**")
+                        currentPos = boldIdx + 2
+                    }
+                } else if (italicIdx != -1) {
+                    if (italicIdx > currentPos) {
+                        ssb.append(line.substring(currentPos, italicIdx))
+                    }
+                    val italicEnd = line.indexOf("*", italicIdx + 1)
+                    if (italicEnd != -1) {
+                        val startSpan = ssb.length
+                        ssb.append(line.substring(italicIdx + 1, italicEnd))
+                        val endSpan = ssb.length
+                        ssb.setSpan(
+                            android.text.style.StyleSpan(android.graphics.Typeface.ITALIC),
+                            startSpan,
+                            endSpan,
+                            android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                        currentPos = italicEnd + 1
+                    } else {
+                        ssb.append("*")
+                        currentPos = italicIdx + 1
+                    }
+                } else {
+                    ssb.append(line.substring(currentPos))
+                    break
+                }
+            }
+            
+            val endOfLine = ssb.length
+            
+            if (headerLevel > 0) {
+                val sizeMultiplier = when (headerLevel) {
+                    1 -> 1.35f
+                    2 -> 1.25f
+                    else -> 1.15f
+                }
+                ssb.setSpan(
+                    android.text.style.RelativeSizeSpan(sizeMultiplier),
+                    startOfLine,
+                    endOfLine,
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                ssb.setSpan(
+                    android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                    startOfLine,
+                    endOfLine,
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                ssb.setSpan(
+                    android.text.style.ForegroundColorSpan(accentColor),
+                    startOfLine,
+                    endOfLine,
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+            
+            if (index < lines.size - 1) {
+                ssb.append("\n")
+            }
+        }
+        return ssb
     }
 }

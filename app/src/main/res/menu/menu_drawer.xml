@@ -34,6 +34,10 @@
             android:id="@+id/nav_sync"
             android:icon="@android:drawable/stat_notify_sync"
             android:title="@string/drawer_sync" />
+        <item
+            android:id="@+id/nav_local_ai"
+            android:icon="@android:drawable/ic_menu_info_details"
+            android:title="@string/drawer_local_ai" />
     </group>
 
     <!-- Settings item visually separated in its own group at the bottom -->

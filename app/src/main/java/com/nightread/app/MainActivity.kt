@@ -125,6 +125,8 @@ class MainActivity : BaseActivity() {
                 openSyncFragment()
             } else if (menuItem.itemId == R.id.nav_stats) {
                 openStatsFragment()
+            } else if (menuItem.itemId == R.id.nav_local_ai) {
+                openLocalAiFragment()
             } else if (menuItem.itemId == R.id.nav_favorites) {
                 val intent = Intent(this, com.nightread.app.ui.FavoriteBooksActivity::class.java)
                 startActivity(intent)
@@ -422,6 +424,12 @@ class MainActivity : BaseActivity() {
     fun openStatsFragment() {
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, com.nightread.app.ui.StatsFragment())
+            .commit()
+    }
+
+    fun openLocalAiFragment() {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, com.nightread.app.ui.LocalAiFragment())
             .commit()
     }
 

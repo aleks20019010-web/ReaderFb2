@@ -1,53 +1,10 @@
-package com.nightread.app.ui
+import re
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.graphics.Color
-import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.widget.ProgressBar
-import android.widget.TextView
-import android.widget.Toast
-import androidx.lifecycle.lifecycleScope
-import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.nightread.app.BuildConfig
-import com.nightread.app.R
-import com.nightread.app.data.GeminiClient
-import com.nightread.app.data.GeminiContent
-import com.nightread.app.data.GeminiPart
-import com.nightread.app.data.GeminiRequest
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+file_path = "app/src/main/java/com/nightread/app/ui/WordActionBottomSheet.kt"
+with open(file_path, "r") as f:
+    content = f.read()
 
-class WordActionBottomSheet : BottomSheetDialogFragment() {
-
-    private var word: String = ""
-    private var contextSnippet: String = ""
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.DarkPurpleBottomSheetDialog)
-        word = arguments?.getString(ARG_WORD) ?: ""
-        contextSnippet = arguments?.getString(ARG_CONTEXT) ?: ""
-    }
-
-    override fun onStart() {
-        super.onStart()
-        dialog?.applyStarryBackground()
-    }
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.dialog_word_action, container, false)
-    }
-
+replacement = """
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -158,18 +115,12 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
             }
         }
     }
+"""
 
-    companion object {
-        private const val ARG_WORD = "arg_word"
-        private const val ARG_CONTEXT = "arg_context"
+start_idx = content.find("override fun onViewCreated")
+end_idx = content.find("companion object {")
 
-        fun newInstance(word: String, contextSnippet: String): WordActionBottomSheet {
-            val fragment = WordActionBottomSheet()
-            fragment.arguments = Bundle().apply {
-                putString(ARG_WORD, word)
-                putString(ARG_CONTEXT, contextSnippet)
-            }
-            return fragment
-        }
-    }
-}
+if start_idx != -1 and end_idx != -1:
+    content = content[:start_idx] + replacement.strip() + "\n\n    " + content[end_idx:]
+    with open(file_path, "w") as f:
+        f.write(content)

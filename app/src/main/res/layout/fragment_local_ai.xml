@@ -1,0 +1,433 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Top Action Bar Header -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/bg_panel"
+            android:padding="16dp"
+            android:elevation="4dp">
+
+            <ImageButton
+                android:id="@+id/btnMenu"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_sort_by_size"
+                android:contentDescription="Меню"
+                app:tint="@color/icon_tint" />
+
+            <TextView
+                android:id="@+id/titleText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toEndOf="@id/btnMenu"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="16dp"
+                android:text="Локальный ИИ"
+                android:textColor="@color/text_primary"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+        </RelativeLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- Capabilities Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardBackgroundColor="@color/bg_card"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="2dp"
+                    app:strokeColor="@color/divider"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="⚡ Возможности Локального ИИ"
+                            android:textColor="@color/accent"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="12dp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Офлайн-ассистент работает прямо на вашем устройстве, не требуя интернета и API-ключей. Он выполняет следующие функции:"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:layout_marginBottom="12dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginStart="8dp">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="• 📝 Генерация аннотаций прямо в деталях книги"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp"
+                                android:layout_marginBottom="6dp" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="• 🔍 Создание краткого содержания и выжимки ключевых тем"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp"
+                                android:layout_marginBottom="6dp" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="• 👥 Структурированный анализ главных персонажей книги"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp"
+                                android:layout_marginBottom="6dp" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="• 📖 Толковый словарь терминов по выделенному слову"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp"
+                                android:layout_marginBottom="6dp" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="• 🌍 Двусторонний переводчик (Русский ⇆ Английский)"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Model Management Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardModelManagement"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardBackgroundColor="@color/bg_card"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="2dp"
+                    app:strokeColor="@color/divider"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🛠️ Управление ИИ-моделью"
+                            android:textColor="@color/accent"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="12dp" />
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="12dp">
+
+                            <TextView
+                                android:id="@+id/modelStatusLabel"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Статус:"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:id="@+id/modelStatusValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_toEndOf="@id/modelStatusLabel"
+                                android:layout_marginStart="8dp"
+                                android:text="Не установлена (активен базовый офлайн-пакет)"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+                        </RelativeLayout>
+
+                        <!-- Download Progress -->
+                        <LinearLayout
+                            android:id="@+id/layoutDownloadProgress"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone"
+                            android:layout_marginBottom="12dp">
+
+                            <TextView
+                                android:id="@+id/txtDownloadStatus"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Загрузка Llama 3.2 1B (GGUF): 0%"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp"
+                                android:layout_marginBottom="8dp" />
+
+                            <TextView
+                                android:id="@+id/txtDownloadStats"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Загружено: 0 МБ из 1240 МБ (0 МБ/с)"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp"
+                                android:layout_marginBottom="4dp" />
+
+                            <ProgressBar
+                                android:id="@+id/progressDownload"
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="match_parent"
+                                android:layout_height="8dp"
+                                android:progressTint="@color/accent"
+                                android:progressBackgroundTint="@color/divider" />
+                        </LinearLayout>
+
+                        <!-- Action Buttons -->
+                        <Button
+                            android:id="@+id/btnDownloadModel"
+                            android:layout_width="match_parent"
+                            android:layout_height="52dp"
+                            android:text="Скачать Llama 3.2 1B (~800 МБ)"
+                            android:backgroundTint="@color/btn_bg"
+                            android:textColor="@color/btn_text"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="8dp"
+                            app:cornerRadius="12dp" />
+
+                        <Button
+                            android:id="@+id/btnUploadCustomRules"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="52dp"
+                            android:text="Импортировать правила/словарь (.json)"
+                            android:textColor="@color/text_primary"
+                            android:textStyle="bold"
+                            app:cornerRadius="12dp" />
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Interactive Test Console Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardTestConsole"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardBackgroundColor="@color/bg_card"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="2dp"
+                    app:strokeColor="@color/divider"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🤖 Интерактивная консоль тестирования"
+                            android:textColor="@color/accent"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="12dp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Задайте вопрос по книгам, терминам или стилистике произведения, чтобы проверить работу локального ассистента:"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:layout_marginBottom="12dp" />
+
+                        <!-- Preset Prompts -->
+                        <HorizontalScrollView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:scrollbars="none"
+                            android:layout_marginBottom="12dp">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <Button
+                                    android:id="@+id/chipPhilosophy"
+                                    style="@style/Widget.Material3.Button.ElevatedButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Что такое бытие?"
+                                    android:textSize="12sp"
+                                    android:layout_marginEnd="8dp" />
+
+                                <Button
+                                    android:id="@+id/chipAuthor"
+                                    style="@style/Widget.Material3.Button.ElevatedButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Каков стиль автора?"
+                                    android:textSize="12sp"
+                                    android:layout_marginEnd="8dp" />
+
+                                <Button
+                                    android:id="@+id/chipPlot"
+                                    style="@style/Widget.Material3.Button.ElevatedButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="О чем сюжет книги?"
+                                    android:textSize="12sp" />
+                            </LinearLayout>
+                        </HorizontalScrollView>
+
+                        <!-- Input Field -->
+                        <EditText
+                            android:id="@+id/etTestPrompt"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Введите ваш вопрос для ИИ..."
+                            android:textColorHint="@color/text_secondary"
+                            android:textColor="@color/text_primary"
+                            android:background="@drawable/bg_edittext_rounded"
+                            android:padding="12dp"
+                            android:minLines="2"
+                            android:gravity="top"
+                            android:textSize="14sp"
+                            android:layout_marginBottom="12dp" />
+
+                        <!-- Execute Button -->
+                        <Button
+                            android:id="@+id/btnRunTest"
+                            android:layout_width="match_parent"
+                            android:layout_height="52dp"
+                            android:text="Спросить локальный ИИ"
+                            android:backgroundTint="@color/btn_bg"
+                            android:textColor="@color/btn_text"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="12dp"
+                            app:cornerRadius="12dp" />
+
+                        <!-- Response Area -->
+                        <LinearLayout
+                            android:id="@+id/layoutTestResponse"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone"
+                            android:background="@drawable/bg_glass_panel"
+                            android:padding="12dp">
+
+                            <ProgressBar
+                                android:id="@+id/pbTestProgress"
+                                style="?android:attr/progressBarStyleSmall"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:layout_marginBottom="8dp"
+                                android:indeterminateTint="@color/accent" />
+
+                            <TextView
+                                android:id="@+id/tvTestResponse"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp"
+                                android:lineSpacingMultiplier="1.1" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Detailed Usage Instructions Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="24dp"
+                    app:cardBackgroundColor="@color/bg_card"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="2dp"
+                    app:strokeColor="@color/divider"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📖 Подробное руководство пользователя"
+                            android:textColor="@color/accent"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="12dp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Как начать пользоваться локальными ИИ-функциями:"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="8dp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="1. Установка: По умолчанию приложение поставляется со встроенным компактным пакетом локального ИИ, который содержит философский толковый словарь (такие термины как бытие, нигилизм, сущее, тоска) и базовый переводчик.\n\n2. Расширение модели: Если вы хотите использовать более сложные грамматические структуры или расширить базу понятий, вы можете нажать кнопку «Скачать Llama 3.2 1B (~800 МБ)». Процесс полностью автоматизирован.\n\n3. Свои словари и правила: Если у вас есть кастомный файл правил или словарь терминов в формате JSON, вы можете импортировать его с помощью кнопки «Импортировать правила/словарь». Это обновит базу данных терминов локального переводчика.\n\n4. Чтение книг: Находясь на странице книги, выделите слово, чтобы вызвать контекстное меню. Локальный ИИ мгновенно предоставит глубокое литературоведческое объяснение понятия или перевод фразы.\n\n5. Анализ произведения: Нажмите на кнопку «Локальный ИИ: Краткое содержание» в профиле книги, чтобы получить глубокое резюме произведения без необходимости подключения к серверам."
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:lineSpacingMultiplier="1.2" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+</FrameLayout>
