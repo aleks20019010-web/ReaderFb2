@@ -13,7 +13,7 @@ interface TokenCallback {
 
 object LlamaEngine {
     private const val TAG = "LlamaEngine"
-    private const val MODEL_FILENAME = "gemma-2b-it-q4_k_m.gguf"
+    private const val MODEL_FILENAME = "bonsai-27b-q4_k_m.gguf"
     private const val AUTO_UNLOAD_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
 
     private var isJniLoaded = false
@@ -46,7 +46,20 @@ object LlamaEngine {
     }
 
     fun getModelFile(context: Context): File {
-        return File(File(context.filesDir, "models"), MODEL_FILENAME)
+        val modelDir = File(context.filesDir, "models")
+        val inModelsDir = File(modelDir, MODEL_FILENAME)
+        if (inModelsDir.exists() && inModelsDir.length() > 100000) return inModelsDir
+
+        val inFilesDir = File(context.filesDir, MODEL_FILENAME)
+        if (inFilesDir.exists() && inFilesDir.length() > 100000) return inFilesDir
+
+        val fallbackGguf = File(context.filesDir, "model.gguf")
+        if (fallbackGguf.exists() && fallbackGguf.length() > 100000) return fallbackGguf
+
+        val fallbackBin = File(context.filesDir, "model.bin")
+        if (fallbackBin.exists() && fallbackBin.length() > 100000) return fallbackBin
+
+        return inModelsDir
     }
 
     fun getModelSize(context: Context): Long {
@@ -96,9 +109,9 @@ object LlamaEngine {
     fun generate(
         context: Context,
         prompt: String,
-        temperature: Float = 0.2f,
+        temperature: Float = 0.7f,
         topK: Int = 40,
-        maxTokens: Int = 256
+        maxTokens: Int = 1024
     ): String {
         resetAutoUnloadTimer()
         if (!isModelLoaded()) {
@@ -117,9 +130,9 @@ object LlamaEngine {
     fun generateStream(
         context: Context,
         prompt: String,
-        temperature: Float = 0.2f,
+        temperature: Float = 0.7f,
         topK: Int = 40,
-        maxTokens: Int = 256,
+        maxTokens: Int = 1024,
         onToken: (String) -> Unit
     ) {
         resetAutoUnloadTimer()

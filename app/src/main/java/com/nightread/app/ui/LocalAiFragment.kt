@@ -126,30 +126,25 @@ class LocalAiFragment : Fragment() {
         val context = context ?: return
         val prefs = context.getSharedPreferences("local_ai_prefs", Context.MODE_PRIVATE)
 
-        val modelBin = java.io.File(context.filesDir, "model.bin")
-        val modelTask = java.io.File(context.filesDir, "model.task")
-        val gemmaBin = java.io.File(context.filesDir, "gemma.bin")
-        
-        val validFileOnDisk = (modelBin.exists() && modelBin.length() > 1000000) ||
-                (modelTask.exists() && modelTask.length() > 1000000) ||
-                (gemmaBin.exists() && gemmaBin.length() > 1000000)
-        val isLoadedInMemory = com.nightread.app.data.LocalAiEngine.hasLoadedLocalModel()
+        val modelFile = com.nightread.app.data.LlamaEngine.getModelFile(context)
+        val validFileOnDisk = modelFile.exists() && modelFile.length() > 1000000
+        val isLoadedInMemory = com.nightread.app.data.LlamaEngine.isModelLoaded() || com.nightread.app.data.LocalAiEngine.hasLoadedLocalModel()
         val customRulesJson = prefs.getString("custom_rules_json", null)
 
         btnInitModel.visibility = View.VISIBLE
 
         val statusSb = java.lang.StringBuilder()
         if (isLoadedInMemory) {
-            statusSb.append("🟢 Локальная модель: Загружена в память (.bin)")
-            btnDownloadModel.text = "Переустановить модель (.bin)"
+            statusSb.append("🟢 Локальная модель Bonsai 27B: Загружена в память (.gguf)")
+            btnDownloadModel.text = "Переустановить Bonsai 27B (.gguf)"
             btnInitModel.text = "Модель инициализирована ✓"
         } else if (validFileOnDisk) {
-            statusSb.append("🟡 Локальная модель: Файл найден на диске (нажмите «Инициализировать»)")
-            btnDownloadModel.text = "Переустановить модель (.bin)"
+            statusSb.append("🟡 Локальная модель Bonsai 27B: Файл найден на диске (нажмите «Инициализировать»)")
+            btnDownloadModel.text = "Переустановить Bonsai 27B (.gguf)"
             btnInitModel.text = "Инициализировать модель"
         } else {
-            statusSb.append("⚪ Локальная модель: Работает встроенный алгоритм анализа")
-            btnDownloadModel.text = "Скачать локальную ИИ-модель (.bin)"
+            statusSb.append("⚪ Локальная модель Bonsai 27B: Готова к скачиванию")
+            btnDownloadModel.text = "Скачать ИИ-модель Bonsai 27B (.gguf)"
             btnInitModel.text = "Инициализировать модель"
         }
 
@@ -167,15 +162,17 @@ class LocalAiFragment : Fragment() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             val urlsToTry = listOf(
-                "https://huggingface.co/alexdlov/gemma-2b-it-gpu-int4.bin/resolve/main/gemma-2b-it-gpu-int4.bin",
-                "https://huggingface.co/manjirao/gemma-2b-it-gpu-int4.bin/resolve/main/gemma-2b-it-gpu-int4.bin",
-                "https://huggingface.co/mikkir/gemma-2b-it-gpu-int4.bin/resolve/main/gemma-2b-it-gpu-int4.bin"
+                "https://huggingface.co/lmstudio-community/Bonsai-27B-GGUF/resolve/main/Bonsai-27B-Q4_K_M.gguf",
+                "https://huggingface.co/QuantFactory/Bonsai-27B-GGUF/resolve/main/Bonsai-27B.Q4_K_M.gguf",
+                "https://huggingface.co/bartowski/Bonsai-27B-GGUF/resolve/main/Bonsai-27B-Q4_K_M.gguf"
             )
             
             var downloadedReal = false
             var downloadErrorMsg = ""
 
-            val outputFile = java.io.File(requireContext().filesDir, "model.bin")
+            val modelDir = java.io.File(requireContext().filesDir, "models")
+            if (!modelDir.exists()) modelDir.mkdirs()
+            val outputFile = java.io.File(modelDir, "bonsai-27b-q4_k_m.gguf")
             if (outputFile.exists()) {
                 try { outputFile.delete() } catch (e: Exception) { e.printStackTrace() }
             }
@@ -218,12 +215,12 @@ class LocalAiFragment : Fragment() {
                                 lastUpdate = now
                                 val progress = if (fileLength > 0) (total * 100 / fileLength).toInt() else 5
                                 val loadedMb = total / (1024 * 1024)
-                                val totalMb = if (fileLength > 0) fileLength / (1024 * 1024) else 1291
+                                val totalMb = if (fileLength > 0) fileLength / (1024 * 1024) else 15800
                                 val elapsedTimeSec = maxOf(1L, (now - startTime) / 1000)
                                 val speedMb = loadedMb / elapsedTimeSec
 
                                 withContext(Dispatchers.Main) {
-                                    txtDownloadStatus.text = "Загрузка ИИ-модели Gemma 2B (.bin): $progress%"
+                                    txtDownloadStatus.text = "Загрузка ИИ-модели Bonsai 27B (.gguf): $progress%"
                                     txtDownloadStats.text = "$loadedMb МБ из $totalMb МБ (~$speedMb МБ/сек)"
                                     progressDownload.progress = progress
                                 }
@@ -263,9 +260,9 @@ class LocalAiFragment : Fragment() {
                 updateModelStatusUi()
 
                 if (initSuccess) {
-                    CustomToast.show(ctx, "🟢 Локальная модель (Gemma 2B .bin) успешно загружена и инициализирована!", Toast.LENGTH_LONG)
+                    CustomToast.show(ctx, "🟢 ИИ-модель Bonsai 27B (.gguf) успешно загружена и инициализирована!", Toast.LENGTH_LONG)
                 } else if (downloadedReal) {
-                    CustomToast.show(ctx, "⚠️ Модель скачана (1.3 ГБ), нажмите «Инициализировать модель».", Toast.LENGTH_LONG)
+                    CustomToast.show(ctx, "⚠️ Модель Bonsai 27B скачана, нажмите «Инициализировать модель».", Toast.LENGTH_LONG)
                 } else {
                     CustomToast.show(ctx, "❌ Не удалось скачать файл модели ($downloadErrorMsg).", Toast.LENGTH_LONG)
                 }

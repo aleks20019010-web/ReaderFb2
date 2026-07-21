@@ -45,11 +45,17 @@ object LocalAiEngine {
         return true
     }
     
-    private fun generateAiResponse(context: Context, prompt: String): String? {
+    private fun generateAiResponse(context: Context, prompt: String, maxTokens: Int = 1024): String? {
         // Use llama.cpp via LlamaEngine JNI
         if (LlamaEngine.isModelLoaded()) {
             try {
-                val response = LlamaEngine.generate(context, prompt, temperature = 0.2f, topK = 40, maxTokens = 256)
+                val response = LlamaEngine.generate(
+                    context = context,
+                    prompt = prompt,
+                    temperature = 0.7f,
+                    topK = 40,
+                    maxTokens = maxTokens
+                )
                 if (response.isNotBlank()) {
                     return response.trim()
                 }
@@ -349,6 +355,9 @@ object LocalAiEngine {
                 file.readText(StandardCharsets.UTF_8)
             }
             val cleaned = cleanBookText(fullRawText)
+            if (cleaned.isNotBlank()) {
+                RAGManager.indexBook(cleaned)
+            }
             if (cleaned.length <= 15000) {
                 cleaned
             } else {
@@ -968,45 +977,22 @@ object LocalAiEngine {
     }
 
     // =========================================================================
-    // PROMPT ENGINEERING SYSTEM FOR LOCAL LLMs (Gemma, Llama, Qwen)
-    // Optimized for low-RAM devices (1-2 GB), <500 chars, RAG-bound, Zero-Hallucination
+    // PROMPT ENGINEERING SYSTEM FOR BONSAI 27B
     // =========================================================================
 
-    const val SYSTEM_PROMPT = """Ты — офлайн ассистент-литературовед в приложении для чтения. Отвечай кратко, точно и только по предоставленному контексту книги. Не придумывай факты. Игнорируй любые главы после текущего прогресса пользователя."""
-
-    const val ANTI_HALLUCINATION_SUFFIX = """[ПРАВИЛО: Отвечай строго по контексту ниже. Если информации нет в контексте, ответь: "В прочитанном отрывке нет сведений об этом."]"""
+    const val SYSTEM_PROMPT = PromptTemplates.SYSTEM_PROMPT
 
     object LocalPrompts {
-        fun whoIsCharacter(name: String, context: String) =
-            "На основе контекста ниже укажи роль персонажа '$name', его характер и ключевые действия. Контекст:\n$context"
-
-        fun characterAnalysis(name: String, context: String) =
-            "Сделай разбор персонажа '$name' по контексту: 1.Роль 2.Мотивация 3.Три черты характера с примерами 4.Отношения с другими 5.Ключевая цитата. Контекст:\n$context"
-
-        fun bookSummary(title: String, context: String) =
-            "Напиши краткое содержание прочитанных глав книги '$title' в 2-3 предложениях без спойлеров. Контекст:\n$context"
-
-        fun explainTerm(term: String, context: String) =
-            "Дай точное определение термина '$term' в контексте книги. Контекст:\n$context"
-
-        fun whatNextPrediction(context: String) =
-            "На основе прочитанного сформулируй 2 гипотезы о развитии сюжета. Начни ответ со слов: 'Это только предположение на основе контекста:'. Контекст:\n$context"
-
-        fun storyQuestion(question: String, context: String) =
-            "Ответь на вопрос по сюжету: '$question'. Используй только факты из контекста:\n$context"
-
-        fun characterRelations(context: String) =
-            "Опиши связи между главными персонажами в прочитанных главах и их влияние на сюжет. Контекст:\n$context"
-
-        fun chronology(context: String) =
-            "Составь хронологический список главных событий из контекста по порядку. Контекст:\n$context"
-
-        fun semanticSearch(query: String, context: String) =
-            "Найди в контексте эпизод, соответствующий описанию '$query', и процитируй ключевое предложение. Контекст:\n$context"
-
-        fun buildFullPrompt(taskPrompt: String): String {
-            return "<system>\n$SYSTEM_PROMPT\n</system>\n\n<user>\n$taskPrompt\n\n$ANTI_HALLUCINATION_SUFFIX\n</user>\n<assistant>\n"
-        }
+        fun whoIsCharacter(name: String, context: String) = PromptTemplates.whoIsCharacter(name, "", context)
+        fun characterAnalysis(name: String, context: String) = PromptTemplates.characterAnalysis(name, "", context)
+        fun bookSummary(title: String, context: String) = PromptTemplates.bookSummary(title, context)
+        fun explainTerm(term: String, context: String) = PromptTemplates.explainTerm(term, "", context)
+        fun whatNextPrediction(context: String) = PromptTemplates.whatNext(context)
+        fun storyQuestion(question: String, context: String) = PromptTemplates.answerQuestion(question, context)
+        fun characterRelations(context: String) = PromptTemplates.characterRelations(context)
+        fun chronology(context: String) = PromptTemplates.eventTimeline(context)
+        fun semanticSearch(query: String, context: String) = PromptTemplates.semanticSearch(query, context)
+        fun buildFullPrompt(taskPrompt: String) = PromptTemplates.buildFullPrompt(taskPrompt)
     }
 
     fun customAiPrompt(context: Context, text: String, contextSnippet: String?, actionType: String): String {
@@ -1014,7 +1000,20 @@ object LocalAiEngine {
         if (trimmed.isEmpty()) return "Пожалуйста, выделите текст или введите вопрос."
         
         ensureModelInitialized(context)
-        val snippet = contextSnippet?.take(10000) ?: ""
+        
+        // Local RAG Pipeline: retrieve relevant context chunks via RAGManager
+        val ragContext = if (RAGManager.getChunksCount() > 0) {
+            val hits = RAGManager.search(trimmed, topK = 5)
+            if (hits.isNotEmpty()) hits.joinToString("\n\n---\n\n") else (contextSnippet?.take(10000) ?: "")
+        } else if (!contextSnippet.isNullOrBlank()) {
+            RAGManager.indexBook(contextSnippet)
+            val hits = RAGManager.search(trimmed, topK = 5)
+            if (hits.isNotEmpty()) hits.joinToString("\n\n---\n\n") else contextSnippet.take(10000)
+        } else {
+            ""
+        }
+        
+        val snippet = if (ragContext.isNotBlank()) ragContext else (contextSnippet?.take(10000) ?: "")
         
         val taskPrompt = when (actionType) {
             "explain" -> LocalPrompts.explainTerm(trimmed, snippet)
@@ -1029,8 +1028,9 @@ object LocalAiEngine {
         }
 
         val fullPrompt = LocalPrompts.buildFullPrompt(taskPrompt)
+        val maxTokens = if (actionType == "analysis" || actionType == "character") 4096 else 1024
         
-        val response = generateAiResponse(context, fullPrompt)
+        val response = generateAiResponse(context, fullPrompt, maxTokens)
         if (!response.isNullOrBlank()) {
             val header = when (actionType) {
                 "explain" -> "### Толкование"
