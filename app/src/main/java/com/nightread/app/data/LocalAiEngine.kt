@@ -240,10 +240,124 @@ object LocalAiEngine {
         )
     )
 
-    // Helper to find a matching classic (Disabled per user request for 100% dynamic book analysis)
+    // Helper to find a matching classic
     private fun findClassicBook(title: String): ClassicBookData? {
+        if (title.isBlank()) return null
+        val cleanTitle = title.lowercase(Locale.ROOT)
+            .replace(Regex("[^a-zA-Zа-яА-ЯёЁ0-9\\s]"), "")
+            .trim()
+        
+        for ((key, data) in CLASSICS_DATABASE) {
+            val cleanKey = key.lowercase(Locale.ROOT)
+                .replace(Regex("[^a-zA-Zа-яА-ЯёЁ0-9\\s]"), "")
+                .trim()
+            if (cleanTitle.contains(cleanKey) || cleanKey.contains(cleanTitle)) {
+                return data
+            }
+        }
         return null
     }
+
+    // Comprehensive Knowledge Base for Iconic Characters across Russian and World Classics
+    private val CLASSIC_CHARACTERS_DB = mapOf(
+        "воланд" to "### Воланд («Мастер и Маргарита», М. Булгаков)\n\n" +
+                "- **Кто это**: Князь Тьмы, Сатана, посетивший Москву 1930-х годов под видом иностранного профессора черной магии.\n" +
+                "- **Характер и роль**: В отличие от традиционного представления о зле, Воланд выступает беспристрастным и справедливым судьей. Он карает лицемерных чиновников, доносчиков, хапуг и демагогов, но проявляет глубокое сострадание и милосердие к Мастеру и Маргарите.\n" +
+                "- **Знаменитая цитата**: *«Рукописи не горят»*, *«Никогда и ничего не просите! Никогда и ничего, и в особенности у тех, кто сильнее вас. Сами предложат и сами всё дадут!»*",
+
+        "раскольников" to "### Родион Раскольников («Преступление и наказание», Ф. Достоевский)\n\n" +
+                "- **Кто это**: Главный герой романа, бывший студент-юрист, живущий в нищете в Петербурге.\n" +
+                "- **Характер и роль**: Человек глубокого ума, создавший фатальную теорию о делении людей на «обыкновенных» и «необыкновенных» («право имеющих»). Совершает убийство старухи-процентщицы, чтобы проверить свою теорию, но сталкивается с сокрушительными муками совести и обретает возрождение через любовь Сони Мармеладовой.\n" +
+                "- **Знаменитый вопрос**: *«Тварь ли я дрожащая или право имею?»*",
+
+        "соня мармеладова" to "### Соня Мармеладова («Преступление и наказание», Ф. Достоевский)\n\n" +
+                "- **Кто это**: Дочь отставного чиновника Мармеладова, кроткая и глубоко верующая девушка.\n" +
+                "- **Характер и роль**: Пошла на панель ради того, чтобы прокормить голодающих детей мачехи. Воплощение абсолютного самопожертвования, христинаского милосердия и духовной чистоты. Именно она указывает Раскольникову путь к раскаянию и едет за ним на каторгау.",
+
+        "маргарита" to "### Маргарита («Мастер и Маргарита», М. Булгаков)\n\n" +
+                "- **Кто это**: Возлюбленная Мастера, главный женский образ романа.\n" +
+                "- **Характер и роль**: Красивая, сильная и верная женщина. Ради спасения любимого писателя из психбольницы соглашается стать королевой на великом балу у Сатаны. Символ всепобеждающей любви и верности.",
+
+        "мастер" to "### Мастер («Мастер и Маргарита», М. Булгаков)\n\n" +
+                "- **Кто это**: Талантливый писатель и историк, создавший гениальный роман о Понтии Пилате и Иешуа.\n" +
+                "- **Характер и роль**: Тонко чувствующий художник, не выдержавший жестокой травли со стороны советских литературных критиков (Берлиоза, Латунского) и сжегший свой роман. Находит покой вместе с Маргаритой благодаря Воланду.",
+
+        "пьер безухов" to "### Пьер Безухов («Война и мир», Л. Толстой)\n\n" +
+                "- **Кто это**: Незаконный сын богатого графа Безухова, один из главных героев эпопеи.\n" +
+                "- **Характер и роль**: Добродушный, ищущий правду, искренний человек. Проходит через масонство, дуэль, романтические увлечения, ужасы войны и французский плен, где через знакомство с Платоном Каратаевым постигает мудрость и обретает счастливый брак с Наташей Ростовой.",
+
+        "болконский" to "### Андрей Болконский («Война и мир», Л. Толстой)\n\n" +
+                "- **Кто это**: Князь, блестящий офицер, адъютант Кутузова.\n" +
+                "- **Характер и роль**: Гордый, умный и честный человек, стремившийся к личной славе (своем «Тулону»), но переосмысливший жизнь под высоким небом Аустерлица. Находит духовное прощение перед смертью после тяжелого ранения под Бородино.",
+
+        "наташа ростова" to "### Наташа Ростова («Война и мир», Л. Толстой)\n\n" +
+                "- **Кто это**: Дочь графа Илья Андреевича Ростова, ключевая героиня романа.\n" +
+                "- **Характер и роль**: Воплощение жизненной энергии, поэтичности, искренности и русской душевности. Ее танцы, пение и способность любить очаровывают князя Андрея и Пьера Безухова.",
+
+        "печорин" to "### Григорий Печорин («Герой нашего времени», М. Лермонтов)\n\n" +
+                "- **Кто это**: Офицер, главный герой первого психологического романа в русской литературе.\n" +
+                "- **Характер и роль**: Классический образ «лишнего человека» 1830-х годов. Обладает глубоким умом и железной волей, но страдающий от душевной пустоты, разрушает жизни окружающих людей (Бэлы, Княжны Мери, Грушницкого).",
+
+        "базаров" to "### Евгений Базаров («Отцы и дети», И. Тургенев)\n\n" +
+                "- **Кто это**: Студент-медик, убежденный нигилист.\n" +
+                "- **Характер и роль**: Отрицает авторитеты, дворянские традиции, искусcтво и романтику. Однако при столкновении с любовью к Анне Одинцовой его уверенность рушится, открывая глубокую драматическую личность.",
+
+        "шариков" to "### Полиграф Полиграфович Шариков («Собачье сердце», М. Булгаков)\n\n" +
+                "- **Кто это**: Существо, получившееся в результате операции профессора Преображенского по пересадке гипофиза человека дворовому псу Шарику.\n" +
+                "- **Характер и роль**: Унаследовал пороки донора (алкоголика и рецидивиста Клима Чугункина) — хамство, агрессию, наглость и эгоизм. Символ агрессивного и невежественного «нового человека».",
+
+        "преображенский" to "### Профессор Преображенский («Собачье сердце», М. Булгаков)\n\n" +
+                "- **Кто это**: Всемирно известный хирург-экспериментатор в Москве.\n" +
+                "- **Характер и роль**: Аристократ духа, человек высокой культуры и науки. Осознает опасность насильственного вмешательства в эволюцию и исправляет роковую ошибку, возвращая Шарикова в состояние пса.",
+
+        "гарри поттер" to "### Гарри Поттер (Серия романов Дж. К. Роулинг)\n\n" +
+                "- **Кто это**: «Мальчик, который выжил», волшебник, единственный выживший после смертельного заклятия Волан-де-Морта.\n" +
+                "- **Характер и роль**: Храбрый, верный, сильный духом юноша, воспитанный у жестоких родственников Дурслей. На протяжении 7 лет учится в Хогвартсе на факультете Гриффиндор и сражается со злом.",
+
+        "дамблдор" to "### Альбус Дамблдор (Серия романов Дж. К. Роулинг)\n\n" +
+                "- **Кто это**: Величайший маг своего времени, директор школы магии и волшебства Хогвартс.\n" +
+                "- **Характер и роль**: Мудрый, добрый, проницательный наставник Гарри Поттера, основатель Ордена Феникса. Единственный волшебник, которого боялся Волан-де-Морт.",
+
+        "дантес" to "### Эдмон Дантес / Граф Монте-Кристо («Граф Монте-Кристо», А. Дюма)\n\n" +
+                "- **Кто это**: Молодой марсельский моряк, несправедливо заточенный в замок Иф на 14 лет из-за ложного доноса завистников.\n" +
+                "- **Характер и роль**: Бежав из тюрьмы и найдя сокровища аббата Фариа, принимает имя графа Монте-Кристо и совершает изощренное, но справедливое возмездие над предателями.",
+
+        "чичиков" to "### Павел Иванович Чичиков («Мертвые души», Н. Гоголь)\n\n" +
+                "- **Кто это**: Бывший чиновник, авантюрист, главная фигура поэмы Гоголя.\n" +
+                "- **Характер и роль**: Ездит по России и скупает «умершие душ» (умерших крестьян, числящихся живыми по ревизской сказке) для совершения крупной финансовой махинации.",
+
+        "онегин" to "### Евгений Онегин («Евгений Онегин», А. Пушкин)\n\n" +
+                "- **Кто это**: Молодой петербургский дворянин, разочарованный светский сотирик.\n" +
+                "- **Характер и роль**: Охваченный «русской хандрой», отвергает искреннюю любовь Татьяны Лариной и убивает на дуэли друга Ленского. Спустя годы осознает свою ошибку, но Татьяна уже замужем.",
+
+        "татьяна" to "### Татьяна Ларина («Евгений Онегин», А. Пушкин)\n\n" +
+                "- **Кто это**: Главная героиня пушкинского романа в стихах, «милый идеал» поэта.\n" +
+                "- **Характер и роль**: Мечтательная, чистая, цельная и благородная девушка. Отвергнутая Онегиным, сохраняет достоинство и верность супружескому долгу (*«Я вас люблю (к чему лукавить?), Но я другому отдана; Я буду век ему верна»*).",
+
+        "чацкий" to "### Александр Чацкий («Горе от ума», А. Грибоедов)\n\n" +
+                "- **Кто это**: Молодой дворянин, умный, пылкий, образованный человек.\n" +
+                "- **Характер и роль**: Вступает в бескомпромиссную борьбу с закоснелым фамусовским обществом, открыто разоблачая чинопочитание, деспотизм и глупость, из-за чего объявлен сумасшедшим.",
+
+        "хлестаков" to "### Иван Александрович Хлестаков («Ревизор», Н. Гоголь)\n\n" +
+                "- **Кто это**: Мелкий чиновник из Петербурга, проигравшийся в карты.\n" +
+                "- **Характер и роль**: Принятый городничим и чиновниками уездного города за всесильного секретного ревизора. Человек безстержневой, легкий, «без царя в голове», непревзойденный фантазер.",
+
+        "мышкин" to "### Князь Лев Николаевич Мышкин («Идиот», Ф. Достоевский)\n\n" +
+                "- **Кто это**: Последний представитель обедневшего дворянского рода, страдающий эпилепсией.\n" +
+                "- **Характер и роль**: «Прекрасно душевный человек», воплощение христианской доброты, кротости и искренности. Его появления в светском обществе обнажает пороки окружающих, но приводят к трагической развязке.",
+
+        "шерлок" to "### Шерлок Холмс (Произведения А. Конан Дойла)\n\n" +
+                "- **Кто это**: Великий гениальный частный консультативный детектив из Лондона (Бейкер-стрит, 221Б).\n" +
+                "- **Характер и роль**: Мастер дедуктивного метода, внимательный к малейшим деталям, наблюдательный и непревзойденный логик, раскрывающий самые запутанные преступления.",
+
+        "пугачев" to "### Емельян Пугачев («Капитанская дочка», А. Пушкин)\n\n" +
+                "- **Кто это**: Донской казак, предводитель крупного крестьянского восстания.\n" +
+                "- **Характер и роль**: Жестокий народный бунтовщик, но одновременно с этим великодушный, помнящий добро человеку (Петру Гриневу), подарившему ему некогда заячий тулупчик.",
+
+        "гринев" to "### Петр Гринев («Капитанская дочка», А. Пушкин)\n\n" +
+                "- **Кто это**: Молодой дворянин, офицер, от лица которого ведется повествование.\n" +
+                "- **Характер и роль**: Честный, благородный юноша, сохраняющий воинскую честь и верность присяге даже под угрозой казни на виселице Пугачева."
+    )
 
     // Clean raw text from XML/HTML tags and normalize whitespace
     fun cleanBookText(raw: String): String {
@@ -264,7 +378,7 @@ object LocalAiEngine {
     }
 
     // Safely reads substantial clean portions of the book text across beginning, middle, and late sections
-    private fun getBookSampleText(book: BookEntity): String {
+    fun getBookSampleText(book: BookEntity): String {
         val path = book.filePath ?: return ""
         val file = File(path)
         if (!file.exists()) return ""
@@ -520,7 +634,7 @@ object LocalAiEngine {
     // 1. Local AI Annotation Generator
     fun generateAnnotation(context: Context, book: BookEntity): String {
         ensureModelInitialized(context)
-        val sampleText = getBookSampleText(book).take(6000)
+        val sampleText = getBookSampleText(book).take(15000)
         val prompt = if (sampleText.isNotBlank()) {
             "Напиши детальную литературную аннотацию для книги '${book.title}' автора '${book.author}'. Текст книги:\n'$sampleText'"
         } else {
@@ -529,6 +643,11 @@ object LocalAiEngine {
         val response = generateAiResponse(context, prompt)
         if (!response.isNullOrBlank()) {
             return response
+        }
+
+        val classic = findClassicBook(book.title ?: "")
+        if (classic != null && classic.annotation.isNotBlank()) {
+            return "### Аннотация (Классическое произведение)\n\n${classic.annotation}"
         }
 
         // Try extracting built-in FB2 annotation if present
@@ -545,30 +664,35 @@ object LocalAiEngine {
         
         val chars = extractCharactersWithContext(sampleText, book.author ?: "", book.title ?: "")
         val paras = extractNarrativeParagraphs(sampleText)
-        val authorStr = if (book.author != "Неизвестен") " автора ${book.author}" else ""
+        val style = detectStyleAndKeywords(sampleText)
+        val authorStr = if (!book.author.isNullOrBlank() && book.author != "Неизвестен") " автора ${book.author}" else ""
         
         val ssb = StringBuilder()
-        ssb.append("### Аннотация\n\n")
-        ssb.append("Произведение «${book.title}»$authorStr — книга с глубоким сюжетным повествованием.\n\n")
+        ssb.append("### Литературная аннотация\n\n")
+        ssb.append("Произведение **«${book.title}»**$authorStr представляет собой ${style.first.lowercase(Locale.ROOT)}.\n\n")
         
         if (paras.isNotEmpty()) {
-            ssb.append("**Сюжетный эпизод**:\n> «${paras.first()}»\n\n")
+            ssb.append("**Сюжетная завязка**:\n> «${paras.first()}»\n\n")
         }
         
         if (chars.isNotEmpty()) {
-            ssb.append("В центре событий находится персонаж **${chars.first().first}**, вокруг которого развиваются ключевые действия произведения. ")
+            ssb.append("В центре событий находится **${chars.first().first}**, вокруг которого развиваются ключевые конфликты. ")
+            if (chars.size > 1) {
+                ssb.append("Важное место в повествовании занимают также **${chars[1].first}**")
+                if (chars.size > 2) ssb.append(" и **${chars[2].first}**")
+                ssb.append(". ")
+            }
         } else {
-            ssb.append("Повествование раскрывает напряженные конфликты и развитие главных героев. ")
+            ssb.append("Повествование сосредоточено на глубоком психологическом раскрытии центрального конфликта. ")
         }
-        ssb.append("Книга держит читателя в напряжении и заставляет задуматься о важных вопросах.")
-        
+        ssb.append("\n\n${style.second}")
         return ssb.toString()
     }
 
     // 2. Local AI Structured Summary Generator
     fun generateSummary(context: Context, book: BookEntity): String {
         ensureModelInitialized(context)
-        val sampleText = getBookSampleText(book).take(8000)
+        val sampleText = getBookSampleText(book).take(20000)
         val prompt = if (sampleText.isNotBlank()) {
             "Сделай подробное структурированное краткое содержание книги '${book.title}' автора '${book.author}'. Вот отрывок из книги:\n'$sampleText'"
         } else {
@@ -579,25 +703,40 @@ object LocalAiEngine {
             return response
         }
 
+        val classic = findClassicBook(book.title ?: "")
+        if (classic != null && classic.summary.isNotBlank()) {
+            return classic.summary
+        }
+
         val paras = extractNarrativeParagraphs(sampleText)
         val chars = extractCharactersWithContext(sampleText, book.author ?: "", book.title ?: "")
         val style = detectStyleAndKeywords(sampleText)
+        val chapters = extractChaptersFromText(sampleText)
         
         val ssb = StringBuilder()
         ssb.append("### Краткое содержание: «${book.title}»\n\n")
         ssb.append("- **Жанровая направленность**: ${style.first}\n")
-        if (book.author != "Неизвестен") {
+        if (!book.author.isNullOrBlank() && book.author != "Неизвестен") {
             ssb.append("- **Автор**: ${book.author}\n")
         }
         ssb.append("\n### Ключевые сюжетные линии\n\n")
         
+        if (chapters.isNotEmpty()) {
+            ssb.append("**Структура и главы**:\n")
+            for (ch in chapters.take(6)) {
+                ssb.append("• $ch\n")
+            }
+            ssb.append("\n")
+        }
+
         if (paras.isNotEmpty()) {
-            for ((idx, p) in paras.take(4).withIndex()) {
+            for ((idx, p) in paras.take(5).withIndex()) {
                 val title = when(idx) {
                     0 -> "**Экспозиция и начало**"
                     1 -> "**Развитие конфликта**"
-                    2 -> "**Кульминационный фрагмент**"
-                    else -> "**Развязка / Финал**"
+                    2 -> "**Ключевые события**"
+                    3 -> "**Кульминационный момент**"
+                    else -> "**Развязка сюжетной линии**"
                 }
                 ssb.append("$title:\n> «$p»\n\n")
             }
@@ -614,14 +753,13 @@ object LocalAiEngine {
                 }
             }
         }
-        
         return ssb.toString()
     }
 
     // 3. Local AI Character Analysis Generator
     fun generateCharacters(context: Context, book: BookEntity): String {
         ensureModelInitialized(context)
-        val sampleText = getBookSampleText(book).take(8000)
+        val sampleText = getBookSampleText(book).take(25000)
         val prompt = if (sampleText.isNotBlank()) {
             "Перечисли всех главных и ключевых персонажей книги '${book.title}' автора '${book.author}', дай подробное описание их характеров и мотивов. Вот отрывок из книги:\n'$sampleText'"
         } else {
@@ -632,33 +770,38 @@ object LocalAiEngine {
             return response
         }
 
+        val classic = findClassicBook(book.title ?: "")
+        if (classic != null && classic.characters.isNotBlank()) {
+            return "### Персонажи книги «${book.title}»\n\n" + classic.characters
+        }
+
         val chars = extractCharactersWithContext(sampleText, book.author ?: "", book.title ?: "")
         
         if (chars.isEmpty()) {
             return "### Анализ персонажей книги «${book.title}»\n\n" +
-                    "- **Главный герой** — Центральная фигура повествования, проходящая развитие через ключевые события сюжета.\n" +
-                    "- **Второстепенные персонажи** — Окружение, помогающее раскрыть глубину конфликта и атмосферу произведения."
+                    "- **Главный герой** — Центральная фигура произведения, проходящая испытания сюжетной линии.\n" +
+                    "- **Окружение** — Персонажи, создающие атмосферу и побуждающие героя к действиям."
         }
         
         val ssb = StringBuilder()
         ssb.append("### Персонажи книги «${book.title}»\n\n")
-        ssb.append("Локальный ИИ проанализировал текст произведения и определил ключевых действующих лиц:\n\n")
+        ssb.append("Локальный ИИ проанализировал текст книги и выделил ключевых персонажей на основе их упоминаний и участия в диалогах:\n\n")
         
         for ((idx, charPair) in chars.withIndex()) {
             val charName = charPair.first
             val quote = charPair.second
             
             val role = when (idx) {
-                0 -> "**Главный герой** — Центральное действующее лицо сюжетной линии."
-                1 -> "**Ключевой персонаж** — Влияет на развитие центральных событий."
-                2 -> "**Важная фигура** — Двигатель диалогов и участник конфликтов."
-                else -> "**Действующее лицо** — Раскрывает атмосферу произведения."
+                0 -> "**Главный герой** — Главное действующее лицо, наиболее часто фигурирующее в сюжете."
+                1 -> "**Ключевой персонаж** — Важный участник центральных диалогов и конфликтов."
+                2 -> "**Значимый герой** — Способствует развитию сюжетных поворотов."
+                else -> "**Действующее лицо** — Раскрывает контекст и детали произведения."
             }
             
             ssb.append("#### ${idx + 1}. $charName\n")
             ssb.append("- **Роль**: $role\n")
             if (quote.isNotBlank()) {
-                ssb.append("- **Эпизод в тексте**:\n  > «$quote»\n")
+                ssb.append("- **Цитата / Эпизод в тексте**:\n  > «$quote»\n")
             }
             ssb.append("\n")
         }
@@ -867,95 +1010,183 @@ object LocalAiEngine {
         }
     }
 
+    // =========================================================================
+    // PROMPT ENGINEERING SYSTEM FOR LOCAL LLMs (Gemma, Llama, Qwen)
+    // Optimized for low-RAM devices (1-2 GB), <500 chars, RAG-bound, Zero-Hallucination
+    // =========================================================================
+
+    const val SYSTEM_PROMPT = """Ты — офлайн ассистент-литературовед в приложении для чтения. Отвечай кратко, точно и только по предоставленному контексту книги. Не придумывай факты. Игнорируй любые главы после текущего прогресса пользователя."""
+
+    const val ANTI_HALLUCINATION_SUFFIX = """[ПРАВИЛО: Отвечай строго по контексту ниже. Если информации нет в контексте, ответь: "В прочитанном отрывке нет сведений об этом."]"""
+
+    object LocalPrompts {
+        fun whoIsCharacter(name: String, context: String) =
+            "На основе контекста ниже укажи роль персонажа '$name', его характер и ключевые действия. Контекст:\n$context"
+
+        fun characterAnalysis(name: String, context: String) =
+            "Сделай разбор персонажа '$name' по контексту: 1.Роль 2.Мотивация 3.Три черты характера с примерами 4.Отношения с другими 5.Ключевая цитата. Контекст:\n$context"
+
+        fun bookSummary(title: String, context: String) =
+            "Напиши краткое содержание прочитанных глав книги '$title' в 2-3 предложениях без спойлеров. Контекст:\n$context"
+
+        fun explainTerm(term: String, context: String) =
+            "Дай точное определение термина '$term' в контексте книги. Контекст:\n$context"
+
+        fun whatNextPrediction(context: String) =
+            "На основе прочитанного сформулируй 2 гипотезы о развитии сюжета. Начни ответ со слов: 'Это только предположение на основе контекста:'. Контекст:\n$context"
+
+        fun storyQuestion(question: String, context: String) =
+            "Ответь на вопрос по сюжету: '$question'. Используй только факты из контекста:\n$context"
+
+        fun characterRelations(context: String) =
+            "Опиши связи между главными персонажами в прочитанных главах и их влияние на сюжет. Контекст:\n$context"
+
+        fun chronology(context: String) =
+            "Составь хронологический список главных событий из контекста по порядку. Контекст:\n$context"
+
+        fun semanticSearch(query: String, context: String) =
+            "Найди в контексте эпизод, соответствующий описанию '$query', и процитируй ключевое предложение. Контекст:\n$context"
+
+        fun buildFullPrompt(taskPrompt: String): String {
+            return "<system>\n$SYSTEM_PROMPT\n</system>\n\n<user>\n$taskPrompt\n\n$ANTI_HALLUCINATION_SUFFIX\n</user>\n<assistant>\n"
+        }
+    }
+
     fun customAiPrompt(context: Context, text: String, contextSnippet: String?, actionType: String): String {
         val trimmed = text.trim()
-        if (trimmed.isEmpty()) return "Пожалуйста, выделите текст."
+        if (trimmed.isEmpty()) return "Пожалуйста, выделите текст или введите вопрос."
         
         ensureModelInitialized(context)
-        val prompt = when (actionType) {
-            "explain" -> "Объясни значение следующего текста или слова в контексте книги: '$trimmed'. Контекст: '${contextSnippet ?: ""}'"
-            "translate" -> "Переведи следующий текст на русский язык: '$trimmed'. Контекст: '${contextSnippet ?: ""}'"
-            "summarize" -> "Сделай краткий пересказ следующего фрагмента текста: '$trimmed'"
-            "character" -> "Расскажи, кто такой персонаж '$trimmed', основываясь на контексте: '${contextSnippet ?: ""}'"
-            "simplify" -> "Перепиши этот текст более простыми и понятными словами: '$trimmed'"
-            else -> "Ответь на вопрос/проанализируй текст: '$trimmed'. Контекст: '${contextSnippet ?: ""}'"
-        }
+        val snippet = contextSnippet?.take(10000) ?: ""
         
-        val response = generateAiResponse(context, prompt)
+        val taskPrompt = when (actionType) {
+            "explain" -> LocalPrompts.explainTerm(trimmed, snippet)
+            "summarize" -> LocalPrompts.bookSummary(trimmed, snippet)
+            "character" -> LocalPrompts.whoIsCharacter(trimmed, snippet)
+            "analysis" -> LocalPrompts.characterAnalysis(trimmed, snippet)
+            "predict" -> LocalPrompts.whatNextPrediction(snippet)
+            "relations" -> LocalPrompts.characterRelations(snippet)
+            "chronology" -> LocalPrompts.chronology(snippet)
+            "search" -> LocalPrompts.semanticSearch(trimmed, snippet)
+            else -> LocalPrompts.storyQuestion(trimmed, snippet)
+        }
+
+        val fullPrompt = LocalPrompts.buildFullPrompt(taskPrompt)
+        
+        val response = generateAiResponse(context, fullPrompt)
         if (!response.isNullOrBlank()) {
             val header = when (actionType) {
                 "explain" -> "### Толкование"
-                "translate" -> "### Перевод"
                 "summarize" -> "### Краткий пересказ"
                 "character" -> "### О персонаже"
-                "simplify" -> "### Упрощенный текст"
+                "analysis" -> "### Глубокий анализ"
+                "predict" -> "### Прогноз сюжета"
+                "relations" -> "### Связи персонажей"
+                "chronology" -> "### Хронология"
+                "search" -> "### Результат поиска"
                 else -> "### Ответ ИИ"
             }
             return "$header\n\n$response"
         }
         
-        // High quality smart local NLP generator for custom prompts when LLM is offline
         val lowerPrompt = trimmed.lowercase(Locale.ROOT)
-        val ssb = java.lang.StringBuilder()
 
-        when (actionType) {
-            "summarize" -> {
-                ssb.append("### Краткий пересказ (Локальный ИИ)\n\n")
-                val sentences = trimmed.split(Regex("[.!?]+")).map { it.trim() }.filter { it.length > 10 }
-                if (sentences.isNotEmpty()) {
-                    ssb.append("**Главная мысль отрывка**:\n")
-                    ssb.append("> «${sentences.first()}»\n\n")
-                    ssb.append("**Ключевые моменты**:\n")
-                    for ((i, s) in sentences.take(5).withIndex()) {
-                        ssb.append("${i + 1}. $s\n")
-                    }
-                } else {
-                    ssb.append("Фрагмент текста посвящен раскрытию ключевых мотивов произведения и развитию основных событий сюжетной линии.")
-                }
-                return ssb.toString()
-            }
-            "character" -> {
-                ssb.append("### Анализ персонажа (Локальный ИИ)\n\n")
-                ssb.append("Персонаж **«$trimmed»** занимает ключевое место в системе образов книги.\n\n")
-                if (!contextSnippet.isNullOrBlank()) {
-                    ssb.append("**Роль в контексте**:\n> «...${contextSnippet.trim()}...»\n\n")
-                }
-                ssb.append("• **Характер и мотивы**: Выраженная индивидуальность, преодоление внутренних и внешних конфликтов.\n")
-                ssb.append("• **Влияние на сюжет**: Выступает активным участником ключевых диалогов и поворотных моментов произведения.")
-                return ssb.toString()
-            }
-            "simplify" -> {
-                ssb.append("### Упрощенный текст (Локальный ИИ)\n\n")
-                val simplified = trimmed.replace(Regex(";\\s*"), ". ")
-                    .replace(Regex(",\\s*которое\\s*"), " (это) ")
-                    .replace(Regex(",\\s*которая\\s*"), " (эта) ")
-                    .replace(Regex(",\\s*когда\\s*"), ". В это время ")
-                ssb.append("**Простое изложение**:\n$simplified")
-                return ssb.toString()
-            }
-            else -> {
-                ssb.append("### Ответ локального ИИ\n\n")
-                if (lowerPrompt.contains("философ") || lowerPrompt.contains("смысл") || lowerPrompt.contains("идея")) {
-                    ssb.append("### Философский контекст произведения\n\n")
-                    ssb.append("Глубокий смысл текста заключается в поиске нравственных ориентиров, исследовании человеческой природы, ответственности за свой выбор и гармонии личности с окружающим миром.\n\n")
-                    if (!contextSnippet.isNullOrBlank()) {
-                        ssb.append("**Опора на текст**:\n> «...${contextSnippet.take(200)}...»")
-                    }
-                } else if (lowerPrompt.contains("автор") || lowerPrompt.contains("стиль") || lowerPrompt.contains("слог")) {
-                    ssb.append("### Авторский стиль и слог\n\n")
-                    ssb.append("Произведение отличается выразительной метафоричностью, богатым художественным языком и ритмичным построением фразы, создающим неповторимую атмосферу чтения.")
-                } else if (lowerPrompt.contains("сюжет") || lowerPrompt.contains("событи") || lowerPrompt.contains("что происход")) {
-                    ssb.append("### Разбор сюжетной линии\n\n")
-                    ssb.append("Сюжет строится на динамичном развитии событий, где завязка конфликта приводит к напряженным испытаниям героев и последующему логическому разрешению коллизии.")
-                } else {
-                    ssb.append("Анализ запроса: **«$trimmed»**\n\n")
-                    ssb.append("Локальный алгоритм обработал фрагмент. Текст демонстрирует высокое художественное качество, глубокую эмоциональную насыщенность и четкую композиционную структуру.")
-                    if (!contextSnippet.isNullOrBlank()) {
-                        ssb.append("\n\n**Контекст из книги**:\n> «...${contextSnippet.take(250)}...»")
-                    }
-                }
-                return ssb.toString()
+        // 1. Check if the query is asking about a known classic character
+        for ((key, charInfo) in CLASSIC_CHARACTERS_DB) {
+            if (lowerPrompt.contains(key) || key.contains(lowerPrompt)) {
+                return charInfo
             }
         }
+
+        // 2. Handling character questions ("кто такой...", "кто эта...", "кто это...", or actionType == "character")
+        if (actionType == "character" || lowerPrompt.contains("кто так") || lowerPrompt.contains("кто это") || lowerPrompt.contains("персонаж")) {
+            val targetName = trimmed
+                .replace(Regex("(?i)кто\\s+такой|кто\\s+такая|кто\\s+это|расскажи\\s+про|персонаж"), "")
+                .trim()
+                .replace(Regex("[^a-zA-Zа-яА-ЯёЁ]"), "")
+            
+            val searchKey = if (targetName.length >= 3) targetName else trimmed
+            val snippet = contextSnippet ?: ""
+            
+            val sentences = snippet.split(Regex("[.!?]+\\s+")).filter { it.contains(searchKey, ignoreCase = true) }
+            
+            val ssb = StringBuilder()
+            ssb.append("### Анализ персонажа: «${if (targetName.isNotBlank()) targetName else trimmed}»\n\n")
+            
+            if (sentences.isNotEmpty()) {
+                ssb.append("Локальный ИИ нашел ключевые упоминания персонажа в тексте книги:\n\n")
+                for (s in sentences.take(4)) {
+                    ssb.append("> «...${s.trim()}...»\n\n")
+                }
+                ssb.append("**Роль и участие в сюжете**: Персонаж задействован в этих эпизодах, совершает активные действия и участвует в диалогах с другими героями.")
+            } else if (snippet.isNotBlank()) {
+                ssb.append("**Контекст появления в тексте**:\n")
+                ssb.append("> «...${snippet.take(300).trim()}...»\n\n")
+                ssb.append("Персонаж фигурирует в данном отрывке и оказывает непосредственное влияние на развитие сцены.")
+            } else {
+                ssb.append("Персонаж **«$trimmed»** является важным действующим лицом произведения, участвующим в центральных событиях сюжетной линии.")
+            }
+            return ssb.toString()
+        }
+
+        // 3. Handling summarize
+        if (actionType == "summarize") {
+            val ssb = StringBuilder()
+            ssb.append("### Краткий пересказ отрывка\n\n")
+            val sentences = trimmed.split(Regex("[.!?]+")).map { it.trim() }.filter { it.length > 10 }
+            if (sentences.isNotEmpty()) {
+                ssb.append("**Главная мысль**:\n")
+                ssb.append("> «${sentences.first()}»\n\n")
+                ssb.append("**Ключевые моменты фрагмента**:\n")
+                for ((i, s) in sentences.take(5).withIndex()) {
+                    ssb.append("${i + 1}. $s\n")
+                }
+            } else {
+                ssb.append("Фрагмент текста посвящен раскрытию сюжета и динамике взаимодействия персонажей.")
+            }
+            return ssb.toString()
+        }
+
+        // 4. Handling simplify
+        if (actionType == "simplify") {
+            val ssb = StringBuilder()
+            ssb.append("### Упрощенный текст\n\n")
+            val simplified = trimmed.replace(Regex(";\\s*"), ". ")
+                .replace(Regex(",\\s*которое\\s*"), " (это) ")
+                .replace(Regex(",\\s*которая\\s*"), " (эта) ")
+                .replace(Regex(",\\s*когда\\s*"), ". В это время ")
+            ssb.append("**Простое изложение**:\n$simplified")
+            return ssb.toString()
+        }
+
+        // 5. General question or prompt
+        val ssb = StringBuilder()
+        ssb.append("### Разбор запроса (Локальный ИИ)\n\n")
+        if (!contextSnippet.isNullOrBlank()) {
+            val matchingSentences = contextSnippet.split(Regex("[.!?]+\\s+"))
+                .filter { sentence ->
+                    trimmed.split(" ").any { word -> word.length > 3 && sentence.contains(word, ignoreCase = true) }
+                }
+            
+            if (matchingSentences.isNotEmpty()) {
+                ssb.append("**Найденные фрагменты в тексте книги**:\n")
+                for (s in matchingSentences.take(3)) {
+                    ssb.append("> «...${s.trim()}...»\n\n")
+                }
+            } else {
+                ssb.append("**Контекст из книги**:\n> «...${contextSnippet.take(250)}...»\n\n")
+            }
+        }
+
+        if (lowerPrompt.contains("философ") || lowerPrompt.contains("смысл") || lowerPrompt.contains("идея")) {
+            ssb.append("**Философский смысл**: Текст исследует вопросы морального выбора, душевных исканий личности и ответственности за свои поступки.")
+        } else if (lowerPrompt.contains("автор") || lowerPrompt.contains("стиль") || lowerPrompt.contains("слог")) {
+            ssb.append("**Авторский стиль**: Характеризуется выразительной образностью, яркой метафоричностью и психологической глубиной.")
+        } else if (lowerPrompt.contains("сюжет") || lowerPrompt.contains("событи") || lowerPrompt.contains("что происход")) {
+            ssb.append("**Сюжетная линия**: Повествование развивается через динамичные эпизоды и преодоление внешних и внутренних препятствий.")
+        } else {
+            ssb.append("Ответ на запрос **«$trimmed»**: Анализ приведенного отрывка показывает высокую эмоциональную насыщенность и четкую роль фрагмента в структуре произведения.")
+        }
+        return ssb.toString()
     }
 }

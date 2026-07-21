@@ -681,30 +681,43 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         aiError = null
         aiResult = "ИИ думает..."
 
+        val context = getApplication<android.app.Application>().applicationContext
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                kotlinx.coroutines.delay(800)
-                
-                val lower = prompt.lowercase(java.util.Locale.ROOT)
+                val book = selectedBook ?: detailedBook
+                val sampleContext = if (book != null) {
+                    com.nightread.app.data.LocalAiEngine.getBookSampleText(book).take(15000)
+                } else null
+
+                val lower = prompt.lowercase(java.util.Locale.ROOT).trim()
                 val response = when {
-                    lower.contains("автор") || lower.contains("писатель") -> 
-                        "Локальный ИИ: Автор книги — ключевой творец художественного мира произведения. Его уникальный стиль сочетает глубокий психологизм, детальное описание обстановки и богатство метафорического языка."
-                    lower.contains("сюжет") || lower.contains("о чем") || lower.contains("содержание") -> 
-                        "Локальный ИИ: Сюжет произведения раскрывает глубокие морально-этические конфликты, заставляющие героев делать сложный выбор и претерпевать внутреннюю трансформацию."
-                    lower.contains("персонаж") || lower.contains("герой") -> 
-                        "Локальный ИИ: Персонажи книги прорисованы с особым вниманием к деталям. Каждый из них представляет собой законченный архетип, служащий выражением авторской идеи."
-                    lower.contains("стиль") || lower.contains("язык") -> 
-                        "Локальный ИИ: Художественный стиль автора отличается богатством эпитетов, выверенным ритмом повествования и глубоким подтекстом, приглашающим читателя к размышлению."
-                    else -> 
-                        "Локальный ИИ: Благодарю за ваш литературный вопрос! Как ваш персональный локальный ассистент, я всегда готов помочь в анализе текстов, объяснении понятий и переводе слов без подключения к интернету."
+                    lower.contains("аннотац") -> {
+                        if (book != null) com.nightread.app.data.LocalAiEngine.generateAnnotation(context, book)
+                        else com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, null, "")
+                    }
+                    lower.contains("краткое содерж") || lower.contains("пересказ") || lower.contains("о чем книга") -> {
+                        if (book != null) com.nightread.app.data.LocalAiEngine.generateSummary(context, book)
+                        else com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, sampleContext, "summarize")
+                    }
+                    lower.contains("персонажи книги") || lower == "персонажи" || lower == "герои" || lower == "список персонажей" -> {
+                        if (book != null) com.nightread.app.data.LocalAiEngine.generateCharacters(context, book)
+                        else com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, sampleContext, "character")
+                    }
+                    lower.contains("персонаж") || lower.contains("геро") || lower.contains("кто это") || lower.contains("кто такой") || lower.contains("кто такая") -> {
+                        com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, sampleContext, "character")
+                    }
+                    else -> {
+                        com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, sampleContext, "")
+                    }
                 }
 
-                viewModelScope.launch(Dispatchers.Main) {
+                withContext(Dispatchers.Main) {
                     aiLoading = false
                     aiResult = response
                 }
             } catch (e: Exception) {
-                viewModelScope.launch(Dispatchers.Main) {
+                withContext(Dispatchers.Main) {
                     aiLoading = false
                     aiError = "Ошибка: ${e.localizedMessage}"
                 }
