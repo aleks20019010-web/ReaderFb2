@@ -156,28 +156,9 @@ if (customRulesJson != null) {
     }
 
     
-    private fun startModelDownloadSimulation() {
-        val builder = android.app.AlertDialog.Builder(requireContext())
-        builder.setTitle("Скачать модель (.bin / .task)")
-        
-        val input = android.widget.EditText(requireContext())
-        input.hint = "https://.../model.task"
-        input.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
-        builder.setView(input)
-        
-        builder.setPositiveButton("Скачать") { dialog, _ ->
-            val url = input.text.toString().trim()
-            if (url.isNotEmpty() && (url.endsWith(".bin", true) || url.endsWith(".task", true) || url.contains(".bin") || url.contains(".task"))) {
-                startRealModelDownload(url)
-            } else {
-                android.widget.Toast.makeText(requireContext(), "Укажите корректную ссылку на файл .bin или .task", android.widget.Toast.LENGTH_LONG).show()
-            }
-            dialog.dismiss()
-        }
-        builder.setNegativeButton("Отмена") { dialog, _ ->
-            dialog.cancel()
-        }
-        builder.show()
+        private fun startModelDownloadSimulation() {
+        val modelUrl = "https://huggingface.co/lmstudio-community/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+        startRealModelDownload(modelUrl)
     }
     
     private fun startRealModelDownload(urlString: String) {
