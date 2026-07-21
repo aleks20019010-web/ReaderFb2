@@ -384,6 +384,9 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         if (content.isEmpty() || availableWidth <= 0 || availableHeight <= 0) return
         val book = _bookState.value ?: return
 
+        // Clear the PageSplitter layout cache for fresh pagination
+        com.nightread.app.ui.customlayout.PageSplitter.clearCache()
+
         if (book.filePath?.endsWith(".fb2", true) == true || 
             book.filePath?.endsWith(".fb2.zip", true) == true || 
             book.filePath?.endsWith(".zip", true) == true ||

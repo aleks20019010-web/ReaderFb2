@@ -105,7 +105,7 @@ class SettingsActivity : BaseActivity() {
         switchAutoSync.isChecked = SettingsManager.isAutoSyncEnabled(this)
         switchAutoSync.setOnCheckedChangeListener { _, isChecked ->
             SettingsManager.setAutoSyncEnabled(this, isChecked)
-            scheduleAutoSync(this)
+            com.nightread.app.service.AutoSyncScheduler.scheduleAutoSync(this)
         }
 
         // Sync Period Spinner
@@ -132,7 +132,7 @@ class SettingsActivity : BaseActivity() {
                 if (SettingsManager.getAutoSyncIntervalDays(this@SettingsActivity) != selectedDays) {
                     SettingsManager.setAutoSyncIntervalDays(this@SettingsActivity, selectedDays)
                     if (SettingsManager.isAutoSyncEnabled(this@SettingsActivity)) {
-                        scheduleAutoSync(this@SettingsActivity)
+                        com.nightread.app.service.AutoSyncScheduler.scheduleAutoSync(this@SettingsActivity)
                     }
                 }
             }
@@ -154,7 +154,7 @@ class SettingsActivity : BaseActivity() {
                 tvSyncTimeValue.text = formattedTime
                 SettingsManager.setAutoSyncStartTime(this, formattedTime)
                 if (SettingsManager.isAutoSyncEnabled(this)) {
-                    scheduleAutoSync(this)
+                    com.nightread.app.service.AutoSyncScheduler.scheduleAutoSync(this)
                 }
             }, hour, minute, true).show()
         }
@@ -182,64 +182,5 @@ class SettingsActivity : BaseActivity() {
         findViewById<TextView>(R.id.tvAppVersion).text = getString(R.string.settings_app_version, com.nightread.app.BuildConfig.VERSION_NAME)
     }
 
-    private fun scheduleAutoSync(context: Context) {
-        try {
-            val workManager = androidx.work.WorkManager.getInstance(context)
-            workManager.cancelUniqueWork("YandexAutoSyncWork")
 
-            if (!SettingsManager.isAutoSyncEnabled(context)) {
-                return
-            }
-
-            val days = SettingsManager.getAutoSyncIntervalDays(context)
-            val startTime = SettingsManager.getAutoSyncStartTime(context)
-
-            val constraints = androidx.work.Constraints.Builder()
-                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
-                .build()
-
-            val initialDelayMs = calculateInitialDelay(startTime)
-
-            val workRequest = androidx.work.PeriodicWorkRequestBuilder<com.nightread.app.service.AutoSyncWorker>(
-                days.toLong(), java.util.concurrent.TimeUnit.DAYS
-            )
-                .setConstraints(constraints)
-                .setInitialDelay(initialDelayMs, java.util.concurrent.TimeUnit.MILLISECONDS)
-                .addTag("YandexAutoSyncWork")
-                .build()
-
-            workManager.enqueueUniquePeriodicWork(
-                "YandexAutoSyncWork",
-                androidx.work.ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
-                workRequest
-            )
-        } catch (e: Exception) {
-            android.util.Log.e("SettingsActivity", "Error scheduling auto sync", e)
-        }
-    }
-
-    private fun calculateInitialDelay(timeStr: String): Long {
-        try {
-            val parts = timeStr.split(":")
-            if (parts.size != 2) return 0L
-            val targetHour = parts[0].toIntOrNull() ?: 3
-            val targetMinute = parts[1].toIntOrNull() ?: 0
-
-            val now = java.util.Calendar.getInstance()
-            val target = java.util.Calendar.getInstance().apply {
-                set(java.util.Calendar.HOUR_OF_DAY, targetHour)
-                set(java.util.Calendar.MINUTE, targetMinute)
-                set(java.util.Calendar.SECOND, 0)
-                set(java.util.Calendar.MILLISECOND, 0)
-            }
-
-            if (target.before(now)) {
-                target.add(java.util.Calendar.DAY_OF_YEAR, 1)
-            }
-
-            return target.timeInMillis - now.timeInMillis
-        } catch (e: Exception) {
-            return 0L
-        }
-    }
 }

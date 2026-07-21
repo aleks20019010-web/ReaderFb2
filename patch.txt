@@ -1,40 +1,9 @@
-197,207c197,219
-<                             
-<                             val firstChar = textStr[start]
-<                             val startsWithWhitespace = firstChar.isWhitespace() || firstChar == '\u00A0' || firstChar == '\t'
-<                             if (shouldIndent && !startsWithWhitespace) {
-<                                 spannable.setSpan(
-<                                     LeadingMarginSpan.Standard(indentInPx, 0),
-<                                     start,
-<                                     end,
-<                                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-<                                 )
-<                             }
----
-> 
->                             var firstNonSpace = start
->                             while (firstNonSpace < paraEnd) {
->                                 val c = textStr[firstNonSpace]
->                                 if (c.isWhitespace() || c == '\u00A0' || c == '\t') {
->                                     firstNonSpace++
->                                 } else {
->                                     break
->                                 }
->                             }
-> 
->                             if (shouldIndent) {
->                                 if (firstNonSpace > start) {
->                                     spannable.setSpan(
->                                         android.text.style.ScaleXSpan(0f),
->                                         start,
->                                         firstNonSpace,
->                                         android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
->                                     )
->                                 }
->                                 spannable.setSpan(
->                                     android.text.style.LeadingMarginSpan.Standard(indentInPx, 0),
->                                     start,
->                                     end,
->                                     android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
->                                 )
->                             }
+    fun saveSyncTimestamp(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putLong("last_sync_time", System.currentTimeMillis()).apply()
+        try {
+            com.nightread.app.service.AutoSyncScheduler.scheduleAutoSync(context)
+        } catch (e: Exception) {
+            android.util.Log.e("YandexDiskManager", "Error rescheduling auto sync", e)
+        }
+    }

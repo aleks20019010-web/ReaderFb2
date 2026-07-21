@@ -1,0 +1,17 @@
+                // 2. Prepare/pre-split last read book if available
+                if (!preventAutoOpen) {
+                    val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
+                    val book = db.bookDao().getLastReadBook()
+                    if (book != null) {
+                        val percent = if (book.totalCharacters > 0) {
+                            val calculated = ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt().coerceIn(0, 100)
+                            if (calculated >= 98) 100 else calculated
+                        } else {
+                            0
+                        }
+                        if (percent < 100) {
+                            lastReadBookSha1 = book.sha1
+                            shouldAutoOpen = true
+                        }
+                    }
+                }

@@ -156,6 +156,17 @@ class SyncOrchestrator(
             val processedCount = java.util.concurrent.atomic.AtomicInteger(0)
             val semaphore = Semaphore(5)
 
+            // Предварительная загрузка локальных книг для сопоставления по имени и размеру
+            val localBooks = try { bookDao.getAllBooksSync() } catch (e: Exception) { emptyList() }
+            val localBooksByNameAndSize = localBooks.mapNotNull { book ->
+                val fileName = book.filePath?.let { File(it).name } ?: return@mapNotNull null
+                "${fileName}_${book.fileSize}" to book.sha1
+            }.toMap()
+            val localBooksByName = localBooks.mapNotNull { book ->
+                val fileName = book.filePath?.let { File(it).name } ?: return@mapNotNull null
+                fileName to book.sha1
+            }.toMap()
+
             coroutineScope {
                 val jobs = filteredCloudFiles.map { file ->
                     async {
@@ -166,26 +177,48 @@ class SyncOrchestrator(
 
                             try {
                                 var sha1: String? = null
-                                Log.d(TAG, "Downloading temporarily and extracting SHA-1 for ${file.name}")
-                                val tempFile = File(context.cacheDir, "temp_sha_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}_${file.name}")
-                                try {
-                                    val success = cloudService.downloadFile(normalizedPath, tempFile)
-                                    if (success) {
-                                        sha1 = sha1Extractor.extractSha1(tempFile)
-                                        if (sha1 != null) {
-                                            cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
-                                            Log.d(TAG, "Calculated and cached SHA-1 for ${file.name}: $sha1")
-                                        }
+                                
+                                // 1. Проверяем кэш
+                                val cachedEntry = cacheManager.getByPath(normalizedPath)
+                                if (cachedEntry != null && cachedEntry.lastModified == file.modified && cachedEntry.size == file.size) {
+                                    sha1 = cachedEntry.sha1
+                                }
+
+                                // 2. Проверяем локальные книги по имени и размеру
+                                if (sha1 == null) {
+                                    val matchedSha1 = localBooksByNameAndSize["${file.name}_${file.size}"] 
+                                        ?: localBooksByName[file.name]
+                                        
+                                    if (matchedSha1 != null) {
+                                        sha1 = matchedSha1
+                                        cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
+                                        Log.d(TAG, "Matched by local name/size for ${file.name}: $sha1")
                                     }
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Error calculating SHA-1 for ${file.name}", e)
-                                } finally {
+                                }
+
+                                // 3. Если ничего не помогло, скачиваем для вычисления SHA-1 (только новые книги)
+                                if (sha1 == null) {
+                                    Log.d(TAG, "Downloading temporarily and extracting SHA-1 for ${file.name}")
+                                    val tempFile = File(context.cacheDir, "temp_sha_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}_${file.name}")
                                     try {
-                                        if (tempFile.exists()) {
-                                            tempFile.delete()
+                                        val success = cloudService.downloadFile(normalizedPath, tempFile)
+                                        if (success) {
+                                            sha1 = sha1Extractor.extractSha1(tempFile)
+                                            if (sha1 != null) {
+                                                cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
+                                                Log.d(TAG, "Calculated and cached SHA-1 for ${file.name}: $sha1")
+                                            }
                                         }
                                     } catch (e: Exception) {
-                                        Log.e(TAG, "Failed to delete temp SHA-1 file: ${tempFile.absolutePath}", e)
+                                        Log.e(TAG, "Error calculating SHA-1 for ${file.name}", e)
+                                    } finally {
+                                        try {
+                                            if (tempFile.exists()) {
+                                                tempFile.delete()
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Failed to delete temp SHA-1 file: ${tempFile.absolutePath}", e)
+                                        }
                                     }
                                 }
 

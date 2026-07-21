@@ -46,6 +46,17 @@ object EpubIdentifierHelper {
         return path.replace("\\", "/").replace("//", "/").trim().lowercase()
     }
 
+    private fun cleanZipPath(path: String): String {
+        var p = path.replace("\\", "/").replace("//", "/").trim().lowercase()
+        while (p.startsWith("./")) {
+            p = p.substring(2)
+        }
+        while (p.startsWith("/")) {
+            p = p.substring(1)
+        }
+        return p
+    }
+
     fun computeFileSha1(file: File): String? {
         if (!file.exists() || !file.isFile) return null
         return try {
@@ -76,7 +87,7 @@ object EpubIdentifierHelper {
                 var entry = zip.nextEntry
                 while (entry != null) {
                     val content = zip.readBytes()
-                    val normalizedName = normalizeZipPath(entry.name)
+                    val normalizedName = cleanZipPath(entry.name)
                     if (normalizedName == "meta-inf/container.xml") {
                         val strContent = content.toString(Charsets.UTF_8)
                         val match = Regex("<rootfile\\s+[^>]*full-path\\s*=\\s*[\"']([^\"']+)[\"']").find(strContent)
@@ -94,10 +105,10 @@ object EpubIdentifierHelper {
             
             if (opfPath != null) {
                 val decodedOpf = try { java.net.URLDecoder.decode(opfPath!!, "UTF-8") } catch (e: Exception) { opfPath!! }
-                val normalizedOpfPath = normalizeZipPath(decodedOpf)
+                val normalizedOpfPath = cleanZipPath(decodedOpf)
                 val opfDir = decodedOpf.substringBeforeLast("/", "")
                 opfContent = zipFiles[normalizedOpfPath]?.toString(Charsets.UTF_8)
-                    ?: zipFiles[normalizeZipPath(opfPath!!)]?.toString(Charsets.UTF_8)
+                    ?: zipFiles[cleanZipPath(opfPath!!)]?.toString(Charsets.UTF_8)
                     ?: zipFiles.values.firstOrNull { it.isNotEmpty() && (it.size > 100) && String(it.take(100).toByteArray()).contains("<package", ignoreCase = true) }?.toString(Charsets.UTF_8)
                 
                 if (opfContent != null) {
@@ -111,11 +122,27 @@ object EpubIdentifierHelper {
                     val metaMatches = Regex("<meta\\s+([^>]+)>", RegexOption.IGNORE_CASE).findAll(opfContent)
                     for (meta in metaMatches) {
                         val attrs = meta.groupValues[1]
-                        if (attrs.contains("name=\"cover\"", ignoreCase = true) || attrs.contains("name='cover'", ignoreCase = true)) {
+                        val hasCoverName = Regex("name\\s*=\\s*[\"']cover[\"']", RegexOption.IGNORE_CASE).containsMatchIn(attrs)
+                        if (hasCoverName) {
                             val contentMatch = Regex("content\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
                             if (contentMatch != null) {
                                 coverId = contentMatch.groupValues[1]
                                 break
+                            }
+                        }
+                    }
+
+                    if (coverId == null) {
+                        // EPUB 3 meta check
+                        for (meta in metaMatches) {
+                            val attrs = meta.groupValues[1]
+                            val isCoverProperty = Regex("property\\s*=\\s*[\"']cover-image[\"']", RegexOption.IGNORE_CASE).containsMatchIn(attrs)
+                            if (isCoverProperty) {
+                                val contentMatch = Regex("content\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
+                                if (contentMatch != null) {
+                                    coverId = contentMatch.groupValues[1]
+                                    break
+                                }
                             }
                         }
                     }
@@ -130,10 +157,46 @@ object EpubIdentifierHelper {
                         if (idM != null && hrefM != null) {
                             manifestMap[idM.groupValues[1]] = hrefM.groupValues[1]
                         }
+
+                        // EPUB 3 standard properties="cover-image" directly on the item
+                        val propertiesM = Regex("properties\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
+                        if (propertiesM != null && propertiesM.groupValues[1].contains("cover-image", ignoreCase = true) && hrefM != null) {
+                            coverPath = hrefM.groupValues[1]
+                        }
                     }
 
                     if (coverId != null) {
                         coverPath = manifestMap[coverId]
+                    }
+
+                    if (coverPath == null) {
+                        val coverKeys = listOf("cover", "cover-image", "cover-img", "coverimage", "thumb", "thumbnail")
+                        for (key in coverKeys) {
+                            if (manifestMap.containsKey(key)) {
+                                coverPath = manifestMap[key]
+                                break
+                            }
+                        }
+                    }
+
+                    if (coverPath == null) {
+                        for (item in itemMatches) {
+                            val attrs = item.groupValues[1]
+                            val hrefM = Regex("href\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs) ?: continue
+                            val href = hrefM.groupValues[1]
+                            val idM = Regex("id\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
+                            val id = idM?.groupValues?.get(1) ?: ""
+                            val mediaTypeM = Regex("media-type\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
+                            val mediaType = mediaTypeM?.groupValues?.get(1) ?: ""
+                            
+                            if (mediaType.startsWith("image/", ignoreCase = true)) {
+                                if (href.contains("cover", ignoreCase = true) || id.contains("cover", ignoreCase = true) ||
+                                    href.contains("front", ignoreCase = true) || id.contains("front", ignoreCase = true)) {
+                                    coverPath = href
+                                    break
+                                }
+                            }
+                        }
                     }
 
                     var identifier = computeFileSha1(file) ?: idMatch?.groupValues?.get(1)?.trim() ?: java.util.UUID.randomUUID().toString()
@@ -272,20 +335,53 @@ object EpubIdentifierHelper {
     }
 
     fun extractAndSaveEpubCover(file: File, coverPath: String?, sha1: String, context: android.content.Context): String? {
-        if (coverPath.isNullOrEmpty()) return null
         return try {
-            val normalizedCoverPath = normalizeZipPath(coverPath)
             var coverBytes: ByteArray? = null
             
-            ZipInputStream(file.inputStream().buffered()).use { zip ->
-                var entry = zip.nextEntry
-                while (entry != null) {
-                    val normalizedName = normalizeZipPath(entry.name)
-                    if (normalizedName == normalizedCoverPath) {
-                        coverBytes = zip.readBytes()
-                        break
+            if (!coverPath.isNullOrEmpty()) {
+                val cleanedCoverPath = cleanZipPath(coverPath)
+                try {
+                    ZipInputStream(file.inputStream().buffered()).use { zip ->
+                        var entry = zip.nextEntry
+                        while (entry != null) {
+                            val cleanedName = cleanZipPath(entry.name)
+                            if (cleanedName == cleanedCoverPath || cleanedName.endsWith("/$cleanedCoverPath") || cleanedCoverPath.endsWith("/$cleanedName")) {
+                                coverBytes = zip.readBytes()
+                                break
+                            }
+                            entry = zip.nextEntry
+                        }
                     }
-                    entry = zip.nextEntry
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error seeking exact coverPath $coverPath in ${file.name}", e)
+                }
+            }
+            
+            if (coverBytes == null || coverBytes!!.isEmpty()) {
+                // Fallback: search for any image with "cover", "front", or "title" in its path or filename
+                try {
+                    ZipInputStream(file.inputStream().buffered()).use { zip ->
+                        var entry = zip.nextEntry
+                        var firstImageBytes: ByteArray? = null
+                        while (entry != null) {
+                            val cleanedName = cleanZipPath(entry.name)
+                            if (cleanedName.endsWith(".jpg") || cleanedName.endsWith(".jpeg") || cleanedName.endsWith(".png") || cleanedName.endsWith(".gif")) {
+                                if (cleanedName.contains("cover") || cleanedName.contains("front") || cleanedName.contains("title")) {
+                                    coverBytes = zip.readBytes()
+                                    break
+                                }
+                                if (firstImageBytes == null) {
+                                    firstImageBytes = zip.readBytes()
+                                }
+                            }
+                            entry = zip.nextEntry
+                        }
+                        if (coverBytes == null && firstImageBytes != null) {
+                            coverBytes = firstImageBytes
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in fallback scan for cover in ${file.name}", e)
                 }
             }
             

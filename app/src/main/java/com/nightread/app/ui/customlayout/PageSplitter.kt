@@ -355,6 +355,12 @@ object PageSplitter {
     private var renderJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    fun clearCache() {
+        pagesCache.clear()
+        renderQueue.clear()
+        renderJob?.cancel()
+    }
+
     fun isPageCached(pageIndex: Int): Boolean {
         return pagesCache.containsKey(pageIndex)
     }
@@ -371,8 +377,20 @@ object PageSplitter {
         justify: Boolean,
         onLayoutReady: (StaticLayout) -> Unit
     ) {
+        if (width <= 0) {
+            // Do not cache layouts created with invalid/unmeasured widths
+            scope.launch {
+                val layout = createStaticLayout(text, 0, text.length, paint, width, alignment, lineSpacingMultiplier, lineSpacingExtra, hyphenation, justify)
+                withContext(Dispatchers.Main) {
+                    onLayoutReady(layout)
+                }
+            }
+            return
+        }
+
         val cached = pagesCache[pageIndex]
-        if (cached != null) {
+        val expectedWidth = (width - 4).coerceAtLeast(1)
+        if (cached != null && cached.width == expectedWidth) {
             onLayoutReady(cached)
             return
         }
@@ -398,9 +416,10 @@ object PageSplitter {
         hyphenation: Boolean,
         justify: Boolean
     ) {
-        // Cancel previous rendering to prevent flooding and race conditions
+        // Cancel previous rendering and clear cache to prevent flooding, race conditions, and stale data
         renderJob?.cancel()
         renderQueue.clear()
+        pagesCache.clear()
         
         // 1. Текущая (если нет)
         if (!pagesCache.containsKey(currentPage)) renderQueue.add(currentPage)

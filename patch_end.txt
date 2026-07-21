@@ -1,0 +1,75 @@
+                // 4. Await background scan completion (up to a 4s total timeout to prevent hanging)
+                if (isScanningTriggered) {
+                    val scanTimeoutLimit = splashStartTime + 4000L
+                    while (bookViewModel.scanState.value.isScanning && System.currentTimeMillis() < scanTimeoutLimit) {
+                        val state = bookViewModel.scanState.value
+                        val scanProgress = if (state.totalFiles > 0) {
+                            (state.processedFiles.toFloat() / state.totalFiles * 25).toInt()
+                        } else {
+                            0
+                        }
+                        updateLoadingProgress(45 + scanProgress, "Сканирование: ${state.processedFiles}/${state.totalFiles}...")
+                        kotlinx.coroutines.delay(200)
+                    }
+                } else {
+                    for (p in 46..70 step 2) {
+                        updateLoadingProgress(p, "Загрузка книг...")
+                        kotlinx.coroutines.delay(40)
+                    }
+                }
+
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    updateLoadingProgress(100, "Готово!")
+                    kotlinx.coroutines.delay(300)
+                    proceedFromSplash()
+                }
+            }
+        } else {
+            splashOverlay.visibility = android.view.View.GONE
+            isSplashActive = false
+        }
+    }
+
+    fun openLibraryFragment(filterType: String = "all") {
+        val fragment = com.nightread.app.ui.LibraryFragment().apply {
+            arguments = android.os.Bundle().apply {
+                putString("FILTER_TYPE", filterType)
+            }
+        }
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .commit()
+    }
+
+    fun openSyncFragment() {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, com.nightread.app.ui.YandexSyncFragment())
+            .commit()
+    }
+
+    fun openStatsFragment() {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, com.nightread.app.ui.StatsFragment())
+            .commit()
+    }
+
+    fun openDrawer() {
+        drawerLayout.openDrawer(androidx.core.view.GravityCompat.START)
+    }
+
+    private fun hasStoragePermission(): Boolean {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            android.os.Environment.isExternalStorageManager()
+        } else {
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    companion object {
+        var isSplashActive = true
+        var hasShownSplash = false
+    }
+}

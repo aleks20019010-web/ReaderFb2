@@ -541,6 +541,11 @@ object YandexDiskManager {
     fun saveSyncTimestamp(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putLong("last_sync_time", System.currentTimeMillis()).apply()
+        try {
+            com.nightread.app.service.AutoSyncScheduler.scheduleAutoSync(context)
+        } catch (e: Exception) {
+            android.util.Log.e("YandexDiskManager", "Error rescheduling auto sync", e)
+        }
     }
 
     fun getLastSyncTimestamp(context: Context): Long {

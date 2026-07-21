@@ -302,7 +302,6 @@ class MainActivity : BaseActivity() {
         var shouldAutoOpen = false
 
         val preventAutoOpen = intent.getBooleanExtra("PREVENT_AUTO_OPEN", false)
-        val lastReadSha1 = SettingsManager.getLastReadBookSha1(this)
 
         var isTransitionStarted = false
         fun proceedFromSplash() {
@@ -375,30 +374,6 @@ class MainActivity : BaseActivity() {
                     }
                 }
 
-                // 2. Prepare/pre-split last read book if available
-                if (!lastReadSha1.isNullOrEmpty() && !preventAutoOpen) {
-                    val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
-                    val book = db.bookDao().getBookBySha1(lastReadSha1)
-                    if (book != null) {
-                        val percent = if (book.totalCharacters > 0) {
-                            val calculated = ((book.currentProgressChar.toFloat() / book.totalCharacters) * 100).toInt().coerceIn(0, 100)
-                            if (calculated >= 98) 100 else calculated
-                        } else {
-                            0
-                        }
-                        lastReadBookSha1 = lastReadSha1
-                        shouldAutoOpen = true
-                    }
-                }
-
-                // 3. Warm up the database and book list stream
-                try {
-                    updateLoadingProgress(45, "Обновление книжной полки...")
-                    bookViewModel.allBooks.firstOrNull()
-                } catch (e: Exception) {
-                    android.util.Log.e("MainActivity", "Database warm up failed in background", e)
-                }
-
                 // 4. Await background scan completion (up to a 4s total timeout to prevent hanging)
                 if (isScanningTriggered) {
                     val scanTimeoutLimit = splashStartTime + 4000L
@@ -410,293 +385,55 @@ class MainActivity : BaseActivity() {
                             0
                         }
                         updateLoadingProgress(45 + scanProgress, "Сканирование: ${state.processedFiles}/${state.totalFiles}...")
-                        delay(200)
+                        kotlinx.coroutines.delay(200)
                     }
-                    android.util.Log.d("MainActivity", "Splash book scanning completed or timed out. finalIsScanning=${bookViewModel.scanState.value.isScanning}")
                 } else {
                     for (p in 46..70 step 2) {
                         updateLoadingProgress(p, "Загрузка книг...")
-                        delay(40)
+                        kotlinx.coroutines.delay(40)
                     }
                 }
 
-                // 5. Precalculate and parse last book pages if needed
-                if (shouldAutoOpen && lastReadBookSha1 != null) {
-                    updateLoadingProgress(70, "Анализ структуры страниц книги...")
-                    withContext(Dispatchers.Default) {
-                        try {
-                            val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
-                            val book = db.bookDao().getBookBySha1(lastReadBookSha1!!) ?: return@withContext
-                            val filePath = book.filePath ?: return@withContext
-                            val file = File(filePath)
-                            if (file.exists()) {
-                                updateLoadingProgress(75, "Открытие книги: ${book.title ?: "Без названия"}...")
-                                val parsedBook = parseBookFile(file)
-                                val bookContent = parsedBook.content.trim().trim('\u000C').trim()
-                                val bookNotes = parsedBook.notes
-                                
-                                if (bookContent.isNotEmpty()) {
-                                    updateLoadingProgress(80, "Анализ структуры и переносов...")
-                                    BookCache.sha1 = lastReadBookSha1!!
-                                    BookCache.content = bookContent
-                                    BookCache.notes = bookNotes
-                                    
-                                    val isWebView = filePath.endsWith(".fb2", true) || 
-                                                    filePath.endsWith(".fb2.zip", true) || 
-                                                    filePath.endsWith(".zip", true) ||
-                                                    filePath.endsWith(".epub", true)
-                                    if (isWebView) {
-                                        val offsets = mutableListOf<Int>()
-                                        var i = 0
-                                        val len = bookContent.length
-                                        while (i < len) {
-                                            val nextTagStart = bookContent.indexOf('<', i)
-                                            if (nextTagStart == -1) break
-                                            i = nextTagStart + 1
-                                            if (i < len && bookContent[i] != '/') {
-                                                var endNameIdx = i
-                                                while (endNameIdx < len && bookContent[endNameIdx] != ' ' && bookContent[endNameIdx] != '>' && bookContent[endNameIdx] != '\t' && bookContent[endNameIdx] != '\n' && bookContent[endNameIdx] != '\r') {
-                                                    endNameIdx++
-                                                }
-                                                if (endNameIdx > i && (endNameIdx - i) <= 8) {
-                                                    val tagName = bookContent.substring(i, endNameIdx).lowercase()
-                                                    if (tagName == "p" || tagName == "title" || tagName == "subtitle" || 
-                                                        tagName == "h1" || tagName == "h2" || tagName == "h3" || 
-                                                        tagName == "h4" || tagName == "h5" || tagName == "h6") {
-                                                        offsets.add(nextTagStart)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        BookCache.paragraphOffsets = offsets
-                                        BookCache.totalParagraphCount = offsets.size.coerceAtLeast(1)
-                                    } else {
-                                        BookCache.paragraphOffsets = emptyList()
-                                        BookCache.totalParagraphCount = 1
-                                    }
-                                    
-                                    val hyphenationEnabled = SettingsManager.isHyphenationEnabled(this@MainActivity)
-                                    val textToSplit = if (hyphenationEnabled) {
-                                        com.nightread.app.ui.HyphenatorHelper.hyphenate(bookContent, this@MainActivity)
-                                    } else {
-                                        bookContent
-                                    }
-                                    BookCache.hyphenatedContent = textToSplit
-                                    BookCache.isHyphenated = hyphenationEnabled
-                                    
-                                    updateLoadingProgress(85, "Отрисовка и верстка страниц...")
-                                    val paint = TextPaint().apply {
-                                        textSize = SettingsManager.getFontSize(this@MainActivity) * resources.displayMetrics.scaledDensity
-                                        val family = SettingsManager.getFontFamily(this@MainActivity)
-                                        val numericWeight = SettingsManager.getFontWeightAsInt(this@MainActivity)
-                                        typeface = FontUtils.createTypeface(this@MainActivity, family, numericWeight)
-                                    }
-                                    
-                                    val paddingHorizontal = (32 * resources.displayMetrics.density).toInt()
-                                    val paddingVertical = (24 * resources.displayMetrics.density).toInt() + getTopInset() + getBottomInset()
-                                    
-                                    val availableWidth = width - paddingHorizontal
-                                    val availableHeight = height - paddingVertical
-                                    
-                                    val alignment = getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE).getString("saved_font_alignment", "justify") ?: "justify"
-                                    val lineSpacing = SettingsManager.getLineSpacing(this@MainActivity)
-                                    
-                                    val formattedText = com.nightread.app.ui.TextFormatter.formatChapterSpans(this@MainActivity, textToSplit, paint.textSize)
-                                    val builder = com.nightread.app.ui.customlayout.TextLayoutBuilder()
-                                        .setText(formattedText)
-                                        .setWidth(availableWidth)
-                                        .setHeight(availableHeight)
-                                        .setPaint(paint)
-                                        .setLineSpacing(0f, lineSpacing)
-                                        .setHyphenation(hyphenationEnabled)
-                                        
-                                    val offsets = builder.buildPagination()
-                                    val pages = java.util.ArrayList<CharSequence>()
-                                    for (i in offsets.indices) {
-                                        val startIdx = offsets[i]
-                                        val endIdx = if (i < offsets.size - 1) offsets[i + 1] else formattedText.length
-                                        pages.add(formattedText.subSequence(startIdx, endIdx))
-                                    }
-                                    val splitResult = com.nightread.app.ui.TextFormatter.PageResult(pages, java.util.ArrayList(offsets), true)
-                                    
-                                    val currentKey = "${availableWidth}_${availableHeight}_${paint.textSize}_${SettingsManager.getFontFamily(this@MainActivity)}_${SettingsManager.getFontWeightAsInt(this@MainActivity)}_${lineSpacing}_align=${alignment}_hyphen=$hyphenationEnabled"
-                                    BookCache.layoutKey = currentKey
-                                    BookCache.splitResult = splitResult
-                                    
-                                    android.util.Log.d("MainActivity", "Precalculated splitting finished during splash. Total pages: ${splitResult.pages.size}")
-                                    updateLoadingProgress(95, "Рассчитано страниц: ${splitResult.pages.size}. Открываем...")
-                                }
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.e("MainActivity", "Pre-splitting failed in splash background", e)
-                        }
-                    }
-                } else {
-                    // Smooth transition to 95% if not auto-opening
-                    for (p in 71..95) {
-                        updateLoadingProgress(p, "Завершение загрузки...")
-                        delay(20)
-                    }
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    updateLoadingProgress(100, "Готово!")
+                    kotlinx.coroutines.delay(300)
+                    proceedFromSplash()
                 }
-
-                // 6. Ensure the splash screen is visible for at least 1.5 seconds (1500ms)
-                val elapsed = System.currentTimeMillis() - splashStartTime
-                val remaining = 1500L - elapsed
-                if (remaining > 0) {
-                    val steps = (remaining / 50L).toInt().coerceAtLeast(1)
-                    val stepIncrement = (100 - 95) / steps.toFloat()
-                    var currentP = 95f
-                    for (i in 0 until steps) {
-                        currentP += stepIncrement
-                        updateLoadingProgress(currentP.toInt().coerceAtMost(100), "Готово к чтению...")
-                        delay(50L)
-                    }
-                } else {
-                    updateLoadingProgress(100, "Готово к чтению...")
-                }
-
-                // Proceed with auto-open or library fade-out
-                proceedFromSplash()
+            }
             }
         }
-    }
-
-    private fun getTopInset(): Int {
-        val insets = androidx.core.view.ViewCompat.getRootWindowInsets(window.decorView)
-        if (insets != null) {
-            val displayCutoutInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.displayCutout())
-            val statusBarInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-            return maxOf(statusBarInsets.top, displayCutoutInsets.top)
+    fun openLibraryFragment(filterType: String = "all") {
+        val fragment = com.nightread.app.ui.LibraryFragment().apply {
+            arguments = android.os.Bundle().apply {
+                putString("FILTER_TYPE", filterType)
+            }
         }
-        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
-    }
-
-    private fun getBottomInset(): Int {
-        val insets = androidx.core.view.ViewCompat.getRootWindowInsets(window.decorView)
-        if (insets != null) {
-            val navBarInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
-            return navBarInsets.bottom
-        }
-        return 0
-    }
-
-    private fun parseBookFile(file: File): BookParser.ParsedBook {
-        val ext = file.extension.lowercase(Locale.ROOT)
-        return when (ext) {
-            "fb2", "xml" -> {
-                Fb2Parser.parse(file, file.nameWithoutExtension)
-            }
-            "txt" -> {
-                TxtParser.parse(file, file.nameWithoutExtension)
-            }
-            "epub" -> {
-                EpubParser.parse(file, file.nameWithoutExtension)
-            }
-            "zip" -> {
-                var parsed = BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
-                try {
-                    FileInputStream(file).use { fis ->
-                        ZipInputStream(fis).use { zis ->
-                            var entry = zis.nextEntry
-                            while (entry != null) {
-                                if (!entry.isDirectory && (entry.name.endsWith(".fb2") || entry.name.endsWith(".xml"))) {
-                                    val tempFile = File.createTempFile("zip_fb2", ".fb2")
-                                    tempFile.deleteOnExit()
-                                    tempFile.outputStream().use { fos ->
-                                        zis.copyTo(fos)
-                                    }
-                                    parsed = Fb2Parser.parse(tempFile, file.nameWithoutExtension)
-                                    tempFile.delete()
-                                    break
-                                }
-                                entry = zis.nextEntry
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("MainActivity", "Error parsing zip in splash", e)
-                }
-                parsed
-            }
-            else -> BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
-        }
-    }
-
-    private fun openLibraryFragment(filter: String) {
-        val fragment = LibraryFragment.newInstance(filter)
         supportFragmentManager.beginTransaction()
-            .setTransition(androidx.fragment.app.FragmentTransaction.TRANSIT_FRAGMENT_FADE)
             .replace(R.id.fragment_container, fragment)
             .commit()
     }
 
-    private fun openSyncFragment() {
-        val fragment = com.nightread.app.ui.YandexSyncFragment.newInstance()
+    fun openSyncFragment() {
         supportFragmentManager.beginTransaction()
-            .setTransition(androidx.fragment.app.FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-            .replace(R.id.fragment_container, fragment)
+            .replace(R.id.fragment_container, com.nightread.app.ui.YandexSyncFragment())
             .commit()
     }
 
-    private fun openBookmarksFragment() {
-        val fragment = com.nightread.app.ui.BookmarksLibraryFragment.newInstance()
+    fun openStatsFragment() {
         supportFragmentManager.beginTransaction()
-            .setTransition(androidx.fragment.app.FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-            .replace(R.id.fragment_container, fragment)
+            .replace(R.id.fragment_container, com.nightread.app.ui.StatsFragment())
             .commit()
     }
-
-    private fun openStatsFragment() {
-        val fragment = com.nightread.app.ui.StatsFragment.newInstance()
-        supportFragmentManager.beginTransaction()
-            .setTransition(androidx.fragment.app.FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-            .replace(R.id.fragment_container, fragment)
-            .commit()
-    }
-
 
     fun openDrawer() {
-        drawerLayout.openDrawer(GravityCompat.START)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (intent.getBooleanExtra("OPEN_DRAWER", false)) {
-            intent.removeExtra("OPEN_DRAWER")
-            openDrawer()
-        }
-    }
-
-    override fun onStop() {
-        super.onStop()
-        val splashOverlay = findViewById<android.view.View>(R.id.splash_overlay)
-        splashOverlay?.visibility = android.view.View.GONE
-        isSplashActive = false
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        if (intent.getBooleanExtra("OPEN_DRAWER", false)) {
-            openDrawer()
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        hasShownSplash = false
+        drawerLayout.openDrawer(androidx.core.view.GravityCompat.START)
     }
 
     private fun hasStoragePermission(): Boolean {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            return try {
-                android.os.Environment.isExternalStorageManager()
-            } catch (e: Exception) {
-                false
-            }
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            android.os.Environment.isExternalStorageManager()
         } else {
-            return androidx.core.content.ContextCompat.checkSelfPermission(
+            androidx.core.content.ContextCompat.checkSelfPermission(
                 this,
                 android.Manifest.permission.READ_EXTERNAL_STORAGE
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -704,7 +441,7 @@ class MainActivity : BaseActivity() {
     }
 
     companion object {
-        var hasShownSplash = false
         var isSplashActive = true
+        var hasShownSplash = false
     }
 }

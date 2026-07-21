@@ -977,6 +977,11 @@ class BookReaderActivity : AppCompatActivity() {
         currentTextPaint = paint
         
         val availableWidth = readerView.width - readerView.paddingLeft - readerView.paddingRight
+        if (availableWidth <= 0) {
+            // View is not measured or ready yet, do not attempt to render page with invalid/unmeasured width.
+            // OnLayoutChangeListener will trigger layout update once measured.
+            return
+        }
         val alignSetting = viewModel.fontAlignmentState.value.lowercase()
         val align = when (alignSetting) {
             "left" -> Layout.Alignment.ALIGN_NORMAL
