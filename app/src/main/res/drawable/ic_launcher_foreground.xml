@@ -5,124 +5,97 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Atmospheric Deep Sky Background Glow Behind Moon -->
+    <!-- Glowing Background Aura (Safe Zone Core) -->
     <path
-        android:fillColor="#0D1527"
-        android:pathData="M54,12 C74,12 90,28 90,48 C90,68 74,84 54,84 C34,84 18,68 18,48 C18,28 34,12 54,12 Z" />
+        android:fillColor="#1E293B"
+        android:pathData="M54,24 C68.36,24 80,35.64 80,50 C80,64.36 68.36,76 54,76 C39.64,76 28,64.36 28,50 C28,35.64 39.64,24 54,24 Z" />
 
-    <!-- Crescent Moon with Fine Detail -->
+    <!-- Crescent Moon (Night Theme Accent) -->
     <path
-        android:fillColor="#CBD5E1"
-        android:pathData="M66,22 C68.8,29.5 64.5,38.2 56.5,41 A14,14 0 0,0 72,44 C79.7,44 86,37.7 86,30 C86,23.5 81.5,18.1 75.5,16.5 A14,14 0 0,1 66,22 Z" />
+        android:fillColor="#FBBF24"
+        android:pathData="M62,28 C64.1,33.5 61,39.8 55.2,41.8 A10,10 0 0,0 66.5,44 C72,44 76.5,39.5 76.5,34 C76.5,29.3 73.2,25.4 68.8,24.3 A10,10 0 0,1 62,28 Z" />
 
-    <!-- Big 4-point Star -->
+    <!-- Sparkle Star -->
     <path
-        android:fillColor="#F1F5F9"
-        android:pathData="M34,22 L36,28 L42,30 L36,32 L34,38 L32,32 L26,30 L32,28 Z" />
+        android:fillColor="#FDE047"
+        android:pathData="M40,28 L41.5,32 L45.5,33.5 L41.5,35 L40,39 L38.5,35 L34.5,33.5 L38.5,32 Z" />
 
-    <!-- Medium 4-point Star -->
+    <!-- Open Book Base/Cover Shadow -->
     <path
-        android:fillColor="#94A3B8"
-        android:pathData="M50,14 L51.2,17.2 L54.4,18.4 L51.2,19.6 L50,22.8 L48.8,19.6 L45.6,18.4 L48.8,17.2 Z" />
+        android:fillColor="#020617"
+        android:pathData="M27,72 C27,72 40.5,65 54,67.5 C67.5,65 81,72 81,72 L81,46 C81,46 67.5,39 54,42.5 C40.5,39 27,46 27,46 Z" />
 
-    <!-- Small Star 1 -->
+    <!-- Open Book Cover Layer -->
+    <path
+        android:fillColor="#0F172A"
+        android:pathData="M28,70.5 C28,70.5 41,63.8 54,66.2 C67,63.8 80,70.5 80,70.5 L80,45.5 C80,45.5 67,38.8 54,42 C41,38.8 28,45.5 28,45.5 Z" />
+
+    <!-- Left Page Mass -->
+    <path
+        android:fillColor="#334155"
+        android:pathData="M30,68 C30,68 41.5,61.5 53,63.8 L53,43 C41.5,39.5 30,45.8 30,45.8 Z" />
+
+    <!-- Right Page Mass -->
+    <path
+        android:fillColor="#1E293B"
+        android:pathData="M78,68 C78,68 66.5,61.5 55,63.8 L55,43 C66.5,39.5 78,45.8 78,45.8 Z" />
+
+    <!-- Top Left Page (Parchment Tint) -->
     <path
         android:fillColor="#64748B"
-        android:pathData="M24,46 L24.8,48.2 L27,49 L24.8,49.8 L24,52 L23.2,49.8 L21,49 L23.2,48.2 Z" />
+        android:pathData="M31,66.5 C31,66.5 42,60.2 53.5,62.2 L53.5,42 C42,38.5 31,44.5 31,44.5 Z" />
 
-    <!-- Small Star 2 -->
-    <path
-        android:fillColor="#94A3B8"
-        android:pathData="M80,16 L81,19 L84,20 L81,21 L80,24 L79,21 L76,20 L79,19 Z" />
-
-    <!-- Dark Leather Book Back Cover (Outlined Depth) -->
-    <path
-        android:fillColor="#0B0F19"
-        android:pathData="M20,82 C20,82 37,72.5 54,75.5 C71,72.5 88,82 88,82 L88,46 C88,46 71,36.5 54,41.5 C37,36.5 20,46 20,46 Z" />
-
-    <!-- Outer Leather Edging -->
-    <path
-        android:fillColor="#1E293B"
-        android:pathData="M22,80 C22,80 37,71.5 54,74.5 C71,71.5 86,80 86,80 L86,47 C86,47 71,38.5 54,42.5 C37,38.5 22,47 22,47 Z" />
-
-    <!-- Page Mass Left -->
-    <path
-        android:fillColor="#334155"
-        android:pathData="M24,77 C24,77 38,69 53,71.5 L53,44.5 C38,40 24,48 24,48 Z" />
-
-    <!-- Page Mass Right -->
-    <path
-        android:fillColor="#1E293B"
-        android:pathData="M84,77 C84,77 70,69 55,71.5 L55,44.5 C70,40 84,48 84,48 Z" />
-
-    <!-- Top Open Page Left (Dark Parchment Tint) -->
+    <!-- Top Right Page -->
     <path
         android:fillColor="#475569"
-        android:pathData="M25,75 C25,75 39,67 53.5,69.5 L53.5,43.5 C39,39 25,47 C25,47 Z" />
+        android:pathData="M77,66.5 C77,66.5 66,60.2 54.5,62.2 L54.5,42 C66,38.5 77,44.5 77,44.5 Z" />
 
-    <!-- Top Open Page Right -->
+    <!-- Center Spine Spine Rib -->
     <path
-        android:fillColor="#334155"
-        android:pathData="M83,75 C83,75 69,67 54.5,69.5 L54.5,43.5 C69,39 83,47 83,47 Z" />
+        android:fillColor="#020617"
+        android:pathData="M53,41.5 C53.5,40.5 54.5,40.5 55,41.5 L55,64.5 C54.5,65.5 53.5,65.5 53,64.5 Z" />
 
-    <!-- Book Spine Rib -->
-    <path
-        android:fillColor="#090D16"
-        android:pathData="M52.5,42.5 C53.2,40.5 54.8,40.5 55.5,42.5 L55.5,73 C54.8,75 53.2,75 52.5,73 Z" />
-
-    <!-- Bookmark Ribbon -->
+    <!-- Bookmark Ribbon (Vibrant Blue Cyan) -->
     <path
         android:fillColor="#38BDF8"
-        android:pathData="M53,42 L56,42 L56,84 L54.5,82 L53,84 Z" />
+        android:pathData="M53,41 L56,41 L56,73 L54.5,71 L53,73 Z" />
 
-    <!-- Detailed Text Lines - Left Page -->
+    <!-- Text Lines - Left Page -->
     <path
-        android:pathData="M30,52 Q39,47.5 48,49"
+        android:pathData="M35,49 Q42,45.5 49,47"
+        android:strokeWidth="1.2"
+        android:strokeColor="#F8FAFC"
+        android:strokeLineCap="round"/>
+
+    <path
+        android:pathData="M36,53 Q42,49.5 48,51"
+        android:strokeWidth="1.2"
+        android:strokeColor="#94A3B8"
+        android:strokeLineCap="round"/>
+
+    <path
+        android:pathData="M35,57 Q42,53.5 49,55"
+        android:strokeWidth="1.2"
+        android:strokeColor="#CBD5E1"
+        android:strokeLineCap="round"/>
+
+    <!-- Text Lines - Right Page -->
+    <path
+        android:pathData="M73,49 Q66,45.5 59,47"
         android:strokeWidth="1.2"
         android:strokeColor="#CBD5E1"
         android:strokeLineCap="round"/>
 
     <path
-        android:pathData="M31,57 Q39,52.5 47,54"
+        android:pathData="M72,53 Q66,49.5 60,51"
         android:strokeWidth="1.2"
-        android:strokeColor="#94A3B8"
+        android:strokeColor="#64748B"
         android:strokeLineCap="round"/>
 
     <path
-        android:pathData="M29,62 Q39,57.5 48,59"
+        android:pathData="M73,57 Q66,53.5 59,55"
         android:strokeWidth="1.2"
         android:strokeColor="#CBD5E1"
-        android:strokeLineCap="round"/>
-
-    <path
-        android:pathData="M32,67 Q40,62.5 46,64"
-        android:strokeWidth="1.2"
-        android:strokeColor="#94A3B8"
-        android:strokeLineCap="round"/>
-
-    <!-- Detailed Text Lines - Right Page -->
-    <path
-        android:pathData="M78,52 Q69,47.5 60,49"
-        android:strokeWidth="1.2"
-        android:strokeColor="#94A3B8"
-        android:strokeLineCap="round"/>
-
-    <path
-        android:pathData="M77,57 Q69,52.5 61,54"
-        android:strokeWidth="1.2"
-        android:strokeColor="#64748B"
-        android:strokeLineCap="round"/>
-
-    <path
-        android:pathData="M79,62 Q69,57.5 60,59"
-        android:strokeWidth="1.2"
-        android:strokeColor="#94A3B8"
-        android:strokeLineCap="round"/>
-
-    <path
-        android:pathData="M76,67 Q68,62.5 62,64"
-        android:strokeWidth="1.2"
-        android:strokeColor="#64748B"
         android:strokeLineCap="round"/>
 
 </vector>

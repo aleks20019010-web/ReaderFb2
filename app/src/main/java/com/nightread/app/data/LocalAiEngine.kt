@@ -1,7 +1,5 @@
 package com.nightread.app.data
 
-import com.google.mediapipe.tasks.genai.llminference.LlmInference
-
 import android.content.Context
 import java.io.File
 import java.nio.charset.StandardCharsets
@@ -16,7 +14,6 @@ data class ClassicBookData(
 
 object LocalAiEngine {
 
-    private var llmInference: LlmInference? = null
     var isSimulatedMode = false
     var isOfflineModelReady = false
 
@@ -25,83 +22,43 @@ object LocalAiEngine {
     }
 
     fun hasLoadedLocalModel(): Boolean {
-        return llmInference != null || isOfflineModelReady || isSimulatedMode
+        return LlamaEngine.isModelLoaded() || isOfflineModelReady || isSimulatedMode
     }
 
     private fun ensureModelInitialized(context: Context) {
-        if (llmInference == null && !isOfflineModelReady) {
-            val modelFile = java.io.File(context.filesDir, "model.bin").takeIf { it.exists() && it.length() > 1000000 }
-                ?: java.io.File(context.filesDir, "model.task").takeIf { it.exists() && it.length() > 1000000 }
-                ?: java.io.File(context.filesDir, "gemma.bin").takeIf { it.exists() && it.length() > 1000000 }
-
-            if (modelFile != null) {
-                // Check if it's a GGUF file which will crash MediaPipe
-                try {
-                    java.io.FileInputStream(modelFile).use { fis ->
-                        val header = ByteArray(4)
-                        if (fis.read(header) == 4) {
-                            val magic = String(header)
-                            if (magic == "GGUF") {
-                                android.util.Log.e("LocalAiEngine", "GGUF format not supported by MediaPipe")
-                                isOfflineModelReady = true
-                                return
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-                initRealModel(context)
-            } else {
-                isOfflineModelReady = true
+        if (!LlamaEngine.isModelLoaded()) {
+            LlamaEngine.initialize(context)
+            if (LlamaEngine.getModelFile(context).exists()) {
+                LlamaEngine.loadModel(context)
             }
+            isOfflineModelReady = true
         }
     }
 
     fun initRealModel(context: Context): Boolean {
         isOfflineModelReady = true
-        try {
-            val modelFile = java.io.File(context.filesDir, "model.bin").takeIf { it.exists() && it.length() > 1000000 }
-                ?: java.io.File(context.filesDir, "model.task").takeIf { it.exists() && it.length() > 1000000 }
-                ?: java.io.File(context.filesDir, "gemma.bin").takeIf { it.exists() && it.length() > 1000000 }
-
-            if (modelFile != null && modelFile.exists()) {
-                try {
-                    val options = LlmInference.LlmInferenceOptions.builder()
-                        .setModelPath(modelFile.absolutePath)
-                        .setMaxTokens(512)
-                        .build()
-                    llmInference = LlmInference.createFromOptions(context, options)
-                    return true
-                } catch (e: Exception) {
-                    android.util.Log.e("LocalAiEngine", "Failed to initialize MediaPipe LlmInference", e)
-                    llmInference = null
-                    return true
-                }
-            }
-            return true
-        } catch (e: Exception) {
-            android.util.Log.e("LocalAiEngine", "initRealModel exception", e)
-            return true
+        LlamaEngine.initialize(context)
+        val file = LlamaEngine.getModelFile(context)
+        if (file.exists()) {
+            return LlamaEngine.loadModel(context)
         }
+        return true
     }
     
     private fun generateAiResponse(context: Context, prompt: String): String? {
-        // Try real local LlmInference
-        if (llmInference != null) {
+        // Use llama.cpp via LlamaEngine JNI
+        if (LlamaEngine.isModelLoaded()) {
             try {
-                val localResponse = llmInference?.generateResponse(prompt)
-                if (!localResponse.isNullOrBlank()) {
-                    return localResponse.trim()
+                val response = LlamaEngine.generate(context, prompt, temperature = 0.2f, topK = 40, maxTokens = 256)
+                if (response.isNotBlank()) {
+                    return response.trim()
                 }
             } catch (e: Exception) {
-                android.util.Log.e("LocalAiEngine", "LlmInference exception", e)
+                android.util.Log.e("LocalAiEngine", "LlamaEngine exception", e)
             }
         }
-
         return null
     }
-
 
     // A beautiful preset library of world and Russian classics to provide stunning literary insights
     private val CLASSICS_DATABASE = mapOf(
