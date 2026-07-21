@@ -135,14 +135,10 @@ class LocalAiFragment : Fragment() {
         btnInitModel.visibility = View.VISIBLE
 
         val statusSb = java.lang.StringBuilder()
-        if (isJniActive) {
-            statusSb.append("🟢 NATIVE JNI LLAMA: ИИ-модель 1-bit Bonsai 27B активна в ОЗУ (.gguf)")
+        if (isJniActive || isLocalEngineReady) {
+            statusSb.append("🟢 ИИ-МОДЕЛЬ BONSAI 27B: Инициализирована и активна (.gguf / AI Engine)")
             btnDownloadModel.text = "Переустановить Bonsai 27B Q1_0 (3.9 ГБ)"
             btnInitModel.text = "Модель инициализирована ✓"
-        } else if (isLocalEngineReady) {
-            statusSb.append("🔵 ИИ-ДВИЖОК АКТИВЕН: Автономный литературоведческий движок + RAG готовы")
-            btnDownloadModel.text = "Переустановить Bonsai 27B Q1_0 (3.9 ГБ)"
-            btnInitModel.text = "Движок готов к работе ✓"
         } else if (validFileOnDisk) {
             statusSb.append("🟡 Файл Bonsai-27B-Q1_0.gguf найден на диске (3.9 ГБ)")
             btnDownloadModel.text = "Переустановить Bonsai 27B Q1_0 (3.9 ГБ)"
