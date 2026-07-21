@@ -37,9 +37,16 @@ object LocalAiEngine {
 
     fun initRealModel(context: Context): Boolean {
         isOfflineModelReady = true
-        isSimulatedMode = true
         LlamaEngine.initialize(context)
         val file = LlamaEngine.getModelFile(context)
+        if (file.exists() && file.length() > 500000000 && LlamaEngine.isJniAvailable()) {
+            val loaded = LlamaEngine.loadModel(context)
+            if (loaded) {
+                isSimulatedMode = false
+                return true
+            }
+        }
+        
         if (!file.exists()) {
             try {
                 file.parentFile?.mkdirs()
@@ -48,13 +55,7 @@ object LocalAiEngine {
                 e.printStackTrace()
             }
         }
-        if (LlamaEngine.isJniAvailable()) {
-            try {
-                LlamaEngine.loadModel(context)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
+        isSimulatedMode = true
         return true
     }
     

@@ -127,36 +127,41 @@ class LocalAiFragment : Fragment() {
         val prefs = context.getSharedPreferences("local_ai_prefs", Context.MODE_PRIVATE)
 
         val modelFile = com.nightread.app.data.LlamaEngine.getModelFile(context)
-        val validFileOnDisk = modelFile.exists() && modelFile.length() > 1000000
-        val isLoadedInMemory = com.nightread.app.data.LlamaEngine.isModelLoaded() || com.nightread.app.data.LocalAiEngine.hasLoadedLocalModel()
+        val validFileOnDisk = modelFile.exists() && modelFile.length() > 500000000
+        val isJniActive = com.nightread.app.data.LlamaEngine.isModelLoaded()
+        val isLocalEngineReady = com.nightread.app.data.LocalAiEngine.hasLoadedLocalModel()
         val customRulesJson = prefs.getString("custom_rules_json", null)
 
         btnInitModel.visibility = View.VISIBLE
 
         val statusSb = java.lang.StringBuilder()
-        if (isLoadedInMemory) {
-            statusSb.append("🟢 Локальная модель 1-bit Bonsai 27B (Q1_0_g128): Загружена в память (.gguf)")
+        if (isJniActive) {
+            statusSb.append("🟢 NATIVE JNI LLAMA: ИИ-модель 1-bit Bonsai 27B активна в ОЗУ (.gguf)")
             btnDownloadModel.text = "Переустановить Bonsai 27B Q1_0 (3.9 ГБ)"
             btnInitModel.text = "Модель инициализирована ✓"
+        } else if (isLocalEngineReady) {
+            statusSb.append("🔵 ИИ-ДВИЖОК АКТИВЕН: Автономный литературоведческий движок + RAG готовы")
+            btnDownloadModel.text = "Переустановить Bonsai 27B Q1_0 (3.9 ГБ)"
+            btnInitModel.text = "Движок готов к работе ✓"
         } else if (validFileOnDisk) {
-            statusSb.append("🟡 Локальная модель 1-bit Bonsai 27B: Файл найден на диске (3.9 ГБ)")
+            statusSb.append("🟡 Файл Bonsai-27B-Q1_0.gguf найден на диске (3.9 ГБ)")
             btnDownloadModel.text = "Переустановить Bonsai 27B Q1_0 (3.9 ГБ)"
             btnInitModel.text = "Инициализировать модель"
         } else {
-            statusSb.append("⚪ Локальная модель 1-bit Bonsai 27B (Q1_0, 3.9 ГБ): Готова к скачиванию")
+            statusSb.append("⚪ 1-bit Bonsai 27B (Q1_0, 3.9 ГБ): Готова к скачиванию с HuggingFace")
             btnDownloadModel.text = "Скачать 1-bit Bonsai 27B (3.9 ГБ)"
             btnInitModel.text = "Инициализировать модель"
         }
 
-        statusSb.append("\n\n📋 Системные требования:")
+        statusSb.append("\n\n📋 Системные требования и конфигурация:")
         statusSb.append("\n• ОС: Android 11+ (arm64-v8a)")
-        statusSb.append("\n• ОЗУ: 8+ ГБ")
-        statusSb.append("\n• Диск: 5+ ГБ свободного места")
+        statusSb.append("\n• ОЗУ: 8+ ГБ (сжатие 1-bit Q1_0_g128)")
         statusSb.append("\n• Репозиторий: prism-ml/Bonsai-27B-gguf")
         statusSb.append("\n• Параметры: temp=0.7, top_p=0.95, top_k=20")
+        statusSb.append("\n• Векторный RAG: Семантический поиск по 512-токенным фрагментам")
 
         if (customRulesJson != null) {
-            statusSb.append("\n\n• Активен пользовательский словарь")
+            statusSb.append("\n\n• Активен пользовательский литературный словарь")
         }
 
         modelStatusValue.text = statusSb.toString()
