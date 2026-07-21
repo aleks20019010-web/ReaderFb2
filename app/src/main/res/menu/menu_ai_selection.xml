@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_ai_assistant"
+        android:title="AI Ассистент"
+        android:icon="@drawable/ic_ai_stars"
+        android:showAsAction="always|withText" />
+</menu>

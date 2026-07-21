@@ -23,8 +23,23 @@ object LocalAiEngine {
 
     private fun ensureModelInitialized(context: Context) {
         if (llmInference == null && !isSimulatedMode) {
-            val modelFile = java.io.File(context.filesDir, "gemma.bin")
+            val modelFile = java.io.File(context.filesDir, "model.task").takeIf { it.exists() } ?: java.io.File(context.filesDir, "model.bin").takeIf { it.exists() } ?: java.io.File(context.filesDir, "gemma.bin")
             if (modelFile.exists()) {
+                // Check if it's a GGUF file which will crash MediaPipe
+                try {
+                    java.io.FileInputStream(modelFile).use { fis ->
+                        val header = ByteArray(4)
+                        if (fis.read(header) == 4) {
+                            val magic = String(header)
+                            if (magic == "GGUF") {
+                                android.util.Log.e("LocalAiEngine", "GGUF format not supported by MediaPipe")
+                                return
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
                 initRealModel(context)
             }
         }
@@ -33,7 +48,7 @@ object LocalAiEngine {
     
     fun initRealModel(context: Context): Boolean {
         try {
-            val modelFile = java.io.File(context.filesDir, "gemma.bin")
+            val modelFile = java.io.File(context.filesDir, "model.task").takeIf { it.exists() } ?: java.io.File(context.filesDir, "model.bin").takeIf { it.exists() } ?: java.io.File(context.filesDir, "gemma.bin")
             if (modelFile.exists()) {
                 try {
                     val options = LlmInference.LlmInferenceOptions.builder()
@@ -55,8 +70,13 @@ object LocalAiEngine {
     }
     
     private fun generateAiResponse(prompt: String): String {
-        if (isModelActive()) {
-            return generateAiResponse(prompt)
+        if (llmInference != null) {
+            try {
+                return llmInference?.generateResponse(prompt) ?: ""
+            } catch (e: Exception) {
+                e.printStackTrace()
+                return "Ошибка инференса: ${e.message}"
+            }
         }
         
         // Simulated realistic AI response

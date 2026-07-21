@@ -344,6 +344,8 @@ class BookReaderActivity : AppCompatActivity() {
             allowFileAccess = true
             allowContentAccess = true
         }
+
+        
         webView.addJavascriptInterface(WebAppInterface(this), "AndroidInterface")
         webView.webViewClient = object : android.webkit.WebViewClient() {
             override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
