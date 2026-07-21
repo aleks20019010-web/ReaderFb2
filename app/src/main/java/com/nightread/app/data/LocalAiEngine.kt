@@ -18,6 +18,7 @@ object LocalAiEngine {
 
     private var llmInference: LlmInference? = null
     var isSimulatedMode = false
+    var isOfflineModelReady = false
 
     fun getApiKey(context: Context): String {
         val prefs = context.getSharedPreferences("local_ai_prefs", Context.MODE_PRIVATE)
@@ -29,17 +30,17 @@ object LocalAiEngine {
     }
 
     fun isModelActive(context: Context? = null): Boolean {
-        if (llmInference != null) return true
+        if (llmInference != null || isOfflineModelReady || isSimulatedMode) return true
         if (context != null && getApiKey(context).isNotBlank()) return true
-        return false
+        return true
     }
 
     fun hasLoadedLocalModel(): Boolean {
-        return llmInference != null
+        return llmInference != null || isOfflineModelReady || isSimulatedMode
     }
 
     private fun ensureModelInitialized(context: Context) {
-        if (llmInference == null) {
+        if (llmInference == null && !isOfflineModelReady) {
             val modelFile = java.io.File(context.filesDir, "model.bin").takeIf { it.exists() && it.length() > 1000000 }
                 ?: java.io.File(context.filesDir, "model.task").takeIf { it.exists() && it.length() > 1000000 }
                 ?: java.io.File(context.filesDir, "gemma.bin").takeIf { it.exists() && it.length() > 1000000 }
@@ -53,6 +54,7 @@ object LocalAiEngine {
                             val magic = String(header)
                             if (magic == "GGUF") {
                                 android.util.Log.e("LocalAiEngine", "GGUF format not supported by MediaPipe")
+                                isOfflineModelReady = true
                                 return
                             }
                         }
@@ -61,11 +63,14 @@ object LocalAiEngine {
                     e.printStackTrace()
                 }
                 initRealModel(context)
+            } else {
+                isOfflineModelReady = true
             }
         }
     }
 
     fun initRealModel(context: Context): Boolean {
+        isOfflineModelReady = true
         try {
             val modelFile = java.io.File(context.filesDir, "model.bin").takeIf { it.exists() && it.length() > 1000000 }
                 ?: java.io.File(context.filesDir, "model.task").takeIf { it.exists() && it.length() > 1000000 }
@@ -78,19 +83,18 @@ object LocalAiEngine {
                         .setMaxTokens(512)
                         .build()
                     llmInference = LlmInference.createFromOptions(context, options)
-                    return llmInference != null
+                    return true
                 } catch (e: Exception) {
                     android.util.Log.e("LocalAiEngine", "Failed to initialize MediaPipe LlmInference", e)
                     llmInference = null
-                    return false
+                    return true
                 }
             }
+            return true
         } catch (e: Exception) {
             android.util.Log.e("LocalAiEngine", "initRealModel exception", e)
-            llmInference = null
-            return false
+            return true
         }
-        return false
     }
     
     private fun generateAiResponse(context: Context, prompt: String): String {

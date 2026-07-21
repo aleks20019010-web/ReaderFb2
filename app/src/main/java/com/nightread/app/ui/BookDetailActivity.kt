@@ -864,7 +864,7 @@ class BookDetailActivity : BaseActivity() {
         val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
         val clip = android.content.ClipData.newPlainText(label, text)
         clipboard.setPrimaryClip(clip)
-        Toast.makeText(this, "Текст скопирован в буфер обмена", Toast.LENGTH_SHORT).show()
+        CustomToast.show(this, "Текст скопирован в буфер обмена")
     }
 
     private fun shareText(title: String, text: String) {
@@ -936,15 +936,15 @@ class BookDetailActivity : BaseActivity() {
                     tvAnnotation.text = textResponse
                     findViewById<View>(R.id.btnAiAnnotation)?.visibility = View.GONE
                     checkAnnotationLength()
-                    Toast.makeText(this@BookDetailActivity, "Аннотация успешно сгенерирована локальным ИИ!", Toast.LENGTH_SHORT).show()
+                    CustomToast.show(this@BookDetailActivity, "Аннотация успешно сгенерирована локальным ИИ!")
                 } else {
                     dismissProgressDialog()
-                    Toast.makeText(this@BookDetailActivity, "Не удалось выполнить локальный анализ", Toast.LENGTH_SHORT).show()
+                    CustomToast.show(this@BookDetailActivity, "Не удалось выполнить локальный анализ")
                 }
             } catch (e: Exception) {
                 dismissProgressDialog()
                 Log.e("BookDetailActivity", "Local AI Annotation generation failed", e)
-                Toast.makeText(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                CustomToast.show(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}")
             }
         }
     }
@@ -981,12 +981,12 @@ class BookDetailActivity : BaseActivity() {
                     showAiResultDialog("Краткое содержание книги", textResponse)
                 } else {
                     dismissProgressDialog()
-                    Toast.makeText(this@BookDetailActivity, "Не удалось выполнить локальный анализ", Toast.LENGTH_SHORT).show()
+                    CustomToast.show(this@BookDetailActivity, "Не удалось выполнить локальный анализ")
                 }
             } catch (e: Exception) {
                 dismissProgressDialog()
                 Log.e("BookDetailActivity", "Local AI Summary generation failed", e)
-                Toast.makeText(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                CustomToast.show(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}")
             }
         }
     }
@@ -1023,12 +1023,12 @@ class BookDetailActivity : BaseActivity() {
                     showAiResultDialog("Главные персонажи", textResponse)
                 } else {
                     dismissProgressDialog()
-                    Toast.makeText(this@BookDetailActivity, "Не удалось составить список персонажей", Toast.LENGTH_SHORT).show()
+                    CustomToast.show(this@BookDetailActivity, "Не удалось составить список персонажей")
                 }
             } catch (e: Exception) {
                 dismissProgressDialog()
                 Log.e("BookDetailActivity", "Local AI Character analysis failed", e)
-                Toast.makeText(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                CustomToast.show(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}")
             }
         }
     }

@@ -97,13 +97,13 @@ class LocalAiFragment : Fragment() {
         }
 
         btnInitModel.setOnClickListener {
-            Toast.makeText(requireContext(), "Инициализация ИИ-модели (.bin)...", Toast.LENGTH_SHORT).show()
+            CustomToast.show(requireContext(), "Инициализация ИИ-модели (.bin)...", Toast.LENGTH_SHORT)
             val initSuccess = com.nightread.app.data.LocalAiEngine.initRealModel(requireContext())
             if (initSuccess) {
                 updateModelStatusUi()
-                Toast.makeText(requireContext(), "Модель .bin успешно инициализирована!", Toast.LENGTH_LONG).show()
+                CustomToast.show(requireContext(), "Модель .bin успешно инициализирована!", Toast.LENGTH_LONG)
             } else {
-                Toast.makeText(requireContext(), "Не удалось инициализировать локальный файл модели.", Toast.LENGTH_SHORT).show()
+                CustomToast.show(requireContext(), "Не удалось инициализировать локальный файл модели.", Toast.LENGTH_SHORT)
             }
         }
 
@@ -162,7 +162,7 @@ class LocalAiFragment : Fragment() {
                 .apply()
 
             updateModelStatusUi()
-            Toast.makeText(context, if (keyText.isNotEmpty()) "API-ключ Gemini сохранен!" else "Ключ удален", Toast.LENGTH_SHORT).show()
+            CustomToast.show(context, if (keyText.isNotEmpty()) "API-ключ Gemini сохранен!" else "Ключ удален", Toast.LENGTH_SHORT)
             dialog.dismiss()
         }
         builder.setNeutralButton("Получить ключ") { _, _ ->
@@ -316,17 +316,18 @@ class LocalAiFragment : Fragment() {
             } else false
 
             withContext(Dispatchers.Main) {
+                val ctx = context ?: return@withContext
                 layoutDownloadProgress.visibility = View.GONE
                 btnDownloadModel.isEnabled = true
                 btnUploadCustomRules.isEnabled = true
                 updateModelStatusUi()
 
                 if (initSuccess) {
-                    Toast.makeText(context, "🟢 Офлайн-модель (Gemma 2B .bin) успешно загружена и инициализирована!", Toast.LENGTH_LONG).show()
+                    CustomToast.show(ctx, "🟢 Офлайн-модель (Gemma 2B .bin) успешно загружена и инициализирована!", Toast.LENGTH_LONG)
                 } else if (downloadedReal) {
-                    Toast.makeText(context, "⚠️ Модель скачана (1.3 ГБ), но для ускорения укажите Gemini API-ключ в настройках.", Toast.LENGTH_LONG).show()
+                    CustomToast.show(ctx, "⚠️ Модель скачана (1.3 ГБ), но для ускорения укажите Gemini API-ключ в настройках.", Toast.LENGTH_LONG)
                 } else {
-                    Toast.makeText(context, "❌ Не удалось скачать файл модели ($downloadErrorMsg). Для работы ИИ активируйте Gemini API-ключ!", Toast.LENGTH_LONG).show()
+                    CustomToast.show(ctx, "❌ Не удалось скачать файл модели ($downloadErrorMsg). Для работы ИИ активируйте Gemini API-ключ!", Toast.LENGTH_LONG)
                 }
             }
         }
@@ -366,7 +367,7 @@ class LocalAiFragment : Fragment() {
                     .apply()
 
                 updateModelStatusUi()
-                Toast.makeText(context, "Пользовательский словарь успешно импортирован!", Toast.LENGTH_SHORT).show()
+                CustomToast.show(context, "Пользовательский словарь успешно импортирован!", Toast.LENGTH_SHORT)
             }
             dialog.dismiss()
         }
