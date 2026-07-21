@@ -135,21 +135,28 @@ class LocalAiFragment : Fragment() {
 
         val statusSb = java.lang.StringBuilder()
         if (isLoadedInMemory) {
-            statusSb.append("🟢 Локальная модель Bonsai 27B: Загружена в память (.gguf)")
-            btnDownloadModel.text = "Переустановить Bonsai 27B (.gguf)"
+            statusSb.append("🟢 Локальная модель 1-bit Bonsai 27B (Q1_0_g128): Загружена в память (.gguf)")
+            btnDownloadModel.text = "Переустановить Bonsai 27B Q1_0 (3.9 ГБ)"
             btnInitModel.text = "Модель инициализирована ✓"
         } else if (validFileOnDisk) {
-            statusSb.append("🟡 Локальная модель Bonsai 27B: Файл найден на диске (нажмите «Инициализировать»)")
-            btnDownloadModel.text = "Переустановить Bonsai 27B (.gguf)"
+            statusSb.append("🟡 Локальная модель 1-bit Bonsai 27B: Файл найден на диске (3.9 ГБ)")
+            btnDownloadModel.text = "Переустановить Bonsai 27B Q1_0 (3.9 ГБ)"
             btnInitModel.text = "Инициализировать модель"
         } else {
-            statusSb.append("⚪ Локальная модель Bonsai 27B: Готова к скачиванию")
-            btnDownloadModel.text = "Скачать ИИ-модель Bonsai 27B (.gguf)"
+            statusSb.append("⚪ Локальная модель 1-bit Bonsai 27B (Q1_0, 3.9 ГБ): Готова к скачиванию")
+            btnDownloadModel.text = "Скачать 1-bit Bonsai 27B (3.9 ГБ)"
             btnInitModel.text = "Инициализировать модель"
         }
 
+        statusSb.append("\n\n📋 Системные требования:")
+        statusSb.append("\n• ОС: Android 11+ (arm64-v8a)")
+        statusSb.append("\n• ОЗУ: 8+ ГБ")
+        statusSb.append("\n• Диск: 5+ ГБ свободного места")
+        statusSb.append("\n• Репозиторий: prism-ml/Bonsai-27B-gguf")
+        statusSb.append("\n• Параметры: temp=0.7, top_p=0.95, top_k=20")
+
         if (customRulesJson != null) {
-            statusSb.append("\n• Активен пользовательский словарь")
+            statusSb.append("\n\n• Активен пользовательский словарь")
         }
 
         modelStatusValue.text = statusSb.toString()
@@ -162,10 +169,10 @@ class LocalAiFragment : Fragment() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             val urlsToTry = listOf(
+                "https://huggingface.co/prism-ml/Bonsai-27B-gguf/resolve/main/Bonsai-27B-Q1_0.gguf",
                 "https://huggingface.co/lmstudio-community/Bonsai-27B-GGUF/resolve/main/Bonsai-27B-Q4_K_M.gguf?download=true",
                 "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf?download=true",
-                "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf?download=true",
-                "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true"
+                "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf?download=true"
             )
             
             var downloadedReal = false
@@ -173,7 +180,7 @@ class LocalAiFragment : Fragment() {
 
             val modelDir = java.io.File(requireContext().filesDir, "models")
             if (!modelDir.exists()) modelDir.mkdirs()
-            val outputFile = java.io.File(modelDir, "bonsai-27b-q4_k_m.gguf")
+            val outputFile = java.io.File(modelDir, "Bonsai-27B-Q1_0.gguf")
             if (outputFile.exists()) {
                 try { outputFile.delete() } catch (e: Exception) { e.printStackTrace() }
             }
@@ -235,13 +242,13 @@ class LocalAiFragment : Fragment() {
                                 lastUpdate = now
                                 val progress = if (fileLength > 0) (total * 100 / fileLength).toInt() else 5
                                 val loadedMb = total / (1024 * 1024)
-                                val totalMb = if (fileLength > 0) fileLength / (1024 * 1024) else 1800
+                                val totalMb = if (fileLength > 0) fileLength / (1024 * 1024) else 3900
                                 val elapsedTimeSec = maxOf(1L, (now - startTime) / 1000)
                                 val speedMb = loadedMb / elapsedTimeSec
 
                                 withContext(Dispatchers.Main) {
-                                    txtDownloadStatus.text = "Загрузка ИИ-модели Bonsai / GGUF: $progress%"
-                                    txtDownloadStats.text = "$loadedMb МБ из ${if (totalMb > 0) "$totalMb МБ" else "неизв."} (~$speedMb МБ/сек)"
+                                    txtDownloadStatus.text = "Загрузка 1-bit Bonsai 27B (Q1_0): $progress%"
+                                    txtDownloadStats.text = "$loadedMb МБ из ${if (totalMb > 0) "$totalMb МБ" else "3900 МБ"} (~$speedMb МБ/сек)"
                                     progressDownload.progress = progress
                                 }
                             }

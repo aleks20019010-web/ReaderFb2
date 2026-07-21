@@ -13,7 +13,7 @@ interface TokenCallback {
 
 object LlamaEngine {
     private const val TAG = "LlamaEngine"
-    private const val MODEL_FILENAME = "bonsai-27b-q4_k_m.gguf"
+    private const val MODEL_FILENAME = "Bonsai-27B-Q1_0.gguf"
     private const val AUTO_UNLOAD_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
 
     private var isJniLoaded = false
@@ -110,7 +110,7 @@ object LlamaEngine {
         context: Context,
         prompt: String,
         temperature: Float = 0.7f,
-        topK: Int = 40,
+        topK: Int = 20,
         maxTokens: Int = 1024
     ): String {
         resetAutoUnloadTimer()
@@ -131,7 +131,7 @@ object LlamaEngine {
         context: Context,
         prompt: String,
         temperature: Float = 0.7f,
-        topK: Int = 40,
+        topK: Int = 20,
         maxTokens: Int = 1024,
         onToken: (String) -> Unit
     ) {
