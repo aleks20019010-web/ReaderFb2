@@ -24,7 +24,7 @@ object CotypeModelManager {
     const val MODEL_FILENAME = "Vikhr-0.5B-Instruct.Q4_K_M.gguf"
     const val PRIMARY_DOWNLOAD_URL = "https://huggingface.co/Vikhrmodels/Vikhr-0.5B-Instruct-GGUF/resolve/main/Vikhr-0.5B-Instruct.Q4_K_M.gguf"
     const val FALLBACK_DOWNLOAD_URL_1 = "https://huggingface.co/mradermacher/Vikhr-0.5B-Instruct-GGUF/resolve/main/Vikhr-0.5B-Instruct.Q4_K_M.gguf"
-    const val FALLBACK_DOWNLOAD_URL_2 = "https://huggingface.co/mradermacher/Cotype-Nano-GGUF/resolve/main/Cotype-Nano.Q4_K_M.gguf"
+    const val FALLBACK_DOWNLOAD_URL_2 = "https://huggingface.co/Vikhrmodels/Vikhr-0.5B-Instruct-GGUF/resolve/main/Vikhr-0.5B-Instruct.Q4_K_M.gguf"
 
     const val REQUIRED_FREE_SPACE_BYTES = 1_000_000_000L // 1 GB
     const val REQUIRED_RAM_BYTES = 2_000_000_000L // ~2 GB RAM
@@ -168,13 +168,13 @@ object CotypeModelManager {
             val availableBytes = stat.availableBlocksLong * stat.blockSizeLong
             if (availableBytes < REQUIRED_FREE_SPACE_BYTES) {
                 val availGb = String.format("%.1f", availableBytes / (1024.0 * 1024.0 * 1024.0))
-                return Pair(false, "Недостаточно свободного места ($availGb ГБ свободно, требуется 2 ГБ).")
+                return Pair(false, "Недостаточно свободного места ($availGb ГБ свободно, требуется 1 ГБ).")
             }
         } catch (e: Exception) {
             Log.w(TAG, "Could not verify disk space", e)
         }
 
-        return Pair(true, "Устройство полностью совместимо с Cotype Nano 1.5B (4 ГБ ОЗУ, 2 ГБ Памяти).")
+        return Pair(true, "Устройство полностью совместимо с Vikhr 0.5B Instruct (2 ГБ ОЗУ, 1 ГБ Памяти).")
     }
 
     fun isNetworkAvailable(context: Context): Boolean {
@@ -196,7 +196,7 @@ object CotypeModelManager {
         }
 
         if (!isNetworkAvailable(context)) {
-            onError("Требуется подключение к интернету для скачивания Cotype Nano 1.5B.")
+            onError("Требуется подключение к интернету для скачивания Vikhr 0.5B.")
             return
         }
 
@@ -217,7 +217,7 @@ object CotypeModelManager {
         for (url in urlsToTry) {
             if (!isDownloading.get()) break
             try {
-                Log.i(TAG, "Attempting to download Cotype Nano from: $url")
+                Log.i(TAG, "Attempting to download Vikhr 0.5B from: $url")
                 
                 val currentLength = if (file.exists()) file.length() else 0L
                 val requestBuilder = Request.Builder().url(url)
