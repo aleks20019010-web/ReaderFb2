@@ -211,7 +211,11 @@ object CotypeModelManager {
 
         isDownloading.set(true)
 
-        val urlsToTry = listOf(PRIMARY_DOWNLOAD_URL, FALLBACK_DOWNLOAD_URL_1, FALLBACK_DOWNLOAD_URL_2)
+        val urlsToTry = listOf(
+            PRIMARY_DOWNLOAD_URL,
+            FALLBACK_DOWNLOAD_URL_1,
+            "https://huggingface.co/Vikhrmodels/Vikhr-0.5B-Instruct-GGUF/raw/main/Vikhr-0.5B-Instruct.Q4_K_M.gguf"
+        )
         var lastExceptionMessage = ""
 
         for (url in urlsToTry) {
@@ -219,17 +223,36 @@ object CotypeModelManager {
             try {
                 Log.i(TAG, "Attempting to download Vikhr 0.5B from: $url")
                 
-                val currentLength = if (file.exists()) file.length() else 0L
-                val requestBuilder = Request.Builder().url(url)
+                var currentLength = if (file.exists()) file.length() else 0L
+                var requestBuilder = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
                 if (currentLength > 0) {
                     requestBuilder.header("Range", "bytes=$currentLength-")
                 }
 
-                val request = requestBuilder.build()
-                val call = client.newCall(request)
+                var request = requestBuilder.build()
+                var call = client.newCall(request)
                 activeCall = call
 
-                val response = call.execute()
+                var response = call.execute()
+
+                // If Range header caused 401, 403, or 416, clear partial file and retry clean request
+                if ((response.code == 401 || response.code == 403 || response.code == 416) && currentLength > 0) {
+                    response.close()
+                    Log.w(TAG, "HTTP ${response.code} with Range header. Deleting partial file and retrying clean download...")
+                    file.delete()
+                    currentLength = 0L
+
+                    requestBuilder = Request.Builder()
+                        .url(url)
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    request = requestBuilder.build()
+                    call = client.newCall(request)
+                    activeCall = call
+                    response = call.execute()
+                }
 
                 if (!response.isSuccessful && response.code != 206) {
                     lastExceptionMessage = "HTTP ${response.code}: ${response.message}"
@@ -312,7 +335,7 @@ object CotypeModelManager {
         }
 
         isDownloading.set(false)
-        onError("Ошибка скачивания Cotype Nano 1.5B: $lastExceptionMessage")
+        onError("Ошибка скачивания Vikhr 0.5B: $lastExceptionMessage")
     }
 
     fun cancelDownload() {
