@@ -22,9 +22,9 @@ object CotypeModelManager {
     private const val KEY_MODEL_PATH = "cotype_model_file_path"
 
     const val MODEL_FILENAME = "Vikhr-0.5B-Instruct.Q4_K_M.gguf"
-    const val PRIMARY_DOWNLOAD_URL = "https://huggingface.co/Vikhrmodels/Vikhr-0.5B-Instruct-GGUF/resolve/main/Vikhr-0.5B-Instruct.Q4_K_M.gguf"
-    const val FALLBACK_DOWNLOAD_URL_1 = "https://huggingface.co/mradermacher/Vikhr-0.5B-Instruct-GGUF/resolve/main/Vikhr-0.5B-Instruct.Q4_K_M.gguf"
-    const val FALLBACK_DOWNLOAD_URL_2 = "https://huggingface.co/Vikhrmodels/Vikhr-0.5B-Instruct-GGUF/resolve/main/Vikhr-0.5B-Instruct.Q4_K_M.gguf"
+    const val PRIMARY_DOWNLOAD_URL = "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf?download=true"
+    const val FALLBACK_DOWNLOAD_URL_1 = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true"
+    const val FALLBACK_DOWNLOAD_URL_2 = "https://hf-mirror.com/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true"
 
     const val REQUIRED_FREE_SPACE_BYTES = 1_000_000_000L // 1 GB
     const val REQUIRED_RAM_BYTES = 2_000_000_000L // ~2 GB RAM
@@ -214,7 +214,7 @@ object CotypeModelManager {
         val urlsToTry = listOf(
             PRIMARY_DOWNLOAD_URL,
             FALLBACK_DOWNLOAD_URL_1,
-            "https://huggingface.co/Vikhrmodels/Vikhr-0.5B-Instruct-GGUF/raw/main/Vikhr-0.5B-Instruct.Q4_K_M.gguf"
+            FALLBACK_DOWNLOAD_URL_2
         )
         var lastExceptionMessage = ""
 
