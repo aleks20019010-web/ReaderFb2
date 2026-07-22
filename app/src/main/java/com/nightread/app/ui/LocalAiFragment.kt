@@ -252,6 +252,11 @@ class LocalAiFragment : Fragment() {
         btnInitModel.isEnabled = false
         layoutMemoryLoad.visibility = View.VISIBLE
 
+        val availableRam = LocalAiEngine.getAvailableRamInGB(context)
+        if (availableRam < 1.0) {
+            CustomToast.show(context, "Свободно ${String.format("%.1f", availableRam)} ГБ ОЗУ. Закройте фоновые приложения для стабильной работы.", Toast.LENGTH_LONG)
+        }
+
         lifecycleScope.launch(Dispatchers.IO) {
             val modelFile = CotypeModelManager.getModelFile(context)
             val fileExists = modelFile.exists()

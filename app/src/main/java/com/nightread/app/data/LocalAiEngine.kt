@@ -45,30 +45,49 @@ object LocalAiEngine {
         return LlamaEngine.isLoaded()
     }
 
+    fun getAvailableRamInGB(context: Context): Double {
+        return try {
+            val memInfo = android.app.ActivityManager.MemoryInfo()
+            (context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager)?.getMemoryInfo(memInfo)
+            memInfo.availMem / (1024.0 * 1024.0 * 1024.0)
+        } catch (e: Exception) {
+            4.0
+        }
+    }
+
     fun initRealModel(context: Context): Boolean {
         if (LlamaEngine.isLoaded()) {
             isOfflineModelReady = true
             return true
         }
 
+        val availableRam = getAvailableRamInGB(context)
+        Log.i(TAG, "Available RAM before loading model: ${String.format("%.2f", availableRam)} GB")
+
         val modelFile = CotypeModelManager.getModelFile(context)
-        if (modelFile.exists() && (modelFile.length() > 10_000_000L || CotypeModelManager.isModelDownloaded(context))) {
-            Log.i(TAG, "Loading local LLM model (Vikhr 0.5B / Cotype Nano) from ${modelFile.absolutePath} (size: ${modelFile.length()} bytes) into native memory...")
-            val modelParams = LlamaModelParams(
-                nCtx = 1024,
-                nThreads = 4,
-                nGpuLayers = 0,
-                useMMap = false,
-                useMLock = false
-            )
-            val success = LlamaEngine.loadModel(modelFile.absolutePath, modelParams)
-            isOfflineModelReady = success
-            return success
+        if (!modelFile.exists() || !modelFile.canRead()) {
+            Log.e(TAG, "Model file does not exist or is not readable: ${modelFile.absolutePath}")
+            isOfflineModelReady = false
+            return false
         }
 
-        Log.w(TAG, "initRealModel failed: modelFile exists=${modelFile.exists()}, length=${if (modelFile.exists()) modelFile.length() else 0}")
-        isOfflineModelReady = false
-        return false
+        if (modelFile.length() < 10_000_000L && !CotypeModelManager.isModelDownloaded(context)) {
+            Log.e(TAG, "Model file size too small: ${modelFile.length()} bytes")
+            isOfflineModelReady = false
+            return false
+        }
+
+        Log.i(TAG, "Loading local LLM model from ${modelFile.absolutePath} (size: ${modelFile.length()} bytes) into native memory...")
+        val modelParams = LlamaModelParams(
+            nCtx = 1024,        // Уменьшено до 1024
+            nThreads = 4,
+            nGpuLayers = 0,     // Только CPU
+            useMMap = false,    // Отключен mmap
+            useMLock = false    // Отключен mlock
+        )
+        val success = LlamaEngine.loadModel(modelFile.absolutePath, modelParams)
+        isOfflineModelReady = success
+        return success
     }
 
     /**
