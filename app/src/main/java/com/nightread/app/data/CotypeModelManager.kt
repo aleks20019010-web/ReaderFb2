@@ -22,8 +22,9 @@ object CotypeModelManager {
     private const val KEY_MODEL_PATH = "cotype_model_file_path"
 
     const val MODEL_FILENAME = "cotype-nano-1.5b-q4_k_m.gguf"
-    const val PRIMARY_DOWNLOAD_URL = "https://huggingface.co/MTS-AI/Cotype-Nano-1.5B-GGUF/resolve/main/cotype-nano-1.5b-q4_k_m.gguf"
-    const val FALLBACK_DOWNLOAD_URL = "https://huggingface.co/MTS-AI/Cotype-Nano-1.5B-GGUF/resolve/main/cotype-nano-1.5b.gguf"
+    const val PRIMARY_DOWNLOAD_URL = "https://huggingface.co/mradermacher/Cotype-Nano-GGUF/resolve/main/Cotype-Nano.Q4_K_M.gguf"
+    const val FALLBACK_DOWNLOAD_URL_1 = "https://huggingface.co/tensorblock/Cotype-Nano-GGUF/resolve/main/Cotype-Nano-Q4_K_M.gguf"
+    const val FALLBACK_DOWNLOAD_URL_2 = "https://huggingface.co/hodza/cotype-nano-GGUF/resolve/main/Cotype-Nano-Q4_K_M.gguf"
 
     const val REQUIRED_FREE_SPACE_BYTES = 2_000_000_000L // 2 GB
     const val REQUIRED_RAM_BYTES = 3_500_000_000L // ~4 GB RAM
@@ -172,7 +173,7 @@ object CotypeModelManager {
 
         isDownloading.set(true)
 
-        val urlsToTry = listOf(PRIMARY_DOWNLOAD_URL, FALLBACK_DOWNLOAD_URL)
+        val urlsToTry = listOf(PRIMARY_DOWNLOAD_URL, FALLBACK_DOWNLOAD_URL_1, FALLBACK_DOWNLOAD_URL_2)
         var lastExceptionMessage = ""
 
         for (url in urlsToTry) {
@@ -180,9 +181,10 @@ object CotypeModelManager {
             try {
                 Log.i(TAG, "Attempting to download Cotype Nano from: $url")
                 
+                val currentLength = if (file.exists()) file.length() else 0L
                 val requestBuilder = Request.Builder().url(url)
-                if (existingLength > 0) {
-                    requestBuilder.header("Range", "bytes=$existingLength-")
+                if (currentLength > 0) {
+                    requestBuilder.header("Range", "bytes=$currentLength-")
                 }
 
                 val request = requestBuilder.build()
@@ -200,17 +202,18 @@ object CotypeModelManager {
 
                 val body = response.body ?: run {
                     lastExceptionMessage = "Empty response body"
+                    response.close()
                     continue
                 }
 
                 val isPartial = response.code == 206
                 val totalBytes = if (isPartial) {
-                    existingLength + body.contentLength()
+                    currentLength + body.contentLength()
                 } else {
                     body.contentLength()
                 }
 
-                var downloadedBytes = if (isPartial) existingLength else 0L
+                var downloadedBytes = if (isPartial) currentLength else 0L
                 val fos = FileOutputStream(file, isPartial)
                 val inputStream: InputStream = body.byteStream()
 
@@ -245,6 +248,13 @@ object CotypeModelManager {
                 fos.close()
                 inputStream.close()
                 response.close()
+
+                if (!verifyModelIntegrity(context)) {
+                    Log.w(TAG, "Integrity check failed for file downloaded from $url")
+                    file.delete()
+                    lastExceptionMessage = "Файл модели не прошел проверку целостности (GGUF)"
+                    continue
+                }
 
                 isDownloading.set(false)
                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
