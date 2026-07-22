@@ -491,6 +491,7 @@ class BookReaderActivity : AppCompatActivity() {
         var touchStartTime = 0L
         var isDraggingVerticalLeft = false
         var isDraggingVerticalRight = false
+        var isHorizontalSwipeLocked = false
         var initialGestureValue = 0f
         val hideIndicatorsRunnable = Runnable {
             tvBrightness.visibility = View.GONE
@@ -500,18 +501,19 @@ class BookReaderActivity : AppCompatActivity() {
         val gestureTouchListener = View.OnTouchListener { view, event ->
             val screenWidth = view.width.toFloat()
             val screenHeight = view.height.toFloat()
-            if (screenWidth <= 0 || screenHeight <= 0) return@OnTouchListener false
+            if (screenWidth <= 0 || screenHeight <= 0) return@OnTouchListener true
 
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     touchStartX = event.x
                     touchStartY = event.y
                     touchStartTime = System.currentTimeMillis()
+                    isHorizontalSwipeLocked = false
 
                     longPressRunnable = Runnable {
                         val currentTextOnPage = viewModel.pagesState.value.getOrNull(viewModel.currentPage.value)?.toString() ?: ""
                         if (currentTextOnPage.isNotEmpty() && currentTextOnPage != "[BOOK_COVER]") {
-                            val isWebViewBk = viewModel.bookState.value?.filePath?.let { it.endsWith(".epub", true) || it.endsWith(".fb2", true) } == true
+                            val isWebViewBk = viewModel.bookState.value?.filePath?.let { it.endsWith(".epub", true) || it.endsWith(".fb2", true) || it.endsWith(".fb2.zip", true) || it.endsWith(".zip", true) } == true
                             val isWebViewPage = currentTextOnPage.startsWith("WEBVIEW_CONTENT") || currentTextOnPage.startsWith("WEBVIEW_PAGE_") || isWebViewBk
                             if (!isWebViewPage) {
                                 val contextSnippet = if (currentTextOnPage.length > 150) currentTextOnPage.substring(0, 150) + "..." else currentTextOnPage
@@ -548,7 +550,11 @@ class BookReaderActivity : AppCompatActivity() {
                         }
                     }
 
-                    if (duration > 100 && Math.abs(diffY) > 50 && Math.abs(diffY) > Math.abs(diffX) * 2f) {
+                    if (Math.abs(diffX) > Math.abs(diffY) * 1.2f && Math.abs(diffX) > 20f) {
+                        isHorizontalSwipeLocked = true
+                    }
+
+                    if (!isHorizontalSwipeLocked && duration > 100 && Math.abs(diffY) > 50 && Math.abs(diffY) > Math.abs(diffX) * 2f) {
                         if (isDraggingVerticalLeft) {
                             val delta = -diffY / screenHeight
                             val newBrightness = (initialGestureValue + delta).coerceIn(0.01f, 1.0f)
@@ -578,7 +584,7 @@ class BookReaderActivity : AppCompatActivity() {
                         }
                     }
                 }
-                MotionEvent.ACTION_UP -> {
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     longPressRunnable?.let {
                         handler.removeCallbacks(it)
                         longPressRunnable = null
@@ -587,29 +593,47 @@ class BookReaderActivity : AppCompatActivity() {
                     val diffY = event.y - touchStartY
                     val duration = System.currentTimeMillis() - touchStartTime
 
-                    if (isDraggingVerticalCenter && !isBarsVisible) {
+                    if (!isHorizontalSwipeLocked && isDraggingVerticalCenter && !isBarsVisible && Math.abs(diffY) > Math.abs(diffX) * 2f) {
                         if (diffY < -50) {
                             showFullscreenHUD()
                         } else {
                             hideFullscreenHUD()
                         }
-                    } else if (Math.abs(diffX) > 100 && Math.abs(diffX) > Math.abs(diffY) * 1.5 && duration < 500) {
-                        if (diffX > 0) {
-                            viewModel.setCurrentPage(viewModel.currentPage.value - 1)
+                    } else if (Math.abs(diffX) > 50f && Math.abs(diffX) > Math.abs(diffY) * 1.2f && duration < 1000) {
+                        val currentPage = viewModel.currentPage.value
+                        val totalPages = viewModel.pagesState.value.size
+                        val filePath = viewModel.bookState.value?.filePath ?: ""
+                        val isWebViewBook = filePath.endsWith(".fb2", true) || 
+                                           filePath.endsWith(".fb2.zip", true) || 
+                                           filePath.endsWith(".zip", true) ||
+                                           filePath.endsWith(".epub", true)
+                        if (diffX < 0) {
+                            if (currentPage < totalPages - 1 || isWebViewBook) {
+                                viewModel.setCurrentPage(currentPage + 1)
+                            } else {
+                                ensureWebViewAligned()
+                            }
                         } else {
-                            viewModel.setCurrentPage(viewModel.currentPage.value + 1)
+                            if (currentPage > 0) {
+                                viewModel.setCurrentPage(currentPage - 1)
+                            } else {
+                                ensureWebViewAligned()
+                            }
                         }
-                    } else if (Math.abs(diffX) < 25 && Math.abs(diffY) < 25 && duration < 300) {
+                    } else if (Math.abs(diffX) < 25f && Math.abs(diffY) < 25f && duration < 350) {
                         toggleToolbars()
+                    } else {
+                        ensureWebViewAligned()
                     }
                     
                     isDraggingVerticalLeft = false
                     isDraggingVerticalRight = false
                     isDraggingVerticalCenter = false
+                    isHorizontalSwipeLocked = false
                     handler.postDelayed(hideIndicatorsRunnable, 1000)
                 }
             }
-            if (view == webView) false else true
+            true
         }
 
         readerView.setOnTouchListener(gestureTouchListener)
@@ -1175,14 +1199,14 @@ class BookReaderActivity : AppCompatActivity() {
                 
                 currentView.animate()
                     .translationX(if (isForward) -screenWidth else screenWidth)
-                    .setDuration(50)
+                    .setDuration(150)
                     .withEndAction {
                         updatePage()
                         val nextView = activePageView
                         nextView.translationX = startTranslationX
                         nextView.animate()
                             .translationX(0f)
-                            .setDuration(50)
+                            .setDuration(150)
                             .start()
                     }
                     .start()
@@ -1824,6 +1848,17 @@ class BookReaderActivity : AppCompatActivity() {
     fun onWebViewPageRestored(pageIndex: Int) {
         if (isWebViewLoading) return
         viewModel.setWebViewPageRestored(pageIndex + 1)
+    }
+
+    private fun ensureWebViewAligned() {
+        if (::webView.isInitialized && webView.visibility == View.VISIBLE) {
+            val w = webView.width
+            val pageIdx = viewModel.currentPage.value
+            if (w > 0) {
+                val targetX = (pageIdx - 1).coerceAtLeast(0) * w
+                webView.scrollTo(targetX, 0)
+            }
+        }
     }
 
     fun saveNoteForBook(selectedText: String, noteText: String) {
