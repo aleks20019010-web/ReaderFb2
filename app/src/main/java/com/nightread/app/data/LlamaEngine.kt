@@ -3,10 +3,10 @@ package com.nightread.app.data
 import android.util.Log
 
 data class LlamaModelParams(
-    val nCtx: Int = 8192,
+    val nCtx: Int = 1024,
     val nThreads: Int = 4,
     val nGpuLayers: Int = 0,
-    val useMMap: Boolean = true,
+    val useMMap: Boolean = false,
     val useMLock: Boolean = false
 )
 

@@ -21,13 +21,13 @@ object CotypeModelManager {
     private const val KEY_MODEL_DOWNLOADED = "is_cotype_model_downloaded"
     private const val KEY_MODEL_PATH = "cotype_model_file_path"
 
-    const val MODEL_FILENAME = "cotype-nano-1.5b-q4_k_m.gguf"
-    const val PRIMARY_DOWNLOAD_URL = "https://huggingface.co/mradermacher/Cotype-Nano-GGUF/resolve/main/Cotype-Nano.Q4_K_M.gguf"
-    const val FALLBACK_DOWNLOAD_URL_1 = "https://huggingface.co/tensorblock/Cotype-Nano-GGUF/resolve/main/Cotype-Nano-Q4_K_M.gguf"
-    const val FALLBACK_DOWNLOAD_URL_2 = "https://huggingface.co/hodza/cotype-nano-GGUF/resolve/main/Cotype-Nano-Q4_K_M.gguf"
+    const val MODEL_FILENAME = "Vikhr-0.5B-Instruct.Q4_K_M.gguf"
+    const val PRIMARY_DOWNLOAD_URL = "https://huggingface.co/Vikhrmodels/Vikhr-0.5B-Instruct-GGUF/resolve/main/Vikhr-0.5B-Instruct.Q4_K_M.gguf"
+    const val FALLBACK_DOWNLOAD_URL_1 = "https://huggingface.co/mradermacher/Vikhr-0.5B-Instruct-GGUF/resolve/main/Vikhr-0.5B-Instruct.Q4_K_M.gguf"
+    const val FALLBACK_DOWNLOAD_URL_2 = "https://huggingface.co/mradermacher/Cotype-Nano-GGUF/resolve/main/Cotype-Nano.Q4_K_M.gguf"
 
-    const val REQUIRED_FREE_SPACE_BYTES = 2_000_000_000L // 2 GB
-    const val REQUIRED_RAM_BYTES = 3_500_000_000L // ~4 GB RAM
+    const val REQUIRED_FREE_SPACE_BYTES = 1_000_000_000L // 1 GB
+    const val REQUIRED_RAM_BYTES = 2_000_000_000L // ~2 GB RAM
 
     private val isDownloading = AtomicBoolean(false)
     private var activeCall: okhttp3.Call? = null

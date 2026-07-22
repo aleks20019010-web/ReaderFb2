@@ -53,12 +53,12 @@ object LocalAiEngine {
 
         val modelFile = CotypeModelManager.getModelFile(context)
         if (modelFile.exists() && (modelFile.length() > 10_000_000L || CotypeModelManager.isModelDownloaded(context))) {
-            Log.i(TAG, "Loading Cotype Nano 1.5B model from ${modelFile.absolutePath} (size: ${modelFile.length()} bytes) into native memory...")
+            Log.i(TAG, "Loading local LLM model (Vikhr 0.5B / Cotype Nano) from ${modelFile.absolutePath} (size: ${modelFile.length()} bytes) into native memory...")
             val modelParams = LlamaModelParams(
-                nCtx = 8192,
+                nCtx = 1024,
                 nThreads = 4,
                 nGpuLayers = 0,
-                useMMap = true,
+                useMMap = false,
                 useMLock = false
             )
             val success = LlamaEngine.loadModel(modelFile.absolutePath, modelParams)
