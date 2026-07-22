@@ -134,7 +134,7 @@ class LocalAiFragment : Fragment() {
             val context = context ?: return@setOnClickListener
             com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
                 .setTitle("Удалить модель?")
-                .setMessage("Файл модели Cotype Nano (1.1 ГБ) будет удален с устройства. Доступное место освободится.")
+                .setMessage("Файл модели Vikhr 0.5B (~400 МБ) будет удален с устройства. Доступное место освободится.")
                 .setPositiveButton("Удалить") { dialog, _ ->
                     LocalAiEngine.unloadFromMemory()
                     val success = CotypeModelManager.deleteModel(context)
@@ -179,7 +179,7 @@ class LocalAiFragment : Fragment() {
         val isLoaded = LlamaEngine.isLoaded()
 
         if (isLoaded) {
-            modelStatusValue.text = "🟢 Cotype Nano 1.5B загружена в память и готова к работе (Офлайн)"
+            modelStatusValue.text = "🟢 Vikhr 0.5B Instruct загружена в память и готова к работе (Офлайн)"
             btnDownloadModel.visibility = View.GONE
             btnInitModel.visibility = View.GONE
             btnUnloadModel.visibility = View.VISIBLE
@@ -187,7 +187,7 @@ class LocalAiFragment : Fragment() {
             layoutMemoryLoad.visibility = View.GONE
             layoutDownloadProgress.visibility = View.GONE
         } else if (isDownloaded) {
-            modelStatusValue.text = "🟡 Cotype Nano 1.5B скачана на устройство. Нажмите «Загрузить в память»."
+            modelStatusValue.text = "🟡 Vikhr 0.5B Instruct скачана на устройство. Нажмите «Загрузить в память»."
             btnDownloadModel.visibility = View.GONE
             btnInitModel.visibility = View.VISIBLE
             btnUnloadModel.visibility = View.GONE
@@ -197,7 +197,7 @@ class LocalAiFragment : Fragment() {
         } else {
             val compat = CotypeModelManager.checkDeviceCompatibility(context)
             if (compat.first) {
-                modelStatusValue.text = "⚪ Cotype Nano 1.5B не скачана (1.1 ГБ). Совместимость подтверждена."
+                modelStatusValue.text = "⚪ Vikhr 0.5B Instruct не скачана (~400 МБ). Совместимость подтверждена."
             } else {
                 modelStatusValue.text = "⚠️ ${compat.second}"
             }
@@ -230,7 +230,7 @@ class LocalAiFragment : Fragment() {
                 },
                 onSuccess = { file ->
                     lifecycleScope.launch(Dispatchers.Main) {
-                        CustomToast.show(requireContext(), "Модель Cotype Nano 1.5B успешно скачана!", Toast.LENGTH_SHORT)
+                        CustomToast.show(requireContext(), "Модель Vikhr 0.5B Instruct успешно скачана!", Toast.LENGTH_SHORT)
                         updateModelStatusUi()
                         loadModelIntoMemory()
                     }
@@ -263,7 +263,7 @@ class LocalAiFragment : Fragment() {
                 btnInitModel.isEnabled = true
                 layoutMemoryLoad.visibility = View.GONE
                 if (success) {
-                    CustomToast.show(requireContext(), "Модель Cotype Nano 1.5B загружена в ОЗУ!", Toast.LENGTH_SHORT)
+                    CustomToast.show(requireContext(), "Модель Vikhr 0.5B Instruct загружена в ОЗУ!", Toast.LENGTH_SHORT)
                 } else {
                     val message = when {
                         !fileExists -> "Файл модели не найден. Скачайте модель перед загрузкой."

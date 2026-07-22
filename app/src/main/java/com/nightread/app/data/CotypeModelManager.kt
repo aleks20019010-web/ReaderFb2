@@ -45,6 +45,24 @@ object CotypeModelManager {
         if (!modelsDir.exists()) {
             modelsDir.mkdirs()
         }
+
+        // Clean up legacy Cotype Nano files if they exist to prevent loading heavy 1.5B model
+        modelsDir.listFiles()?.forEach { oldFile ->
+            if (oldFile.name.contains("cotype", ignoreCase = true) && oldFile.name != MODEL_FILENAME) {
+                try {
+                    Log.i(TAG, "Deleting legacy Cotype model file: ${oldFile.name}")
+                    oldFile.delete()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to delete legacy file ${oldFile.name}", e)
+                }
+            }
+        }
+        context.filesDir.listFiles()?.forEach { oldFile ->
+            if (oldFile.name.contains("cotype", ignoreCase = true) && oldFile.name != MODEL_FILENAME) {
+                try { oldFile.delete() } catch (_: Exception) {}
+            }
+        }
+
         val defaultFile = File(modelsDir, MODEL_FILENAME)
         if (defaultFile.exists() && defaultFile.length() > 0) return defaultFile
 
@@ -64,13 +82,6 @@ object CotypeModelManager {
             val alt3 = File(extFilesDir, MODEL_FILENAME)
             if (alt3.exists() && alt3.length() > 0) return alt3
         }
-
-        // Fallback 3: Any .gguf file in models or files directory
-        val ggufInModels = modelsDir.listFiles()?.firstOrNull { it.name.endsWith(".gguf", ignoreCase = true) && it.length() > 10_000_000L }
-        if (ggufInModels != null) return ggufInModels
-
-        val ggufInFiles = context.filesDir.listFiles()?.firstOrNull { it.name.endsWith(".gguf", ignoreCase = true) && it.length() > 10_000_000L }
-        if (ggufInFiles != null) return ggufInFiles
 
         return defaultFile
     }
@@ -143,7 +154,7 @@ object CotypeModelManager {
             actManager.getMemoryInfo(memInfo)
             if (memInfo.totalMem < REQUIRED_RAM_BYTES) {
                 val totalGb = String.format("%.1f", memInfo.totalMem / (1024.0 * 1024.0 * 1024.0))
-                return Pair(false, "Недостаточно ОЗУ ($totalGb ГБ). Для работы Cotype Nano требуется 4 ГБ ОЗУ.")
+                return Pair(false, "Недостаточно ОЗУ ($totalGb ГБ). Для работы Vikhr 0.5B требуется от 2 ГБ ОЗУ.")
             }
         } catch (e: Exception) {
             Log.w(TAG, "Could not verify RAM size", e)

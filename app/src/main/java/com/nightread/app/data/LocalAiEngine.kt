@@ -122,7 +122,7 @@ $normalizedUserPrompt<|im_end|>
                     } ?: "Превышено время ожидания (120 сек). Попробуйте упростить запрос."
                 } catch (e: Exception) {
                     Log.e(TAG, "Error or timeout during execution", e)
-                    "Ошибка при локальном запуске Cotype Nano 1.5B."
+                    "Ошибка при локальном запуске нейросети."
                 }
 
                 if (rawResponse.isNotBlank() && !rawResponse.contains("Ошибка") && !rawResponse.contains("Превышено время")) {
