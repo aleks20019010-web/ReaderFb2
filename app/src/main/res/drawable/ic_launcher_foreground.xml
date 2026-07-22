@@ -5,191 +5,190 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Layer 1: Ambient Celestial Glow Halo -->
+    <!-- Layer 1: Ambient Celestial Purple & Indigo Glow Halos -->
     <path
-        android:fillColor="#151E293B"
-        android:pathData="M54,18 C73.88,18 90,34.12 90,54 C90,73.88 73.88,90 54,90 C34.12,90 18,73.88 18,54 C18,34.12 34.12,18 54,18 Z" />
+        android:fillColor="#1F4338CA"
+        android:pathData="M54,16 C74.98,16 92,33.02 92,54 C92,74.98 74.98,92 54,92 C33.02,92 16,74.98 16,54 C16,33.02 33.02,16 54,16 Z" />
 
     <path
-        android:fillColor="#250F172A"
+        android:fillColor="#2838BDF8"
         android:pathData="M54,22 C71.67,22 86,36.33 86,54 C86,71.67 71.67,86 54,86 C36.33,86 22,71.67 22,54 C22,36.33 36.33,22 54,22 Z" />
 
-    <!-- Layer 2: Cosmic Rays Burst from Book Spine -->
     <path
-        android:fillColor="#2038BDF8"
-        android:pathData="M54,58 L32,26 L42,22 Z" />
-    <path
-        android:fillColor="#2538BDF8"
-        android:pathData="M54,58 L48,20 L60,20 Z" />
-    <path
-        android:fillColor="#1A38BDF8"
-        android:pathData="M54,58 L66,22 L76,26 Z" />
+        android:fillColor="#15818CF8"
+        android:pathData="M54,28 C68.36,28 80,39.64 80,54 C80,68.36 68.36,80 54,80 C39.64,80 28,68.36 28,54 C28,39.64 39.64,28 54,28 Z" />
 
-    <!-- Layer 3: Micro Stardust Constellations -->
-    <path android:fillColor="#FDE047" android:pathData="M32,28 A1.2,1.2 0 1,1 32,25.6 A1.2,1.2 0 1,1 32,28 Z" />
-    <path android:fillColor="#E0F2FE" android:pathData="M74,32 A1,1 0 1,1 74,30 A1,1 0 1,1 74,32 Z" />
-    <path android:fillColor="#F8FAFC" android:pathData="M26,44 A0.8,0.8 0 1,1 26,42.4 A0.8,0.8 0 1,1 26,44 Z" />
-    <path android:fillColor="#38BDF8" android:pathData="M82,46 A1,1 0 1,1 82,44 A1,1 0 1,1 82,46 Z" />
-    <path android:fillColor="#FDE047" android:pathData="M48,22 A0.9,0.9 0 1,1 48,20.2 A0.9,0.9 0 1,1 48,22 Z" />
-    <path android:fillColor="#E0F2FE" android:pathData="M60,24 A0.8,0.8 0 1,1 60,22.4 A0.8,0.8 0 1,1 60,24 Z" />
+    <!-- Layer 2: Radiant Starlight Rays from Open Book Spine -->
+    <path
+        android:fillColor="#1838BDF8"
+        android:pathData="M54,58 L28,20 L38,16 Z" />
+    <path
+        android:fillColor="#20818CF8"
+        android:pathData="M54,58 L46,15 L54,14 L62,15 Z" />
+    <path
+        android:fillColor="#1838BDF8"
+        android:pathData="M54,58 L70,16 L80,20 Z" />
 
-    <!-- Sparkle Stars (4-Point) -->
+    <!-- Layer 3: Rich Starry Night Sky (Sparkles & Micro Constellations - NO GOLD, ONLY SILVER/CYAN/WHITE/LAVENDER) -->
+    <!-- Large 4-Point Sparkle Stars -->
     <path
-        android:fillColor="#FDE047"
-        android:pathData="M38,24 L39.2,27.8 L43,29 L39.2,30.2 L38,34 L36.8,30.2 L33,29 L36.8,27.8 Z" />
+        android:fillColor="#F8FAFC"
+        android:pathData="M32,22 L33.2,25.8 L37,27 L33.2,28.2 L32,32 L30.8,28.2 L27,27 L30.8,25.8 Z" />
     <path
-        android:fillColor="#FAFAF9"
-        android:pathData="M70,25 L70.8,27.2 L73,28 L70.8,28.8 L70,31 L69.2,28.8 L67,28 L69.2,27.2 Z" />
+        android:fillColor="#E0F2FE"
+        android:pathData="M76,24 L77,26.8 L79.8,27.8 L77,28.8 L76,31.6 L75,28.8 L72.2,27.8 L75,26.8 Z" />
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M54,18 L54.8,20.2 L57,21 L54.8,21.8 L54,24 L53.2,21.8 L51,21 L53.2,20.2 Z" />
+    <path
+        android:fillColor="#C084FC"
+        android:pathData="M22,38 L22.8,39.8 L24.6,40.6 L22.8,41.4 L22,43.2 L21.2,41.4 L19.4,40.6 L21.2,39.8 Z" />
+    <path
+        android:fillColor="#818CF8"
+        android:pathData="M84,36 L84.7,37.5 L86.2,38.2 L84.7,38.9 L84,40.4 L83.3,38.9 L81.8,38.2 L83.3,37.5 Z" />
 
-    <!-- Layer 4: Detailed Crescent Moon with Shadow and Craters -->
-    <!-- Outer Glow Moon -->
-    <path
-        android:fillColor="#30F59E0B"
-        android:pathData="M56,22 C58.5,28 55,35 48,37 C55,39 63,35 63,28 C63,24.5 60,22.5 56,22 Z" />
-    <!-- Moon Body -->
-    <path
-        android:fillColor="#FBBF24"
-        android:pathData="M57,23.5 C59.2,28.8 56,34.8 49.5,36.8 A10,10 0 0,0 61,38.8 C66.5,38.8 71,34.3 71,28.8 C71,24.2 67.8,20.4 63.3,19.3 A10,10 0 0,1 57,23.5 Z" />
-    <!-- Moon Inner Highlight Curve -->
-    <path
-        android:fillColor="#FEF08A"
-        android:pathData="M62.5,20.5 C66,22 68.5,25 68.5,28.8 C68.5,33 65,36.5 60.5,37 C63.5,36 66,33 66,28.8 C66,25 64.5,22 62.5,20.5 Z" />
-    <!-- Moon Crater Details -->
-    <path android:fillColor="#D97706" android:pathData="M64,26 A1.2,1.2 0 1,1 64,23.6 A1.2,1.2 0 1,1 64,26 Z" />
-    <path android:fillColor="#D97706" android:pathData="M66.5,31 A1.5,1.5 0 1,1 66.5,28 A1.5,1.5 0 1,1 66.5,31 Z" />
+    <!-- Micro Stardust Dots -->
+    <path android:fillColor="#F8FAFC" android:pathData="M24,20 A1.2,1.2 0 1,1 24,17.6 A1.2,1.2 0 1,1 24,20 Z" />
+    <path android:fillColor="#E0F2FE" android:pathData="M42,19 A1,1 0 1,1 42,17 A1,1 0 1,1 42,19 Z" />
+    <path android:fillColor="#38BDF8" android:pathData="M66,19 A1,1 0 1,1 66,17 A1,1 0 1,1 66,19 Z" />
+    <path android:fillColor="#F8FAFC" android:pathData="M86,20 A1.2,1.2 0 1,1 86,17.6 A1.2,1.2 0 1,1 86,20 Z" />
+    <path android:fillColor="#A78BFA" android:pathData="M18,30 A0.9,0.9 0 1,1 18,28.2 A0.9,0.9 0 1,1 18,30 Z" />
+    <path android:fillColor="#E0F2FE" android:pathData="M90,32 A0.9,0.9 0 1,1 90,30.2 A0.9,0.9 0 1,1 90,32 Z" />
+    <path android:fillColor="#38BDF8" android:pathData="M29,35 A0.8,0.8 0 1,1 29,33.4 A0.8,0.8 0 1,1 29,35 Z" />
+    <path android:fillColor="#F8FAFC" android:pathData="M79,33 A0.8,0.8 0 1,1 79,31.4 A0.8,0.8 0 1,1 79,33 Z" />
 
-    <!-- Layer 5: Heavy Book Foundation & Drop Shadow -->
+    <!-- Layer 4: Deep Drop Shadow & Book Foundation -->
     <path
-        android:fillColor="#0A0F1D"
-        android:pathData="M23,76 C23,76 38.5,68 54,71 C69.5,68 85,76 85,76 L85,47 C85,47 69.5,39 54,42 C38.5,39 23,47 23,47 Z" />
+        android:fillColor="#060913"
+        android:pathData="M22,77 C22,77 38,68.5 54,71.5 C70,68.5 86,77 86,77 L86,47 C86,47 70,38.5 54,41.5 C38,38.5 22,47 22,47 Z" />
 
-    <!-- Layer 6: Leather Hardcover Binding Base (Dark Indigo Navy) -->
+    <!-- Layer 5: Leather Hardcover Binding Base (Deep Violet & Indigo) -->
     <path
         android:fillColor="#1E1B4B"
-        android:pathData="M24,74.5 C24,74.5 39,66.8 54,69.5 C69,66.8 84,74.5 84,74.5 L84,46.5 C84,46.5 69,38.8 54,41.5 C39,38.8 24,46.5 24,46.5 Z" />
+        android:pathData="M23,75.5 C23,75.5 38.5,67.2 54,70 C69.5,67.2 85,75.5 85,75.5 L85,46 C85,46 69.5,37.8 54,40.5 C38.5,37.8 23,46 23,46 Z" />
 
-    <!-- Hardcover Spine Ridge Underneath -->
+    <!-- Spine Binding Ridge -->
     <path
         android:fillColor="#312E81"
-        android:pathData="M52.5,41 C53.2,40 54.8,40 55.5,41 L55.5,70 C54.8,71 53.2,71 52.5,70 Z" />
+        android:pathData="M52.5,40 C53.2,39 54.8,39 55.5,40 L55.5,70.5 C54.8,71.5 53.2,71.5 52.5,70.5 Z" />
 
-    <!-- Layer 7: Gold Corner Filigree Accents on Cover -->
-    <path android:fillColor="#F59E0B" android:pathData="M24,74.5 L29,72 L27,69.5 Z" />
-    <path android:fillColor="#F59E0B" android:pathData="M84,74.5 L79,72 L81,69.5 Z" />
-    <path android:fillColor="#F59E0B" android:pathData="M24,46.5 L29,48.5 L27,51 Z" />
-    <path android:fillColor="#F59E0B" android:pathData="M84,46.5 L79,48.5 L81,51 Z" />
+    <!-- Layer 6: Silver & Cyan Corner Filigree Accents (NO GOLD) -->
+    <path android:fillColor="#38BDF8" android:pathData="M23,75.5 L28,73 L26,70.5 Z" />
+    <path android:fillColor="#38BDF8" android:pathData="M85,75.5 L80,73 L82,70.5 Z" />
+    <path android:fillColor="#818CF8" android:pathData="M23,46 L28,48 L26,50.5 Z" />
+    <path android:fillColor="#818CF8" android:pathData="M85,46 L80,48 L82,50.5 Z" />
 
-    <!-- Layer 8: Book Page Block Edge (Stacked Paper Layers) -->
-    <!-- Lower Paper Edge Stack -->
+    <!-- Layer 7: Book Page Block Edge (Stacked Silver Paper Layers) -->
     <path
         android:fillColor="#CBD5E1"
-        android:pathData="M26,73 C26,73 40,65.5 54,68 C68,65.5 82,73 82,73 L82,46 C82,46 68,38.5 54,41 C40,38.5 26,46 26,46 Z" />
+        android:pathData="M25,74 C25,74 39.5,66 54,68.5 C68.5,66 83,74 83,74 L83,45.5 C83,45.5 68.5,37.5 54,40 C39.5,37.5 25,45.5 25,45.5 Z" />
     <path
         android:fillColor="#94A3B8"
-        android:pathData="M26.8,72.2 C26.8,72.2 40.2,65 54,67.2 C67.8,65 81.2,72.2 81.2,72.2 L81.2,45.8 L26.8,45.8 Z" />
+        android:pathData="M25.8,73.2 C25.8,73.2 39.8,65.5 54,67.8 C68.2,65.5 82.2,73.2 82.2,73.2 L82.2,45.2 L25.8,45.2 Z" />
 
-    <!-- Layer 9: Main Parchment Pages (Left & Right Wings) -->
+    <!-- Layer 8: Main Detailed Open Pages (Curved Wings) -->
     <!-- Left Curved Page Base -->
     <path
         android:fillColor="#F8FAFC"
-        android:pathData="M27.5,70 C27.5,70 40.5,63.2 53.2,65.5 L53.2,43 C40.5,39.8 27.5,45.5 27.5,45.5 Z" />
+        android:pathData="M26.5,71 C26.5,71 39.8,63.8 53.2,66 L53.2,42.5 C39.8,39.3 26.5,45 26.5,45 Z" />
     <!-- Right Curved Page Base -->
     <path
+        android:fillColor="#EDF2F7"
+        android:pathData="M81.5,71 C81.5,71 68.2,63.8 54.8,66 L54.8,42.5 C68.2,39.3 81.5,45 81.5,45 Z" />
+
+    <!-- Top Left Page - Soft Cool White with Inner Spine Shadow -->
+    <path
         android:fillColor="#F1F5F9"
-        android:pathData="M80.5,70 C80.5,70 67.5,63.2 54.8,65.5 L54.8,43 C67.5,39.8 80.5,45.5 80.5,45.5 Z" />
+        android:pathData="M27.5,69.8 C27.5,69.8 40,62.8 53,64.8 L53,42 C40,38.8 27.5,44.3 27.5,44.3 Z" />
+    <path
+        android:fillColor="#1E1F293B"
+        android:pathData="M47,63.8 C49.5,64.2 51.8,64.6 53,64.8 L53,42 C51.8,41.7 49.5,41 47,40.5 Z" />
 
-    <!-- Top Left Page - Rich Parchment Tone with Soft Spine Shadow -->
+    <!-- Top Right Page - Soft Lavender/Ice Tint with Inner Spine Shadow -->
     <path
-        android:fillColor="#FFFBEB"
-        android:pathData="M28.5,68.8 C28.5,68.8 41,62.2 53,64.2 L53,42.5 C41,39.2 28.5,44.8 28.5,44.8 Z" />
+        android:fillColor="#EEF2FF"
+        android:pathData="M80.5,69.8 C80.5,69.8 68,62.8 55,64.8 L55,42 C68,38.8 80.5,44.3 80.5,44.3 Z" />
     <path
-        android:fillColor="#200F172A"
-        android:pathData="M48,63.4 C50,63.7 52,64 53,64.2 L53,42.5 C52,42.2 50,41.5 48,41 Z" />
+        android:fillColor="#221F293B"
+        android:pathData="M61,63.8 C58.5,64.2 56.2,64.6 55,64.8 L55,42 C56.2,41.7 58.5,41 61,40.5 Z" />
 
-    <!-- Top Right Page - Soft Dusk Ivory with Spine Shadow -->
+    <!-- Layer 9: Center Spine Gutter & Fold -->
     <path
-        android:fillColor="#FEF3C7"
-        android:pathData="M79.5,68.8 C79.5,68.8 67,62.2 55,64.2 L55,42.5 C67,39.2 79.5,44.8 79.5,44.8 Z" />
-    <path
-        android:fillColor="#250F172A"
-        android:pathData="M60,63.4 C58,63.7 56,64 55,64.2 L55,42.5 C56,42.2 58,41.5 60,41 Z" />
+        android:fillColor="#4338CA"
+        android:pathData="M53.2,41.5 C53.8,40.8 54.2,40.8 54.8,41.5 L54.8,65.5 C54.2,66.2 53.8,66.2 53.2,65.5 Z" />
 
-    <!-- Layer 10: Center Spine Gutter & Fold -->
-    <path
-        android:fillColor="#D97706"
-        android:pathData="M53.2,42 C53.8,41.2 54.2,41.2 54.8,42 L54.8,65 C54.2,65.8 53.8,65.8 53.2,65 Z" />
-
-    <!-- Layer 11: Silk Bookmark Ribbon & Star Charm -->
+    <!-- Layer 10: Luminous Silk Bookmark Ribbon & Silver Star Charm -->
     <path
         android:fillColor="#0284C7"
-        android:pathData="M53,41.5 L56.5,41.5 L56.5,76 L54.7,73.5 L53,76 Z" />
+        android:pathData="M53,41 L56.5,41 L56.5,77 L54.7,74.5 L53,77 Z" />
     <path
         android:fillColor="#38BDF8"
-        android:pathData="M53,41.5 L54.7,41.5 L54.7,73.5 L53,76 Z" />
-    <!-- Gold Tip Star on Ribbon -->
+        android:pathData="M53,41 L54.7,41 L54.7,74.5 L53,77 Z" />
+    <!-- Silver Star Charm on Ribbon End -->
     <path
-        android:fillColor="#FBBF24"
-        android:pathData="M54.7,71.5 L55.3,72.8 L56.7,73 L55.6,73.9 L56,75.2 L54.7,74.5 L53.4,75.2 L53.8,73.9 L52.7,73 L54.1,72.8 Z" />
+        android:fillColor="#F8FAFC"
+        android:pathData="M54.7,72 L55.3,73.3 L56.7,73.5 L55.6,74.4 L56,75.7 L54.7,75 L53.4,75.7 L53.8,74.4 L52.7,73.5 L54.1,73.3 Z" />
 
-    <!-- Layer 12: Illuminated Manuscript Details & Text Lines -->
-    <!-- Left Page Illuminated Drop Cap Emblem (Golden N) -->
+    <!-- Layer 11: Fine Illuminated Text Lines & Celestial Glyphs (Indigo & Sapphire) -->
+    <!-- Left Page Drop Cap Emblem (N) -->
     <path
-        android:fillColor="#D97706"
-        android:pathData="M32,48 L34,48 L34,54 L32,54 Z M32,48 L36,54 L38,54 L34,48 Z M36,48 L38,48 L38,54 L36,54 Z" />
+        android:fillColor="#4338CA"
+        android:pathData="M31,47.5 L33,47.5 L33,53.5 L31,53.5 Z M31,47.5 L35,53.5 L37,53.5 L33,47.5 Z M35,47.5 L37,47.5 L37,53.5 L35,53.5 Z" />
     
     <!-- Left Page Fine Text Lines -->
     <path
-        android:pathData="M39,49.5 Q45,46.5 50,48"
+        android:pathData="M38,49 Q44,46 50,47.5"
         android:strokeWidth="1.1"
-        android:strokeColor="#78350F"
+        android:strokeColor="#475569"
         android:strokeLineCap="round"/>
     <path
-        android:pathData="M39,52.5 Q45,49.5 50,51"
+        android:pathData="M38,52 Q44,49 50,50.5"
         android:strokeWidth="1.1"
-        android:strokeColor="#B45309"
+        android:strokeColor="#6366F1"
         android:strokeLineCap="round"/>
     <path
-        android:pathData="M33,56.5 Q42,53.2 50,55"
+        android:pathData="M32,56 Q41,52.8 50,54.5"
         android:strokeWidth="1.1"
-        android:strokeColor="#92400E"
+        android:strokeColor="#4F46E5"
         android:strokeLineCap="round"/>
     <path
-        android:pathData="M33,59.5 Q42,56.2 49,58"
+        android:pathData="M32,59 Q41,55.8 49,57.5"
         android:strokeWidth="1.1"
-        android:strokeColor="#B45309"
+        android:strokeColor="#6366F1"
         android:strokeLineCap="round"/>
 
-    <!-- Right Page Celestial Emblem (Gold Ring) -->
+    <!-- Right Page Celestial Constellation Emblem (Silver/Indigo Ring) -->
     <path
-        android:fillColor="#D97706"
-        android:pathData="M73,48.5 A2,2 0 1,1 73,44.5 A2,2 0 1,1 73,48.5 Z" />
+        android:fillColor="#6366F1"
+        android:pathData="M74,48 A2,2 0 1,1 74,44 A2,2 0 1,1 74,48 Z" />
     <path
-        android:fillColor="#FEF3C7"
-        android:pathData="M73,47.5 A1,1 0 1,1 73,45.5 A1,1 0 1,1 73,47.5 Z" />
+        android:fillColor="#F8FAFC"
+        android:pathData="M74,47 A1,1 0 1,1 74,45 A1,1 0 1,1 74,47 Z" />
 
     <!-- Right Page Fine Text Lines -->
     <path
-        android:pathData="M70,50 Q64,47 58,48.5"
+        android:pathData="M71,49.5 Q65,46.5 58,48"
         android:strokeWidth="1.1"
-        android:strokeColor="#78350F"
+        android:strokeColor="#475569"
         android:strokeLineCap="round"/>
     <path
-        android:pathData="M76,53.5 Q66,50 58,51.8"
+        android:pathData="M77,53 Q67,49.5 58,51.3"
         android:strokeWidth="1.1"
-        android:strokeColor="#92400E"
+        android:strokeColor="#4F46E5"
         android:strokeLineCap="round"/>
     <path
-        android:pathData="M76,56.8 Q66,53.2 58,55"
+        android:pathData="M77,56.3 Q67,52.8 58,54.5"
         android:strokeWidth="1.1"
-        android:strokeColor="#B45309"
+        android:strokeColor="#6366F1"
         android:strokeLineCap="round"/>
     <path
-        android:pathData="M75,60 Q66,56.5 58,58"
+        android:pathData="M76,59.5 Q67,56 58,57.5"
         android:strokeWidth="1.1"
-        android:strokeColor="#92400E"
+        android:strokeColor="#4F46E5"
         android:strokeLineCap="round"/>
 
-    <!-- Top Sparkle Magic Dust on Page Surface -->
-    <path android:fillColor="#38BDF8" android:pathData="M48,46 A0.7,0.7 0 1,1 48,44.6 A0.7,0.7 0 1,1 48,46 Z" />
-    <path android:fillColor="#FDE047" android:pathData="M60,46 A0.7,0.7 0 1,1 60,44.6 A0.7,0.7 0 1,1 60,46 Z" />
+    <!-- Layer 12: Magic Stardust Rising from Book Surface into Night Sky -->
+    <path android:fillColor="#38BDF8" android:pathData="M48,45 A0.8,0.8 0 1,1 48,43.4 A0.8,0.8 0 1,1 48,45 Z" />
+    <path android:fillColor="#C084FC" android:pathData="M60,45 A0.8,0.8 0 1,1 60,43.4 A0.8,0.8 0 1,1 60,45 Z" />
+    <path android:fillColor="#F8FAFC" android:pathData="M54,38 A0.9,0.9 0 1,1 54,36.2 A0.9,0.9 0 1,1 54,38 Z" />
 </vector>
