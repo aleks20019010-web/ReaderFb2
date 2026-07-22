@@ -1,5 +1,6 @@
 package com.nightread.app.data
 
+import android.content.Context
 import java.util.Locale
 
 data class BookChunk(
@@ -68,6 +69,14 @@ object RAGManager {
 
     fun search(query: String, topK: Int = 10): List<String> {
         return searchWithProgress(query, maxProgressPercent = 100, topK = topK)
+    }
+
+    fun searchRAG(context: Context, book: BookEntity, query: String, topK: Int = 10): List<String> {
+        val sampleText = LocalAiEngine.getBookSampleText(book)
+        if (sampleText.isNotBlank()) {
+            indexBook(sampleText)
+        }
+        return search(query, topK)
     }
 
     fun formatSearchResults(results: List<String>): String {

@@ -146,7 +146,7 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
             try {
                 kotlinx.coroutines.delay(200)
                 val textResponse = withContext(Dispatchers.IO) {
-                    com.nightread.app.data.LocalAiEngine.customAiPrompt(ctx, word, contextSnippet, actionType)
+                    com.nightread.app.data.LocalAiEngine.customAiPromptWithSnippet(ctx, word, contextSnippet, actionType)
                 }
 
                 if (isAdded) {

@@ -694,21 +694,23 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 val response = when {
                     lower.contains("аннотац") -> {
                         if (book != null) com.nightread.app.data.LocalAiEngine.generateAnnotation(context, book)
-                        else com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, null, "")
+                        else com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt)
                     }
                     lower.contains("краткое содерж") || lower.contains("пересказ") || lower.contains("о чем книга") -> {
                         if (book != null) com.nightread.app.data.LocalAiEngine.generateSummary(context, book)
-                        else com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, sampleContext, "summarize")
+                        else com.nightread.app.data.LocalAiEngine.customAiPromptWithSnippet(context, prompt, sampleContext, "summarize")
                     }
                     lower.contains("персонажи книги") || lower == "персонажи" || lower == "герои" || lower == "список персонажей" -> {
                         if (book != null) com.nightread.app.data.LocalAiEngine.generateCharacters(context, book)
-                        else com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, sampleContext, "character")
+                        else com.nightread.app.data.LocalAiEngine.customAiPromptWithSnippet(context, prompt, sampleContext, "character")
                     }
                     lower.contains("персонаж") || lower.contains("геро") || lower.contains("кто это") || lower.contains("кто такой") || lower.contains("кто такая") -> {
-                        com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, sampleContext, "character")
+                        if (book != null) com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, book, "character")
+                        else com.nightread.app.data.LocalAiEngine.customAiPromptWithSnippet(context, prompt, sampleContext, "character")
                     }
                     else -> {
-                        com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, sampleContext, "")
+                        if (book != null) com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, book, "")
+                        else com.nightread.app.data.LocalAiEngine.customAiPromptWithSnippet(context, prompt, sampleContext, "")
                     }
                 }
 

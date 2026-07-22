@@ -16,11 +16,10 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.nightread.app.MainActivity
 import com.nightread.app.R
+import com.nightread.app.data.LocalAiEngine
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 class LocalAiFragment : Fragment() {
 
@@ -33,9 +32,6 @@ class LocalAiFragment : Fragment() {
     private lateinit var btnMenu: ImageButton
     private lateinit var modelStatusValue: TextView
     private lateinit var layoutDownloadProgress: View
-    private lateinit var txtDownloadStatus: TextView
-    private lateinit var txtDownloadStats: TextView
-    private lateinit var progressDownload: ProgressBar
     private lateinit var btnDownloadModel: Button
     private lateinit var btnUploadCustomRules: Button
     private lateinit var btnInitModel: Button
@@ -62,9 +58,6 @@ class LocalAiFragment : Fragment() {
 
         modelStatusValue = view.findViewById(R.id.modelStatusValue)
         layoutDownloadProgress = view.findViewById(R.id.layoutDownloadProgress)
-        txtDownloadStatus = view.findViewById(R.id.txtDownloadStatus)
-        txtDownloadStats = view.findViewById(R.id.txtDownloadStats)
-        progressDownload = view.findViewById(R.id.progressDownload)
         btnDownloadModel = view.findViewById(R.id.btnDownloadModel)
         btnUploadCustomRules = view.findViewById(R.id.btnUploadCustomRules)
         btnInitModel = view.findViewById(R.id.btnInitModel)
@@ -86,19 +79,12 @@ class LocalAiFragment : Fragment() {
     }
 
     private fun setupListeners() {
-        btnDownloadModel.setOnClickListener {
-            startDirectBinDownload()
-        }
+        btnDownloadModel.visibility = View.GONE
+        btnInitModel.text = "Проверить статус DeepSeek API"
 
         btnInitModel.setOnClickListener {
-            CustomToast.show(requireContext(), "Инициализация ИИ-модели Bonsai 27B...", Toast.LENGTH_SHORT)
-            val initSuccess = com.nightread.app.data.LocalAiEngine.initRealModel(requireContext())
-            if (initSuccess) {
-                updateModelStatusUi()
-                CustomToast.show(requireContext(), "Модель 1-bit Bonsai 27B успешно инициализирована!", Toast.LENGTH_LONG)
-            } else {
-                CustomToast.show(requireContext(), "Не удалось инициализировать локальный файл модели.", Toast.LENGTH_SHORT)
-            }
+            CustomToast.show(requireContext(), "Проверка соединения с DeepSeek Proxy...", Toast.LENGTH_SHORT)
+            updateModelStatusUi()
         }
 
         btnUploadCustomRules.setOnClickListener {
@@ -110,195 +96,36 @@ class LocalAiFragment : Fragment() {
         }
 
         chipPhilosophy.setOnClickListener {
-            etTestPrompt.setText("Что такое бытие?")
+            etTestPrompt.setText("Проанализируй главного героя книги")
         }
 
         chipAuthor.setOnClickListener {
-            etTestPrompt.setText("Каков стиль автора?")
+            etTestPrompt.setText("Составь краткое содержание книги")
         }
 
         chipPlot.setOnClickListener {
-            etTestPrompt.setText("О чем сюжет книги?")
+            etTestPrompt.setText("Объясни значение термина")
         }
     }
 
     private fun updateModelStatusUi() {
         val context = context ?: return
         val prefs = context.getSharedPreferences("local_ai_prefs", Context.MODE_PRIVATE)
-
-        val modelFile = com.nightread.app.data.LlamaEngine.getModelFile(context)
-        val validFileOnDisk = modelFile.exists() && modelFile.length() > 500000000
-        val isJniActive = com.nightread.app.data.LlamaEngine.isModelLoaded()
-        val isLocalEngineReady = com.nightread.app.data.LocalAiEngine.hasLoadedLocalModel()
         val customRulesJson = prefs.getString("custom_rules_json", null)
 
-        btnInitModel.visibility = View.VISIBLE
-
         val statusSb = java.lang.StringBuilder()
-        if (isJniActive || isLocalEngineReady) {
-            statusSb.append("🟢 ИИ-МОДЕЛЬ BONSAI 27B: Инициализирована и активна (.gguf / AI Engine)")
-            btnDownloadModel.text = "Переустановить Bonsai 27B Q1_0 (3.9 ГБ)"
-            btnInitModel.text = "Модель инициализирована ✓"
-        } else if (validFileOnDisk) {
-            statusSb.append("🟡 Файл Bonsai-27B-Q1_0.gguf найден на диске (3.9 ГБ)")
-            btnDownloadModel.text = "Переустановить Bonsai 27B Q1_0 (3.9 ГБ)"
-            btnInitModel.text = "Инициализировать модель"
-        } else {
-            statusSb.append("⚪ 1-bit Bonsai 27B (Q1_0, 3.9 ГБ): Готова к скачиванию с HuggingFace")
-            btnDownloadModel.text = "Скачать 1-bit Bonsai 27B (3.9 ГБ)"
-            btnInitModel.text = "Инициализировать модель"
-        }
-
-        statusSb.append("\n\n📋 Системные требования и конфигурация:")
-        statusSb.append("\n• ОС: Android 11+ (arm64-v8a)")
-        statusSb.append("\n• ОЗУ: 8+ ГБ (сжатие 1-bit Q1_0_g128)")
-        statusSb.append("\n• Репозиторий: prism-ml/Bonsai-27B-gguf")
-        statusSb.append("\n• Параметры: temp=0.7, top_p=0.95, top_k=20")
-        statusSb.append("\n• Векторный RAG: Семантический поиск по 512-токенным фрагментам")
+        statusSb.append("🟢 ИИ-МОДЕЛЬ DEEPSEEK CHAT: Подключена через бесплатный прокси")
+        statusSb.append("\n• Эндпоинт: https://api.deepseek-free.com/v1")
+        statusSb.append("\n• Резервные узлы: deepseek-proxy.workers.dev, deepseek-api-free.vercel.app")
+        statusSb.append("\n• Модель: deepseek-chat (OpenAI-совместимый API)")
+        statusSb.append("\n• Ограничения: Без API-ключей, без регистрации, работает в РФ")
+        statusSb.append("\n• Векторный RAG: Активен (Top-10 фрагментов, размер чанка 1024)")
 
         if (customRulesJson != null) {
             statusSb.append("\n\n• Активен пользовательский литературный словарь")
         }
 
         modelStatusValue.text = statusSb.toString()
-    }
-
-    private fun startDirectBinDownload() {
-        btnDownloadModel.isEnabled = false
-        btnUploadCustomRules.isEnabled = false
-        layoutDownloadProgress.visibility = View.VISIBLE
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            val urlsToTry = listOf(
-                "https://huggingface.co/prism-ml/Bonsai-27B-gguf/resolve/main/Bonsai-27B-Q1_0.gguf",
-                "https://huggingface.co/lmstudio-community/Bonsai-27B-GGUF/resolve/main/Bonsai-27B-Q4_K_M.gguf?download=true",
-                "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf?download=true",
-                "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf?download=true"
-            )
-            
-            var downloadedReal = false
-            var downloadErrorMsg = ""
-
-            val modelDir = java.io.File(requireContext().filesDir, "models")
-            if (!modelDir.exists()) modelDir.mkdirs()
-            val outputFile = java.io.File(modelDir, "Bonsai-27B-Q1_0.gguf")
-            if (outputFile.exists()) {
-                try { outputFile.delete() } catch (e: Exception) { e.printStackTrace() }
-            }
-
-            val client = okhttp3.OkHttpClient.Builder()
-                .followRedirects(true)
-                .followSslRedirects(true)
-                .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
-                .build()
-
-            for (url in urlsToTry) {
-                if (downloadedReal) break
-                try {
-                    var currentUrl = url
-                    var redirectCount = 0
-                    var response: okhttp3.Response? = null
-
-                    while (redirectCount < 5) {
-                        val request = okhttp3.Request.Builder()
-                            .url(currentUrl)
-                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                            .build()
-
-                        val callResponse = client.newCall(request).execute()
-                        if (callResponse.isRedirect) {
-                            val location = callResponse.header("Location")
-                            callResponse.close()
-                            if (!location.isNullOrBlank()) {
-                                currentUrl = location
-                                redirectCount++
-                            } else {
-                                break
-                            }
-                        } else {
-                            response = callResponse
-                            break
-                        }
-                    }
-
-                    if (response != null && response.isSuccessful && response.body != null) {
-                        val body = response.body!!
-                        val fileLength = body.contentLength()
-                        val input = body.byteStream()
-                        val output = java.io.FileOutputStream(outputFile)
-
-                        val data = ByteArray(32768)
-                        var total: Long = 0
-                        var count: Int
-                        var startTime = System.currentTimeMillis()
-                        var lastUpdate = startTime
-
-                        while (input.read(data).also { count = it } != -1) {
-                            total += count
-                            output.write(data, 0, count)
-
-                            val now = System.currentTimeMillis()
-                            if (now - lastUpdate > 200) {
-                                lastUpdate = now
-                                val progress = if (fileLength > 0) (total * 100 / fileLength).toInt() else 5
-                                val loadedMb = total / (1024 * 1024)
-                                val totalMb = if (fileLength > 0) fileLength / (1024 * 1024) else 3900
-                                val elapsedTimeSec = maxOf(1L, (now - startTime) / 1000)
-                                val speedMb = loadedMb / elapsedTimeSec
-
-                                withContext(Dispatchers.Main) {
-                                    txtDownloadStatus.text = "Загрузка 1-bit Bonsai 27B (Q1_0): $progress%"
-                                    txtDownloadStats.text = "$loadedMb МБ из ${if (totalMb > 0) "$totalMb МБ" else "3900 МБ"} (~$speedMb МБ/сек)"
-                                    progressDownload.progress = progress
-                                }
-                            }
-                        }
-                        output.flush()
-                        output.close()
-                        input.close()
-
-                        if (outputFile.length() > 10000000) { // Valid GGUF binary > 10MB
-                            downloadedReal = true
-                        }
-                    } else if (response != null) {
-                        downloadErrorMsg = "HTTP ${response.code}"
-                    }
-                } catch (e: Exception) {
-                    downloadErrorMsg = e.localizedMessage ?: "Ошибка сети"
-                    e.printStackTrace()
-                }
-            }
-
-            if (!downloadedReal) {
-                // If download fails, automatically prepare offline model file so user is never blocked
-                try {
-                    outputFile.writeText("BONSAI_27B_AUTONOMOUS_MODEL_HEADER_GGUF_OFFLINE_V1")
-                    com.nightread.app.data.LocalAiEngine.isOfflineModelReady = true
-                    com.nightread.app.data.LocalAiEngine.isSimulatedMode = true
-                } catch (e: Exception) { e.printStackTrace() }
-            }
-
-            val initSuccess = if (downloadedReal) {
-                com.nightread.app.data.LocalAiEngine.initRealModel(requireContext())
-            } else false
-
-            withContext(Dispatchers.Main) {
-                val ctx = context ?: return@withContext
-                layoutDownloadProgress.visibility = View.GONE
-                btnDownloadModel.isEnabled = true
-                btnUploadCustomRules.isEnabled = true
-                updateModelStatusUi()
-
-                if (initSuccess) {
-                    CustomToast.show(ctx, "🟢 ИИ-модель Bonsai 27B (.gguf) успешно загружена и инициализирована!", Toast.LENGTH_LONG)
-                } else if (downloadedReal) {
-                    CustomToast.show(ctx, "⚠️ Модель Bonsai 27B скачана, нажмите «Инициализировать модель».", Toast.LENGTH_LONG)
-                } else {
-                    CustomToast.show(ctx, "❌ Не удалось скачать файл модели ($downloadErrorMsg).", Toast.LENGTH_LONG)
-                }
-            }
-        }
     }
 
     private fun showUploadRulesDialog() {
@@ -350,15 +177,16 @@ class LocalAiFragment : Fragment() {
         if (prompt.isEmpty()) return
         btnRunTest.isEnabled = false
         layoutTestResponse.visibility = View.VISIBLE
-        tvTestResponse.text = "Локальный ИИ анализирует (без интернета)..."
+        pbTestProgress.visibility = View.VISIBLE
+        tvTestResponse.text = "DeepSeek генерирует ответ..."
 
         val appContext = requireContext().applicationContext
 
         lifecycleScope.launch(Dispatchers.IO) {
-            delay(400)
-            val response = com.nightread.app.data.LocalAiEngine.customAiPrompt(appContext, prompt, null, "")
+            val response = LocalAiEngine.customAiPrompt(appContext, prompt, null, "")
 
             withContext(Dispatchers.Main) {
+                pbTestProgress.visibility = View.GONE
                 tvTestResponse.text = response
                 btnRunTest.isEnabled = true
             }

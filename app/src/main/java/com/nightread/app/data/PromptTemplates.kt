@@ -14,20 +14,7 @@ object PromptTemplates {
 
 <|reasoning|>"""
 
-    data class GenerationSettings(
-        val temperature: Float,
-        val maxTokens: Int
-    )
-
-    val SETTINGS_SUMMARY = GenerationSettings(temperature = 0.3f, maxTokens = 1024)
-    val SETTINGS_WHO_IS = GenerationSettings(temperature = 0.5f, maxTokens = 512)
-    val SETTINGS_CHARACTER_ANALYSIS = GenerationSettings(temperature = 0.7f, maxTokens = 4096)
-    val SETTINGS_EXPLAIN_WORD = GenerationSettings(temperature = 0.3f, maxTokens = 512)
-    val SETTINGS_COMPARE = GenerationSettings(temperature = 0.7f, maxTokens = 4096)
-    val SETTINGS_CHARACTER_ARC = GenerationSettings(temperature = 0.7f, maxTokens = 4096)
-    val SETTINGS_ALL_CHARACTERS = GenerationSettings(temperature = 0.7f, maxTokens = 4096)
-
-    // 1. Краткое содержание
+    // 1. Краткое содержание (3-5 предложений: тема, герой, конфликт, развязка)
     fun bookSummary(text: String): String =
         """На основе этих отрывков из книги составь краткое содержание в 3–5 предложениях. Укажи основную тему, главного героя, ключевой конфликт и развязку.
 
@@ -47,7 +34,7 @@ $text
 Начинай сразу с ответа. Не пиши "Ответ:" или "Справка:".
 <|reasoning|>"""
 
-    // 3. Глубокий анализ персонажа
+    // 3. Глубокий анализ персонажа (5 пунктов: Мотивация, Динамика, Конфликты, Влияние, Авторская идея)
     fun characterAnalysis(characterName: String, bookTitle: String, text: String): String =
         """Проанализируй персонажа $characterName из книги ${if (bookTitle.isNotBlank()) bookTitle else "книги"}.
 
@@ -78,7 +65,7 @@ $text
 
 <|reasoning|>"""
 
-    // 4. Пояснение слова
+    // 4. Пояснение слова (Прямое значение, Смысл в контексте, Устаревшее/диалектное)
     fun explainTerm(wordOrPhrase: String, text: String): String =
         """Объясни значение слова или выражения "$wordOrPhrase" в контексте этой книги.
 
@@ -93,7 +80,17 @@ $text
 Начинай сразу с объяснения. Не пиши "Ответ:" или "Пояснение:".
 <|reasoning|>"""
 
-    // 5. Сравнительный анализ двух персонажей
+    // 5. Перевод слова (Иностранный -> Русский, Русский -> Английский)
+    fun translateWord(word: String, contextSnippet: String = ""): String =
+        """Переведи слово или выражение "$word".
+Если слово на иностранном языке — переведи на русский.
+Если слово на русском — переведи на английский.
+${if (contextSnippet.isNotBlank()) "Контекст употребления: $contextSnippet" else ""}
+
+Дай только перевод и краткое пояснение при необходимости. Начинай сразу с перевода.
+<|reasoning|>"""
+
+    // 6. Сравнительный анализ двух персонажей
     fun compareCharacters(name1: String, name2: String, bookTitle: String, text: String): String =
         """Сравни персонажей $name1 и $name2 из книги ${if (bookTitle.isNotBlank()) bookTitle else "книги"}.
 
@@ -110,7 +107,7 @@ $text
 Начинай сразу со сравнения. Не пиши "Сравнительный анализ:" или "Ответ:".
 <|reasoning|>"""
 
-    // 6. Анализ сюжетной арки персонажа
+    // 7. Анализ сюжетной арки персонажа
     fun characterArcAnalysis(characterName: String, bookTitle: String, text: String): String =
         """Проанализируй сюжетную арку персонажа $characterName из книги ${if (bookTitle.isNotBlank()) bookTitle else "книги"}.
 
@@ -126,7 +123,7 @@ $text
 Покажи, как каждый этап влияет на персонажа. Не пересказывай сюжет — анализируй. Начинай сразу с экспозиции. Не пиши "Анализ арки:" или "Ответ:".
 <|reasoning|>"""
 
-    // 7. Анализ всех персонажей книги
+    // 8. Анализ всех персонажей книги
     fun analyzeAllCharacters(bookTitle: String, text: String): String =
         """Ты — литературовед-аналитик. Проанализируй всех персонажей книги ${if (bookTitle.isNotBlank()) bookTitle else "книги"}.
 
@@ -144,10 +141,4 @@ $text
 
 Не используй шаблонные фразы. Не пересказывай сюжет. Начинай сразу с первого персонажа. Не пиши "Анализ персонажей:" или "Ответ:".
 <|reasoning|>"""
-
-    fun buildFullPrompt(taskPrompt: String): String {
-        return "<system>\n$SYSTEM_PROMPT\n</system>\n\n<user>\n$taskPrompt\n</user>\n<assistant>\n"
-    }
 }
-
-
