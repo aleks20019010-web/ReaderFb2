@@ -2,175 +2,221 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
+    android:viewportWidth="156.8"
+    android:viewportHeight="156.8">
 
-    <!-- 1. Central Card Drop Shadow -->
+    <!-- Ambient Shadow Under Card -->
     <path
-        android:fillColor="#080C1E"
-        android:pathData="M23,24 C23,18.48 27.48,14 33,14 L75,14 C80.52,14 85,18.48 85,24 L85,82 C85,87.52 80.52,92 75,92 L33,92 C27.48,92 23,87.52 23,82 Z" />
+        android:fillColor="#500A0A2E"
+        android:pathData="M130,119 C130,127.7 99,134 79,134 C59,134 30,127.7 30,119 C30,110.3 59,105 79,105 C99,105 130,110.3 130,119 Z" />
 
-    <!-- 2. Dark Blue Rounded Card / Plate -->
+    <!-- Card Base -->
     <path
-        android:fillColor="#111836"
-        android:pathData="M23,22 C23,16.48 27.48,12 33,12 L75,12 C80.52,12 85,16.48 85,22 L85,80 C85,85.52 80.52,90 75,90 L33,90 C27.48,90 23,85.52 23,80 Z" />
+        android:fillColor="#1D2A68"
+        android:pathData="M111.2,31.6 H45.8 C37,31.6 29.5,38.3 29.5,47 V107.7 C29.5,117.4 36,125 45.8,125 H111.5 C120,125 126.8,118.6 126.8,109 V47 C126.8,38.3 120,31.6 111.2,31.6 Z" />
 
-    <!-- 3. Top Rim Highlight of Card -->
+    <!-- Card Outline / Border -->
     <path
-        android:fillColor="#212C54"
-        android:pathData="M33,12 L75,12 C80.52,12 85,16.48 85,22 L85,23.5 L23,23.5 L23,22 C23,16.48 27.48,12 33,12 Z" />
+        android:fillColor="#323F73"
+        android:pathData="M111.1,31.6 L45.8,31.5 C37.8,31.5 29.5,37.3 29.5,47 L29.6,108 C29.6,117.7 36,125 45.8,125 H111.5 C120,125 126.8,119.4 126.8,109 L126.9,47 C126.9,38.2 120,31.6 111.1,31.6 Z M125.8,108.9 C125.8,116.5 120,123.9 111.5,124 H45.8 C38,124 30.6,119.2 30.6,108.9 L30.7,47 C30.7,39 36.8,32.8 45.4,32.7 H111 C119,32.7 125.8,38.3 125.8,47 V108.9 Z" />
 
-    <!-- 4. Bottom Golden Pill Bar Accent -->
+    <!-- Outer Decorative Glow Accents -->
     <path
-        android:fillColor="#DE9F35"
-        android:pathData="M43,80.5 L65,80.5 C66.1,80.5 67,81.4 67,82.5 C67,83.6 66.1,84.5 65,84.5 L43,84.5 C41.9,84.5 41,83.6 41,82.5 C41,81.4 41.9,80.5 43,80.5 Z" />
+        android:fillColor="#702BB0"
+        android:pathData="M126.3,71.1 C126.3,71.1 139.8,74 140,85 C139.8,96.1 126.3,99.4 126.3,99.4 V71.1 Z" />
+    <path
+        android:fillColor="#4A2CB3"
+        android:pathData="M30,87 C30,87 16,93.1 16.3,105.5 L16.8,113 H30 V87 Z" />
+    <path
+        android:fillColor="#883EC2"
+        android:pathData="M123.1,57.6 C123.1,57.6 133.5,54.3 133.5,45.3 C133.5,38.6 126.4,36.7 123.8,37.2 L123.1,57.6 Z" />
 
-    <!-- 5. Floating Glowing Golden Sparkles Around the Book -->
-    <group android:alpha="0.25">
-        <path
-            android:fillColor="#FFE082"
-            android:pathData="M54,16 C57.31,16 60,18.69 60,22 C60,25.31 57.31,28 54,28 C50.69,28 48,25.31 48,22 C48,18.69 50.69,16 54,16 Z" />
-    </group>
+    <!-- Gold Hardcover Base -->
     <path
-        android:fillColor="#FFFDE7"
-        android:pathData="M54,19 C55.66,19 57,20.34 57,22 C57,23.66 55.66,25 54,25 C52.34,25 51,23.66 51,22 C51,20.34 52.34,19 54,19 Z" />
+        android:fillColor="#DAAB56"
+        android:pathData="M115,61.5 H42 C40.6,61.5 40,62.4 40,63.6 L39.9,106.2 C39.9,107.1 40.5,108.5 42,108.5 L72.5,108.4 C73.3,109.4 74.8,110.9 78.5,110.9 C82.2,110.9 83.7,109.8 84.2,108.6 L114.6,108.5 C116.3,108.6 116.8,107.5 116.8,106.3 V63.6 C116.8,62.3 116,61.5 115,61.5 Z" />
+
+    <!-- Dark Gold Book Trim & Spine Shadows -->
+    <path
+        android:fillColor="#B67A2E"
+        android:pathData="M83,106.5 C82.2,106.9 82.6,108.7 78.3,108.9 C74,108.9 73.9,107.3 73.4,106.6 C68.9,104.5 65,103.9 59.5,104 C53.6,104.3 48,105.4 44.3,105.8 C43.6,105.9 42.5,105.4 42.6,104 V63 L114.7,63.1 C114.7,63.1 115.1,104.4 114.8,105.4 C114.7,105.9 114.1,105.9 112.4,105.7 C108.7,105.5 101.7,104 95.1,103.8 C90.6,103.7 86.1,104.6 83,106.1 V106.5 Z" />
+
+    <!-- Pages Block -->
+    <path
+        android:fillColor="#EDE2DA"
+        android:pathData="M112.5,58.7 H112.3 H44.2 C43.3,58.7 42.6,59.3 42.6,60.3 L42.5,104 C42.5,105.1 43.3,106 44.3,105.8 L73.4,106.2 C73.4,106.2 75.5,105 78.4,104.8 C80.7,105.1 81.9,105.9 82.9,106 L112.4,105.8 C113.3,106 114.2,105.6 114.2,103.7 V60.6 C114.2,59.4 113.5,58.7 112.5,58.7 Z" />
+
+    <!-- Right Page Shadow/Gradient -->
+    <path
+        android:fillColor="#F5DFC7"
+        android:pathData="M82.9,106.5 C82.9,106.5 86.3,103.8 94.4,103.8 C100.3,103.8 107.6,105.4 111.6,105.6 V55.5 C111.6,55.8 111.1,55.5 110.1,55.5 C109.2,55.5 101.2,55.4 94.4,57.2 C83.7,60 78.4,64.9 78.4,66.7 V104.8 L82.9,106.5 Z" />
+
+    <!-- Left Page Shadow/Gradient -->
+    <path
+        android:fillColor="#F5E1CC"
+        android:pathData="M74,106.4 L78.4,104.8 V65 C74.7,60.9 68.9,57.1 58.9,55.8 L46.5,55.5 C45.5,55.5 44.9,56.2 44.9,57.1 V103.3 C48.7,104 56.7,103.4 63.2,103.8 C70,104 74,106.4 74,106.4 Z" />
+
+    <!-- Inner Page Ribbons & Accents -->
+    <path
+        android:fillColor="#DDCBBF"
+        android:pathData="M46.4,104 C50.5,102.8 56.1,102 61.6,101.8 C67.5,101.7 72.2,103.1 75,105.6 C71.2,104.3 68.8,103 62.8,102.5 C57.8,102.3 50,104.3 46.4,104 Z M110.3,103.4 C106.6,102.8 100,101.5 93.3,101.5 C88.8,101.5 84.8,102.3 81.9,105.4 C84.3,103.9 87.6,102.3 93.5,102.1 C99.4,102 108.6,104.3 110.1,104 C111.6,103.7 110.3,103.4 110.3,103.4 Z" />
+
+    <path
+        android:fillColor="#EFCDAA"
+        android:pathData="M78.4,104.8 C82.8,101.5 87.6,97.7 97.8,97.5 C103.6,97.5 109.5,98.1 111.6,97.7 V55.5 C97.5,55.7 82.3,59.1 78.4,66.7 V104.8 Z" />
+
+    <path
+        android:fillColor="#F4E8D8"
+        android:pathData="M78.3,104.7 C74.3,101 71.1,98.1 61.1,97.5 C52.2,97.1 47.4,98.1 45.1,97.5 V57 C44.9,56.8 59.2,57.1 63.5,57.7 C71,58.9 76.8,63.4 78.3,66.1 V104.7 Z" />
+
+    <path
+        android:fillColor="#DCB17C"
+        android:pathData="M78.3,104.7 C84.1,100 88.7,97.6 98,97.5 C105.6,97.5 107.9,98.1 110.1,97.9 C109.6,92.1 110.1,86.6 110.1,86.6 L78.4,92 L78.3,104.7 Z M46.5,97.9 C49.7,98.1 52.7,97.4 58.9,97.5 C67.1,97.5 74.2,99.9 78.3,104.7 L78.4,92.6 L47,86.4 L46.5,97.9 Z" />
+
+    <!-- Bottom Line Accent -->
+    <path
+        android:strokeColor="#DFB567"
+        android:strokeWidth="1.9862"
+        android:strokeLineCap="round"
+        android:pathData="M69,118.1 L87.7,118.1" />
+
+    <!-- Spine Notch Center Accent -->
+    <path
+        android:fillColor="#B67A2E"
+        android:pathData="M74,106.6 L77,105 L78.5,104.9 L82.7,106.6 C82.7,106.6 82.3,109 78.4,108.8 C74.3,108.8 74.3,107.3 74,106.6 Z" />
+
+    <!-- Open Book Right Wing -->
+    <path
+        android:fillColor="#FAF5E5"
+        android:pathData="M78.4,61.2 C79.7,59 86.5,50.1 106.9,49.4 C107.7,49.3 108.5,49.7 108.5,50.8 V92.4 C108.5,93.2 107.9,93.7 107.1,93.7 C96.7,93.8 85,95.4 78.2,104.5 L78.4,61.2 Z" />
+
+    <!-- Open Book Left Wing -->
+    <path
+        android:fillColor="#FFFBF2"
+        android:pathData="M78.4,104.5 C77,102 70.4,93.9 49.5,93.7 C48.8,93.7 48.1,93.3 48.1,92.1 V51.1 C48.1,50.3 48.6,49.4 49.7,49.4 C65,49.6 74.8,54 78.3,59.8 L78.4,65.8 V104.5 Z" />
+
+    <!-- Center Light Glow -->
+    <path
+        android:fillColor="#FFF5DC"
+        android:pathData="M78.6,67.9 C82.245,67.9 85.2,70.542 85.2,73.8 C85.2,77.058 82.245,79.7 78.6,79.7 C74.955,79.7 72,77.058 72,73.8 C72,70.542 74.955,67.9 78.6,67.9 Z" />
+
+    <!-- Magic Stardust Dots and Sparkles -->
+    <path
+        android:fillColor="#40A68379"
+        android:pathData="M37.3,76.4 A2.5,2.5 0 1,1 37.3,81.4 A2.5,2.5 0 1,1 37.3,76.4 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,20.5 C54.83,20.5 55.5,21.17 55.5,22 C55.5,22.83 54.83,23.5 54,23.5 C53.17,23.5 52.5,22.83 52.5,22 C52.5,21.17 53.17,20.5 54,20.5 Z" />
+        android:pathData="M37.2,78.2 A0.6,0.6 0 1,1 37.2,79.4 A0.6,0.6 0 1,1 37.2,78.2 Z" />
 
-    <!-- Top Left Sparkles -->
-    <group android:alpha="0.35">
-        <path
-            android:fillColor="#FFE082"
-            android:pathData="M33,23 C35.21,23 37,24.79 37,27 C37,29.21 35.21,31 33,31 C30.79,31 29,29.21 29,27 C29,24.79 30.79,23 33,23 Z" />
-    </group>
+    <path
+        android:fillColor="#40A68379"
+        android:pathData="M21.9,64.9 A2.5,2.5 0 1,1 21.9,69.9 A2.5,2.5 0 1,1 21.9,64.9 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M33,25.5 C33.83,25.5 34.5,26.17 34.5,27 C34.5,27.83 33.83,28.5 33,28.5 C32.17,28.5 31.5,27.83 31.5,27 C31.5,26.17 32.17,25.5 33,25.5 Z" />
+        android:pathData="M21.9,66.7 A0.7,0.7 0 1,1 21.9,68.1 A0.7,0.7 0 1,1 21.9,66.7 Z" />
 
-    <!-- Top Right Sparkles -->
-    <group android:alpha="0.35">
-        <path
-            android:fillColor="#FFE082"
-            android:pathData="M75,23 C77.21,23 79,24.79 79,27 C79,29.21 77.21,31 75,31 C72.79,31 71,29.21 71,27 C71,24.79 72.79,23 75,23 Z" />
-    </group>
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M75,25.5 C75.83,25.5 76.5,26.17 76.5,27 C76.5,27.83 75.83,28.5 75,28.5 C74.17,28.5 73.5,27.83 73.5,27 C73.5,26.17 74.17,25.5 75,25.5 Z" />
-
-    <!-- Mid Left Sparkles -->
-    <group android:alpha="0.4">
-        <path
-            android:fillColor="#FFD54F"
-            android:pathData="M43,29 C44.66,29 46,30.34 46,32 C46,33.66 44.66,35 43,35 C41.34,35 40,33.66 40,32 C40,30.34 41.34,29 43,29 Z" />
-    </group>
+        android:pathData="M25.4,74.3 A0.3,0.3 0 1,1 25.4,74.9 A0.3,0.3 0 1,1 25.4,74.3 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M43,30.8 C43.66,30.8 44.2,31.34 44.2,32 C44.2,32.66 43.66,33.2 43,33.2 C42.34,33.2 41.8,32.66 41.8,32 C41.8,31.34 42.34,30.8 43,30.8 Z" />
-
-    <!-- Mid Right Sparkles -->
-    <group android:alpha="0.4">
-        <path
-            android:fillColor="#FFD54F"
-            android:pathData="M65,29 C66.66,29 68,30.34 68,32 C68,33.66 66.66,35 65,35 C63.34,35 62,33.66 62,32 C62,30.34 63.34,29 65,29 Z" />
-    </group>
+        android:pathData="M19.4,89.1 A0.3,0.3 0 1,1 19.4,89.7 A0.3,0.3 0 1,1 19.4,89.1 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M65,30.8 C65.66,30.8 66.2,31.34 66.2,32 C66.2,32.66 65.66,33.2 65,33.2 C64.34,33.2 63.8,32.66 63.8,32 C63.8,31.34 64.34,30.8 65,30.8 Z" />
-
-    <!-- Outer Tiny Sparkle Dots -->
-    <path android:fillColor="#FFE082" android:pathData="M26,37 C26.83,37 27.5,37.67 27.5,38.5 C27.5,39.33 26.83,40 26,40 C25.17,40 24.5,39.33 24.5,38.5 C24.5,37.67 25.17,37 26,37 Z" />
-    <path android:fillColor="#FFE082" android:pathData="M82,37 C82.83,37 83.5,37.67 83.5,38.5 C83.5,39.33 82.83,40 82,40 C81.17,40 80.5,39.33 80.5,38.5 C80.5,37.67 81.17,37 82,37 Z" />
-    <path android:fillColor="#FFF59D" android:pathData="M24,45 C24.55,45 25,45.45 25,46 C25,46.55 24.55,47 24,47 C23.45,47 23,46.55 23,46 C23,45.45 23.45,45 24,45 Z" />
-    <path android:fillColor="#FFF59D" android:pathData="M84,45 C84.55,45 85,45.45 85,46 C85,46.55 84.55,47 84,47 C83.45,47 83,46.55 83,46 C83,45.45 83.45,45 84,45 Z" />
-    <path android:fillColor="#FFECB3" android:pathData="M30,51 C30.55,51 31,51.45 31,52 C31,52.55 30.55,53 30,53 C29.45,53 29,52.55 29,52 C29,51.45 29.45,51 30,51 Z" />
-    <path android:fillColor="#FFECB3" android:pathData="M78,51 C78.55,51 79,51.45 79,52 C79,52.55 78.55,53 78,53 C77.45,53 77,52.55 77,52 C77,51.45 77.45,51 78,51 Z" />
-
-    <!-- 6. Golden Hardcover Book Foundation Base & Spine Notch -->
-    <!-- Under Shadow -->
-    <path
-        android:fillColor="#090E22"
-        android:pathData="M27,71 C27,71 40,65.5 54,67.5 C68,65.5 81,71 81,71 L81,73 C81,73 68,67.5 54,69.5 C40,67.5 27,73 27,73 Z" />
-
-    <!-- Main Gold Cover Base -->
-    <path
-        android:fillColor="#C68726"
-        android:pathData="M27,70 C27,70 40,64 54,66 C68,64 81,70 81,70 L81,40 C81,40 68,34 54,36 C40,34 27,40 27,40 Z" />
-
-    <!-- Bright Gold Rim Highlight -->
-    <path
-        android:fillColor="#EDB142"
-        android:pathData="M27,71 C27,71 40,65 54,67 C68,65 81,71 81,71 L81,69.2 C81,69.2 68,63.2 54,65.2 C40,63.2 27,69.2 27,69.2 Z" />
-
-    <!-- Spine Bottom Center Notch/Hinge -->
-    <path
-        android:fillColor="#D8992B"
-        android:pathData="M50,66 C50,66 52,69.5 54,69.5 C56,69.5 58,66 58,66 Z" />
-
-    <!-- 7. Stacked Page Layers (Cream & Soft Gold Paper Edges) -->
-    <!-- Layer 1 (Bottom Cream/Gold Edge) -->
-    <path
-        android:fillColor="#EAD3AD"
-        android:pathData="M28.2,68 C28.2,68 40.5,62 53.5,64.2 L53.5,38.2 C40.5,36 28.2,42 28.2,42 Z" />
-    <path
-        android:fillColor="#EAD3AD"
-        android:pathData="M79.8,68 C79.8,68 67.5,62 54.5,64.2 L54.5,38.2 C67.5,36 79.8,42 79.8,42 Z" />
-
-    <!-- Layer 2 (Middle Light Cream Edge) -->
-    <path
-        android:fillColor="#F5E9D6"
-        android:pathData="M29.5,66.8 C29.5,66.8 41.2,60.8 53.8,62.8 L53.8,36.8 C41.2,34.8 29.5,40.8 29.5,40.8 Z" />
-    <path
-        android:fillColor="#F5E9D6"
-        android:pathData="M78.5,66.8 C78.5,66.8 66.8,60.8 54.2,62.8 L54.2,36.8 C66.8,34.8 78.5,40.8 78.5,40.8 Z" />
-
-    <!-- Layer 3 (Upper Warm Soft White Edge) -->
-    <path
-        android:fillColor="#FAF3E8"
-        android:pathData="M31,65.5 C31,65.5 42,59.5 54,61.5 L54,35.5 C42,33.5 31,39.5 31,39.5 Z" />
-    <path
-        android:fillColor="#FAF3E8"
-        android:pathData="M77,65.5 C77,65.5 66,59.5 54,61.5 L54,35.5 C66,33.5 77,39.5 77,39.5 Z" />
-
-    <!-- 8. Main Wide Open Page Wings (Pure White with Light Sculpted Curves) -->
-    <!-- Left Main Wing -->
+        android:pathData="M25.9,64.5 A0.1,0.1 0 1,1 25.9,64.7 A0.1,0.1 0 1,1 25.9,64.5 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M32.5,64 C32.5,64 42.5,31.8 54,34 L54,60.8 C42.5,58.5 32.5,64 32.5,64 Z" />
+        android:pathData="M26.6,84.7 A0.3,0.3 0 1,1 26.6,85.3 A0.3,0.3 0 1,1 26.6,84.7 Z" />
 
-    <!-- Right Main Wing -->
     <path
-        android:fillColor="#FFFDF7"
-        android:pathData="M75.5,64 C75.5,64 65.5,31.8 54,34 L54,60.8 C65.5,58.5 75.5,64 75.5,64 Z" />
-
-    <!-- 9. Spine Fold Shading -->
-    <group android:alpha="0.12">
-        <path
-            android:fillColor="#1D1338"
-            android:pathData="M48,58.8 C51,59.6 53,60.3 54,60.8 L54,34 C53,33.7 51,33 48,32.5 Z" />
-        <path
-            android:fillColor="#1D1338"
-            android:pathData="M60,58.8 C57,59.6 55,60.3 54,60.8 L54,34 C55,33.7 57,33 60,32.5 Z" />
-    </group>
-
-    <!-- 10. Central Sunburst Light Core -->
-    <group android:alpha="0.20">
-        <path
-            android:fillColor="#FFE082"
-            android:pathData="M54,58 C63,58 67,50 67,44.5 C67,39 63,31 54,31 C45,31 41,39 41,44.5 C41,50 45,58 54,58 Z" />
-    </group>
-    <group android:alpha="0.45">
-        <path
-            android:fillColor="#FFF176"
-            android:pathData="M54,53.5 C59.5,53.5 62.5,48 62.5,43.5 C62.5,39 59.5,33.5 54,33.5 C48.5,33.5 45.5,39 45.5,43.5 C45.5,48 48.5,53.5 54,53.5 Z" />
-    </group>
-    <group android:alpha="0.70">
-        <path
-            android:fillColor="#FFFDE7"
-            android:pathData="M54,49.5 C57.5,49.5 59.5,45.5 59.5,43 C59.5,40.5 57.5,36.5 54,36.5 C50.5,36.5 48.5,40.5 48.5,43 C48.5,45.5 50.5,49.5 54,49.5 Z" />
-    </group>
+        android:fillColor="#40A68379"
+        android:pathData="M122.3,66 A2.5,2.5 0 1,1 122.3,71 A2.5,2.5 0 1,1 122.3,66 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,46.5 C56,46.5 57.2,44.2 57.2,42.8 C57.2,41.4 56,38.8 54,38.8 C52,38.8 50.8,41.4 50.8,42.8 C50.8,44.2 52,46.5 54,46.5 Z" />
+        android:pathData="M122.5,67.8 A0.7,0.7 0 1,1 122.5,69.2 A0.7,0.7 0 1,1 122.5,67.8 Z" />
+
+    <path
+        android:fillColor="#40A68379"
+        android:pathData="M114.1,43.9 A2.5,2.5 0 1,1 114.1,48.9 A2.5,2.5 0 1,1 114.1,43.9 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M114.1,45.7 A0.7,0.7 0 1,1 114.1,47.1 A0.7,0.7 0 1,1 114.1,45.7 Z" />
+
+    <path
+        android:fillColor="#40A68379"
+        android:pathData="M46.6,41 A3,3 0 1,1 46.6,47 A3,3 0 1,1 46.6,41 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46.6,43.3 A0.7,0.7 0 1,1 46.6,44.7 A0.7,0.7 0 1,1 46.6,43.3 Z" />
+
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M33.8,68.5 A0.6,0.6 0 1,1 33.8,69.7 A0.6,0.6 0 1,1 33.8,68.5 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M43.7,53.5 A0.4,0.4 0 1,1 43.7,54.3 A0.4,0.4 0 1,1 43.7,53.5 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M56.3,44.2 A0.4,0.4 0 1,1 56.3,45 A0.4,0.4 0 1,1 56.3,44.2 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M49.4,37.7 A0.2,0.2 0 1,1 49.4,38.1 A0.2,0.2 0 1,1 49.4,37.7 Z" />
+
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M38.3,55.9 A0.5,0.5 0 1,1 38.3,56.9 A0.5,0.5 0 1,1 38.3,55.9 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M64.6,40.5 A0.5,0.5 0 1,1 64.6,41.5 A0.5,0.5 0 1,1 64.6,40.5 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M71.2,47 A0.5,0.5 0 1,1 71.2,48 A0.5,0.5 0 1,1 71.2,47 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M73.1,51.6 A0.7,0.7 0 1,1 73.1,53 A0.7,0.7 0 1,1 73.1,51.6 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M78.5,56.6 A0.5,0.5 0 1,1 78.5,57.6 A0.5,0.5 0 1,1 78.5,56.6 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M86.1,50.4 A0.4,0.4 0 1,1 86.1,51.2 A0.4,0.4 0 1,1 86.1,50.4 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M96.6,46.4 A0.5,0.5 0 1,1 96.6,47.4 A0.5,0.5 0 1,1 96.6,46.4 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M92.2,44 A0.5,0.5 0 1,1 92.2,45 A0.5,0.5 0 1,1 92.2,44 Z" />
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M138.9,57.1 A0.3,0.3 0 1,1 138.9,57.7 A0.3,0.3 0 1,1 138.9,57.1 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M122.1,76.1 A0.3,0.3 0 1,1 122.1,76.7 A0.3,0.3 0 1,1 122.1,76.1 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M110.2,38.6 A0.6,0.6 0 1,1 110.2,39.8 A0.6,0.6 0 1,1 110.2,38.6 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M105.8,45.2 A0.5,0.5 0 1,1 105.8,46.2 A0.5,0.5 0 1,1 105.8,45.2 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M119.6,54.4 A0.5,0.5 0 1,1 119.6,55.4 A0.5,0.5 0 1,1 119.6,54.4 Z" />
+    <path
+        android:fillColor="#FFF5CD"
+        android:pathData="M129.6,60.9 A0.4,0.4 0 1,1 129.6,61.7 A0.4,0.4 0 1,1 129.6,60.9 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M120.3,61.7 A0.3,0.3 0 1,1 120.3,62.3 A0.3,0.3 0 1,1 120.3,61.7 Z" />
+
+    <path
+        android:fillColor="#FFFBC5"
+        android:pathData="M68.8,40.1 A0.2,0.2 0 1,1 68.8,40.5 A0.2,0.2 0 1,1 68.8,40.1 Z" />
+    <path
+        android:fillColor="#FFFBC5"
+        android:pathData="M120.1,75.8 A0.5,0.5 0 1,1 120.1,76.8 A0.5,0.5 0 1,1 120.1,75.8 Z" />
+    <path
+        android:fillColor="#FFFBC5"
+        android:pathData="M133.9,100.8 A0.6,0.6 0 1,1 133.9,102 A0.6,0.6 0 1,1 133.9,100.8 Z" />
 
 </vector>
