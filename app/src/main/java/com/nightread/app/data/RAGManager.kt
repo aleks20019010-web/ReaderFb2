@@ -10,8 +10,8 @@ data class BookChunk(
 )
 
 object RAGManager {
-    private const val CHUNK_SIZE = 400
-    private const val CHUNK_OVERLAP = 50
+    private const val CHUNK_SIZE = 1024
+    private const val CHUNK_OVERLAP = 200
 
     private val indexedChunks = mutableListOf<BookChunk>()
 
@@ -35,7 +35,7 @@ object RAGManager {
         }
     }
 
-    fun searchWithProgress(query: String, maxProgressPercent: Int, topK: Int = 5): List<String> {
+    fun searchWithProgress(query: String, maxProgressPercent: Int, topK: Int = 10): List<String> {
         val cleanQuery = query.lowercase(Locale.ROOT)
             .replace(Regex("[^a-zA-Zа-яА-ЯёЁ0-9\\s]"), "")
             .trim()
@@ -66,8 +66,15 @@ object RAGManager {
         }
     }
 
-    fun search(query: String, topK: Int = 5): List<String> {
+    fun search(query: String, topK: Int = 10): List<String> {
         return searchWithProgress(query, maxProgressPercent = 100, topK = topK)
+    }
+
+    fun formatSearchResults(results: List<String>): String {
+        if (results.isEmpty()) return ""
+        return results.mapIndexed { index, text ->
+            "Отрывок ${index + 1}:\n\"$text\""
+        }.joinToString("\n\n")
     }
 
     fun getChunksCount(): Int = synchronized(indexedChunks) { indexedChunks.size }
