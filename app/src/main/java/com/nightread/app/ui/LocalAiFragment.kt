@@ -253,15 +253,24 @@ class LocalAiFragment : Fragment() {
         layoutMemoryLoad.visibility = View.VISIBLE
 
         lifecycleScope.launch(Dispatchers.IO) {
+            val modelFile = CotypeModelManager.getModelFile(context)
+            val fileExists = modelFile.exists()
+            val fileLength = if (fileExists) modelFile.length() else 0L
+
             val success = LocalAiEngine.initRealModel(context)
 
             withContext(Dispatchers.Main) {
                 btnInitModel.isEnabled = true
                 layoutMemoryLoad.visibility = View.GONE
                 if (success) {
-                    CustomToast.show(requireContext(), "Модель Cotype Nano 1.5B готова!", Toast.LENGTH_SHORT)
+                    CustomToast.show(requireContext(), "Модель Cotype Nano 1.5B загружена в ОЗУ!", Toast.LENGTH_SHORT)
                 } else {
-                    CustomToast.show(requireContext(), "Не удалось загрузить модель в ОЗУ.", Toast.LENGTH_LONG)
+                    val message = when {
+                        !fileExists -> "Файл модели не найден. Скачайте модель перед загрузкой."
+                        fileLength < 10_000_000L -> "Файл модели поврежден или недокачан (${fileLength / (1024 * 1024)} МБ). Удалите и скачайте заново."
+                        else -> "Не удалось загрузить модель в ОЗУ. Проверьте свободную оперативную память."
+                    }
+                    CustomToast.show(requireContext(), message, Toast.LENGTH_LONG)
                 }
                 updateModelStatusUi()
             }

@@ -52,8 +52,8 @@ object LocalAiEngine {
         }
 
         val modelFile = CotypeModelManager.getModelFile(context)
-        if (modelFile.exists() && modelFile.length() > 500_000_000L) {
-            Log.i(TAG, "Loading Cotype Nano 1.5B model from ${modelFile.absolutePath} into native memory...")
+        if (modelFile.exists() && (modelFile.length() > 10_000_000L || CotypeModelManager.isModelDownloaded(context))) {
+            Log.i(TAG, "Loading Cotype Nano 1.5B model from ${modelFile.absolutePath} (size: ${modelFile.length()} bytes) into native memory...")
             val modelParams = LlamaModelParams(
                 nCtx = 8192,
                 nThreads = 4,
@@ -66,6 +66,7 @@ object LocalAiEngine {
             return success
         }
 
+        Log.w(TAG, "initRealModel failed: modelFile exists=${modelFile.exists()}, length=${if (modelFile.exists()) modelFile.length() else 0}")
         isOfflineModelReady = false
         return false
     }

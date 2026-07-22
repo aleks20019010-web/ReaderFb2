@@ -45,7 +45,34 @@ object CotypeModelManager {
         if (!modelsDir.exists()) {
             modelsDir.mkdirs()
         }
-        return File(modelsDir, MODEL_FILENAME)
+        val defaultFile = File(modelsDir, MODEL_FILENAME)
+        if (defaultFile.exists() && defaultFile.length() > 0) return defaultFile
+
+        // Fallback 1: Root files directory
+        val alt1 = File(context.filesDir, MODEL_FILENAME)
+        if (alt1.exists() && alt1.length() > 0) return alt1
+
+        // Fallback 2: External files directory
+        val extModelsDir = context.getExternalFilesDir("models")
+        if (extModelsDir != null) {
+            val alt2 = File(extModelsDir, MODEL_FILENAME)
+            if (alt2.exists() && alt2.length() > 0) return alt2
+        }
+
+        val extFilesDir = context.getExternalFilesDir(null)
+        if (extFilesDir != null) {
+            val alt3 = File(extFilesDir, MODEL_FILENAME)
+            if (alt3.exists() && alt3.length() > 0) return alt3
+        }
+
+        // Fallback 3: Any .gguf file in models or files directory
+        val ggufInModels = modelsDir.listFiles()?.firstOrNull { it.name.endsWith(".gguf", ignoreCase = true) && it.length() > 10_000_000L }
+        if (ggufInModels != null) return ggufInModels
+
+        val ggufInFiles = context.filesDir.listFiles()?.firstOrNull { it.name.endsWith(".gguf", ignoreCase = true) && it.length() > 10_000_000L }
+        if (ggufInFiles != null) return ggufInFiles
+
+        return defaultFile
     }
 
     fun deleteModel(context: Context): Boolean {
@@ -77,7 +104,7 @@ object CotypeModelManager {
 
     fun verifyModelIntegrity(context: Context): Boolean {
         val file = getModelFile(context)
-        if (!file.exists() || file.length() < 500_000_000L) {
+        if (!file.exists() || file.length() < 10_000_000L) {
             return false
         }
         // Basic check for GGUF magic header (0x46554747 = "GGUF")
@@ -94,7 +121,7 @@ object CotypeModelManager {
             }
         } catch (e: Exception) {
             Log.w(TAG, "Integrity check warning", e)
-            true // Fallback to true if file exists and > 500MB
+            true // Fallback to true if file exists and > 10MB
         }
     }
 
