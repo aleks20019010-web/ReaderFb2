@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import java.io.File
 import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.util.Locale
 
 data class ClassicBookData(
@@ -15,26 +16,143 @@ data class ClassicBookData(
 object LocalAiEngine {
 
     private const val TAG = "LocalAiEngine"
+    private const val CACHE_PREFS = "cotype_ai_cache_prefs"
 
-    var isSimulatedMode = false
-    var isOfflineModelReady = true
+    var isOfflineModelReady = false
+    @Volatile
+    var isProcessing = false
+
+    fun normalizeText(text: String): String {
+        return text
+            .replace(Regex("\\s+"), " ")                  // Убираем лишние пробелы и переносы
+            .replace(Regex("[\\u0000-\\u001F]"), "")        // Убираем управляющие спецсимволы
+            .replace("«", "\"")                            // Унификация кавычек
+            .replace("»", "\"")
+            .replace("“", "\"")
+            .replace("”", "\"")
+            .trim()
+    }
 
     fun isModelActive(context: Context? = null): Boolean {
-        return true
+        if (LlamaEngine.isLoaded()) return true
+        if (context != null) {
+            return CotypeModelManager.isModelDownloaded(context)
+        }
+        return false
     }
 
     fun hasLoadedLocalModel(): Boolean {
-        return true
+        return LlamaEngine.isLoaded()
     }
 
     fun initRealModel(context: Context): Boolean {
-        isOfflineModelReady = true
-        isSimulatedMode = false
-        return true
+        if (LlamaEngine.isLoaded()) {
+            isOfflineModelReady = true
+            return true
+        }
+
+        val modelFile = CotypeModelManager.getModelFile(context)
+        if (modelFile.exists() && modelFile.length() > 500_000_000L) {
+            Log.i(TAG, "Loading Cotype Nano 1.5B model from ${modelFile.absolutePath} into native memory...")
+            val modelParams = LlamaModelParams(
+                nCtx = 8192,
+                nThreads = 4,
+                nGpuLayers = 0,
+                useMMap = true,
+                useMLock = false
+            )
+            val success = LlamaEngine.loadModel(modelFile.absolutePath, modelParams)
+            isOfflineModelReady = success
+            return success
+        }
+
+        isOfflineModelReady = false
+        return false
     }
 
     /**
-     * Generates a book summary using DeepSeek API + RAG context
+     * Executes local inference using Cotype Nano 1.5B (llama.cpp JNI) + RAG Context with 120s timeout
+     */
+    private fun executeLocalInference(
+        context: Context,
+        systemPrompt: String,
+        userPrompt: String,
+        temperature: Float = 0.7f
+    ): String {
+        if (isProcessing) {
+            return "Модель уже выполняет запрос. Пожалуйста, подождите завершения."
+        }
+        isProcessing = true
+        try {
+            val normalizedUserPrompt = normalizeText(userPrompt)
+            val cacheKey = hashKey("$systemPrompt::$normalizedUserPrompt")
+            val cached = getFromCache(context, cacheKey)
+            if (!cached.isNullOrBlank()) {
+                Log.d(TAG, "Returning cached Cotype Nano response for key $cacheKey")
+                return cached
+            }
+
+            // Try initializing model if not yet loaded
+            if (!LlamaEngine.isLoaded()) {
+                initRealModel(context)
+            }
+
+            val fullPrompt = """<|im_start|>system
+$systemPrompt<|im_end|>
+<|im_start|>user
+$normalizedUserPrompt<|im_end|>
+<|im_start|>assistant
+"""
+
+            if (LlamaEngine.isLoaded()) {
+                Log.i(TAG, "Executing Cotype Nano 1.5B local native generation with 120s timeout...")
+                val genParams = GenerationParams(
+                    temperature = temperature,
+                    topP = 0.95f,
+                    topK = 40,
+                    repeatPenalty = 1.1f
+                )
+
+                val rawResponse = try {
+                    kotlinx.coroutines.runBlocking {
+                        kotlinx.coroutines.withTimeoutOrNull(120_000L) {
+                            LlamaEngine.generate(fullPrompt, params = genParams, maxTokens = 1024)
+                        }
+                    } ?: "Превышено время ожидания (120 сек). Попробуйте упростить запрос."
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error or timeout during execution", e)
+                    "Ошибка при локальном запуске Cotype Nano 1.5B."
+                }
+
+                if (rawResponse.isNotBlank() && !rawResponse.contains("Ошибка") && !rawResponse.contains("Превышено время")) {
+                    val cleaned = cleanResponse(rawResponse)
+                    saveToCache(context, cacheKey, cleaned)
+                    return cleaned
+                } else if (rawResponse.contains("Превышено время")) {
+                    return rawResponse
+                }
+            }
+
+            return ""
+        } finally {
+            isProcessing = false
+        }
+    }
+
+    fun cleanResponse(raw: String): String {
+        return raw
+            .replace(Regex("User:.*"), "")
+            .replace(Regex("\\[INST\\].*"), "")
+            .replace(Regex("<\\|im_end\\|>"), "")
+            .replace(Regex("<\\|im_start\\|>"), "")
+            .replace(Regex("<\\|reasoning\\|>"), "")
+            .replace(Regex("(.)\\1{10,}"), "$1$1")
+            .trim()
+            .let { if (it.length < 10) "Не удалось сгенерировать ответ. Попробуйте переформулировать." else it }
+    }
+
+    /**
+     * Generates a book summary using Cotype Nano 1.5B + RAG context
      */
     fun generateSummary(context: Context, book: BookEntity): String {
         Log.i(TAG, "Generating summary for book: ${book.title}")
@@ -51,23 +169,23 @@ object LocalAiEngine {
         }
 
         val userPrompt = PromptTemplates.bookSummary(contextText)
-        val deepSeekResult = DeepSeekEngine.query(
+        val localResult = executeLocalInference(
             context = context,
             systemPrompt = PromptTemplates.SYSTEM_PROMPT,
             userPrompt = userPrompt
         )
 
-        return if (!deepSeekResult.contains("Не удалось получить ответ")) {
-            deepSeekResult
+        return if (localResult.isNotBlank()) {
+            localResult
         } else if (classicMatch != null && classicMatch.summary.isNotBlank()) {
             classicMatch.summary
         } else {
-            deepSeekResult
+            generateRuleBasedSummary(contextText)
         }
     }
 
     /**
-     * Generates a character breakdown using DeepSeek API + RAG context
+     * Generates a character breakdown using Cotype Nano 1.5B + RAG context
      */
     fun generateCharacters(context: Context, book: BookEntity): String {
         Log.i(TAG, "Generating character analysis for book: ${book.title}")
@@ -84,23 +202,23 @@ object LocalAiEngine {
         }
 
         val userPrompt = PromptTemplates.analyzeAllCharacters(book.title, contextText)
-        val deepSeekResult = DeepSeekEngine.query(
+        val localResult = executeLocalInference(
             context = context,
             systemPrompt = PromptTemplates.SYSTEM_PROMPT,
             userPrompt = userPrompt
         )
 
-        return if (!deepSeekResult.contains("Не удалось получить ответ")) {
-            deepSeekResult
+        return if (localResult.isNotBlank()) {
+            localResult
         } else if (classicMatch != null && classicMatch.characters.isNotBlank()) {
             classicMatch.characters
         } else {
-            deepSeekResult
+            generateRuleBasedCharacters(contextText)
         }
     }
 
     /**
-     * Generates an annotation using DeepSeek API + RAG context
+     * Generates an annotation using Cotype Nano 1.5B + RAG context
      */
     fun generateAnnotation(context: Context, book: BookEntity): String {
         Log.i(TAG, "Generating annotation for book: ${book.title}")
@@ -121,21 +239,20 @@ object LocalAiEngine {
 Отрывки из книги (контекст):
 $contextText
 
-Начинай сразу с аннотации. Не пиши "Аннотация:" или "Ответ:".
-<|reasoning|>"""
+Начинай сразу с аннотации."""
 
-        val deepSeekResult = DeepSeekEngine.query(
+        val localResult = executeLocalInference(
             context = context,
             systemPrompt = PromptTemplates.SYSTEM_PROMPT,
             userPrompt = userPrompt
         )
 
-        return if (!deepSeekResult.contains("Не удалось получить ответ")) {
-            deepSeekResult
+        return if (localResult.isNotBlank()) {
+            localResult
         } else if (classicMatch != null && classicMatch.annotation.isNotBlank()) {
             classicMatch.annotation
         } else {
-            deepSeekResult
+            generateRuleBasedAnnotation(contextText)
         }
     }
 
@@ -234,20 +351,51 @@ $contextText
 
 ${if (ragContext.isNotBlank()) "Отрывки из книги (контекст для анализа):\n$ragContext" else ""}
 
-Начинай сразу с ответа, без вступлений.
-<|reasoning|>"""
+Начинай сразу с ответа, без вступлений."""
                 }
             }
         }
 
-        return DeepSeekEngine.query(
+        val localResult = executeLocalInference(
             context = context,
             systemPrompt = PromptTemplates.SYSTEM_PROMPT,
             userPrompt = userPrompt
         )
+
+        return if (localResult.isNotBlank()) {
+            localResult
+        } else {
+            generateRuleBasedFallback(prompt, ragContext)
+        }
     }
 
-    // --- HELPER METHODS & PRESET DATABASES FOR OFFLINE FALLBACK ---
+    // --- FALLBACK LOGIC & HELPER METHODS ---
+
+    private fun generateRuleBasedSummary(contextText: String): String {
+        val snippet = if (contextText.length > 400) contextText.substring(0, 400) + "..." else contextText
+        return "Произведение описывает повествование, сосредоточенное вокруг ключевых событий произведения.\n\n" +
+                "**Отрывок произведения (RAG)**:\n\"$snippet\""
+    }
+
+    private fun generateRuleBasedCharacters(contextText: String): String {
+        return "1. **Главный герой**:\n" +
+                "- Мотивация: Поиск истины и преодоление сюжетных испытаний.\n" +
+                "- Динамика: Меняется под воздействием ключевых событий произведения.\n" +
+                "- Конфликт: Противостояние обстоятельствам и внутренний выбор.\n" +
+                "- Авторская идея: Раскрытие человеческого характера в сложных ситуациях."
+    }
+
+    private fun generateRuleBasedAnnotation(contextText: String): String {
+        val snippet = if (contextText.length > 250) contextText.substring(0, 250) + "..." else contextText
+        return "Увлекательное литературное произведение, погружающее читателя в глубокую эмоциональную атмосферу. " +
+                "Сюжет раскрывает ключевые темы человеческой судьбы и морального выбора.\n\n\"$snippet\""
+    }
+
+    private fun generateRuleBasedFallback(prompt: String, ragContext: String): String {
+        val snippet = if (ragContext.length > 300) ragContext.substring(0, 300) + "..." else ragContext
+        return "Ответ на запрос: \"$prompt\"\n\n" +
+                "**Контекст из книги (RAG)**:\n${if (snippet.isNotBlank()) "\"$snippet\"" else "Отрывки из произведения найдены в базе RAG."}"
+    }
 
     fun cleanBookText(raw: String): String {
         if (raw.isBlank()) return ""
@@ -333,11 +481,65 @@ ${if (ragContext.isNotBlank()) "Отрывки из книги (контекст
         return null
     }
 
+    fun unloadFromMemory() {
+        try {
+            if (LlamaEngine.isLoaded()) {
+                LlamaEngine.nativeUnload()
+                Log.i(TAG, "Unloaded Cotype Nano model from RAM")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unloading model", e)
+        } finally {
+            isOfflineModelReady = false
+        }
+    }
+
+    fun clearCache(context: Context) {
+        val prefs = context.getSharedPreferences(CACHE_PREFS, Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+        Log.i(TAG, "Cleared AI cache")
+    }
+
+    private fun getFromCache(context: Context, key: String): String? {
+        val prefs = context.getSharedPreferences(CACHE_PREFS, Context.MODE_PRIVATE)
+        return prefs.getString(key, null)
+    }
+
+    private fun saveToCache(context: Context, key: String, value: String) {
+        val prefs = context.getSharedPreferences(CACHE_PREFS, Context.MODE_PRIVATE)
+        val allEntries = prefs.all
+        if (allEntries.size >= 100) {
+            // Remove oldest 20 entries to cap cache size
+            val keysToRemove = allEntries.keys.take(20)
+            val editor = prefs.edit()
+            for (k in keysToRemove) {
+                editor.remove(k)
+            }
+            editor.apply()
+        }
+        prefs.edit().putString(key, value).apply()
+    }
+
+    private fun hashKey(input: String): String {
+        return try {
+            val md = MessageDigest.getInstance("MD5")
+            val digest = md.digest(input.toByteArray(Charsets.UTF_8))
+            digest.joinToString("") { "%02x".format(it) }
+        } catch (e: Exception) {
+            input.hashCode().toString()
+        }
+    }
+
     private val CLASSICS_DATABASE = mapOf(
         "преступление и наказание" to ClassicBookData(
             annotation = "Глубокий философский роман Федора Достоевского об убийстве ради идеи и последующем духовном возрождении.",
             summary = "В романе описывается судьба бывшего студента Родиона Раскольникова, который совершает убийство старухи-процентщицы ради проверки своей психологической теории. Ключевой конфликт разворачивается в его душе под давлением мук совести.",
             characters = "1. **Родион Раскольников**: Бывший студент, автор теории о делении людей на «право имеющих» и «обыкновенных»."
+        ),
+        "мастер и маргарита" to ClassicBookData(
+            annotation = "Шедевр Михаила Булгакова, объединяющий сатиру на советскую Москву, трагическую историю любви Мастера и Маргариты, а также философское прочтение библейских событий.",
+            summary = "В произведении переплетаются сатирический визит Сатаны (Воланда) в Москву 1930-х годов и трагический роман о Понтии Пилате. Главный герой Мастер сталкивается с уничтожением своего произведения тоталитарными критиками.",
+            characters = "1. **Мастер**: Создатель романа о Понтии Пилате.\n2. **Воланд**: Сатана, прибывший в Москву с свитой."
         )
     )
 

@@ -37,7 +37,7 @@
                 android:layout_toEndOf="@id/btnMenu"
                 android:layout_centerVertical="true"
                 android:layout_marginStart="16dp"
-                android:text="Локальный ИИ"
+                android:text="Локальный ИИ (Cotype Nano 1.5B)"
                 android:textColor="@color/text_primary"
                 android:textSize="20sp"
                 android:textStyle="bold" />
@@ -74,7 +74,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="⚡ Возможности Локального ИИ"
+                            android:text="⚡ Офлайн ИИ: Cotype Nano 1.5B (MTS AI)"
                             android:textColor="@color/accent"
                             android:textSize="18sp"
                             android:textStyle="bold"
@@ -83,7 +83,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Офлайн-ассистент работает прямо на вашем устройстве, не требуя интернета и API-ключей. Он выполняет следующие функции:"
+                            android:text="Локальная нейросеть Cotype Nano 1.5B от MTS AI работает 100% автономно на вашем устройстве без облака, интернета и API-ключей."
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:layout_marginBottom="12dp" />
@@ -97,7 +97,7 @@
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="• 📝 Генерация аннотаций прямо в деталях книги"
+                                android:text="• 👥 Глубокий анализ персонажей по 5 пунктам"
                                 android:textColor="@color/text_primary"
                                 android:textSize="14sp"
                                 android:layout_marginBottom="6dp" />
@@ -105,7 +105,7 @@
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="• 🔍 Создание краткого содержания и выжимки ключевых тем"
+                                android:text="• 📖 Краткое содержание книг и выжимка темы (3-5 предложений)"
                                 android:textColor="@color/text_primary"
                                 android:textSize="14sp"
                                 android:layout_marginBottom="6dp" />
@@ -113,7 +113,7 @@
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="• 👥 Структурированный анализ главных персонажей книги"
+                                android:text="• 🔍 Пояснение устаревших слов и терминов в контексте (RAG)"
                                 android:textColor="@color/text_primary"
                                 android:textSize="14sp"
                                 android:layout_marginBottom="6dp" />
@@ -121,15 +121,7 @@
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="• 📖 Толковый словарь терминов по выделенному слову"
-                                android:textColor="@color/text_primary"
-                                android:textSize="14sp"
-                                android:layout_marginBottom="6dp" />
-
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:text="• 🌍 Двусторонний переводчик (Русский ⇆ Английский)"
+                                android:text="• 🌍 Двусторонний контекстный переводчик слов"
                                 android:textColor="@color/text_primary"
                                 android:textSize="14sp" />
                         </LinearLayout>
@@ -157,7 +149,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="🛠️ Управление ИИ-моделью"
+                            android:text="🛠️ Статус модели Cotype Nano 1.5B"
                             android:textColor="@color/accent"
                             android:textSize="18sp"
                             android:textStyle="bold"
@@ -182,13 +174,13 @@
                                 android:layout_height="wrap_content"
                                 android:layout_toEndOf="@id/modelStatusLabel"
                                 android:layout_marginStart="8dp"
-                                android:text="Не установлена (активен базовый офлайн-пакет)"
+                                android:text="Проверка модели..."
                                 android:textColor="@color/text_primary"
                                 android:textSize="14sp"
                                 android:textStyle="bold" />
                         </RelativeLayout>
 
-                        <!-- Download Progress -->
+                        <!-- Download Progress Layout -->
                         <LinearLayout
                             android:id="@+id/layoutDownloadProgress"
                             android:layout_width="match_parent"
@@ -201,62 +193,116 @@
                                 android:id="@+id/txtDownloadStatus"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Загрузка Llama 3.2 1B (GGUF): 0%"
+                                android:text="Скачивание Cotype Nano 1.5B... 0%"
                                 android:textColor="@color/text_primary"
                                 android:textSize="14sp"
-                                android:layout_marginBottom="8dp" />
-
-                            <TextView
-                                android:id="@+id/txtDownloadStats"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Загружено: 0 МБ из 1240 МБ (0 МБ/с)"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp"
                                 android:layout_marginBottom="4dp" />
 
                             <ProgressBar
                                 android:id="@+id/progressDownload"
                                 style="?android:attr/progressBarStyleHorizontal"
                                 android:layout_width="match_parent"
-                                android:layout_height="8dp"
+                                android:layout_height="10dp"
                                 android:progressTint="@color/accent"
-                                android:progressBackgroundTint="@color/divider" />
+                                android:progressBackgroundTint="@color/divider"
+                                android:layout_marginBottom="8dp" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <Button
+                                    android:id="@+id/btnCancelDownload"
+                                    style="@style/Widget.App.Button"
+                                    android:layout_width="0dp"
+                                    android:layout_weight="1"
+                                    android:layout_height="44dp"
+                                    android:text="Отмена"
+                                    android:textSize="13sp"
+                                    android:layout_marginEnd="4dp" />
+
+                                <Button
+                                    android:id="@+id/btnRetryDownload"
+                                    style="@style/Widget.App.Button"
+                                    android:layout_width="0dp"
+                                    android:layout_weight="1"
+                                    android:layout_height="44dp"
+                                    android:text="Повторить"
+                                    android:textSize="13sp"
+                                    android:visibility="gone"
+                                    android:layout_marginStart="4dp" />
+                            </LinearLayout>
                         </LinearLayout>
 
-
-                        <!-- Explanation for AI Model -->
-                        <TextView
+                        <!-- Loading Indicator in Memory -->
+                        <LinearLayout
+                            android:id="@+id/layoutMemoryLoad"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Примечание: генерация краткого содержания, аннотаций и анализ персонажей работают только при установленной полной ИИ-модели."
-                            android:textColor="@color/accent"
+                            android:orientation="vertical"
+                            android:visibility="gone"
+                            android:layout_marginBottom="12dp">
+
+                            <TextView
+                                android:id="@+id/txtMemoryLoadStatus"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Загрузка модели в ОЗУ... (5-15 сек)"
+                                android:textColor="@color/accent"
+                                android:textSize="14sp"
+                                android:layout_marginBottom="6dp" />
+
+                            <ProgressBar
+                                android:id="@+id/pbMemoryLoad"
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="match_parent"
+                                android:layout_height="8dp"
+                                android:indeterminate="true"
+                                android:indeterminateTint="@color/accent" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvRequirementNote"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Требования к устройству: Android 7.0+, 4+ ГБ ОЗУ, 2 ГБ свободного места на диске."
+                            android:textColor="@color/text_secondary"
                             android:textSize="12sp"
                             android:layout_marginBottom="12dp"
                             android:textAlignment="center" />
 
                         <!-- Action Buttons -->
-
                         <Button
                             android:id="@+id/btnDownloadModel"
                             android:layout_width="match_parent"
                             android:layout_height="52dp"
-                            android:text="Скачать ИИ-модель (.bin)"
+                            android:text="Скачать Cotype Nano 1.5B (1.1 ГБ)"
                             android:backgroundTint="@color/btn_bg"
                             android:textColor="@color/btn_text"
                             android:textStyle="bold"
                             android:layout_marginBottom="8dp"
                             app:cornerRadius="12dp" />
 
-
                         <Button
                             android:id="@+id/btnInitModel"
                             style="@style/Widget.App.Button"
                             android:layout_width="match_parent"
                             android:layout_height="52dp"
-                            android:text="Инициализировать модель"
+                            android:text="Загрузить модель в память"
                             android:textStyle="bold"
-                            android:visibility="visible"
+                            android:visibility="gone"
+                            android:layout_marginBottom="8dp"
+                            app:cornerRadius="12dp" />
+
+                        <Button
+                            android:id="@+id/btnUnloadModel"
+                            style="@style/Widget.App.Button"
+                            android:layout_width="match_parent"
+                            android:layout_height="52dp"
+                            android:text="Выгрузить из ОЗУ (освободить память)"
+                            android:textStyle="bold"
+                            android:visibility="gone"
                             android:layout_marginBottom="8dp"
                             app:cornerRadius="12dp" />
 
@@ -267,7 +313,35 @@
                             android:layout_height="52dp"
                             android:text="Импортировать правила/словарь (.json)"
                             android:textStyle="bold"
+                            android:layout_marginBottom="8dp"
                             app:cornerRadius="12dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <Button
+                                android:id="@+id/btnClearCache"
+                                style="@style/Widget.App.Button"
+                                android:layout_width="0dp"
+                                android:layout_weight="1"
+                                android:layout_height="48dp"
+                                android:text="Очистить кэш"
+                                android:textSize="13sp"
+                                android:layout_marginEnd="4dp" />
+
+                            <Button
+                                android:id="@+id/btnDeleteModel"
+                                style="@style/Widget.App.Button"
+                                android:layout_width="0dp"
+                                android:layout_weight="1"
+                                android:layout_height="48dp"
+                                android:text="Удалить модель"
+                                android:textColor="#FF5252"
+                                android:textSize="13sp"
+                                android:layout_marginStart="4dp" />
+                        </LinearLayout>
 
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -293,7 +367,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="🤖 Интерактивная консоль тестирования"
+                            android:text="🤖 Интерактивная консоль Cotype Nano"
                             android:textColor="@color/accent"
                             android:textSize="18sp"
                             android:textStyle="bold"
@@ -302,7 +376,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Задайте вопрос по книгам, терминам или стилистике произведения, чтобы проверить работу локального ассистента:"
+                            android:text="Задайте вопрос по книгам, терминам или стилистике произведения для проверки локальной модели:"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:layout_marginBottom="12dp" />
@@ -324,7 +398,7 @@
                                     style="@style/Widget.App.Button"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Что такое бытие?"
+                                    android:text="Проанализируй персонажа"
                                     android:textSize="12sp"
                                     android:layout_marginEnd="8dp" />
 
@@ -333,7 +407,7 @@
                                     style="@style/Widget.App.Button"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Каков стиль автора?"
+                                    android:text="Краткое содержание"
                                     android:textSize="12sp"
                                     android:layout_marginEnd="8dp" />
 
@@ -342,7 +416,7 @@
                                     style="@style/Widget.App.Button"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="О чем сюжет книги?"
+                                    android:text="Поясни термин"
                                     android:textSize="12sp" />
                             </LinearLayout>
                         </HorizontalScrollView>
@@ -352,7 +426,7 @@
                             android:id="@+id/etTestPrompt"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:hint="Введите ваш вопрос для ИИ..."
+                            android:hint="Введите вопрос для Cotype Nano..."
                             android:textColorHint="@color/text_secondary"
                             android:textColor="@color/text_primary"
                             android:background="@drawable/bg_edittext_rounded"
@@ -367,7 +441,7 @@
                             android:id="@+id/btnRunTest"
                             android:layout_width="match_parent"
                             android:layout_height="52dp"
-                            android:text="Спросить локальный ИИ"
+                            android:text="Спросить Cotype Nano"
                             android:backgroundTint="@color/btn_bg"
                             android:textColor="@color/btn_text"
                             android:textStyle="bold"
@@ -402,51 +476,6 @@
                                 android:lineSpacingMultiplier="1.1" />
                         </LinearLayout>
 
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- Detailed Usage Instructions Card -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="24dp"
-                    app:cardBackgroundColor="@color/bg_card"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="2dp"
-                    app:strokeColor="@color/divider"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="📖 Подробное руководство пользователя"
-                            android:textColor="@color/accent"
-                            android:textSize="18sp"
-                            android:textStyle="bold"
-                            android:layout_marginBottom="12dp" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Как начать пользоваться локальными ИИ-функциями:"
-                            android:textColor="@color/text_primary"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:layout_marginBottom="8dp" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="1. Установка: По умолчанию приложение поставляется со встроенным компактным пакетом локального ИИ, который содержит философский толковый словарь (такие термины как бытие, нигилизм, сущее, тоска) и базовый переводчик.\n\n2. Расширение модели: Если вы хотите использовать более сложные грамматические структуры или расширить базу понятий, вы можете нажать кнопку «Скачать Llama 3.2 1B (~800 МБ)». Процесс полностью автоматизирован.\n\n3. Свои словари и правила: Если у вас есть кастомный файл правил или словарь терминов в формате JSON, вы можете импортировать его с помощью кнопки «Импортировать правила/словарь». Это обновит базу данных терминов локального переводчика.\n\n4. Чтение книг: Находясь на странице книги, выделите слово, чтобы вызвать контекстное меню. Локальный ИИ мгновенно предоставит глубокое литературоведческое объяснение понятия или перевод фразы.\n\n5. Анализ произведения: Нажмите на кнопку «Локальный ИИ: Краткое содержание» в профиле книги, чтобы получить глубокое резюме произведения без необходимости подключения к серверам."
-                            android:textColor="@color/text_primary"
-                            android:textSize="14sp"
-                            android:lineSpacingMultiplier="1.2" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 

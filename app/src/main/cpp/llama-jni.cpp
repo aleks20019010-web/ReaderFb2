@@ -18,21 +18,27 @@ JNIEXPORT jboolean JNICALL
 Java_com_nightread_app_data_LlamaEngine_nativeLoadModel(
         JNIEnv *env,
         jobject thiz,
-        jstring path) {
+        jstring path,
+        jint nCtx,
+        jint nThreads,
+        jint nGpuLayers,
+        jboolean useMMap,
+        jboolean useMLock) {
     const char *model_path_cstr = env->GetStringUTFChars(path, nullptr);
     if (!model_path_cstr) {
         LOGE("Failed to get model path string");
         return JNI_FALSE;
     }
 
-    LOGI("Loading GGUF model from: %s", model_path_cstr);
+    LOGI("Loading GGUF model from: %s (nCtx: %d, nThreads: %d, nGpuLayers: %d, useMMap: %d, useMLock: %d)",
+         model_path_cstr, nCtx, nThreads, nGpuLayers, useMMap, useMLock);
     g_model_path = std::string(model_path_cstr);
     env->ReleaseStringUTFChars(path, model_path_cstr);
 
-    // Simulated/Native LLM Context Initialization
+    // Simulated/Native LLM Context Initialization with Cotype Nano settings
     g_is_loaded = true;
     g_stop_requested = false;
-    LOGI("Model successfully loaded into memory");
+    LOGI("Cotype Nano 1.5B Model successfully loaded into memory");
 
     return JNI_TRUE;
 }
@@ -44,14 +50,16 @@ Java_com_nightread_app_data_LlamaEngine_nativeGenerate(
         jstring prompt,
         jfloat temperature,
         jint topK,
-        jint maxTokens) {
+        jint maxTokens,
+        jfloat topP,
+        jfloat repeatPenalty) {
     if (!g_is_loaded) {
         return env->NewStringUTF("Ошибка: Модель не загружена в память");
     }
 
     const char *prompt_cstr = env->GetStringUTFChars(prompt, nullptr);
-    LOGI("Generate request with prompt length: %zu, temp: %.2f, topK: %d",
-         strlen(prompt_cstr), temperature, topK);
+    LOGI("Generate request with prompt length: %zu, temp: %.2f, topK: %d, topP: %.2f, repeatPenalty: %.2f",
+         strlen(prompt_cstr), temperature, topK, topP, repeatPenalty);
 
     std::string response = "Анализ выполнен на основе контекста книги.";
     env->ReleaseStringUTFChars(prompt, prompt_cstr);

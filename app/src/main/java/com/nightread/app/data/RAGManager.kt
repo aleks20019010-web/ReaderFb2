@@ -11,32 +11,33 @@ data class BookChunk(
 )
 
 object RAGManager {
-    private const val CHUNK_SIZE = 1024
-    private const val CHUNK_OVERLAP = 200
+    private const val CHUNK_SIZE = 350
+    private const val CHUNK_OVERLAP = 50
 
     private val indexedChunks = mutableListOf<BookChunk>()
 
     fun indexBook(bookText: String, totalLength: Int = bookText.length) {
         synchronized(indexedChunks) {
             indexedChunks.clear()
-            if (bookText.isBlank()) return
+            val normalized = LocalAiEngine.normalizeText(bookText)
+            if (normalized.isBlank()) return
 
             var start = 0
             var id = 0
-            while (start < bookText.length) {
-                val end = (start + CHUNK_SIZE).coerceAtMost(bookText.length)
-                val chunkText = bookText.substring(start, end).trim()
+            while (start < normalized.length) {
+                val end = (start + CHUNK_SIZE).coerceAtMost(normalized.length)
+                val chunkText = normalized.substring(start, end).trim()
                 if (chunkText.isNotBlank()) {
                     val progress = if (totalLength > 0) ((start.toDouble() / totalLength) * 100).toInt() else 0
                     indexedChunks.add(BookChunk(id++, chunkText, start, progress))
                 }
-                if (end >= bookText.length) break
+                if (end >= normalized.length) break
                 start += (CHUNK_SIZE - CHUNK_OVERLAP)
             }
         }
     }
 
-    fun searchWithProgress(query: String, maxProgressPercent: Int, topK: Int = 10): List<String> {
+    fun searchWithProgress(query: String, maxProgressPercent: Int, topK: Int = 5): List<String> {
         val cleanQuery = query.lowercase(Locale.ROOT)
             .replace(Regex("[^a-zA-Zа-яА-ЯёЁ0-9\\s]"), "")
             .trim()
@@ -67,11 +68,11 @@ object RAGManager {
         }
     }
 
-    fun search(query: String, topK: Int = 10): List<String> {
+    fun search(query: String, topK: Int = 5): List<String> {
         return searchWithProgress(query, maxProgressPercent = 100, topK = topK)
     }
 
-    fun searchRAG(context: Context, book: BookEntity, query: String, topK: Int = 10): List<String> {
+    fun searchRAG(context: Context, book: BookEntity, query: String, topK: Int = 5): List<String> {
         val sampleText = LocalAiEngine.getBookSampleText(book)
         if (sampleText.isNotBlank()) {
             indexBook(sampleText)
