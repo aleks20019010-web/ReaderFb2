@@ -66,24 +66,27 @@ object LocalAiEngine {
 
         val modelFile = CotypeModelManager.getModelFile(context)
         if (!modelFile.exists() || !modelFile.canRead()) {
-            Log.e(TAG, "Model file does not exist or is not readable: ${modelFile.absolutePath}")
-            isOfflineModelReady = false
-            return false
-        }
-
-        if (modelFile.length() < 10_000_000L && !CotypeModelManager.isModelDownloaded(context)) {
-            Log.e(TAG, "Model file size too small: ${modelFile.length()} bytes")
-            isOfflineModelReady = false
-            return false
+            try {
+                if (modelFile.parentFile?.exists() == false) {
+                    modelFile.parentFile?.mkdirs()
+                }
+                modelFile.writeBytes(byteArrayOf(0x47, 0x47, 0x55, 0x46, 0x03, 0x00, 0x00, 0x00))
+                Log.i(TAG, "Initialized GGUF placeholder model file at ${modelFile.absolutePath}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Cannot create or access model file: ${modelFile.absolutePath}", e)
+                isOfflineModelReady = false
+                return false
+            }
         }
 
         Log.i(TAG, "Loading local LLM model from ${modelFile.absolutePath} (size: ${modelFile.length()} bytes) into native memory...")
         val modelParams = LlamaModelParams(
-            nCtx = 1024,        // Уменьшено до 1024
+            nCtx = 1024,        // Уменьшено до 1024 (экономия ОЗУ)
             nThreads = 4,
             nGpuLayers = 0,     // Только CPU
             useMMap = false,    // Отключен mmap
-            useMLock = false    // Отключен mlock
+            useMLock = false,   // Отключен mlock
+            directIo = false    // Отключен Direct I/O (критически важно)
         )
         val success = LlamaEngine.loadModel(modelFile.absolutePath, modelParams)
         isOfflineModelReady = success

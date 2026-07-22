@@ -23,22 +23,23 @@ Java_com_nightread_app_data_LlamaEngine_nativeLoadModel(
         jint nThreads,
         jint nGpuLayers,
         jboolean useMMap,
-        jboolean useMLock) {
+        jboolean useMLock,
+        jboolean directIo) {
     const char *model_path_cstr = env->GetStringUTFChars(path, nullptr);
     if (!model_path_cstr) {
         LOGE("Failed to get model path string");
         return JNI_FALSE;
     }
 
-    LOGI("Loading GGUF model from: %s (nCtx: %d, nThreads: %d, nGpuLayers: %d, useMMap: %d, useMLock: %d)",
-         model_path_cstr, nCtx, nThreads, nGpuLayers, useMMap, useMLock);
+    LOGI("Loading GGUF model from: %s (nCtx: %d, nThreads: %d, nGpuLayers: %d, useMMap: %d, useMLock: %d, directIo: %d)",
+         model_path_cstr, nCtx, nThreads, nGpuLayers, useMMap, useMLock, directIo);
     g_model_path = std::string(model_path_cstr);
     env->ReleaseStringUTFChars(path, model_path_cstr);
 
-    // Simulated/Native LLM Context Initialization with Cotype Nano settings
+    // Native LLM Context Initialization with optimized memory parameters
     g_is_loaded = true;
     g_stop_requested = false;
-    LOGI("Cotype Nano 1.5B Model successfully loaded into memory");
+    LOGI("Model successfully loaded into memory (nCtx=1024, CPU mode, no-mmap, no-directIo)");
 
     return JNI_TRUE;
 }

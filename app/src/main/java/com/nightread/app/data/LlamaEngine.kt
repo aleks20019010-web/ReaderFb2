@@ -7,7 +7,8 @@ data class LlamaModelParams(
     val nThreads: Int = 4,
     val nGpuLayers: Int = 0,
     val useMMap: Boolean = false,
-    val useMLock: Boolean = false
+    val useMLock: Boolean = false,
+    val directIo: Boolean = false
 )
 
 data class GenerationParams(
@@ -45,7 +46,8 @@ object LlamaEngine {
         nThreads: Int,
         nGpuLayers: Int,
         useMMap: Boolean,
-        useMLock: Boolean
+        useMLock: Boolean,
+        directIo: Boolean
     ): Boolean
 
     external fun nativeGenerate(
@@ -88,7 +90,8 @@ object LlamaEngine {
                 nThreads = params.nThreads,
                 nGpuLayers = params.nGpuLayers,
                 useMMap = params.useMMap,
-                useMLock = params.useMLock
+                useMLock = params.useMLock,
+                directIo = params.directIo
             )
         } catch (e: Throwable) {
             Log.e(TAG, "Error in nativeLoadModel", e)
