@@ -129,11 +129,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     var selectedCategory by mutableStateOf("Все")
     var noteSearchQuery by mutableStateOf("")
 
-    // Local AI States
-    var aiLoading by mutableStateOf(false)
-    var aiResult by mutableStateOf("")
-    var aiError by mutableStateOf<String?>(null)
-
     // Sync States
     var isServerRunning by mutableStateOf(false)
     var syncServerLogs = mutableStateListOf<String>()
@@ -671,58 +666,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 syncServerLogs.add("Импорт завершен успешно! База данных обновлена.")
             } else {
                 syncServerLogs.add("Ошибка: Не удалось распознать формат JSON.")
-            }
-        }
-    }
-
-    // Local AI integration
-    fun askLocalAi(prompt: String) {
-        aiLoading = true
-        aiError = null
-        aiResult = "ИИ думает..."
-
-        val context = getApplication<android.app.Application>().applicationContext
-
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val book = selectedBook ?: detailedBook
-                val sampleContext = if (book != null) {
-                    com.nightread.app.data.LocalAiEngine.getBookSampleText(book).take(15000)
-                } else null
-
-                val lower = prompt.lowercase(java.util.Locale.ROOT).trim()
-                val response = when {
-                    lower.contains("аннотац") -> {
-                        if (book != null) com.nightread.app.data.LocalAiEngine.generateAnnotation(context, book)
-                        else com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt)
-                    }
-                    lower.contains("краткое содерж") || lower.contains("пересказ") || lower.contains("о чем книга") -> {
-                        if (book != null) com.nightread.app.data.LocalAiEngine.generateSummary(context, book)
-                        else com.nightread.app.data.LocalAiEngine.customAiPromptWithSnippet(context, prompt, sampleContext, "summarize")
-                    }
-                    lower.contains("персонажи книги") || lower == "персонажи" || lower == "герои" || lower == "список персонажей" -> {
-                        if (book != null) com.nightread.app.data.LocalAiEngine.generateCharacters(context, book)
-                        else com.nightread.app.data.LocalAiEngine.customAiPromptWithSnippet(context, prompt, sampleContext, "character")
-                    }
-                    lower.contains("персонаж") || lower.contains("геро") || lower.contains("кто это") || lower.contains("кто такой") || lower.contains("кто такая") -> {
-                        if (book != null) com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, book, "character")
-                        else com.nightread.app.data.LocalAiEngine.customAiPromptWithSnippet(context, prompt, sampleContext, "character")
-                    }
-                    else -> {
-                        if (book != null) com.nightread.app.data.LocalAiEngine.customAiPrompt(context, prompt, book, "")
-                        else com.nightread.app.data.LocalAiEngine.customAiPromptWithSnippet(context, prompt, sampleContext, "")
-                    }
-                }
-
-                withContext(Dispatchers.Main) {
-                    aiLoading = false
-                    aiResult = response
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    aiLoading = false
-                    aiError = "Ошибка: ${e.localizedMessage}"
-                }
             }
         }
     }

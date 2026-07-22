@@ -176,18 +176,6 @@ class BookDetailActivity : BaseActivity() {
         ivDelete.setOnClickListener {
             showDeleteConfirmation()
         }
-
-        findViewById<View>(R.id.btnAiAnnotation)?.setOnClickListener {
-            generateAiAnnotation()
-        }
-
-        findViewById<View>(R.id.btnBookSummary)?.setOnClickListener {
-            showOrGenerateSummary()
-        }
-
-        findViewById<View>(R.id.btnAnalyzeCharacters)?.setOnClickListener {
-            showOrGenerateCharacters()
-        }
     }
 
     private fun toggleFavorite() {
@@ -299,7 +287,6 @@ class BookDetailActivity : BaseActivity() {
             if (book != null) {
                 currentBook = book
                 tvTitle.text = book.title
-                updateAiVisibility()
                 
                 // Author setup
                 val authorName = book.author ?: "Неизвестен"
@@ -436,12 +423,10 @@ class BookDetailActivity : BaseActivity() {
 
     private fun setupAnnotation(book: BookEntity, db: AppDatabase) {
         val dbAnnotation = book.annotation
-        val btnAiAnno = findViewById<View>(R.id.btnAiAnnotation)
         
         // If there's an annotation stored in the entity, display it
         if (!dbAnnotation.isNullOrEmpty() && dbAnnotation != "Аннотация отсутствует") {
             tvAnnotation.text = dbAnnotation
-            btnAiAnno?.visibility = View.GONE
             checkAnnotationLength()
         } else if (!book.filePath.isNullOrEmpty() && File(book.filePath).exists()) {
             tvAnnotation.text = "Загрузка аннотации..."
@@ -450,7 +435,6 @@ class BookDetailActivity : BaseActivity() {
                 withContext(Dispatchers.Main) {
                     if (!fileAnnotation.isNullOrEmpty()) {
                         tvAnnotation.text = fileAnnotation
-                        btnAiAnno?.visibility = View.GONE
                         checkAnnotationLength()
                         // Persist it back to database
                         launch(Dispatchers.IO) {
@@ -459,29 +443,13 @@ class BookDetailActivity : BaseActivity() {
                     } else {
                         tvAnnotation.text = "Аннотация отсутствует"
                         tvReadMore.visibility = View.GONE
-                        btnAiAnno?.visibility = View.GONE
                     }
                 }
             }
         } else {
             tvAnnotation.text = "Аннотация отсутствует"
             tvReadMore.visibility = View.GONE
-            btnAiAnno?.visibility = View.GONE
         }
-    }
-
-    private fun updateAiVisibility() {
-        val cardAiFeatures = findViewById<View>(R.id.cardAiFeatures)
-        val btnAiAnnotation = findViewById<View>(R.id.btnAiAnnotation)
-
-        // Always show the AI features card as a premium highlight!
-        cardAiFeatures?.visibility = View.VISIBLE
-        
-        val dbAnnotation = currentBook?.annotation
-        val isMissingAnnotation = dbAnnotation.isNullOrEmpty() || dbAnnotation == "Аннотация отсутствует"
-        
-        // Show the annotation generation button if the book currently lacks an annotation
-        btnAiAnnotation?.visibility = if (isMissingAnnotation) View.VISIBLE else View.GONE
     }
 
     private fun checkAnnotationLength() {
@@ -756,26 +724,6 @@ class BookDetailActivity : BaseActivity() {
 
         // 5. Read Button background tint
         btnReadToolbar.backgroundTintList = ColorStateList.valueOf(vibrantColor)
-        
-        // 6. Tint AI and Tonal Buttons
-        val btnAiAnnotation = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnAiAnnotation)
-        val btnBookSummary = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnBookSummary)
-        val btnAnalyzeCharacters = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnAnalyzeCharacters)
-        
-        val secondaryTint = adjustAlpha(vibrantColor, 0.15f)
-        val textStateList = ColorStateList.valueOf(vibrantColor)
-        
-        btnAiAnnotation?.backgroundTintList = ColorStateList.valueOf(secondaryTint)
-        btnAiAnnotation?.setTextColor(textStateList)
-        btnAiAnnotation?.iconTint = textStateList
-        
-        btnBookSummary?.backgroundTintList = ColorStateList.valueOf(secondaryTint)
-        btnBookSummary?.setTextColor(textStateList)
-        btnBookSummary?.iconTint = textStateList
-        
-        btnAnalyzeCharacters?.backgroundTintList = ColorStateList.valueOf(secondaryTint)
-        btnAnalyzeCharacters?.setTextColor(textStateList)
-        btnAnalyzeCharacters?.iconTint = textStateList
     }
 
     private fun adjustAlpha(color: Int, factor: Float): Int {
@@ -889,127 +837,6 @@ class BookDetailActivity : BaseActivity() {
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL)?.setTextColor(Color.parseColor(accentStr))
         }
         dialog.show()
-    }
-
-    private fun generateAiAnnotation() {
-        val book = currentBook ?: return
-
-        showProgressDialog("Локальный ИИ генерирует аннотацию...")
-
-        lifecycleScope.launch {
-            try {
-                kotlinx.coroutines.delay(800)
-                val textResponse = withContext(Dispatchers.IO) {
-                    com.nightread.app.data.LocalAiEngine.generateAnnotation(this@BookDetailActivity, book)
-                }
-
-                if (textResponse.isNotEmpty()) {
-                    val updated = book.copy(annotation = textResponse)
-                    val db = AppDatabase.getDatabase(this@BookDetailActivity)
-                    withContext(Dispatchers.IO) {
-                        db.bookDao().updateBook(updated)
-                    }
-                    currentBook = updated
-                    
-                    dismissProgressDialog()
-                    tvAnnotation.text = textResponse
-                    findViewById<View>(R.id.btnAiAnnotation)?.visibility = View.GONE
-                    checkAnnotationLength()
-                    CustomToast.show(this@BookDetailActivity, "Аннотация успешно сгенерирована локальным ИИ!")
-                } else {
-                    dismissProgressDialog()
-                    CustomToast.show(this@BookDetailActivity, "Не удалось выполнить локальный анализ")
-                }
-            } catch (e: Exception) {
-                dismissProgressDialog()
-                Log.e("BookDetailActivity", "Local AI Annotation generation failed", e)
-                CustomToast.show(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}")
-            }
-        }
-    }
-
-    private fun showOrGenerateSummary(force: Boolean = false) {
-        val book = currentBook ?: return
-        if (!force && !book.summary.isNullOrBlank()) {
-            showActionMenu(
-                anchorView = findViewById<View>(R.id.btnBookSummary) ?: return,
-                onShow = { showAiResultDialog("Краткое содержание книги", book.summary) },
-                onRegenerate = { showOrGenerateSummary(force = true) }
-            )
-            return
-        }
-
-        showProgressDialog("Локальный ИИ анализирует книгу...")
-
-        lifecycleScope.launch {
-            try {
-                kotlinx.coroutines.delay(1200)
-                val textResponse = withContext(Dispatchers.IO) {
-                    com.nightread.app.data.LocalAiEngine.generateSummary(this@BookDetailActivity, book)
-                }
-
-                if (textResponse.isNotEmpty()) {
-                    val updated = book.copy(summary = textResponse)
-                    val db = AppDatabase.getDatabase(this@BookDetailActivity)
-                    withContext(Dispatchers.IO) {
-                        db.bookDao().updateBook(updated)
-                    }
-                    currentBook = updated
-                    
-                    dismissProgressDialog()
-                    showAiResultDialog("Краткое содержание книги", textResponse)
-                } else {
-                    dismissProgressDialog()
-                    CustomToast.show(this@BookDetailActivity, "Не удалось выполнить локальный анализ")
-                }
-            } catch (e: Exception) {
-                dismissProgressDialog()
-                Log.e("BookDetailActivity", "Local AI Summary generation failed", e)
-                CustomToast.show(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}")
-            }
-        }
-    }
-
-    private fun showOrGenerateCharacters(force: Boolean = false) {
-        val book = currentBook ?: return
-        if (!force && !book.characters.isNullOrBlank()) {
-            showActionMenu(
-                anchorView = findViewById<View>(R.id.btnAnalyzeCharacters) ?: return,
-                onShow = { showAiResultDialog("Главные персонажи", book.characters) },
-                onRegenerate = { showOrGenerateCharacters(force = true) }
-            )
-            return
-        }
-
-        showProgressDialog("Локальный ИИ анализирует персонажей...")
-
-        lifecycleScope.launch {
-            try {
-                kotlinx.coroutines.delay(1000)
-                val textResponse = withContext(Dispatchers.IO) {
-                    com.nightread.app.data.LocalAiEngine.generateCharacters(this@BookDetailActivity, book)
-                }
-
-                if (textResponse.isNotEmpty()) {
-                    val updated = book.copy(characters = textResponse)
-                    val db = AppDatabase.getDatabase(this@BookDetailActivity)
-                    withContext(Dispatchers.IO) {
-                        db.bookDao().updateBook(updated)
-                    }
-                    currentBook = updated
-                    
-                    dismissProgressDialog()
-                    showAiResultDialog("Главные персонажи", textResponse)
-                } else {
-                    dismissProgressDialog()
-                    CustomToast.show(this@BookDetailActivity, "Не удалось составить список персонажей")
-                }
-            } catch (e: Exception) {
-                dismissProgressDialog()
-                Log.e("BookDetailActivity", "Local AI Character analysis failed", e)
-                CustomToast.show(this@BookDetailActivity, "Ошибка ИИ: ${e.localizedMessage}")
-            }
-        }
     }
 }
 

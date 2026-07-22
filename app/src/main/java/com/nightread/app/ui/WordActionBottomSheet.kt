@@ -54,14 +54,6 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
         val tvSelectedWord = view.findViewById<TextView>(R.id.tvSelectedWord)
         tvSelectedWord.text = word
 
-        val layoutAiResponse = view.findViewById<View>(R.id.layoutAiResponse)
-        val pbAiLoading = view.findViewById<ProgressBar>(R.id.pbAiLoading)
-        val tvAiResponse = view.findViewById<TextView>(R.id.tvAiResponse)
-        
-        view.findViewById<View>(R.id.btnCloseResponse)?.setOnClickListener {
-            layoutAiResponse.visibility = View.GONE
-        }
-
         view.findViewById<View>(R.id.btnFind).setOnClickListener {
             val bookReaderActivity = activity as? BookReaderActivity
             if (bookReaderActivity != null) {
@@ -80,27 +72,6 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
             dismiss()
         }
 
-        // AI Buttons
-        view.findViewById<View>(R.id.btnAiExplain)?.setOnClickListener {
-            queryLocalAi("explain", layoutAiResponse, pbAiLoading, tvAiResponse)
-        }
-        
-        view.findViewById<View>(R.id.btnAiTranslate)?.setOnClickListener {
-            queryLocalAi("translate", layoutAiResponse, pbAiLoading, tvAiResponse)
-        }
-        
-        view.findViewById<View>(R.id.btnAiSummarize)?.setOnClickListener {
-            queryLocalAi("summarize", layoutAiResponse, pbAiLoading, tvAiResponse)
-        }
-        
-        view.findViewById<View>(R.id.btnAiCharacter)?.setOnClickListener {
-            queryLocalAi("character", layoutAiResponse, pbAiLoading, tvAiResponse)
-        }
-        
-        view.findViewById<View>(R.id.btnAiSimplify)?.setOnClickListener {
-            queryLocalAi("simplify", layoutAiResponse, pbAiLoading, tvAiResponse)
-        }
-
         val btnCreateNote = view.findViewById<View>(R.id.btnCreateNote)
         val layoutNoteInput = view.findViewById<View>(R.id.layoutNoteInput)
         val etNoteText = view.findViewById<android.widget.EditText>(R.id.etNoteText)
@@ -108,7 +79,6 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
 
         btnCreateNote.setOnClickListener {
             layoutNoteInput.visibility = View.VISIBLE
-            layoutAiResponse.visibility = View.GONE
             etNoteText.requestFocus()
             val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
             imm?.showSoftInput(etNoteText, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
@@ -127,38 +97,6 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
                 dismiss()
             } else {
                 CustomToast.show(requireContext(), "Ошибка: экран чтения недоступен", Toast.LENGTH_SHORT)
-            }
-        }
-    }
-
-    private fun queryLocalAi(
-        actionType: String,
-        layoutAiResponse: View,
-        pbAiLoading: ProgressBar,
-        tvAiResponse: TextView
-    ) {
-        layoutAiResponse.visibility = View.VISIBLE
-        pbAiLoading.visibility = View.VISIBLE
-        tvAiResponse.text = "Локальный ИИ анализирует..."
-
-        val ctx = requireContext().applicationContext
-        lifecycleScope.launch {
-            try {
-                kotlinx.coroutines.delay(200)
-                val textResponse = withContext(Dispatchers.IO) {
-                    com.nightread.app.data.LocalAiEngine.customAiPromptWithSnippet(ctx, word, contextSnippet, actionType)
-                }
-
-                if (isAdded) {
-                    pbAiLoading.visibility = View.GONE
-                    val accentColor = Color.parseColor("#9B59B6")
-                    tvAiResponse.text = MarkdownRenderer.render(requireContext(), textResponse, accentColor)
-                }
-            } catch (e: Exception) {
-                if (isAdded) {
-                    pbAiLoading.visibility = View.GONE
-                    tvAiResponse.text = "Ошибка анализа: ${e.localizedMessage}"
-                }
             }
         }
     }

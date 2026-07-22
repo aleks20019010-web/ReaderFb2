@@ -170,6 +170,20 @@ class BookReaderActivity : AppCompatActivity() {
             SettingsBottomSheet().show(supportFragmentManager, "settings")
         }
 
+        val btnSearch = findViewById<ImageButton>(R.id.btnSearch)
+        btnSearch.visibility = View.VISIBLE
+        btnSearch.setOnClickListener {
+            val sheet = BookRagSearchBottomSheet.newInstance()
+            sheet.setOnResultSelectedListener { offset, pageIndex ->
+                if (offset >= 0) {
+                    navigateToOffset(offset)
+                } else if (pageIndex >= 0) {
+                    loadPage(pageIndex)
+                }
+            }
+            sheet.show(supportFragmentManager, "rag_search")
+        }
+
         val btnBookmark = findViewById<ImageButton>(R.id.btnBookmark)
         btnBookmark.visibility = View.GONE
         btnBookmark.setOnClickListener {
@@ -701,6 +715,7 @@ class BookReaderActivity : AppCompatActivity() {
         val buttonTint = ColorStateList.valueOf(barTextColor)
         findViewById<ImageButton>(R.id.btnBack).imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnSettings).imageTintList = buttonTint
+        findViewById<ImageButton>(R.id.btnSearch)?.imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnBookmark).imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnChapters).imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnNotes).imageTintList = buttonTint

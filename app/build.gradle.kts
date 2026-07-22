@@ -95,7 +95,6 @@ secrets {
   defaultPropertiesFileName = ".env.example"
 }
 dependencies {
-  implementation("com.google.mediapipe:tasks-genai:0.10.14")
   implementation(libs.yandex.authsdk)
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.activity.compose)

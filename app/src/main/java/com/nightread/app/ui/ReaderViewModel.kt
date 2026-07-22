@@ -124,6 +124,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         return pageStartOffsets[page]
     }
 
+    fun getContentText(): String = content
+
     fun getOffsetForParagraphIndex(pIndex: Int): Int {
         val offsets = paragraphOffsets
         if (offsets.isEmpty()) return 0

@@ -215,16 +215,6 @@
                             android:maxLines="5"
                             tools:text="Я был величайшим Магом Земли в своем мире. Глава целого Ордена. Ордена Архитекторов. Но, чем старше ста..." />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnAiAnnotation"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="Локальный ИИ: Аннотация"
-                            app:icon="@android:drawable/ic_menu_info_details"
-                            android:visibility="gone" />
-
                         <TextView
                             android:id="@+id/tvReadMore"
                             android:layout_width="wrap_content"
@@ -241,51 +231,6 @@
                             android:padding="4dp"
                             android:visibility="gone"
                             tools:visibility="visible" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-                
-                <!-- AI Features Card -->
-                <com.google.android.material.card.MaterialCardView
-                    style="@style/CardViewStyle"
-                    android:id="@+id/cardAiFeatures"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:strokeWidth="0dp"
-                    app:cardBackgroundColor="@color/bg_card"
-                    android:layout_marginBottom="24dp"
-                    android:visibility="gone">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="ЛОКАЛЬНЫЙ ИИ-АССИСТЕНТ (ОФЛАЙН)"
-                            android:textSize="12sp"
-                            android:textStyle="bold"
-                            android:textColor="#FFE3A8"
-                            android:layout_marginBottom="12dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnBookSummary"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Локальный ИИ: Краткое содержание"
-                            app:icon="@android:drawable/ic_menu_agenda"
-                            android:layout_marginBottom="8dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnAnalyzeCharacters"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Локальный ИИ: Анализ персонажей"
-                            app:icon="@android:drawable/ic_menu_myplaces" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
