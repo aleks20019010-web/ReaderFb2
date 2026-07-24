@@ -315,6 +315,8 @@ class MainActivity : BaseActivity() {
                 }
                 startActivity(openIntent)
                 overridePendingTransition(0, 0)
+                splashOverlay.visibility = View.GONE
+                isSplashActive = false
             } else {
                 tvSplashTitle?.animate()?.alpha(0f)?.translationY(-60f)?.setDuration(550)?.start()
                 tvSplashSubtitle?.animate()?.alpha(0f)?.translationY(-60f)?.setDuration(550)?.start()
@@ -354,6 +356,21 @@ class MainActivity : BaseActivity() {
             if (width <= 0 || height <= 0) return@post
 
             lifecycleScope.launch {
+                // Check for last read book to auto-open if not prevented
+                if (!preventAutoOpen && !hasAutoOpenedInSession) {
+                    try {
+                        val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
+                        val lastRead = db.bookDao().getLastReadBook()
+                        if (lastRead != null && !lastRead.sha1.isNullOrEmpty()) {
+                            lastReadBookSha1 = lastRead.sha1
+                            shouldAutoOpen = true
+                            hasAutoOpenedInSession = true
+                        }
+                    } catch (e: Exception) {
+                        // Ignore
+                    }
+                }
+
                 val bookViewModel = androidx.lifecycle.ViewModelProvider(this@MainActivity).get(com.nightread.app.ui.BookViewModel::class.java)
 
                 // 1. Run background incremental scanning if storage permission is granted
@@ -443,5 +460,6 @@ class MainActivity : BaseActivity() {
     companion object {
         var isSplashActive = true
         var hasShownSplash = false
+        var hasAutoOpenedInSession = false
     }
 }
