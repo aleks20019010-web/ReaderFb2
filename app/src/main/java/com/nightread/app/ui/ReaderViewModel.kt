@@ -368,6 +368,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun setTheme(theme: String) {
         SettingsManager.setReadingTheme(appContext, theme)
+        _themeState.value = theme
     }
 
     fun toggleTheme() {

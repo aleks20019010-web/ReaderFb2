@@ -354,10 +354,13 @@ class BookReaderActivity : AppCompatActivity() {
         webView.webViewClient = object : android.webkit.WebViewClient() {
             override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
                 progressBar.visibility = View.GONE
+                val currentThemeKey = viewModel.themeState.value
+                val (bgColor, textColor) = getThemeColors(currentThemeKey)
+                val bgColorHex = String.format("#%06X", 0xFFFFFF and bgColor)
+                val textColorHex = String.format("#%06X", 0xFFFFFF and textColor)
+                webView.evaluateJavascript("if (typeof applyThemeChange !== 'undefined') { applyThemeChange('$bgColorHex', '$textColorHex', 0); }", null)
+                applyTheme(currentThemeKey, animate = false)
                 if (isAntiGlareActive) {
-                    val themeKey = viewModel.themeState.value
-                    val (_, textColor) = getThemeColors(themeKey)
-                    val textColorHex = String.format("#%06X", 0xFFFFFF and textColor)
                     webView.evaluateJavascript("if (typeof applyAntiGlare !== 'undefined') { applyAntiGlare(true, '$textColorHex'); }", null)
                 }
                 val book = viewModel.bookState.value
@@ -667,7 +670,7 @@ class BookReaderActivity : AppCompatActivity() {
                 oldBgColor,
                 bgColor
             )
-            bgAnimation.duration = 800
+            bgAnimation.duration = 1000
             bgAnimation.addUpdateListener { animator ->
                 val color = animator.animatedValue as Int
                 rootLayout.setBackgroundColor(color)
@@ -683,7 +686,7 @@ class BookReaderActivity : AppCompatActivity() {
                 textOldColor,
                 textColor
             )
-            txtAnimation.duration = 800
+            txtAnimation.duration = 1000
             txtAnimation.addUpdateListener { animator ->
                 val color = animator.animatedValue as Int
                 if (::tvFullscreenTimeBattery.isInitialized) {
@@ -848,7 +851,7 @@ class BookReaderActivity : AppCompatActivity() {
                     val bgColorHex = String.format("#%06X", 0xFFFFFF and bgColor)
                     val textColorHex = String.format("#%06X", 0xFFFFFF and textColor)
                     
-                    webView.evaluateJavascript("if (typeof applyThemeChange !== 'undefined') { applyThemeChange('$bgColorHex', '$textColorHex', 800); }", null)
+                    webView.evaluateJavascript("if (typeof applyThemeChange !== 'undefined') { applyThemeChange('$bgColorHex', '$textColorHex', 1000); }", null)
                     applyTheme(themeKey, animate = true)
                 } else {
                     applyTheme(themeKey, animate = false)
@@ -865,7 +868,6 @@ class BookReaderActivity : AppCompatActivity() {
             } else if (loadedKey != settingsKey) {
                 isWebViewLoading = true
                 progressBar.visibility = View.VISIBLE
-                webView.tag = settingsKey
                 
                 lifecycleScope.launch(Dispatchers.IO) {
                     val fullContent = BookCache.content
@@ -929,6 +931,7 @@ class BookReaderActivity : AppCompatActivity() {
                     
                     withContext(Dispatchers.Main) {
                         progressBar.visibility = View.GONE
+                        webView.tag = settingsKey
                         if (isEpub && indexFile != null && indexFile.exists()) {
                             webView.loadUrl("file://" + indexFile.absolutePath)
                         } else {
@@ -1486,6 +1489,9 @@ class BookReaderActivity : AppCompatActivity() {
         }
         registerSensors()
         animateBrightnessRise()
+        if (com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(this)) {
+            lastKnownLux?.let { handleLightSensorChanged(it) }
+        }
     }
 
     override fun onPause() {
@@ -1596,16 +1602,17 @@ class BookReaderActivity : AppCompatActivity() {
             val preferredDayTheme = com.nightread.app.data.SettingsManager.getUserPreferredDayTheme(this)
             val preferredNightTheme = com.nightread.app.data.SettingsManager.getUserPreferredNightTheme(this)
             
-            val targetTheme = if (lux < 12f) {
+            val targetTheme = if (lux < 15f) {
                 preferredNightTheme
-            } else if (lux > 20f) {
+            } else if (lux > 30f) {
                 preferredDayTheme
             } else {
-                return // Middle ground, keep current
+                return // Preserve current theme in the 15..30 lux deadband
             }
             
             if (currentTheme != targetTheme) {
                 com.nightread.app.data.SettingsManager.setAutoReadingTheme(this, targetTheme)
+                viewModel.setTheme(targetTheme)
             }
         }
     }
