@@ -50,10 +50,16 @@ class PageFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         
         val root = view.findViewById<FrameLayout>(R.id.rootContainer)
+        var cachedMaxTop = 0
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, windowInsets ->
             val displayCutoutInsets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
             val statusBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
-            val topInset = maxOf(statusBarInsets.top, displayCutoutInsets.top)
+            val currentMeasuredTop = maxOf(statusBarInsets.top, displayCutoutInsets.top)
+            if (currentMeasuredTop > cachedMaxTop) {
+                cachedMaxTop = currentMeasuredTop
+            }
+            val minTop = (36 * v.resources.displayMetrics.density).toInt()
+            val topInset = maxOf(currentMeasuredTop, cachedMaxTop, minTop)
             
             val dp6 = (6 * v.resources.displayMetrics.density).toInt()
             val dp8 = (8 * v.resources.displayMetrics.density).toInt()
