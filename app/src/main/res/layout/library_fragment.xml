@@ -15,9 +15,8 @@
         android:src="@drawable/space_milky_way"
         android:visibility="visible" />
 
-    <!-- 2. ЗВЁЗДЫ (ПОВЕРХ ФОНА) -->
+    <!-- 2. ЗВЁЗДЫ (ПОВЕРХ ФОНА) — БЕЗ ID, ЧТОБЫ НЕ БЫЛО КРАША -->
     <com.nightread.app.ui.StarryNightView
-        android:id="@+id/starryOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
