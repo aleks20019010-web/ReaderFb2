@@ -56,6 +56,8 @@ class StatsFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_stats, container, false)
 
+        view.findViewById<StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
+
         // Инициализация views
         btnMenu = view.findViewById(R.id.header_btn_left) ?: view.findViewById(R.id.btnMenu)
         view.findViewById<TextView>(R.id.header_title)?.text = getString(R.string.stats_title)

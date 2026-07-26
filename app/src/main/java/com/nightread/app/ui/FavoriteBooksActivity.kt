@@ -45,8 +45,15 @@ class FavoriteBooksActivity : BaseActivity() {
         val glassHeader = findViewById<View>(R.id.glassHeader)
         glassHeader.findViewById<TextView>(R.id.header_title).text = "Избранное"
         val btnLeft = glassHeader.findViewById<android.widget.ImageButton>(R.id.header_btn_left)
-        btnLeft.setImageResource(R.drawable.ic_arrow_back)
-        btnLeft.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        btnLeft.setImageResource(android.R.drawable.ic_menu_sort_by_size)
+        btnLeft.setOnClickListener {
+            val intent = Intent(this, com.nightread.app.MainActivity::class.java).apply {
+                putExtra("OPEN_DRAWER", true)
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            startActivity(intent)
+            finish()
+        }
 
         rvBooks = findViewById(R.id.rvBooks)
         tvEmpty = findViewById(R.id.tvEmpty)

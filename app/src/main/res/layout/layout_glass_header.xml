@@ -8,7 +8,8 @@
     app:cardCornerRadius="16dp"
     app:strokeColor="#33FFFFFF"
     app:strokeWidth="1dp"
-    app:cardBackgroundColor="@drawable/bg_glass_panel">
+    app:cardBackgroundColor="@color/bg_panel"
+    android:background="@drawable/bg_glass_panel">
 
     <RelativeLayout
         android:layout_width="match_parent"

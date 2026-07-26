@@ -20,13 +20,17 @@ class SeriesBooksActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_series_books)
 
+        findViewById<StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
+
         val seriesName = intent.getStringExtra("SERIES_NAME") ?: "Неизвестная"
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = seriesName
-        toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        val glassHeader = findViewById<android.view.View>(R.id.glassHeader)
+        glassHeader.findViewById<android.widget.TextView>(R.id.header_title).text = seriesName
+        val btnLeft = glassHeader.findViewById<android.widget.ImageButton>(R.id.header_btn_left)
+        btnLeft.setImageResource(R.drawable.ic_arrow_back)
+        btnLeft.setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
 
         rvBooks = findViewById(R.id.rvBooks)
         rvBooks.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 3)

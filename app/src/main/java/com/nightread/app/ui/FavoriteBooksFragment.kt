@@ -1,0 +1,82 @@
+package com.nightread.app.ui
+
+import android.content.Intent
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageButton
+import android.widget.TextView
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.nightread.app.MainActivity
+import com.nightread.app.R
+import com.nightread.app.data.AppDatabase
+import kotlinx.coroutines.launch
+
+class FavoriteBooksFragment : Fragment() {
+
+    private lateinit var rvBooks: RecyclerView
+    private lateinit var tvEmpty: TextView
+    private lateinit var adapter: BookAdapter
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        return inflater.inflate(R.layout.activity_favorite_books, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        view.findViewById<StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
+
+        val glassHeader = view.findViewById<View>(R.id.glassHeader)
+        glassHeader.findViewById<TextView>(R.id.header_title).text = "Избранное"
+        val btnLeft = glassHeader.findViewById<ImageButton>(R.id.header_btn_left)
+        btnLeft.setImageResource(android.R.drawable.ic_menu_sort_by_size)
+        btnLeft.setOnClickListener {
+            (activity as? MainActivity)?.openDrawer()
+        }
+
+        rvBooks = view.findViewById(R.id.rvBooks)
+        tvEmpty = view.findViewById(R.id.tvEmpty)
+
+        rvBooks.layoutManager = GridLayoutManager(requireContext(), 3)
+
+        adapter = BookAdapter(emptyList(), { book, coverView ->
+            val intent = Intent(requireContext(), BookDetailActivity::class.java).apply {
+                putExtra("BOOK_SHA1", book.sha1)
+            }
+            val options = androidx.core.app.ActivityOptionsCompat.makeSceneTransitionAnimation(
+                requireActivity(),
+                coverView,
+                "cover_${book.sha1}"
+            )
+            startActivity(intent, options.toBundle())
+        })
+        rvBooks.adapter = adapter
+
+        loadFavoriteBooks()
+    }
+
+    private fun loadFavoriteBooks() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val db = AppDatabase.getDatabase(requireContext())
+            db.bookDao().getFavoriteBooks().collect { books ->
+                adapter.updateData(books)
+                if (books.isEmpty()) {
+                    tvEmpty.visibility = View.VISIBLE
+                    rvBooks.visibility = View.GONE
+                } else {
+                    tvEmpty.visibility = View.GONE
+                    rvBooks.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
+}

@@ -123,40 +123,24 @@ class MainActivity : BaseActivity() {
         }
 
         navView.setNavigationItemSelectedListener { menuItem ->
-            if (menuItem.itemId == R.id.nav_sync) {
-                openSyncFragment()
-            } else if (menuItem.itemId == R.id.nav_stats) {
-                openStatsFragment()
-            } else if (menuItem.itemId == R.id.nav_favorites) {
-                val intent = Intent(this, com.nightread.app.ui.FavoriteBooksActivity::class.java)
-                startActivity(intent)
-            } else if (menuItem.itemId == R.id.nav_new_books) {
-                val intent = Intent(this, com.nightread.app.ui.NewBooksActivity::class.java).apply {
-                    putExtra("from_menu", true)
+            when (menuItem.itemId) {
+                R.id.nav_sync -> openSyncFragment()
+                R.id.nav_stats -> openStatsFragment()
+                R.id.nav_favorites -> openFavoritesFragment()
+                R.id.nav_new_books -> openNewBooksFragment()
+                R.id.nav_want_to_read -> openWantToReadFragment()
+                R.id.nav_settings -> openSettingsFragment()
+                else -> {
+                    val filter = when (menuItem.itemId) {
+                        R.id.nav_reading -> "reading"
+                        R.id.nav_read -> "read"
+                        else -> "all"
+                    }
+                    getSharedPreferences("nav_prefs", MODE_PRIVATE).edit()
+                        .putString("last_selected_filter", filter)
+                        .apply()
+                    openLibraryFragment(filter)
                 }
-                startActivity(intent)
-            } else if (menuItem.itemId == R.id.nav_want_to_read) {
-                val intent = Intent(this, com.nightread.app.ui.WantToReadActivity::class.java).apply {
-                    putExtra("from_menu", true)
-                }
-                startActivity(intent)
-            } else if (menuItem.itemId == R.id.nav_settings) {
-                // Open SettingsActivity
-                val intent = Intent(this, com.nightread.app.ui.SettingsActivity::class.java)
-                startActivity(intent)
-            } else {
-                val filter = when (menuItem.itemId) {
-                    R.id.nav_reading -> "reading"
-                    R.id.nav_read -> "read"
-                    else -> "all"
-                }
-                
-                // Save selected menu in preferences
-                getSharedPreferences("nav_prefs", MODE_PRIVATE).edit()
-                    .putString("last_selected_filter", filter)
-                    .apply()
-                    
-                openLibraryFragment(filter)
             }
             drawerLayout.closeDrawer(GravityCompat.START)
             true
@@ -442,6 +426,38 @@ class MainActivity : BaseActivity() {
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, com.nightread.app.ui.StatsFragment())
             .commit()
+    }
+
+    fun openFavoritesFragment() {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, com.nightread.app.ui.FavoriteBooksFragment())
+            .commit()
+    }
+
+    fun openNewBooksFragment() {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, com.nightread.app.ui.NewBooksFragment())
+            .commit()
+    }
+
+    fun openWantToReadFragment() {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, com.nightread.app.ui.WantToReadFragment())
+            .commit()
+    }
+
+    fun openSettingsFragment() {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, com.nightread.app.ui.SettingsFragment())
+            .commit()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra("OPEN_DRAWER", false)) {
+            drawerLayout.openDrawer(androidx.core.view.GravityCompat.START)
+        }
     }
 
     fun openDrawer() {
