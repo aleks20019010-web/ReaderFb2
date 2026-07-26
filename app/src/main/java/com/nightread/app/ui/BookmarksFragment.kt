@@ -34,6 +34,8 @@ class BookmarksFragment : Fragment(R.layout.fragment_bookmarks) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        view.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
+
         val btnMenu = view.findViewById<ImageButton>(R.id.btnMenu)
         btnMenu.setOnClickListener {
             (activity as? MainActivity)?.openDrawer()

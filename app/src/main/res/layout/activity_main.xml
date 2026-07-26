@@ -191,50 +191,70 @@
     </FrameLayout>
 
     <!-- The navigation drawer layout -->
-    <LinearLayout
+    <FrameLayout
         android:id="@+id/drawer_layout_container"
         android:layout_width="320dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:orientation="vertical"
-        android:background="@drawable/bg_drawer"
         android:elevation="8dp">
 
-        <com.google.android.material.navigation.NavigationView
-            android:id="@+id/nav_view"
-            style="@style/Widget.NightRead.NavigationView"
+        <ImageView
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:background="@android:color/transparent"
-            app:backgroundTint="@android:color/transparent"
-            app:menu="@menu/menu_drawer" />
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:src="@drawable/space_milky_way" />
+
+        <com.nightread.app.ui.StarryNightView
+            android:id="@+id/drawer_starry_bg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
 
         <View
             android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/divider"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp" />
+            android:layout_height="match_parent"
+            android:background="#A60A0414" />
 
-        <!-- Custom button at the bottom -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_searchfloor"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="16dp"
-            android:text="SearchFloor"
-            android:textColor="@color/btn_text"
-            app:backgroundTint="@color/btn_bg"
-            app:cornerRadius="12dp"
-            app:icon="@drawable/ic_custom_search"
-            app:iconTint="@color/btn_text"
-            app:iconGravity="textStart"
-            android:textAllCaps="false" />
+            android:layout_height="match_parent"
+            android:orientation="vertical">
 
-    </LinearLayout>
+            <com.google.android.material.navigation.NavigationView
+                android:id="@+id/nav_view"
+                style="@style/Widget.NightRead.NavigationView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                app:backgroundTint="@android:color/transparent"
+                app:menu="@menu/menu_drawer" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/divider"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp" />
+
+            <!-- Custom button at the bottom -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_searchfloor"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="16dp"
+                android:text="SearchFloor"
+                android:textColor="@color/btn_text"
+                app:backgroundTint="@color/btn_bg"
+                app:cornerRadius="12dp"
+                app:icon="@drawable/ic_custom_search"
+                app:iconTint="@color/btn_text"
+                app:iconGravity="textStart"
+                android:textAllCaps="false" />
+
+        </LinearLayout>
+    </FrameLayout>
 
 </androidx.drawerlayout.widget.DrawerLayout>

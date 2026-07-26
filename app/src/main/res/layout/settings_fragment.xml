@@ -1,11 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/rootSettings"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@android:color/transparent">
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/ivSettingsBg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/space_milky_way" />
+
+    <com.nightread.app.ui.StarryNightView
+        android:id="@+id/starryOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:id="@+id/rootSettings"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@android:color/transparent">
 
     <!-- Top Toolbar -->
     <androidx.appcompat.widget.Toolbar
@@ -338,3 +354,4 @@
         </LinearLayout>
     </ScrollView>
 </LinearLayout>
+</FrameLayout>

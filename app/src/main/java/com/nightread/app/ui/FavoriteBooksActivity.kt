@@ -26,6 +26,8 @@ class FavoriteBooksActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_favorite_books)
 
+        findViewById<StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
+
         // Support Edge-to-Edge immersion and safe areas (Status Bar + Notch + 12dp spacing)
         val rootLayout = findViewById<View>(R.id.rootFavoriteBooks)
         WindowCompat.setDecorFitsSystemWindows(window, false)

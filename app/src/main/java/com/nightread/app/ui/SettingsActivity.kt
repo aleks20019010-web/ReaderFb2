@@ -36,6 +36,8 @@ class SettingsActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.settings_fragment)
 
+        findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
+
         // Support Edge-to-Edge immersion and safe areas
         val rootLayout = findViewById<View>(R.id.rootSettings)
         WindowCompat.setDecorFitsSystemWindows(window, false)

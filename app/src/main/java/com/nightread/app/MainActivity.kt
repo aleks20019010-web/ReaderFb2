@@ -69,6 +69,8 @@ class MainActivity : BaseActivity() {
         drawerLayout = findViewById(R.id.drawer_layout)
         navView = findViewById(R.id.nav_view)
 
+        findViewById<com.nightread.app.ui.StarryNightView>(R.id.drawer_starry_bg)?.transparentBackground = true
+
         val starryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.starry_bg)
         drawerLayout.addDrawerListener(object : DrawerLayout.DrawerListener {
             override fun onDrawerSlide(drawerView: android.view.View, slideOffset: Float) {
@@ -225,9 +227,9 @@ class MainActivity : BaseActivity() {
         val starryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.starry_bg)
         val splashStarryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.splash_starry_bg)
 
-        // ------------------------------------------------
-        // УДАЛИЛИ ВЫЗОВЫ setFireflyThemeColor (ОНИ БОЛЬШЕ НЕ НУЖНЫ)
-        // ------------------------------------------------
+        // Configure the background live particles to match our premium Golden accent initially
+        starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
+        splashStarryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
         // Infinite, hypnotic ambient animations matching the premium style
         // 1. Glow pulsation
