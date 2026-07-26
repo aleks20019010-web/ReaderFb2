@@ -307,7 +307,7 @@ class LibraryFragment : Fragment() {
                 totalScrollY += dy
                 textureBackground?.translationY = -(totalScrollY * 0.1f)
                 customBg?.translationY = -(totalScrollY * 0.08f)
-                starryOverlay?.translationY = -(totalScrollY * 0.08f)
+                // starryOverlay remains static
             }
         })
 

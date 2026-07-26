@@ -6,10 +6,7 @@
     android:layout_height="match_parent"
     android:background="@android:color/transparent">
 
-    <com.nightread.app.ui.StarryNightView
-        android:id="@+id/starryOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+    <include layout="@layout/layout_galaxy_bg" />
 
     <LinearLayout
         android:layout_width="match_parent"
