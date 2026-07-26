@@ -101,7 +101,7 @@ class MainActivity : BaseActivity() {
         // Handle WindowInsets for Edge-to-Edge
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         val fragmentContainer = findViewById<FrameLayout>(R.id.fragment_container)
-        val drawerLayoutContainer = findViewById<LinearLayout>(R.id.drawer_layout_container)
+        val drawerLayoutContainer = findViewById<FrameLayout>(R.id.drawer_layout_container)
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(drawerLayout) { view, windowInsets ->
             val insets = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             // Apply top and bottom padding to the main content container
