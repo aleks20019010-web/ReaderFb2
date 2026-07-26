@@ -2,12 +2,23 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/rootWantToRead"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@android:color/transparent">
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/ivWantToReadBg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/space_milky_way" />
+
+    <com.nightread.app.ui.StarryNightView
+        android:id="@+id/starryOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
     <LinearLayout
+        android:id="@+id/rootWantToRead"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
@@ -19,6 +30,7 @@
             android:layout_height="?attr/actionBarSize"
             android:background="@android:color/transparent"
             app:titleTextColor="#E8D8F0"
+            app:navigationIconTint="#E8D8F0"
             app:title="Хочу прочитать" />
 
         <FrameLayout

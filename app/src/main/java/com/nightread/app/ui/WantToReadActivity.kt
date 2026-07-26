@@ -29,6 +29,8 @@ class WantToReadActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_want_to_read)
 
+        findViewById<StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
+
         // Support Edge-to-Edge immersion and safe areas (Status Bar + Notch + 12dp spacing)
         val rootLayout = findViewById<android.view.View>(R.id.rootWantToRead)
         WindowCompat.setDecorFitsSystemWindows(window, false)
