@@ -3,9 +3,8 @@ package com.nightread.app.ui
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.ImageButton
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -15,6 +14,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.nightread.app.R
 import com.nightread.app.data.AppDatabase
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class FavoriteBooksActivity : BaseActivity() {
 
@@ -28,7 +29,7 @@ class FavoriteBooksActivity : BaseActivity() {
 
         findViewById<StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
 
-        // Support Edge-to-Edge immersion and safe areas (Status Bar + Notch + 12dp spacing)
+        // Edge-to-Edge support
         val rootLayout = findViewById<View>(R.id.rootFavoriteBooks)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { view, windowInsets ->
@@ -42,28 +43,38 @@ class FavoriteBooksActivity : BaseActivity() {
             windowInsets
         }
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "Избранное"
-        toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        // ✅ КНОПКА МЕНЮ (гамбургер) — открывает боковое меню
+        val btnMenu = findViewById<ImageButton>(R.id.btnMenu)
+        btnMenu.setOnClickListener {
+            (this as? com.nightread.app.MainActivity)?.openDrawer()
+        }
 
+        // Инициализация списка
         rvBooks = findViewById(R.id.rvBooks)
         tvEmpty = findViewById(R.id.tvEmpty)
         
         rvBooks.layoutManager = GridLayoutManager(this, 3)
 
-        adapter = BookAdapter(emptyList(), { book, coverView ->
-            val intent = Intent(this, BookDetailActivity::class.java).apply {
-                putExtra("BOOK_SHA1", book.sha1)
+        adapter = BookAdapter(
+            books = emptyList(),
+            onOpenBook = { book, coverView ->
+                val intent = Intent(this, BookDetailActivity::class.java).apply {
+                    putExtra("BOOK_SHA1", book.sha1)
+                }
+                val options = androidx.core.app.ActivityOptionsCompat.makeSceneTransitionAnimation(
+                    this,
+                    coverView,
+                    "cover_${book.sha1}"
+                )
+                startActivity(intent, options.toBundle())
+            },
+            onDeleteBook = { book ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val db = AppDatabase.getDatabase(this@FavoriteBooksActivity)
+                    db.bookDao().updateFavorite(book.sha1, false)
+                }
             }
-            val options = androidx.core.app.ActivityOptionsCompat.makeSceneTransitionAnimation(
-                this,
-                coverView,
-                "cover_${book.sha1}"
-            )
-            startActivity(intent, options.toBundle())
-        })
+        )
         rvBooks.adapter = adapter
 
         loadFavoriteBooks()
@@ -72,7 +83,7 @@ class FavoriteBooksActivity : BaseActivity() {
     private fun loadFavoriteBooks() {
         lifecycleScope.launch {
             val db = AppDatabase.getDatabase(this@FavoriteBooksActivity)
-            db.bookDao().getFavoriteBooks().collect { books ->
+            db.bookDao().getFavoritesBooks().collect { books ->
                 adapter.updateData(books)
                 if (books.isEmpty()) {
                     tvEmpty.visibility = View.VISIBLE
