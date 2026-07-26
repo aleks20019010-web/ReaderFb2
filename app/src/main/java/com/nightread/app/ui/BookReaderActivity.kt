@@ -130,7 +130,8 @@ class BookReaderActivity : AppCompatActivity() {
         
         // Initialize Reader Splash Screen Background
         val readerSplashStarryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.reader_splash_starry_bg)
-        readerSplashStarryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
+        // ❌ УДАЛЕН ВЫЗОВ setFireflyThemeColor, так как функция удалена из класса
+        // readerSplashStarryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
         viewModel = ViewModelProvider(this).get(ReaderViewModel::class.java)
 
