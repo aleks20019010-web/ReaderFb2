@@ -1,35 +1,431 @@
-<!-- Top Action Bar Header -->
-<RelativeLayout
-    android:id="@+id/header"
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="@drawable/bg_glass_panel"
-    android:layout_margin="8dp"
-    android:padding="12dp"
-    android:elevation="4dp"
-    app:strokeColor="#33FFFFFF"
-    app:strokeWidth="1dp">
+    android:layout_height="match_parent">
 
-    <ImageButton
-        android:id="@+id/btnMenu"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_alignParentStart="true"
-        android:layout_centerVertical="true"
-        android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_menu_sort_by_size"
-        android:contentDescription="Меню"
-        app:tint="@color/icon_tint" />
+    <!-- 1. СТАТИЧНЫЙ ФОН (КОСМОС) -->
+    <ImageView
+        android:id="@+id/ivCustomSyncBg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/space_milky_way" />
 
-    <TextView
-        android:id="@+id/titleText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_toEndOf="@id/btnMenu"
-        android:layout_centerVertical="true"
-        android:layout_marginStart="12dp"
-        android:text="Синхронизация"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:textStyle="bold" />
-</RelativeLayout>
+    <!-- 2. СЛОЙ СО ЗВЁЗДАМИ -->
+    <com.nightread.app.ui.StarryNightView
+        android:id="@+id/starryOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 3. ОСНОВНОЙ КОНТЕНТ -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Top Action Bar Header -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_glass_panel"
+            android:layout_margin="8dp"
+            android:padding="12dp"
+            android:elevation="4dp"
+            app:strokeColor="#33FFFFFF"
+            app:strokeWidth="1dp">
+
+            <ImageButton
+                android:id="@+id/btnMenu"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_sort_by_size"
+                android:contentDescription="Меню"
+                app:tint="@color/icon_tint" />
+
+            <TextView
+                android:id="@+id/titleText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toEndOf="@id/btnMenu"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="12dp"
+                android:text="Синхронизация"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </RelativeLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <!-- Cloud Server Info Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardConnection"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardBackgroundColor="@color/bg_card"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="2dp"
+                    app:strokeColor="@color/divider"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Яндекс Диск"
+                            android:textColor="@color/accent"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="12dp" />
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="12dp">
+
+                            <TextView
+                                android:id="@+id/statusLabel"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Статус:"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:id="@+id/statusValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_toEndOf="@id/statusLabel"
+                                android:layout_marginStart="8dp"
+                                android:text="Не авторизован"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+                        </RelativeLayout>
+
+                        <!-- Storage Info (Only visible when connected) -->
+                        <LinearLayout
+                            android:id="@+id/layoutStorage"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone"
+                            android:layout_marginBottom="12dp">
+
+                            <TextView
+                                android:id="@+id/txtUsername"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Пользователь: -"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp"
+                                android:layout_marginBottom="8dp" />
+
+                            <TextView
+                                android:id="@+id/txtStorage"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Занято: 0 Б из 0 Б"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp"
+                                android:layout_marginBottom="4dp" />
+
+                            <ProgressBar
+                                android:id="@+id/progressStorage"
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="match_parent"
+                                android:layout_height="8dp"
+                                android:progressTint="@color/accent"
+                                android:progressBackgroundTint="@color/divider" />
+                        </LinearLayout>
+
+                        <!-- Actions for Connection -->
+                        <Button
+                            android:id="@+id/btnConnect"
+                            android:layout_width="match_parent"
+                            android:layout_height="52dp"
+                            android:text="Войти через Яндекс"
+                            android:backgroundTint="@color/btn_bg"
+                            android:textColor="@color/btn_text"
+                            android:textStyle="bold"
+                            app:cornerRadius="12dp" />
+
+                        <Button
+                            android:id="@+id/btnDisconnect"
+                            android:layout_width="match_parent"
+                            android:layout_height="52dp"
+                            android:text="Выйти из аккаунта"
+                            android:backgroundTint="#FF4D4D"
+                            android:textColor="@color/btn_text"
+                            android:textStyle="bold"
+                            android:visibility="gone"
+                            app:cornerRadius="12dp"
+                            android:layout_marginTop="8dp" />
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Sync Controls Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardSync"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:visibility="gone"
+                    app:cardBackgroundColor="@color/bg_card"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="2dp"
+                    app:strokeColor="@color/divider"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Параметры синхронизации"
+                            android:textColor="@color/accent"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="12dp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Синхронизация загружает ваши книги и обновляет прогресс чтения между всеми вашими устройствами с помощью Яндекс Диска."
+                            android:textColor="@color/text_secondary"
+                            android:textSize="13sp"
+                            android:layout_marginBottom="16dp" />
+
+                        <!-- NEW: Folder Selection -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="16dp">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Папка для синхронизации:"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="12sp" />
+                                <TextView
+                                    android:id="@+id/txtSyncFolder"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="/Books"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+                            <Button
+                                android:id="@+id/btnSelectFolder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Выбрать"
+                                style="?attr/borderlessButtonStyle"
+                                android:textColor="@color/accent" />
+                        </LinearLayout>
+
+                        <!-- Local Download Folder Selection -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="16dp">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Локальная папка для скачивания:"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="12sp" />
+                                <TextView
+                                    android:id="@+id/txtLocalDownloadFolder"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="По умолчанию (/Books)"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+                            <Button
+                                android:id="@+id/btnSelectLocalFolder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Выбрать"
+                                style="?attr/borderlessButtonStyle"
+                                android:textColor="@color/accent" />
+                        </LinearLayout>
+
+                        <Button
+                            android:id="@+id/btnSyncNow"
+                            android:layout_width="match_parent"
+                            android:layout_height="56dp"
+                            android:text="Синхронизировать"
+                            android:backgroundTint="@color/btn_bg"
+                            android:textColor="@color/btn_text"
+                            android:textStyle="bold"
+                            app:cornerRadius="12dp"
+                            android:layout_marginBottom="16dp" />
+
+                        <!-- Active sync progress layout -->
+                        <LinearLayout
+                            android:id="@+id/layoutSyncProgress"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone"
+                            android:layout_marginBottom="12dp">
+
+                            <androidx.compose.ui.platform.ComposeView
+                                android:id="@+id/composeSyncAnimation"
+                                android:layout_width="match_parent"
+                                android:layout_height="240dp"
+                                android:layout_marginBottom="12dp" />
+
+                            <TextView
+                                android:id="@+id/txtSyncStatus"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Синхронизация..."
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp"
+                                android:layout_marginBottom="6dp" />
+
+                            <ProgressBar
+                                android:id="@+id/progressSync"
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="match_parent"
+                                android:layout_height="8dp"
+                                android:max="100"
+                                android:progressTint="@color/accent"
+                                android:progressBackgroundTint="@color/divider"
+                                android:layout_marginBottom="6dp" />
+
+                            <TextView
+                                android:id="@+id/txtSyncProgressCount"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0 / 0"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp" />
+
+                            <!-- NEW: Individual File Progress Section -->
+                            <LinearLayout
+                                android:id="@+id/layoutIndividualProgress"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:layout_marginTop="12dp"
+                                android:layout_marginBottom="4dp"
+                                android:visibility="gone">
+
+                                <TextView
+                                    android:id="@+id/txtCurrentFileName"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Файл: name.fb2"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="13sp"
+                                    android:textStyle="italic"
+                                    android:layout_marginBottom="4dp" />
+
+                                <ProgressBar
+                                    android:id="@+id/progressIndividual"
+                                    style="?android:attr/progressBarStyleHorizontal"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="6dp"
+                                    android:max="100"
+                                    android:progressTint="@color/accent"
+                                    android:progressBackgroundTint="@color/divider"
+                                    android:layout_marginBottom="4dp" />
+
+                                <TextView
+                                    android:id="@+id/txtIndividualProgressCount"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="0 Б / 0 Б"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/txtRemainingTime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp"
+                                android:layout_marginTop="4dp"
+                                android:layout_marginBottom="4dp"
+                                android:text="Оставшееся время: расчет..." />
+
+                            <TextView
+                                android:id="@+id/txtSyncStatsDetail"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp"
+                                android:layout_marginBottom="8dp"
+                                android:text="Скачано: 0, Загружено: 0" />
+
+                            <Button
+                                android:id="@+id/btnCancelSync"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Отмена"
+                                android:backgroundTint="#FF4D4D"
+                                android:textColor="@color/btn_text"
+                                android:layout_marginTop="8dp"
+                                app:cornerRadius="8dp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/txtLastSync"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Последняя синхронизация: никогда"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12sp" />
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+</FrameLayout>
