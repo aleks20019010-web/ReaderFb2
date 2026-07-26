@@ -42,11 +42,11 @@ class FavoriteBooksActivity : BaseActivity() {
             windowInsets
         }
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "Избранное"
-        toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        val glassHeader = findViewById<View>(R.id.glassHeader)
+        glassHeader.findViewById<TextView>(R.id.header_title).text = "Избранное"
+        val btnLeft = glassHeader.findViewById<android.widget.ImageButton>(R.id.header_btn_left)
+        btnLeft.setImageResource(R.drawable.ic_arrow_back)
+        btnLeft.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         rvBooks = findViewById(R.id.rvBooks)
         tvEmpty = findViewById(R.id.tvEmpty)

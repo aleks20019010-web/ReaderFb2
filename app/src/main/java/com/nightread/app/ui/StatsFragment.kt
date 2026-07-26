@@ -57,7 +57,8 @@ class StatsFragment : Fragment() {
         val view = inflater.inflate(R.layout.fragment_stats, container, false)
 
         // Инициализация views
-        btnMenu = view.findViewById(R.id.btnMenu)
+        btnMenu = view.findViewById(R.id.header_btn_left) ?: view.findViewById(R.id.btnMenu)
+        view.findViewById<TextView>(R.id.header_title)?.text = getString(R.string.stats_title)
         tvRankEmoji = view.findViewById(R.id.tvRankEmoji)
         tvRankName = view.findViewById(R.id.tvRankName)
         tvExperience = view.findViewById(R.id.tvExperience)

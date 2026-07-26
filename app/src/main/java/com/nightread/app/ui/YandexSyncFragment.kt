@@ -137,7 +137,8 @@ class YandexSyncFragment : Fragment() {
         val view = inflater.inflate(R.layout.fragment_sync, container, false)
 
         // Инициализация view элементов
-        btnMenu = view.findViewById(R.id.btnMenu)
+        btnMenu = view.findViewById(R.id.header_btn_left) ?: view.findViewById(R.id.btnMenu)
+        view.findViewById<TextView>(R.id.header_title)?.text = "Синхронизация"
         statusValue = view.findViewById(R.id.statusValue)
         layoutStorage = view.findViewById(R.id.layoutStorage)
         txtUsername = view.findViewById(R.id.txtUsername)

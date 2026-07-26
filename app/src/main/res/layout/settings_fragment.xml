@@ -16,15 +16,9 @@
         android:orientation="vertical"
         android:background="@android:color/transparent">
 
-    <!-- Top Toolbar -->
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@android:color/transparent"
-        app:titleTextColor="#E8D8F0"
-        app:navigationIconTint="#E8D8F0"
-        app:title="@string/drawer_settings" />
+    <include
+        android:id="@+id/glassHeader"
+        layout="@layout/layout_glass_header" />
 
     <ScrollView
         android:layout_width="match_parent"

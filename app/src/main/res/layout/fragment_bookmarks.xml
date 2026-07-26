@@ -18,58 +18,9 @@
         android:background="@android:color/transparent"
         android:animateLayoutChanges="true">
 
-        <!-- Top Action Bar Header -->
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_glass_panel"
-            android:layout_margin="8dp"
-            android:padding="12dp"
-            android:elevation="4dp">
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageButton
-                    android:id="@+id/btnMenu"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:src="@android:drawable/ic_menu_sort_by_size"
-                    android:contentDescription="Меню"
-                    app:tint="@color/icon_tint"
-                    android:layout_marginEnd="6dp" />
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/tvTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Закладки"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="#FFFFFF" />
-
-                    <TextView
-                        android:id="@+id/tvBookmarkCount"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="12sp"
-                        android:textColor="#B8A0C8"
-                        android:fontFamily="sans-serif-light"
-                        android:text="0 закладок" />
-                </LinearLayout>
-            </LinearLayout>
-        </RelativeLayout>
+        <include
+            android:id="@+id/glassHeader"
+            layout="@layout/layout_glass_header" />
 
         <!-- Content Area -->
         <FrameLayout

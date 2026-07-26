@@ -52,12 +52,12 @@ class SettingsActivity : BaseActivity() {
             windowInsets
         }
 
-        // Toolbar
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = getString(R.string.drawer_settings)
-        toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        // Glass Header
+        val glassHeader = findViewById<View>(R.id.glassHeader)
+        glassHeader.findViewById<TextView>(R.id.header_title).text = getString(R.string.drawer_settings)
+        val btnLeft = glassHeader.findViewById<ImageButton>(R.id.header_btn_left)
+        btnLeft.setImageResource(R.drawable.ic_arrow_back)
+        btnLeft.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         // --- ЯЗЫК ИНТЕРФЕЙСА ---
         val spinnerLanguage = findViewById<Spinner>(R.id.spinnerLanguage)

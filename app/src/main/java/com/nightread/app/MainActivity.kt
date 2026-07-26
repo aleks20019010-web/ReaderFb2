@@ -227,7 +227,9 @@ class MainActivity : BaseActivity() {
         val starryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.starry_bg)
         val splashStarryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.splash_starry_bg)
 
-        // ✅ УДАЛЕНЫ ВЫЗОВЫ setFireflyThemeColor (они больше не существуют)
+        // Configure the background live particles to match our premium Golden accent initially
+        starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
+        splashStarryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
         // Infinite, hypnotic ambient animations matching the premium style
         // 1. Glow pulsation

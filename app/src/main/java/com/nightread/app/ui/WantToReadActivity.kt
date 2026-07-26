@@ -45,11 +45,11 @@ class WantToReadActivity : BaseActivity() {
             windowInsets
         }
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.setDisplayShowHomeEnabled(true)
-        supportActionBar?.title = "Хочу прочитать"
+        val glassHeader = findViewById<android.view.View>(R.id.glassHeader)
+        glassHeader.findViewById<android.widget.TextView>(R.id.header_title).text = "Хочу прочитать"
+        val btnLeft = glassHeader.findViewById<android.widget.ImageButton>(R.id.header_btn_left)
+        btnLeft.setImageResource(R.drawable.ic_arrow_back)
+        btnLeft.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         rvWantToRead = findViewById(R.id.rvWantToRead)
         layoutEmptyState = findViewById(R.id.layoutEmptyState)

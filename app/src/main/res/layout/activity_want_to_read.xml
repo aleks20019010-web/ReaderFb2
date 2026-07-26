@@ -17,14 +17,9 @@
         android:orientation="vertical"
         android:background="@android:color/transparent">
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@android:color/transparent"
-            app:titleTextColor="#E8D8F0"
-            app:navigationIconTint="#E8D8F0"
-            app:title="Хочу прочитать" />
+        <include
+            android:id="@+id/glassHeader"
+            layout="@layout/layout_glass_header" />
 
         <FrameLayout
             android:layout_width="match_parent"

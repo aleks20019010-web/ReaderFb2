@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardElevation="4dp"
+    app:cardCornerRadius="16dp"
+    app:strokeColor="#33FFFFFF"
+    app:strokeWidth="1dp"
+    app:cardBackgroundColor="@drawable/bg_glass_panel">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:padding="12dp">
+
+        <!-- МЕСТО ДЛЯ КНОПКИ (слева) -->
+        <ImageButton
+            android:id="@+id/header_btn_left"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_sort_by_size"
+            android:contentDescription="Меню"
+            app:tint="#E8D8F0" />
+
+        <!-- МЕСТО ДЛЯ ЗАГОЛОВКА И ПОДЗАГОЛОВКА -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@id/header_btn_left"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/header_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Заголовок"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/header_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#D0C8D8"
+                android:textSize="12sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- МЕСТО ДЛЯ ПРАВЫХ КНОПОК (если нужны) -->
+        <LinearLayout
+            android:id="@+id/header_actions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="gone" />
+
+    </RelativeLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -36,12 +36,14 @@ class BookmarksFragment : Fragment(R.layout.fragment_bookmarks) {
 
         view.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
 
-        val btnMenu = view.findViewById<ImageButton>(R.id.btnMenu)
+        val btnMenu = view.findViewById<ImageButton>(R.id.header_btn_left) ?: view.findViewById<ImageButton>(R.id.btnMenu)
+        view.findViewById<TextView>(R.id.header_title)?.text = "Закладки"
         btnMenu.setOnClickListener {
             (activity as? MainActivity)?.openDrawer()
         }
 
-        tvBookmarkCount = view.findViewById(R.id.tvBookmarkCount)
+        tvBookmarkCount = view.findViewById(R.id.header_subtitle)
+        tvBookmarkCount.visibility = View.VISIBLE
         layoutEmptyState = view.findViewById(R.id.layoutEmptyState)
         rvBookmarks = view.findViewById(R.id.rvBookmarks)
         rvBookmarks.layoutManager = LinearLayoutManager(requireContext())
