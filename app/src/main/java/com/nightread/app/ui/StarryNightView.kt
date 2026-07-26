@@ -72,6 +72,15 @@ class StarryNightView @JvmOverloads constructor(
     // Смещение при открытии шторки
     private var drawerSlideOffset = 0f
 
+    /**
+     * Если true, фон не закрашивается темным градиентом, сохраняя подложенный пользовательский векторный фон.
+     */
+    var transparentBackground: Boolean = false
+        set(value) {
+            field = value
+            invalidate()
+        }
+
     // Структура звезды
     private data class Star(
         val x: Float,
@@ -178,6 +187,10 @@ class StarryNightView @JvmOverloads constructor(
 
     override fun onTouchEvent(event: MotionEvent?): Boolean {
         if (event == null) return super.onTouchEvent(event)
+        if (transparentBackground) {
+            // В режиме прозрачного оверлея не перехватываем касания
+            return false
+        }
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 lastTouchX = event.x
@@ -212,15 +225,17 @@ class StarryNightView @JvmOverloads constructor(
                 lastH = h
             }
 
-            // 1. Космический глубокий градиент
-            val gradient = LinearGradient(
-                0f, 0f, 0f, h.toFloat(),
-                Color.parseColor("#06030F"), // Глубокий ультра-темный фиолетовый
-                Color.parseColor("#0B132B"), // Полночный синий
-                Shader.TileMode.CLAMP
-            )
-            bgPaint.shader = gradient
-            canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), bgPaint)
+            // 1. Космический глубокий градиент (только если не прозрачный оверлей)
+            if (!transparentBackground) {
+                val gradient = LinearGradient(
+                    0f, 0f, 0f, h.toFloat(),
+                    Color.parseColor("#06030F"), // Глубокий ультра-темный фиолетовый
+                    Color.parseColor("#0B132B"), // Полночный синий
+                    Shader.TileMode.CLAMP
+                )
+                bgPaint.shader = gradient
+                canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), bgPaint)
+            }
 
             // 2. Плавная фильтрация смещений (Инерция)
             val lerpFactor = 0.08f // Плавность полета звезд
@@ -396,19 +411,28 @@ class StarryNightView @JvmOverloads constructor(
     }
 
     private fun updateAndDrawShootingStars(canvas: Canvas, w: Int, h: Int) {
-        // Вероятность появления новой падающей звезды (0.4% в каждом кадре)
-        if (random.nextFloat() < 0.004f && shootingStars.size < 2) {
+        // Вероятность появления новой падающей звезды (~каждые 3-5 секунд)
+        if (random.nextFloat() < 0.007f && shootingStars.size < 3) {
             val startX = random.nextFloat() * w
-            val startY = random.nextFloat() * (h * 0.5f) // Появляются только в верхней половине
-            val speed = 20f + random.nextFloat() * 25f
-            val angle = (35 + random.nextInt(25)) * Math.PI / 180.0 // Угол вниз-влево
+            val startY = random.nextFloat() * (h * 0.65f)
+            val speed = 16f + random.nextFloat() * 22f
             
-            val speedX = (-speed * Math.cos(angle)).toFloat()
+            val isLeftToRight = random.nextBoolean()
+            val angleDeg = 25 + random.nextInt(35)
+            val angle = angleDeg * Math.PI / 180.0
+            
+            val speedX = (if (isLeftToRight) speed * Math.cos(angle) else -speed * Math.cos(angle)).toFloat()
             val speedY = (speed * Math.sin(angle)).toFloat()
-            val length = 90f + random.nextFloat() * 140f
-            val width = 1.2f + random.nextFloat() * 1.8f
             
-            val color = if (random.nextFloat() > 0.6f) Color.rgb(255, 240, 220) else Color.WHITE
+            // Изящные маленькие падающие звездочки
+            val length = 55f + random.nextFloat() * 75f
+            val width = 0.9f + random.nextFloat() * 1.3f
+            
+            val color = when (random.nextInt(3)) {
+                0 -> Color.WHITE
+                1 -> Color.rgb(255, 238, 195) // Теплый оттенок
+                else -> Color.rgb(225, 240, 255) // Холодный звездный
+            }
             shootingStars.add(ShootingStar(startX, startY, speedX, speedY, length, width, color))
         }
 
@@ -418,7 +442,7 @@ class StarryNightView @JvmOverloads constructor(
             val s = iterator.next()
             s.x += s.speedX
             s.y += s.speedY
-            s.alpha -= 0.025f // Быстрое затухание следа
+            s.alpha -= 0.022f // Плавное затухание следа
 
             if (s.alpha <= 0f || s.x < -150f || s.x > w + 150f || s.y > h + 150f) {
                 iterator.remove()
@@ -431,7 +455,7 @@ class StarryNightView @JvmOverloads constructor(
             val trailX = s.x - (s.speedX / hyp) * s.length
             val trailY = s.y - (s.speedY / hyp) * s.length
 
-            // Отрисовка падающей звезды с красивым градиентным хвостом
+            // Отрисовка падающей звезды с градиентным хвостом
             val glowShader = LinearGradient(
                 s.x, s.y, trailX, trailY,
                 s.color, Color.TRANSPARENT,
@@ -442,6 +466,11 @@ class StarryNightView @JvmOverloads constructor(
             shootingStarPaint.alpha = (s.alpha * 255).toInt().coerceIn(0, 255)
 
             canvas.drawLine(s.x, s.y, trailX, trailY, shootingStarPaint)
+
+            // Маленькая светящаяся головка пролетающей звезды
+            starPaint.color = s.color
+            starPaint.alpha = (s.alpha * 255).toInt().coerceIn(0, 255)
+            canvas.drawCircle(s.x, s.y, s.width * 1.3f, starPaint)
         }
         shootingStarPaint.shader = null // Очищаем шейдер для переиспользования
     }
