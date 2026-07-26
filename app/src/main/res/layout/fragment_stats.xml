@@ -24,14 +24,16 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- Top Action Bar Header (Стеклянная панель, как в библиотеке) -->
+        <!-- Top Action Bar Header (Стеклянная панель + ОБВОДКА) -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_glass_panel"
             android:layout_margin="8dp"
             android:padding="12dp"
-            android:elevation="4dp">
+            android:elevation="4dp"
+            app:strokeColor="#33FFFFFF"
+            app:strokeWidth="1dp">
 
             <ImageButton
                 android:id="@+id/btnMenu"
