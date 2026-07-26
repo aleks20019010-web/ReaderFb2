@@ -1,82 +1,89 @@
-<?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+package com.nightread.app.ui
 
-    <ImageView
-        android:id="@+id/ivFavoriteBooksBg"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:src="@drawable/space_milky_way" />
+import android.content.Intent
+import android.os.Bundle
+import android.view.View
+import android.widget.ImageButton
+import android.widget.TextView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.nightread.app.R
+import com.nightread.app.data.AppDatabase
+import kotlinx.coroutines.launch
 
-    <com.nightread.app.ui.StarryNightView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+class FavoriteBooksActivity : BaseActivity() {
 
-    <LinearLayout
-        android:id="@+id/rootFavoriteBooks"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:background="@android:color/transparent">
+    private lateinit var rvBooks: RecyclerView
+    private lateinit var tvEmpty: TextView
+    private lateinit var adapter: BookAdapter
 
-        <RelativeLayout
-            android:id="@+id/header"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@drawable/bg_glass_panel"
-            android:layout_margin="8dp"
-            android:padding="12dp"
-            android:elevation="4dp"
-            app:strokeColor="#33FFFFFF"
-            app:strokeWidth="1dp">
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_favorite_books)
 
-            <ImageButton
-                android:id="@+id/btnMenu"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_sort_by_size"
-                android:contentDescription="Меню"
-                app:tint="#E8D8F0" />
+        // Edge-to-Edge support
+        val rootLayout = findViewById<View>(R.id.rootFavoriteBooks)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { view, windowInsets ->
+            val insets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.statusBars() or
+                WindowInsetsCompat.Type.displayCutout()
+            )
+            val topPadding = insets.top + (12 * resources.displayMetrics.density).toInt()
+            val bottomPadding = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            view.setPadding(0, topPadding, 0, bottomPadding)
+            windowInsets
+        }
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_toEndOf="@id/btnMenu"
-                android:layout_centerVertical="true"
-                android:layout_marginStart="12dp"
-                android:text="Избранное"
-                android:textColor="#FFFFFF"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-        </RelativeLayout>
+        // Кнопка меню — открывает боковое меню
+        val btnMenu = findViewById<ImageButton>(R.id.btnMenu)
+        btnMenu.setOnClickListener {
+            (this as? com.nightread.app.MainActivity)?.openDrawer()
+        }
 
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
+        rvBooks = findViewById(R.id.rvBooks)
+        tvEmpty = findViewById(R.id.tvEmpty)
+        
+        rvBooks.layoutManager = GridLayoutManager(this, 3)
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvBooks"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:padding="8dp"
-                android:clipToPadding="false" />
+        // Убрали onDeleteBook, чтобы не вызывать несуществующий updateFavorite
+        adapter = BookAdapter(
+            books = emptyList(),
+            onOpenBook = { book, coverView ->
+                val intent = Intent(this, BookDetailActivity::class.java).apply {
+                    putExtra("BOOK_SHA1", book.sha1)
+                }
+                val options = androidx.core.app.ActivityOptionsCompat.makeSceneTransitionAnimation(
+                    this,
+                    coverView,
+                    "cover_${book.sha1}"
+                )
+                startActivity(intent, options.toBundle())
+            },
+            onDeleteBook = null
+        )
+        rvBooks.adapter = adapter
 
-            <TextView
-                android:id="@+id/tvEmpty"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="Список избранного пуст"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
-                android:visibility="gone" />
-        </FrameLayout>
+        loadFavoriteBooks()
+    }
 
-    </LinearLayout>
-</FrameLayout>
+    private fun loadFavoriteBooks() {
+        lifecycleScope.launch {
+            val db = AppDatabase.getDatabase(this@FavoriteBooksActivity)
+            db.bookDao().getFavoriteBooks().collect { books ->
+                adapter.updateData(books)
+                if (books.isEmpty()) {
+                    tvEmpty.visibility = View.VISIBLE
+                    rvBooks.visibility = View.GONE
+                } else {
+                    tvEmpty.visibility = View.GONE
+                    rvBooks.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
+}
