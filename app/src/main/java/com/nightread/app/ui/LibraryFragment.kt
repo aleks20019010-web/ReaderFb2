@@ -296,12 +296,14 @@ class LibraryFragment : Fragment() {
         shimmerContainer.visibility = View.VISIBLE
         // Parallax effect for background
         val textureBackground = view.findViewById<View>(R.id.textureBackground)
+        val customBg = view.findViewById<View>(R.id.ivCustomLibraryBg)
         rvBooks.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
             var totalScrollY = 0
             override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
                 totalScrollY += dy
                 textureBackground?.translationY = -(totalScrollY * 0.1f)
+                customBg?.translationY = -(totalScrollY * 0.08f)
             }
         })
 
