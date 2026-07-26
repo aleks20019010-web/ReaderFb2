@@ -1,84 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/bg_main">
 
-    <!-- 1. СТАТИЧНЫЙ ФОН (КОСМОС) -->
-    <ImageView
-        android:id="@+id/ivCustomBg"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:src="@drawable/space_milky_way" />
-
-    <!-- 2. СЛОЙ СО ЗВЁЗДАМИ -->
-    <com.nightread.app.ui.StarryNightView
-        android:id="@+id/starryOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-
-    <!-- 3. ОСНОВНОЙ КОНТЕНТ -->
     <LinearLayout
+        android:id="@+id/header"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:layout_height="?attr/actionBarSize"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
 
-        <!-- Верхняя панель (стеклянная, как в библиотеке) -->
-        <RelativeLayout
-            android:id="@+id/header"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@drawable/bg_glass_panel"
-            android:layout_margin="8dp"
-            android:padding="12dp"
-            android:elevation="4dp"
-            app:strokeColor="#33FFFFFF"
-            app:strokeWidth="1dp">
+        <ImageButton
+            android:id="@+id/btnMenu"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_bookmark_filled"
+            android:contentDescription="Меню" />
 
-            <ImageButton
-                android:id="@+id/btnMenu"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_bookmark_filled"
-                android:contentDescription="Меню"
-                app:tint="@color/icon_tint" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_toEndOf="@id/btnMenu"
-                android:layout_centerVertical="true"
-                android:layout_marginStart="12dp"
-                android:text="Закладки"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="#FFFFFF" />
-        </RelativeLayout>
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvBooks"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:padding="8dp" />
-
-        <LinearLayout
-            android:id="@+id/layoutEmptyState"
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Нет закладок"
-                android:textSize="18sp"
-                android:textColor="#FFFFFF" />
-        </LinearLayout>
+            android:layout_marginStart="16dp"
+            android:text="Закладки"
+            android:textSize="20sp"
+            android:textColor="@color/text_primary" />
     </LinearLayout>
-</FrameLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvBooks"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/header"
+        android:clipToPadding="false"
+        android:padding="8dp" />
+
+    <LinearLayout
+        android:id="@+id/layoutEmptyState"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Нет закладок"
+            android:textSize="18sp"
+            android:textColor="@color/text_secondary" />
+    </LinearLayout>
+</RelativeLayout>

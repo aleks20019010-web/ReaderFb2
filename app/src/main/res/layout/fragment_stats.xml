@@ -2,43 +2,26 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
 
-    <!-- 1. СТАТИЧНЫЙ ФОН (КОСМОС) -->
-    <ImageView
-        android:id="@+id/ivCustomStatsBg"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:src="@drawable/space_milky_way" />
-
-    <!-- 2. СЛОЙ СО ЗВЁЗДАМИ -->
-    <com.nightread.app.ui.StarryNightView
-        android:id="@+id/starryOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-
-    <!-- 3. ОСНОВНОЙ КОНТЕНТ -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- Top Action Bar Header (Стеклянная панель + ОБВОДКА) -->
+        <!-- Top Action Bar Header -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_glass_panel"
-            android:layout_margin="8dp"
-            android:padding="12dp"
-            android:elevation="4dp"
-            app:strokeColor="#33FFFFFF"
-            app:strokeWidth="1dp">
+            android:background="@color/bg_panel"
+            android:padding="16dp"
+            android:elevation="4dp">
 
             <ImageButton
                 android:id="@+id/btnMenu"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_alignParentStart="true"
                 android:layout_centerVertical="true"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
@@ -52,10 +35,10 @@
                 android:layout_height="wrap_content"
                 android:layout_toEndOf="@id/btnMenu"
                 android:layout_centerVertical="true"
-                android:layout_marginStart="12dp"
+                android:layout_marginStart="16dp"
                 android:text="@string/stats_title"
-                android:textColor="#FFFFFF"
-                android:textSize="18sp"
+                android:textColor="@color/text_primary"
+                android:textSize="20sp"
                 android:textStyle="bold" />
         </RelativeLayout>
 
@@ -68,7 +51,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="12dp">
+                android:padding="16dp">
 
                 <!-- 1. Player Nightly Rank Card -->
                 <com.google.android.material.card.MaterialCardView

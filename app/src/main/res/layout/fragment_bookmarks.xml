@@ -6,13 +6,6 @@
     android:layout_height="match_parent"
     android:background="@android:color/transparent">
 
-    <ImageView
-        android:id="@+id/ivBookmarksBg"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:src="@drawable/space_milky_way" />
-
     <com.nightread.app.ui.StarryNightView
         android:id="@+id/starryOverlay"
         android:layout_width="match_parent"

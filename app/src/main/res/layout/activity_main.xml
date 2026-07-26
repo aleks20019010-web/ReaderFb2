@@ -198,12 +198,6 @@
         android:layout_gravity="start"
         android:elevation="8dp">
 
-        <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:src="@drawable/space_milky_way" />
-
         <com.nightread.app.ui.StarryNightView
             android:id="@+id/drawer_starry_bg"
             android:layout_width="match_parent"
