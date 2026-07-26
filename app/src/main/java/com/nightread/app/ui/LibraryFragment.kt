@@ -306,8 +306,7 @@ class LibraryFragment : Fragment() {
                 super.onScrolled(recyclerView, dx, dy)
                 totalScrollY += dy
                 textureBackground?.translationY = -(totalScrollY * 0.1f)
-                customBg?.translationY = -(totalScrollY * 0.08f)
-                // starryOverlay remains static
+                // customBg and starryOverlay remain completely static
             }
         })
 

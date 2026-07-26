@@ -129,7 +129,7 @@ class BookReaderActivity : AppCompatActivity() {
         tvWarmth = findViewById(R.id.tvWarmth)
         
         // Initialize Reader Splash Screen Background
-        val readerSplashStarryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.reader_splash_starry_bg)
+        val readerSplashStarryBg = findViewById<View>(R.id.reader_splash_starry_bg)?.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
         readerSplashStarryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
         viewModel = ViewModelProvider(this).get(ReaderViewModel::class.java)

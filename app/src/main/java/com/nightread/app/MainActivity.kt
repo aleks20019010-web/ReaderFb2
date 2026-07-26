@@ -69,15 +69,28 @@ class MainActivity : BaseActivity() {
         drawerLayout = findViewById(R.id.drawer_layout)
         navView = findViewById(R.id.nav_view)
 
-        findViewById<com.nightread.app.ui.StarryNightView>(R.id.drawer_starry_bg)?.transparentBackground = true
-
-        val starryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.starry_bg)
+        val starryBg = findViewById<android.view.View>(R.id.starry_bg)?.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
         drawerLayout.addDrawerListener(object : DrawerLayout.DrawerListener {
             override fun onDrawerSlide(drawerView: android.view.View, slideOffset: Float) {
                 starryBg?.setDrawerSlideOffset(slideOffset)
+                
+                // Smooth fade-in animation for drawer view
+                drawerView.alpha = 0.2f + 0.8f * slideOffset
+                
+                // Inner layout subtle slide-in and fade
+                val innerLayout = drawerView.findViewById<android.view.View>(R.id.nav_view)?.parent as? android.view.View
+                innerLayout?.alpha = slideOffset
+                innerLayout?.translationX = -40f * (1f - slideOffset)
             }
-            override fun onDrawerOpened(drawerView: android.view.View) {}
-            override fun onDrawerClosed(drawerView: android.view.View) {}
+            override fun onDrawerOpened(drawerView: android.view.View) {
+                drawerView.alpha = 1f
+                val innerLayout = drawerView.findViewById<android.view.View>(R.id.nav_view)?.parent as? android.view.View
+                innerLayout?.alpha = 1f
+                innerLayout?.translationX = 0f
+            }
+            override fun onDrawerClosed(drawerView: android.view.View) {
+                drawerView.alpha = 0.2f
+            }
             override fun onDrawerStateChanged(newState: Int) {}
         })
 
@@ -208,8 +221,8 @@ class MainActivity : BaseActivity() {
         val layoutSplashLoading = findViewById<LinearLayout>(R.id.layout_splash_loading)
         val tvSplashLoadingStatus = findViewById<TextView>(R.id.tv_splash_loading_status)
         val pbSplashLoading = findViewById<ProgressBar>(R.id.pb_splash_loading)
-        val starryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.starry_bg)
-        val splashStarryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.splash_starry_bg)
+        val starryBg = findViewById<android.view.View>(R.id.starry_bg)?.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
+        val splashStarryBg = findViewById<android.view.View>(R.id.splash_starry_bg)?.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
 
         // Configure the background live particles to match our premium Golden accent initially
         starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))

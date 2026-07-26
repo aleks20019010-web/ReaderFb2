@@ -6,14 +6,6 @@
     android:layout_height="match_parent"
     android:background="@android:color/transparent">
 
-    <ImageView
-        android:id="@+id/ivCustomLibraryBg"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:src="@drawable/bg_library_svg"
-        android:visibility="visible" />
-
     <include layout="@layout/layout_galaxy_bg" />
 
     <ImageView
