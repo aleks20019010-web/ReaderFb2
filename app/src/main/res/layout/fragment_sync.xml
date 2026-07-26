@@ -3,15 +3,23 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@android:color/transparent">
+    android:layout_height="match_parent">
 
-    <com.nightread.app.ui.TextureBackgroundView
-        android:id="@+id/syncTextureBackground"
+    <!-- 1. СТАТИЧНЫЙ ФОН (КОСМОС) -->
+    <ImageView
+        android:id="@+id/ivCustomSyncBg"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="gone" />
+        android:scaleType="centerCrop"
+        android:src="@drawable/space_milky_way" />
 
+    <!-- 2. СЛОЙ СО ЗВЁЗДАМИ -->
+    <com.nightread.app.ui.StarryNightView
+        android:id="@+id/starryOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 3. ОСНОВНОЙ КОНТЕНТ -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -21,14 +29,15 @@
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/bg_panel"
-            android:padding="16dp"
+            android:background="@drawable/bg_glass_panel"
+            android:layout_margin="8dp"
+            android:padding="12dp"
             android:elevation="4dp">
 
             <ImageButton
                 android:id="@+id/btnMenu"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:layout_alignParentStart="true"
                 android:layout_centerVertical="true"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
@@ -42,10 +51,10 @@
                 android:layout_height="wrap_content"
                 android:layout_toEndOf="@id/btnMenu"
                 android:layout_centerVertical="true"
-                android:layout_marginStart="16dp"
+                android:layout_marginStart="12dp"
                 android:text="Синхронизация"
-                android:textColor="@color/text_primary"
-                android:textSize="20sp"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
                 android:textStyle="bold" />
         </RelativeLayout>
 
@@ -58,7 +67,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="12dp">
 
                 <!-- Cloud Server Info Card -->
                 <com.google.android.material.card.MaterialCardView
