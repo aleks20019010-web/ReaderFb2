@@ -4,6 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- 1. Статичный фон -->
     <ImageView
         android:id="@+id/ivFavoriteBooksBg"
         android:layout_width="match_parent"
@@ -11,11 +12,13 @@
         android:scaleType="centerCrop"
         android:src="@drawable/space_milky_way" />
 
+    <!-- 2. Звёзды -->
     <com.nightread.app.ui.StarryNightView
         android:id="@+id/starryOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- 3. Основной контент -->
     <LinearLayout
         android:id="@+id/rootFavoriteBooks"
         android:layout_width="match_parent"
@@ -23,19 +26,46 @@
         android:orientation="vertical"
         android:background="@android:color/transparent">
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
+        <!-- ✨ Стеклянная панель (в едином стиле) -->
+        <RelativeLayout
+            android:id="@+id/header"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@android:color/transparent"
-            app:titleTextColor="#E8D8F0"
-            app:navigationIconTint="#E8D8F0"
-            app:title="Избранное" />
+            android:background="@drawable/bg_glass_panel"
+            android:layout_margin="8dp"
+            android:padding="12dp"
+            android:elevation="4dp"
+            android:clipToPadding="false"
+            android:clipChildren="false">
+
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_revert"
+                android:contentDescription="Назад"
+                app:tint="#E8D8F0" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toEndOf="@id/btnBack"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="12dp"
+                android:text="Избранное"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </RelativeLayout>
 
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
+            <!-- Список книг -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvBooks"
                 android:layout_width="match_parent"
@@ -43,13 +73,14 @@
                 android:padding="8dp"
                 android:clipToPadding="false" />
 
+            <!-- Пустое состояние -->
             <TextView
                 android:id="@+id/tvEmpty"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:text="Список избранного пуст"
-                android:textColor="#E8D8F0"
+                android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:visibility="gone" />
         </FrameLayout>
