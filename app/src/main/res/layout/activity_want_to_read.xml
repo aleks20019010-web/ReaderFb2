@@ -27,7 +27,7 @@
         android:orientation="vertical"
         android:background="@android:color/transparent">
 
-        <!-- Верхняя стеклянная панель (единый стиль с библиотекой) -->
+        <!-- Верхняя стеклянная панель (с обводкой) -->
         <RelativeLayout
             android:id="@+id/header"
             android:layout_width="match_parent"
@@ -35,7 +35,9 @@
             android:background="@drawable/bg_glass_panel"
             android:layout_margin="8dp"
             android:padding="12dp"
-            android:elevation="4dp">
+            android:elevation="4dp"
+            app:strokeColor="#33FFFFFF"
+            app:strokeWidth="1dp">
 
             <ImageButton
                 android:id="@+id/btnBack"
