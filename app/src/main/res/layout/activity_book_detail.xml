@@ -8,6 +8,20 @@
     android:layout_height="match_parent"
     android:background="@android:color/transparent">
 
+    <!-- 0. СТАТИЧНЫЙ ФОН (КОСМОС) -->
+    <ImageView
+        android:id="@+id/ivCustomBg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/space_milky_way" />
+
+    <!-- 0.5. СЛОЙ СО ЗВЁЗДАМИ (ПАРАЛЛАКС) -->
+    <com.nightread.app.ui.StarryNightView
+        android:id="@+id/starryOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <!-- 1. Scrollable Content (starts from y=0 under the floating transparent toolbar) -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/nestedScrollView"
