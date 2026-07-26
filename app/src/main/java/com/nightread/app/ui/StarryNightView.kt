@@ -204,8 +204,9 @@ class StarryNightView @JvmOverloads constructor(
                 val twinkleMult = 0.4f + 0.6f * Math.sin(star.twinklePhase.toDouble()).toFloat()
                 val currentAlpha = (star.baseAlpha * twinkleMult).toInt().coerceIn(10, 255)
 
-                val xOffset = (currentTiltX + touchOffsetX) * star.depth - (drawerSlideOffset * w * 0.35f * star.depth)
-                val yOffset = (currentTiltY + touchOffsetY) * star.depth
+                // ЗАФИКСИРОВАЛИ ФОН (заменили расчетные смещения на 0)
+                val xOffset = 0f 
+                val yOffset = 0f 
 
                 var finalX = star.x + xOffset
                 var finalY = star.y + yOffset
