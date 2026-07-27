@@ -245,7 +245,7 @@ class StarryNightView @JvmOverloads constructor(
 
     private fun generateStars(w: Int, h: Int) {
         stars.clear()
-        val count = 160 // Баланс производительности и красоты
+        val count = 240 // Баланс производительности и красоты
         for (i in 0 until count) {
             val x = random.nextFloat() * w
             val y = random.nextFloat() * h
