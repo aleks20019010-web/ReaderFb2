@@ -518,7 +518,9 @@ class YandexSyncManager(private val context: Context) {
                             cloudProgressMap[cloudProgress.sha1] = cloudProgress
                             val localBook = repository.getBookBySha1(cloudProgress.sha1)
                             if (localBook != null) {
-                                if (cloudProgress.lastReadTime > localBook.lastReadTime) {
+                                val isCloudZero = cloudProgress.page == 0 && cloudProgress.charOffset == 0
+                                val isLocalNonZero = localBook.currentPageIndex > 0 || localBook.currentProgressChar > 0
+                                if (cloudProgress.lastReadTime > localBook.lastReadTime && !(isCloudZero && isLocalNonZero)) {
                                     database.bookDao().updateProgressAndPage(
                                         sha1 = cloudProgress.sha1,
                                         charOffset = cloudProgress.charOffset,
@@ -526,6 +528,11 @@ class YandexSyncManager(private val context: Context) {
                                         totalChars = cloudProgress.totalChars,
                                         timestamp = cloudProgress.lastReadTime
                                     )
+                                    context.getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE)
+                                        .edit()
+                                        .putInt("book_page_${cloudProgress.sha1}", cloudProgress.page)
+                                        .putInt("book_char_offset_${cloudProgress.sha1}", cloudProgress.charOffset)
+                                        .apply()
                                     Log.d(TAG, "Обновлен локальный прогресс для книги: ${localBook.title} (смещение: ${cloudProgress.charOffset}, страница: ${cloudProgress.page})")
                                 }
                             }

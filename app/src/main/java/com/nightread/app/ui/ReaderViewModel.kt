@@ -188,6 +188,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private var pendingTargetOffset: Int = -1
+    private var isFallbackPagination: Boolean = false
 
     fun loadBook(bookSha1: String, targetOffset: Int = -1) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -200,6 +201,18 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                                 book.filePath?.endsWith(".zip", true) == true ||
                                 book.filePath?.endsWith(".epub", true) == true
 
+                // Retrieve latest saved position from SharedPreferences if fresher or non-zero
+                val spPage = sharedPrefs.getInt("book_page_${book.sha1}", -1)
+                val spOffset = sharedPrefs.getInt("book_char_offset_${book.sha1}", -1)
+
+                val effectivePage = if (spPage >= 0 && spPage > book.currentPageIndex) spPage else book.currentPageIndex
+                val effectiveOffset = if (spOffset >= 0 && spOffset > book.currentProgressChar) spOffset else book.currentProgressChar
+
+                val restoredBook = book.copy(
+                    currentPageIndex = effectivePage,
+                    currentProgressChar = effectiveOffset
+                )
+
                 if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty() && BookCache.paragraphOffsets.isNotEmpty()) {
                     content = BookCache.content
                     paragraphOffsets = BookCache.paragraphOffsets
@@ -208,7 +221,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                     if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty()) {
                         content = BookCache.content
                     } else {
-                        val file = java.io.File(book.filePath ?: "")
+                        val file = java.io.File(restoredBook.filePath ?: "")
                         if (file.exists()) {
                             val rawContent = if (file.extension.lowercase() == "zip") {
                                 readZipFile(file)
@@ -266,9 +279,9 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 
                 val finalBook = if (targetOffset != -1 && isWebView) {
-                    book.copy(currentProgressChar = getParagraphIndexFromOffset(targetOffset))
+                    restoredBook.copy(currentProgressChar = getParagraphIndexFromOffset(targetOffset))
                 } else {
-                    book
+                    restoredBook
                 }
 
                 withContext(Dispatchers.Main) {
@@ -293,6 +306,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         if (content.isEmpty()) {
             _pagesState.value = listOf("[BOOK_COVER]", "Документ пуст.")
             pageStartOffsets = listOf(0, 0)
+            isFallbackPagination = true
             return
         }
 
@@ -313,6 +327,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
         _pagesState.value = pages
         pageStartOffsets = offsets
+        isFallbackPagination = true
 
         val savedPage = book.currentPageIndex
         _currentPage.value = savedPage.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
@@ -407,13 +422,15 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         val currentPageSnapshot = _currentPage.value
         val savedOffset = book.currentProgressChar
         val savedPage = book.currentPageIndex
+        val wasFallback = isFallbackPagination
+        isFallbackPagination = false
 
         repaginateJob?.cancel()
         repaginateJob = viewModelScope.launch(Dispatchers.Default) {
             // 1. Determine current reading position (character offset)
             val currentOffset: Int = if (pendingTargetOffset != -1) {
                 pendingTargetOffset
-            } else if (currentOffsetsSnapshot.isNotEmpty() && currentPageSnapshot < currentOffsetsSnapshot.size && currentPageSnapshot > 0) {
+            } else if (!wasFallback && currentOffsetsSnapshot.isNotEmpty() && currentPageSnapshot < currentOffsetsSnapshot.size && currentPageSnapshot > 0) {
                 currentOffsetsSnapshot[currentPageSnapshot]
             } else if (savedOffset > 0) {
                 savedOffset
@@ -671,9 +688,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         val pages = _pagesState.value
         val isWebViewBook = pages.any { it.toString().startsWith("WEBVIEW_CONTENT") || it.toString().startsWith("WEBVIEW_PAGE_") }
         
-        if (isWebViewBook) {
-            // For WebView books, the pagesState might temporarily have size 1 during repagination.
-            // We avoid clamping to 0 if it was already set to a higher value.
+        if (isWebViewBook || pages.size <= 2 || pages.any { it.toString() == "[BOOK_COVER]" && pages.size < 5 }) {
+            // Avoid clamping to 0 if pagesState is in loading/placeholder state
             _currentPage.value = page.coerceAtLeast(0)
         } else {
             val maxPage = (pages.size - 1).coerceAtLeast(0)
@@ -682,11 +698,14 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         saveProgress()
     }
 
-
-
     fun updateWebViewParagraphProgress(pIndex: Int) {
         val book = _bookState.value ?: return
         
+        // Guard against accidental reset to paragraph 0 if we already had progress and are not at page 0/1
+        if (pIndex == 0 && (book.currentProgressChar > 5 || _currentPage.value > 1)) {
+            return
+        }
+
         val totalParagraphs = BookCache.totalParagraphCount
 
         _bookState.value = book.copy(
@@ -715,6 +734,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setWebViewPageRestored(pageIndex: Int) {
+        if (pageIndex <= 0) return
         _currentPage.value = pageIndex
         val book = _bookState.value ?: return
         

@@ -103,7 +103,10 @@ class SyncOrchestrator(
                                             
                                             val localBook = bookDao.getBookBySha1(cloudProgress.sha1)
                                             if (localBook != null) {
-                                                if (cloudProgress.lastReadTime > localBook.lastReadTime) {
+                                                // Prevent cloud payload with 0 progress from overwriting actual local reading progress
+                                                val isCloudZero = cloudProgress.page == 0 && cloudProgress.charOffset == 0
+                                                val isLocalNonZero = localBook.currentPageIndex > 0 || localBook.currentProgressChar > 0
+                                                if (cloudProgress.lastReadTime > localBook.lastReadTime && !(isCloudZero && isLocalNonZero)) {
                                                     bookDao.updateProgressAndPage(
                                                         sha1 = cloudProgress.sha1,
                                                         charOffset = cloudProgress.charOffset,
@@ -111,6 +114,11 @@ class SyncOrchestrator(
                                                         totalChars = cloudProgress.totalChars,
                                                         timestamp = cloudProgress.lastReadTime
                                                     )
+                                                    context.getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE)
+                                                        .edit()
+                                                        .putInt("book_page_${cloudProgress.sha1}", cloudProgress.page)
+                                                        .putInt("book_char_offset_${cloudProgress.sha1}", cloudProgress.charOffset)
+                                                        .apply()
                                                     Log.d(TAG, "Updated local progress for: ${localBook.title} (offset: ${cloudProgress.charOffset}, page: ${cloudProgress.page})")
                                                 }
                                             }

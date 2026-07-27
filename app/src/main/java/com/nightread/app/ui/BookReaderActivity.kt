@@ -366,45 +366,46 @@ class BookReaderActivity : AppCompatActivity() {
                 val book = viewModel.bookState.value
                 if (book != null) {
                     val pIndex = book.currentProgressChar
+                    val savedPage = viewModel.currentPage.value
                     webView.postDelayed({
-                        webView.evaluateJavascript("scrollToParagraph('p_$pIndex');") { result ->
-                            if (result != "true" && pIndex > 0) {
-                                // Retry once after 300ms if layout was not ready
-                                webView.postDelayed({
-                                    webView.evaluateJavascript("scrollToParagraph('p_$pIndex');") { secondResult ->
-                                        isWebViewLoading = false
-                                        if (secondResult != "true") {
-                                            // Final fallback if paragraph scroll completely fails
-                                            val pageIdx = viewModel.currentPage.value
-                                            val w = webView.width
-                                            if (w > 0 && pageIdx > 0) {
-                                                webView.scrollTo((pageIdx - 1) * w, 0)
-                                                webView.evaluateJavascript("reportCurrentParagraph();", null)
-                                            }
-                                        }
-                                        hideReaderSplash()
-                                    }
-                                }, 300)
-                            } else {
-                                isWebViewLoading = false
+                        if (pIndex > 0) {
+                            webView.evaluateJavascript("scrollToParagraph('p_$pIndex');") { result ->
                                 if (result != "true") {
-                                    // If pIndex == 0 or not found, fall back to page index
-                                    val pageIdx = viewModel.currentPage.value
-                                    val w = webView.width
-                                    if (w > 0 && pageIdx > 0) {
-                                        webView.scrollTo((pageIdx - 1) * w, 0)
-                                        webView.evaluateJavascript("reportCurrentParagraph();", null)
-                                    }
+                                    // Retry once after 300ms if layout was not ready
+                                    webView.postDelayed({
+                                        webView.evaluateJavascript("scrollToParagraph('p_$pIndex');") { secondResult ->
+                                            if (secondResult != "true" && savedPage > 1) {
+                                                val w = webView.width
+                                                if (w > 0) {
+                                                    webView.scrollTo((savedPage - 1) * w, 0)
+                                                }
+                                            }
+                                            isWebViewLoading = false
+                                            hideReaderSplash()
+                                        }
+                                    }, 300)
+                                } else {
+                                    isWebViewLoading = false
+                                    hideReaderSplash()
                                 }
-                                hideReaderSplash()
                             }
+                        } else if (savedPage > 1) {
+                            val w = webView.width
+                            if (w > 0) {
+                                webView.scrollTo((savedPage - 1) * w, 0)
+                            }
+                            isWebViewLoading = false
+                            hideReaderSplash()
+                        } else {
+                            isWebViewLoading = false
+                            hideReaderSplash()
                         }
                     }, 250)
                 } else {
                     isWebViewLoading = false
                     val pageIdx = viewModel.currentPage.value
                     val w = webView.width
-                    if (w > 0 && pageIdx > 0) {
+                    if (w > 0 && pageIdx > 1) {
                         webView.scrollTo((pageIdx - 1) * w, 0)
                     }
                     hideReaderSplash()
@@ -1882,8 +1883,9 @@ class BookReaderActivity : AppCompatActivity() {
     }
 
     fun onWebViewPageRestored(pageIndex: Int) {
-        if (isWebViewLoading) return
-        viewModel.setWebViewPageRestored(pageIndex + 1)
+        if (pageIndex >= 0) {
+            viewModel.setWebViewPageRestored(pageIndex + 1)
+        }
     }
 
     private fun ensureWebViewAligned() {
