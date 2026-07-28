@@ -4,6 +4,9 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -21,6 +24,20 @@ class SeriesBooksActivity : BaseActivity() {
         setContentView(R.layout.activity_series_books)
 
         findViewById<StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
+
+        // Support Edge-to-Edge immersion and safe areas (Status Bar + Notch + 12dp spacing)
+        val rootLayout = findViewById<android.view.View>(R.id.rootSeriesBooks)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { view, windowInsets ->
+            val insets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.statusBars() or
+                WindowInsetsCompat.Type.displayCutout()
+            )
+            val topPadding = insets.top + (12 * resources.displayMetrics.density).toInt()
+            val bottomPadding = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            view.setPadding(0, topPadding, 0, bottomPadding)
+            windowInsets
+        }
 
         val seriesName = intent.getStringExtra("SERIES_NAME") ?: "Неизвестная"
 

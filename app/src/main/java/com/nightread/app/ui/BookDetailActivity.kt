@@ -67,6 +67,8 @@ class BookDetailActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_book_detail)
 
+        findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
+
         // Handle WindowInsets for Edge-to-Edge immersion
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         
