@@ -13,6 +13,7 @@ import com.nightread.app.MainActivity
 import com.nightread.app.R
 import com.nightread.app.data.BookmarkDatabase
 import com.nightread.app.data.BookmarkEntity
+import com.nightread.app.data.BookmarkRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -48,6 +49,8 @@ class BookmarksFragment : Fragment(R.layout.fragment_bookmarks) {
         rvBookmarks = view.findViewById(R.id.rvBookmarks)
         rvBookmarks.layoutManager = LinearLayoutManager(requireContext())
 
+        val repository = BookmarkRepository(BookmarkDatabase.getDatabase(requireContext()).bookmarkDao())
+
         adapter = BookmarkAdapter(
             onBookmarkClicked = { bookmark ->
                 val intent = Intent(requireContext(), BookReaderActivity::class.java).apply {
@@ -58,9 +61,8 @@ class BookmarksFragment : Fragment(R.layout.fragment_bookmarks) {
                 activity?.overridePendingTransition(R.anim.fade_in_custom, R.anim.fade_out_custom)
             },
             onBookmarkDeleteClicked = { bookmark ->
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val db = BookmarkDatabase.getDatabase(requireContext())
-                    db.bookmarkDao().deleteBookmark(bookmark)
+                lifecycleScope.launch {
+                    repository.deleteBookmark(bookmark)
                     withContext(Dispatchers.Main) {
                         CustomToast.show(requireContext(), "Закладка удалена")
                     }
@@ -71,8 +73,7 @@ class BookmarksFragment : Fragment(R.layout.fragment_bookmarks) {
 
         // Collect Bookmarks from Room Flow
         viewLifecycleOwner.lifecycleScope.launch {
-            val db = BookmarkDatabase.getDatabase(requireContext())
-            db.bookmarkDao().getAllBookmarks().collectLatest { bookmarks ->
+            repository.allBookmarks.collectLatest { bookmarks ->
                 if (bookmarks.isEmpty()) {
                     rvBookmarks.visibility = View.GONE
                     layoutEmptyState.visibility = View.VISIBLE

@@ -78,6 +78,56 @@ class BookReaderActivity : AppCompatActivity() {
     private var currentTextPaint: android.text.TextPaint? = null
     private var isAntiGlareActive = false
 
+    private var isUserTrackingSeekBar = false
+    private var seekBarAnimator: android.animation.ValueAnimator? = null
+    private var hudProgressAnimator: android.animation.ValueAnimator? = null
+
+    private fun animateSeekBarProgress(seekBar: SeekBar, targetProgress: Int) {
+        if (isUserTrackingSeekBar) {
+            seekBar.progress = targetProgress
+            return
+        }
+        val currentProgress = seekBar.progress
+        if (currentProgress == targetProgress) return
+
+        seekBarAnimator?.cancel()
+        if (lastPage == -1) {
+            seekBar.progress = targetProgress
+        } else {
+            seekBarAnimator = android.animation.ObjectAnimator.ofInt(
+                seekBar,
+                "progress",
+                currentProgress,
+                targetProgress
+            ).apply {
+                duration = 300L
+                interpolator = android.view.animation.DecelerateInterpolator()
+                start()
+            }
+        }
+    }
+
+    private fun animateFullscreenProgress(progressBar: ProgressBar, targetProgress: Int) {
+        val currentProgress = progressBar.progress
+        if (currentProgress == targetProgress) return
+
+        hudProgressAnimator?.cancel()
+        if (lastPage == -1) {
+            progressBar.progress = targetProgress
+        } else {
+            hudProgressAnimator = android.animation.ObjectAnimator.ofInt(
+                progressBar,
+                "progress",
+                currentProgress,
+                targetProgress
+            ).apply {
+                duration = 300L
+                interpolator = android.view.animation.DecelerateInterpolator()
+                start()
+            }
+        }
+    }
+
     private lateinit var viewModel: ReaderViewModel
     private var touchStartX: Float = 0f
     private var lastPageAnimationIdx: Int = 0
@@ -257,8 +307,12 @@ class BookReaderActivity : AppCompatActivity() {
                     pageIndicatorView.text = "Стр. ${progress + 1} из $total"
                 }
             }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                isUserTrackingSeekBar = true
+                seekBarAnimator?.cancel()
+            }
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                isUserTrackingSeekBar = false
                 seekBar?.let {
                     viewModel.setCurrentPage(it.progress)
                 }
@@ -430,7 +484,7 @@ class BookReaderActivity : AppCompatActivity() {
             viewModel.currentPage.collectLatest {
                 updatePageWithAnimation(it)
                 updatePageIndicator()
-                seekBar.progress = it
+                animateSeekBarProgress(seekBar, it)
                 onPageChangedForSpeedTracker(it)
                 if (lastPage != -1 && lastPage != it) {
                     triggerPageTurnHaptic()
@@ -2144,7 +2198,7 @@ class BookReaderActivity : AppCompatActivity() {
         if (totalPages > 0) {
             tvFullscreenProgressLabel.text = "Стр. ${currentPage + 1} из $totalPages"
             pbFullscreenProgress.max = totalPages
-            pbFullscreenProgress.progress = currentPage + 1
+            animateFullscreenProgress(pbFullscreenProgress, currentPage + 1)
         } else {
             tvFullscreenProgressLabel.text = ""
             pbFullscreenProgress.progress = 0

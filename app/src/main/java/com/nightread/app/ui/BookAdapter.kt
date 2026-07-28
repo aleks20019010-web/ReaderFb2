@@ -428,7 +428,11 @@ class BookAdapter(
             }
             if (progressPercent > 0) {
                 pbReadingProgress.visibility = View.VISIBLE
-                pbReadingProgress.progress = progressPercent
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    pbReadingProgress.setProgress(progressPercent, true)
+                } else {
+                    pbReadingProgress.progress = progressPercent
+                }
             } else {
                 pbReadingProgress.visibility = View.GONE
             }
