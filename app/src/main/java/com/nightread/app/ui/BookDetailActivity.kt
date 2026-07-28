@@ -387,8 +387,9 @@ class BookDetailActivity : BaseActivity() {
                 updateWantToReadIcon(book.isWantToRead)
 
                 // Cover setup
-                if (!book.coverPath.isNullOrEmpty() && File(book.coverPath).exists()) {
-                    ivCover.load(File(book.coverPath)) {
+                val existingCoverFile = if (!book.coverPath.isNullOrEmpty()) File(book.coverPath) else null
+                if (existingCoverFile != null && existingCoverFile.exists()) {
+                    ivCover.load(existingCoverFile) {
                         listener(
                             onSuccess = { _, result ->
                                 val bitmapDrawable = result.drawable as? android.graphics.drawable.BitmapDrawable
@@ -408,6 +409,23 @@ class BookDetailActivity : BaseActivity() {
                         )
                     }
                     tvCoverLetter.visibility = View.GONE
+                } else if (!book.filePath.isNullOrEmpty() && File(book.filePath).exists() && book.filePath.endsWith(".epub", ignoreCase = true)) {
+                    ivCover.setImageDrawable(null)
+                    tvCoverLetter.visibility = View.VISIBLE
+                    tvCoverLetter.text = if (book.title.isNotEmpty()) book.title.take(1).uppercase(Locale.ROOT) else "?"
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        val bookFile = File(book.filePath)
+                        val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(bookFile)
+                        val extractedCover = com.nightread.app.data.EpubIdentifierHelper.extractAndSaveEpubCover(bookFile, metadata?.coverPath, book.sha1, this@BookDetailActivity)
+                        if (!extractedCover.isNullOrEmpty() && File(extractedCover).exists()) {
+                            db.bookDao().updateBook(book.copy(coverPath = extractedCover))
+                            withContext(Dispatchers.Main) {
+                                tvCoverLetter.visibility = View.GONE
+                                ivCover.load(File(extractedCover))
+                            }
+                        }
+                    }
+                    supportStartPostponedEnterTransition()
                 } else {
                     ivCover.setImageDrawable(null)
                     tvCoverLetter.visibility = View.VISIBLE
@@ -530,6 +548,15 @@ class BookDetailActivity : BaseActivity() {
 
     private suspend fun readAnnotationFromFile(filePath: String): String? = withContext(Dispatchers.IO) {
         val pathLower = filePath.lowercase(Locale.ROOT)
+        if (pathLower.endsWith(".epub")) {
+            val file = File(filePath)
+            if (file.exists()) {
+                val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(file)
+                if (!metadata?.description.isNullOrBlank()) {
+                    return@withContext metadata!!.description
+                }
+            }
+        }
         val bytes = readFirstBytesOfFb2(filePath)
         if (bytes == null || bytes.isEmpty()) return@withContext null
 

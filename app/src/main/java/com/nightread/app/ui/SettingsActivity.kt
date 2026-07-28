@@ -68,8 +68,12 @@ class SettingsActivity : BaseActivity() {
 
         // --- ЯЗЫК ИНТЕРФЕЙСА ---
         val spinnerLanguage = findViewById<Spinner>(R.id.spinnerLanguage)
-        val languages = listOf(getString(R.string.language_russian), getString(R.string.language_english))
-        val languageCodes = listOf("ru", "en")
+        val languages = listOf(
+            getString(R.string.language_russian),
+            getString(R.string.language_english),
+            getString(R.string.language_german)
+        )
+        val languageCodes = listOf("ru", "en", "de")
         
         val languageAdapter = ArrayAdapter(this, R.layout.spinner_item, languages)
         languageAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
@@ -119,11 +123,11 @@ class SettingsActivity : BaseActivity() {
 
         // Sync Period Spinner
         // Localized period days label
-        val isEn = SettingsManager.getLanguage(this) == "en"
-        val periods = if (isEn) {
-            listOf("1 day", "2 days", "3 days", "7 days")
-        } else {
-            listOf("1 день", "2 дня", "3 дня", "7 дней")
+        val lang = SettingsManager.getLanguage(this)
+        val periods = when (lang) {
+            "en" -> listOf("1 day", "2 days", "3 days", "7 days")
+            "de" -> listOf("1 Tag", "2 Tage", "3 Tage", "7 Tage")
+            else -> listOf("1 день", "2 дня", "3 дня", "7 дней")
         }
         val periodValues = listOf(1, 2, 3, 7)
         val periodAdapter = ArrayAdapter(this, R.layout.spinner_item, periods)

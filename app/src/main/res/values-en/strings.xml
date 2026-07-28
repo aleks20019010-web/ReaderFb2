@@ -59,6 +59,7 @@
     <string name="settings_language_desc">Choose your preferred interface language</string>
     <string name="language_russian">Русский</string>
     <string name="language_english">English</string>
+    <string name="language_german">Deutsch</string>
 
     <!-- Settings Screen -->
     <string name="settings_section_sync">SYNCHRONIZATION</string>

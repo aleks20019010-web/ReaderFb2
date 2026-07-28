@@ -1,0 +1,135 @@
+<resources>
+    <string name="app_name">NightRead</string>
+    <string name="unknown_author">Unbekannt</string>
+    <string name="unknown_series">Unbekannte Serie</string>
+    <string name="unknown_title">Unbekannt</string>
+    <string name="local_txt">Lokale TXT</string>
+    <string name="yandex_client_id">bfdea73d1e6242ba826f15d9d0374005</string>
+    <string name="auto_light_night_title">Auto-Design</string>
+    <string name="auto_light_night_desc">Design basierend auf Lichtsensor ändern (Sepia/Nacht)</string>
+    <string name="amber_filter_title">Augenschutz</string>
+    <string name="amber_filter_desc">Warmer Bernsteinfilter (Blaulichtfilter)</string>
+    <string name="amber_filter_intensity">Filterintensität</string>
+    <string name="sleep_timer_title">Sleeptimer</string>
+    <string name="sleep_timer_desc">Schließt den Reader automatisch</string>
+    <string name="sleep_timer_duration">Zeit bis zum Ausschalten</string>
+    <string name="shake_to_extend_title">Schütteln zum Verlängern</string>
+    <string name="shake_to_extend_desc">Schütteln Sie das Telefon, um 10 Minuten hinzuzufügen</string>
+    <string name="extra_dim_title">Extra Dunkel</string>
+    <string name="extra_dim_desc">Bildschirm unter Minimum verdunkeln</string>
+    <string name="extra_dim_intensity">Dimmstufe</string>
+    <string name="silent_mode_title">Stiller Modus</string>
+    <string name="silent_mode_desc">Stummschalten von Benachrichtigungen/Vibration bei hoher Geschwindigkeit (&gt;400 Z/Min) und sanftes Aufwachen beim Einschlafen (&lt;100 Z/Min nach 2 Min)</string>
+    <string name="bedtime_mode_title">Schlafzeit-Modus (Bedtime Mode)</string>
+    <string name="bedtime_mode_desc" formatted="false">Sofortiges Nachtprofil: Schwarzes Design, Bernsteinfilter 50%, Extra Dunkel 30% und 30 Min Timer</string>
+    <string name="bedtime_mode_activated">Schlafzeit-Modus aktiviert! Viel Spaß beim Lesen 🌙</string>
+    
+    <!-- Stats & Achievements strings -->
+    <string name="stats_title">Statistiken &amp; Erfolge</string>
+    <string name="stats_rank_title">Ihr Nacht-Rang</string>
+    <string name="stats_points">Erfahrungspunkte: %1$d</string>
+    <string name="stats_next_rank">Bis zum nächsten Rang: %1$d XP</string>
+    <string name="stats_total_books">Bücher insgesamt</string>
+    <string name="stats_completed_books">Gelesen</string>
+    <string name="stats_in_progress_books">In Bearbeitung</string>
+    <string name="stats_favorites_books">Favoriten</string>
+    <string name="stats_want_to_read">Möchte lesen</string>
+    <string name="stats_bookmarks">Lesezeichen</string>
+    <string name="stats_notes">Notizen</string>
+    <string name="stats_categories">Beliebte Genres</string>
+    <string name="stats_achievements_title">Nacht-Erfolge</string>
+    <string name="stats_ach_unlocked_status">Freigeschaltet 🌟</string>
+    <string name="stats_ach_locked_status">Gesperrt 🔒</string>
+
+    <!-- Navigation Drawer -->
+    <string name="drawer_library">Bibliothek</string>
+    <string name="drawer_reading">Lese gerade</string>
+    <string name="drawer_read">Gelesen</string>
+    <string name="drawer_bookmarks">Lesezeichen</string>
+    <string name="drawer_favorites">Favoriten</string>
+    <string name="drawer_new_books">Neue Bücher</string>
+    <string name="drawer_want_to_read">Möchte lesen</string>
+    <string name="drawer_stats_achievements">Statistiken &amp; Erfolge</string>
+    <string name="drawer_sync">Synchronisation</string>
+    <string name="drawer_settings">Einstellungen</string>
+
+    <!-- Language Settings -->
+    <string name="settings_section_language">SPRACHE / INTERFACE LANGUAGE</string>
+    <string name="settings_language_title">App-Sprache / App Language</string>
+    <string name="settings_language_desc">Wählen Sie Ihre bevorzugte Sprache</string>
+    <string name="language_russian">Русский</string>
+    <string name="language_english">English</string>
+    <string name="language_german">Deutsch</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_section_sync">SYNCHRONISATION</string>
+    <string name="settings_auto_sync">Auto-Sync</string>
+    <string name="settings_auto_sync_desc">Bücher im Hintergrund synchronisieren</string>
+    <string name="settings_sync_period">Auto-Sync-Intervall</string>
+    <string name="settings_sync_period_desc">Wie oft die Hintergrundsynchronisation ausgeführt werden soll</string>
+    <string name="settings_sync_time">Startzeit</string>
+    <string name="settings_sync_time_desc">Bevorzugte Startzeit (nachts)</string>
+    <string name="settings_section_library">BIBLIOTHEK-EINSTELLUNGEN</string>
+    <string name="settings_scan_library">Bibliothek scannen</string>
+    <string name="settings_manual_import">Manueller Import</string>
+    <string name="settings_delete_duplicates">Bücher-Duplikate finden &amp; löschen</string>
+    <string name="settings_section_cleanup">REINIGUNG &amp; WIEDERHERSTELLUNG</string>
+    <string name="settings_reset_cache">Scan-Cache zurücksetzen</string>
+    <string name="settings_clear_library">Bibliothek leeren</string>
+    <string name="settings_clear_library_confirm_title">Bibliothek leeren?</string>
+    <string name="settings_clear_library_confirm_msg">Alle Bücher werden aus der App-Datenbank gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.</string>
+    <string name="settings_clear_library_confirm_ok">Alles löschen</string>
+    <string name="settings_clear_library_confirm_cancel">Abbrechen</string>
+    <string name="settings_toast_scan_started">Bibliotheksscan gestartet</string>
+    <string name="settings_toast_cache_reset">Scan-Cache erfolgreich zurückgesetzt</string>
+    <string name="settings_toast_library_cleared">Bibliothek vollständig geleert</string>
+    <string name="settings_app_version">Version: %1$s</string>
+
+    <!-- Main Splash -->
+    <string name="app_subtitle">ATMOSPHÄRE DER MITTERNACHT</string>
+    <string name="app_mood_title">Goldene Galaxie</string>
+    <string name="app_mood_subtitle">PREMIUM OFFLINE LESEN</string>
+    <string name="app_mood_quote">Wenn die ganze Welt einschläft, öffnen sich die Seiten großer Geheimnisse. Lesen Sie in perfekter Dunkelheit und Gemütlichkeit.</string>
+    <string name="app_init_loading">Anwendung wird initialisiert...</string>
+
+    <!-- Bottom Sheet Settings -->
+    <string name="bs_color_scheme">Farbschema</string>
+    <string name="bs_font">Schriftart</string>
+    <string name="bs_theme">Design</string>
+    <string name="bs_page_animation">Umblätter-Animation</string>
+    <string name="bs_text_alignment">Textausrichtung</string>
+    <string name="bs_font_size">Schriftgröße</string>
+    <string name="bs_font_weight">Schriftstärke</string>
+    <string name="bs_line_spacing">Zeilenabstand</string>
+    <string name="bs_haptic_feedback">Haptisches Feedback</string>
+    <string name="bs_haptic_feedback_desc">Angenehme Mikrovibrationen beim Umblättern und Aktionen</string>
+    <string name="bs_normal_weight">Normal</string>
+    <string name="bs_medium_weight">Mittel</string>
+    <string name="bs_bold_weight">Fett</string>
+    <string name="bs_extrabold_weight">Extra Fett</string>
+    <string name="bs_minutes">Min</string>
+    <string name="warning_swipe_to_exit">Erneut wischen zum Beenden</string>
+    <string name="toast_prev_sync_interrupted">Vorherige Hintergrundsynchronisation wurde unterbrochen</string>
+
+    <!-- Book Detail Screen -->
+    <string name="book_detail_generate_ai">Zusammenfassung generieren (KI)</string>
+    <string name="book_detail_read_more">...mehr lesen</string>
+    <string name="book_detail_ai_functions">KI-FUNKTIONEN</string>
+    <string name="book_detail_summary">Buchzusammenfassung</string>
+    <string name="book_detail_characters">Buchcharaktere</string>
+    <string name="book_detail_info_section">INFORMATIONEN</string>
+    <string name="book_detail_doc_lang">Dokumentsprache</string>
+    <string name="book_detail_bookmark_time">Aktuelles Lesezeichen und letzte Lesezeit</string>
+    <string name="book_detail_file_format">Dateiformat und -größe</string>
+    <string name="book_detail_file_sha">Dokument SHA-1-ID</string>
+    <string name="book_detail_file_copies">Dokumentdateikopien</string>
+    <string name="book_detail_read_button">LESEN</string>
+
+    <!-- Reading Screen -->
+    <string name="reading_chapter_toc">Kapitelinhalt</string>
+
+    <!-- Item Achievement -->
+    <string name="achievement_default_title">Titel</string>
+    <string name="achievement_default_desc">Erfolgsbeschreibung...</string>
+    <string name="achievement_unlocked">Freigeschaltet 🌟</string>
+</resources>
