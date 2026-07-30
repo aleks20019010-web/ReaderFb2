@@ -330,6 +330,7 @@ class LibraryFragment : Fragment() {
             books = emptyList(),
             onOpenBook = { book, coverView ->
                 viewModel.openBook(book)
+                androidx.core.view.ViewCompat.setTransitionName(coverView, "cover_${book.sha1}")
                 val intent = android.content.Intent(requireContext(), BookDetailActivity::class.java).apply {
                     putExtra("BOOK_SHA1", book.sha1)
                 }
@@ -603,7 +604,7 @@ class LibraryFragment : Fragment() {
         val booksFlow = if (filterType == "reading") {
             viewModel.loadReadingBooks()
         } else {
-            viewModel.searchedBooks
+            viewModel.allBooks
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -806,9 +807,10 @@ class LibraryFragment : Fragment() {
         }
 
         if (currentSearchQuery.isNotBlank()) {
+            val query = currentSearchQuery.trim()
             filtered = filtered.filter { book ->
-                book.title.contains(currentSearchQuery, ignoreCase = true) ||
-                        (book.author ?: "").contains(currentSearchQuery, ignoreCase = true)
+                book.title.contains(query, ignoreCase = true) ||
+                        (book.author ?: "").contains(query, ignoreCase = true)
             }
         }
         return viewModel.sortBooks(filtered)

@@ -82,6 +82,7 @@ class BookAdapter(
 
     val newlyAddedSha1s = mutableSetOf<String>()
     private var isGridView: Boolean = true
+    private var lastAnimatedPosition: Int = -1
 
     override fun getItemViewType(position: Int): Int {
         return if (isGridView) VIEW_TYPE_GRID else VIEW_TYPE_LIST
@@ -101,7 +102,27 @@ class BookAdapter(
         val book = books[position]
         holder.bind(book, onOpenBook, onDeleteBook)
         
-        holder.itemView.animate().cancel(); holder.itemView.alpha = 1f; holder.itemView.translationY = 0f
+        if (position > lastAnimatedPosition) {
+            val density = holder.itemView.context.resources.displayMetrics.density
+            val startTranslationY = 50f * density
+            holder.itemView.translationY = startTranslationY
+            holder.itemView.alpha = 0f
+            
+            val delay = (position * 50L).coerceAtMost(500L)
+            holder.itemView.animate()
+                .translationY(0f)
+                .alpha(1f)
+                .setDuration(350)
+                .setStartDelay(delay)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .start()
+            
+            lastAnimatedPosition = position
+        } else {
+            holder.itemView.animate().cancel()
+            holder.itemView.alpha = 1f
+            holder.itemView.translationY = 0f
+        }
     }
 
     override fun onViewAttachedToWindow(holder: BookViewHolder) {
@@ -172,10 +193,13 @@ class BookAdapter(
         private val ivCover: ImageView = itemView.findViewById(R.id.ivCover)
         private val tvCoverLetter: TextView = itemView.findViewById(R.id.tvCoverLetter)
         private val vCoverBackground: View = itemView.findViewById(R.id.vCoverBackground)
+        private val shimmerCover: com.facebook.shimmer.ShimmerFrameLayout? = itemView.findViewById(R.id.shimmerCover)
         private val vCoverGlow: View? = itemView.findViewById(R.id.vCoverGlow)
         private val cvBookCover: View = itemView.findViewById(R.id.cvBookCover)
         private val btnDelete: View = itemView.findViewById(R.id.btnDelete)
-        private val pbReadingProgress: ProgressBar = itemView.findViewById(R.id.pbReadingProgress)
+        private val vReadingProgressTrack: View? = itemView.findViewById(R.id.vReadingProgressTrack)
+        private val vReadingProgress: View? = itemView.findViewById(R.id.vReadingProgress)
+        private val vReadingProgressRemaining: View? = itemView.findViewById(R.id.vReadingProgressRemaining)
 
         override fun onTiltChanged(tiltX: Float, tiltY: Float) {
             val maxRotation = 12f // degrees max tilt
@@ -377,6 +401,8 @@ class BookAdapter(
             if (coverFile != null && coverFile.exists()) {
                 ivCover.visibility = View.VISIBLE
                 tvCoverLetter.visibility = View.GONE
+                shimmerCover?.visibility = View.VISIBLE
+                shimmerCover?.startShimmer()
                 try {
                     ivCover.load(coverFile) {
                         crossfade(true)
@@ -385,6 +411,8 @@ class BookAdapter(
                         diskCacheKey(book.sha1)
                         listener(
                             onSuccess = { _, result ->
+                                shimmerCover?.stopShimmer()
+                                shimmerCover?.visibility = View.GONE
                                 val bitmapDrawable = result.drawable as? android.graphics.drawable.BitmapDrawable
                                 val bitmap = bitmapDrawable?.bitmap
                                 if (bitmap != null) {
@@ -395,12 +423,19 @@ class BookAdapter(
                                 }
                             },
                             onError = { _, _ ->
+                                shimmerCover?.stopShimmer()
+                                shimmerCover?.visibility = View.GONE
+                                ivCover.visibility = View.GONE
+                                tvCoverLetter.visibility = View.VISIBLE
+                                tvCoverLetter.text = if (!book.title.isNullOrEmpty()) book.title.trim().take(1).uppercase() else "?"
                                 applyGlow(fallbackColor)
                             }
                         )
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("BookAdapter", "Error loading cover with Coil: ${e.message}")
+                    shimmerCover?.stopShimmer()
+                    shimmerCover?.visibility = View.GONE
                     ivCover.visibility = View.GONE
                     tvCoverLetter.visibility = View.VISIBLE
                     tvCoverLetter.text = if (!book.title.isNullOrEmpty()) book.title.trim().take(1).uppercase() else "?"
@@ -409,6 +444,8 @@ class BookAdapter(
             } else {
                 ivCover.setImageDrawable(null)
                 ivCover.visibility = View.GONE
+                shimmerCover?.visibility = View.VISIBLE
+                shimmerCover?.startShimmer()
                 tvCoverLetter.visibility = View.VISIBLE
                 tvCoverLetter.text = if (!book.title.isNullOrEmpty()) book.title.trim().take(1).uppercase() else "?"
                 applyGlow(fallbackColor)
@@ -427,14 +464,17 @@ class BookAdapter(
                 0
             }
             if (progressPercent > 0) {
-                pbReadingProgress.visibility = View.VISIBLE
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                    pbReadingProgress.setProgress(progressPercent, true)
-                } else {
-                    pbReadingProgress.progress = progressPercent
+                vReadingProgressTrack?.visibility = View.VISIBLE
+                val pParam = vReadingProgress?.layoutParams as? android.widget.LinearLayout.LayoutParams
+                val rParam = vReadingProgressRemaining?.layoutParams as? android.widget.LinearLayout.LayoutParams
+                if (pParam != null && rParam != null) {
+                    pParam.weight = progressPercent.toFloat()
+                    rParam.weight = (100 - progressPercent).toFloat()
+                    vReadingProgress?.layoutParams = pParam
+                    vReadingProgressRemaining?.layoutParams = rParam
                 }
             } else {
-                pbReadingProgress.visibility = View.GONE
+                vReadingProgressTrack?.visibility = View.GONE
             }
 
 

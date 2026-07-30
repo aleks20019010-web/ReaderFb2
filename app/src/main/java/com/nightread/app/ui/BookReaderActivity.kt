@@ -154,6 +154,7 @@ class BookReaderActivity : AppCompatActivity() {
     private var remainingTimeMs: Long = 0
     private var isWebViewLoading = false
     private var brightnessAnimator: android.animation.ValueAnimator? = null
+    private var pageScrollAnimator: android.animation.ValueAnimator? = null
     private var longPressRunnable: Runnable? = null
     private var currentLanguage: String? = null
 
@@ -488,7 +489,7 @@ class BookReaderActivity : AppCompatActivity() {
                 onPageChangedForSpeedTracker(it)
                 if (lastPage != -1 && lastPage != it) {
                     triggerPageTurnHaptic()
-
+                    viewModel.saveProgress()
                 }
                 lastPage = it
             }
@@ -997,10 +998,21 @@ class BookReaderActivity : AppCompatActivity() {
             } else {
                 isWebViewLoading = false
                 val w = webView.width
-                if (w > 0 && pageIdx > 0) {
-                    webView.scrollTo((pageIdx - 1) * w, 0)
-                } else if (w > 0) {
-                    webView.scrollTo(0, 0)
+                if (w > 0) {
+                    val targetX = if (pageIdx > 0) (pageIdx - 1) * w else 0
+                    val startX = webView.scrollX
+                    if (startX != targetX) {
+                        pageScrollAnimator?.cancel()
+                        pageScrollAnimator = android.animation.ValueAnimator.ofInt(startX, targetX).apply {
+                            duration = 300
+                            interpolator = android.view.animation.DecelerateInterpolator()
+                            addUpdateListener { animator ->
+                                val currentX = animator.animatedValue as Int
+                                webView.scrollTo(currentX, 0)
+                            }
+                            start()
+                        }
+                    }
                 }
                 webView.postDelayed({
                     if (viewModel.pagesState.value.size <= 1) {
@@ -1557,6 +1569,11 @@ class BookReaderActivity : AppCompatActivity() {
         restoreDndFilter()
     }
 
+    override fun onStop() {
+        super.onStop()
+        viewModel.saveProgress()
+    }
+
 
 
     private fun updateSensors() {
@@ -1647,7 +1664,42 @@ class BookReaderActivity : AppCompatActivity() {
             webView.evaluateJavascript("if (typeof applyAntiGlare !== 'undefined') { applyAntiGlare($antiGlare, '$textColorHex'); }", null)
         }
 
+        adjustAutoBrightness(lux)
         reEvaluateAutoTheme()
+    }
+
+    private var autoBrightnessAnimator: android.animation.ValueAnimator? = null
+    private var lastAutoBrightnessTarget: Float = -1f
+
+    private fun adjustAutoBrightness(lux: Float) {
+        val targetBrightness = when {
+            lux <= 50f -> 0.1f
+            lux >= 1000f -> 1.0f
+            else -> 0.1f + ((lux - 50f) / 950f) * 0.9f
+        }.coerceIn(0.1f, 1.0f)
+
+        if (Math.abs(lastAutoBrightnessTarget - targetBrightness) < 0.02f && lastAutoBrightnessTarget != -1f) {
+            return
+        }
+        lastAutoBrightnessTarget = targetBrightness
+
+        val currentBrightness = if (window.attributes.screenBrightness < 0f) {
+            0.5f
+        } else {
+            window.attributes.screenBrightness
+        }
+
+        autoBrightnessAnimator?.cancel()
+        autoBrightnessAnimator = android.animation.ValueAnimator.ofFloat(currentBrightness, targetBrightness).apply {
+            duration = 600
+            addUpdateListener { animator ->
+                val value = animator.animatedValue as Float
+                val lp = window.attributes
+                lp.screenBrightness = value
+                window.attributes = lp
+            }
+            start()
+        }
     }
 
     private fun reEvaluateAutoTheme() {
@@ -1675,6 +1727,7 @@ class BookReaderActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         brightnessAnimator?.cancel()
+        autoBrightnessAnimator?.cancel()
         sleepTimerJob?.cancel()
         unregisterSensors()
     }
@@ -1962,7 +2015,196 @@ class BookReaderActivity : AppCompatActivity() {
             .show(supportFragmentManager, "word_action")
     }
 
+    fun fetchAndShowFreeDictionary(word: String) {
+        val cleanWord = word.trim().trim(' ', '«', '»', '\"', '\'', '.', ',', '!', '?', ';', ':', '(', ')', '[', ']', '{', '}')
+        if (cleanWord.isEmpty()) return
 
+        val progressDialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Словарь")
+            .setMessage("Поиск определения для «$cleanWord»...")
+            .setCancelable(true)
+            .show()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val isCyrillic = cleanWord.any { it in 'а'..'я' || it in 'А'..'Я' || it == 'ё' || it == 'Ё' }
+            try {
+                if (isCyrillic) {
+                    val encodedRu = java.net.URLEncoder.encode(cleanWord, "UTF-8")
+                    val translateUrl = "https://api.mymemory.translated.net/get?q=$encodedRu&langpair=ru|en"
+                    val enTranslation = fetchTranslationFromMyMemory(translateUrl)
+
+                    if (!enTranslation.isNullOrBlank()) {
+                        val encodedEn = java.net.URLEncoder.encode(enTranslation, "UTF-8")
+                        val dictUrl = "https://api.dictionaryapi.dev/api/v2/entries/en/$encodedEn"
+                        val (code, jsonResponse) = httpGet(dictUrl)
+
+                        val parsedResult: CharSequence = if (code == 200 && !jsonResponse.isNullOrBlank()) {
+                            parseFreeDictionaryJson(enTranslation, jsonResponse, ruWord = cleanWord)
+                        } else {
+                            formatHtml("<b><font color='#E94560'>$cleanWord</font></b><br/><br/>Перевод на английский: <b>$enTranslation</b><br/><br/><i>Определение на английском в словаре не найдено.</i>")
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            progressDialog.dismiss()
+                            showDictionaryResultDialog(cleanWord, parsedResult)
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            progressDialog.dismiss()
+                            showDictionaryResultDialog(cleanWord, "Не удалось найти перевод для «$cleanWord».")
+                        }
+                    }
+                } else {
+                    val encodedWord = java.net.URLEncoder.encode(cleanWord, "UTF-8")
+                    val dictUrl = "https://api.dictionaryapi.dev/api/v2/entries/en/$encodedWord"
+                    val (code, jsonResponse) = httpGet(dictUrl)
+
+                    val translateUrl = "https://api.mymemory.translated.net/get?q=$encodedWord&langpair=en|ru"
+                    val ruTranslation = fetchTranslationFromMyMemory(translateUrl)
+
+                    val parsedResult: CharSequence = if (code == 200 && !jsonResponse.isNullOrBlank()) {
+                        parseFreeDictionaryJson(cleanWord, jsonResponse, ruTranslation = ruTranslation)
+                    } else if (!ruTranslation.isNullOrBlank()) {
+                        formatHtml("<b><font color='#E94560'>$cleanWord</font></b><br/><br/>Перевод: <b><font color='#4CAF50'>$ruTranslation</font></b><br/><br/><i>Подробные определения на английском не найдены.</i>")
+                    } else {
+                        "Определение для «$cleanWord» не найдено в FreeDictionaryAPI."
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        progressDialog.dismiss()
+                        showDictionaryResultDialog(cleanWord, parsedResult)
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressDialog.dismiss()
+                    showDictionaryResultDialog(cleanWord, "Не удалось получить информацию из словаря: ${e.localizedMessage ?: e.message}")
+                }
+            }
+        }
+    }
+
+    fun fetchAndShowYandexDictionary(word: String) {
+        fetchAndShowFreeDictionary(word)
+    }
+
+    private fun httpGet(urlString: String): Pair<Int, String?> {
+        return try {
+            val url = java.net.URL(urlString)
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = 6000
+            conn.readTimeout = 6000
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+            val code = conn.responseCode
+            val stream = if (code == 200) conn.inputStream else conn.errorStream
+            val text = stream?.bufferedReader()?.use { it.readText() }
+            Pair(code, text)
+        } catch (e: Exception) {
+            Pair(-1, null)
+        }
+    }
+
+    private fun fetchTranslationFromMyMemory(urlString: String): String? {
+        val (code, response) = httpGet(urlString)
+        if (code == 200 && !response.isNullOrBlank()) {
+            try {
+                val json = org.json.JSONObject(response)
+                val responseData = json.optJSONObject("responseData")
+                val translatedText = responseData?.optString("translatedText")
+                if (!translatedText.isNullOrBlank() && !translatedText.equals("NO QUERY SPECIFIED", true)) {
+                    return translatedText
+                }
+            } catch (_: Exception) {}
+        }
+        return null
+    }
+
+    private fun parseFreeDictionaryJson(word: String, responseText: String, ruWord: String? = null, ruTranslation: String? = null): CharSequence {
+        try {
+            val jsonArray = org.json.JSONArray(responseText)
+            if (jsonArray.length() == 0) {
+                return "Определение для «$word» не найдено."
+            }
+
+            val sb = StringBuilder()
+            if (ruWord != null) {
+                sb.append("<b><font color='#E94560'>$ruWord</font></b> — <i>$word</i><br/><br/>")
+            } else {
+                sb.append("<b><font color='#E94560'>$word</font></b>")
+            }
+
+            val firstObj = jsonArray.getJSONObject(0)
+            var phonetic = firstObj.optString("phonetic")
+            if (phonetic.isEmpty()) {
+                val phoneticsArr = firstObj.optJSONArray("phonetics")
+                if (phoneticsArr != null) {
+                    for (i in 0 until phoneticsArr.length()) {
+                        val pObj = phoneticsArr.getJSONObject(i)
+                        val text = pObj.optString("text")
+                        if (text.isNotEmpty()) {
+                            phonetic = text
+                            break
+                        }
+                    }
+                }
+            }
+
+            if (phonetic.isNotEmpty()) {
+                sb.append(" <font color='#888888'>[$phonetic]</font>")
+            }
+            sb.append("<br/>")
+
+            if (!ruTranslation.isNullOrBlank()) {
+                sb.append("<b>Перевод:</b> <font color='#4CAF50'>$ruTranslation</font><br/>")
+            }
+
+            for (i in 0 until jsonArray.length()) {
+                val entryObj = jsonArray.getJSONObject(i)
+                val meanings = entryObj.optJSONArray("meanings") ?: continue
+
+                for (m in 0 until meanings.length()) {
+                    val meaningObj = meanings.getJSONObject(m)
+                    val partOfSpeech = meaningObj.optString("partOfSpeech")
+                    sb.append("<br/><b><i>$partOfSpeech</i></b><br/>")
+
+                    val definitions = meaningObj.optJSONArray("definitions") ?: continue
+                    val maxDefs = minOf(definitions.length(), 4)
+                    for (d in 0 until maxDefs) {
+                        val defObj = definitions.getJSONObject(d)
+                        val definition = defObj.optString("definition")
+                        val example = defObj.optString("example")
+
+                        sb.append("• $definition<br/>")
+                        if (example.isNotEmpty()) {
+                            sb.append("&nbsp;&nbsp;&nbsp;&nbsp;<i><font color='#888888'>“$example”</font></i><br/>")
+                        }
+                    }
+                }
+            }
+
+            return formatHtml(sb.toString())
+        } catch (e: Exception) {
+            return "Ошибка разбора ответа словаря: ${e.message}"
+        }
+    }
+
+    private fun formatHtml(html: String): CharSequence {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_LEGACY)
+        } else {
+            @Suppress("DEPRECATION")
+            android.text.Html.fromHtml(html)
+        }
+    }
+
+    private fun showDictionaryResultDialog(word: String, content: CharSequence) {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Словарь: $word")
+            .setMessage(content)
+            .setPositiveButton("ОК", null)
+            .show()
+    }
 
     class WebAppInterface(private val activity: BookReaderActivity) {
         @android.webkit.JavascriptInterface
@@ -1990,6 +2232,27 @@ class BookReaderActivity : AppCompatActivity() {
         fun onTextSelected(selectedText: String, contextSnippet: String) {
             activity.runOnUiThread {
                 activity.showWordActionOrNoteDialog(selectedText, contextSnippet)
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun lookupYandexDictionary(word: String) {
+            activity.runOnUiThread {
+                activity.fetchAndShowFreeDictionary(word)
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun lookupWord(word: String) {
+            activity.runOnUiThread {
+                activity.fetchAndShowFreeDictionary(word)
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun onWordLongClick(word: String) {
+            activity.runOnUiThread {
+                activity.fetchAndShowFreeDictionary(word)
             }
         }
     }

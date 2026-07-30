@@ -16,6 +16,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.FileProvider
+import androidx.core.view.ViewCompat
 import androidx.lifecycle.lifecycleScope
 import coil.load
 import com.nightread.app.R
@@ -62,6 +63,7 @@ class BookDetailActivity : BaseActivity() {
     private var currentBook: BookEntity? = null
     private var isAnnotationExpanded = false
     private var currentVibrantColor: Int? = null
+    private var hasAnimatedCover = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -139,7 +141,7 @@ class BookDetailActivity : BaseActivity() {
             return
         }
         
-        ivCover.transitionName = "cover_$bookSha1"
+        ViewCompat.setTransitionName(ivCover, "cover_$bookSha1")
         supportPostponeEnterTransition()
 
         tvReadMore.setOnClickListener {
@@ -183,6 +185,7 @@ class BookDetailActivity : BaseActivity() {
     private fun toggleFavorite() {
         val book = currentBook ?: return
         val updated = book.copy(isFavorite = !book.isFavorite)
+        animateFavoriteIcon()
         lifecycleScope.launch {
             val db = AppDatabase.getDatabase(this@BookDetailActivity)
             withContext(Dispatchers.IO) {
@@ -191,6 +194,48 @@ class BookDetailActivity : BaseActivity() {
             currentBook = updated
             updateFavoriteIcon(updated.isFavorite)
         }
+    }
+
+    private fun animateFavoriteIcon() {
+        val scaleXUp = android.animation.ObjectAnimator.ofFloat(ivFavorite, View.SCALE_X, 1.0f, 1.3f).setDuration(150)
+        val scaleYUp = android.animation.ObjectAnimator.ofFloat(ivFavorite, View.SCALE_Y, 1.0f, 1.3f).setDuration(150)
+        val scaleXDown = android.animation.ObjectAnimator.ofFloat(ivFavorite, View.SCALE_X, 1.3f, 1.0f).setDuration(150)
+        val scaleYDown = android.animation.ObjectAnimator.ofFloat(ivFavorite, View.SCALE_Y, 1.3f, 1.0f).setDuration(150)
+
+        val zoomUp = android.animation.AnimatorSet().apply {
+            playTogether(scaleXUp, scaleYUp)
+        }
+        val zoomDown = android.animation.AnimatorSet().apply {
+            playTogether(scaleXDown, scaleYDown)
+        }
+
+        val pulseSet = android.animation.AnimatorSet().apply {
+            playSequentially(zoomUp, zoomDown)
+        }
+        pulseSet.start()
+    }
+
+    private fun animateCoverIntro() {
+        if (hasAnimatedCover) return
+        hasAnimatedCover = true
+
+        ivCover.scaleX = 0.5f
+        ivCover.scaleY = 0.5f
+        ivCover.alpha = 1.0f
+
+        ivCover.animate()
+            .scaleX(1.0f)
+            .scaleY(1.0f)
+            .setDuration(400)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .withEndAction {
+                ivCover.animate()
+                    .alpha(0f)
+                    .setDuration(400)
+                    .setInterpolator(android.view.animation.AccelerateInterpolator())
+                    .start()
+            }
+            .start()
     }
 
     private fun toggleWantToRead() {
@@ -209,7 +254,7 @@ class BookDetailActivity : BaseActivity() {
     private fun updateFavoriteIcon(isFav: Boolean) {
         if (isFav) {
             ivFavorite.setImageResource(android.R.drawable.btn_star_big_on)
-            ivFavorite.setColorFilter(Color.parseColor("#FFD700"))
+            ivFavorite.setColorFilter(Color.parseColor("#FF5C5C"))
         } else {
             ivFavorite.setImageResource(android.R.drawable.btn_star_big_off)
             ivFavorite.setColorFilter(Color.parseColor("#8E8E93"))
@@ -229,24 +274,39 @@ class BookDetailActivity : BaseActivity() {
     private fun shareBookFile() {
         val book = currentBook ?: return
         val path = book.filePath
-        if (path.isNullOrEmpty()) return
+        if (path.isNullOrEmpty()) {
+            CustomToast.show(this, "Файл книги не найден")
+            return
+        }
         val file = File(path)
-        if (!file.exists()) return
+        if (!file.exists()) {
+            CustomToast.show(this, "Файл книги не найден на устройстве")
+            return
+        }
 
         try {
+            val mimeType = when {
+                file.name.endsWith(".fb2", ignoreCase = true) || file.name.endsWith(".fb2.zip", ignoreCase = true) -> "application/x-fictionbook+xml"
+                file.name.endsWith(".epub", ignoreCase = true) -> "application/epub+zip"
+                file.name.endsWith(".txt", ignoreCase = true) -> "text/plain"
+                else -> "*/*"
+            }
             val uri: Uri = FileProvider.getUriForFile(
                 this,
                 "$packageName.fileprovider",
                 file
             )
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/octet-stream"
+                type = mimeType
                 putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, book.title)
+                putExtra(Intent.EXTRA_TEXT, "Книга: ${book.title}" + (if (!book.author.isNullOrEmpty()) " (${book.author})" else ""))
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(Intent.createChooser(intent, "Поделиться книгой"))
         } catch (e: Exception) {
-            Log.e("BookDetail", "Sharing failed", e)
+            Log.e("BookDetailActivity", "Sharing failed", e)
+            CustomToast.show(this, "Не удалось поделиться файлом")
         }
     }
 
@@ -435,6 +495,10 @@ class BookDetailActivity : BaseActivity() {
 
                 // Render dynamic list of files copies
                 renderFilesList(copies)
+
+                ivCover.post {
+                    animateCoverIntro()
+                }
             } else {
                 finish()
             }

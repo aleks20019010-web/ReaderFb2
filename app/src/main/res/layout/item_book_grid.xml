@@ -62,6 +62,20 @@
                         android:layout_height="match_parent"
                         android:background="#1A1A2E" />
 
+                    <!-- Shimmer skeleton placeholder -->
+                    <com.facebook.shimmer.ShimmerFrameLayout
+                        android:id="@+id/shimmerCover"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:visibility="visible"
+                        app:shimmer_auto_start="true">
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="#2B263E" />
+                    </com.facebook.shimmer.ShimmerFrameLayout>
+
                     <!-- Cover Image -->
                     <ImageView
                         android:id="@+id/ivCover"
@@ -95,18 +109,30 @@
                         android:layout_gravity="end"
                         android:background="#20FFFFFF" />
 
-                    <!-- Progress bar at the very bottom of the cover -->
-                    <ProgressBar
-                        android:id="@+id/pbReadingProgress"
-                        style="?android:attr/progressBarStyleHorizontal"
+                    <!-- Translucent air progress line under/bottom of cover -->
+                    <LinearLayout
+                        android:id="@+id/vReadingProgressTrack"
                         android:layout_width="match_parent"
-                        android:layout_height="4dp"
+                        android:layout_height="3dp"
                         android:layout_gravity="bottom"
-                        android:progress="0"
-                        android:max="100"
-                        android:progressTint="@color/accent"
-                        android:progressBackgroundTint="#20FFFFFF"
-                        android:visibility="gone" />
+                        android:orientation="horizontal"
+                        android:background="#20000000"
+                        android:visibility="gone">
+
+                        <View
+                            android:id="@+id/vReadingProgress"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="0"
+                            android:background="@color/accent" />
+
+                        <View
+                            android:id="@+id/vReadingProgressRemaining"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="100"
+                            android:background="#33FFFFFF" />
+                    </LinearLayout>
                 </FrameLayout>
             </com.google.android.material.card.MaterialCardView>
         </FrameLayout>

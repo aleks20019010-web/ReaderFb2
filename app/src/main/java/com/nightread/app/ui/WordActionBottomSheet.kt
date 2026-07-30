@@ -53,6 +53,13 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
 
         val tvSelectedWord = view.findViewById<TextView>(R.id.tvSelectedWord)
         tvSelectedWord.text = word
+        tvSelectedWord.setOnClickListener {
+            val bookReaderActivity = activity as? BookReaderActivity
+            if (bookReaderActivity != null) {
+                bookReaderActivity.fetchAndShowFreeDictionary(word)
+            }
+            dismiss()
+        }
 
         view.findViewById<View>(R.id.btnFind).setOnClickListener {
             val bookReaderActivity = activity as? BookReaderActivity

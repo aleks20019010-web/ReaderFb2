@@ -184,6 +184,8 @@ class MainActivity : BaseActivity() {
             CustomToast.show(this, "Предыдущая фоновая синхронизация была прервана")
         }
 
+        handleIncomingBookIntent(intent)
+
         // Set up Splash Screen
         val splashOverlay = findViewById<FrameLayout>(R.id.splash_overlay)
         
@@ -474,6 +476,72 @@ class MainActivity : BaseActivity() {
         setIntent(intent)
         if (intent.getBooleanExtra("OPEN_DRAWER", false)) {
             drawerLayout.openDrawer(androidx.core.view.GravityCompat.START)
+        }
+        handleIncomingBookIntent(intent)
+    }
+
+    private fun handleIncomingBookIntent(intent: Intent?) {
+        if (intent == null) return
+        val action = intent.action
+        val uri = intent.data
+        if (Intent.ACTION_VIEW == action && uri != null) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    // 1. Get root directory via Environment.getExternalStorageDirectory()
+                    val rootDir = android.os.Environment.getExternalStorageDirectory()
+                    var booksDir = File(rootDir, "Books")
+                    if (!booksDir.exists()) {
+                        val created = booksDir.mkdirs()
+                        if (!created) {
+                            val extFiles = getExternalFilesDir(null)
+                            booksDir = File(extFiles ?: filesDir, "Books").apply { if (!exists()) mkdirs() }
+                        }
+                    }
+
+                    // 2. Obtain original file name from Uri
+                    var fileName = "imported_book"
+                    val cursor = contentResolver.query(uri, null, null, null, null)
+                    cursor?.use {
+                        if (it.moveToFirst()) {
+                            val nameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                            if (nameIndex != -1) {
+                                val name = it.getString(nameIndex)
+                                if (!name.isNullOrEmpty()) fileName = name
+                            }
+                        }
+                    }
+                    if (fileName == "imported_book" && uri.path != null) {
+                        val pathName = File(uri.path!!).name
+                        if (pathName.isNotBlank()) fileName = pathName
+                    }
+
+                    // 3. Copy book file to Books directory preserving original file name
+                    val targetFile = File(booksDir, fileName)
+                    contentResolver.openInputStream(uri)?.use { inputStream ->
+                        java.io.FileOutputStream(targetFile).use { outputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
+                    }
+
+                    // 4. Import book into database via BookViewModel
+                    val fileUri = android.net.Uri.fromFile(targetFile)
+                    withContext(Dispatchers.Main) {
+                        val bookViewModel = androidx.lifecycle.ViewModelProvider(this@MainActivity).get(com.nightread.app.ui.BookViewModel::class.java)
+                        bookViewModel.importBookFromUri(fileUri, this@MainActivity) { success, message ->
+                            if (success) {
+                                CustomToast.show(this@MainActivity, "Книга \"$fileName\" успешно импортирована!", Toast.LENGTH_SHORT)
+                            } else {
+                                CustomToast.show(this@MainActivity, message, Toast.LENGTH_SHORT)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("MainActivity", "Error importing book from intent", e)
+                    withContext(Dispatchers.Main) {
+                        CustomToast.show(this@MainActivity, "Ошибка импорта книги: ${e.localizedMessage}")
+                    }
+                }
+            }
         }
     }
 
