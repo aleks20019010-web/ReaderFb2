@@ -219,22 +219,16 @@ class BookDetailActivity : BaseActivity() {
         if (hasAnimatedCover) return
         hasAnimatedCover = true
 
-        ivCover.scaleX = 0.5f
-        ivCover.scaleY = 0.5f
-        ivCover.alpha = 1.0f
+        ivCover.scaleX = 0.85f
+        ivCover.scaleY = 0.85f
+        ivCover.alpha = 0f
 
         ivCover.animate()
             .scaleX(1.0f)
             .scaleY(1.0f)
-            .setDuration(400)
+            .alpha(1.0f)
+            .setDuration(350)
             .setInterpolator(android.view.animation.DecelerateInterpolator())
-            .withEndAction {
-                ivCover.animate()
-                    .alpha(0f)
-                    .setDuration(400)
-                    .setInterpolator(android.view.animation.AccelerateInterpolator())
-                    .start()
-            }
             .start()
     }
 

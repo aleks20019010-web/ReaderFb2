@@ -102,27 +102,34 @@ class BookAdapter(
         val book = books[position]
         holder.bind(book, onOpenBook, onDeleteBook)
         
+        holder.itemView.animate().cancel()
+        
         if (position > lastAnimatedPosition) {
             val density = holder.itemView.context.resources.displayMetrics.density
-            val startTranslationY = 50f * density
+            val startTranslationY = 16f * density
             holder.itemView.translationY = startTranslationY
-            holder.itemView.alpha = 0f
+            holder.itemView.alpha = 0.3f
             
-            val delay = (position * 50L).coerceAtMost(500L)
             holder.itemView.animate()
                 .translationY(0f)
                 .alpha(1f)
-                .setDuration(350)
-                .setStartDelay(delay)
+                .setDuration(220)
+                .setStartDelay(0)
                 .setInterpolator(android.view.animation.DecelerateInterpolator())
                 .start()
             
             lastAnimatedPosition = position
         } else {
-            holder.itemView.animate().cancel()
             holder.itemView.alpha = 1f
             holder.itemView.translationY = 0f
         }
+    }
+
+    override fun onViewRecycled(holder: BookViewHolder) {
+        super.onViewRecycled(holder)
+        holder.itemView.animate().cancel()
+        holder.itemView.alpha = 1f
+        holder.itemView.translationY = 0f
     }
 
     override fun onViewAttachedToWindow(holder: BookViewHolder) {

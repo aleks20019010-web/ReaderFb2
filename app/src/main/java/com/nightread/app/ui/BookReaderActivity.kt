@@ -1001,7 +1001,8 @@ class BookReaderActivity : AppCompatActivity() {
                 if (w > 0) {
                     val targetX = if (pageIdx > 0) (pageIdx - 1) * w else 0
                     val startX = webView.scrollX
-                    if (startX != targetX) {
+                    val animMode = com.nightread.app.data.SettingsManager.getPageAnimation(this)
+                    if (animMode == "slide" && startX != targetX) {
                         pageScrollAnimator?.cancel()
                         pageScrollAnimator = android.animation.ValueAnimator.ofInt(startX, targetX).apply {
                             duration = 300
@@ -1012,6 +1013,9 @@ class BookReaderActivity : AppCompatActivity() {
                             }
                             start()
                         }
+                    } else {
+                        pageScrollAnimator?.cancel()
+                        webView.scrollTo(targetX, 0)
                     }
                 }
                 webView.postDelayed({
@@ -1224,13 +1228,20 @@ class BookReaderActivity : AppCompatActivity() {
         val filePath = viewModel.bookState.value?.filePath ?: ""
         val isWebViewBook = filePath.endsWith(".fb2", true) || 
                            filePath.endsWith(".fb2.zip", true) || 
-                           filePath.endsWith(".zip", true)
+                           filePath.endsWith(".zip", true) ||
+                           filePath.endsWith(".epub", true)
 
         if (pages.isEmpty()) return
         if (!isWebViewBook && newPageIdx !in pages.indices) return
 
         if (animMode == "none") {
             updatePage()
+            return
+        }
+
+        if (isWebViewBook && animMode == "slide") {
+            updatePage()
+            lastPageAnimationIdx = newPageIdx
             return
         }
 
