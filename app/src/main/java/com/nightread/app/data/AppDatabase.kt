@@ -5,6 +5,7 @@ import android.os.Environment
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.nightread.app.R
 import java.io.File
 
 @Database(entities = [BookEntity::class, NoteEntity::class, CloudFileEntity::class, CacheEntry::class], version = 11, exportSchema = false)
@@ -18,19 +19,26 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
-        fun getReaderFb2Dir(context: Context): File {
+        fun getAppDir(context: Context): File {
+            val appName = try {
+                context.getString(R.string.app_name)
+            } catch (e: Exception) {
+                "NightRead"
+            }
             val docsPath = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)?.absolutePath
                 ?: (Environment.getExternalStorageDirectory().absolutePath + "/Documents")
-            val dir = File(docsPath, "ReaderFb2")
+            val dir = File(docsPath, appName)
             if (!dir.exists()) {
                 dir.mkdirs()
             }
             return dir
         }
 
+        fun getReaderFb2Dir(context: Context): File = getAppDir(context)
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                val dbFile = File(getReaderFb2Dir(context), "books.db")
+                val dbFile = File(getAppDir(context), "books.db")
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,

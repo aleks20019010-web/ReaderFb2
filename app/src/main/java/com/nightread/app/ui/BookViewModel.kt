@@ -35,6 +35,32 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     val searchQuery = MutableStateFlow("")
 
+    private val _sortOption = MutableStateFlow(com.nightread.app.data.SettingsManager.getSortOption(application))
+    val sortOption: StateFlow<String> = _sortOption
+
+    fun setSortOption(option: String) {
+        com.nightread.app.data.SettingsManager.setSortOption(getApplication(), option)
+        _sortOption.value = option
+    }
+
+    fun sortBooks(books: List<BookEntity>, option: String = _sortOption.value): List<BookEntity> {
+        return when (option) {
+            com.nightread.app.data.SettingsManager.SORT_TITLE_ASC -> books.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title })
+            com.nightread.app.data.SettingsManager.SORT_TITLE_DESC -> books.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.title })
+            com.nightread.app.data.SettingsManager.SORT_AUTHOR_ASC -> books.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.author ?: "" })
+            com.nightread.app.data.SettingsManager.SORT_AUTHOR_DESC -> books.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.author ?: "" })
+            com.nightread.app.data.SettingsManager.SORT_DATE_ASC -> books.sortedBy { if (it.dateAdded > 0) it.dateAdded else it.lastReadTime }
+            com.nightread.app.data.SettingsManager.SORT_DATE_DESC -> books.sortedByDescending { if (it.dateAdded > 0) it.dateAdded else it.lastReadTime }
+            com.nightread.app.data.SettingsManager.SORT_PROGRESS_ASC -> books.sortedBy { 
+                if (it.totalCharacters > 0) (it.currentProgressChar.toFloat() / it.totalCharacters) else 0f 
+            }
+            com.nightread.app.data.SettingsManager.SORT_PROGRESS_DESC -> books.sortedByDescending { 
+                if (it.totalCharacters > 0) (it.currentProgressChar.toFloat() / it.totalCharacters) else 0f 
+            }
+            else -> books.sortedByDescending { if (it.dateAdded > 0) it.dateAdded else it.lastReadTime }
+        }
+    }
+
     fun setSearchQuery(query: String) {
         searchQuery.value = query
     }

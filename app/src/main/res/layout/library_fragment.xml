@@ -110,6 +110,16 @@
                     app:submitBackground="@null" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSort"
+                    style="@style/HeaderIconButtonStyle"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginEnd="4dp"
+                    android:contentDescription="Сортировка"
+                    app:icon="@drawable/ic_custom_sort"
+                    app:iconSize="20dp" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnToggleViewMode"
                     style="@style/HeaderIconButtonStyle"
                     android:layout_width="48dp"

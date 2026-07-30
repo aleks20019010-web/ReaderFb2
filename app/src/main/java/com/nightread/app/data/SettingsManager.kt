@@ -49,6 +49,16 @@ object SettingsManager {
     const val KEY_LETTER_SPACING = "letter_spacing"
     const val KEY_PARAGRAPH_INDENT = "paragraph_indent"
     const val KEY_SILENT_MODE_ENABLED = "silent_mode_enabled"
+    const val KEY_SORT_OPTION = "library_sort_option"
+
+    const val SORT_TITLE_ASC = "TITLE_ASC"
+    const val SORT_TITLE_DESC = "TITLE_DESC"
+    const val SORT_AUTHOR_ASC = "AUTHOR_ASC"
+    const val SORT_AUTHOR_DESC = "AUTHOR_DESC"
+    const val SORT_DATE_DESC = "DATE_DESC"
+    const val SORT_DATE_ASC = "DATE_ASC"
+    const val SORT_PROGRESS_DESC = "PROGRESS_DESC"
+    const val SORT_PROGRESS_ASC = "PROGRESS_ASC"
 
     private val _settingsChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val settingsChanged: SharedFlow<Unit> = _settingsChanged.asSharedFlow()
@@ -672,6 +682,15 @@ object SettingsManager {
         if (cachedLanguage == lang) return
         cachedLanguage = lang
         getPrefs(context).edit().putString(KEY_LANGUAGE, lang).apply()
+        notifyChanged()
+    }
+
+    fun getSortOption(context: Context): String {
+        return getPrefs(context).getString(KEY_SORT_OPTION, SORT_DATE_DESC) ?: SORT_DATE_DESC
+    }
+
+    fun setSortOption(context: Context, option: String) {
+        getPrefs(context).edit().putString(KEY_SORT_OPTION, option).apply()
         notifyChanged()
     }
 

@@ -373,20 +373,23 @@ class MainActivity : BaseActivity() {
                 val bookViewModel = androidx.lifecycle.ViewModelProvider(this@MainActivity).get(com.nightread.app.ui.BookViewModel::class.java)
 
                 // 1. Run background incremental scanning if storage permission is granted
-                updateLoadingProgress(10, "Инициализация библиотечной базы...")
-                delay(300) // Small warm up delay
+                updateLoadingProgress(15, "Загрузка библиотеки...")
+                delay(350) // Small warm up delay
+
+                updateLoadingProgress(40, "Проверка синхронизации...")
+                delay(300)
 
                 var isScanningTriggered = false
                 if (hasStoragePermission()) {
                     isScanningTriggered = true
                     android.util.Log.d("MainActivity", "Storage permissions granted, starting background scanner on splash")
-                    updateLoadingProgress(25, "Поиск новых книг в памяти...")
+                    updateLoadingProgress(60, "Сканирование книг...")
                     bookViewModel.startIncrementalBookScan()
                 } else {
                     // Smoothly animate progress bar to make the entrance look fluid and premium
-                    for (p in 25..45 step 2) {
-                        updateLoadingProgress(p, "Подготовка космической полки...")
-                        delay(50)
+                    for (p in 60..85 step 5) {
+                        updateLoadingProgress(p, "Подготовка библиотеки...")
+                        delay(60)
                     }
                 }
 
@@ -396,16 +399,17 @@ class MainActivity : BaseActivity() {
                     while (bookViewModel.scanState.value.isScanning && System.currentTimeMillis() < scanTimeoutLimit) {
                         val state = bookViewModel.scanState.value
                         val scanProgress = if (state.totalFiles > 0) {
-                            (state.processedFiles.toFloat() / state.totalFiles * 25).toInt()
+                            (state.processedFiles.toFloat() / state.totalFiles * 30).toInt()
                         } else {
                             0
                         }
-                        updateLoadingProgress(45 + scanProgress, "Сканирование: ${state.processedFiles}/${state.totalFiles}...")
-                        kotlinx.coroutines.delay(200)
+                        val countText = if (state.totalFiles > 0) " (${state.processedFiles}/${state.totalFiles})" else ""
+                        updateLoadingProgress((60 + scanProgress).coerceAtMost(95), "Сканирование книг$countText...")
+                        kotlinx.coroutines.delay(150)
                     }
                 } else {
-                    for (p in 46..70 step 2) {
-                        updateLoadingProgress(p, "Загрузка книг...")
+                    for (p in 86..95 step 3) {
+                        updateLoadingProgress(p, "Загрузка завершена...")
                         kotlinx.coroutines.delay(40)
                     }
                 }

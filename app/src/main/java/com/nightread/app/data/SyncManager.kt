@@ -56,16 +56,10 @@ class SyncManager(private val context: Context) {
     private var isServerRunning = false
 
     /**
-     * Возвращает папку ReaderFb2 в Documents на внешнем накопителе
+     * Возвращает папку приложения в Documents на внешнем накопителе
      */
     fun getReaderFb2Dir(): java.io.File {
-        val docsPath = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOCUMENTS)?.absolutePath
-            ?: (android.os.Environment.getExternalStorageDirectory().absolutePath + "/Documents")
-        val dir = java.io.File(docsPath, "ReaderFb2")
-        if (!dir.exists()) {
-            dir.mkdirs()
-        }
-        return dir
+        return AppDatabase.getAppDir(context)
     }
 
     /**

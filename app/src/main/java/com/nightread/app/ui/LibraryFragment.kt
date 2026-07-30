@@ -78,6 +78,7 @@ class LibraryFragment : Fragment() {
 
     // View bindings
     private lateinit var btnToggleViewMode: com.google.android.material.button.MaterialButton
+    private lateinit var btnSort: View
     private var isGridView: Boolean = true
     private lateinit var btnSearchToggle: View
     private lateinit var btnAutoScan: View
@@ -237,7 +238,12 @@ class LibraryFragment : Fragment() {
         btnSearchToggle = view.findViewById(R.id.btnSearchToggle)
         btnAutoScan = view.findViewById(R.id.btnAutoScan)
         btnImport = view.findViewById(R.id.btnImport)
+        btnSort = view.findViewById(R.id.btnSort)
         btnMenu = view.findViewById(R.id.btnMenu)
+
+        btnSort.setOnClickListener {
+            showSortDialog()
+        }
         tvTitle = view.findViewById(R.id.tvTitle)
         tvBookCount = view.findViewById(R.id.tvBookCount)
         etSearch = view.findViewById(R.id.etSearch)
@@ -805,7 +811,47 @@ class LibraryFragment : Fragment() {
                         (book.author ?: "").contains(currentSearchQuery, ignoreCase = true)
             }
         }
-        return filtered
+        return viewModel.sortBooks(filtered)
+    }
+
+    private fun showSortDialog() {
+        val options = arrayOf(
+            "По названию (А — Я)",
+            "По названию (Я — А)",
+            "По автору (А — Я)",
+            "По автору (Я — А)",
+            "По дате добавления (новые сверху)",
+            "По дате добавления (старые сверху)",
+            "По прогрессу (от большего)",
+            "По прогрессу (от меньшего)"
+        )
+
+        val sortKeys = arrayOf(
+            com.nightread.app.data.SettingsManager.SORT_TITLE_ASC,
+            com.nightread.app.data.SettingsManager.SORT_TITLE_DESC,
+            com.nightread.app.data.SettingsManager.SORT_AUTHOR_ASC,
+            com.nightread.app.data.SettingsManager.SORT_AUTHOR_DESC,
+            com.nightread.app.data.SettingsManager.SORT_DATE_DESC,
+            com.nightread.app.data.SettingsManager.SORT_DATE_ASC,
+            com.nightread.app.data.SettingsManager.SORT_PROGRESS_DESC,
+            com.nightread.app.data.SettingsManager.SORT_PROGRESS_ASC
+        )
+
+        val ctx = context ?: return
+        val currentSort = com.nightread.app.data.SettingsManager.getSortOption(ctx)
+        val selectedIndex = sortKeys.indexOf(currentSort).let { if (it >= 0) it else 4 }
+
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx, R.style.Theme_NightRead_Dialog)
+            .setTitle("Сортировка книг")
+            .setSingleChoiceItems(options, selectedIndex) { dialog, which ->
+                val selectedKey = sortKeys[which]
+                viewModel.setSortOption(selectedKey)
+                filterAndApplyBooks()
+                CustomToast.show(ctx, "Сортировка: ${options[which]}")
+                dialog.dismiss()
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
     }
 
     private fun filterAndApplyBooks() {
