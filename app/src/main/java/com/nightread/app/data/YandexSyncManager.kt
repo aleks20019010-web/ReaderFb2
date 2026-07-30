@@ -513,6 +513,15 @@ class YandexSyncManager(private val context: Context) {
                         val linkResponse = YandexDiskManager.api.getDownloadLink(authHeader, cleanPath)
                         val body = YandexDiskManager.api.downloadFile(linkResponse.href)
                         val jsonStr = body.string()
+                        
+                        // Сохраняем локальную копию JSON файла в папку ReaderFb2
+                        try {
+                            val localSyncDir = AppDatabase.getReaderFb2Dir(context)
+                            File(localSyncDir, progressItem.name).writeText(jsonStr, Charsets.UTF_8)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Ошибка сохранения файла прогресса в ReaderFb2", e)
+                        }
+
                         val cloudProgress = progressAdapter.fromJson(jsonStr)
                         if (cloudProgress != null) {
                             cloudProgressMap[cloudProgress.sha1] = cloudProgress
@@ -571,6 +580,12 @@ class YandexSyncManager(private val context: Context) {
                             totalChars = totalChars
                         )
                         val json = progressAdapter.toJson(payload)
+                        try {
+                            val localSyncDir = AppDatabase.getReaderFb2Dir(context)
+                            File(localSyncDir, cloudProgressName).writeText(json, Charsets.UTF_8)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Ошибка сохранения загружаемого прогресса в ReaderFb2", e)
+                        }
                         val cleanPath = YandexDiskManager.normalizePath("$syncFolder/Progress/$cloudProgressName")
                         val link = YandexDiskManager.api.getUploadLink(authHeader, cleanPath)
                         YandexDiskManager.api.uploadFile(

@@ -56,6 +56,53 @@ class SyncManager(private val context: Context) {
     private var isServerRunning = false
 
     /**
+     * Возвращает папку ReaderFb2 в Documents на внешнем накопителе
+     */
+    fun getReaderFb2Dir(): java.io.File {
+        val docsPath = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOCUMENTS)?.absolutePath
+            ?: (android.os.Environment.getExternalStorageDirectory().absolutePath + "/Documents")
+        val dir = java.io.File(docsPath, "ReaderFb2")
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+        return dir
+    }
+
+    /**
+     * Сохраняет JSON-файл синхронизации в папку ReaderFb2
+     */
+    fun saveJsonFile(fileName: String, content: String): java.io.File {
+        val file = java.io.File(getReaderFb2Dir(), if (fileName.endsWith(".json")) fileName else "$fileName.json")
+        file.writeText(content, Charsets.UTF_8)
+        return file
+    }
+
+    /**
+     * Читает JSON-файл синхронизации из папки ReaderFb2
+     */
+    fun readJsonFile(fileName: String): String? {
+        val file = java.io.File(getReaderFb2Dir(), if (fileName.endsWith(".json")) fileName else "$fileName.json")
+        return if (file.exists()) file.readText(Charsets.UTF_8) else null
+    }
+
+    /**
+     * Сохраняет локальное состояние БД в файл sync_data.json в папке ReaderFb2
+     */
+    suspend fun saveSyncDataJson(repository: BookRepository): java.io.File {
+        val payload = getLocalPayload(repository)
+        val json = payloadAdapter.indent("  ").toJson(payload)
+        return saveJsonFile("sync_data.json", json)
+    }
+
+    /**
+     * Загружает данные из sync_data.json в локальную БД
+     */
+    suspend fun loadSyncDataJson(repository: BookRepository): Boolean {
+        val json = readJsonFile("sync_data.json") ?: return false
+        return importFromJson(repository, json)
+    }
+
+    /**
      * Gets the local Wi-Fi IP address of this device
      */
     fun getLocalIpAddress(): String {
@@ -141,6 +188,12 @@ class SyncManager(private val context: Context) {
                     timestamp = incoming.timestamp
                 ))
             }
+        }
+
+        try {
+            saveSyncDataJson(repository)
+        } catch (e: Exception) {
+            Log.e("SyncManager", "Failed to auto-save sync_data.json to ReaderFb2", e)
         }
     }
 

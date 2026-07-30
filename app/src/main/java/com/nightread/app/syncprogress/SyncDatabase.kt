@@ -24,10 +24,11 @@ abstract class SyncDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context): SyncDatabase {
             return INSTANCE ?: synchronized(this) {
+                val dbFile = java.io.File(com.nightread.app.data.AppDatabase.getReaderFb2Dir(context), "sync_progress.db")
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     SyncDatabase::class.java,
-                    "sync_progress.db"
+                    dbFile.absolutePath
                 )
                 .fallbackToDestructiveMigration()
                 .build()
