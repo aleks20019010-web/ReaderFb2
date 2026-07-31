@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 
 
-class BookReaderActivity : AppCompatActivity() {
+class BookReaderActivity : BaseActivity() {
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(SettingsManager.applyLocale(newBase))
