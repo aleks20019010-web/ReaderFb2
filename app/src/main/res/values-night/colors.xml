@@ -1,16 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Purple Fog theme palette (Night) -->
+    <!-- Dark Cosmic Theme Palette (Night Mode) -->
     <color name="bg_main">#1A0D2A</color>
     <color name="bg_card">#33000000</color>
     <color name="bg_gradient_start">#1A0D2A</color>
     <color name="bg_gradient_end">#2A1A3E</color>
-    
+
     <color name="text_primary">#E8D8F0</color>
     <color name="text_secondary">#B8A0C8</color>
+    <color name="text_sync_primary">#E8D8F0</color>
+    <color name="text_sync_secondary">#B8A0C8</color>
+    <color name="sync_header">#D4B3E2</color>
     <color name="text_title">#E8D8F0</color>
     <color name="text_author">#B8A0C8</color>
-    
+
     <!-- Reading Themes Colors -->
     <color name="reading_day_bg">#FFFFFF</color>
     <color name="reading_day_text">#121212</color>
@@ -20,14 +23,20 @@
     <color name="reading_sepia_text">#2C2C2C</color>
     <color name="reading_sepia_contrast_bg">#F5E6C8</color>
     <color name="reading_sepia_contrast_text">#1A1A1A</color>
-    
+
+    <!-- Accent: Cosmic Purple -->
     <color name="accent">#9B59B6</color>
     <color name="accent_hover">#7D3C98</color>
-    
+
     <color name="shadow">#2A1A3E</color>
     <color name="divider">#3A2A4E</color>
-    <color name="bg_panel">#1A000000</color>
-    
+
+    <!-- Glass Panel Colors (30% and 60% dark violet transparency) -->
+    <color name="bg_panel">#4D1A0D2A</color>
+    <color name="glass_bg_30">#4D1A0D2A</color>
+    <color name="glass_bg_60">#991A0D2A</color>
+    <color name="glass_stroke">#33FFFFFF</color>
+
     <color name="btn_bg">#9B59B6</color>
     <color name="btn_text">#FFFFFF</color>
     <color name="icon_tint">#E8D8F0</color>

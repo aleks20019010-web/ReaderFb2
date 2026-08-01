@@ -8,11 +8,10 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
-        android:src="@drawable/space_milky_way" />
+        android:background="@drawable/light_bg" />
 
     <com.nightread.app.ui.StarryNightView
         android:id="@+id/starryOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
-
 </FrameLayout>

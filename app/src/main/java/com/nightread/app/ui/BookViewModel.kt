@@ -124,6 +124,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     var isScanning by mutableStateOf(false)
     var scanProgressText by mutableStateOf("")
 
+    fun isScanningActive(): Boolean {
+        return scanState.value.isScanning || isScanning
+    }
+
     private val prefs = application.getSharedPreferences("app_settings", android.content.Context.MODE_PRIVATE)
 
     private var _readerFontSize = mutableStateOf(prefs.getFloat("reader_font_size", 18f))

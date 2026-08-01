@@ -139,6 +139,16 @@ class BookAdapter(
     private var isGridView: Boolean = true
     private var lastAnimatedPosition: Int = -1
 
+    // Buffer for batching updates during scanning to prevent cover flickering
+    private val bookBuffer = mutableListOf<BookEntity>()
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var lastFlushTime: Long = 0L
+    private var isScanMode: Boolean = false
+
+    private val flushRunnable = Runnable {
+        flushBuffer()
+    }
+
     override fun getItemViewType(position: Int): Int {
         return if (isGridView) VIEW_TYPE_GRID else VIEW_TYPE_LIST
     }
@@ -212,23 +222,100 @@ class BookAdapter(
 
     fun addBooks(addedBooks: List<BookEntity>, newFilteredList: List<BookEntity>) {
         addedBooks.forEach { newlyAddedSha1s.add(it.sha1) }
-        updateData(newFilteredList)
+        updateData(newFilteredList, isScanning = true)
     }
 
-    fun updateData(newBooks: List<BookEntity>) {
+    /**
+     * Updates adapter data. If [isScanning] is true, incoming updates are held in [bookBuffer]
+     * and flushed every 500ms or when 50 items accumulate.
+     */
+    fun updateData(newBooks: List<BookEntity>, isScanning: Boolean = false) {
+        if (!isScanning) {
+            handler.removeCallbacks(flushRunnable)
+            isScanMode = false
+            bookBuffer.clear()
+            bookBuffer.addAll(newBooks)
+            flushBufferImmediately(newBooks)
+            return
+        }
+
+        isScanMode = true
+        bookBuffer.clear()
+        bookBuffer.addAll(newBooks)
+
+        val pendingDiffSize = Math.abs(bookBuffer.size - books.size)
+        val currentTime = System.currentTimeMillis()
+        val timeSinceLastFlush = currentTime - lastFlushTime
+
+        if (pendingDiffSize >= 50 || timeSinceLastFlush >= 500L) {
+            handler.removeCallbacks(flushRunnable)
+            flushBuffer()
+        } else {
+            handler.removeCallbacks(flushRunnable)
+            val delay = (500L - timeSinceLastFlush).coerceAtLeast(0L)
+            handler.postDelayed(flushRunnable, delay)
+        }
+    }
+
+    /**
+     * Add a single book to buffer directly during scanning.
+     */
+    fun addBookToBuffer(book: BookEntity) {
+        if (!bookBuffer.contains(book)) {
+            bookBuffer.add(book)
+        }
+        checkFlushCondition()
+    }
+
+    /**
+     * Add a list of books to buffer directly during scanning.
+     */
+    fun addBooksToBuffer(newBooks: List<BookEntity>) {
+        newBooks.forEach { book ->
+            if (!bookBuffer.contains(book)) {
+                bookBuffer.add(book)
+            }
+        }
+        checkFlushCondition()
+    }
+
+    private fun checkFlushCondition() {
+        val pendingDiffSize = Math.abs(bookBuffer.size - books.size)
+        val currentTime = System.currentTimeMillis()
+        val timeSinceLastFlush = currentTime - lastFlushTime
+
+        if (pendingDiffSize >= 50 || timeSinceLastFlush >= 500L) {
+            handler.removeCallbacks(flushRunnable)
+            flushBuffer()
+        } else {
+            handler.removeCallbacks(flushRunnable)
+            val delay = (500L - timeSinceLastFlush).coerceAtLeast(0L)
+            handler.postDelayed(flushRunnable, delay)
+        }
+    }
+
+    /**
+     * Immediately flushes remaining buffered books to the main list and dispatches updates via DiffUtil.
+     */
+    fun flushBuffer() {
+        handler.removeCallbacks(flushRunnable)
+        val targetList = bookBuffer.toList()
+        if (books == targetList) return
+        flushBufferImmediately(targetList)
+    }
+
+    private fun flushBufferImmediately(newBooksList: List<BookEntity>) {
         val diffCallback = object : DiffUtil.Callback() {
             override fun getOldListSize() = books.size
-            override fun getNewListSize() = newBooks.size
+            override fun getNewListSize() = newBooksList.size
             
             override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                return books[oldItemPosition].sha1 == newBooks[newItemPosition].sha1
-
-
+                return books[oldItemPosition].sha1 == newBooksList[newItemPosition].sha1
             }
             
             override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
                 val old = books[oldItemPosition]
-                val new = newBooks[newItemPosition]
+                val new = newBooksList[newItemPosition]
                 return old.title == new.title &&
                        old.currentProgressChar == new.currentProgressChar &&
                        old.currentPageIndex == new.currentPageIndex &&
@@ -238,8 +325,9 @@ class BookAdapter(
         }
         
         val diffResult = DiffUtil.calculateDiff(diffCallback)
-        this.books = newBooks
+        this.books = newBooksList
         diffResult.dispatchUpdatesTo(this)
+        lastFlushTime = System.currentTimeMillis()
     }
 
     fun getBookAt(position: Int): BookEntity {

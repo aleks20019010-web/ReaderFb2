@@ -61,6 +61,7 @@ class MainActivity : BaseActivity() {
             }
         }
         super.onCreate(savedInstanceState)
+        com.nightread.app.data.ThemeHelper.applyTheme(this)
         setContentView(R.layout.activity_main)
 
         com.nightread.app.ui.customlayout.PageSplitter.init(this)

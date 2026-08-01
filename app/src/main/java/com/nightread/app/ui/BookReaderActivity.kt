@@ -690,6 +690,7 @@ class BookReaderActivity : BaseActivity() {
         readerView.setOnTouchListener(gestureTouchListener)
         touchInterceptor.setOnTouchListener(gestureTouchListener)
         webView.setOnTouchListener(gestureTouchListener)
+        ivBookCoverPage.setOnTouchListener(gestureTouchListener)
 
         lifecycleScope.launch {
             com.nightread.app.data.SettingsManager.settingsChanged.collectLatest {
@@ -775,28 +776,30 @@ class BookReaderActivity : BaseActivity() {
         val topToolbar = findViewById<View>(R.id.topToolbar)
         val bottomToolbar = findViewById<View>(R.id.bottomToolbar)
         
-        // Define Purple Fog (App's Style) Colors for the Toolbars
-        val barBgColor = Color.parseColor("#2A1A3E")      // BgPanelDark / BgCardDark
-        val barTextColor = Color.parseColor("#E8D8F0")    // TextPrimaryDark / IconTintDark
-        val accentColor = Color.parseColor("#9B59B6")     // AccentDark
-        val progressBgColor = Color.parseColor("#3A2A4E")  // DividerDark
+        topToolbar.background = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_glass_panel_60)
+        bottomToolbar.background = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_glass_panel_60)
         
-        topToolbar.setBackgroundColor(barBgColor)
-        bottomToolbar.setBackgroundColor(barBgColor)
+        val barTextColor = androidx.core.content.ContextCompat.getColor(this, R.color.text_primary)
+        val iconTint = androidx.core.content.ContextCompat.getColor(this, R.color.icon_tint)
+        val accentColor = androidx.core.content.ContextCompat.getColor(this, R.color.accent)
+        val progressBgColor = androidx.core.content.ContextCompat.getColor(this, R.color.divider)
         
         findViewById<TextView>(R.id.tvBookTitle)?.setTextColor(barTextColor)
         pageIndicatorView.setTextColor(barTextColor)
         
-        val buttonTint = ColorStateList.valueOf(barTextColor)
-        findViewById<ImageButton>(R.id.btnBack).imageTintList = buttonTint
-        findViewById<ImageButton>(R.id.btnSettings).imageTintList = buttonTint
+        val buttonTint = ColorStateList.valueOf(iconTint)
+        findViewById<ImageButton>(R.id.btnBack)?.imageTintList = buttonTint
+        findViewById<ImageButton>(R.id.btnSettings)?.imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnSearch)?.imageTintList = buttonTint
-        findViewById<ImageButton>(R.id.btnBookmark).imageTintList = buttonTint
-        findViewById<ImageButton>(R.id.btnChapters).imageTintList = buttonTint
-        findViewById<ImageButton>(R.id.btnNotes).imageTintList = buttonTint
+        findViewById<ImageButton>(R.id.btnBookmark)?.imageTintList = buttonTint
+        findViewById<ImageButton>(R.id.btnChapters)?.imageTintList = buttonTint
+        findViewById<ImageButton>(R.id.btnNotes)?.imageTintList = buttonTint
+        findViewById<ImageButton>(R.id.btnBottomBookmark)?.imageTintList = buttonTint
         
         val seekBar = findViewById<SeekBar>(R.id.seekBar)
         seekBar.progressTintList = ColorStateList.valueOf(accentColor)
+        seekBar.thumbTintList = ColorStateList.valueOf(accentColor)
+        seekBar.progressBackgroundTintList = ColorStateList.valueOf(progressBgColor)
         seekBar.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBar.progressBackgroundTintList = ColorStateList.valueOf(progressBgColor)
 
@@ -1996,7 +1999,9 @@ class BookReaderActivity : BaseActivity() {
                 if (action == KeyEvent.ACTION_DOWN) {
                     val currentPage = viewModel.currentPage.value
                     val totalPages = viewModel.pagesState.value.size
-                    if (currentPage < totalPages - 1) {
+                    if (currentPage == 0) {
+                        viewModel.setCurrentPage(1)
+                    } else if (currentPage < totalPages - 1) {
                         viewModel.setCurrentPage(currentPage + 1)
                     }
                 }
@@ -2005,7 +2010,9 @@ class BookReaderActivity : BaseActivity() {
             KeyEvent.KEYCODE_VOLUME_UP -> {
                 if (action == KeyEvent.ACTION_DOWN) {
                     val currentPage = viewModel.currentPage.value
-                    if (currentPage > 0) {
+                    if (currentPage == 0) {
+                        viewModel.setCurrentPage(1)
+                    } else if (currentPage > 0) {
                         viewModel.setCurrentPage(currentPage - 1)
                     }
                 }
@@ -2539,6 +2546,19 @@ class BookReaderActivity : BaseActivity() {
                 .trim()
         }
         return ""
+    }
+
+    /**
+     * Переключает тему приложения между светлой и тёмной через AppCompatDelegate.setDefaultNightMode().
+     */
+    fun toggleTheme() {
+        val currentNightMode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        val targetMode = if (currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES) {
+            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+        } else {
+            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
+        }
+        androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(targetMode)
     }
 
 }

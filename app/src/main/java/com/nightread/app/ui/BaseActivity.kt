@@ -35,6 +35,9 @@ abstract class BaseActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         resetScreenKeepAwakeTimer()
+        findViewById<android.view.View>(android.R.id.content)?.let {
+            GalaxyBgHelper.applyBackground(it)
+        }
         val lang = SettingsManager.getLanguage(this)
         if (lang != currentLanguage) {
             currentLanguage = lang

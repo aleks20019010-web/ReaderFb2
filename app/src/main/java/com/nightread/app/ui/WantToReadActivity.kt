@@ -46,7 +46,7 @@ class WantToReadActivity : BaseActivity() {
         }
 
         val glassHeader = findViewById<android.view.View>(R.id.glassHeader)
-        glassHeader.findViewById<android.widget.TextView>(R.id.header_title).text = "Хочу прочитать"
+        glassHeader.findViewById<android.widget.TextView>(R.id.header_title).text = getString(R.string.drawer_want_to_read)
         val btnLeft = glassHeader.findViewById<android.widget.ImageButton>(R.id.header_btn_left)
         btnLeft.setImageResource(android.R.drawable.ic_menu_sort_by_size)
         btnLeft.setOnClickListener {

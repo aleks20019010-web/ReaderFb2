@@ -5,7 +5,8 @@
     android:id="@+id/settingsCardRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:cardBackgroundColor="#F5F0F8"
+    android:background="@drawable/bg_glass_panel_60"
+    app:cardBackgroundColor="@color/glass_bg_60"
     app:cardCornerRadius="16dp"
     app:cardElevation="0dp"
     app:cardPreventCornerOverlap="true"
@@ -37,7 +38,7 @@
                     android:layout_height="wrap_content"
                     android:layout_alignParentStart="true"
                     android:layout_centerVertical="true"
-                    android:text="Настройки"
+                    android:text="@string/drawer_settings"
                     android:textColor="#E8D8F0"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -129,7 +130,7 @@
                     style="@style/SettingsLabelStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Цветовая схема" />
+                    android:text="@string/bs_color_scheme" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -224,7 +225,7 @@
                     style="@style/SettingsLabelStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Шрифт" />
+                    android:text="@string/bs_font" />
 
                 <!-- Quick Font Selection Row -->
                 <LinearLayout
@@ -301,7 +302,7 @@
                     style="@style/SettingsLabelStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Тема" />
+                    android:text="@string/bs_theme" />
 
                 <Spinner
                     android:id="@+id/spinnerTheme"
@@ -323,7 +324,7 @@
                     style="@style/SettingsLabelStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Анимация листания" />
+                    android:text="@string/bs_page_animation" />
 
                 <Spinner
                     android:id="@+id/spinnerAnimation"
@@ -346,7 +347,7 @@
                     style="@style/SettingsLabelStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Выравнивание текста" />
+                    android:text="@string/bs_text_alignment" />
 
                 <Spinner
                     android:id="@+id/spinnerAlignment"
@@ -383,7 +384,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_alignParentStart="true"
-                        android:text="Размер шрифта" />
+                        android:text="@string/bs_font_size" />
 
                     <TextView
                         android:id="@+id/tvFontSizeValue"
@@ -419,7 +420,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_alignParentStart="true"
-                        android:text="Жирность" />
+                        android:text="@string/bs_font_weight" />
 
                     <TextView
                         android:id="@+id/tvFontWeightValue"
@@ -455,7 +456,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_alignParentStart="true"
-                        android:text="Межстрочный интервал" />
+                        android:text="@string/bs_line_spacing" />
 
                     <TextView
                         android:id="@+id/tvLineSpacingValue"
@@ -489,7 +490,7 @@
                         android:id="@+id/tvAutoDiscoveryTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Авто-обнаружение"
+                        android:text="@string/bs_auto_detect"
                         android:textColor="#E8D8F0"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -498,7 +499,7 @@
                         android:id="@+id/tvAutoDiscoveryDesc"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Поиск книг в фоне"
+                        android:text="@string/bs_background_search"
                         android:textColor="#B8A0C8"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -905,7 +906,7 @@
                         android:id="@+id/tvHapticFeedbackTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Тактильный отклик (Haptic)"
+                        android:text="@string/bs_haptic_feedback"
                         android:textColor="#E8D8F0"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -914,7 +915,7 @@
                         android:id="@+id/tvHapticFeedbackDesc"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Приятные микровибрации при листании и действиях"
+                        android:text="@string/bs_haptic_feedback_desc"
                         android:textColor="#B8A0C8"
                         android:textSize="12sp" />
                 </LinearLayout>

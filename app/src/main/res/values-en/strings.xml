@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NightRead</string>
     <string name="unknown_author">Unknown</string>
@@ -33,7 +34,7 @@
     <string name="stats_next_rank">To next rank: %1$d XP</string>
     <string name="stats_total_books">Total Books</string>
     <string name="stats_completed_books">Completed</string>
-    <string name="stats_in_progress_books">In progress</string>
+    <string name="stats_in_progress_books">In Progress</string>
     <string name="stats_favorites_books">Favorites</string>
     <string name="stats_want_to_read">Want to Read</string>
     <string name="stats_bookmarks">Bookmarks</string>
@@ -49,10 +50,10 @@
     <string name="drawer_read">Completed</string>
     <string name="drawer_bookmarks">Bookmarks</string>
     <string name="drawer_favorites">Favorites</string>
-    <string name="drawer_new_books">New Books</string>
+    <string name="drawer_new_books">New Arrivals</string>
     <string name="drawer_want_to_read">Want to Read</string>
     <string name="drawer_stats_achievements">Stats &amp; Achievements</string>
-    <string name="drawer_sync">Sync</string>
+    <string name="drawer_sync">Synchronization</string>
     <string name="drawer_settings">Settings</string>
 
     <!-- Language Settings -->
@@ -64,6 +65,9 @@
     <string name="language_german">Deutsch</string>
 
     <!-- Settings Screen -->
+    <string name="settings_section_appearance">APPEARANCE &amp; THEME</string>
+    <string name="settings_auto_theme">Auto Theme Switch</string>
+    <string name="settings_auto_theme_desc">Automatically toggle night theme (from 20:00 to 06:00)</string>
     <string name="settings_section_sync">SYNCHRONIZATION</string>
     <string name="settings_auto_sync">Auto-Sync</string>
     <string name="settings_auto_sync_desc">Sync books in the background</string>
@@ -72,6 +76,10 @@
     <string name="settings_sync_time">Start Time</string>
     <string name="settings_sync_time_desc">Preferred start time (at night)</string>
     <string name="settings_section_library">LIBRARY SETTINGS</string>
+    <string name="settings_select_background">Select Background from Gallery</string>
+    <string name="settings_pick_bg_dialog_title">Select Background</string>
+    <string name="settings_pick_bg_dialog_msg">Choose an image from gallery. Recommended resolution: 1080×1920 pixels (portrait, 9:16). JPG, PNG, or WebP formats supported.</string>
+    <string name="settings_pick_bg_dialog_positive">Choose</string>
     <string name="settings_scan_library">Scan Library</string>
     <string name="settings_manual_import">Manual Import</string>
     <string name="settings_delete_duplicates">Find &amp; Delete Duplicate Books</string>
@@ -86,6 +94,37 @@
     <string name="settings_toast_cache_reset">Scan cache successfully reset</string>
     <string name="settings_toast_library_cleared">Library completely cleared</string>
     <string name="settings_app_version">Version: %1$s</string>
+
+    <!-- Sync Screen -->
+    <string name="sync_yandex_disk">Yandex Disk</string>
+    <string name="sync_status_label">Status:</string>
+    <string name="sync_status_connected">Connected</string>
+    <string name="sync_status_not_authorized">Not authorized</string>
+    <string name="sync_user_prefix">User: %1$s</string>
+    <string name="sync_user_default">User: -</string>
+    <string name="sync_storage_format">Used: %1$s of %2$s</string>
+    <string name="sync_storage_default">Used: 0 B of 0 B</string>
+    <string name="sync_btn_connect">Sign in with Yandex</string>
+    <string name="sync_btn_disconnect">Log out of account</string>
+    <string name="sync_params_title">Synchronization Options</string>
+    <string name="sync_params_desc">Synchronization uploads your books and updates reading progress between all your devices using Yandex Disk.</string>
+    <string name="sync_folder_label">Sync folder:</string>
+    <string name="sync_folder_prefix">Folder: %1$s</string>
+    <string name="sync_local_folder_label">Local download folder:</string>
+    <string name="sync_local_folder_default">Default (/Books)</string>
+    <string name="sync_btn_select">Select</string>
+    <string name="sync_btn_sync_now">Synchronize Now</string>
+    <string name="sync_status_syncing">Synchronizing...</string>
+    <string name="sync_last_time_format">Last synced: %1$s</string>
+    <string name="sync_last_time_never">Last synced: never</string>
+
+    <!-- Screen Titles -->
+    <string name="title_new_books">New Arrivals</string>
+
+    <!-- Bottom Sheet Reader Settings -->
+    <string name="bs_line_spacing_label">Line Spacing</string>
+    <string name="bs_auto_detect">Auto-detect</string>
+    <string name="bs_background_search">Search books in background</string>
 
     <!-- Main Splash -->
     <string name="app_subtitle">ATMOSPHERE OF MIDNIGHT</string>

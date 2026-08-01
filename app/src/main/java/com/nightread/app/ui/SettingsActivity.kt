@@ -12,7 +12,12 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.nightread.app.R
+import com.nightread.app.data.FileStorageHelper
 import com.nightread.app.data.SettingsManager
 import com.nightread.app.data.ThemeManager
 
@@ -32,10 +37,29 @@ class SettingsActivity : BaseActivity() {
         }
     }
 
+    private val pickBackgroundLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { selectedUri ->
+            lifecycleScope.launch(Dispatchers.IO) {
+                val success = FileStorageHelper.saveUserBackground(this@SettingsActivity, selectedUri)
+                withContext(Dispatchers.Main) {
+                    if (success) {
+                        CustomToast.show(this@SettingsActivity, "Фон успешно обновлен")
+                        GalaxyBgHelper.applyBackground(findViewById(R.id.rootSettings))
+                    } else {
+                        CustomToast.show(this@SettingsActivity, "Ошибка сохранения фона")
+                    }
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.settings_fragment)
 
+        GalaxyBgHelper.applyBackground(findViewById(R.id.rootSettings))
         findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
 
         // Support Edge-to-Edge immersion and safe areas
@@ -64,6 +88,16 @@ class SettingsActivity : BaseActivity() {
             }
             startActivity(intent)
             finish()
+        }
+
+        // --- ОФОРМЛЕНИЕ И ТЕМА ---
+        val switchAutoTheme = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchAutoTheme)
+        if (switchAutoTheme != null) {
+            switchAutoTheme.isChecked = SettingsManager.isAutoLightNightEnabled(this)
+            switchAutoTheme.setOnCheckedChangeListener { _, isChecked ->
+                SettingsManager.setAutoLightNightEnabled(this, isChecked)
+                com.nightread.app.data.ThemeHelper.applyTheme(this)
+            }
         }
 
         // --- ЯЗЫК ИНТЕРФЕЙСА ---
@@ -99,6 +133,10 @@ class SettingsActivity : BaseActivity() {
 
         // --- НАСТРОЙКИ БИБЛИОТЕКИ ---
         // Buttons
+        findViewById<View>(R.id.btnSelectBackground)?.setOnClickListener {
+            showPickBackgroundDialog()
+        }
+
         findViewById<Button>(R.id.btnScanLibrary).setOnClickListener {
             viewModel.startLocalBookScan()
             CustomToast.show(this, getString(R.string.settings_toast_scan_started))
@@ -195,5 +233,14 @@ class SettingsActivity : BaseActivity() {
         findViewById<TextView>(R.id.tvAppVersion).text = getString(R.string.settings_app_version, com.nightread.app.BuildConfig.VERSION_NAME)
     }
 
-
+    private fun showPickBackgroundDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.settings_pick_bg_dialog_title)
+            .setMessage(R.string.settings_pick_bg_dialog_msg)
+            .setPositiveButton(R.string.settings_pick_bg_dialog_positive) { _, _ ->
+                pickBackgroundLauncher.launch("image/*")
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
 }

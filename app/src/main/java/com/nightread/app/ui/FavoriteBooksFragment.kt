@@ -36,7 +36,7 @@ class FavoriteBooksFragment : Fragment() {
         view.findViewById<StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
 
         val glassHeader = view.findViewById<View>(R.id.glassHeader)
-        glassHeader.findViewById<TextView>(R.id.header_title).text = "Избранное"
+        glassHeader.findViewById<TextView>(R.id.header_title).text = getString(R.string.drawer_favorites)
         val btnLeft = glassHeader.findViewById<ImageButton>(R.id.header_btn_left)
         btnLeft.setImageResource(android.R.drawable.ic_menu_sort_by_size)
         btnLeft.setOnClickListener {

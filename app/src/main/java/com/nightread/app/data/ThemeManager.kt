@@ -4,8 +4,8 @@ import android.content.Context
 
 object ThemeManager {
 
-    fun shouldBeNightMode(): Boolean {
-        return ThemeHelper.shouldBeNightMode()
+    fun shouldBeNightMode(context: Context): Boolean {
+        return ThemeHelper.shouldBeNightMode(context)
     }
 
     fun applyTheme(context: Context) {

@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NightRead</string>
     <string name="unknown_author">Unbekannt</string>
@@ -64,6 +65,9 @@
     <string name="language_german">Deutsch</string>
 
     <!-- Settings Screen -->
+    <string name="settings_section_appearance">ERSCHEINUNGSBILD &amp; DESIGN</string>
+    <string name="settings_auto_theme">Automatisch Wechseln</string>
+    <string name="settings_auto_theme_desc">Nachtdesign automatisch umschalten (von 20:00 bis 06:00 Uhr)</string>
     <string name="settings_section_sync">SYNCHRONISATION</string>
     <string name="settings_auto_sync">Auto-Sync</string>
     <string name="settings_auto_sync_desc">Bücher im Hintergrund synchronisieren</string>
@@ -72,6 +76,10 @@
     <string name="settings_sync_time">Startzeit</string>
     <string name="settings_sync_time_desc">Bevorzugte Startzeit (nachts)</string>
     <string name="settings_section_library">BIBLIOTHEK-EINSTELLUNGEN</string>
+    <string name="settings_select_background">Hintergrund aus Galerie wählen</string>
+    <string name="settings_pick_bg_dialog_title">Hintergrund auswählen</string>
+    <string name="settings_pick_bg_dialog_msg">Wählen Sie ein Bild aus der Galerie. Empfohlene Auflösung: 1080×1920 Pixel (Hochformat, 9:16). JPG, PNG oder WebP werden unterstützt.</string>
+    <string name="settings_pick_bg_dialog_positive">Auswählen</string>
     <string name="settings_scan_library">Bibliothek scannen</string>
     <string name="settings_manual_import">Manueller Import</string>
     <string name="settings_delete_duplicates">Bücher-Duplikate finden &amp; löschen</string>
@@ -86,6 +94,37 @@
     <string name="settings_toast_cache_reset">Scan-Cache erfolgreich zurückgesetzt</string>
     <string name="settings_toast_library_cleared">Bibliothek vollständig geleert</string>
     <string name="settings_app_version">Version: %1$s</string>
+
+    <!-- Sync Screen -->
+    <string name="sync_yandex_disk">Yandex Disk</string>
+    <string name="sync_status_label">Status:</string>
+    <string name="sync_status_connected">Verbunden</string>
+    <string name="sync_status_not_authorized">Nicht autorisiert</string>
+    <string name="sync_user_prefix">Benutzer: %1$s</string>
+    <string name="sync_user_default">Benutzer: -</string>
+    <string name="sync_storage_format">Belegt: %1$s von %2$s</string>
+    <string name="sync_storage_default">Belegt: 0 B von 0 B</string>
+    <string name="sync_btn_connect">Mit Yandex anmelden</string>
+    <string name="sync_btn_disconnect">Konto abmelden</string>
+    <string name="sync_params_title">Synchronisations-Optionen</string>
+    <string name="sync_params_desc">Die Synchronisation lädt Ihre Bücher hoch und aktualisiert den Lesefortschritt zwischen allen Ihren Geräten über Yandex Disk.</string>
+    <string name="sync_folder_label">Sync-Ordner:</string>
+    <string name="sync_folder_prefix">Ordner: %1$s</string>
+    <string name="sync_local_folder_label">Lokaler Download-Ordner:</string>
+    <string name="sync_local_folder_default">Standard (/Books)</string>
+    <string name="sync_btn_select">Auswählen</string>
+    <string name="sync_btn_sync_now">Jetzt synchronisieren</string>
+    <string name="sync_status_syncing">Synchronisierung...</string>
+    <string name="sync_last_time_format">Zuletzt synchronisiert: %1$s</string>
+    <string name="sync_last_time_never">Zuletzt synchronisiert: nie</string>
+
+    <!-- Screen Titles -->
+    <string name="title_new_books">Neue Eingänge</string>
+
+    <!-- Bottom Sheet Reader Settings -->
+    <string name="bs_line_spacing_label">Zeilenabstand</string>
+    <string name="bs_auto_detect">Automatisch erkennen</string>
+    <string name="bs_background_search">Büchersuche im Hintergrund</string>
 
     <!-- Main Splash -->
     <string name="app_subtitle">ATMOSPHÄRE DER MITTERNACHT</string>

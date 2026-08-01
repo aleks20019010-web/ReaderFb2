@@ -35,7 +35,7 @@ class NewBooksFragment : Fragment() {
         view.findViewById<StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
 
         val glassHeader = view.findViewById<View>(R.id.glassHeader)
-        glassHeader.findViewById<TextView>(R.id.header_title).text = "Новые поступления"
+        glassHeader.findViewById<TextView>(R.id.header_title).text = getString(R.string.title_new_books)
         val btnLeft = glassHeader.findViewById<ImageButton>(R.id.header_btn_left)
         btnLeft.setImageResource(android.R.drawable.ic_menu_sort_by_size)
         btnLeft.setOnClickListener {

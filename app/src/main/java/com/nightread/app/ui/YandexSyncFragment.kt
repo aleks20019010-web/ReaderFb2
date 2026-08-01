@@ -140,7 +140,7 @@ class YandexSyncFragment : Fragment() {
 
         // Инициализация view элементов
         btnMenu = view.findViewById(R.id.header_btn_left) ?: view.findViewById(R.id.btnMenu)
-        view.findViewById<TextView>(R.id.header_title)?.text = "Синхронизация"
+        view.findViewById<TextView>(R.id.header_title)?.text = getString(R.string.drawer_sync)
         statusValue = view.findViewById(R.id.statusValue)
         layoutStorage = view.findViewById(R.id.layoutStorage)
         txtUsername = view.findViewById(R.id.txtUsername)
@@ -270,7 +270,7 @@ class YandexSyncFragment : Fragment() {
         val authorized = YandexDiskManager.isAuthorized(ctx)
 
         if (authorized) {
-            statusValue.text = "Подключено"
+            statusValue.text = getString(R.string.sync_status_connected)
             statusValue.setTextColor(resources.getColor(R.color.accent, null))
             btnConnect.visibility = View.GONE
             btnDisconnect.visibility = View.VISIBLE
@@ -278,18 +278,19 @@ class YandexSyncFragment : Fragment() {
             cardSync.visibility = View.VISIBLE
 
             val currentFolder = YandexDiskManager.getSyncFolder(ctx)
-            txtSyncFolder.text = "Папка: $currentFolder"
+            txtSyncFolder.text = getString(R.string.sync_folder_prefix, currentFolder)
 
             // Загрузка информации о диске
             lifecycleScope.launch {
                 try {
                     val info = YandexDiskManager.getDiskInfo(ctx)
                     if (!isAdded) return@launch
-                    txtUsername.text = "Пользователь: ${info.user?.displayName ?: info.user?.login ?: "Неизвестен"}"
+                    val userName = info.user?.displayName ?: info.user?.login ?: getString(R.string.unknown_title)
+                    txtUsername.text = getString(R.string.sync_user_prefix, userName)
                     
                     val usedStr = Formatter.formatFileSize(ctx, info.usedSpace)
                     val totalStr = Formatter.formatFileSize(ctx, info.totalSpace)
-                    txtStorage.text = "Занято: $usedStr из $totalStr"
+                    txtStorage.text = getString(R.string.sync_storage_format, usedStr, totalStr)
 
                     val percent = if (info.totalSpace > 0) {
                         ((info.usedSpace.toDouble() / info.totalSpace) * 100).toInt()
@@ -305,7 +306,7 @@ class YandexSyncFragment : Fragment() {
             // Обновление метки последней синхронизации
             refreshLastSyncTime()
         } else {
-            statusValue.text = "Не авторизован"
+            statusValue.text = getString(R.string.sync_status_not_authorized)
             statusValue.setTextColor(resources.getColor(R.color.text_secondary, null))
             btnConnect.visibility = View.VISIBLE
             btnDisconnect.visibility = View.GONE
@@ -322,9 +323,9 @@ class YandexSyncFragment : Fragment() {
         val lastSync = YandexDiskManager.getLastSyncTimestamp(ctx)
         if (lastSync > 0L) {
             val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.getDefault())
-            txtLastSync.text = "Последняя синхронизация: ${sdf.format(Date(lastSync))}"
+            txtLastSync.text = getString(R.string.sync_last_time_format, sdf.format(Date(lastSync)))
         } else {
-            txtLastSync.text = "Последняя синхронизация: никогда"
+            txtLastSync.text = getString(R.string.sync_last_time_never)
         }
     }
 

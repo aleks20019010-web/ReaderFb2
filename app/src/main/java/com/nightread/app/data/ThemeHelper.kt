@@ -6,25 +6,29 @@ import java.util.Calendar
 
 object ThemeHelper {
 
+    fun isNightTime(): Boolean {
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        return hour >= 20 || hour < 6
+    }
+
     fun shouldBeNightMode(context: Context): Boolean {
         if (!SettingsManager.isAutoLightNightEnabled(context)) {
             val currentNightMode = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
             return currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
         }
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        return hour < 6 || hour >= 21
-    }
-
-    fun shouldBeNightMode(): Boolean {
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        return hour < 6 || hour >= 21
+        return isNightTime()
     }
 
     fun applyTheme(context: Context) {
-        val targetMode = AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-        
-        if (AppCompatDelegate.getDefaultNightMode() != targetMode) {
-            AppCompatDelegate.setDefaultNightMode(targetMode)
+        if (SettingsManager.isAutoLightNightEnabled(context)) {
+            val targetMode = if (isNightTime()) {
+                AppCompatDelegate.MODE_NIGHT_YES
+            } else {
+                AppCompatDelegate.MODE_NIGHT_NO
+            }
+            if (AppCompatDelegate.getDefaultNightMode() != targetMode) {
+                AppCompatDelegate.setDefaultNightMode(targetMode)
+            }
         }
     }
 }

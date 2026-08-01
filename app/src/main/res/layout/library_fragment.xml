@@ -41,8 +41,8 @@
         app:cardCornerRadius="16dp"
         app:strokeColor="#33FFFFFF"
         app:strokeWidth="1dp"
-        app:cardBackgroundColor="@color/bg_panel"
-        android:background="@drawable/bg_glass_panel">
+        app:cardBackgroundColor="@color/glass_bg_30"
+        android:background="@drawable/bg_glass_panel_30">
 
         <RelativeLayout
             android:id="@+id/layoutNormalHeader"
@@ -151,12 +151,12 @@
                     app:iconSize="20dp" />
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnAutoScan"
+                    android:id="@+id/btnToggleTheme"
                     style="@style/HeaderIconButtonStyle"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:contentDescription="Автосканирование"
-                    app:icon="@drawable/ic_custom_scan"
+                    android:contentDescription="Переключить тему"
+                    app:icon="@drawable/ic_theme"
                     app:iconSize="20dp" />
             </LinearLayout>
 

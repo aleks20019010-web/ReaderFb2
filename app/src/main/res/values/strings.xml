@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NightRead</string>
     <string name="unknown_author">Неизвестен</string>
@@ -64,6 +65,9 @@
     <string name="language_german">Deutsch</string>
 
     <!-- Settings Screen -->
+    <string name="settings_section_appearance">ОФОРМЛЕНИЕ И ТЕМА</string>
+    <string name="settings_auto_theme">Автосмена темы</string>
+    <string name="settings_auto_theme_desc">Автоматическое переключение ночной темы (с 20:00 до 06:00)</string>
     <string name="settings_section_sync">СИНХРОНИЗАЦИЯ</string>
     <string name="settings_auto_sync">Авто-синхронизация</string>
     <string name="settings_auto_sync_desc">Синхронизация книг в фоновом режиме</string>
@@ -72,6 +76,10 @@
     <string name="settings_sync_time">Время запуска</string>
     <string name="settings_sync_time_desc">Предпочтительное время запуска (ночью)</string>
     <string name="settings_section_library">НАСТРОЙКИ БИБЛИОТЕКИ</string>
+    <string name="settings_select_background">Выбрать фон из галереи</string>
+    <string name="settings_pick_bg_dialog_title">Выбор фона</string>
+    <string name="settings_pick_bg_dialog_msg">Выберите картинку из галереи. Рекомендуемое разрешение: 1080×1920 пикселей (вертикальное, 9:16). Подойдут JPG, PNG или WebP.</string>
+    <string name="settings_pick_bg_dialog_positive">Выбрать</string>
     <string name="settings_scan_library">Сканировать библиотеку</string>
     <string name="settings_manual_import">Ручной импорт</string>
     <string name="settings_delete_duplicates">Найти и удалить дубликаты книг</string>
@@ -86,6 +94,37 @@
     <string name="settings_toast_cache_reset">Кэш сканирования успешно сброшен</string>
     <string name="settings_toast_library_cleared">Библиотека полностью очищена</string>
     <string name="settings_app_version">Версия: %1$s</string>
+
+    <!-- Sync Screen -->
+    <string name="sync_yandex_disk">Яндекс Диск</string>
+    <string name="sync_status_label">Статус:</string>
+    <string name="sync_status_connected">Подключено</string>
+    <string name="sync_status_not_authorized">Не авторизован</string>
+    <string name="sync_user_prefix">Пользователь: %1$s</string>
+    <string name="sync_user_default">Пользователь: -</string>
+    <string name="sync_storage_format">Занято: %1$s из %2$s</string>
+    <string name="sync_storage_default">Занято: 0 Б из 0 Б</string>
+    <string name="sync_btn_connect">Войти через Яндекс</string>
+    <string name="sync_btn_disconnect">Выйти из аккаунта</string>
+    <string name="sync_params_title">Параметры синхронизации</string>
+    <string name="sync_params_desc">Синхронизация загружает ваши книги и обновляет прогресс чтения между всеми вашими устройствами с помощью Яндекс Диска.</string>
+    <string name="sync_folder_label">Папка для синхронизации:</string>
+    <string name="sync_folder_prefix">Папка: %1$s</string>
+    <string name="sync_local_folder_label">Локальная папка для скачивания:</string>
+    <string name="sync_local_folder_default">По умолчанию (/Books)</string>
+    <string name="sync_btn_select">Выбрать</string>
+    <string name="sync_btn_sync_now">Синхронизировать</string>
+    <string name="sync_status_syncing">Синхронизация...</string>
+    <string name="sync_last_time_format">Последняя синхронизация: %1$s</string>
+    <string name="sync_last_time_never">Последняя синхронизация: никогда</string>
+
+    <!-- Screen Titles -->
+    <string name="title_new_books">Новые поступления</string>
+
+    <!-- Bottom Sheet Reader Settings -->
+    <string name="bs_line_spacing_label">Межстрочный интервал</string>
+    <string name="bs_auto_detect">Авто-обнаружение</string>
+    <string name="bs_background_search">Поиск книг в фоне</string>
 
     <!-- Main Splash -->
     <string name="app_subtitle">АТМОСФЕРА ПОЛУНОЧИ</string>

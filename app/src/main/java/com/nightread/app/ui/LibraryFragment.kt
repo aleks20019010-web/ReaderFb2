@@ -81,7 +81,7 @@ class LibraryFragment : Fragment() {
     private lateinit var btnSort: View
     private var isGridView: Boolean = true
     private lateinit var btnSearchToggle: View
-    private lateinit var btnAutoScan: View
+    private lateinit var btnToggleTheme: View
     private lateinit var btnImport: View
     private lateinit var btnMenu: View
     private lateinit var tvTitle: TextView
@@ -243,7 +243,7 @@ class LibraryFragment : Fragment() {
 
         // Bind Views
         btnSearchToggle = view.findViewById(R.id.btnSearchToggle)
-        btnAutoScan = view.findViewById(R.id.btnAutoScan)
+        btnToggleTheme = view.findViewById(R.id.btnToggleTheme)
         btnImport = view.findViewById(R.id.btnImport)
         btnSort = view.findViewById(R.id.btnSort)
         btnMenu = view.findViewById(R.id.btnMenu)
@@ -256,18 +256,20 @@ class LibraryFragment : Fragment() {
         etSearch = view.findViewById(R.id.etSearch)
         // Customize SearchView text color, hint, and close button to match theme
         val searchEditText = etSearch.findViewById<EditText>(androidx.appcompat.R.id.search_src_text)
+        val textPrimaryColor = ContextCompat.getColor(requireContext(), R.color.text_primary)
+        val textSecondaryColor = ContextCompat.getColor(requireContext(), R.color.text_secondary)
         searchEditText?.apply {
-            setTextColor(android.graphics.Color.WHITE)
-            setHintTextColor(android.graphics.Color.parseColor("#B8A0C8"))
+            setTextColor(textPrimaryColor)
+            setHintTextColor(textSecondaryColor)
             textSize = 14f
         }
         val closeButton = etSearch.findViewById<ImageView>(androidx.appcompat.R.id.search_close_btn)
         closeButton?.setColorFilter(resources.getColor(R.color.icon_tint, null))
         
         tvTitle.text = when (filterType) {
-            "reading" -> "Читаю"
-            "read" -> "Прочитано"
-            else -> "Библиотека"
+            "reading" -> getString(R.string.drawer_reading)
+            "read" -> getString(R.string.drawer_read)
+            else -> getString(R.string.drawer_library)
         }
         
         btnMenu.setOnClickListener {
@@ -312,6 +314,7 @@ class LibraryFragment : Fragment() {
         val customBg = view.findViewById<View>(R.id.ivCustomLibraryBg)
         val starryOverlay = view.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
         starryOverlay?.transparentBackground = true
+        GalaxyBgHelper.applyBackground(view)
 
         rvBooks.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
             var totalScrollY = 0
@@ -571,7 +574,7 @@ class LibraryFragment : Fragment() {
                 tvTitle.visibility = View.VISIBLE
                 tvBookCount.visibility = View.VISIBLE
                 btnImport.visibility = View.VISIBLE
-                btnAutoScan.visibility = View.VISIBLE
+                btnToggleTheme.visibility = View.VISIBLE
                 btnToggleViewMode.visibility = View.VISIBLE
                 btnSearchToggle.animate().rotation(0f).setDuration(300).start()
                 etSearch.setQuery("", false)
@@ -583,7 +586,7 @@ class LibraryFragment : Fragment() {
                 tvTitle.visibility = View.GONE
                 tvBookCount.visibility = View.GONE
                 btnImport.visibility = View.GONE
-                btnAutoScan.visibility = View.GONE
+                btnToggleTheme.visibility = View.GONE
                 btnToggleViewMode.visibility = View.GONE
                 btnSearchToggle.animate().rotation(90f).setDuration(300).start()
                 etSearch.requestFocus()
@@ -612,16 +615,14 @@ class LibraryFragment : Fragment() {
             filePickerLauncher.launch(arrayOf("*/*"))
         }
 
-        // Compact Auto-Scan action
-        setBounceAnimation(btnAutoScan)
-        
-        btnAutoScan.isEnabled = true
-        btnAutoScan.alpha = 1.0f
-        btnImport.isEnabled = true
-        btnImport.alpha = 1.0f
+        // Theme Toggle Button
+        setBounceAnimation(btnToggleTheme)
+        updateThemeButtonState()
 
-        btnAutoScan.setOnClickListener {
-            checkPermissionsAndScan()
+        btnToggleTheme.setOnClickListener {
+            if (!SettingsManager.isAutoLightNightEnabled(requireContext())) {
+                toggleTheme()
+            }
         }
 
         // Empty state Auto-Scan action
@@ -683,6 +684,9 @@ class LibraryFragment : Fragment() {
                 updateScanUI(state)
                 if (!state.isScanning) {
                     scanAddedCount = 0
+                    if (::adapter.isInitialized) {
+                        adapter.flushBuffer()
+                    }
                 }
             }
         }
@@ -690,13 +694,6 @@ class LibraryFragment : Fragment() {
 
     private fun updateScanUI(state: com.nightread.app.service.ScanState) {
         val active = state.isScanning
-        btnAutoScan.isEnabled = !active
-        if (active) {
-            startRotating(btnAutoScan)
-        } else {
-            stopRotating(btnAutoScan)
-        }
-        btnAutoScan.alpha = if (active) 0.7f else 1.0f
         
         if (::headerProgressBar.isInitialized) {
             headerProgressBar.visibility = if (active) View.VISIBLE else View.GONE
@@ -812,6 +809,9 @@ class LibraryFragment : Fragment() {
         updateProgressValues(state.totalFiles, state.processedFiles)
         filterAndApplyBooks()
         if (!active) {
+            if (::adapter.isInitialized) {
+                adapter.flushBuffer()
+            }
             isSwipeRescanInProgress = false
         }
     }
@@ -968,7 +968,8 @@ class LibraryFragment : Fragment() {
 
         val filtered = applyFilters(allBooksList)
 
-        adapter.updateData(filtered)
+        val isScanning = viewModel.scanState.value.isScanning || viewModel.isScanning
+        adapter.updateData(filtered, isScanning = isScanning)
         updateBookCount(filtered.size)
 
         if (filtered.isEmpty()) {
@@ -1125,8 +1126,30 @@ class LibraryFragment : Fragment() {
             .show()
     }
 
+    /**
+     * Переключает тему между светлой и тёмной через AppCompatDelegate.setDefaultNightMode().
+     */
+    fun toggleTheme() {
+        val currentNightMode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        val targetMode = if (currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES) {
+            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+        } else {
+            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
+        }
+        androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(targetMode)
+    }
+
+    private fun updateThemeButtonState() {
+        if (!::btnToggleTheme.isInitialized) return
+        val isAutoTheme = SettingsManager.isAutoLightNightEnabled(requireContext())
+        btnToggleTheme.isEnabled = !isAutoTheme
+        btnToggleTheme.alpha = if (isAutoTheme) 0.4f else 1.0f
+    }
+
     override fun onResume() {
         super.onResume()
+        view?.let { GalaxyBgHelper.applyBackground(it) }
+        updateThemeButtonState()
         filterAndApplyBooks()
     }
 }

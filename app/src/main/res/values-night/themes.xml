@@ -5,7 +5,7 @@
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/accent</item>
         <item name="colorOnPrimary">@color/btn_text</item>
-        <item name="colorPrimaryContainer">@color/bg_panel</item>
+        <item name="colorPrimaryContainer">@color/glass_bg_30</item>
         <item name="colorOnPrimaryContainer">@color/text_primary</item>
 
         <!-- Secondary brand color. -->
@@ -15,13 +15,10 @@
         <!-- Surface and background colors -->
         <item name="android:colorBackground">#05020E</item>
         <item name="android:windowBackground">#05020E</item>
-        
-        <!-- Splash Screen customization for API 31+ to avoid showing launcher icon before greeting screen -->
-        <item name="android:windowSplashScreenBackground" tools:targetApi="31">#05020E</item>
-        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@android:color/transparent</item>
+
         <item name="colorSurface">@color/bg_card</item>
         <item name="colorOnSurface">@color/text_primary</item>
-        <item name="colorSurfaceVariant">@color/bg_panel</item>
+        <item name="colorSurfaceVariant">@color/glass_bg_30</item>
         <item name="colorOnSurfaceVariant">@color/text_secondary</item>
 
         <item name="android:textColor">@color/text_primary</item>
@@ -34,7 +31,7 @@
 
         <!-- Button Style -->
         <item name="materialButtonStyle">@style/Widget.App.Button</item>
-        <!-- Status Bar and Navigation Bar Colors for Purple Fog Theme -->
+        <!-- Status Bar and Navigation Bar Colors for Dark Theme -->
         <item name="android:statusBarColor">#05020E</item>
         <item name="android:navigationBarColor">#05020E</item>
         <item name="android:windowLightStatusBar">false</item>

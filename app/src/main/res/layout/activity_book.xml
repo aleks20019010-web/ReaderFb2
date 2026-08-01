@@ -68,7 +68,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
-        android:background="#FFFFFF"
+        android:background="@drawable/bg_glass_panel_60"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="8dp"
@@ -79,7 +79,8 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_arrow_back" />
+            android:src="@drawable/ic_arrow_back"
+            app:tint="@color/icon_tint" />
 
         <TextView
             android:id="@+id/tvBookTitle"
@@ -87,6 +88,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="220 вольт"
+            android:textColor="@color/text_primary"
             android:textSize="18sp"
             android:textStyle="bold" />
 
@@ -96,6 +98,7 @@
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_search"
+            app:tint="@color/icon_tint"
             android:contentDescription="Поиск RAG по книге" />
 
         <ImageButton
@@ -103,29 +106,32 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_bookmark" />
+            android:src="@drawable/ic_bookmark"
+            app:tint="@color/icon_tint" />
 
         <ImageButton
             android:id="@+id/btnChapters"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_bookmarks_list" />
+            android:src="@drawable/ic_bookmarks_list"
+            app:tint="@color/icon_tint" />
 
         <ImageButton
             android:id="@+id/btnNotes"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_note" />
+            android:src="@drawable/ic_note"
+            app:tint="@color/icon_tint" />
 
         <ImageButton
             android:id="@+id/btnSettings"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_settings_24dp" />
-
+            android:src="@drawable/ic_settings_24dp"
+            app:tint="@color/icon_tint" />
 
     </LinearLayout>
 
@@ -134,7 +140,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:background="#FFFFFF"
+        android:background="@drawable/bg_glass_panel_60"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="16dp"
@@ -144,6 +150,7 @@
             android:id="@+id/tvPageIndicator"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:textColor="@color/text_primary"
             android:text="Стр. 10 из 226" />
         
         <SeekBar
@@ -153,9 +160,9 @@
             android:layout_weight="1"
             android:minHeight="2dp"
             android:maxHeight="2dp"
-            android:thumbTint="#000000"
-            android:progressTint="#000000"
-            android:progressBackgroundTint="#CCCCCC" />
+            android:thumbTint="@color/accent"
+            android:progressTint="@color/accent"
+            android:progressBackgroundTint="@color/divider" />
 
         <ImageButton
             android:id="@+id/btnBottomBookmark"
@@ -163,6 +170,7 @@
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_bookmark"
+            app:tint="@color/icon_tint"
             android:contentDescription="Закладка" />
     </LinearLayout>
 
