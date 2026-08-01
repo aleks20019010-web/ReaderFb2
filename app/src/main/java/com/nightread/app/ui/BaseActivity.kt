@@ -32,6 +32,11 @@ abstract class BaseActivity : AppCompatActivity() {
         currentNightMode = com.nightread.app.data.ThemeManager.shouldBeNightMode(this)
         // Устанавливаем звездный фон на уровне окна
         window.setBackgroundDrawable(StarryNightDrawable())
+        if (currentNightMode) {
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+        } else {
+            window.statusBarColor = android.graphics.Color.parseColor(GalaxyBgHelper.LIGHT_BG_COLOR)
+        }
     }
 
     override fun onResume() {
