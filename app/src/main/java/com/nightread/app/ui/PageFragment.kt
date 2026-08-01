@@ -104,7 +104,7 @@ class PageFragment : Fragment() {
         webView.setBackgroundColor(Color.parseColor(bgColor))
 
         webView.settings.apply {
-            javaScriptEnabled = false
+            javaScriptEnabled = true
             blockNetworkImage = true
             blockNetworkLoads = true
             cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
@@ -115,6 +115,7 @@ class PageFragment : Fragment() {
         webView.isVerticalScrollBarEnabled = false
         webView.isHorizontalScrollBarEnabled = false
         webView.overScrollMode = android.view.View.OVER_SCROLL_NEVER
+        webView.addJavascriptInterface(BookReaderActivity.WebAppInterface(activity as? BookReaderActivity ?: return), "AndroidInterface")
 
         webView.webViewClient = object : android.webkit.WebViewClient() {
             override fun shouldOverrideUrlLoading(view: android.webkit.WebView?, url: String?): Boolean {
@@ -241,8 +242,8 @@ class PageFragment : Fragment() {
                         hyphens: auto;
                         overflow: hidden;
                         word-wrap: break-word;
-                        
-                        
+                        -webkit-user-select: text;
+                        user-select: text;
                     }
                     
                     p {
@@ -264,6 +265,26 @@ class PageFragment : Fragment() {
                         margin-bottom: 1.2em;
                     }
                 </style>
+                <script type="text/javascript">
+                    document.addEventListener('touchend', function() {
+                        var selection = window.getSelection();
+                        var selectedText = selection.toString().trim();
+                        if (selectedText.length > 0) {
+                            var container = null;
+                            if (selection.rangeCount > 0) {
+                                var range = selection.getRangeAt(0);
+                                container = range.commonAncestorContainer;
+                                while (container && container.nodeType !== 1) {
+                                    container = container.parentNode;
+                                }
+                            }
+                            var contextSnippet = container ? container.innerText || "" : "";
+                            if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onTextSelected) {
+                                AndroidInterface.onTextSelected(selectedText, contextSnippet);
+                            }
+                        }
+                    });
+                </script>
             </head>
             <body>
                 $htmlContent

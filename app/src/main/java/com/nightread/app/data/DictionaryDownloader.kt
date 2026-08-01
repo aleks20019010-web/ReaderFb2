@@ -1,6 +1,7 @@
 package com.nightread.app.data
 
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -9,7 +10,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 object DictionaryDownloader {
-    private const val DICT_URL = "https://github.com/danpla/dict/raw/master/en-ru.sqlite"
+    private const val TAG = "DictionaryDownloader"
+    private const val DICT_URL = "https://raw.githubusercontent.com/danpla/dict/master/en-ru.sqlite"
     const val DICT_DIR = "dictionary"
     const val DICT_FILE_NAME = "en-ru.sqlite"
 
@@ -28,12 +30,46 @@ object DictionaryDownloader {
 
     suspend fun downloadDictionary(context: Context, onProgress: (Int) -> Unit = {}): Boolean {
         return withContext(Dispatchers.IO) {
+            var conn: HttpURLConnection? = null
             try {
-                val url = URL(DICT_URL)
-                val connection = url.openConnection() as HttpURLConnection
-                connection.connect()
+                var currentUrl = DICT_URL
+                var redirectCount = 0
+                val maxRedirects = 5
 
-                if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                while (redirectCount < maxRedirects) {
+                    val url = URL(currentUrl)
+                    conn = url.openConnection() as HttpURLConnection
+                    conn.instanceFollowRedirects = false
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Android; NightRead)")
+                    conn.connectTimeout = 15000
+                    conn.readTimeout = 15000
+                    conn.connect()
+
+                    val responseCode = conn.responseCode
+                    if (responseCode == HttpURLConnection.HTTP_MOVED_TEMP ||
+                        responseCode == HttpURLConnection.HTTP_MOVED_PERM ||
+                        responseCode == HttpURLConnection.HTTP_SEE_OTHER ||
+                        responseCode == 307 || responseCode == 308) {
+                        val newUrl = conn.getHeaderField("Location")
+                        conn.disconnect()
+                        if (newUrl != null) {
+                            currentUrl = newUrl
+                            redirectCount++
+                            continue
+                        } else {
+                            Log.e(TAG, "Redirect location is null")
+                            return@withContext false
+                        }
+                    } else if (responseCode == HttpURLConnection.HTTP_OK) {
+                        break
+                    } else {
+                        Log.e(TAG, "HTTP error code: $responseCode")
+                        conn.disconnect()
+                        return@withContext false
+                    }
+                }
+
+                if (conn == null || conn.responseCode != HttpURLConnection.HTTP_OK) {
                     return@withContext false
                 }
 
@@ -42,11 +78,11 @@ object DictionaryDownloader {
                     file.delete()
                 }
 
-                val inputStream = connection.inputStream
+                val fileSize = conn.contentLength.toFloat()
+                val inputStream = conn.inputStream
                 val outputStream = FileOutputStream(file)
                 val buffer = ByteArray(8192)
                 var bytesRead: Int
-                val fileSize = connection.contentLength.toFloat()
                 var totalBytesRead = 0L
 
                 while (inputStream.read(buffer).also { bytesRead = it } != -1) {
@@ -61,10 +97,15 @@ object DictionaryDownloader {
                 outputStream.flush()
                 outputStream.close()
                 inputStream.close()
+                conn.disconnect()
+                Log.d(TAG, "Dictionary successfully downloaded to ${file.absolutePath}")
                 true
             } catch (e: Exception) {
+                Log.e(TAG, "Error downloading dictionary", e)
+                conn?.disconnect()
                 false
             }
         }
     }
 }
+

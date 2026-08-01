@@ -563,13 +563,19 @@ class BookReaderActivity : BaseActivity() {
                     isHorizontalSwipeLocked = false
 
                     longPressRunnable = Runnable {
-                        val currentTextOnPage = viewModel.pagesState.value.getOrNull(viewModel.currentPage.value)?.toString() ?: ""
-                        if (currentTextOnPage.isNotEmpty() && currentTextOnPage != "[BOOK_COVER]") {
-                            val isWebViewBk = viewModel.bookState.value?.filePath?.let { it.endsWith(".epub", true) || it.endsWith(".fb2", true) || it.endsWith(".fb2.zip", true) || it.endsWith(".zip", true) } == true
-                            val isWebViewPage = currentTextOnPage.startsWith("WEBVIEW_CONTENT") || currentTextOnPage.startsWith("WEBVIEW_PAGE_") || isWebViewBk
-                            if (!isWebViewPage) {
-                                val contextSnippet = if (currentTextOnPage.length > 150) currentTextOnPage.substring(0, 150) + "..." else currentTextOnPage
-                                showWordActionOrNoteDialog(currentTextOnPage, contextSnippet)
+                        val word = readerView.getWordAt(touchStartX, touchStartY)
+                        val contextSnippet = readerView.getContextAt(touchStartX, touchStartY)
+                        if (!word.isNullOrEmpty()) {
+                            showWordActionOrNoteDialog(word, contextSnippet.ifEmpty { word })
+                        } else {
+                            val currentTextOnPage = viewModel.pagesState.value.getOrNull(viewModel.currentPage.value)?.toString() ?: ""
+                            if (currentTextOnPage.isNotEmpty() && currentTextOnPage != "[BOOK_COVER]") {
+                                val isWebViewBk = viewModel.bookState.value?.filePath?.let { it.endsWith(".epub", true) || it.endsWith(".fb2", true) || it.endsWith(".fb2.zip", true) || it.endsWith(".zip", true) } == true
+                                val isWebViewPage = currentTextOnPage.startsWith("WEBVIEW_CONTENT") || currentTextOnPage.startsWith("WEBVIEW_PAGE_") || isWebViewBk
+                                if (!isWebViewPage) {
+                                    val snippet = if (currentTextOnPage.length > 150) currentTextOnPage.substring(0, 150) + "..." else currentTextOnPage
+                                    showWordActionOrNoteDialog(currentTextOnPage, snippet)
+                                }
                             }
                         }
                     }

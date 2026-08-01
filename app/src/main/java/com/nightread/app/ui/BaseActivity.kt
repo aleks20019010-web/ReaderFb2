@@ -34,6 +34,10 @@ abstract class BaseActivity : AppCompatActivity() {
         // Устанавливаем звездный фон на уровне окна
         window.setBackgroundDrawable(StarryNightDrawable())
         updateStatusBarColor()
+        
+        findViewById<android.view.View>(android.R.id.content)?.let {
+            GalaxyBgHelper.applyBackground(it)
+        }
     }
 
     private fun updateStatusBarColor() {

@@ -326,4 +326,52 @@ class CustomReaderPageView(context: Context, attrs: AttributeSet? = null) : View
         
         canvas.restore()
     }
+
+    fun getWordAt(x: Float, y: Float): String? {
+        val currentLayout = layout ?: return null
+        val localY = y - paddingTop
+        val localX = x - paddingLeft
+        if (localY < 0 || localY > currentLayout.height || localX < 0 || localX > currentLayout.width) return null
+
+        try {
+            val line = currentLayout.getLineForVertical(localY.toInt())
+            val offset = currentLayout.getOffsetForHorizontal(line, localX)
+            val text = currentLayout.text.toString()
+            if (offset < 0 || offset >= text.length) return null
+
+            var start = offset
+            while (start > 0 && !text[start - 1].isWhitespace() && !isPunctuation(text[start - 1])) {
+                start--
+            }
+            var end = offset
+            while (end < text.length && !text[end].isWhitespace() && !isPunctuation(text[end])) {
+                end++
+            }
+            if (start < end) {
+                return text.substring(start, end).trim()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return null
+    }
+
+    fun getContextAt(x: Float, y: Float): String {
+        val currentLayout = layout ?: return ""
+        val localY = y - paddingTop
+        if (localY < 0 || localY > currentLayout.height) return currentLayout.text.toString()
+        try {
+            val line = currentLayout.getLineForVertical(localY.toInt())
+            val start = currentLayout.getLineStart(line)
+            val end = currentLayout.getLineEnd(line)
+            return currentLayout.text.subSequence(start, end).toString().trim()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return ""
+    }
+
+    private fun isPunctuation(c: Char): Boolean {
+        return c in ".,!?;:«»\"'()[]{}—–-"
+    }
 }

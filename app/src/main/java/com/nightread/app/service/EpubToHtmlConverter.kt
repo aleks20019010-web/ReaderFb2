@@ -81,6 +81,8 @@ object EpubToHtmlConverter {
                         font-weight: $fontWeightCss; line-height: $lineSpacing;
                         text-align: ${fontAlignment.lowercase()};
                         -webkit-hyphens: auto; -ms-hyphens: auto; hyphens: auto;
+                        -webkit-user-select: text;
+                        user-select: text;
                     }
                     p { margin-top: 0; margin-bottom: 0em; text-indent: 1.5em; text-align: justify; }
                     h1, h2, h3, h4, h5, h6 { margin-top: 1em; margin-bottom: 0.5em; font-weight: bold; text-align: center; }
@@ -251,6 +253,32 @@ object EpubToHtmlConverter {
 
                     window.onload = function() { setTimeout(calculatePages, 200); };
                     window.onresize = function() { setTimeout(calculatePages, 200); };
+
+                    document.addEventListener('touchend', function() {
+                        handleTextSelection();
+                    });
+                    document.addEventListener('mouseup', function() {
+                        handleTextSelection();
+                    });
+
+                    function handleTextSelection() {
+                        var selection = window.getSelection();
+                        var selectedText = selection.toString().trim();
+                        if (selectedText.length > 0) {
+                            var container = null;
+                            if (selection.rangeCount > 0) {
+                                var range = selection.getRangeAt(0);
+                                container = range.commonAncestorContainer;
+                                while (container && container.nodeType !== 1) {
+                                    container = container.parentNode;
+                                }
+                            }
+                            var contextSnippet = container ? container.innerText || "" : "";
+                            if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onTextSelected) {
+                                AndroidInterface.onTextSelected(selectedText, contextSnippet);
+                            }
+                        }
+                    }
 
 
                 </script>
