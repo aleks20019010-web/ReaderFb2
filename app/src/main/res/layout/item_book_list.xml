@@ -13,8 +13,9 @@
         style="@style/CardViewStyle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:strokeWidth="0dp"
-        app:cardBackgroundColor="#80000000"
+        app:strokeWidth="1dp"
+        app:strokeColor="@color/glass_stroke"
+        app:cardBackgroundColor="@color/bg_card"
         app:cardUseCompatPadding="false">
 
         <LinearLayout

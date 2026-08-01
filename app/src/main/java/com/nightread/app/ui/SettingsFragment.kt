@@ -37,13 +37,15 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    private var isSelectingForNightMode = false
+
     private val pickBackgroundLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let { selectedUri ->
             val ctx = context ?: return@registerForActivityResult
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                val success = com.nightread.app.data.FileStorageHelper.saveUserBackground(ctx, selectedUri)
+                val success = com.nightread.app.data.FileStorageHelper.saveUserBackground(ctx, selectedUri, isSelectingForNightMode)
                 withContext(Dispatchers.Main) {
                     if (success) {
                         CustomToast.show(ctx, getString(R.string.settings_toast_background_updated))
@@ -219,10 +221,15 @@ class SettingsFragment : Fragment() {
 
     private fun showPickBackgroundDialog() {
         val ctx = context ?: return
+        val options = arrayOf(
+            getString(R.string.settings_pick_bg_dialog_light),
+            getString(R.string.settings_pick_bg_dialog_dark)
+        )
         AlertDialog.Builder(ctx)
             .setTitle(R.string.settings_pick_bg_dialog_title)
             .setMessage(R.string.settings_pick_bg_dialog_msg)
-            .setPositiveButton(R.string.settings_pick_bg_dialog_positive) { _, _ ->
+            .setItems(options) { _, which ->
+                isSelectingForNightMode = (which == 1)
                 pickBackgroundLauncher.launch("image/*")
             }
             .setNegativeButton(android.R.string.cancel, null)

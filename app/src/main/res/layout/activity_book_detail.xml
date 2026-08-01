@@ -68,7 +68,7 @@
                     android:layout_height="wrap_content"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="#FFFFFF"
+                    android:textColor="@color/text_primary"
                     android:layout_marginBottom="12dp"
                     android:lineSpacingMultiplier="1.1"
                     tools:text="Орден Архитекторов" />
@@ -141,6 +141,7 @@
                         android:padding="12dp"
                         android:src="@android:drawable/btn_star_big_off"
                         android:contentDescription="Избранное"
+                        app:tint="@color/icon_tint"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:focusable="true"
@@ -153,6 +154,7 @@
                         android:padding="12dp"
                         android:src="@drawable/ic_pin"
                         android:contentDescription="Хочу прочитать"
+                        app:tint="@color/icon_tint"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:focusable="true"
@@ -165,6 +167,7 @@
                         android:padding="12dp"
                         android:src="@android:drawable/ic_menu_share"
                         android:contentDescription="Поделиться"
+                        app:tint="@color/icon_tint"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:focusable="true"
@@ -177,6 +180,7 @@
                         android:padding="12dp"
                         android:src="@android:drawable/ic_menu_delete"
                         android:contentDescription="Удалить"
+                        app:tint="@color/icon_tint"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
                         android:focusable="true" />
@@ -187,8 +191,9 @@
                     style="@style/CardViewStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:strokeWidth="0dp"
-                    app:cardBackgroundColor="#40000000"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="@color/glass_stroke"
+                    app:cardBackgroundColor="@color/bg_card"
                     android:layout_marginBottom="24dp">
 
                     <LinearLayout
@@ -205,7 +210,7 @@
                             android:text="АННОТАЦИЯ"
                             android:textSize="12sp"
                             android:textStyle="bold"
-                            android:textColor="#FFE3A8"
+                            android:textColor="@color/accent"
                             android:layout_marginBottom="8dp" />
 
                         <TextView
@@ -213,7 +218,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:textSize="15sp"
-                            android:textColor="#FFFFFF"
+                            android:textColor="@color/text_primary"
                             android:lineSpacingMultiplier="1.2"
                             android:ellipsize="end"
                             android:maxLines="5"
@@ -245,7 +250,7 @@
                     android:text="ИНФОРМАЦИЯ"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    android:textColor="#FFE3A8"
+                    android:textColor="@color/accent"
                     android:layout_marginBottom="12dp" />
 
                 <!-- Document Info Card -->
@@ -253,8 +258,9 @@
                     style="@style/CardViewStyle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:strokeWidth="0dp"
-                    app:cardBackgroundColor="#40000000"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="@color/glass_stroke"
+                    app:cardBackgroundColor="@color/bg_card"
                     android:layout_marginBottom="24dp">
 
                     <LinearLayout
@@ -276,7 +282,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="16sp"
-                                android:textColor="#FFFFFF"
+                                android:textColor="@color/text_primary"
                                 android:textStyle="bold"
                                 tools:text="Русский" />
 
@@ -284,7 +290,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="12sp"
-                                android:textColor="#B8A0C8"
+                                android:textColor="@color/text_secondary"
                                 android:text="Язык документа"
                                 android:layout_marginTop="2dp" />
                         </LinearLayout>
@@ -307,7 +313,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="16sp"
-                                android:textColor="#FFFFFF"
+                                android:textColor="@color/text_primary"
                                 android:textStyle="bold"
                                 tools:text="63%, 5 июля 2026 г. 11:11" />
 
@@ -315,7 +321,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="12sp"
-                                android:textColor="#B8A0C8"
+                                android:textColor="@color/text_secondary"
                                 android:text="Текущая закладка и время последнего чтения"
                                 android:layout_marginTop="2dp" />
                         </LinearLayout>
@@ -338,7 +344,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="16sp"
-                                android:textColor="#FFFFFF"
+                                android:textColor="@color/text_primary"
                                 android:textStyle="bold"
                                 tools:text="FB2, 818 КБ" />
 
@@ -346,7 +352,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="12sp"
-                                android:textColor="#B8A0C8"
+                                android:textColor="@color/text_secondary"
                                 android:text="Формат и размер файла"
                                 android:layout_marginTop="2dp" />
                         </LinearLayout>
@@ -369,7 +375,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="14sp"
-                                android:textColor="#FFFFFF"
+                                android:textColor="@color/text_primary"
                                 android:textStyle="bold"
                                 tools:text="47fbfb03d54eb3ec97f5053e267c907c322dd51c" />
 
@@ -377,7 +383,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textSize="12sp"
-                                android:textColor="#B8A0C8"
+                                android:textColor="@color/text_secondary"
                                 android:text="Идентификатор файла документа (SHA-1)"
                                 android:layout_marginTop="2dp" />
                         </LinearLayout>
@@ -392,7 +398,7 @@
                     android:layout_height="wrap_content"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    android:textColor="#FFE3A8"
+                    android:textColor="@color/accent"
                     android:text="Копии файла документа"
                     android:layout_marginBottom="8dp" />
 

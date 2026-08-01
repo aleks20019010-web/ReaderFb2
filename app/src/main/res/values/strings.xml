@@ -77,8 +77,10 @@
     <string name="settings_sync_time_desc">Предпочтительное время запуска (ночью)</string>
     <string name="settings_section_library">НАСТРОЙКИ БИБЛИОТЕКИ</string>
     <string name="settings_select_background">Выбрать фон из галереи</string>
-    <string name="settings_pick_bg_dialog_title">Выбор фона</string>
-    <string name="settings_pick_bg_dialog_msg">Выберите картинку из галереи. Рекомендуемое разрешение: 1080×1920 пикселей (вертикальное, 9:16). Подойдут JPG, PNG или WebP.</string>
+    <string name="settings_pick_bg_dialog_title">Выбор темы для фона</string>
+    <string name="settings_pick_bg_dialog_msg">Выберите, для какой темы вы хотите установить фоновое изображение. Рекомендуемое разрешение: 1080×1920 пикселей (вертикальное, 9:16).</string>
+    <string name="settings_pick_bg_dialog_light">Для светлой темы</string>
+    <string name="settings_pick_bg_dialog_dark">Для тёмной темы</string>
     <string name="settings_pick_bg_dialog_positive">Выбрать</string>
     <string name="settings_scan_library">Сканировать библиотеку</string>
     <string name="settings_manual_import">Ручной импорт</string>

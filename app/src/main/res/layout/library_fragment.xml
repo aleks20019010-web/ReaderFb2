@@ -39,10 +39,9 @@
         android:layout_margin="8dp"
         app:cardElevation="4dp"
         app:cardCornerRadius="16dp"
-        app:strokeColor="#33FFFFFF"
+        app:strokeColor="@color/glass_stroke"
         app:strokeWidth="1dp"
-        app:cardBackgroundColor="@color/glass_bg_30"
-        android:background="@drawable/bg_glass_panel_30">
+        app:cardBackgroundColor="@color/bg_panel">
 
         <RelativeLayout
             android:id="@+id/layoutNormalHeader"

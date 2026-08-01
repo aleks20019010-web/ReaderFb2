@@ -42,12 +42,12 @@ object FileStorageHelper {
     /**
      * Сохраняет выбранную пользователем картинку из Uri в соответствующий файл темы.
      */
-    fun saveUserBackground(context: Context, uri: Uri): Boolean {
+    fun saveUserBackground(context: Context, uri: Uri, isNightMode: Boolean = ThemeHelper.shouldBeNightMode(context)): Boolean {
         var inputStream: InputStream? = null
         var outputStream: FileOutputStream? = null
-        val isNightMode = ThemeHelper.shouldBeNightMode(context)
         return try {
-            val destFile = getUserBackgroundFile(context, isNightMode)
+            val fileName = if (isNightMode) USER_BG_DARK_FILE_NAME else USER_BG_LIGHT_FILE_NAME
+            val destFile = File(context.filesDir, fileName)
             if (destFile.exists()) {
                 destFile.delete()
             }

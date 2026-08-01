@@ -37,18 +37,20 @@ class SettingsActivity : BaseActivity() {
         }
     }
 
+    private var isSelectingForNightMode = false
+
     private val pickBackgroundLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let { selectedUri ->
             lifecycleScope.launch(Dispatchers.IO) {
-                val success = FileStorageHelper.saveUserBackground(this@SettingsActivity, selectedUri)
+                val success = FileStorageHelper.saveUserBackground(this@SettingsActivity, selectedUri, isSelectingForNightMode)
                 withContext(Dispatchers.Main) {
                     if (success) {
-                        CustomToast.show(this@SettingsActivity, "Фон успешно обновлен")
+                        CustomToast.show(this@SettingsActivity, getString(R.string.settings_toast_background_updated))
                         GalaxyBgHelper.applyBackground(findViewById(R.id.rootSettings))
                     } else {
-                        CustomToast.show(this@SettingsActivity, "Ошибка сохранения фона")
+                        CustomToast.show(this@SettingsActivity, getString(R.string.settings_toast_background_error))
                     }
                 }
             }
@@ -234,10 +236,15 @@ class SettingsActivity : BaseActivity() {
     }
 
     private fun showPickBackgroundDialog() {
+        val options = arrayOf(
+            getString(R.string.settings_pick_bg_dialog_light),
+            getString(R.string.settings_pick_bg_dialog_dark)
+        )
         AlertDialog.Builder(this)
             .setTitle(R.string.settings_pick_bg_dialog_title)
             .setMessage(R.string.settings_pick_bg_dialog_msg)
-            .setPositiveButton(R.string.settings_pick_bg_dialog_positive) { _, _ ->
+            .setItems(options) { _, which ->
+                isSelectingForNightMode = (which == 1)
                 pickBackgroundLauncher.launch("image/*")
             }
             .setNegativeButton(android.R.string.cancel, null)
