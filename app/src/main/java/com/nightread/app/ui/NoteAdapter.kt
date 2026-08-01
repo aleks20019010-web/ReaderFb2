@@ -14,7 +14,8 @@ import java.util.Locale
 
 class NoteAdapter(
     private val onNoteClicked: (NoteEntity) -> Unit,
-    private val onNoteDeleteClicked: (NoteEntity) -> Unit
+    private val onNoteDeleteClicked: (NoteEntity) -> Unit,
+    private val onNoteShareClicked: (NoteEntity) -> Unit
 ) : RecyclerView.Adapter<NoteAdapter.NoteViewHolder>() {
 
     private var notesList: List<NoteEntity> = emptyList()
@@ -46,6 +47,7 @@ class NoteAdapter(
         private val tvPageAndDate: TextView = itemView.findViewById(R.id.tvNotePageAndDate)
         private val tvSelectedText: TextView = itemView.findViewById(R.id.tvSelectedText)
         private val tvNoteText: TextView = itemView.findViewById(R.id.tvNoteText)
+        private val btnShare: ImageButton = itemView.findViewById(R.id.btnShareNote)
         private val btnDelete: ImageButton = itemView.findViewById(R.id.btnDeleteNote)
 
         fun bind(note: NoteEntity) {
@@ -59,6 +61,10 @@ class NoteAdapter(
 
             itemView.setOnClickListener {
                 onNoteClicked(note)
+            }
+
+            btnShare.setOnClickListener {
+                onNoteShareClicked(note)
             }
 
             btnDelete.setOnClickListener {

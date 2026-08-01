@@ -20,6 +20,7 @@ import com.nightread.app.R
 import com.nightread.app.data.FileStorageHelper
 import com.nightread.app.data.SettingsManager
 import com.nightread.app.data.ThemeManager
+import com.nightread.app.data.DictionaryDownloader
 
 class SettingsActivity : BaseActivity() {
 
@@ -152,6 +153,28 @@ class SettingsActivity : BaseActivity() {
             CleanupDialogFragment().show(supportFragmentManager, "CleanupDialogFragment")
         }
 
+        val btnDownloadDict = findViewById<Button>(R.id.btnDownloadDictionary)
+        updateDictButtonText(btnDownloadDict)
+        btnDownloadDict.setOnClickListener {
+            btnDownloadDict.isEnabled = false
+            btnDownloadDict.text = "Скачивание словаря... 0%"
+            lifecycleScope.launch {
+                val success = DictionaryDownloader.downloadDictionary(this@SettingsActivity) { progress ->
+                    runOnUiThread {
+                        btnDownloadDict.text = "Скачивание словаря... $progress%"
+                    }
+                }
+                btnDownloadDict.isEnabled = true
+                if (success) {
+                    CustomToast.show(this@SettingsActivity, "Словарь успешно скачан")
+                    updateDictButtonText(btnDownloadDict)
+                } else {
+                    CustomToast.show(this@SettingsActivity, "Ошибка скачивания словаря")
+                    updateDictButtonText(btnDownloadDict)
+                }
+            }
+        }
+
         // --- СИНХРОНИЗАЦИЯ ---
         // Auto-Sync Switch
         val switchAutoSync = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchAutoSync)
@@ -249,5 +272,13 @@ class SettingsActivity : BaseActivity() {
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    private fun updateDictButtonText(button: Button) {
+        if (DictionaryDownloader.isDictionaryDownloaded(this)) {
+            button.text = "Обновить офлайн-словарь"
+        } else {
+            button.text = "Скачать офлайн-словарь"
+        }
     }
 }

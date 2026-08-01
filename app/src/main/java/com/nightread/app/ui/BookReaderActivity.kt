@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.text.Layout
 import android.text.TextPaint
 import android.util.TypedValue
+import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -2070,6 +2071,61 @@ class BookReaderActivity : BaseActivity() {
         val cleanWord = word.trim().trim(' ', '«', '»', '\"', '\'', '.', ',', '!', '?', ';', ':', '(', ')', '[', ']', '{', '}')
         if (cleanWord.isEmpty()) return
 
+        // 1. Check offline dictionary first
+        if (com.nightread.app.data.DictionaryDownloader.isDictionaryDownloaded(this)) {
+            try {
+                val dictFile = com.nightread.app.data.DictionaryDownloader.getDictionaryFile(this)
+                val db = android.database.sqlite.SQLiteDatabase.openDatabase(dictFile.absolutePath, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY)
+                var translation: String? = null
+
+                val tableCursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'", null)
+                val tables = mutableListOf<String>()
+                while (tableCursor.moveToNext()) {
+                    tables.add(tableCursor.getString(0))
+                }
+                tableCursor.close()
+
+                for (tableName in tables) {
+                    if (tableName == "android_metadata") continue
+                    try {
+                        val colCursor = db.rawQuery("PRAGMA table_info($tableName)", null)
+                        val cols = mutableListOf<String>()
+                        while (colCursor.moveToNext()) {
+                            cols.add(colCursor.getString(1).lowercase())
+                        }
+                        colCursor.close()
+
+                        val wordCol = cols.firstOrNull { it.contains("word") || it.contains("term") || it.contains("title") } ?: cols.getOrNull(0)
+                        val transCol = cols.firstOrNull { it.contains("trans") || it.contains("def") || it.contains("meaning") || it.contains("ru") } ?: cols.getOrNull(1)
+
+                        if (wordCol != null && transCol != null) {
+                            val cursor = db.rawQuery("SELECT $transCol FROM $tableName WHERE $wordCol = ? COLLATE NOCASE LIMIT 1", arrayOf(cleanWord))
+                            if (cursor.moveToFirst()) {
+                                translation = cursor.getString(0)
+                                cursor.close()
+                                break
+                            }
+                            cursor.close()
+                        }
+                    } catch (e: Exception) {
+                        // skip table
+                    }
+                }
+                db.close()
+
+                if (!translation.isNullOrBlank()) {
+                    val resultHtml = formatHtml("<b><font color='#E94560'>$cleanWord</font></b><br/><br/>Перевод (офлайн): <b><font color='#4CAF50'>$translation</font></b>")
+                    runOnUiThread {
+                        showDictionaryResultDialog(cleanWord, resultHtml)
+                    }
+                    return
+                }
+            } catch (e: Exception) {
+                Log.e("BookReaderActivity", "Offline dictionary query error", e)
+            }
+        }
+
+        // 2. Fallback to online API if offline dictionary not present or word not found
         val progressDialog = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("Словарь")
             .setMessage("Поиск определения для «$cleanWord»...")

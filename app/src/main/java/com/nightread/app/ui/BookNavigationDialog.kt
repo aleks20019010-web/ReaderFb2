@@ -513,6 +513,13 @@ class BookNavigationDialog : DialogFragment() {
             },
             onNoteDeleteClicked = { note ->
                 confirmAndDeleteNote(note)
+            },
+            onNoteShareClicked = { note ->
+                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_TEXT, "«${note.selectedText.trim()}»\nЗаметка: ${note.noteText}\n— ${note.bookTitle}")
+                }
+                startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться заметкой"))
             }
         )
         rvQuotes.adapter = noteAdapter

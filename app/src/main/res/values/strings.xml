@@ -177,4 +177,12 @@
     <string name="achievement_default_title">Название</string>
     <string name="achievement_default_desc">Описание достижения...</string>
     <string name="achievement_unlocked">Получено 🌟</string>
+    <string name="settings_download_dict">Скачать словарь</string>
+    <string name="settings_update_dict">Обновить словарь</string>
+    <string name="settings_dict_downloading">Скачивание словаря... %d%%</string>
+    <string name="settings_dict_success">Словарь успешно скачан</string>
+    <string name="settings_dict_error">Ошибка скачивания словаря</string>
+    <string name="tab_info">Информация</string>
+    <string name="tab_notes">Заметки</string>
+    <string name="notes_empty">Нет заметок для этой книги</string>
 </resources>
