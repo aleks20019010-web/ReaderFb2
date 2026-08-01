@@ -43,8 +43,23 @@ object GalaxyBgHelper {
 
         val parentView = imageView.parent as? android.view.ViewGroup
         val starryView = parentView?.findViewById<View>(R.id.starryOverlay)
+        val sunbeamView = parentView?.findViewById<View>(R.id.sunbeamOverlay)
+
+        (starryView as? StarryNightView)?.transparentBackground = true
+        (sunbeamView as? SunbeamParticlesView)?.transparentBackground = true
 
         val bgFile = FileStorageHelper.getUserBackgroundFile(context, isNightMode)
+
+        // Helper to update overlay visibility
+        fun updateOverlayVisibility() {
+            if (isNightMode) {
+                starryView?.visibility = View.VISIBLE
+                sunbeamView?.visibility = View.GONE
+            } else {
+                starryView?.visibility = View.GONE
+                sunbeamView?.visibility = View.VISIBLE
+            }
+        }
 
         // 1. Приоритет: пользовательское фоновое изображение из галереи (user_bg_dark.jpg / user_bg_light.jpg)
         if (bgFile.exists() && bgFile.length() > 0) {
@@ -54,7 +69,7 @@ object GalaxyBgHelper {
                     imageView.setImageBitmap(bitmap)
                     imageView.scaleType = ImageView.ScaleType.CENTER_CROP
                     imageView.setBackgroundColor(Color.TRANSPARENT)
-                    starryView?.visibility = if (isNightMode) View.VISIBLE else View.GONE
+                    updateOverlayVisibility()
                     return
                 } else {
                     Log.e(TAG, "BitmapFactory decoded null bitmap for background file: ${bgFile.name}")
@@ -74,7 +89,6 @@ object GalaxyBgHelper {
             } else {
                 imageView.setBackgroundColor(Color.parseColor(DARK_BG_COLOR))
             }
-            starryView?.visibility = View.VISIBLE
         } else {
             val lightDrawable = ContextCompat.getDrawable(context, R.drawable.light_bg)
             if (lightDrawable != null) {
@@ -83,7 +97,7 @@ object GalaxyBgHelper {
             } else {
                 imageView.setBackgroundColor(Color.parseColor(LIGHT_BG_COLOR))
             }
-            starryView?.visibility = View.GONE
         }
+        updateOverlayVisibility()
     }
 }

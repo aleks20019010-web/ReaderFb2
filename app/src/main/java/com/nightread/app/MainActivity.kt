@@ -71,9 +71,11 @@ class MainActivity : BaseActivity() {
         navView = findViewById(R.id.nav_view)
 
         val starryBg = findViewById<android.view.View>(R.id.starry_bg)?.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
+        val sunbeamBg = findViewById<android.view.View>(R.id.starry_bg)?.findViewById<com.nightread.app.ui.SunbeamParticlesView>(R.id.sunbeamOverlay)
         drawerLayout.addDrawerListener(object : DrawerLayout.DrawerListener {
             override fun onDrawerSlide(drawerView: android.view.View, slideOffset: Float) {
                 starryBg?.setDrawerSlideOffset(slideOffset)
+                sunbeamBg?.setDrawerSlideOffset(slideOffset)
                 
                 // Smooth fade-in animation for drawer view
                 drawerView.alpha = 0.2f + 0.8f * slideOffset

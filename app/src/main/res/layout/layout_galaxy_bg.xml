@@ -14,4 +14,9 @@
         android:id="@+id/starryOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
+    <com.nightread.app.ui.SunbeamParticlesView
+        android:id="@+id/sunbeamOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 </FrameLayout>
