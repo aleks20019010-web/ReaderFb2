@@ -54,7 +54,7 @@
                     app:cardElevation="2dp"
                     app:strokeWidth="0.5dp"
                     app:strokeColor="#25FFFFFF"
-                    app:cardBackgroundColor="#1A1A2E"
+                    app:cardBackgroundColor="@color/bg_card"
                     app:cardPreventCornerOverlap="false"
                     app:cardUseCompatPadding="false">
 
@@ -67,7 +67,7 @@
                             android:id="@+id/vCoverBackground"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
-                            android:background="#e94560" />
+                            android:background="@color/bg_card" />
 
                         <!-- Shimmer skeleton placeholder -->
                         <com.facebook.shimmer.ShimmerFrameLayout
@@ -80,7 +80,7 @@
                             <View
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
-                                android:background="#2B263E" />
+                                android:background="?attr/colorSurfaceVariant" />
                         </com.facebook.shimmer.ShimmerFrameLayout>
 
                         <ImageView

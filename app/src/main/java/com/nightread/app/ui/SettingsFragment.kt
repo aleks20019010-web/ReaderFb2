@@ -227,9 +227,9 @@ class SettingsFragment : Fragment() {
         )
         AlertDialog.Builder(ctx)
             .setTitle(R.string.settings_pick_bg_dialog_title)
-            .setMessage(R.string.settings_pick_bg_dialog_msg)
             .setItems(options) { _, which ->
                 isSelectingForNightMode = (which == 1)
+                CustomToast.show(ctx, "Рекомендуемый размер изображения: под разрешение экрана (например, 1080x1920)")
                 pickBackgroundLauncher.launch("image/*")
             }
             .setNegativeButton(android.R.string.cancel, null)

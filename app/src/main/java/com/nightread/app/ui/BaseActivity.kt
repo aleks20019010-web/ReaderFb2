@@ -16,6 +16,7 @@ import com.nightread.app.data.SettingsManager
 abstract class BaseActivity : AppCompatActivity() {
 
     private var currentLanguage: String? = null
+    private var currentNightMode: Boolean = false
     private val screenKeepAwakeHandler = Handler(Looper.getMainLooper())
     private val clearKeepScreenOnRunnable = Runnable {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -28,6 +29,7 @@ abstract class BaseActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         currentLanguage = SettingsManager.getLanguage(this)
+        currentNightMode = com.nightread.app.data.ThemeManager.shouldBeNightMode(this)
         // Устанавливаем звездный фон на уровне окна
         window.setBackgroundDrawable(StarryNightDrawable())
     }
@@ -41,6 +43,11 @@ abstract class BaseActivity : AppCompatActivity() {
         val lang = SettingsManager.getLanguage(this)
         if (lang != currentLanguage) {
             currentLanguage = lang
+            recreate()
+        }
+        val nightMode = com.nightread.app.data.ThemeManager.shouldBeNightMode(this)
+        if (nightMode != currentNightMode) {
+            currentNightMode = nightMode
             recreate()
         }
     }
