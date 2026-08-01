@@ -184,6 +184,10 @@ class MainActivity : BaseActivity() {
             CustomToast.show(this, "Предыдущая фоновая синхронизация была прервана")
         }
 
+        if (com.nightread.app.data.SettingsManager.isAutoSyncEnabled(this)) {
+            com.nightread.app.service.AutoSyncScheduler.scheduleAutoSync(this, forceReplace = false)
+        }
+
         handleIncomingBookIntent(intent)
 
         // Set up Splash Screen
@@ -206,6 +210,30 @@ class MainActivity : BaseActivity() {
             hasShownSplash = true
             isSplashActive = true
             runSplashAnimation()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Update last open time & schedule periodic reminder check
+        com.nightread.app.service.ReminderWorker.updateLastOpenTime(this)
+        com.nightread.app.service.ReminderWorker.schedule(this)
+
+        // 1. При onResume() — загружать прогресс с Яндекс.Диска
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (com.nightread.app.data.YandexDiskManager.isAuthorized(this@MainActivity)) {
+                com.nightread.app.data.YandexDiskManager.downloadProgressFromCloud(this@MainActivity)
+            }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // 3. При onPause() — отправлять прогресс на Яндекс.Диск
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (com.nightread.app.data.YandexDiskManager.isAuthorized(this@MainActivity)) {
+                com.nightread.app.data.YandexDiskManager.pushAllProgressToCloud(this@MainActivity)
+            }
         }
     }
 

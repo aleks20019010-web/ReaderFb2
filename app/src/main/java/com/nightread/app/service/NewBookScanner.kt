@@ -124,7 +124,11 @@ class NewBookScanner(
 
             val sha1ToPathMap = try {
                 val dbMap = bookDao.getSha1ToPathMap().associate { it.sha1 to it.filePath }.toMutableMap()
-                Log.d(TAG, "[SCAN-DB-STATE] Loaded ${dbMap.size} existing SHA-1 values from database for comparison.")
+                val deletedList = com.nightread.app.data.AppDatabase.getDatabase(context).deletedBookDao().getAllDeletedBooks()
+                for (deleted in deletedList) {
+                    dbMap[deleted.sha1] = deleted.filePath ?: "DELETED"
+                }
+                Log.d(TAG, "[SCAN-DB-STATE] Loaded ${dbMap.size} existing SHA-1 values and ${deletedList.size} deleted SHA-1 values from database for comparison.")
                 dbMap
             } catch (e: SecurityException) {
                 Log.e(TAG, "SecurityException fetching SHA1 map from DB", e)
@@ -343,6 +347,14 @@ class NewBookScanner(
 
             val booksByPath = allBooksList.filter { !it.filePath.isNullOrBlank() }.associateBy { it.filePath!! }
             val sha1ToPathMap = allBooksList.associate { it.sha1 to it.filePath }.toMutableMap()
+            try {
+                val deletedList = com.nightread.app.data.AppDatabase.getDatabase(context).deletedBookDao().getAllDeletedBooks()
+                for (deleted in deletedList) {
+                    sha1ToPathMap[deleted.sha1] = deleted.filePath ?: "DELETED"
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading deleted books in scanner", e)
+            }
             
             val prefs = context.getSharedPreferences("book_scanner_cache", Context.MODE_PRIVATE)
 

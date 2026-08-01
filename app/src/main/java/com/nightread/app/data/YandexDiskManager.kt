@@ -528,6 +528,73 @@ object YandexDiskManager {
         }
     }
 
+    suspend fun downloadProgressFromCloud(context: Context) = withContext(Dispatchers.IO) {
+        val token = getToken(context) ?: return@withContext
+        val syncFolder = getSyncFolder(context)
+        val authHeader = "OAuth $token"
+        try {
+            val database = AppDatabase.getDatabase(context)
+            val progressFolder = "$syncFolder/Progress"
+            val progressItems = getAllFilesFromFolder(context, authHeader, progressFolder)
+            val progressAdapter = moshi.adapter(BookProgressPayload::class.java)
+            for (item in progressItems) {
+                val itemName = item.name ?: ""
+                if (itemName.endsWith(".json")) {
+                    try {
+                        val cleanPath = normalizePath(item.path ?: "$progressFolder/$itemName")
+                        val linkResponse = api.getDownloadLink(authHeader, cleanPath)
+                        val body = api.downloadFile(linkResponse.href)
+                        val jsonStr = body.string()
+                        if (!jsonStr.isNullOrBlank()) {
+                            val cloudProgress = progressAdapter.fromJson(jsonStr)
+                            if (cloudProgress != null) {
+                                val localBook = database.bookDao().getBookBySha1(cloudProgress.sha1)
+                                if (localBook != null) {
+                                    val isCloudZero = cloudProgress.page == 0 && cloudProgress.charOffset == 0
+                                    val isLocalNonZero = localBook.currentPageIndex > 0 || localBook.currentProgressChar > 0
+                                    if (cloudProgress.lastReadTime > localBook.lastReadTime && !(isCloudZero && isLocalNonZero)) {
+                                        database.bookDao().updateProgressAndPage(
+                                            sha1 = cloudProgress.sha1,
+                                            charOffset = cloudProgress.charOffset,
+                                            pageIndex = cloudProgress.page,
+                                            totalChars = cloudProgress.totalChars,
+                                            timestamp = cloudProgress.lastReadTime
+                                        )
+                                        context.getSharedPreferences("book_prefs_${localBook.sha1}", Context.MODE_PRIVATE)
+                                            .edit()
+                                            .putInt("book_page_${localBook.sha1}", cloudProgress.page)
+                                            .putInt("book_char_offset_${localBook.sha1}", cloudProgress.charOffset)
+                                            .apply()
+                                        Log.d(TAG, "Downloaded cloud progress for ${localBook.title}: page=${cloudProgress.page}, offset=${cloudProgress.charOffset}")
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error downloading individual progress file: $itemName", e)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to download progress from cloud", e)
+        }
+    }
+
+    suspend fun pushAllProgressToCloud(context: Context) = withContext(Dispatchers.IO) {
+        val token = getToken(context) ?: return@withContext
+        try {
+            val database = AppDatabase.getDatabase(context)
+            val books = database.bookDao().getAllBooksSync()
+            for (book in books) {
+                if (book.currentProgressChar > 0 || book.currentPageIndex > 0) {
+                    pushProgressToCloud(context, book.sha1, book.currentProgressChar)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to push all progress to cloud", e)
+        }
+    }
+
     private fun getRandomGradientStartColor(): String {
         val colors = listOf("#E0A96D", "#D4A373", "#CCA43B", "#C5A880", "#B5838D", "#E5989B")
         return colors.random()

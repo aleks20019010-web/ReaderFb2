@@ -7,6 +7,8 @@
     <string name="yandex_client_id">bfdea73d1e6242ba826f15d9d0374005</string>
     <string name="auto_light_night_title">Auto-Design</string>
     <string name="auto_light_night_desc">Design basierend auf Lichtsensor ändern (Sepia/Nacht)</string>
+    <string name="auto_brightness_title">Auto-Helligkeit</string>
+    <string name="auto_brightness_desc">Bildschirmhelligkeit automatisch über den Lichtsensor anpassen</string>
     <string name="amber_filter_title">Augenschutz</string>
     <string name="amber_filter_desc">Warmer Bernsteinfilter (Blaulichtfilter)</string>
     <string name="amber_filter_intensity">Filterintensität</string>

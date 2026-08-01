@@ -75,7 +75,15 @@ class BookDetailActivity : BaseActivity() {
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        val appBarLayout = toolbar.parent as? View
+        val appBarLayout = findViewById<com.google.android.material.appbar.AppBarLayout>(R.id.appBarLayout)
+        appBarLayout?.isLiftOnScroll = false
+        appBarLayout?.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+        appBarLayout?.setBackgroundColor(Color.TRANSPARENT)
+        appBarLayout?.elevation = 0f
+
+        toolbar.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+        toolbar.setBackgroundColor(Color.TRANSPARENT)
+
         val nestedScrollView = findViewById<View>(R.id.nestedScrollView)
         
         val rootView = findViewById<View>(android.R.id.content)

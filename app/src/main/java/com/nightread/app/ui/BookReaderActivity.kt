@@ -487,8 +487,10 @@ class BookReaderActivity : BaseActivity() {
                 updatePageIndicator()
                 animateSeekBarProgress(seekBar, it)
                 onPageChangedForSpeedTracker(it)
-                if (lastPage != -1 && lastPage != it) {
-                    triggerPageTurnHaptic()
+                if (lastPage != it) {
+                    if (lastPage != -1) {
+                        triggerPageTurnHaptic()
+                    }
                     viewModel.saveProgress()
                 }
                 lastPage = it
@@ -1570,12 +1572,28 @@ class BookReaderActivity : BaseActivity() {
         if (com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(this)) {
             lastKnownLux?.let { handleLightSensorChanged(it) }
         }
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (com.nightread.app.data.YandexDiskManager.isAuthorized(this@BookReaderActivity)) {
+                com.nightread.app.data.YandexDiskManager.downloadProgressFromCloud(this@BookReaderActivity)
+            }
+        }
     }
 
     override fun onPause() {
         super.onPause()
         brightnessAnimator?.cancel()
         viewModel.saveProgress()
+        val bookSha1 = viewModel.bookState.value?.sha1
+        val progressChar = viewModel.bookState.value?.currentProgressChar ?: 0
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (com.nightread.app.data.YandexDiskManager.isAuthorized(this@BookReaderActivity)) {
+                if (!bookSha1.isNullOrEmpty()) {
+                    com.nightread.app.data.YandexDiskManager.pushProgressToCloud(this@BookReaderActivity, bookSha1, progressChar)
+                } else {
+                    com.nightread.app.data.YandexDiskManager.pushAllProgressToCloud(this@BookReaderActivity)
+                }
+            }
+        }
         unregisterSensors()
         restoreDndFilter()
     }
@@ -1675,14 +1693,29 @@ class BookReaderActivity : BaseActivity() {
             webView.evaluateJavascript("if (typeof applyAntiGlare !== 'undefined') { applyAntiGlare($antiGlare, '$textColorHex'); }", null)
         }
 
-        adjustAutoBrightness(lux)
+        if (com.nightread.app.data.SettingsManager.isAutoBrightnessEnabled(this)) {
+            adjustAutoBrightness(lux)
+        }
         reEvaluateAutoTheme()
     }
 
     private var autoBrightnessAnimator: android.animation.ValueAnimator? = null
     private var lastAutoBrightnessTarget: Float = -1f
 
+    fun onAutoBrightnessSettingChanged(enabled: Boolean) {
+        if (enabled) {
+            lastKnownLux?.let { adjustAutoBrightness(it) }
+        } else {
+            autoBrightnessAnimator?.cancel()
+            animateBrightnessRise()
+        }
+    }
+
     private fun adjustAutoBrightness(lux: Float) {
+        if (!com.nightread.app.data.SettingsManager.isAutoBrightnessEnabled(this)) {
+            autoBrightnessAnimator?.cancel()
+            return
+        }
         val targetBrightness = when {
             lux <= 50f -> 0.1f
             lux >= 1000f -> 1.0f

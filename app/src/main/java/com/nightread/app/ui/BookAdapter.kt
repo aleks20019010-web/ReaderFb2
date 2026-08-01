@@ -36,6 +36,61 @@ class BookAdapter(
     private val onDeleteBook: ((BookEntity) -> Unit)? = null
 ) : RecyclerView.Adapter<BookAdapter.BookViewHolder>() {
 
+    var isSelectionMode: Boolean = false
+        private set
+    val selectedSha1s = mutableSetOf<String>()
+
+    var onSelectionModeChanged: ((Boolean) -> Unit)? = null
+    var onSelectionCountChanged: ((Int) -> Unit)? = null
+
+    fun enterSelectionMode(initialBook: BookEntity) {
+        isSelectionMode = true
+        selectedSha1s.clear()
+        selectedSha1s.add(initialBook.sha1)
+        notifyDataSetChanged()
+        onSelectionModeChanged?.invoke(true)
+        onSelectionCountChanged?.invoke(selectedSha1s.size)
+    }
+
+    fun exitSelectionMode() {
+        isSelectionMode = false
+        selectedSha1s.clear()
+        notifyDataSetChanged()
+        onSelectionModeChanged?.invoke(false)
+        onSelectionCountChanged?.invoke(0)
+    }
+
+    fun toggleSelection(book: BookEntity) {
+        if (selectedSha1s.contains(book.sha1)) {
+            selectedSha1s.remove(book.sha1)
+        } else {
+            selectedSha1s.add(book.sha1)
+        }
+        val pos = books.indexOfFirst { it.sha1 == book.sha1 }
+        if (pos != -1) {
+            notifyItemChanged(pos)
+        }
+        if (selectedSha1s.isEmpty()) {
+            exitSelectionMode()
+        } else {
+            onSelectionCountChanged?.invoke(selectedSha1s.size)
+        }
+    }
+
+    fun selectAll() {
+        if (!isSelectionMode) {
+            isSelectionMode = true
+            onSelectionModeChanged?.invoke(true)
+        }
+        selectedSha1s.clear()
+        selectedSha1s.addAll(books.map { it.sha1 })
+        notifyDataSetChanged()
+        onSelectionCountChanged?.invoke(selectedSha1s.size)
+    }
+
+    fun getSelectedBooks(): List<BookEntity> {
+        return books.filter { selectedSha1s.contains(it.sha1) }
+    }
     
     companion object {
         private const val VIEW_TYPE_GRID = 0
@@ -100,7 +155,15 @@ class BookAdapter(
 
     override fun onBindViewHolder(holder: BookViewHolder, position: Int) {
         val book = books[position]
-        holder.bind(book, onOpenBook, onDeleteBook)
+        holder.bind(
+            book,
+            onOpenBook,
+            onDeleteBook,
+            isSelectionMode,
+            selectedSha1s.contains(book.sha1),
+            ::enterSelectionMode,
+            ::toggleSelection
+        )
         
         holder.itemView.animate().cancel()
         
@@ -168,6 +231,8 @@ class BookAdapter(
                 val new = newBooks[newItemPosition]
                 return old.title == new.title &&
                        old.currentProgressChar == new.currentProgressChar &&
+                       old.currentPageIndex == new.currentPageIndex &&
+                       old.totalCharacters == new.totalCharacters &&
                        old.coverPath == new.coverPath
             }
         }
@@ -203,7 +268,8 @@ class BookAdapter(
         private val shimmerCover: com.facebook.shimmer.ShimmerFrameLayout? = itemView.findViewById(R.id.shimmerCover)
         private val vCoverGlow: View? = itemView.findViewById(R.id.vCoverGlow)
         private val cvBookCover: View = itemView.findViewById(R.id.cvBookCover)
-        private val btnDelete: View = itemView.findViewById(R.id.btnDelete)
+        private val cbSelect: android.widget.CheckBox? = itemView.findViewById(R.id.cbSelect)
+        private val vSelectionOverlay: View? = itemView.findViewById(R.id.vSelectionOverlay)
         private val vReadingProgressTrack: View? = itemView.findViewById(R.id.vReadingProgressTrack)
         private val vReadingProgress: View? = itemView.findViewById(R.id.vReadingProgress)
         private val vReadingProgressRemaining: View? = itemView.findViewById(R.id.vReadingProgressRemaining)
@@ -343,7 +409,11 @@ class BookAdapter(
         fun bind(
             book: BookEntity,
             onOpenBook: (BookEntity, View) -> Unit,
-            onDeleteBook: ((BookEntity) -> Unit)?
+            onDeleteBook: ((BookEntity) -> Unit)?,
+            isSelectionMode: Boolean,
+            isSelected: Boolean,
+            onEnterSelectionMode: (BookEntity) -> Unit,
+            onToggleSelection: (BookEntity) -> Unit
         ) {
             android.util.Log.d("BookAdapter", "Binding book in ViewHolder: title='${book.title}', author='${book.author}', sha1='${book.sha1}', coverPath='${book.coverPath}'")
             ivCover.transitionName = "cover_${book.sha1}"
@@ -485,42 +555,53 @@ class BookAdapter(
             }
 
 
-            // Click interactions
-            itemView.setOnClickListener {
-                android.util.Log.d("BookAdapter", "Book clicked: title='${book.title}', author='${book.author}', sha1='${book.sha1}'")
-                onOpenBook(book, ivCover)
-            }
-
-
-            // Long click interactions (Context Menu)
-            itemView.setOnLongClickListener { view ->
-                val themedContext = android.view.ContextThemeWrapper(view.context, R.style.Theme_NightRead_PopupMenu)
-                val popup = androidx.appcompat.widget.PopupMenu(themedContext, view)
-                popup.menu.add(0, 1, 0, "Открыть детали") // View Details
-                if (onDeleteBook != null) {
-                    popup.menu.add(0, 2, 1, "Удалить книгу") // Delete Book
-                }
-
-                popup.setOnMenuItemClickListener { menuItem ->
-                    when (menuItem.itemId) {
-                        1 -> {
-                            onOpenBook(book, ivCover)
-                            true
-                        }
-                        2 -> {
-                            onDeleteBook?.invoke(book)
-                            true
-                        }
-                        else -> false
+            if (isSelectionMode) {
+                cbSelect?.visibility = View.VISIBLE
+                cbSelect?.isChecked = isSelected
+                vSelectionOverlay?.visibility = if (isSelected) View.VISIBLE else View.GONE
+                if (cvBookCover is com.google.android.material.card.MaterialCardView) {
+                    if (isSelected) {
+                        cvBookCover.strokeColor = Color.parseColor("#6C5CE7")
+                        cvBookCover.strokeWidth = (2.5f * itemView.resources.displayMetrics.density).toInt()
+                    } else {
+                        cvBookCover.strokeColor = Color.parseColor("#25FFFFFF")
+                        cvBookCover.strokeWidth = (1f * itemView.resources.displayMetrics.density).toInt()
                     }
                 }
-                popup.show()
-                true
+            } else {
+                cbSelect?.visibility = View.GONE
+                vSelectionOverlay?.visibility = View.GONE
+                if (cvBookCover is com.google.android.material.card.MaterialCardView) {
+                    cvBookCover.strokeColor = Color.parseColor("#25FFFFFF")
+                    cvBookCover.strokeWidth = (1f * itemView.resources.displayMetrics.density).toInt()
+                }
+            }
+
+            // Click interactions
+            itemView.setOnClickListener {
+                if (isSelectionMode) {
+                    onToggleSelection(book)
+                } else {
+                    android.util.Log.d("BookAdapter", "Book clicked: title='${book.title}', author='${book.author}', sha1='${book.sha1}'")
+                    onOpenBook(book, ivCover)
+                }
+            }
+
+            // Long click interactions (enables selection mode)
+            itemView.setOnLongClickListener { view ->
+                if (!isSelectionMode) {
+                    onEnterSelectionMode(book)
+                    true
+                } else {
+                    onToggleSelection(book)
+                    true
+                }
             }
             
             // Hide delete button and remove listener
-            btnDelete.visibility = View.GONE
-            btnDelete.setOnClickListener(null)
+            val btnDelete: View? = itemView.findViewById(R.id.btnDelete)
+            btnDelete?.visibility = View.GONE
+            btnDelete?.setOnClickListener(null)
         }
     }
 }

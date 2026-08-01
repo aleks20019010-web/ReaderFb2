@@ -8,12 +8,12 @@ import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 object AutoSyncScheduler {
-    fun scheduleAutoSync(context: Context) {
+    fun scheduleAutoSync(context: Context, forceReplace: Boolean = true) {
         try {
             val workManager = WorkManager.getInstance(context)
-            workManager.cancelUniqueWork("YandexAutoSyncWork")
 
             if (!SettingsManager.isAutoSyncEnabled(context)) {
+                workManager.cancelUniqueWork("YandexAutoSyncWork")
                 return
             }
 
@@ -33,13 +33,40 @@ object AutoSyncScheduler {
                 .addTag("YandexAutoSyncWork")
                 .build()
 
+            val policy = if (forceReplace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP
+
+            workManager.enqueueUniqueWork(
+                "YandexAutoSyncWork",
+                policy,
+                workRequest
+            )
+            android.util.Log.d("AutoSyncScheduler", "Auto sync scheduled in ${initialDelayMs / 1000 / 60} minutes, policy = $policy")
+        } catch (e: Exception) {
+            android.util.Log.e("AutoSyncScheduler", "Error scheduling auto sync", e)
+        }
+    }
+
+    fun scheduleRetryAfterFailure(context: Context) {
+        try {
+            if (!SettingsManager.isAutoSyncEnabled(context)) return
+            val workManager = WorkManager.getInstance(context)
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+            val workRequest = OneTimeWorkRequestBuilder<AutoSyncWorker>()
+                .setConstraints(constraints)
+                .setInitialDelay(30, TimeUnit.MINUTES)
+                .addTag("YandexAutoSyncWork")
+                .build()
+
             workManager.enqueueUniqueWork(
                 "YandexAutoSyncWork",
                 ExistingWorkPolicy.REPLACE,
                 workRequest
             )
+            android.util.Log.d("AutoSyncScheduler", "Auto sync retry scheduled in 30 minutes due to previous error")
         } catch (e: Exception) {
-            android.util.Log.e("AutoSyncScheduler", "Error scheduling auto sync", e)
+            android.util.Log.e("AutoSyncScheduler", "Error scheduling auto sync retry", e)
         }
     }
 
@@ -52,32 +79,28 @@ object AutoSyncScheduler {
 
             val lastSync = YandexDiskManager.getLastSyncTimestamp(context)
             val now = Calendar.getInstance()
-            val target = Calendar.getInstance()
+            val nowMs = now.timeInMillis
+            val intervalMs = intervalDays * 24 * 60 * 60 * 1000L
 
-            if (lastSync > 0L) {
-                target.timeInMillis = lastSync
-                target.add(Calendar.DAY_OF_YEAR, intervalDays)
-            } else {
-                target.add(Calendar.DAY_OF_YEAR, intervalDays)
+            // If never synced before or if more than intervalDays have passed since lastSync -> OVERDUE -> Run NOW
+            if (lastSync == 0L || (nowMs - lastSync) >= intervalMs) {
+                return 0L
             }
-            
+
+            val target = Calendar.getInstance()
+            target.timeInMillis = lastSync
+            target.add(Calendar.DAY_OF_YEAR, intervalDays)
             target.set(Calendar.HOUR_OF_DAY, targetHour)
             target.set(Calendar.MINUTE, targetMinute)
             target.set(Calendar.SECOND, 0)
             target.set(Calendar.MILLISECOND, 0)
 
-            if (target.before(now)) {
-                target.timeInMillis = now.timeInMillis
-                target.set(Calendar.HOUR_OF_DAY, targetHour)
-                target.set(Calendar.MINUTE, targetMinute)
-                target.set(Calendar.SECOND, 0)
-                target.set(Calendar.MILLISECOND, 0)
-                if (target.before(now)) {
-                    target.add(Calendar.DAY_OF_YEAR, 1)
-                }
+            while (target.before(now)) {
+                target.add(Calendar.DAY_OF_YEAR, 1)
             }
 
-            return target.timeInMillis - now.timeInMillis
+            val delay = target.timeInMillis - nowMs
+            return if (delay < 0L) 0L else delay
         } catch (e: Exception) {
             return 0L
         }

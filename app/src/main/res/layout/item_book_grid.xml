@@ -113,7 +113,7 @@
                     <LinearLayout
                         android:id="@+id/vReadingProgressTrack"
                         android:layout_width="match_parent"
-                        android:layout_height="3dp"
+                        android:layout_height="2dp"
                         android:layout_gravity="bottom"
                         android:orientation="horizontal"
                         android:background="#20000000"
@@ -133,6 +133,25 @@
                             android:layout_weight="100"
                             android:background="#33FFFFFF" />
                     </LinearLayout>
+
+                    <!-- Selection overlay and checkbox -->
+                    <View
+                        android:id="@+id/vSelectionOverlay"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="#406C5CE7"
+                        android:visibility="gone" />
+
+                    <CheckBox
+                        android:id="@+id/cbSelect"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:layout_gravity="top|end"
+                        android:layout_margin="6dp"
+                        android:clickable="false"
+                        android:focusable="false"
+                        android:buttonTint="@color/accent"
+                        android:visibility="gone" />
                 </FrameLayout>
             </com.google.android.material.card.MaterialCardView>
         </FrameLayout>

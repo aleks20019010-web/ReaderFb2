@@ -201,12 +201,12 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                                 book.filePath?.endsWith(".zip", true) == true ||
                                 book.filePath?.endsWith(".epub", true) == true
 
-                // Retrieve latest saved position from SharedPreferences if fresher or non-zero
+                // Retrieve latest saved position from SharedPreferences if set
                 val spPage = sharedPrefs.getInt("book_page_${book.sha1}", -1)
                 val spOffset = sharedPrefs.getInt("book_char_offset_${book.sha1}", -1)
 
-                val effectivePage = if (spPage >= 0 && spPage > book.currentPageIndex) spPage else book.currentPageIndex
-                val effectiveOffset = if (spOffset >= 0 && spOffset > book.currentProgressChar) spOffset else book.currentProgressChar
+                val effectivePage = if (spPage >= 0) spPage else book.currentPageIndex
+                val effectiveOffset = if (spOffset >= 0) spOffset else book.currentProgressChar
 
                 val restoredBook = book.copy(
                     currentPageIndex = effectivePage,
@@ -718,7 +718,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         sharedPrefs.edit()
             .putInt("book_page_${book.sha1}", _currentPage.value)
             .putInt("book_char_offset_${book.sha1}", pIndex)
-            .apply()
+            .commit()
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
@@ -740,7 +740,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         
         sharedPrefs.edit()
             .putInt("book_page_${book.sha1}", pageIndex)
-            .apply()
+            .commit()
 
         _bookState.value = book.copy(
             currentPageIndex = pageIndex,
@@ -780,6 +780,11 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 lastReadTime = System.currentTimeMillis()
             )
 
+            sharedPrefs.edit()
+                .putInt("book_page_${book.sha1}", pageIdx)
+                .putInt("book_char_offset_${book.sha1}", savedParagraphIndex)
+                .commit()
+
             viewModelScope.launch {
                 withContext(Dispatchers.IO) {
                     bookDao.updateProgressAndPage(book.sha1, savedParagraphIndex, pageIdx, totalParagraphs, System.currentTimeMillis())
@@ -797,7 +802,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         sharedPrefs.edit()
             .putInt("book_page_${book.sha1}", pageIdx)
             .putInt("book_char_offset_${book.sha1}", charOffset)
-            .apply()
+            .commit()
 
         _bookState.value = book.copy(
             currentPageIndex = pageIdx,

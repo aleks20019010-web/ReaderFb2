@@ -25,6 +25,7 @@ object SettingsManager {
     const val KEY_AUTO_DISCOVERY = "auto_discovery"
     const val KEY_AUTO_THEME = "auto_theme"
     const val KEY_AUTO_LIGHT_NIGHT = "auto_light_night"
+    const val KEY_AUTO_BRIGHTNESS = "auto_brightness"
     const val KEY_AMBER_FILTER_ENABLED = "amber_filter_enabled"
     const val KEY_AMBER_FILTER_INTENSITY = "amber_filter_intensity"
     const val KEY_EXTRA_DIM_ENABLED = "extra_dim_enabled"
@@ -83,6 +84,7 @@ object SettingsManager {
     private var cachedAutoDiscovery: Boolean? = null
     private var cachedAutoTheme: Boolean? = null
     private var cachedAutoLightNight: Boolean? = null
+    private var cachedAutoBrightness: Boolean? = null
     private var cachedAmberFilterEnabled: Boolean? = null
     private var cachedAmberFilterIntensity: Int? = null
     private var cachedExtraDimEnabled: Boolean? = null
@@ -150,6 +152,20 @@ object SettingsManager {
         if (cachedAutoLightNight == enabled) return
         cachedAutoLightNight = enabled
         getPrefs(context).edit().putBoolean(KEY_AUTO_LIGHT_NIGHT, enabled).apply()
+        notifyChanged()
+    }
+
+    fun isAutoBrightnessEnabled(context: Context): Boolean {
+        if (cachedAutoBrightness == null) {
+            cachedAutoBrightness = getPrefs(context).getBoolean(KEY_AUTO_BRIGHTNESS, false)
+        }
+        return cachedAutoBrightness!!
+    }
+
+    fun setAutoBrightnessEnabled(context: Context, enabled: Boolean) {
+        if (cachedAutoBrightness == enabled) return
+        cachedAutoBrightness = enabled
+        getPrefs(context).edit().putBoolean(KEY_AUTO_BRIGHTNESS, enabled).apply()
         notifyChanged()
     }
 

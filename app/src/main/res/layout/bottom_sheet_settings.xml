@@ -554,6 +554,47 @@
                     app:trackTint="#9B59B6" />
             </RelativeLayout>
 
+            <!-- Auto-Brightness Switch -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="8dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/switchAutoBrightness"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvAutoBrightnessTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/auto_brightness_title"
+                        android:textColor="#E8D8F0"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvAutoBrightnessDesc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/auto_brightness_desc"
+                        android:textColor="#B8A0C8"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchAutoBrightness"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    app:thumbTint="@color/white"
+                    app:trackTint="#9B59B6" />
+            </RelativeLayout>
+
             <!-- Amber Eye Care Filter Switch -->
             <RelativeLayout
                 android:layout_width="match_parent"

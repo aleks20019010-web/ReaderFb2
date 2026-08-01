@@ -253,6 +253,12 @@ class YandexSyncFragment : Fragment() {
         super.onResume()
         try {
             updateUi()
+            val ctx = context
+            if (ctx != null && YandexDiskManager.isAuthorized(ctx)) {
+                lifecycleScope.launch(Dispatchers.IO) {
+                    YandexDiskManager.downloadProgressFromCloud(ctx)
+                }
+            }
         } catch (e: Exception) {
             Log.e("SYNC_FRAGMENT_ERROR", "Error inside onResume updateUi", e)
         }

@@ -1,6 +1,7 @@
 package com.nightread.app.ui
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -10,6 +11,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.nightread.app.BuildConfig
 import com.nightread.app.data.*
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.CancellationException
@@ -212,6 +214,26 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Yandex Disk Progress Sync (onResume / onPause handling)
+    fun downloadProgressFromCloud(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (!com.nightread.app.data.YandexDiskManager.isAuthorized(context)) return@launch
+            com.nightread.app.data.YandexDiskManager.downloadProgressFromCloud(context)
+            loadBooks()
+        }
+    }
+
+    fun uploadProgressToCloud(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (!com.nightread.app.data.YandexDiskManager.isAuthorized(context)) return@launch
+            selectedBook?.let { book ->
+                com.nightread.app.data.YandexDiskManager.pushProgressToCloud(context, book.sha1, book.currentProgressChar)
+            } ?: run {
+                com.nightread.app.data.YandexDiskManager.pushAllProgressToCloud(context)
+            }
+        }
+    }
+
     fun updateReadingProgress(charOffset: Int) {
         val book = selectedBook ?: return
         val clampedOffset = charOffset.coerceIn(0, book.totalCharacters)
@@ -238,11 +260,78 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteBook(bookSha1: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             if (!isActive) return@launch
+            val db = AppDatabase.getDatabase(getApplication())
+            val book = repository.getBookBySha1(bookSha1)
+            book?.filePath?.let { path ->
+                try {
+                    val file = File(path)
+                    if (file.exists()) file.delete()
+                } catch (e: Exception) {
+                    Log.e("BookViewModel", "Error deleting book file: $path", e)
+                }
+            }
+            book?.coverPath?.let { coverPath ->
+                try {
+                    val coverFile = File(coverPath)
+                    if (coverFile.exists()) coverFile.delete()
+                } catch (e: Exception) {
+                    Log.e("BookViewModel", "Error deleting cover file: $coverPath", e)
+                }
+            }
+            try {
+                db.deletedBookDao().insertDeletedBook(
+                    DeletedBook(sha1 = bookSha1, filePath = book?.filePath)
+                )
+            } catch (e: Exception) {
+                Log.e("BookViewModel", "Error saving deleted book SHA1: $bookSha1", e)
+            }
             repository.deleteBookBySha1(bookSha1)
             if (selectedBook?.sha1 == bookSha1) {
                 selectedBook = null
+            }
+        }
+    }
+
+    fun deleteSelectedBooks(booksList: List<BookEntity>, onComplete: (() -> Unit)? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(getApplication())
+            for (book in booksList) {
+                book.filePath?.let { path ->
+                    try {
+                        val file = File(path)
+                        if (file.exists()) file.delete()
+                    } catch (e: Exception) {
+                        Log.e("BookViewModel", "Error deleting book file: $path", e)
+                    }
+                }
+                book.coverPath?.let { coverPath ->
+                    try {
+                        val coverFile = File(coverPath)
+                        if (coverFile.exists()) coverFile.delete()
+                    } catch (e: Exception) {
+                        Log.e("BookViewModel", "Error deleting cover file: $coverPath", e)
+                    }
+                }
+                try {
+                    db.deletedBookDao().insertDeletedBook(
+                        DeletedBook(sha1 = book.sha1, filePath = book.filePath)
+                    )
+                } catch (e: Exception) {
+                    Log.e("BookViewModel", "Error saving deleted book SHA1: ${book.sha1}", e)
+                }
+                try {
+                    repository.deleteBookBySha1(book.sha1)
+                } catch (e: Exception) {
+                    Log.e("BookViewModel", "Error deleting book from DB: ${book.sha1}", e)
+                }
+                if (selectedBook?.sha1 == book.sha1) {
+                    selectedBook = null
+                }
+            }
+            withContext(Dispatchers.Main) {
+                onComplete?.invoke()
             }
         }
     }

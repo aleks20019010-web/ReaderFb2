@@ -303,6 +303,16 @@ class SettingsBottomSheet : DialogFragment() {
             }
         }
 
+        // 7c. Auto-Brightness Switch
+        val switchAutoBrightness = view.findViewById<SwitchCompat>(R.id.switchAutoBrightness)
+        switchAutoBrightness?.isChecked = SettingsManager.isAutoBrightnessEnabled(context)
+        switchAutoBrightness?.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != SettingsManager.isAutoBrightnessEnabled(context)) {
+                SettingsManager.setAutoBrightnessEnabled(context, isChecked)
+                (activity as? BookReaderActivity)?.onAutoBrightnessSettingChanged(isChecked)
+            }
+        }
+
         // 7c. Amber Filter Switch & Intensity Hookup
         val switchAmberFilter = view.findViewById<SwitchCompat>(R.id.switchAmberFilter)
         val layoutAmberIntensity = view.findViewById<LinearLayout>(R.id.layoutAmberIntensity)
@@ -605,6 +615,7 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvSilentModeTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoDiscoveryTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoLightNightTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvAutoBrightnessTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAmberFilterTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAmberIntensityValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvExtraDimTitle)?.setTextColor(textPrimaryColor)
@@ -621,6 +632,7 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvAlignmentLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoDiscoveryDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoLightNightDesc)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvAutoBrightnessDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAmberFilterDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAmberIntensityLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvExtraDimDesc)?.setTextColor(textSecondaryColor)
@@ -669,6 +681,10 @@ class SettingsBottomSheet : DialogFragment() {
         val switchAutoLightNight = rootView.findViewById<SwitchCompat>(R.id.switchAutoLightNight)
         switchAutoLightNight?.trackTintList = ColorStateList.valueOf(accentColor)
         switchAutoLightNight?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
+
+        val switchAutoBrightness = rootView.findViewById<SwitchCompat>(R.id.switchAutoBrightness)
+        switchAutoBrightness?.trackTintList = ColorStateList.valueOf(accentColor)
+        switchAutoBrightness?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
 
         val switchAmberFilter = rootView.findViewById<SwitchCompat>(R.id.switchAmberFilter)
         switchAmberFilter?.trackTintList = ColorStateList.valueOf(accentColor)

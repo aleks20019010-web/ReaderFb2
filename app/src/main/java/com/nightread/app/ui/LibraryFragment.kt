@@ -234,6 +234,13 @@ class LibraryFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        val layoutNormalHeader: View = view.findViewById(R.id.layoutNormalHeader)
+        val layoutSelectionHeader: View = view.findViewById(R.id.layoutSelectionHeader)
+        val btnCloseSelection: View = view.findViewById(R.id.btnCloseSelection)
+        val tvSelectedCount: TextView = view.findViewById(R.id.tvSelectedCount)
+        val btnSelectAll: View = view.findViewById(R.id.btnSelectAll)
+        val btnDeleteSelected: View = view.findViewById(R.id.btnDeleteSelected)
+
         // Bind Views
         btnSearchToggle = view.findViewById(R.id.btnSearchToggle)
         btnAutoScan = view.findViewById(R.id.btnAutoScan)
@@ -347,6 +354,58 @@ class LibraryFragment : Fragment() {
         )
         rvBooks.adapter = adapter
         rvBooks.itemAnimator = HighlightItemAnimator(adapter)
+
+        adapter.onSelectionModeChanged = { isSelectedMode ->
+            if (isSelectedMode) {
+                layoutNormalHeader.visibility = View.GONE
+                layoutSelectionHeader.visibility = View.VISIBLE
+                swipeRefresh.isEnabled = false
+            } else {
+                layoutSelectionHeader.visibility = View.GONE
+                layoutNormalHeader.visibility = View.VISIBLE
+                swipeRefresh.isEnabled = true
+            }
+        }
+
+        adapter.onSelectionCountChanged = { count ->
+            tvSelectedCount.text = "Выбрано: $count"
+        }
+
+        btnCloseSelection.setOnClickListener {
+            adapter.exitSelectionMode()
+        }
+
+        btnSelectAll.setOnClickListener {
+            adapter.selectAll()
+        }
+
+        btnDeleteSelected.setOnClickListener {
+            val selectedBooks = adapter.getSelectedBooks()
+            if (selectedBooks.isEmpty()) return@setOnClickListener
+
+            androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("Удаление книг")
+                .setMessage("Вы уверены, что хотите удалить выбранные книги (${selectedBooks.size} шт.)?\nФайлы также будут физически удалены с устройства.")
+                .setPositiveButton("Удалить") { _, _ ->
+                    viewModel.deleteSelectedBooks(selectedBooks) {
+                        adapter.exitSelectionMode()
+                        CustomToast.show(requireContext(), "Удалено книг: ${selectedBooks.size}")
+                    }
+                }
+                .setNegativeButton("Отмена", null)
+                .show()
+        }
+
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (adapter.isSelectionMode) {
+                    adapter.exitSelectionMode()
+                } else {
+                    isEnabled = false
+                    requireActivity().onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
 
         val swipeCallback = object : ItemTouchHelper.SimpleCallback(
             0,

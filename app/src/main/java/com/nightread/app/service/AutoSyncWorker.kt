@@ -140,6 +140,16 @@ class AutoSyncWorker(
                     com.nightread.app.data.SyncSettingsManager.setSyncing(context, false)
                     SyncCancellationManager.reset()
                     fileManager.cleanup()
+                    if (SettingsManager.isAutoSyncEnabled(context)) {
+                        val lastSync = YandexDiskManager.getLastSyncTimestamp(context)
+                        val intervalMs = SettingsManager.getAutoSyncIntervalDays(context) * 24 * 60 * 60 * 1000L
+                        val isOverdue = lastSync == 0L || (System.currentTimeMillis() - lastSync) >= intervalMs
+                        if (isOverdue) {
+                            AutoSyncScheduler.scheduleRetryAfterFailure(context)
+                        } else {
+                            AutoSyncScheduler.scheduleAutoSync(context, forceReplace = false)
+                        }
+                    }
                 }
             }
         } catch (e: Throwable) {

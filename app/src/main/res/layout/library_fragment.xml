@@ -45,6 +45,7 @@
         android:background="@drawable/bg_glass_panel">
 
         <RelativeLayout
+            android:id="@+id/layoutNormalHeader"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:padding="12dp">
@@ -159,6 +160,70 @@
                     app:iconSize="20dp" />
             </LinearLayout>
 
+        </RelativeLayout>
+
+        <!-- Selection Mode Header Panel (hidden by default) -->
+        <RelativeLayout
+            android:id="@+id/layoutSelectionHeader"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:paddingHorizontal="12dp"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <ImageButton
+                android:id="@+id/btnCloseSelection"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:contentDescription="Отменить выделение"
+                app:tint="#FFFFFF" />
+
+            <TextView
+                android:id="@+id/tvSelectedCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toEndOf="@id/btnCloseSelection"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="8dp"
+                android:text="Выбрано: 1"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSelectAll"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Все"
+                    android:textColor="#E8D8F0"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnDeleteSelected"
+                    style="@style/ButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Удалить выбранное"
+                    android:textColor="#FFFFFF"
+                    app:icon="@android:drawable/ic_menu_delete"
+                    app:iconTint="#FFFFFF"
+                    app:backgroundTint="#FF4757"
+                    android:textSize="12sp"
+                    android:paddingHorizontal="10dp" />
+            </LinearLayout>
         </RelativeLayout>
     </com.google.android.material.card.MaterialCardView>
 
