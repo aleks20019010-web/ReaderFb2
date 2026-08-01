@@ -30,8 +30,13 @@ abstract class BaseActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         currentLanguage = SettingsManager.getLanguage(this)
         currentNightMode = com.nightread.app.data.ThemeManager.shouldBeNightMode(this)
+        com.nightread.app.data.ThemeManager.applyTheme(this)
         // Устанавливаем звездный фон на уровне окна
         window.setBackgroundDrawable(StarryNightDrawable())
+        updateStatusBarColor()
+    }
+
+    private fun updateStatusBarColor() {
         if (currentNightMode) {
             window.statusBarColor = android.graphics.Color.TRANSPARENT
         } else {
@@ -42,17 +47,24 @@ abstract class BaseActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         resetScreenKeepAwakeTimer()
+        
+        val nightMode = com.nightread.app.data.ThemeManager.shouldBeNightMode(this)
+        if (nightMode != currentNightMode) {
+            currentNightMode = nightMode
+            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
+                if (nightMode) androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES 
+                else androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+            )
+            recreate()
+        }
+        updateStatusBarColor()
+
         findViewById<android.view.View>(android.R.id.content)?.let {
             GalaxyBgHelper.applyBackground(it)
         }
         val lang = SettingsManager.getLanguage(this)
         if (lang != currentLanguage) {
             currentLanguage = lang
-            recreate()
-        }
-        val nightMode = com.nightread.app.data.ThemeManager.shouldBeNightMode(this)
-        if (nightMode != currentNightMode) {
-            currentNightMode = nightMode
             recreate()
         }
     }

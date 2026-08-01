@@ -246,6 +246,7 @@ class MainActivity : BaseActivity() {
         val tvSplashSubtitle = findViewById<TextView>(R.id.tv_splash_subtitle)
         val cardMood = findViewById<View>(R.id.card_mood)
         val layoutGlowingIcon = findViewById<View>(R.id.layout_glowing_icon)
+        layoutGlowingIcon?.visibility = View.GONE
         val viewIconGlow = findViewById<View>(R.id.view_icon_glow)
         val ivLogo = findViewById<ImageView>(R.id.iv_splash_logo)
         val tvMoodTitle = findViewById<TextView>(R.id.tv_mood_title)
