@@ -38,9 +38,15 @@ object GalaxyBgHelper {
      * Применяет пользовательский фон или фоновое изображение в зависимости от выбранной темы.
      */
     fun applyBackground(context: Context, imageView: ImageView) {
-        val bgFile = FileStorageHelper.getUserBackgroundFile(context)
+        val nightModeFlags = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        val isNightMode = nightModeFlags == Configuration.UI_MODE_NIGHT_YES || com.nightread.app.data.ThemeHelper.shouldBeNightMode(context)
 
-        // 1. Приоритет: пользовательское фоновое изображение из галереи (/files/user_bg.jpg)
+        val parentView = imageView.parent as? android.view.ViewGroup
+        val starryView = parentView?.findViewById<View>(R.id.starryOverlay)
+
+        val bgFile = FileStorageHelper.getUserBackgroundFile(context, isNightMode)
+
+        // 1. Приоритет: пользовательское фоновое изображение из галереи (user_bg_dark.jpg / user_bg_light.jpg)
         if (bgFile.exists() && bgFile.length() > 0) {
             try {
                 val bitmap = BitmapFactory.decodeFile(bgFile.absolutePath)
@@ -48,9 +54,10 @@ object GalaxyBgHelper {
                     imageView.setImageBitmap(bitmap)
                     imageView.scaleType = ImageView.ScaleType.CENTER_CROP
                     imageView.setBackgroundColor(Color.TRANSPARENT)
+                    starryView?.visibility = if (isNightMode) View.VISIBLE else View.GONE
                     return
                 } else {
-                    Log.e(TAG, "BitmapFactory decoded null bitmap for user_bg.jpg. File may be corrupted.")
+                    Log.e(TAG, "BitmapFactory decoded null bitmap for background file: ${bgFile.name}")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error decoding custom background file, falling back to theme background", e)
@@ -58,9 +65,6 @@ object GalaxyBgHelper {
         }
 
         // 2. Тематический фон по умолчанию (Тёмный космос или Светлый рассвет)
-        val nightModeFlags = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        val isNightMode = nightModeFlags == Configuration.UI_MODE_NIGHT_YES
-
         imageView.setImageDrawable(null)
         if (isNightMode) {
             val darkDrawable = ContextCompat.getDrawable(context, R.drawable.bg_dark_cosmic)
@@ -70,6 +74,7 @@ object GalaxyBgHelper {
             } else {
                 imageView.setBackgroundColor(Color.parseColor(DARK_BG_COLOR))
             }
+            starryView?.visibility = View.VISIBLE
         } else {
             val lightDrawable = ContextCompat.getDrawable(context, R.drawable.light_bg)
             if (lightDrawable != null) {
@@ -78,6 +83,7 @@ object GalaxyBgHelper {
             } else {
                 imageView.setBackgroundColor(Color.parseColor(LIGHT_BG_COLOR))
             }
+            starryView?.visibility = View.GONE
         }
     }
 }

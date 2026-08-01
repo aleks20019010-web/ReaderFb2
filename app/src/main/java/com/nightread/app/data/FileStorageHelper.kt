@@ -14,31 +14,40 @@ import java.io.InputStream
 object FileStorageHelper {
 
     private const val TAG = "FileStorageHelper"
-    const val USER_BG_FILE_NAME = "user_bg.jpg"
+    const val USER_BG_DARK_FILE_NAME = "user_bg_dark.jpg"
+    const val USER_BG_LIGHT_FILE_NAME = "user_bg_light.jpg"
+    const val USER_BG_LEGACY_FILE_NAME = "user_bg.jpg"
 
     /**
-     * Возвращает файл пользовательского фона во внутреннем хранилище (/files/user_bg.jpg).
+     * Возвращает файл пользовательского фона для указанной или текущей темы.
      */
-    fun getUserBackgroundFile(context: Context): File {
-        return File(context.filesDir, USER_BG_FILE_NAME)
+    fun getUserBackgroundFile(context: Context, isNightMode: Boolean = ThemeHelper.shouldBeNightMode(context)): File {
+        val fileName = if (isNightMode) USER_BG_DARK_FILE_NAME else USER_BG_LIGHT_FILE_NAME
+        val file = File(context.filesDir, fileName)
+        if (!file.exists()) {
+            val legacyFile = File(context.filesDir, USER_BG_LEGACY_FILE_NAME)
+            if (legacyFile.exists()) return legacyFile
+        }
+        return file
     }
 
     /**
      * Проверяет, существует ли сохраненное пользовательское изображение фона.
      */
-    fun hasUserBackground(context: Context): Boolean {
-        val file = getUserBackgroundFile(context)
+    fun hasUserBackground(context: Context, isNightMode: Boolean = ThemeHelper.shouldBeNightMode(context)): Boolean {
+        val file = getUserBackgroundFile(context, isNightMode)
         return file.exists() && file.length() > 0
     }
 
     /**
-     * Сохраняет выбранную пользователем картинку из Uri во внутреннее хранилище (/files/user_bg.jpg).
+     * Сохраняет выбранную пользователем картинку из Uri в соответствующий файл темы.
      */
     fun saveUserBackground(context: Context, uri: Uri): Boolean {
         var inputStream: InputStream? = null
         var outputStream: FileOutputStream? = null
+        val isNightMode = ThemeHelper.shouldBeNightMode(context)
         return try {
-            val destFile = getUserBackgroundFile(context)
+            val destFile = getUserBackgroundFile(context, isNightMode)
             if (destFile.exists()) {
                 destFile.delete()
             }
@@ -67,8 +76,8 @@ object FileStorageHelper {
     /**
      * Удаляет пользовательский фон.
      */
-    fun removeUserBackground(context: Context): Boolean {
-        val file = getUserBackgroundFile(context)
+    fun removeUserBackground(context: Context, isNightMode: Boolean = ThemeHelper.shouldBeNightMode(context)): Boolean {
+        val file = getUserBackgroundFile(context, isNightMode)
         return if (file.exists()) {
             file.delete()
         } else false

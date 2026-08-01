@@ -93,6 +93,8 @@
     <string name="settings_toast_scan_started">Сканирование библиотеки запущено</string>
     <string name="settings_toast_cache_reset">Кэш сканирования успешно сброшен</string>
     <string name="settings_toast_library_cleared">Библиотека полностью очищена</string>
+    <string name="settings_toast_background_updated">Фон успешно обновлен</string>
+    <string name="settings_toast_background_error">Ошибка сохранения фона</string>
     <string name="settings_app_version">Версия: %1$s</string>
 
     <!-- Sync Screen -->

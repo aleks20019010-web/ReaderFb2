@@ -660,6 +660,12 @@ class LibraryFragment : Fragment() {
     private var scanAddedCount = 0
 
     private fun observeViewModel() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            com.nightread.app.data.SettingsManager.settingsChanged.collect {
+                updateThemeButtonState()
+            }
+        }
+
         // Observe Books Stream
         val booksFlow = if (filterType == "reading") {
             viewModel.loadReadingBooks()
@@ -1136,7 +1142,10 @@ class LibraryFragment : Fragment() {
         } else {
             androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
         }
+        val newThemeStr = if (targetMode == androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES) "dark" else "light"
+        SettingsManager.setTheme(requireContext(), newThemeStr)
         androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(targetMode)
+        updateThemeButtonState()
     }
 
     private fun updateThemeButtonState() {

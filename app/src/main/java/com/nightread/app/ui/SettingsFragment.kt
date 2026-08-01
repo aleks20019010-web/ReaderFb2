@@ -12,6 +12,10 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.SwitchCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.nightread.app.MainActivity
 import com.nightread.app.R
 import com.nightread.app.data.SettingsManager
@@ -29,6 +33,27 @@ class SettingsFragment : Fragment() {
             val ctx = context ?: return@registerForActivityResult
             viewModel.importBookFromUri(it, ctx) { success, message ->
                 CustomToast.show(ctx, message)
+            }
+        }
+    }
+
+    private val pickBackgroundLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { selectedUri ->
+            val ctx = context ?: return@registerForActivityResult
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                val success = com.nightread.app.data.FileStorageHelper.saveUserBackground(ctx, selectedUri)
+                withContext(Dispatchers.Main) {
+                    if (success) {
+                        CustomToast.show(ctx, getString(R.string.settings_toast_background_updated))
+                        view?.findViewById<View>(R.id.rootSettings)?.let { root ->
+                            GalaxyBgHelper.applyBackground(root)
+                        }
+                    } else {
+                        CustomToast.show(ctx, getString(R.string.settings_toast_background_error))
+                    }
+                }
             }
         }
     }
@@ -54,6 +79,16 @@ class SettingsFragment : Fragment() {
         btnLeft.setImageResource(android.R.drawable.ic_menu_sort_by_size)
         btnLeft.setOnClickListener {
             (activity as? MainActivity)?.openDrawer()
+        }
+
+        // --- ОФОРМЛЕНИЕ И ТЕМА ---
+        val switchAutoTheme = view.findViewById<SwitchCompat>(R.id.switchAutoTheme)
+        if (switchAutoTheme != null) {
+            switchAutoTheme.isChecked = SettingsManager.isAutoLightNightEnabled(ctx)
+            switchAutoTheme.setOnCheckedChangeListener { _, isChecked ->
+                SettingsManager.setAutoLightNightEnabled(ctx, isChecked)
+                com.nightread.app.data.ThemeHelper.applyTheme(ctx)
+            }
         }
 
         // --- ЯЗЫК ИНТЕРФЕЙСА ---
@@ -87,6 +122,10 @@ class SettingsFragment : Fragment() {
         }
 
         // --- НАСТРОЙКИ БИБЛИОТЕКИ ---
+        view.findViewById<View>(R.id.btnSelectBackground)?.setOnClickListener {
+            showPickBackgroundDialog()
+        }
+
         view.findViewById<Button>(R.id.btnScanLibrary).setOnClickListener {
             viewModel.startLocalBookScan()
             CustomToast.show(ctx, getString(R.string.settings_toast_scan_started))
@@ -176,5 +215,17 @@ class SettingsFragment : Fragment() {
         }
 
         view.findViewById<TextView>(R.id.tvAppVersion).text = getString(R.string.settings_app_version, com.nightread.app.BuildConfig.VERSION_NAME)
+    }
+
+    private fun showPickBackgroundDialog() {
+        val ctx = context ?: return
+        AlertDialog.Builder(ctx)
+            .setTitle(R.string.settings_pick_bg_dialog_title)
+            .setMessage(R.string.settings_pick_bg_dialog_msg)
+            .setPositiveButton(R.string.settings_pick_bg_dialog_positive) { _, _ ->
+                pickBackgroundLauncher.launch("image/*")
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 }

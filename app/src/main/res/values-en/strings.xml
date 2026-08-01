@@ -93,6 +93,8 @@
     <string name="settings_toast_scan_started">Library scan started</string>
     <string name="settings_toast_cache_reset">Scan cache successfully reset</string>
     <string name="settings_toast_library_cleared">Library completely cleared</string>
+    <string name="settings_toast_background_updated">Background updated successfully</string>
+    <string name="settings_toast_background_error">Failed to save background</string>
     <string name="settings_app_version">Version: %1$s</string>
 
     <!-- Sync Screen -->

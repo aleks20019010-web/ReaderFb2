@@ -9,8 +9,9 @@
     android:foreground="?android:attr/selectableItemBackground"
     app:cardCornerRadius="14dp"
     app:cardElevation="3dp"
-    app:strokeWidth="0dp"
-    app:cardBackgroundColor="#231735"
+    app:strokeWidth="1dp"
+    app:strokeColor="@color/glass_stroke"
+    app:cardBackgroundColor="@color/bg_card"
     app:cardPreventCornerOverlap="false"
     app:cardUseCompatPadding="false">
 
@@ -172,7 +173,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="2"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/text_primary"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:lineSpacingMultiplier="1.1" />
@@ -184,7 +185,7 @@
                 android:layout_marginTop="3dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="#B0A4C4"
+                android:textColor="@color/text_secondary"
                 android:textSize="10.5sp" />
 
             <TextView
@@ -194,7 +195,7 @@
                 android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="#887C9E"
+                android:textColor="@color/text_secondary"
                 android:textSize="9.5sp"
                 android:visibility="gone" />
 

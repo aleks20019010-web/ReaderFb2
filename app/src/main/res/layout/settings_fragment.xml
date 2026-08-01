@@ -89,7 +89,7 @@
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
                 android:text="@string/settings_section_language"
-                android:textColor="#B0A4C4"
+                android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.1" />
@@ -108,7 +108,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/settings_language_title"
-                    android:textColor="#FFFFFF"
+                    android:textColor="@color/text_primary"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
@@ -116,7 +116,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/settings_language_desc"
-                    android:textColor="#CCCCCC"
+                    android:textColor="@color/text_secondary"
                     android:textSize="12sp"
                     android:layout_marginTop="2dp"
                     android:layout_marginBottom="8dp" />
@@ -126,8 +126,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
                     android:spinnerMode="dropdown"
-                    android:popupBackground="#2A1A3E"
-                    android:textColor="#FFFFFF" />
+                    android:popupBackground="@color/surface"
+                    android:textColor="@color/text_primary" />
             </LinearLayout>
 
             <!-- ================= СИНХРОНИЗАЦИЯ ================= -->
@@ -137,7 +137,7 @@
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="8dp"
                 android:text="@string/settings_section_sync"
-                android:textColor="#B0A4C4"
+                android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.1" />
@@ -164,7 +164,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/settings_auto_sync"
-                        android:textColor="#FFFFFF"
+                        android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
@@ -172,7 +172,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/settings_auto_sync_desc"
-                        android:textColor="#CCCCCC"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp"
                         android:layout_marginTop="2dp" />
                 </LinearLayout>
@@ -199,7 +199,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/settings_sync_period"
-                    android:textColor="#FFFFFF"
+                    android:textColor="@color/text_primary"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
@@ -207,7 +207,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/settings_sync_period_desc"
-                    android:textColor="#CCCCCC"
+                    android:textColor="@color/text_secondary"
                     android:textSize="12sp"
                     android:layout_marginTop="2dp"
                     android:layout_marginBottom="8dp" />
@@ -217,8 +217,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
                     android:spinnerMode="dropdown"
-                    android:popupBackground="#2A1A3E"
-                    android:textColor="#FFFFFF" />
+                    android:popupBackground="@color/surface"
+                    android:textColor="@color/text_primary" />
             </LinearLayout>
 
             <!-- Sync Start Time Picker Button -->
@@ -246,7 +246,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/settings_sync_time"
-                        android:textColor="#FFFFFF"
+                        android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
@@ -254,7 +254,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/settings_sync_time_desc"
-                        android:textColor="#CCCCCC"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp"
                         android:layout_marginTop="2dp" />
                 </LinearLayout>
@@ -266,7 +266,7 @@
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     android:text="03:00"
-                    android:textColor="#E8D8F0"
+                    android:textColor="@color/accent"
                     android:textSize="16sp"
                     android:textStyle="bold" />
             </RelativeLayout>
@@ -278,7 +278,7 @@
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="8dp"
                 android:text="@string/settings_section_library"
-                android:textColor="#B0A4C4"
+                android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.1" />
@@ -295,7 +295,7 @@
                 android:text="@string/settings_select_background"
                 app:icon="@android:drawable/ic_menu_gallery"
                 app:iconGravity="textStart"
-                app:iconTint="@color/white" />
+                app:iconTint="@color/btn_text" />
 
             <!-- Scan library -->
             <com.google.android.material.button.MaterialButton
@@ -309,7 +309,7 @@
                 android:text="@string/settings_scan_library"
                 app:icon="@drawable/ic_custom_scan"
                 app:iconGravity="textStart"
-                app:iconTint="@color/white" />
+                app:iconTint="@color/btn_text" />
 
             <!-- Manual Import -->
             <com.google.android.material.button.MaterialButton
@@ -323,7 +323,7 @@
                 android:text="@string/settings_manual_import"
                 app:icon="@drawable/ic_custom_import"
                 app:iconGravity="textStart"
-                app:iconTint="@color/white" />
+                app:iconTint="@color/btn_text" />
 
             <!-- Find & Delete Duplicates -->
             <com.google.android.material.button.MaterialButton
@@ -332,16 +332,16 @@
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="12dp"
-                android:textColor="#E8D8F0"
+                android:textColor="@color/text_primary"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:text="@string/settings_delete_duplicates"
-                app:strokeColor="#4DFFFFFF"
-                app:rippleColor="#26FFFFFF"
+                app:strokeColor="@color/accent"
+                app:rippleColor="@color/accent_light"
                 app:cornerRadius="12dp"
                 app:icon="@android:drawable/ic_menu_search"
                 app:iconGravity="textStart"
-                app:iconTint="#E8D8F0" />
+                app:iconTint="@color/text_primary" />
 
             <!-- ================= ОЧИСТКА И ВОССТАНОВЛЕНИЕ ================= -->
             <TextView
@@ -350,7 +350,7 @@
                 android:layout_marginTop="20dp"
                 android:layout_marginBottom="8dp"
                 android:text="@string/settings_section_cleanup"
-                android:textColor="#B0A4C4"
+                android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.1" />
@@ -362,16 +362,16 @@
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="8dp"
-                android:textColor="#E8D8F0"
+                android:textColor="@color/text_primary"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:text="@string/settings_reset_cache"
-                app:strokeColor="#4DFFFFFF"
-                app:rippleColor="#26FFFFFF"
+                app:strokeColor="@color/accent"
+                app:rippleColor="@color/accent_light"
                 app:cornerRadius="12dp"
                 app:icon="@android:drawable/stat_notify_sync"
                 app:iconGravity="textStart"
-                app:iconTint="#E8D8F0" />
+                app:iconTint="@color/text_primary" />
 
             <!-- Clear Library -->
             <com.google.android.material.button.MaterialButton
@@ -380,16 +380,16 @@
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="12dp"
-                android:textColor="#E8D8F0"
+                android:textColor="@color/text_primary"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:text="@string/settings_clear_library"
-                app:strokeColor="#4DFFFFFF"
-                app:rippleColor="#26FFFFFF"
+                app:strokeColor="@color/accent"
+                app:rippleColor="@color/accent_light"
                 app:cornerRadius="12dp"
                 app:icon="@android:drawable/ic_menu_delete"
                 app:iconGravity="textStart"
-                app:iconTint="#E8D8F0" />
+                app:iconTint="@color/text_primary" />
 
             <!-- Info -->
             <TextView
@@ -400,7 +400,7 @@
                 android:layout_marginBottom="16dp"
                 android:gravity="center"
                 android:text="Версия: 1.0"
-                android:textColor="#887C9E"
+                android:textColor="@color/text_secondary"
                 android:textSize="12sp" />
 
         </LinearLayout>

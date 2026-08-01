@@ -6,7 +6,7 @@
     android:layout_margin="8dp"
     app:cardElevation="4dp"
     app:cardCornerRadius="16dp"
-    app:strokeColor="#33FFFFFF"
+    app:strokeColor="@color/glass_stroke"
     app:strokeWidth="1dp"
     app:cardBackgroundColor="@color/bg_panel"
     android:background="@drawable/bg_glass_panel">
@@ -26,7 +26,7 @@
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_sort_by_size"
             android:contentDescription="Меню"
-            app:tint="#E8D8F0" />
+            app:tint="@color/icon_tint" />
 
         <!-- МЕСТО ДЛЯ ЗАГОЛОВКА И ПОДЗАГОЛОВКА -->
         <LinearLayout
@@ -42,7 +42,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Заголовок"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -50,7 +50,7 @@
                 android:id="@+id/header_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#D0C8D8"
+                android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:visibility="gone" />
         </LinearLayout>

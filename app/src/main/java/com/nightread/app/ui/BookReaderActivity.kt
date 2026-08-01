@@ -776,8 +776,8 @@ class BookReaderActivity : BaseActivity() {
         val topToolbar = findViewById<View>(R.id.topToolbar)
         val bottomToolbar = findViewById<View>(R.id.bottomToolbar)
         
-        topToolbar.background = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_glass_panel_60)
-        bottomToolbar.background = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_glass_panel_60)
+        topToolbar.background = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_glass_panel_90)
+        bottomToolbar.background = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_glass_panel_90)
         
         val barTextColor = androidx.core.content.ContextCompat.getColor(this, R.color.text_primary)
         val iconTint = androidx.core.content.ContextCompat.getColor(this, R.color.icon_tint)
