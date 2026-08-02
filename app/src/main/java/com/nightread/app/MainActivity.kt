@@ -152,9 +152,6 @@ class MainActivity : BaseActivity() {
                             bookViewModel.startIncrementalBookScan()
                         }
                     }
-                    if (com.nightread.app.data.YandexDiskManager.isAuthorized(this@MainActivity)) {
-                        com.nightread.app.data.YandexDiskManager.downloadProgressFromCloud(this@MainActivity)
-                    }
                     if (com.nightread.app.data.SettingsManager.isAutoSyncEnabled(this@MainActivity)) {
                         com.nightread.app.service.AutoSyncScheduler.scheduleAutoSync(this@MainActivity, forceReplace = false)
                     }
@@ -358,21 +355,10 @@ class MainActivity : BaseActivity() {
         super.onResume()
         com.nightread.app.service.ReminderWorker.updateLastOpenTime(this)
         com.nightread.app.service.ReminderWorker.schedule(this)
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            if (com.nightread.app.data.YandexDiskManager.isAuthorized(this@MainActivity)) {
-                com.nightread.app.data.YandexDiskManager.downloadProgressFromCloud(this@MainActivity)
-            }
-        }
     }
 
     override fun onPause() {
         super.onPause()
-        lifecycleScope.launch(Dispatchers.IO) {
-            if (com.nightread.app.data.YandexDiskManager.isAuthorized(this@MainActivity)) {
-                com.nightread.app.data.YandexDiskManager.pushAllProgressToCloud(this@MainActivity)
-            }
-        }
     }
 
     fun openLibraryFragment(filterType: String = "all") {

@@ -672,7 +672,7 @@ class BookReaderActivity : BaseActivity() {
                     } else if (isDraggingVerticalLeft || isDraggingVerticalRight) {
                         handler.postDelayed(hideIndicatorsRunnable, 1000)
                         return@OnTouchListener true
-                    } else if (Math.abs(diffX) > 50f && Math.abs(diffX) > Math.abs(diffY) * 1.2f && duration < 1000) {
+                    } else if (Math.abs(diffX) > 30f && Math.abs(diffX) > Math.abs(diffY)) {
                         val currentPage = viewModel.currentPage.value
                         val totalPages = viewModel.pagesState.value.size
                         val filePath = viewModel.bookState.value?.filePath ?: ""
@@ -694,10 +694,30 @@ class BookReaderActivity : BaseActivity() {
                             }
                         }
                         return@OnTouchListener true
-                    } else if (Math.abs(diffX) < 25f && Math.abs(diffY) < 25f && duration < 350) {
-                        if (!isWebView) {
-                            toggleToolbars()
+                    } else if (Math.abs(diffX) < 30f && Math.abs(diffY) < 30f && duration < 500) {
+                        val touchX = event.x
+                        val currentPage = viewModel.currentPage.value
+                        val totalPages = viewModel.pagesState.value.size
+                        val filePath = viewModel.bookState.value?.filePath ?: ""
+                        val isWebViewBook = filePath.endsWith(".fb2", true) || 
+                                           filePath.endsWith(".fb2.zip", true) || 
+                                           filePath.endsWith(".zip", true) ||
+                                           filePath.endsWith(".epub", true)
+                        if (touchX < screenWidth * 0.25f) {
+                            if (currentPage > 0) {
+                                viewModel.setCurrentPage(currentPage - 1)
+                            }
                             return@OnTouchListener true
+                        } else if (touchX > screenWidth * 0.75f) {
+                            if (currentPage < totalPages - 1 || isWebViewBook) {
+                                viewModel.setCurrentPage(currentPage + 1)
+                            }
+                            return@OnTouchListener true
+                        } else {
+                            if (!isWebView) {
+                                toggleToolbars()
+                                return@OnTouchListener true
+                            }
                         }
                     }
                 }
@@ -1598,11 +1618,6 @@ class BookReaderActivity : BaseActivity() {
         if (com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(this)) {
             lastKnownLux?.let { handleLightSensorChanged(it) }
         }
-        lifecycleScope.launch(Dispatchers.IO) {
-            if (com.nightread.app.data.YandexDiskManager.isAuthorized(this@BookReaderActivity)) {
-                com.nightread.app.data.YandexDiskManager.downloadProgressFromCloud(this@BookReaderActivity)
-            }
-        }
     }
 
     override fun onPause() {
@@ -1611,17 +1626,6 @@ class BookReaderActivity : BaseActivity() {
         silentModeJob?.cancel()
         sleepTimerJob?.cancel()
         viewModel.saveProgress()
-        val bookSha1 = viewModel.bookState.value?.sha1
-        val progressChar = viewModel.bookState.value?.currentProgressChar ?: 0
-        lifecycleScope.launch(Dispatchers.IO) {
-            if (com.nightread.app.data.YandexDiskManager.isAuthorized(this@BookReaderActivity)) {
-                if (!bookSha1.isNullOrEmpty()) {
-                    com.nightread.app.data.YandexDiskManager.pushProgressToCloud(this@BookReaderActivity, bookSha1, progressChar)
-                } else {
-                    com.nightread.app.data.YandexDiskManager.pushAllProgressToCloud(this@BookReaderActivity)
-                }
-            }
-        }
         unregisterSensors()
         restoreDndFilter()
     }
