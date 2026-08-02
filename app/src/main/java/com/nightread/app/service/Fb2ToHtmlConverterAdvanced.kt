@@ -82,7 +82,7 @@ object Fb2ToHtmlConverterAdvanced {
                             width: 100vw;
                             height: 100vh;
                             box-sizing: border-box;
-                            overflow-x: scroll;
+                            overflow-x: hidden;
                             overflow-y: hidden;
                             -webkit-column-width: $columnWidthCss;
                             -webkit-column-gap: $columnGapCss;
@@ -303,8 +303,11 @@ object Fb2ToHtmlConverterAdvanced {
                         }
 
                         function scrollToPage(pageIndex) {
+                            var totalWidth = document.body.scrollWidth;
                             var pageWidth = window.innerWidth || document.documentElement.clientWidth;
-                            window.scrollTo(pageIndex * pageWidth, 0);
+                            var pages = Math.max(1, Math.round(totalWidth / pageWidth));
+                            var step = totalWidth / pages;
+                            window.scrollTo(pageIndex * step, 0);
                         }
 
                         document.addEventListener('touchend', function() {

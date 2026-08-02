@@ -73,7 +73,7 @@ object EpubToHtmlConverter {
                         padding-top: $topMargin; padding-bottom: $bottomMargin;
                         padding-left: $sideMargin; padding-right: $sideMargin;
                         width: 100vw; height: 100vh; box-sizing: border-box;
-                        overflow-x: scroll; overflow-y: hidden;
+                        overflow-x: hidden; overflow-y: hidden;
                         -webkit-column-width: $columnWidthCss; -webkit-column-gap: $columnGapCss;
                         column-width: $columnWidthCss; column-gap: $columnGapCss;
                         background-color: $bgColor; color: $textColor;
@@ -253,8 +253,11 @@ object EpubToHtmlConverter {
                     }
 
                     function scrollToPage(pageIndex) {
+                        var totalWidth = document.body.scrollWidth;
                         var pageWidth = window.innerWidth || document.documentElement.clientWidth;
-                        window.scrollTo(pageIndex * pageWidth, 0);
+                        var pages = Math.max(1, Math.round(totalWidth / pageWidth));
+                        var step = totalWidth / pages;
+                        window.scrollTo(pageIndex * step, 0);
                     }
 
                     window.onload = function() { setTimeout(calculatePages, 200); };
