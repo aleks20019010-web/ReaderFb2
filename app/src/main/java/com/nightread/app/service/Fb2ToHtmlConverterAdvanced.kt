@@ -52,6 +52,8 @@ object Fb2ToHtmlConverterAdvanced {
             // Margin/padding setup
             val sideMarginPx = paddingLeft
             val sideMargin = "${sideMarginPx}px"
+            val columnWidthCss = "calc(100vw - ${sideMarginPx * 2}px)"
+            val columnGapCss = "${sideMarginPx * 2}px"
             val topMargin = "${paddingTop}px"
             val bottomMargin = "${paddingBottom}px"
             val fontWeightCss = if (fontWeight > 0) "bold" else "normal"
@@ -74,6 +76,17 @@ object Fb2ToHtmlConverterAdvanced {
                         }
                         body {
                             margin: 0;
+                            padding: 0;
+                            width: 100vw;
+                            height: 100vh;
+                            background-color: $bgColor;
+                            overflow: hidden;
+                            -webkit-user-select: text;
+                            user-select: text;
+                            -webkit-touch-callout: default;
+                        }
+                        #column-container {
+                            margin: 0;
                             padding-top: $topMargin;
                             padding-bottom: $bottomMargin;
                             padding-left: 0px;
@@ -84,7 +97,8 @@ object Fb2ToHtmlConverterAdvanced {
                             -webkit-column-gap: 0px;
                             column-width: 100vw;
                             column-gap: 0px;
-                            background-color: $bgColor;
+                            -webkit-column-fill: auto;
+                            column-fill: auto;
                             color: $textColor;
                             font-family: $cssFontFamily;
                             font-size: ${fontSize}px;
@@ -95,7 +109,7 @@ object Fb2ToHtmlConverterAdvanced {
                             -ms-hyphens: auto;
                             hyphens: auto;
                         }
-                        body > * {
+                        #column-container > * {
                             padding-left: $sideMargin;
                             padding-right: $sideMargin;
                             box-sizing: border-box;
@@ -105,6 +119,8 @@ object Fb2ToHtmlConverterAdvanced {
                             margin-bottom: 0em;
                             text-indent: 1.5em;
                             text-align: justify;
+                            max-width: 100%;
+                            box-sizing: border-box;
                         }
                         h1, h2, h3, h4, h5, h6 {
                             margin-top: 1em;
@@ -359,7 +375,9 @@ object Fb2ToHtmlConverterAdvanced {
                     </script>
                 </head>
                 <body>
-                    $htmlContent
+                    <div id="column-container">
+                        $htmlContent
+                    </div>
                 </body>
                 </html>
             """.trimIndent()

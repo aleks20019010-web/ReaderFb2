@@ -39,6 +39,8 @@ object EpubToHtmlConverter {
         // Margin/padding setup
         val sideMarginPx = paddingLeft
         val sideMargin = "${sideMarginPx}px"
+        val columnWidthCss = "calc(100vw - ${sideMarginPx * 2}px)"
+        val columnGapCss = "${sideMarginPx * 2}px"
         val topMargin = "${paddingTop}px"
         val bottomMargin = "${paddingBottom}px"
         val fontWeightCss = if (fontWeight > 0) "bold" else "normal"
@@ -67,27 +69,32 @@ object EpubToHtmlConverter {
                 <style>
                     html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: $bgColor; overflow: hidden; }
                     body {
+                        margin: 0; padding: 0;
+                        width: 100vw; height: 100vh;
+                        background-color: $bgColor; overflow: hidden;
+                        -webkit-user-select: text; user-select: text;
+                        -webkit-touch-callout: default;
+                    }
+                    #column-container {
                         margin: 0;
                         padding-top: $topMargin; padding-bottom: $bottomMargin;
                         padding-left: 0px; padding-right: 0px;
                         height: 100vh; box-sizing: border-box;
                         -webkit-column-width: 100vw; -webkit-column-gap: 0px;
                         column-width: 100vw; column-gap: 0px;
+                        -webkit-column-fill: auto; column-fill: auto;
                         background-color: $bgColor; color: $textColor;
                         font-family: $cssFontFamily; font-size: ${fontSize}px;
                         font-weight: $fontWeightCss; line-height: $lineSpacing;
                         text-align: ${fontAlignment.lowercase()};
                         -webkit-hyphens: auto; -ms-hyphens: auto; hyphens: auto;
-                        -webkit-user-select: text;
-                        user-select: text;
-                        -webkit-touch-callout: default;
                     }
-                    body > * {
+                    #column-container > * {
                         padding-left: $sideMargin;
                         padding-right: $sideMargin;
                         box-sizing: border-box;
                     }
-                    p { margin-top: 0; margin-bottom: 0em; text-indent: 1.5em; text-align: justify; }
+                    p { margin-top: 0; margin-bottom: 0em; text-indent: 1.5em; text-align: justify; max-width: 100%; box-sizing: border-box; }
                     h1, h2, h3, h4, h5, h6 { margin-top: 1em; margin-bottom: 0.5em; font-weight: bold; text-align: center; }
                     img { max-width: 100%; height: auto; display: block; margin: 12px auto; }
                     body.antiglare-active {
@@ -301,7 +308,9 @@ object EpubToHtmlConverter {
                 </script>
             </head>
             <body>
-                $modifiedContent
+                <div id="column-container">
+                    $modifiedContent
+                </div>
             </body>
             </html>
         """.trimIndent()
