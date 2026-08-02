@@ -393,9 +393,20 @@ class MainActivity : BaseActivity() {
                 if (!preventAutoOpen && !hasAutoOpenedInSession) {
                     try {
                         val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
-                        val lastRead = db.bookDao().getLastReadBook()
-                        if (lastRead != null && !lastRead.sha1.isNullOrEmpty()) {
-                            lastReadBookSha1 = lastRead.sha1
+                        val spSha1 = com.nightread.app.data.SettingsManager.getLastReadBookSha1(this@MainActivity)
+                        val dbLastRead = db.bookDao().getLastReadBook()
+                        val spBook = if (!spSha1.isNullOrEmpty()) db.bookDao().getBookBySha1(spSha1) else null
+
+                        val candidate = when {
+                            spBook != null && dbLastRead != null -> {
+                                if (spBook.lastReadTime >= dbLastRead.lastReadTime) spBook else dbLastRead
+                            }
+                            spBook != null -> spBook
+                            else -> dbLastRead
+                        }
+
+                        if (candidate != null && !candidate.sha1.isNullOrEmpty()) {
+                            lastReadBookSha1 = candidate.sha1
                             shouldAutoOpen = true
                             hasAutoOpenedInSession = true
                         }

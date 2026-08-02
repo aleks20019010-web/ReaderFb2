@@ -563,7 +563,7 @@ class YandexSyncManager(private val context: Context) {
                 val cloudProgress = cloudProgressMap[sha1]
 
                 // shouldUpload: if there's no cloud progress and we actually have some progress locally, OR if local is newer than cloud
-                val shouldUploadProgress = (cloudProgress == null && localBook.currentProgressChar > 0) || 
+                val shouldUploadProgress = (cloudProgress == null && (localBook.currentProgressChar > 0 || localBook.lastReadTime > 0 || localBook.currentPageIndex > 0)) || 
                                            (cloudProgress != null && localBook.lastReadTime > cloudProgress.lastReadTime)
 
                 if (shouldUploadProgress) {

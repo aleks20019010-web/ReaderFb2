@@ -443,7 +443,7 @@ class SyncOrchestrator(
                                                     author = authorText ?: "Неизвестен",
                                                     category = "Локальные",
                                                     currentProgressChar = cloudProgress?.charOffset ?: 0,
-                                                    lastReadTime = cloudProgress?.lastReadTime ?: System.currentTimeMillis(),
+                                                    lastReadTime = cloudProgress?.lastReadTime ?: 0L,
                                                     filePath = localFile.absolutePath,
                                                     series = seriesText,
                                                     seriesIndex = seriesIdx,
@@ -552,7 +552,7 @@ class SyncOrchestrator(
                             val cloudProgressName = "$sha1.json"
                             val cloudProgress = cloudProgressMap[sha1]
 
-                            val shouldUploadProgress = (cloudProgress == null && localBook.currentProgressChar > 0) || 
+                            val shouldUploadProgress = (cloudProgress == null && (localBook.currentProgressChar > 0 || localBook.lastReadTime > 0 || localBook.currentPageIndex > 0)) || 
                                                        (cloudProgress != null && localBook.lastReadTime > cloudProgress.lastReadTime)
 
                             if (shouldUploadProgress) {

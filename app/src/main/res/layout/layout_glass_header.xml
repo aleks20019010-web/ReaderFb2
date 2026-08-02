@@ -1,10 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="?attr/actionBarSize"
-    android:padding="12dp"
-    android:background="@android:color/transparent">
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardElevation="4dp"
+    app:cardCornerRadius="16dp"
+    app:strokeColor="@color/glass_stroke"
+    app:strokeWidth="1dp"
+    app:cardBackgroundColor="@color/bg_card">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:background="@android:color/transparent">
 
         <!-- МЕСТО ДЛЯ КНОПКИ (слева) -->
         <ImageButton
@@ -57,3 +67,5 @@
             android:visibility="gone" />
 
     </RelativeLayout>
+
+</com.google.android.material.card.MaterialCardView>
