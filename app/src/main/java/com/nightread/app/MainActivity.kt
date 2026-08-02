@@ -397,13 +397,7 @@ class MainActivity : BaseActivity() {
                         val dbLastRead = db.bookDao().getLastReadBook()
                         val spBook = if (!spSha1.isNullOrEmpty()) db.bookDao().getBookBySha1(spSha1) else null
 
-                        val candidate = when {
-                            spBook != null && dbLastRead != null -> {
-                                if (spBook.lastReadTime >= dbLastRead.lastReadTime) spBook else dbLastRead
-                            }
-                            spBook != null -> spBook
-                            else -> dbLastRead
-                        }
+                        val candidate = spBook ?: dbLastRead
 
                         if (candidate != null && !candidate.sha1.isNullOrEmpty()) {
                             lastReadBookSha1 = candidate.sha1

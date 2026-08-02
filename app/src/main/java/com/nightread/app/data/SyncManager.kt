@@ -23,8 +23,11 @@ import java.util.concurrent.TimeUnit
 data class SyncBook(
     val title: String,
     val author: String,
-    val currentProgressChar: Int,
-    val lastReadTime: Long
+    val currentProgressChar: Int = 0,
+    val progress: Int = 0,
+    val currentPageIndex: Int = 0,
+    val lastReadTime: Long = 0L,
+    val sha1: String = ""
 )
 
 data class SyncNote(
@@ -36,8 +39,8 @@ data class SyncNote(
 )
 
 data class SyncPayload(
-    val books: List<SyncBook>,
-    val notes: List<SyncNote>
+    val books: List<SyncBook> = emptyList(),
+    val notes: List<SyncNote> = emptyList()
 )
 
 class SyncManager(private val context: Context) {
@@ -114,8 +117,18 @@ class SyncManager(private val context: Context) {
      * Exports the current local database state into a JSON SyncPayload
      */
     suspend fun getLocalPayload(repository: BookRepository): SyncPayload = withContext(Dispatchers.IO) {
-        val books = repository.allBooks.first().map {
-            SyncBook(it.title, it.author ?: "Неизвестен", it.currentProgressChar, it.lastReadTime)
+        val books = repository.allBooks.first().map { book ->
+            val total = book.totalCharacters
+            val pct = if (total > 0) (book.currentProgressChar.toLong() * 100 / total).toInt().coerceIn(0, 100) else 0
+            SyncBook(
+                title = book.title,
+                author = book.author ?: "Неизвестен",
+                currentProgressChar = book.currentProgressChar,
+                progress = pct,
+                currentPageIndex = book.currentPageIndex,
+                lastReadTime = book.lastReadTime,
+                sha1 = book.sha1
+            )
         }
         val notes = repository.allNotes.first().map {
             SyncNote(it.bookTitle, it.selectedText, it.noteText, it.charOffset, it.timestamp)
@@ -131,30 +144,38 @@ class SyncManager(private val context: Context) {
 
         // Merge books
         payload.books.forEach { incoming ->
-            val matchingLocal = localBooks.find { it.title.equals(incoming.title, ignoreCase = true) }
+            val matchingLocal = localBooks.find { 
+                (incoming.sha1.isNotEmpty() && it.sha1 == incoming.sha1) || 
+                it.title.equals(incoming.title, ignoreCase = true) 
+            }
             if (matchingLocal != null) {
-                // If incoming progress is newer, update it
+                // If incoming progress is newer, update it. Do not overwrite if local is newer or equal.
                 if (incoming.lastReadTime > matchingLocal.lastReadTime) {
+                    val targetChar = if (incoming.currentProgressChar > 0) incoming.currentProgressChar else incoming.progress
+                    val targetPage = if (incoming.currentPageIndex > 0) incoming.currentPageIndex else matchingLocal.currentPageIndex
                     repository.updateBook(matchingLocal.copy(
-                        currentProgressChar = incoming.currentProgressChar,
+                        currentProgressChar = targetChar,
+                        currentPageIndex = targetPage,
                         lastReadTime = incoming.lastReadTime
                     ))
                 }
             } else {
-                // If book doesn't exist locally, insert it with a placeholder content or download
+                // If book doesn't exist locally, insert placeholder record
                 val rawBytes = (incoming.title + incoming.author).toByteArray(java.nio.charset.StandardCharsets.UTF_8)
-                val sha1String = try {
+                val sha1String = if (incoming.sha1.isNotEmpty()) incoming.sha1 else try {
                     val digest = java.security.MessageDigest.getInstance("SHA-1")
                     val result = digest.digest(rawBytes)
                     result.joinToString("") { "%02x".format(it) }
                 } catch (e: Exception) {
                     java.util.UUID.randomUUID().toString()
                 }
+                val targetChar = if (incoming.currentProgressChar > 0) incoming.currentProgressChar else incoming.progress
                 repository.insertBook(BookEntity(
                     sha1 = sha1String,
                     title = incoming.title,
                     author = incoming.author,
-                    currentProgressChar = incoming.currentProgressChar,
+                    currentProgressChar = targetChar,
+                    currentPageIndex = incoming.currentPageIndex,
                     lastReadTime = incoming.lastReadTime,
                     totalCharacters = 1000
                 ))
