@@ -714,17 +714,11 @@ class BookReaderActivity : BaseActivity() {
                             }
                             return@OnTouchListener true
                         } else {
-                            if (!isWebView) {
-                                toggleToolbars()
-                                return@OnTouchListener true
-                            }
+                            toggleToolbars()
+                            return@OnTouchListener true
                         }
                     }
                 }
-            }
-
-            if (isWebView) {
-                return@OnTouchListener false
             }
 
             true
@@ -2018,21 +2012,14 @@ class BookReaderActivity : BaseActivity() {
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
                 if (action == KeyEvent.ACTION_DOWN) {
                     val currentPage = viewModel.currentPage.value
-                    val totalPages = viewModel.pagesState.value.size
-                    if (currentPage == 0) {
-                        viewModel.setCurrentPage(1)
-                    } else if (currentPage < totalPages - 1) {
-                        viewModel.setCurrentPage(currentPage + 1)
-                    }
+                    viewModel.setCurrentPage(currentPage + 1)
                 }
                 return true
             }
             KeyEvent.KEYCODE_VOLUME_UP -> {
                 if (action == KeyEvent.ACTION_DOWN) {
                     val currentPage = viewModel.currentPage.value
-                    if (currentPage == 0) {
-                        viewModel.setCurrentPage(1)
-                    } else if (currentPage > 0) {
+                    if (currentPage > 0) {
                         viewModel.setCurrentPage(currentPage - 1)
                     }
                 }
@@ -2040,6 +2027,24 @@ class BookReaderActivity : BaseActivity() {
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        when (keyCode) {
+            KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                val currentPage = viewModel.currentPage.value
+                viewModel.setCurrentPage(currentPage + 1)
+                return true
+            }
+            KeyEvent.KEYCODE_VOLUME_UP -> {
+                val currentPage = viewModel.currentPage.value
+                if (currentPage > 0) {
+                    viewModel.setCurrentPage(currentPage - 1)
+                }
+                return true
+            }
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     fun showFootnote(noteId: String) {}
