@@ -69,6 +69,7 @@ object Fb2ToHtmlConverterAdvanced {
                         html {
                             margin: 0;
                             padding: 0;
+                            width: 100%;
                             height: 100%;
                             background-color: $bgColor;
                             overflow: hidden;
@@ -79,11 +80,8 @@ object Fb2ToHtmlConverterAdvanced {
                             padding-bottom: $bottomMargin;
                             padding-left: $sideMargin;
                             padding-right: $sideMargin;
-                            width: 100vw;
                             height: 100vh;
                             box-sizing: border-box;
-                            overflow-x: scroll;
-                            overflow-y: hidden;
                             -webkit-column-width: $columnWidthCss;
                             -webkit-column-gap: $columnGapCss;
                             column-width: $columnWidthCss;
@@ -98,8 +96,6 @@ object Fb2ToHtmlConverterAdvanced {
                             -webkit-hyphens: auto;
                             -ms-hyphens: auto;
                             hyphens: auto;
-                            
-                            
                         }
                         p {
                             margin-top: 0;
@@ -257,10 +253,14 @@ object Fb2ToHtmlConverterAdvanced {
                         }
 
                         function calculatePages() {
-                            var totalWidth = document.body.scrollWidth;
+                            var totalWidth = Math.max(
+                                document.body.scrollWidth || 0,
+                                document.documentElement.scrollWidth || 0,
+                                document.body.offsetWidth || 0
+                            );
                             var pageWidth = window.innerWidth || document.documentElement.clientWidth;
                             if (pageWidth > 0) {
-                                var pages = Math.round(totalWidth / pageWidth);
+                                var pages = Math.max(1, Math.round(totalWidth / pageWidth));
                                 if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPagesCalculated) {
                                     AndroidInterface.onPagesCalculated(pages);
                                 }
@@ -292,7 +292,7 @@ object Fb2ToHtmlConverterAdvanced {
                                 var pageWidth = window.innerWidth || document.documentElement.clientWidth;
                                 if (pageWidth > 0) {
                                     var pageIndex = Math.floor(targetX / pageWidth);
-                                    window.scrollTo(pageIndex * pageWidth, 0);
+                                    scrollToPage(pageIndex);
                                     if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPageRestored) {
                                         AndroidInterface.onPageRestored(pageIndex);
                                     }
@@ -303,11 +303,12 @@ object Fb2ToHtmlConverterAdvanced {
                         }
 
                         function scrollToPage(pageIndex) {
-                            var totalWidth = document.body.scrollWidth;
                             var pageWidth = window.innerWidth || document.documentElement.clientWidth;
-                            var pages = Math.max(1, Math.round(totalWidth / pageWidth));
-                            var step = totalWidth / pages;
-                            window.scrollTo(pageIndex * step, 0);
+                            if (pageWidth <= 0) return;
+                            var x = Math.round(pageIndex * pageWidth);
+                            window.scrollTo(x, 0);
+                            document.body.scrollLeft = x;
+                            document.documentElement.scrollLeft = x;
                         }
 
                         document.addEventListener('touchend', function() {

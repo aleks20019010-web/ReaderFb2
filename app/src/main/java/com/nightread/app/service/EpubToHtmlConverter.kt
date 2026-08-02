@@ -67,13 +67,12 @@ object EpubToHtmlConverter {
             <head>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
                 <style>
-                    html { margin: 0; padding: 0; height: 100%; background-color: $bgColor; overflow: hidden; }
+                    html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: $bgColor; overflow: hidden; }
                     body {
                         margin: 0;
                         padding-top: $topMargin; padding-bottom: $bottomMargin;
                         padding-left: $sideMargin; padding-right: $sideMargin;
-                        width: 100vw; height: 100vh; box-sizing: border-box;
-                        overflow-x: scroll; overflow-y: hidden;
+                        height: 100vh; box-sizing: border-box;
                         -webkit-column-width: $columnWidthCss; -webkit-column-gap: $columnGapCss;
                         column-width: $columnWidthCss; column-gap: $columnGapCss;
                         background-color: $bgColor; color: $textColor;
@@ -207,10 +206,14 @@ object EpubToHtmlConverter {
                     }
 
                     function calculatePages() {
-                        var totalWidth = document.body.scrollWidth;
+                        var totalWidth = Math.max(
+                            document.body.scrollWidth || 0,
+                            document.documentElement.scrollWidth || 0,
+                            document.body.offsetWidth || 0
+                        );
                         var pageWidth = window.innerWidth || document.documentElement.clientWidth;
                         if (pageWidth > 0) {
-                            var pages = Math.round(totalWidth / pageWidth);
+                            var pages = Math.max(1, Math.round(totalWidth / pageWidth));
                             if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPagesCalculated) {
                                 AndroidInterface.onPagesCalculated(pages);
                             }
@@ -242,7 +245,7 @@ object EpubToHtmlConverter {
                             var pageWidth = window.innerWidth || document.documentElement.clientWidth;
                             if (pageWidth > 0) {
                                 var pageIndex = Math.floor(targetX / pageWidth);
-                                window.scrollTo(pageIndex * pageWidth, 0);
+                                scrollToPage(pageIndex);
                                 if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPageRestored) {
                                     AndroidInterface.onPageRestored(pageIndex);
                                 }
@@ -253,11 +256,12 @@ object EpubToHtmlConverter {
                     }
 
                     function scrollToPage(pageIndex) {
-                        var totalWidth = document.body.scrollWidth;
                         var pageWidth = window.innerWidth || document.documentElement.clientWidth;
-                        var pages = Math.max(1, Math.round(totalWidth / pageWidth));
-                        var step = totalWidth / pages;
-                        window.scrollTo(pageIndex * step, 0);
+                        if (pageWidth <= 0) return;
+                        var x = Math.round(pageIndex * pageWidth);
+                        window.scrollTo(x, 0);
+                        document.body.scrollLeft = x;
+                        document.documentElement.scrollLeft = x;
                     }
 
                     window.onload = function() { setTimeout(calculatePages, 200); };
