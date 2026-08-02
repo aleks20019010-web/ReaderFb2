@@ -433,10 +433,7 @@ class BookReaderActivity : BaseActivity() {
                                     webView.postDelayed({
                                         webView.evaluateJavascript("scrollToParagraph('p_$pIndex');") { secondResult ->
                                             if (secondResult != "true" && savedPage > 1) {
-                                                val w = webView.width
-                                                if (w > 0) {
-                                                    webView.scrollTo((savedPage - 1) * w, 0)
-                                                }
+                                                webView.evaluateJavascript("scrollToPage(${savedPage - 1});", null)
                                             }
                                             isWebViewLoading = false
                                             hideReaderSplash()
@@ -448,10 +445,7 @@ class BookReaderActivity : BaseActivity() {
                                 }
                             }
                         } else if (savedPage > 1) {
-                            val w = webView.width
-                            if (w > 0) {
-                                webView.scrollTo((savedPage - 1) * w, 0)
-                            }
+                            webView.evaluateJavascript("scrollToPage(${savedPage - 1});", null)
                             isWebViewLoading = false
                             hideReaderSplash()
                         } else {
@@ -579,7 +573,9 @@ class BookReaderActivity : BaseActivity() {
                         isHorizontalSwipeLocked = true
                     }
 
-                    if (!isHorizontalSwipeLocked && duration > 100 && Math.abs(diffY) > 50 && Math.abs(diffY) > Math.abs(diffX) * 2f) {
+                    if (isHorizontalSwipeLocked) {
+                        activePageView.translationX = diffX
+                    } else if (duration > 100 && Math.abs(diffY) > 50 && Math.abs(diffY) > Math.abs(diffX) * 2f) {
                         if (!isDraggingVerticalLeft && !isDraggingVerticalRight && !isDraggingVerticalCenter) {
                             if (touchStartX < screenWidth * 0.35f) {
                                 isDraggingVerticalLeft = true
@@ -630,19 +626,21 @@ class BookReaderActivity : BaseActivity() {
                     val diffY = event.y - touchStartY
                     val duration = System.currentTimeMillis() - touchStartTime
 
-                    if (Math.abs(diffX) > 30f && Math.abs(diffX) > Math.abs(diffY)) {
+                    if (isHorizontalSwipeLocked || (Math.abs(diffX) > 30f && Math.abs(diffX) > Math.abs(diffY))) {
                         val currentPage = viewModel.currentPage.value
                         val totalPages = viewModel.pagesState.value.size
                         if (diffX < 0) {
                             if (currentPage < totalPages - 1) {
                                 viewModel.setCurrentPage(currentPage + 1)
                             } else {
+                                activePageView.animate().translationX(0f).setDuration(150).start()
                                 ensureWebViewAligned()
                             }
                         } else {
                             if (currentPage > 0) {
                                 viewModel.setCurrentPage(currentPage - 1)
                             } else {
+                                activePageView.animate().translationX(0f).setDuration(150).start()
                                 ensureWebViewAligned()
                             }
                         }
@@ -1226,12 +1224,6 @@ class BookReaderActivity : BaseActivity() {
             return
         }
 
-        if (isWebViewBook && animMode == "slide") {
-            updatePage()
-            lastPageAnimationIdx = newPageIdx
-            return
-        }
-
         val currentView = activePageView
 
         when (animMode) {
@@ -1252,19 +1244,20 @@ class BookReaderActivity : BaseActivity() {
             }
             "slide" -> {
                 val screenWidth = resources.displayMetrics.widthPixels.toFloat()
-                val isForward = newPageIdx > lastPageAnimationIdx
+                val isForward = newPageIdx >= lastPageAnimationIdx
                 val startTranslationX = if (isForward) screenWidth else -screenWidth
+                lastPageAnimationIdx = newPageIdx
                 
                 currentView.animate()
                     .translationX(if (isForward) -screenWidth else screenWidth)
-                    .setDuration(150)
+                    .setDuration(160)
                     .withEndAction {
                         updatePage()
                         val nextView = activePageView
                         nextView.translationX = startTranslationX
                         nextView.animate()
                             .translationX(0f)
-                            .setDuration(150)
+                            .setDuration(160)
                             .start()
                     }
                     .start()

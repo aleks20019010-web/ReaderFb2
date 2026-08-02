@@ -89,6 +89,41 @@ object EpubToHtmlConverter {
                         text-align: ${fontAlignment.lowercase()};
                         -webkit-hyphens: auto; -ms-hyphens: auto; hyphens: auto;
                     }
+                    #column-container * {
+                        max-width: 100% !important;
+                        box-sizing: border-box !important;
+                        word-wrap: break-word !important;
+                        overflow-wrap: break-word !important;
+                    }
+                    #column-container p,
+                    #column-container div,
+                    #column-container section,
+                    #column-container article,
+                    #column-container blockquote,
+                    #column-container h1,
+                    #column-container h2,
+                    #column-container h3,
+                    #column-container h4,
+                    #column-container h5,
+                    #column-container h6 {
+                        margin-left: 0 !important;
+                        margin-right: 0 !important;
+                        padding-left: 0 !important;
+                        padding-right: 0 !important;
+                        max-width: 100% !important;
+                        width: auto !important;
+                    }
+                    #column-container img,
+                    #column-container svg,
+                    #column-container image,
+                    #column-container table,
+                    #column-container iframe {
+                        max-width: 100% !important;
+                        height: auto !important;
+                        margin-left: auto !important;
+                        margin-right: auto !important;
+                        display: block !important;
+                    }
                     p { margin-top: 0; margin-bottom: 0em; text-indent: 1.5em; text-align: justify; max-width: 100%; box-sizing: border-box; }
                     h1, h2, h3, h4, h5, h6 { margin-top: 1em; margin-bottom: 0.5em; font-weight: bold; text-align: center; }
                     img { max-width: 100%; height: auto; display: block; margin: 12px auto; }

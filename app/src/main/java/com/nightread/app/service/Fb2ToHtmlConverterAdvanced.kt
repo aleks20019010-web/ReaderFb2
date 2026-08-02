@@ -109,6 +109,41 @@ object Fb2ToHtmlConverterAdvanced {
                             -ms-hyphens: auto;
                             hyphens: auto;
                         }
+                        #column-container * {
+                            max-width: 100% !important;
+                            box-sizing: border-box !important;
+                            word-wrap: break-word !important;
+                            overflow-wrap: break-word !important;
+                        }
+                        #column-container p,
+                        #column-container div,
+                        #column-container section,
+                        #column-container article,
+                        #column-container blockquote,
+                        #column-container h1,
+                        #column-container h2,
+                        #column-container h3,
+                        #column-container h4,
+                        #column-container h5,
+                        #column-container h6 {
+                            margin-left: 0 !important;
+                            margin-right: 0 !important;
+                            padding-left: 0 !important;
+                            padding-right: 0 !important;
+                            max-width: 100% !important;
+                            width: auto !important;
+                        }
+                        #column-container img,
+                        #column-container svg,
+                        #column-container image,
+                        #column-container table,
+                        #column-container iframe {
+                            max-width: 100% !important;
+                            height: auto !important;
+                            margin-left: auto !important;
+                            margin-right: auto !important;
+                            display: block !important;
+                        }
                         p {
                             margin-top: 0;
                             margin-bottom: 0em;
