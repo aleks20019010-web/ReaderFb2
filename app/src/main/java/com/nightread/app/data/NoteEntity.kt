@@ -11,5 +11,7 @@ data class NoteEntity(
     val selectedText: String,
     val noteText: String,
     val charOffset: Int,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val locatorJson: String? = null,
+    val color: Int = 0xFFFFEE58.toInt()
 )

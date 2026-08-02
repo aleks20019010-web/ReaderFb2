@@ -33,6 +33,7 @@ class ReadiumReaderFragment : Fragment() {
 
     var onTapListener: (() -> Unit)? = null
     var onExternalLinkListener: ((AbsoluteUrl) -> Unit)? = null
+    var onSelectionListener: ((org.readium.r2.navigator.Selection) -> Unit)? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -57,10 +58,28 @@ class ReadiumReaderFragment : Fragment() {
         }
     }
 
+    private val decorationListeners = mutableMapOf<String, org.readium.r2.navigator.DecorableNavigator.Listener>()
+
+    fun addDecorationListener(group: String, listener: org.readium.r2.navigator.DecorableNavigator.Listener) {
+        decorationListeners[group] = listener
+        navigatorFragment?.addDecorationListener(group, listener)
+    }
+
+    fun removeDecorationListener(listener: org.readium.r2.navigator.DecorableNavigator.Listener) {
+        decorationListeners.values.remove(listener)
+        navigatorFragment?.removeDecorationListener(listener)
+    }
+
     private fun setupNavigator(savedInstanceState: Bundle?) {
         val pub = publication ?: return
         if (childFragmentManager.findFragmentByTag("epub_navigator") != null) {
-            navigatorFragment = childFragmentManager.findFragmentByTag("epub_navigator") as? EpubNavigatorFragment
+            val navFragment = childFragmentManager.findFragmentByTag("epub_navigator") as? EpubNavigatorFragment
+            navigatorFragment = navFragment
+            if (navFragment != null) {
+                for ((group, listener) in decorationListeners) {
+                    navFragment.addDecorationListener(group, listener)
+                }
+            }
             return
         }
 
@@ -95,13 +114,45 @@ class ReadiumReaderFragment : Fragment() {
 
             navigatorFragment = navFragment
 
+            for ((group, l) in decorationListeners) {
+                navFragment.addDecorationListener(group, l)
+            }
+
             lifecycleScope.launch {
                 navFragment.currentLocator.collect { loc ->
                     _currentLocator.value = loc
                 }
             }
+
+            // Selection Polling Loop
+            viewLifecycleOwner.lifecycleScope.launch {
+                var lastSelectionText: String? = null
+                while (true) {
+                    kotlinx.coroutines.delay(500)
+                    try {
+                        val selection = navigatorFragment?.currentSelection()
+                        if (selection != null) {
+                            val text = selection.locator.text.highlight ?: ""
+                            if (text.isNotEmpty() && text != lastSelectionText) {
+                                lastSelectionText = text
+                                onSelectionListener?.invoke(selection)
+                            }
+                        } else {
+                            lastSelectionText = null
+                        }
+                    } catch (e: Exception) {
+                        // ignore
+                    }
+                }
+            }
         } else {
-            navigatorFragment = childFragmentManager.findFragmentByTag("epub_navigator") as? EpubNavigatorFragment
+            val navFragment = childFragmentManager.findFragmentByTag("epub_navigator") as? EpubNavigatorFragment
+            navigatorFragment = navFragment
+            if (navFragment != null) {
+                for ((group, l) in decorationListeners) {
+                    navFragment.addDecorationListener(group, l)
+                }
+            }
         }
     }
 

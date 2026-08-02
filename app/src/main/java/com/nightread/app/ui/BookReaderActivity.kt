@@ -49,6 +49,8 @@ class BookReaderActivity : BaseActivity() {
     }
 
     private var readiumReaderFragment: com.nightread.app.readium.ReadiumReaderFragment? = null
+    private val noteManager by lazy { com.nightread.app.data.NoteManager(this) }
+    private var openedBookSha1: String? = null
     fun navigateToReadiumLocator(locator: org.readium.r2.shared.publication.Locator) {
         readiumReaderFragment?.go(locator)
     }
@@ -437,7 +439,10 @@ class BookReaderActivity : BaseActivity() {
                 if (book != null) {
                     findViewById<TextView>(R.id.tvBookTitle)?.text = book.title
                     findViewById<TextView>(R.id.tvTitle)?.text = book.title
-                    openBookInReadium(book)
+                    if (openedBookSha1 != book.sha1) {
+                        openedBookSha1 = book.sha1
+                        openBookInReadium(book)
+                    }
                 }
             }
         }
@@ -804,12 +809,24 @@ class BookReaderActivity : BaseActivity() {
                     fragment.onTapListener = {
                         toggleToolbars()
                     }
+                    fragment.onSelectionListener = { selection ->
+                        showReadiumSelectionBottomSheet(selection)
+                    }
+                    fragment.addDecorationListener("highlights", object : org.readium.r2.navigator.DecorableNavigator.Listener {
+                        override fun onDecorationActivated(event: org.readium.r2.navigator.DecorableNavigator.OnActivatedEvent): Boolean {
+                            val noteId = (event.decoration.extras["noteId"] as? Number)?.toInt() ?: return false
+                            showNoteActionDialog(noteId)
+                            return true
+                        }
+                    })
                     readiumReaderFragment = fragment
 
                     val themeKey = SettingsManager.getTheme(this@BookReaderActivity)
                     val fontSizeSp = SettingsManager.getFontSize(this@BookReaderActivity)
                     val fontMultiplier = (fontSizeSp / 18.0f).toDouble().coerceIn(0.6, 2.5)
                     fragment.updatePreferences(themeKey, fontMultiplier)
+
+                    observeAndApplyDecorations(book.sha1)
 
                     lifecycleScope.launch {
                         fragment.currentLocator.collectLatest { locator ->
@@ -843,6 +860,157 @@ class BookReaderActivity : BaseActivity() {
         if (book != null) {
             viewModel.updateProgress(progression)
         }
+    }
+
+    private fun observeAndApplyDecorations(bookId: String) {
+        lifecycleScope.launch {
+            noteManager.getNotesForBook(bookId).collectLatest { notes ->
+                val decorations = notes.mapNotNull { note ->
+                    val locatorJson = note.locatorJson ?: return@mapNotNull null
+                    try {
+                        val locator = org.readium.r2.shared.publication.Locator.Companion.fromJSON(
+                            org.json.JSONObject(locatorJson),
+                            null
+                        ) ?: return@mapNotNull null
+                        
+                        org.readium.r2.navigator.Decoration(
+                            id = "note_${note.id}",
+                            locator = locator,
+                            style = org.readium.r2.navigator.Decoration.Style.Highlight(
+                                tint = note.color,
+                                isActive = true
+                            ),
+                            extras = mapOf("noteId" to note.id)
+                        )
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        null
+                    }
+                }
+                readiumReaderFragment?.applyDecorations(decorations, "highlights")
+            }
+        }
+    }
+
+    private fun showReadiumSelectionBottomSheet(selection: org.readium.r2.navigator.Selection) {
+        val highlightedText = selection.locator.text.highlight ?: ""
+        if (highlightedText.isEmpty()) return
+
+        val sheet = com.nightread.app.readium.ReadiumSelectionBottomSheet.newInstance(highlightedText, selection.locator)
+        sheet.onHighlightListener = { locator, color, text ->
+            lifecycleScope.launch {
+                val book = viewModel.bookState.value
+                if (book != null) {
+                    noteManager.addNote(
+                        bookId = book.sha1,
+                        bookTitle = book.title,
+                        selectedText = text,
+                        noteText = "",
+                        charOffset = 0,
+                        locatorJson = locator.toJSON().toString(),
+                        color = color
+                    )
+                }
+            }
+        }
+        sheet.onNoteListener = { locator, text, noteText ->
+            lifecycleScope.launch {
+                val book = viewModel.bookState.value
+                if (book != null) {
+                    noteManager.addNote(
+                        bookId = book.sha1,
+                        bookTitle = book.title,
+                        selectedText = text,
+                        noteText = noteText,
+                        charOffset = 0,
+                        locatorJson = locator.toJSON().toString(),
+                        color = 0xFFFFEE58.toInt()
+                    )
+                }
+            }
+        }
+        sheet.onDictionaryListener = { word ->
+            fetchAndShowFreeDictionary(word)
+        }
+        sheet.onTtsListener = { text ->
+            // Trigger TTS if available
+        }
+        sheet.show(supportFragmentManager, "readium_selection_sheet")
+    }
+
+    private fun showNoteActionDialog(noteId: Int) {
+        lifecycleScope.launch {
+            val note = noteManager.getNoteById(noteId) ?: return@launch
+            val title = if (note.noteText.isNotEmpty()) "Заметка" else "Цитата"
+            
+            val builder = androidx.appcompat.app.AlertDialog.Builder(this@BookReaderActivity, R.style.DarkPurpleBottomSheetDialog)
+            builder.setTitle(title)
+            
+            val view = layoutInflater.inflate(R.layout.dialog_readium_note_actions, null)
+            val tvQuote = view.findViewById<TextView>(R.id.tvDialogQuote)
+            val tvNote = view.findViewById<TextView>(R.id.tvDialogNoteText)
+            val btnEdit = view.findViewById<View>(R.id.btnDialogEdit)
+            val btnDelete = view.findViewById<View>(R.id.btnDialogDelete)
+            val btnCopy = view.findViewById<View>(R.id.btnDialogCopy)
+            
+            tvQuote.text = "«${note.selectedText}»"
+            if (note.noteText.isNotEmpty()) {
+                tvNote.text = note.noteText
+                tvNote.visibility = View.VISIBLE
+            } else {
+                tvNote.visibility = View.GONE
+            }
+            
+            val dialog = builder.setView(view).create()
+            
+            btnEdit.setOnClickListener {
+                dialog.dismiss()
+                showEditNoteDialog(note)
+            }
+            
+            btnDelete.setOnClickListener {
+                dialog.dismiss()
+                lifecycleScope.launch {
+                    noteManager.deleteNote(noteId)
+                    com.nightread.app.ui.CustomToast.show(this@BookReaderActivity, "Удалено")
+                }
+            }
+            
+            btnCopy.setOnClickListener {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val textToCopy = if (note.noteText.isNotEmpty()) {
+                    "Цитата: ${note.selectedText}\nЗаметка: ${note.noteText}"
+                } else {
+                    note.selectedText
+                }
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Quote", textToCopy))
+                com.nightread.app.ui.CustomToast.show(this@BookReaderActivity, "Скопировано")
+                dialog.dismiss()
+            }
+            
+            dialog.show()
+        }
+    }
+
+    private fun showEditNoteDialog(note: com.nightread.app.data.NoteEntity) {
+        val etNote = android.widget.EditText(this).apply {
+            setText(note.noteText)
+            hint = "Введите текст заметки..."
+            setPadding(32, 32, 32, 32)
+        }
+        
+        androidx.appcompat.app.AlertDialog.Builder(this, R.style.DarkPurpleBottomSheetDialog)
+            .setTitle("Редактировать заметку")
+            .setView(etNote)
+            .setPositiveButton("Сохранить") { _, _ ->
+                val text = etNote.text.toString().trim()
+                lifecycleScope.launch {
+                    noteManager.updateNoteText(note.id, text)
+                    com.nightread.app.ui.CustomToast.show(this@BookReaderActivity, "Сохранено")
+                }
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
     }
 
     private fun updatePage() {
