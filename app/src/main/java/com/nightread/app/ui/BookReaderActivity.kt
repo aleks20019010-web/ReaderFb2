@@ -1,5 +1,6 @@
 package com.nightread.app.ui
 
+import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -47,9 +48,10 @@ class BookReaderActivity : BaseActivity() {
         super.attachBaseContext(SettingsManager.applyLocale(newBase))
     }
 
-    private lateinit var readerView: CustomReaderPageView
-    private lateinit var webView: android.webkit.WebView
-    private lateinit var touchInterceptor: View
+    private var readiumReaderFragment: com.nightread.app.readium.ReadiumReaderFragment? = null
+    fun navigateToReadiumLocator(locator: org.readium.r2.shared.publication.Locator) {
+        readiumReaderFragment?.go(locator)
+    }
     private lateinit var ivBookCoverPage: ImageView
     private lateinit var pageIndicatorView: TextView
     private lateinit var progressBar: ProgressBar
@@ -169,13 +171,9 @@ class BookReaderActivity : BaseActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             com.nightread.app.data.DictionaryDownloader.initDictionaryFromAssets(this@BookReaderActivity)
         }
-        com.nightread.app.ui.customlayout.PageSplitter.init(this)
         com.nightread.app.ui.HyphenatorHelper.init(this)
 
-        readerView = findViewById(R.id.bookReaderView)
-        webView = findViewById(R.id.webView)
-        touchInterceptor = findViewById(R.id.touchInterceptor)
-        ivBookCoverPage = findViewById(R.id.ivBookCoverPage)
+        ivBookCoverPage = findViewById(R.id.ivBookCoverPage) ?: ImageView(this)
         rootLayout = findViewById(R.id.rootView)
         ambientGlowView = findViewById(R.id.ambientGlowView)
         amberFilterOverlay = findViewById(R.id.amberFilterOverlay)
@@ -225,6 +223,60 @@ class BookReaderActivity : BaseActivity() {
         val btnSettings = findViewById<View>(R.id.btnSettings)
         btnSettings.setOnClickListener {
             SettingsBottomSheet().show(supportFragmentManager, "settings")
+        }
+
+        val btnTts = findViewById<ImageButton>(R.id.btnTts)
+        btnTts?.visibility = View.VISIBLE
+        btnTts?.setOnClickListener {
+            val title = findViewById<TextView>(R.id.tvTitle)?.text?.toString() ?: "NightRead"
+            val currentPageIdx = viewModel.currentPage.value
+            val currentPageText = viewModel.pagesState.value.getOrNull(currentPageIdx)?.toString() ?: ""
+            val ttsSheet = TtsSettingsBottomSheet.newInstance(currentPageText, title)
+            ttsSheet.setTtsListener(object : TtsSettingsBottomSheet.TtsSettingsListener {
+                override fun onTtsStartRequested(speed: Float, pitch: Float, continuous: Boolean) {
+                    val idx = viewModel.currentPage.value
+                    val pageText = viewModel.pagesState.value.getOrNull(idx)?.toString() ?: ""
+                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                        action = com.nightread.app.service.TtsForegroundService.ACTION_START
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, pageText)
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
+                    }
+                    startService(intent)
+                }
+
+                override fun onTtsPauseRequested() {
+                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                        action = com.nightread.app.service.TtsForegroundService.ACTION_PAUSE
+                    }
+                    startService(intent)
+                }
+
+                override fun onTtsStopRequested() {
+                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                        action = com.nightread.app.service.TtsForegroundService.ACTION_STOP
+                    }
+                    startService(intent)
+                }
+
+                override fun onTtsSpeedChanged(speed: Float) {
+                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                        action = com.nightread.app.service.TtsForegroundService.ACTION_SET_SPEED
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
+                    }
+                    startService(intent)
+                }
+
+                override fun onTtsPitchChanged(pitch: Float) {
+                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                        action = com.nightread.app.service.TtsForegroundService.ACTION_SET_PITCH
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
+                    }
+                    startService(intent)
+                }
+            })
+            ttsSheet.show(supportFragmentManager, "TtsSettingsBottomSheet")
         }
 
         val btnSearch = findViewById<ImageButton>(R.id.btnSearch)
@@ -376,144 +428,16 @@ class BookReaderActivity : BaseActivity() {
             val bottomParams = bottomToolbar.layoutParams
             bottomParams.height = FrameLayout.LayoutParams.WRAP_CONTENT
             bottomToolbar.layoutParams = bottomParams
-            
-            // 3. Reader view padding uses 8dp margins on the sides, and accounts for status bar at the top and navigation bar at the bottom
-            readerView.setPadding(
-                (8 * density).toInt(),
-                topInset + (8 * density).toInt(),
-                (8 * density).toInt(),
-                navBarInsets.bottom + (16 * density).toInt()
-            )
-
-            val ivDogEar = findViewById<ImageView>(R.id.ivDogEar)
-            if (ivDogEar != null) {
-                val dogEarParams = ivDogEar.layoutParams as? FrameLayout.LayoutParams
-                if (dogEarParams != null) {
-                    dogEarParams.topMargin = (topInset * 0.15f).toInt()
-                    ivDogEar.layoutParams = dogEarParams
-                }
-            }
-
-            val bookmarkArea = findViewById<View>(R.id.bookmarkArea)
-            if (bookmarkArea != null) {
-                val areaParams = bookmarkArea.layoutParams as? FrameLayout.LayoutParams
-                if (areaParams != null) {
-                    areaParams.topMargin = 0
-                    bookmarkArea.layoutParams = areaParams
-                }
-            }
-            
             insets
         }
 
-        // Setup WebView
-        webView.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            loadWithOverviewMode = true
-            useWideViewPort = true
-            textZoom = 100
-            allowFileAccess = true
-            allowContentAccess = true
-        }
-
-        webView.isLongClickable = true
-        webView.isFocusable = true
-        webView.isFocusableInTouchMode = true
-
-        
-        webView.addJavascriptInterface(WebAppInterface(this), "AndroidInterface")
-        webView.webViewClient = object : android.webkit.WebViewClient() {
-            override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
-                progressBar.visibility = View.GONE
-                val currentThemeKey = viewModel.themeState.value
-                val (bgColor, textColor) = getThemeColors(currentThemeKey)
-                val bgColorHex = String.format("#%06X", 0xFFFFFF and bgColor)
-                val textColorHex = String.format("#%06X", 0xFFFFFF and textColor)
-                webView.evaluateJavascript("if (typeof applyThemeChange !== 'undefined') { applyThemeChange('$bgColorHex', '$textColorHex', 0); }", null)
-                applyTheme(currentThemeKey, animate = false)
-                if (isAntiGlareActive) {
-                    webView.evaluateJavascript("if (typeof applyAntiGlare !== 'undefined') { applyAntiGlare(true, '$textColorHex'); }", null)
-                }
-                val book = viewModel.bookState.value
+        // Collect Book Details and load into Readium Engine
+        lifecycleScope.launch {
+            viewModel.bookState.collectLatest { book ->
                 if (book != null) {
-                    val pIndex = book.currentProgressChar
-                    val savedPage = viewModel.currentPage.value
-                    webView.postDelayed({
-                        if (pIndex > 0) {
-                            webView.evaluateJavascript("scrollToParagraph('p_$pIndex');") { result ->
-                                if (result != "true") {
-                                    // Retry once after 300ms if layout was not ready
-                                    webView.postDelayed({
-                                        webView.evaluateJavascript("scrollToParagraph('p_$pIndex');") { secondResult ->
-                                            if (secondResult != "true" && savedPage > 1) {
-                                                webView.evaluateJavascript("scrollToPage(${savedPage - 1});", null)
-                                            }
-                                            isWebViewLoading = false
-                                            hideReaderSplash()
-                                        }
-                                    }, 300)
-                                } else {
-                                    isWebViewLoading = false
-                                    hideReaderSplash()
-                                }
-                            }
-                        } else if (savedPage > 1) {
-                            webView.evaluateJavascript("scrollToPage(${savedPage - 1});", null)
-                            isWebViewLoading = false
-                            hideReaderSplash()
-                        } else {
-                            isWebViewLoading = false
-                            hideReaderSplash()
-                        }
-                    }, 250)
-                } else {
-                    isWebViewLoading = false
-                    val pageIdx = viewModel.currentPage.value
-                    if (pageIdx > 1) {
-                        webView.evaluateJavascript("scrollToPage(${pageIdx - 1});", null)
-                    }
-                    hideReaderSplash()
-                }
-            }
-        }
-
-        // Setup real content bounds listener for dynamic pagination scaling
-        val updateDims = {
-            val contentW = readerView.width - readerView.paddingLeft - readerView.paddingRight
-            val contentH = readerView.height - readerView.paddingTop - readerView.paddingBottom
-            if (contentW > 0 && contentH > 0) {
-                viewModel.updateDimensions(contentW, contentH, resources.displayMetrics.density)
-            }
-        }
-        readerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            updateDims()
-        }
-
-        // Collect Current Page
-        lifecycleScope.launch {
-            viewModel.currentPage.collectLatest {
-                updatePageWithAnimation(it)
-                updatePageIndicator()
-                animateSeekBarProgress(seekBar, it)
-                onPageChangedForSpeedTracker(it)
-                if (lastPage != it) {
-                    if (lastPage != -1) {
-                        triggerPageTurnHaptic()
-                    }
-                    viewModel.saveProgress()
-                }
-                lastPage = it
-            }
-        }
-
-        // Collect Pages list
-        lifecycleScope.launch {
-            viewModel.pagesState.collectLatest {
-                if (it.isNotEmpty()) {
-                    updatePage()
-                    updatePageIndicator()
-                    seekBar.max = it.size - 1
+                    findViewById<TextView>(R.id.tvBookTitle)?.text = book.title
+                    findViewById<TextView>(R.id.tvTitle)?.text = book.title
+                    openBookInReadium(book)
                 }
             }
         }
@@ -564,7 +488,7 @@ class BookReaderActivity : BaseActivity() {
             val screenHeight = view.height.toFloat()
             if (screenWidth <= 0 || screenHeight <= 0) return@OnTouchListener false
 
-            val isWebView = (view == webView)
+            val isWebView = false
 
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -700,10 +624,7 @@ class BookReaderActivity : BaseActivity() {
             true
         }
 
-        readerView.setOnTouchListener(gestureTouchListener)
-        touchInterceptor.setOnTouchListener(gestureTouchListener)
-        webView.setOnTouchListener(gestureTouchListener)
-        ivBookCoverPage.setOnTouchListener(gestureTouchListener)
+        findViewById<View>(R.id.readiumContainerView)?.setOnTouchListener(gestureTouchListener)
 
         lifecycleScope.launch {
             com.nightread.app.data.SettingsManager.settingsChanged.collectLatest {
@@ -768,7 +689,7 @@ class BookReaderActivity : BaseActivity() {
                     tvFullscreenProgressLabel.setTextColor(color)
                 }
                 currentTextPaint?.color = color
-                readerView.invalidate()
+                rootLayout.invalidate()
             }
             txtAnimation.start()
         } else {
@@ -783,7 +704,7 @@ class BookReaderActivity : BaseActivity() {
                 tvFullscreenProgressLabel.setTextColor(textColor)
             }
             currentTextPaint?.color = textColor
-            readerView.invalidate()
+            rootLayout.invalidate()
         }
         
         val topToolbar = findViewById<View>(R.id.topToolbar)
@@ -803,6 +724,7 @@ class BookReaderActivity : BaseActivity() {
         val buttonTint = ColorStateList.valueOf(iconTint)
         findViewById<ImageButton>(R.id.btnBack)?.imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnSettings)?.imageTintList = buttonTint
+        findViewById<ImageButton>(R.id.btnTts)?.imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnSearch)?.imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnBookmark)?.imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnChapters)?.imageTintList = buttonTint
@@ -852,292 +774,89 @@ class BookReaderActivity : BaseActivity() {
         }
     }
 
-    private fun updatePage() {
-        val pages = viewModel.pagesState.value
-        val pageIdx = viewModel.currentPage.value
-        
-        val filePath = viewModel.bookState.value?.filePath ?: ""
-        val isWebViewBook = filePath.endsWith(".fb2", true) || 
-                           filePath.endsWith(".fb2.zip", true) || 
-                           filePath.endsWith(".zip", true) ||
-                           filePath.endsWith(".epub", true)
+    private fun openBookInReadium(book: com.nightread.app.data.BookEntity) {
+        val splashOverlay = findViewById<View>(R.id.reader_splash_overlay)
+        splashOverlay?.visibility = View.VISIBLE
 
-        if (pages.isEmpty()) return
-        
-        // Fix: Allow WebView books to proceed even if pageIdx is out of bounds for the temporary marker list
-        if (!isWebViewBook && pageIdx !in pages.indices) return
-
-        val text = if (pageIdx in pages.indices) pages[pageIdx] else pages.first()
-        
-        if (text.toString() == "[BOOK_COVER]") {
-            readerView.visibility = View.GONE
-            webView.visibility = View.GONE
-            touchInterceptor.visibility = View.GONE
-            ivBookCoverPage.visibility = View.VISIBLE
-            val book = viewModel.bookState.value
-            if (book != null && !book.coverPath.isNullOrEmpty() && java.io.File(book.coverPath).exists()) {
-                ivBookCoverPage.load(java.io.File(book.coverPath))
-            } else {
-                ivBookCoverPage.setImageResource(R.drawable.ic_book_placeholder)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val file = java.io.File(book.filePath ?: "")
+            if (!file.exists()) {
+                withContext(Dispatchers.Main) {
+                    splashOverlay?.visibility = View.GONE
+                    com.nightread.app.ui.CustomToast.show(this@BookReaderActivity, "Файл книги не найден")
+                }
+                return@launch
             }
-            updatePageIndicator()
-            hideReaderSplash()
-            return
-        } else if (text.toString().startsWith("WEBVIEW_CONTENT") || text.toString().startsWith("WEBVIEW_PAGE_") || isWebViewBook) {
-            readerView.visibility = View.GONE
-            ivBookCoverPage.visibility = View.GONE
-            webView.visibility = View.VISIBLE
-            touchInterceptor.visibility = View.GONE
-            val themeKey = viewModel.themeState.value
-            val fontSize = viewModel.fontSizeState.value
-            val lineSpacing = viewModel.lineSpacingState.value
-            val fontFamily = viewModel.fontFamilyState.value
-            val fontWeight = viewModel.fontWeightState.value
-            val fontAlignment = viewModel.fontAlignmentState.value
-            val pageMargins = viewModel.pageMarginsState.value
-            
-            val density = resources.displayMetrics.density
-            val paddingTop = systemTopInset + (8 * density).toInt()
-            val paddingBottom = systemBottomInset + (16 * density).toInt()
-            val paddingLeft = (8 * density).toInt()
-            val paddingRight = (8 * density).toInt()
 
-            val settingsKey = "${viewModel.bookState.value?.sha1}_${themeKey}_${fontSize}_${lineSpacing}_${fontFamily}_${fontWeight}_${fontAlignment}_${pageMargins}_${paddingTop}_${paddingBottom}"
-            val loadedKey = webView.tag as? String
-            
-            val currentBookSha1 = viewModel.bookState.value?.sha1 ?: ""
-            val isSameBook = loadedKey != null && currentBookSha1.isNotEmpty() && loadedKey.startsWith(currentBookSha1)
-            
-            if (isSameBook && loadedKey != settingsKey) {
-                val parts = loadedKey!!.split("_")
-                val oldTheme = if (parts.size > 1) parts[1] else ""
-                val oldFontSize = if (parts.size > 2) parts[2].toFloatOrNull() ?: 16f else 16f
-                val oldLineSpacing = if (parts.size > 3) parts[3].toFloatOrNull() ?: 1.2f else 1.2f
-                val oldFontFamily = if (parts.size > 4) parts[4] else ""
-                val oldFontWeight = if (parts.size > 5) parts[5].toIntOrNull() ?: 0 else 0
-                val oldFontAlignment = if (parts.size > 6) parts[6] else ""
-                
-                webView.tag = settingsKey
-                isWebViewLoading = false
-                
-                if (oldTheme != themeKey) {
-                    val (bgColor, textColor) = getThemeColors(themeKey)
-                    val bgColorHex = String.format("#%06X", 0xFFFFFF and bgColor)
-                    val textColorHex = String.format("#%06X", 0xFFFFFF and textColor)
-                    
-                    webView.evaluateJavascript("if (typeof applyThemeChange !== 'undefined') { applyThemeChange('$bgColorHex', '$textColorHex', 1000); }", null)
-                    applyTheme(themeKey, animate = true)
+            val pub = com.nightread.app.readium.ReadiumEngine.openPublication(this@BookReaderActivity, file)
+
+            withContext(Dispatchers.Main) {
+                splashOverlay?.visibility = View.GONE
+                if (pub != null) {
+                    var fragment = supportFragmentManager.findFragmentByTag("readium_reader") as? com.nightread.app.readium.ReadiumReaderFragment
+                    if (fragment == null) {
+                        fragment = com.nightread.app.readium.ReadiumReaderFragment()
+                        supportFragmentManager.beginTransaction()
+                            .replace(R.id.readiumContainerView, fragment, "readium_reader")
+                            .commitNowAllowingStateLoss()
+                    }
+                    fragment.initPublication(pub)
+                    fragment.onTapListener = {
+                        toggleToolbars()
+                    }
+                    readiumReaderFragment = fragment
+
+                    val themeKey = SettingsManager.getTheme(this@BookReaderActivity)
+                    val fontSizeSp = SettingsManager.getFontSize(this@BookReaderActivity)
+                    val fontMultiplier = (fontSizeSp / 18.0f).toDouble().coerceIn(0.6, 2.5)
+                    fragment.updatePreferences(themeKey, fontMultiplier)
+
+                    lifecycleScope.launch {
+                        fragment.currentLocator.collectLatest { locator ->
+                            if (locator != null) {
+                                onReadiumLocatorChanged(locator, pub)
+                            }
+                        }
+                    }
                 } else {
-                    applyTheme(themeKey, animate = false)
-                }
-                
-                if (oldFontSize != fontSize || oldLineSpacing != lineSpacing || oldFontFamily != fontFamily || oldFontWeight != fontWeight || oldFontAlignment != fontAlignment) {
-                    webView.evaluateJavascript(
-                        "if (typeof applyFontChange !== 'undefined') { applyFontChange('$fontFamily', $fontSize, $lineSpacing, '$fontAlignment', $fontWeight); }",
-                        null
-                    )
-                }
-                
-                updatePageIndicator()
-            } else if (loadedKey != settingsKey) {
-                isWebViewLoading = true
-                progressBar.visibility = View.VISIBLE
-                
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val fullContent = BookCache.content
-                    val paddingTopDp = (paddingTop / density).toInt()
-                    val paddingBottomDp = (paddingBottom / density).toInt()
-                    val paddingLeftDp = 8
-                    val paddingRightDp = 8
-                    
-                    val book = viewModel.bookState.value
-                    val isEpub = book?.filePath?.endsWith(".epub", true) == true
-                    
-                    val html = if (isEpub) {
-                        com.nightread.app.service.EpubToHtmlConverter.convert(
-                            fullContent,
-                            themeKey,
-                            fontSize,
-                            lineSpacing,
-                            fontFamily,
-                            fontWeight,
-                            fontAlignment,
-                            pageMargins,
-                            paddingTopDp,
-                            paddingBottomDp,
-                            paddingLeftDp,
-                            paddingRightDp
-                        )
-                    } else {
-                        com.nightread.app.service.Fb2ToHtmlConverterAdvanced.convert(
-                            fullContent,
-                            themeKey,
-                            fontSize,
-                            lineSpacing,
-                            fontFamily,
-                            fontWeight,
-                            fontAlignment,
-                            pageMargins,
-                            paddingTopDp,
-                            paddingBottomDp,
-                            paddingLeftDp,
-                            paddingRightDp
-                        )
-                    }
-                    
-                    var indexFile: java.io.File? = null
-                    if (isEpub && book != null) {
-                        val file = java.io.File(book.filePath ?: "")
-                        if (file.exists()) {
-                            try {
-                                com.nightread.app.readium.ReadiumEngine.openPublication(this@BookReaderActivity, file)
-                            } catch (e: Exception) {
-                                android.util.Log.e("BookReaderActivity", "Readium engine failed to open publication", e)
-                            }
-                            val extractedDir = java.io.File(cacheDir, "extracted_epubs/${book.sha1}")
-                            com.nightread.app.data.EpubIdentifierHelper.unzip(file, extractedDir)
-                            val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(file)
-                            val opfDir = metadata?.opfDir ?: ""
-                            indexFile = java.io.File(extractedDir, if (opfDir.isNotEmpty()) "$opfDir/index_rendered.html" else "index_rendered.html")
-                            try {
-                                indexFile.parentFile?.mkdirs()
-                                indexFile.writeText(html, Charsets.UTF_8)
-                            } catch (e: Exception) {
-                                android.util.Log.e("BookReaderActivity", "Error writing EPUB index_rendered.html", e)
-                            }
-                        }
-                    }
-                    
-                    withContext(Dispatchers.Main) {
-                        progressBar.visibility = View.GONE
-                        webView.tag = settingsKey
-                        if (isEpub && indexFile != null && indexFile.exists()) {
-                            webView.loadUrl("file://" + indexFile.absolutePath)
-                        } else {
-                            webView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null)
-                        }
-                    }
-                }
-            } else {
-                isWebViewLoading = false
-                val targetPageIndex = (pageIdx - 1).coerceAtLeast(0)
-                webView.evaluateJavascript("scrollToPage($targetPageIndex);", null)
-                webView.postDelayed({
-                    if (viewModel.pagesState.value.size <= 1) {
-                        webView.evaluateJavascript("calculatePages();", null)
-                    }
-                    webView.evaluateJavascript("reportCurrentParagraph();", null)
-                }, 100)
-            }
-            updatePageIndicator()
-            return
-        } else {
-            readerView.visibility = View.VISIBLE
-            webView.visibility = View.GONE
-            touchInterceptor.visibility = View.GONE
-            ivBookCoverPage.visibility = View.GONE
-        }
-        
-        val density = resources.displayMetrics.density
-        val paint = TextPaint().apply {
-            textSize = viewModel.fontSizeState.value * density
-            textLocale = java.util.Locale("ru", "RU")
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                letterSpacing = -0.02f
-            }
-            
-            val weightVal = com.nightread.app.data.SettingsManager.getFontWeightAsInt(this@BookReaderActivity)
-            val style = if (weightVal >= 600) Typeface.BOLD else Typeface.NORMAL
-            val family = viewModel.fontFamilyState.value
-            val fontResId = when (family) {
-                "EB Garamond" -> R.font.eb_garamond
-                "Literata" -> R.font.literata
-                "Lora" -> R.font.lora
-                else -> null
-            }
-            val baseTypeface = if (fontResId != null) {
-                try {
-                    androidx.core.content.res.ResourcesCompat.getFont(this@BookReaderActivity, fontResId) ?: Typeface.DEFAULT
-                } catch (e: Exception) {
-                    Typeface.DEFAULT
-                }
-            } else {
-                when (family) {
-                    "Roboto", "Sans Serif", "OpenDyslexic" -> Typeface.SANS_SERIF
-                    "Serif", "Times New Roman", "Georgia", "Merriweather" -> Typeface.SERIF
-                    "Monospace" -> Typeface.MONOSPACE
-                    else -> Typeface.DEFAULT
+                    com.nightread.app.ui.CustomToast.show(this@BookReaderActivity, "Не удалось открыть книгу через Readium")
                 }
             }
-            
-            typeface = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                Typeface.create(baseTypeface, weightVal, false)
-            } else {
-                Typeface.create(baseTypeface, style)
-            }
-            
-            val themeKey = viewModel.themeState.value
-            val (_, textColor) = getThemeColors(themeKey)
-            if (isAntiGlareActive) {
-                isFakeBoldText = true
-                val isLight = themeKey.lowercase() in listOf("light", "beige", "sepia", "sepia_contrast")
-                color = if (isLight) Color.BLACK else Color.WHITE
-            } else {
-                isFakeBoldText = false
-                color = textColor
-            }
         }
-        currentTextPaint = paint
-        
-        val availableWidth = readerView.width - readerView.paddingLeft - readerView.paddingRight
-        if (availableWidth <= 0) {
-            // View is not measured or ready yet, do not attempt to render page with invalid/unmeasured width.
-            // OnLayoutChangeListener will trigger layout update once measured.
-            return
-        }
-        val alignSetting = viewModel.fontAlignmentState.value.lowercase()
-        val align = when (alignSetting) {
-            "left" -> Layout.Alignment.ALIGN_NORMAL
-            "right" -> Layout.Alignment.ALIGN_OPPOSITE
-            "center" -> Layout.Alignment.ALIGN_CENTER
-            else -> Layout.Alignment.ALIGN_NORMAL
-        }
-        val isJustify = alignSetting == "justify"
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            paint.letterSpacing = if (isJustify) 0.01f else -0.02f
-        }
-        val isHyphen = com.nightread.app.data.SettingsManager.isHyphenationEnabled(this)
-        
-        val textToRender = text
+    }
 
-        PageSplitter.getPageLayout(
-            pageIdx,
-            textToRender,
-            paint,
-            availableWidth,
-            align,
-            viewModel.lineSpacingState.value, 0f,
-            hyphenation = isHyphen,
-            justify = isJustify
-        ) { layout ->
-            progressBar.visibility = View.GONE
-            readerView.setLayout(layout, isJustify)
-            hideReaderSplash()
-        }
-        
-        // Show progress bar while loading
-        if (!PageSplitter.isPageCached(pageIdx)) {
-            progressBar.visibility = View.VISIBLE
+    private fun onReadiumLocatorChanged(locator: org.readium.r2.shared.publication.Locator, pub: org.readium.r2.shared.publication.Publication) {
+        val progression = locator.locations.progression ?: 0.0
+        val percent = (progression * 100).toInt()
+
+        findViewById<TextView>(R.id.tvPageIndicator)?.text = "Прогресс: $percent%"
+        findViewById<TextView>(R.id.tvFullscreenProgressLabel)?.text = "Прогресс: $percent%"
+
+        val seekBar = findViewById<SeekBar>(R.id.seekBar)
+        if (!isUserTrackingSeekBar && seekBar != null) {
+            seekBar.progress = percent
         }
 
+        findViewById<ProgressBar>(R.id.pbFullscreenProgress)?.progress = percent
 
+        val book = viewModel.bookState.value
+        if (book != null) {
+            viewModel.updateProgress(progression)
+        }
+    }
 
+    private fun updatePage() {
+        val themeKey = viewModel.themeState.value
+        val fontSizeSp = viewModel.fontSizeState.value
+        val fontMultiplier = (fontSizeSp / 18.0f).toDouble().coerceIn(0.6, 2.5)
+        readiumReaderFragment?.updatePreferences(themeKey, fontMultiplier)
     }
 
     private fun updatePageIndicator() {
-        val page = viewModel.currentPage.value + 1
-        val total = viewModel.pagesState.value.size
-        pageIndicatorView.text = "Стр. $page из $total"
+        val locator = readiumReaderFragment?.currentLocator?.value
+        val prog = locator?.locations?.progression ?: 0.0
+        val percent = (prog * 100).toInt()
+        findViewById<TextView>(R.id.tvPageIndicator)?.text = "Прогресс: $percent%"
         
         // Update dog-ear bookmark status
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
@@ -1207,22 +926,16 @@ class BookReaderActivity : BaseActivity() {
 
     private fun triggerPageTurnHaptic() {
         if (com.nightread.app.data.SettingsManager.isSilentModeEnabled(this) && currentWpm > 400f) {
-            // Silence all vibrations at high reading speeds
             return
         }
         if (com.nightread.app.data.SettingsManager.isHapticFeedbackEnabled(this)) {
-            readerView.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            rootLayout.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
         }
     }
 
     private val activePageView: View
         get() {
-            val isWebViewBook = viewModel.bookState.value?.filePath?.let {
-                it.endsWith(".fb2", true) || it.endsWith(".fb2.zip", true) || it.endsWith(".zip", true) || it.endsWith(".epub", true)
-            } == true
-            if (isWebViewBook) return webView
-            if (viewModel.pagesState.value.getOrNull(viewModel.currentPage.value)?.toString() == "[BOOK_COVER]") return ivBookCoverPage
-            return readerView
+            return findViewById<View>(R.id.readiumContainerView) ?: rootLayout
         }
 
     private fun updatePageWithAnimation(newPageIdx: Int) {
@@ -1470,7 +1183,7 @@ class BookReaderActivity : BaseActivity() {
             val centerColor = Color.argb(alphaVal, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor))
             val finalEdgeColor = Color.TRANSPARENT
             
-            val maxRadius = Math.max(readerView.width, readerView.height).toFloat()
+            val maxRadius = Math.max(rootLayout.width, rootLayout.height).toFloat()
             val radius = if (maxRadius > 0f) maxRadius * 0.8f else 500f
             
             val glowDrawable = android.graphics.drawable.GradientDrawable().apply {
@@ -1524,7 +1237,8 @@ class BookReaderActivity : BaseActivity() {
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             window.setDecorFitsSystemWindows(false)
-            window.insetsController?.let { controller ->
+            val controller = window.insetsController
+            if (controller != null) {
                 controller.hide(android.view.WindowInsets.Type.statusBars())
                 controller.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
@@ -1678,11 +1392,6 @@ class BookReaderActivity : BaseActivity() {
             isAntiGlareActive = antiGlare
             updatePage()
             
-            // Update WebView styling
-            val themeKey = viewModel.themeState.value
-            val (_, textColor) = getThemeColors(themeKey)
-            val textColorHex = String.format("#%06X", 0xFFFFFF and textColor)
-            webView.evaluateJavascript("if (typeof applyAntiGlare !== 'undefined') { applyAntiGlare($antiGlare, '$textColorHex'); }", null)
         }
 
         if (com.nightread.app.data.SettingsManager.isAutoBrightnessEnabled(this)) {
@@ -1803,7 +1512,6 @@ class BookReaderActivity : BaseActivity() {
             
             if (!hasRunDawnAnimation) {
                 hasRunDawnAnimation = true
-                readerView.startDawnAnimation()
             }
             
             splash.animate()
@@ -1871,34 +1579,31 @@ class BookReaderActivity : BaseActivity() {
     }
 
     fun navigateToOffset(offset: Int) {
-        val filePath = viewModel.bookState.value?.filePath ?: ""
-        val isWebViewBook = filePath.endsWith(".fb2", true) || 
-                           filePath.endsWith(".fb2.zip", true) || 
-                           filePath.endsWith(".zip", true) ||
-                           filePath.endsWith(".epub", true)
-        
-        if (isWebViewBook) {
-            val pIndex = viewModel.getParagraphIndexFromOffset(offset)
-            navigateToParagraph(pIndex)
-        } else {
-            val pageIdx = viewModel.getPageForOffset(offset)
-            loadPage(pageIdx)
-        }
+        val pub = com.nightread.app.readium.ReadiumEngine.getPublication() ?: return
+        val totalLength = viewModel.fullContentLength.coerceAtLeast(1)
+        val targetProg = (offset.toDouble() / totalLength.toDouble()).coerceIn(0.0, 1.0)
+        val firstLink = pub.readingOrder.firstOrNull() ?: return
+        val baseLocator = pub.locatorFromLink(firstLink) ?: return
+        val locator = baseLocator.copy(
+            locations = org.readium.r2.shared.publication.Locator.Locations(progression = targetProg)
+        )
+        readiumReaderFragment?.go(locator)
     }
 
     fun loadPage(pageNumber: Int) {
-        viewModel.setCurrentPage(pageNumber)
+        val pub = com.nightread.app.readium.ReadiumEngine.getPublication() ?: return
+        val totalPositions = pub.readingOrder.size
+        val targetProg = if (totalPositions > 0) (pageNumber.toDouble() / totalPositions.toDouble()).coerceIn(0.0, 1.0) else 0.0
+        val firstLink = pub.readingOrder.firstOrNull() ?: return
+        val baseLocator = pub.locatorFromLink(firstLink) ?: return
+        val locator = baseLocator.copy(
+            locations = org.readium.r2.shared.publication.Locator.Locations(progression = targetProg)
+        )
+        readiumReaderFragment?.go(locator)
     }
 
     fun navigateToParagraph(pIndex: Int) {
-        viewModel.updateWebViewParagraphProgress(pIndex)
-        webView.evaluateJavascript("scrollToParagraph('p_$pIndex');") { result ->
-            if (result != "true") {
-                webView.postDelayed({
-                    webView.evaluateJavascript("scrollToParagraph('p_$pIndex');", null)
-                }, 300)
-            }
-        }
+        navigateToOffset(pIndex * 100)
     }
 
     private fun toggleBookmark() {
@@ -2032,32 +1737,10 @@ class BookReaderActivity : BaseActivity() {
     fun showFootnote(noteId: String) {}
     fun performSmartSearch(word: String) {}
 
-    fun onWebViewPagesCalculated(totalPages: Int) {
-        viewModel.setWebViewPageCount(totalPages)
-        val pageIdx = viewModel.currentPage.value
-        if (pageIdx > 0) {
-            webView.evaluateJavascript("scrollToPage(${pageIdx - 1});", null)
-        }
-    }
-
-    fun onParagraphVisible(pId: String) {
-        if (isWebViewLoading) return
-        val pIndex = pId.substringAfter("p_").toIntOrNull() ?: return
-        viewModel.updateWebViewParagraphProgress(pIndex)
-    }
-
-    fun onWebViewPageRestored(pageIndex: Int) {
-        if (pageIndex >= 0) {
-            viewModel.setWebViewPageRestored(pageIndex + 1)
-        }
-    }
-
-    private fun ensureWebViewAligned() {
-        if (::webView.isInitialized && webView.visibility == View.VISIBLE) {
-            val pageIdx = viewModel.currentPage.value
-            webView.evaluateJavascript("scrollToPage(${ (pageIdx - 1).coerceAtLeast(0) });", null)
-        }
-    }
+    fun onWebViewPagesCalculated(totalPages: Int) {}
+    fun onParagraphVisible(pId: String) {}
+    fun onWebViewPageRestored(pageIndex: Int) {}
+    private fun ensureWebViewAligned() {}
 
     fun saveNoteForBook(selectedText: String, noteText: String) {}
 
@@ -2596,7 +2279,7 @@ class BookReaderActivity : BaseActivity() {
      * Переключает тему приложения между светлой и тёмной через AppCompatDelegate.setDefaultNightMode().
      */
     fun toggleTheme() {
-        val currentNightMode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        val currentNightMode = resources.configuration.uiMode.and(android.content.res.Configuration.UI_MODE_NIGHT_MASK)
         val targetMode = if (currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES) {
             androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
         } else {

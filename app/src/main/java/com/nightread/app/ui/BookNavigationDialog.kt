@@ -162,6 +162,23 @@ class BookNavigationDialog : DialogFragment() {
     }
 
     private fun setupChaptersList() {
+        val pub = com.nightread.app.readium.ReadiumEngine.getPublication()
+        if (pub != null && pub.tableOfContents.isNotEmpty()) {
+            val tocTitles = pub.tableOfContents.map { it.title?.ifEmpty { "Глава" } ?: "Глава" }
+            val tocLocators = pub.tableOfContents.mapNotNull { link ->
+                pub.locatorFromLink(link)
+            }
+            if (tocLocators.isNotEmpty()) {
+                rvChapters.visibility = View.VISIBLE
+                layoutChaptersEmpty.visibility = View.GONE
+                rvChapters.adapter = ReadiumChapterAdapter(tocTitles, tocLocators) { locator ->
+                    (activity as? BookReaderActivity)?.navigateToReadiumLocator(locator)
+                    dismiss()
+                }
+                return
+            }
+        }
+
         val content = BookCache.content
         if (content.isEmpty() || BookCache.sha1 != bookSha1) {
             rvChapters.visibility = View.GONE
@@ -678,5 +695,53 @@ class BookNavigationDialog : DialogFragment() {
         }
 
         override fun getItemCount(): Int = offsets.size
+    }
+
+    private inner class ReadiumChapterAdapter(
+        private val titles: List<String>,
+        private val locators: List<org.readium.r2.shared.publication.Locator>,
+        private val onClick: (org.readium.r2.shared.publication.Locator) -> Unit
+    ) : RecyclerView.Adapter<ReadiumChapterAdapter.ViewHolder>() {
+
+        inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val tvTitle: TextView = view.findViewById(R.id.tvChapterTitle)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_chapter_navigation, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            holder.tvTitle.text = titles.getOrNull(position) ?: "Глава ${position + 1}"
+
+            val itemBgHex = when (activeTheme) {
+                "light", "beige" -> "#EFE9E2"
+                "sepia", "sepia_contrast" -> "#EADCB9"
+                "contrast" -> "#1A1A1A"
+                else -> "#2A1A3E"
+            }
+            val textPrimaryHex = when (activeTheme) {
+                "light", "beige" -> "#2C3E50"
+                "sepia", "sepia_contrast" -> "#5B3A29"
+                "contrast" -> "#FFFFFF"
+                else -> "#E8D8F0"
+            }
+
+            val itemBg = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 16f
+                setColor(Color.parseColor(itemBgHex))
+            }
+            holder.itemView.background = itemBg
+            holder.tvTitle.setTextColor(Color.parseColor(textPrimaryHex))
+
+            holder.itemView.setOnClickListener {
+                locators.getOrNull(position)?.let { loc -> onClick(loc) }
+            }
+        }
+
+        override fun getItemCount(): Int = titles.size
     }
 }

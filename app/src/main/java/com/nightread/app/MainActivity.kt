@@ -232,7 +232,6 @@ class MainActivity : BaseActivity() {
     }
 
     private fun initMainUI(savedInstanceState: Bundle?) {
-        com.nightread.app.ui.customlayout.PageSplitter.init(this)
         com.nightread.app.ui.HyphenatorHelper.init(this)
 
         drawerLayout = findViewById(R.id.drawer_layout)
@@ -302,6 +301,7 @@ class MainActivity : BaseActivity() {
 
         navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
+                R.id.nav_audiobooks -> openAudiobooksFragment()
                 R.id.nav_sync -> openSyncFragment()
                 R.id.nav_stats -> openStatsFragment()
                 R.id.nav_favorites -> openFavoritesFragment()
@@ -335,7 +335,10 @@ class MainActivity : BaseActivity() {
             }
             navView.setCheckedItem(menuId)
 
-            if (intent.getBooleanExtra("OPEN_SYNC", false)) {
+            if (intent.getBooleanExtra("OPEN_AUDIOBOOKS", false)) {
+                openAudiobooksFragment()
+                navView.setCheckedItem(R.id.nav_audiobooks)
+            } else if (intent.getBooleanExtra("OPEN_SYNC", false)) {
                 openSyncFragment()
                 navView.setCheckedItem(R.id.nav_sync)
             } else {
@@ -369,6 +372,12 @@ class MainActivity : BaseActivity() {
         }
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
+            .commit()
+    }
+
+    fun openAudiobooksFragment() {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, com.nightread.app.ui.AudiobooksFragment())
             .commit()
     }
 

@@ -14,23 +14,10 @@
         android:focusable="false"
         android:visibility="gone" />
 
-    <com.nightread.app.ui.customlayout.CustomReaderPageView
-        android:id="@+id/bookReaderView"
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/readiumContainerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
-
-    <WebView
-        android:id="@+id/webView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone" />
-    <View
-        android:id="@+id/touchInterceptor"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clickable="true"
-        android:focusable="true"
-        android:visibility="gone" />
 
     <ImageView
         android:id="@+id/ivBookCoverPage"

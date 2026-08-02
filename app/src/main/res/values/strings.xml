@@ -48,6 +48,7 @@
     <string name="drawer_library">Библиотека</string>
     <string name="drawer_reading">Читаю</string>
     <string name="drawer_read">Прочитано</string>
+    <string name="drawer_audiobooks">Аудиокниги</string>
     <string name="drawer_bookmarks">Закладки</string>
     <string name="drawer_favorites">Избранное</string>
     <string name="drawer_new_books">Новые книги</string>

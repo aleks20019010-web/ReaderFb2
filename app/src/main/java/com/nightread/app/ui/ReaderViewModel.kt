@@ -126,6 +126,33 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun getContentText(): String = content
 
+    val fullContentLength: Int get() = if (content.isNotEmpty()) content.length else 100000
+
+    fun updateProgress(progression: Double) {
+        val book = _bookState.value ?: return
+        val totalChars = fullContentLength
+        val offset = (progression * totalChars).toInt()
+        
+        _bookState.value = book.copy(
+            currentProgressChar = offset,
+            lastReadTime = System.currentTimeMillis()
+        )
+
+        sharedPrefs.edit()
+            .putInt("book_char_offset_${book.sha1}", offset)
+            .apply()
+
+        viewModelScope.launch(Dispatchers.IO) {
+            bookDao.updateProgressAndPage(
+                book.sha1,
+                offset,
+                _currentPage.value,
+                totalChars,
+                System.currentTimeMillis()
+            )
+        }
+    }
+
     fun getOffsetForParagraphIndex(pIndex: Int): Int {
         val offsets = paragraphOffsets
         if (offsets.isEmpty()) return 0

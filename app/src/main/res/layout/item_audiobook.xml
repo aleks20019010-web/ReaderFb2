@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="6dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="4dp"
+    app:cardBackgroundColor="@color/bg_card"
+    app:strokeWidth="1dp"
+    app:strokeColor="#25FFFFFF">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp">
+
+        <!-- Cover container with gradient / icon -->
+        <FrameLayout
+            android:id="@+id/layoutCover"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:background="@drawable/bg_card_rounded"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="14dp">
+
+            <ImageView
+                android:id="@+id/ivAudioCover"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/ic_headphones"
+                android:scaleType="centerInside"
+                android:padding="12dp"
+                app:tint="@color/accent" />
+        </FrameLayout>
+
+        <!-- Details -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_toEndOf="@id/layoutCover"
+            android:layout_toStartOf="@id/btnPlayAudiobook"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="8dp">
+
+            <TextView
+                android:id="@+id/tvAudioTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Название аудиокниги"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tvAudioAuthor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Автор / Чтец"
+                android:textColor="#A0A0C0"
+                android:textSize="13sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:layout_marginBottom="6dp" />
+
+            <TextView
+                android:id="@+id/tvAudioDuration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00:00"
+                android:textColor="@color/accent"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Quick Play Button -->
+        <ImageButton
+            android:id="@+id/btnPlayAudiobook"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_media_play_custom"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/accent" />
+    </RelativeLayout>
+</com.google.android.material.card.MaterialCardView>

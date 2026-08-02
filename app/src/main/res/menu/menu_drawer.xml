@@ -14,6 +14,10 @@
             android:icon="@android:drawable/ic_menu_view"
             android:title="@string/drawer_read" />
         <item
+            android:id="@+id/nav_audiobooks"
+            android:icon="@drawable/ic_headphones"
+            android:title="@string/drawer_audiobooks" />
+        <item
             android:id="@+id/nav_favorites"
             android:icon="@android:drawable/btn_star_big_on"
             android:title="@string/drawer_favorites" />
