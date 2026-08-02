@@ -369,11 +369,11 @@ class BookReaderActivity : BaseActivity() {
             bottomParams.height = FrameLayout.LayoutParams.WRAP_CONTENT
             bottomToolbar.layoutParams = bottomParams
             
-            // 3. Reader view padding uses 16dp margins on the sides and bottom, and accounts for status bar at the top and navigation bar at the bottom
+            // 3. Reader view padding uses 8dp margins on the sides, and accounts for status bar at the top and navigation bar at the bottom
             readerView.setPadding(
-                (16 * density).toInt(),
+                (8 * density).toInt(),
                 topInset + (8 * density).toInt(),
-                (16 * density).toInt(),
+                (8 * density).toInt(),
                 navBarInsets.bottom + (16 * density).toInt()
             )
 
@@ -570,6 +570,9 @@ class BookReaderActivity : BaseActivity() {
                     touchStartY = event.y
                     touchStartTime = System.currentTimeMillis()
                     isHorizontalSwipeLocked = false
+                    isDraggingVerticalLeft = false
+                    isDraggingVerticalRight = false
+                    isDraggingVerticalCenter = false
 
                     if (!isWebView) {
                         longPressRunnable = Runnable {
@@ -593,19 +596,6 @@ class BookReaderActivity : BaseActivity() {
                     }
 
                     brightnessAnimator?.cancel()
-                    isDraggingVerticalLeft = false
-                    isDraggingVerticalRight = false
-                    isDraggingVerticalCenter = false
-                    if (event.x < screenWidth * 0.35f) {
-                        isDraggingVerticalLeft = true
-                        val lp = window.attributes
-                        initialGestureValue = if (lp.screenBrightness < 0) 0.5f else lp.screenBrightness
-                    } else if (event.x > screenWidth * 0.65f) {
-                        isDraggingVerticalRight = true
-                        initialGestureValue = com.nightread.app.data.SettingsManager.getAmberFilterIntensity(this@BookReaderActivity).toFloat()
-                    } else {
-                        isDraggingVerticalCenter = true
-                    }
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val diffX = event.x - touchStartX
@@ -624,6 +614,19 @@ class BookReaderActivity : BaseActivity() {
                     }
 
                     if (!isHorizontalSwipeLocked && duration > 100 && Math.abs(diffY) > 50 && Math.abs(diffY) > Math.abs(diffX) * 2f) {
+                        if (!isDraggingVerticalLeft && !isDraggingVerticalRight && !isDraggingVerticalCenter) {
+                            if (touchStartX < screenWidth * 0.35f) {
+                                isDraggingVerticalLeft = true
+                                val lp = window.attributes
+                                initialGestureValue = if (lp.screenBrightness < 0) 0.5f else lp.screenBrightness
+                            } else if (touchStartX > screenWidth * 0.65f) {
+                                isDraggingVerticalRight = true
+                                initialGestureValue = com.nightread.app.data.SettingsManager.getAmberFilterIntensity(this@BookReaderActivity).toFloat()
+                            } else {
+                                isDraggingVerticalCenter = true
+                            }
+                        }
+
                         if (isDraggingVerticalLeft) {
                             val delta = -diffY / screenHeight
                             val newBrightness = (initialGestureValue + delta).coerceIn(0.01f, 1.0f)
@@ -665,26 +668,11 @@ class BookReaderActivity : BaseActivity() {
                     val diffY = event.y - touchStartY
                     val duration = System.currentTimeMillis() - touchStartTime
 
-                    if (!isHorizontalSwipeLocked && isDraggingVerticalCenter && !isBarsVisible && Math.abs(diffY) > Math.abs(diffX) * 2f) {
-                        if (diffY < -50) {
-                            showFullscreenHUD()
-                        } else {
-                            hideFullscreenHUD()
-                        }
-                        return@OnTouchListener true
-                    } else if (isDraggingVerticalLeft || isDraggingVerticalRight) {
-                        handler.postDelayed(hideIndicatorsRunnable, 1000)
-                        return@OnTouchListener true
-                    } else if (Math.abs(diffX) > 30f && Math.abs(diffX) > Math.abs(diffY)) {
+                    if (Math.abs(diffX) > 30f && Math.abs(diffX) > Math.abs(diffY)) {
                         val currentPage = viewModel.currentPage.value
                         val totalPages = viewModel.pagesState.value.size
-                        val filePath = viewModel.bookState.value?.filePath ?: ""
-                        val isWebViewBook = filePath.endsWith(".fb2", true) || 
-                                           filePath.endsWith(".fb2.zip", true) || 
-                                           filePath.endsWith(".zip", true) ||
-                                           filePath.endsWith(".epub", true)
                         if (diffX < 0) {
-                            if (currentPage < totalPages - 1 || isWebViewBook) {
+                            if (currentPage < totalPages - 1) {
                                 viewModel.setCurrentPage(currentPage + 1)
                             } else {
                                 ensureWebViewAligned()
@@ -697,22 +685,27 @@ class BookReaderActivity : BaseActivity() {
                             }
                         }
                         return@OnTouchListener true
+                    } else if (isDraggingVerticalLeft || isDraggingVerticalRight) {
+                        handler.postDelayed(hideIndicatorsRunnable, 1000)
+                        return@OnTouchListener true
+                    } else if (!isHorizontalSwipeLocked && isDraggingVerticalCenter && !isBarsVisible && Math.abs(diffY) > Math.abs(diffX) * 2f) {
+                        if (diffY < -50) {
+                            showFullscreenHUD()
+                        } else {
+                            hideFullscreenHUD()
+                        }
+                        return@OnTouchListener true
                     } else if (Math.abs(diffX) < 30f && Math.abs(diffY) < 30f && duration < 500) {
                         val touchX = event.x
                         val currentPage = viewModel.currentPage.value
                         val totalPages = viewModel.pagesState.value.size
-                        val filePath = viewModel.bookState.value?.filePath ?: ""
-                        val isWebViewBook = filePath.endsWith(".fb2", true) || 
-                                           filePath.endsWith(".fb2.zip", true) || 
-                                           filePath.endsWith(".zip", true) ||
-                                           filePath.endsWith(".epub", true)
                         if (touchX < screenWidth * 0.25f) {
                             if (currentPage > 0) {
                                 viewModel.setCurrentPage(currentPage - 1)
                             }
                             return@OnTouchListener true
                         } else if (touchX > screenWidth * 0.75f) {
-                            if (currentPage < totalPages - 1 || isWebViewBook) {
+                            if (currentPage < totalPages - 1) {
                                 viewModel.setCurrentPage(currentPage + 1)
                             }
                             return@OnTouchListener true
@@ -926,8 +919,8 @@ class BookReaderActivity : BaseActivity() {
             val density = resources.displayMetrics.density
             val paddingTop = systemTopInset + (8 * density).toInt()
             val paddingBottom = systemBottomInset + (16 * density).toInt()
-            val paddingLeft = (16 * density).toInt()
-            val paddingRight = (16 * density).toInt()
+            val paddingLeft = (8 * density).toInt()
+            val paddingRight = (8 * density).toInt()
 
             val settingsKey = "${viewModel.bookState.value?.sha1}_${themeKey}_${fontSize}_${lineSpacing}_${fontFamily}_${fontWeight}_${fontAlignment}_${pageMargins}_${paddingTop}_${paddingBottom}"
             val loadedKey = webView.tag as? String
@@ -974,8 +967,8 @@ class BookReaderActivity : BaseActivity() {
                     val fullContent = BookCache.content
                     val paddingTopDp = (paddingTop / density).toInt()
                     val paddingBottomDp = (paddingBottom / density).toInt()
-                    val paddingLeftDp = 16
-                    val paddingRightDp = 16
+                    val paddingLeftDp = 8
+                    val paddingRightDp = 8
                     
                     val book = viewModel.bookState.value
                     val isEpub = book?.filePath?.endsWith(".epub", true) == true
@@ -2015,7 +2008,10 @@ class BookReaderActivity : BaseActivity() {
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
                 if (action == KeyEvent.ACTION_DOWN) {
                     val currentPage = viewModel.currentPage.value
-                    viewModel.setCurrentPage(currentPage + 1)
+                    val totalPages = viewModel.pagesState.value.size
+                    if (currentPage < totalPages - 1) {
+                        viewModel.setCurrentPage(currentPage + 1)
+                    }
                 }
                 return true
             }
@@ -2036,7 +2032,10 @@ class BookReaderActivity : BaseActivity() {
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
                 val currentPage = viewModel.currentPage.value
-                viewModel.setCurrentPage(currentPage + 1)
+                val totalPages = viewModel.pagesState.value.size
+                if (currentPage < totalPages - 1) {
+                    viewModel.setCurrentPage(currentPage + 1)
+                }
                 return true
             }
             KeyEvent.KEYCODE_VOLUME_UP -> {

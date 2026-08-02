@@ -691,19 +691,21 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             dummyList.add("WEBVIEW_PAGE_$i")
         }
         _pagesState.value = dummyList
+
+        val maxPage = dummyList.size - 1
+        if (_currentPage.value > maxPage) {
+            _currentPage.value = maxPage
+        }
     }
 
     fun setCurrentPage(page: Int) {
         val pages = _pagesState.value
-        val isWebViewBook = pages.any { it.toString().startsWith("WEBVIEW_CONTENT") || it.toString().startsWith("WEBVIEW_PAGE_") }
-        
-        if (isWebViewBook || pages.size <= 2 || pages.any { it.toString() == "[BOOK_COVER]" && pages.size < 5 }) {
-            // Avoid clamping to 0 if pagesState is in loading/placeholder state
+        if (pages.isEmpty()) {
             _currentPage.value = page.coerceAtLeast(0)
-        } else {
-            val maxPage = (pages.size - 1).coerceAtLeast(0)
-            _currentPage.value = page.coerceIn(0, maxPage)
+            return
         }
+        val maxPage = (pages.size - 1).coerceAtLeast(0)
+        _currentPage.value = page.coerceIn(0, maxPage)
         saveProgress()
     }
 

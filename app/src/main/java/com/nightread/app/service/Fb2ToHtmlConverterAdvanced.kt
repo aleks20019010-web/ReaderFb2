@@ -52,8 +52,6 @@ object Fb2ToHtmlConverterAdvanced {
             // Margin/padding setup
             val sideMarginPx = paddingLeft
             val sideMargin = "${sideMarginPx}px"
-            val columnWidthCss = "calc(100vw - ${sideMarginPx * 2}px)"
-            val columnGapCss = "${sideMarginPx * 2}px"
             val topMargin = "${paddingTop}px"
             val bottomMargin = "${paddingBottom}px"
             val fontWeightCss = if (fontWeight > 0) "bold" else "normal"
@@ -78,14 +76,14 @@ object Fb2ToHtmlConverterAdvanced {
                             margin: 0;
                             padding-top: $topMargin;
                             padding-bottom: $bottomMargin;
-                            padding-left: $sideMargin;
-                            padding-right: $sideMargin;
+                            padding-left: 0px;
+                            padding-right: 0px;
                             height: 100vh;
                             box-sizing: border-box;
-                            -webkit-column-width: $columnWidthCss;
-                            -webkit-column-gap: $columnGapCss;
-                            column-width: $columnWidthCss;
-                            column-gap: $columnGapCss;
+                            -webkit-column-width: 100vw;
+                            -webkit-column-gap: 0px;
+                            column-width: 100vw;
+                            column-gap: 0px;
                             background-color: $bgColor;
                             color: $textColor;
                             font-family: $cssFontFamily;
@@ -96,6 +94,11 @@ object Fb2ToHtmlConverterAdvanced {
                             -webkit-hyphens: auto;
                             -ms-hyphens: auto;
                             hyphens: auto;
+                        }
+                        body > * {
+                            padding-left: $sideMargin;
+                            padding-right: $sideMargin;
+                            box-sizing: border-box;
                         }
                         p {
                             margin-top: 0;
