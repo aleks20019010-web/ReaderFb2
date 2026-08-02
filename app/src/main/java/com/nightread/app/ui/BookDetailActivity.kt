@@ -164,50 +164,7 @@ class BookDetailActivity : BaseActivity() {
 
     private var notesJob: kotlinx.coroutines.Job? = null
 
-    private fun setupNotesTab() {
-        val tabLayoutDetail = findViewById<com.google.android.material.tabs.TabLayout>(R.id.tabLayoutDetail)
-        val layoutInfoContainer = findViewById<View>(R.id.layoutInfoContainer)
-        val layoutNotesContainer = findViewById<View>(R.id.layoutNotesContainer)
-        val rvNotes = findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rvNotes)
-        val tvNoNotes = findViewById<TextView>(R.id.tvNoNotes)
-
-        rvNotes.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
-        val noteAdapterInstance = NoteAdapter(
-            onNoteClicked = { note ->
-                val intent = Intent(this, BookReaderActivity::class.java).apply {
-                    putExtra("BOOK_SHA1", bookSha1)
-                    putExtra("TARGET_CHAR_OFFSET", note.charOffset)
-                }
-                startActivity(intent)
-                overridePendingTransition(R.anim.fade_in_custom, R.anim.fade_out_custom)
-            },
-            onNoteDeleteClicked = { note ->
-                lifecycleScope.launch {
-                    AppDatabase.getDatabase(this@BookDetailActivity).noteDao().deleteNote(note)
-                    (rvNotes.adapter as? NoteAdapter)?.let { loadNotes(it, tvNoNotes, rvNotes) }
-                }
-            },
-            onNoteShareClicked = { note ->
-                shareNote(note)
-            }
-        )
-        rvNotes.adapter = noteAdapterInstance
-
-        tabLayoutDetail.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab) {
-                if (tab.position == 0) {
-                    layoutInfoContainer.visibility = View.VISIBLE
-                    layoutNotesContainer.visibility = View.GONE
-                } else {
-                    layoutInfoContainer.visibility = View.GONE
-                    layoutNotesContainer.visibility = View.VISIBLE
-                    (rvNotes.adapter as? NoteAdapter)?.let { loadNotes(it, tvNoNotes, rvNotes) }
-                }
-            }
-            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab) {}
-            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab) {}
-        })
-    }
+    private fun setupNotesTab() {}
 
     private fun loadNotes(adapter: NoteAdapter, tvNoNotes: TextView, rvNotes: androidx.recyclerview.widget.RecyclerView) {
         val sha1 = bookSha1 ?: return

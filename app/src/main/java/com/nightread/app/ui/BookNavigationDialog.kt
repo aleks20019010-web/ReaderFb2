@@ -33,17 +33,12 @@ class BookNavigationDialog : DialogFragment() {
     private lateinit var tabLayout: TabLayout
     private lateinit var pageChapters: View
     private lateinit var pageBookmarks: View
-    private lateinit var pageQuotes: View
 
     private lateinit var rvChapters: RecyclerView
     private lateinit var layoutChaptersEmpty: View
     private lateinit var rvBookmarks: RecyclerView
     private lateinit var layoutBookmarksEmpty: View
-    private lateinit var rvQuotes: RecyclerView
-    private lateinit var layoutQuotesEmpty: View
-    private lateinit var etSearchQuotes: android.widget.EditText
     private lateinit var etSearchBookmarks: android.widget.EditText
-    private var allNotes: List<com.nightread.app.data.NoteEntity> = emptyList()
     private var allBookmarks: List<com.nightread.app.data.BookmarkEntity> = emptyList()
 
     private lateinit var navigationCardRoot: CardView
@@ -114,23 +109,18 @@ class BookNavigationDialog : DialogFragment() {
         tabLayout = view.findViewById(R.id.tabLayout)
         pageChapters = view.findViewById(R.id.pageChapters)
         pageBookmarks = view.findViewById(R.id.pageBookmarks)
-        pageQuotes = view.findViewById(R.id.pageQuotes)
 
         // Initialize lists
         rvChapters = view.findViewById(R.id.rvChapters)
         layoutChaptersEmpty = view.findViewById(R.id.layoutChaptersEmpty)
         rvBookmarks = view.findViewById(R.id.rvBookmarks)
         layoutBookmarksEmpty = view.findViewById(R.id.layoutBookmarksEmpty)
-        rvQuotes = view.findViewById(R.id.rvQuotes)
-        layoutQuotesEmpty = view.findViewById(R.id.layoutQuotesEmpty)
-        etSearchQuotes = view.findViewById(R.id.etSearchQuotes)
         etSearchBookmarks = view.findViewById(R.id.etSearchBookmarks)
 
         rvChapters.layoutManager = LinearLayoutManager(context)
         rvBookmarks.layoutManager = LinearLayoutManager(context)
-        rvQuotes.layoutManager = LinearLayoutManager(context)
 
-        // Setup tabs (hidden but kept for compatibility/safe references)
+        // Setup tabs
         setupTabLayout()
         tabLayout.visibility = View.VISIBLE
         dividerTabs.visibility = View.VISIBLE
@@ -141,24 +131,21 @@ class BookNavigationDialog : DialogFragment() {
         // Setup Bookmarks logic
         setupBookmarksList()
 
-        // Setup Notes logic
-        setupQuotesList()
-
         // Apply theme-specific colors and backgrounds dynamically
         applyThemeColors(activeTheme, view)
 
         // Pre-select initial tab
         tabLayout.post {
-            val tab = tabLayout.getTabAt(initialTab)
+            val targetTab = if (initialTab > 1) 0 else initialTab
+            val tab = tabLayout.getTabAt(targetTab)
             tab?.select()
-            switchPage(initialTab)
+            switchPage(targetTab)
         }
     }
 
     private fun setupTabLayout() {
         tabLayout.addTab(tabLayout.newTab().setText("ОГЛАВЛЕНИЕ"))
         tabLayout.addTab(tabLayout.newTab().setText("ЗАКЛАДКИ"))
-        tabLayout.addTab(tabLayout.newTab().setText("ЦИТАТЫ"))
 
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
@@ -172,7 +159,6 @@ class BookNavigationDialog : DialogFragment() {
     private fun switchPage(position: Int) {
         pageChapters.visibility = if (position == 0) View.VISIBLE else View.GONE
         pageBookmarks.visibility = if (position == 1) View.VISIBLE else View.GONE
-        pageQuotes.visibility = if (position == 2) View.VISIBLE else View.GONE
     }
 
     private fun setupChaptersList() {
@@ -504,71 +490,7 @@ class BookNavigationDialog : DialogFragment() {
         startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться закладкой"))
     }
 
-    private fun setupQuotesList() {
-        noteAdapter = NoteAdapter(
-            onNoteClicked = { note ->
-                (activity as? BookReaderActivity)?.navigateToOffset(note.charOffset)
-                dismiss()
-            },
-            onNoteDeleteClicked = { note ->
-                confirmAndDeleteNote(note)
-            },
-            onNoteShareClicked = { note ->
-                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(android.content.Intent.EXTRA_TEXT, "«${note.selectedText.trim()}»\nЗаметка: ${note.noteText}\n— ${note.bookTitle}")
-                }
-                startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться заметкой"))
-            }
-        )
-        rvQuotes.adapter = noteAdapter
-
-        etSearchQuotes.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                val query = s.toString().lowercase()
-                val filtered = allNotes.filter {
-                    it.noteText.lowercase().contains(query) || it.selectedText.lowercase().contains(query) || it.bookTitle.lowercase().contains(query)
-                }
-                noteAdapter.submitList(filtered)
-                layoutQuotesEmpty.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
-            }
-        })
-
-        val swipeCallback = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
-            override fun onMove(
-                recyclerView: RecyclerView,
-                viewHolder: RecyclerView.ViewHolder,
-                target: RecyclerView.ViewHolder
-            ): Boolean = false
-
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                val position = viewHolder.adapterPosition
-                val note = noteAdapter.getNoteAt(position)
-                if (note != null) {
-                    confirmAndDeleteNote(note) {
-                        noteAdapter.notifyItemChanged(position)
-                    }
-                }
-            }
-        }
-        ItemTouchHelper(swipeCallback).attachToRecyclerView(rvQuotes)
-
-        lifecycleScope.launch {
-            viewModel.getNotesForBook(bookSha1).collectLatest { notes ->
-                allNotes = notes
-                if (notes.isEmpty()) {
-                    rvQuotes.visibility = View.GONE
-                    layoutQuotesEmpty.visibility = View.VISIBLE
-                } else {
-                    rvQuotes.visibility = View.VISIBLE
-                    layoutQuotesEmpty.visibility = View.GONE
-                    noteAdapter.submitList(notes)
-                }
-            }
-        }
-    }
+    private fun setupQuotesList() {}
 
     private fun confirmAndDeleteNote(note: com.nightread.app.data.NoteEntity, onCancelled: () -> Unit = {}) {
         val context = requireContext()
@@ -686,14 +608,6 @@ class BookNavigationDialog : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvBookmarksEmptyMessage)?.setTextColor(textSecondaryColor)
         rootView.findViewById<ImageView>(R.id.ivBookmarksEmptyIcon)?.imageTintList = ColorStateList.valueOf(accentColor)
 
-        rootView.findViewById<TextView>(R.id.tvQuotesEmptyTitle)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvQuotesEmptyMessage)?.setTextColor(textSecondaryColor)
-        rootView.findViewById<ImageView>(R.id.ivQuotesEmptyIcon)?.imageTintList = ColorStateList.valueOf(accentColor)
-        rootView.findViewById<android.widget.EditText>(R.id.etSearchQuotes)?.let {
-            it.setTextColor(textPrimaryColor)
-            it.setHintTextColor(textSecondaryColor)
-            it.background?.setTint(textSecondaryColor) // Simple tint for background
-        }
         rootView.findViewById<android.widget.EditText>(R.id.etSearchBookmarks)?.let {
             it.setTextColor(textPrimaryColor)
             it.setHintTextColor(textSecondaryColor)

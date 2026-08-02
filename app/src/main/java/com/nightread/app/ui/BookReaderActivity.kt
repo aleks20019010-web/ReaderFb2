@@ -260,13 +260,7 @@ class BookReaderActivity : BaseActivity() {
         }
 
         val btnNotes = findViewById<ImageButton>(R.id.btnNotes)
-        btnNotes.visibility = View.GONE
-        btnNotes.setOnClickListener {
-            val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
-            if (sha1.isNotEmpty()) {
-                BookNavigationDialog.newInstance(sha1, 2).show(supportFragmentManager, "navigation")
-            }
-        }
+        btnNotes?.visibility = View.GONE
 
         val btnBottomBookmark = findViewById<ImageButton>(R.id.btnBottomBookmark)
         btnBottomBookmark.setOnClickListener {
@@ -574,40 +568,12 @@ class BookReaderActivity : BaseActivity() {
                     isDraggingVerticalRight = false
                     isDraggingVerticalCenter = false
 
-                    if (!isWebView) {
-                        longPressRunnable = Runnable {
-                            val word = readerView.getWordAt(touchStartX, touchStartY)
-                            val contextSnippet = readerView.getContextAt(touchStartX, touchStartY)
-                            if (!word.isNullOrEmpty()) {
-                                showWordActionOrNoteDialog(word, contextSnippet.ifEmpty { word })
-                            } else {
-                                val currentTextOnPage = viewModel.pagesState.value.getOrNull(viewModel.currentPage.value)?.toString() ?: ""
-                                if (currentTextOnPage.isNotEmpty() && currentTextOnPage != "[BOOK_COVER]") {
-                                    val isWebViewBk = viewModel.bookState.value?.filePath?.let { it.endsWith(".epub", true) || it.endsWith(".fb2", true) || it.endsWith(".fb2.zip", true) || it.endsWith(".zip", true) } == true
-                                    val isWebViewPage = currentTextOnPage.startsWith("WEBVIEW_CONTENT") || currentTextOnPage.startsWith("WEBVIEW_PAGE_") || isWebViewBk
-                                    if (!isWebViewPage) {
-                                        val snippet = if (currentTextOnPage.length > 150) currentTextOnPage.substring(0, 150) + "..." else currentTextOnPage
-                                        showWordActionOrNoteDialog(currentTextOnPage, snippet)
-                                    }
-                                }
-                            }
-                        }
-                        handler.postDelayed(longPressRunnable!!, 950)
-                    }
-
                     brightnessAnimator?.cancel()
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val diffX = event.x - touchStartX
                     val diffY = event.y - touchStartY
                     val duration = System.currentTimeMillis() - touchStartTime
-
-                    if (Math.abs(diffX) > 20 || Math.abs(diffY) > 20) {
-                        longPressRunnable?.let {
-                            handler.removeCallbacks(it)
-                            longPressRunnable = null
-                        }
-                    }
 
                     if (Math.abs(diffX) > Math.abs(diffY) * 1.2f && Math.abs(diffX) > 20f) {
                         isHorizontalSwipeLocked = true
@@ -660,10 +626,6 @@ class BookReaderActivity : BaseActivity() {
                     }
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    longPressRunnable?.let {
-                        handler.removeCallbacks(it)
-                        longPressRunnable = null
-                    }
                     val diffX = event.x - touchStartX
                     val diffY = event.y - touchStartY
                     val duration = System.currentTimeMillis() - touchStartTime
@@ -697,9 +659,15 @@ class BookReaderActivity : BaseActivity() {
                         return@OnTouchListener true
                     } else if (Math.abs(diffX) < 30f && Math.abs(diffY) < 30f && duration < 500) {
                         val touchX = event.x
+                        val touchY = event.y
                         val currentPage = viewModel.currentPage.value
                         val totalPages = viewModel.pagesState.value.size
-                        if (touchX < screenWidth * 0.25f) {
+                        
+                        // Tap in top-right corner to bookmark
+                        if (touchX > screenWidth * 0.75f && touchY < screenHeight * 0.25f) {
+                            toggleBookmark()
+                            return@OnTouchListener true
+                        } else if (touchX < screenWidth * 0.25f) {
                             if (currentPage > 0) {
                                 viewModel.setCurrentPage(currentPage - 1)
                             }
@@ -2079,14 +2047,9 @@ class BookReaderActivity : BaseActivity() {
         }
     }
 
-    fun saveNoteForBook(selectedText: String, noteText: String) {
-        viewModel.addNote(selectedText, noteText)
-    }
+    fun saveNoteForBook(selectedText: String, noteText: String) {}
 
-    fun showWordActionOrNoteDialog(selectedText: String, contextSnippet: String) {
-        WordActionBottomSheet.newInstance(selectedText, contextSnippet)
-            .show(supportFragmentManager, "word_action")
-    }
+    fun showWordActionOrNoteDialog(selectedText: String, contextSnippet: String) {}
 
     fun fetchAndShowFreeDictionary(word: String) {
         val cleanWord = word.trim().trim(' ', '«', '»', '\"', '\'', '.', ',', '!', '?', ';', ':', '(', ')', '[', ']', '{', '}')
@@ -2357,11 +2320,7 @@ class BookReaderActivity : BaseActivity() {
         }
 
         @android.webkit.JavascriptInterface
-        fun onTextSelected(selectedText: String, contextSnippet: String) {
-            activity.runOnUiThread {
-                activity.showWordActionOrNoteDialog(selectedText, contextSnippet)
-            }
-        }
+        fun onTextSelected(selectedText: String, contextSnippet: String) {}
 
         @android.webkit.JavascriptInterface
         fun lookupYandexDictionary(word: String) {
@@ -2378,11 +2337,7 @@ class BookReaderActivity : BaseActivity() {
         }
 
         @android.webkit.JavascriptInterface
-        fun onWordLongClick(word: String) {
-            activity.runOnUiThread {
-                activity.fetchAndShowFreeDictionary(word)
-            }
-        }
+        fun onWordLongClick(word: String) {}
     }
 
     private fun onPageChangedForSpeedTracker(pageIndex: Int) {

@@ -81,22 +81,22 @@ object Fb2ToHtmlConverterAdvanced {
                             height: 100vh;
                             background-color: $bgColor;
                             overflow: hidden;
-                            -webkit-user-select: text;
-                            user-select: text;
-                            -webkit-touch-callout: default;
+                            -webkit-user-select: none;
+                            user-select: none;
+                            -webkit-touch-callout: none;
                         }
                         #column-container {
                             margin: 0;
                             padding-top: $topMargin;
                             padding-bottom: $bottomMargin;
-                            padding-left: 0px;
-                            padding-right: 0px;
+                            padding-left: $sideMargin;
+                            padding-right: $sideMargin;
                             height: 100vh;
                             box-sizing: border-box;
-                            -webkit-column-width: 100vw;
-                            -webkit-column-gap: 0px;
-                            column-width: 100vw;
-                            column-gap: 0px;
+                            -webkit-column-width: $columnWidthCss;
+                            -webkit-column-gap: $columnGapCss;
+                            column-width: $columnWidthCss;
+                            column-gap: $columnGapCss;
                             -webkit-column-fill: auto;
                             column-fill: auto;
                             color: $textColor;
@@ -108,11 +108,6 @@ object Fb2ToHtmlConverterAdvanced {
                             -webkit-hyphens: auto;
                             -ms-hyphens: auto;
                             hyphens: auto;
-                        }
-                        #column-container > * {
-                            padding-left: $sideMargin;
-                            padding-right: $sideMargin;
-                            box-sizing: border-box;
                         }
                         p {
                             margin-top: 0;
@@ -330,32 +325,6 @@ object Fb2ToHtmlConverterAdvanced {
                             document.documentElement.scrollLeft = x;
                         }
 
-                        document.addEventListener('touchend', function() {
-                            handleTextSelection();
-                        });
-                        document.addEventListener('mouseup', function() {
-                            handleTextSelection();
-                        });
-
-                        function handleTextSelection() {
-                            var selection = window.getSelection();
-                            var selectedText = selection.toString().trim();
-                            if (selectedText.length > 0) {
-                                var container = null;
-                                if (selection.rangeCount > 0) {
-                                    var range = selection.getRangeAt(0);
-                                    container = range.commonAncestorContainer;
-                                    while (container && container.nodeType !== 1) {
-                                        container = container.parentNode;
-                                    }
-                                }
-                                var contextSnippet = container ? container.innerText || "" : "";
-                                if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onTextSelected) {
-                                    AndroidInterface.onTextSelected(selectedText, contextSnippet);
-                                }
-                                selection.removeAllRanges();
-                            }
-                        }
 
                         window.onscroll = function() {
                             reportCurrentParagraph();
