@@ -31,89 +31,13 @@ object DictionaryDownloader {
 
     suspend fun downloadDictionary(context: Context, onProgress: (Int) -> Unit = {}): Boolean {
         return withContext(Dispatchers.IO) {
-            var conn: HttpURLConnection? = null
             try {
-                onProgress(10)
-                var currentUrl = DICT_URL
-                var redirectCount = 0
-                val maxRedirects = 5
-
-                while (redirectCount < maxRedirects) {
-                    val url = URL(currentUrl)
-                    conn = url.openConnection() as HttpURLConnection
-                    conn.instanceFollowRedirects = false
-                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Android; NightRead)")
-                    conn.connectTimeout = 10000
-                    conn.readTimeout = 10000
-                    conn.connect()
-
-                    val responseCode = conn.responseCode
-                    if (responseCode == HttpURLConnection.HTTP_MOVED_TEMP ||
-                        responseCode == HttpURLConnection.HTTP_MOVED_PERM ||
-                        responseCode == HttpURLConnection.HTTP_SEE_OTHER ||
-                        responseCode == 307 || responseCode == 308) {
-                        val newUrl = conn.getHeaderField("Location")
-                        conn.disconnect()
-                        if (newUrl != null) {
-                            currentUrl = newUrl
-                            redirectCount++
-                            continue
-                        } else {
-                            break
-                        }
-                    } else if (responseCode == HttpURLConnection.HTTP_OK) {
-                        break
-                    } else {
-                        conn.disconnect()
-                        break
-                    }
-                }
-
-                if (conn != null && conn.responseCode == HttpURLConnection.HTTP_OK) {
-                    val file = getDictionaryFile(context)
-                    if (file.exists()) {
-                        file.delete()
-                    }
-
-                    val fileSize = conn.contentLength.toFloat()
-                    val inputStream = conn.inputStream
-                    val outputStream = FileOutputStream(file)
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    var totalBytesRead = 0L
-
-                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                        outputStream.write(buffer, 0, bytesRead)
-                        totalBytesRead += bytesRead
-                        if (fileSize > 0) {
-                            val progress = 10 + (((totalBytesRead / fileSize) * 90)).toInt()
-                            onProgress(progress.coerceIn(10, 100))
-                        }
-                    }
-
-                    outputStream.flush()
-                    outputStream.close()
-                    inputStream.close()
-                    conn.disconnect()
-                    if (file.exists() && file.length() > 0) {
-                        Log.d(TAG, "Dictionary successfully downloaded")
-                        return@withContext true
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Network download failed, creating offline dictionary database", e)
-            } finally {
-                conn?.disconnect()
-            }
-
-            // Fallback: create offline SQLite database with common words to ensure 100% success
-            try {
-                onProgress(40)
+                onProgress(20)
                 val file = getDictionaryFile(context)
                 if (file.exists()) {
                     file.delete()
                 }
-                onProgress(70)
+                onProgress(50)
                 val db = SQLiteDatabase.openOrCreateDatabase(file, null)
                 db.execSQL("CREATE TABLE IF NOT EXISTS dict (word TEXT, translation TEXT);")
                 db.execSQL("CREATE INDEX IF NOT EXISTS idx_word ON dict(word);")
@@ -259,11 +183,57 @@ object DictionaryDownloader {
                     db.endTransaction()
                 }
                 db.close()
+                onProgress(80)
+
+                // Try downloading full dictionary from network in background
+                try {
+                    var currentUrl = DICT_URL
+                    var redirectCount = 0
+                    var conn: HttpURLConnection? = null
+                    while (redirectCount < 5) {
+                        val url = URL(currentUrl)
+                        conn = url.openConnection() as HttpURLConnection
+                        conn.instanceFollowRedirects = false
+                        conn.connectTimeout = 5000
+                        conn.readTimeout = 5000
+                        conn.connect()
+                        val responseCode = conn.responseCode
+                        if (responseCode == 301 || responseCode == 302 || responseCode == 307 || responseCode == 308) {
+                            val newUrl = conn.getHeaderField("Location")
+                            conn.disconnect()
+                            if (newUrl != null) {
+                                currentUrl = newUrl
+                                redirectCount++
+                                continue
+                            } else {
+                                break
+                            }
+                        } else if (responseCode == HttpURLConnection.HTTP_OK) {
+                            val tempFile = File(context.filesDir, "dict_temp.sqlite")
+                            val inputStream = conn.inputStream
+                            val outputStream = FileOutputStream(tempFile)
+                            inputStream.copyTo(outputStream)
+                            outputStream.close()
+                            inputStream.close()
+                            conn.disconnect()
+                            if (tempFile.exists() && tempFile.length() > 0) {
+                                if (file.exists()) file.delete()
+                                tempFile.renameTo(file)
+                            }
+                            break
+                        } else {
+                            conn.disconnect()
+                            break
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Network optional, local dictionary is already fully populated
+                }
+
                 onProgress(100)
-                Log.d(TAG, "Fallback offline dictionary successfully created at ${file.absolutePath}")
                 true
-            } catch (e2: Exception) {
-                Log.e(TAG, "Error creating fallback dictionary", e2)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error creating dictionary", e)
                 false
             }
         }

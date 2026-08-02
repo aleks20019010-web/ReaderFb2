@@ -37,7 +37,7 @@
             android:maxLines="2"
             android:ellipsize="end" />
 
-        <!-- Quick actions: Copy & Search -->
+        <!-- Quick actions: Copy, Translate, Search, Note -->
         <ImageButton
             android:id="@+id/btnCopy"
             android:layout_width="36dp"
@@ -46,6 +46,16 @@
             android:src="@drawable/ic_word_copy"
             android:contentDescription="Копировать"
             android:layout_marginStart="8dp"
+            app:tint="@color/accent" />
+
+        <ImageButton
+            android:id="@+id/btnTranslate"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_word_translate"
+            android:contentDescription="Перевести"
+            android:layout_marginStart="4dp"
             app:tint="@color/accent" />
 
         <ImageButton

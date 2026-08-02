@@ -67,6 +67,16 @@ class WordActionBottomSheet : BottomSheetDialogFragment() {
             dismiss()
         }
 
+        view.findViewById<View>(R.id.btnTranslate).setOnClickListener {
+            val bookReaderActivity = activity as? BookReaderActivity
+            if (bookReaderActivity != null) {
+                bookReaderActivity.fetchAndShowFreeDictionary(word)
+            } else {
+                CustomToast.show(requireContext(), "Функция доступна только на экране чтения", Toast.LENGTH_SHORT)
+            }
+            dismiss()
+        }
+
         view.findViewById<View>(R.id.btnFind).setOnClickListener {
             val bookReaderActivity = activity as? BookReaderActivity
             if (bookReaderActivity != null) {
