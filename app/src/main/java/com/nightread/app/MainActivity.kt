@@ -81,7 +81,17 @@ class MainActivity : BaseActivity() {
         var shouldAutoOpen = false
 
         lifecycleScope.launch {
-            // 2. Launch background coroutines in parallel via lifecycleScope
+            val startTime = System.currentTimeMillis()
+
+            // 1. Set firefly color on main thread background view
+            val starryBg = findViewById<android.view.View>(R.id.splash_starry_bg)?.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
+            if (isNightMode) {
+                starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
+            } else {
+                starryBg?.setFireflyThemeColor(Color.parseColor("#D4AF37"))
+            }
+
+            // 2. Load last read book info with safe timeout
             val taskLoadBooks = async(Dispatchers.IO) {
                 if (!preventAutoOpen && !hasAutoOpenedInSession) {
                     try {
@@ -102,42 +112,21 @@ class MainActivity : BaseActivity() {
                 }
             }
 
-            val taskScanLibrary = async(Dispatchers.IO) {
-                if (hasStoragePermission()) {
-                    withContext(Dispatchers.Main) {
-                        val bookViewModel = androidx.lifecycle.ViewModelProvider(this@MainActivity).get(com.nightread.app.ui.BookViewModel::class.java)
-                        bookViewModel.startIncrementalBookScan()
-                    }
+            try {
+                withTimeoutOrNull(1500L) {
+                    taskLoadBooks.await()
                 }
+            } catch (e: Exception) {
+                // Ignore
             }
 
-            val taskSync = async(Dispatchers.IO) {
-                if (com.nightread.app.data.YandexDiskManager.isAuthorized(this@MainActivity)) {
-                    com.nightread.app.data.YandexDiskManager.downloadProgressFromCloud(this@MainActivity)
-                }
-                if (com.nightread.app.data.SettingsManager.isAutoSyncEnabled(this@MainActivity)) {
-                    com.nightread.app.service.AutoSyncScheduler.scheduleAutoSync(this@MainActivity, forceReplace = false)
-                }
+            // Ensure minimum splash duration of 1200ms for smooth UX animation
+            val elapsed = System.currentTimeMillis() - startTime
+            if (elapsed < 1200L) {
+                delay(1200L - elapsed)
             }
 
-            val taskLoadBackground = async(Dispatchers.Default) {
-                withContext(Dispatchers.Main) {
-                    val starryBg = findViewById<android.view.View>(R.id.splash_starry_bg)?.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
-                    if (isNightMode) {
-                        starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
-                    } else {
-                        starryBg?.setFireflyThemeColor(Color.parseColor("#D4AF37"))
-                    }
-                }
-            }
-
-            // 3. Await completion of all background tasks
-            awaitAll(taskLoadBooks, taskScanLibrary, taskSync, taskLoadBackground)
-
-            // Smooth transition delay for UX
-            delay(350)
-
-            // 4. Set main layout and initialize drawer & navigation with smooth fade in
+            // 3. Set main layout and initialize drawer & navigation with smooth fade in
             isSplashActive = false
             setContentView(R.layout.activity_main)
             val mainRoot = findViewById<View>(R.id.drawer_layout) ?: findViewById<View>(R.id.fragment_container)
@@ -152,6 +141,26 @@ class MainActivity : BaseActivity() {
                 }
                 startActivity(openIntent)
                 overridePendingTransition(0, 0)
+            }
+
+            // 4. Run heavy tasks (library scan & cloud sync) in background AFTER main UI is shown
+            launch(Dispatchers.IO) {
+                try {
+                    if (hasStoragePermission()) {
+                        withContext(Dispatchers.Main) {
+                            val bookViewModel = androidx.lifecycle.ViewModelProvider(this@MainActivity).get(com.nightread.app.ui.BookViewModel::class.java)
+                            bookViewModel.startIncrementalBookScan()
+                        }
+                    }
+                    if (com.nightread.app.data.YandexDiskManager.isAuthorized(this@MainActivity)) {
+                        com.nightread.app.data.YandexDiskManager.downloadProgressFromCloud(this@MainActivity)
+                    }
+                    if (com.nightread.app.data.SettingsManager.isAutoSyncEnabled(this@MainActivity)) {
+                        com.nightread.app.service.AutoSyncScheduler.scheduleAutoSync(this@MainActivity, forceReplace = false)
+                    }
+                } catch (e: Exception) {
+                    // Ignore background sync errors
+                }
             }
         }
     }

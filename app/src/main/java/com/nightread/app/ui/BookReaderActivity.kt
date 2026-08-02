@@ -557,7 +557,9 @@ class BookReaderActivity : BaseActivity() {
         val gestureTouchListener = View.OnTouchListener { view, event ->
             val screenWidth = view.width.toFloat()
             val screenHeight = view.height.toFloat()
-            if (screenWidth <= 0 || screenHeight <= 0) return@OnTouchListener true
+            if (screenWidth <= 0 || screenHeight <= 0) return@OnTouchListener false
+
+            val isWebView = (view == webView)
 
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -566,24 +568,26 @@ class BookReaderActivity : BaseActivity() {
                     touchStartTime = System.currentTimeMillis()
                     isHorizontalSwipeLocked = false
 
-                    longPressRunnable = Runnable {
-                        val word = readerView.getWordAt(touchStartX, touchStartY)
-                        val contextSnippet = readerView.getContextAt(touchStartX, touchStartY)
-                        if (!word.isNullOrEmpty()) {
-                            showWordActionOrNoteDialog(word, contextSnippet.ifEmpty { word })
-                        } else {
-                            val currentTextOnPage = viewModel.pagesState.value.getOrNull(viewModel.currentPage.value)?.toString() ?: ""
-                            if (currentTextOnPage.isNotEmpty() && currentTextOnPage != "[BOOK_COVER]") {
-                                val isWebViewBk = viewModel.bookState.value?.filePath?.let { it.endsWith(".epub", true) || it.endsWith(".fb2", true) || it.endsWith(".fb2.zip", true) || it.endsWith(".zip", true) } == true
-                                val isWebViewPage = currentTextOnPage.startsWith("WEBVIEW_CONTENT") || currentTextOnPage.startsWith("WEBVIEW_PAGE_") || isWebViewBk
-                                if (!isWebViewPage) {
-                                    val snippet = if (currentTextOnPage.length > 150) currentTextOnPage.substring(0, 150) + "..." else currentTextOnPage
-                                    showWordActionOrNoteDialog(currentTextOnPage, snippet)
+                    if (!isWebView) {
+                        longPressRunnable = Runnable {
+                            val word = readerView.getWordAt(touchStartX, touchStartY)
+                            val contextSnippet = readerView.getContextAt(touchStartX, touchStartY)
+                            if (!word.isNullOrEmpty()) {
+                                showWordActionOrNoteDialog(word, contextSnippet.ifEmpty { word })
+                            } else {
+                                val currentTextOnPage = viewModel.pagesState.value.getOrNull(viewModel.currentPage.value)?.toString() ?: ""
+                                if (currentTextOnPage.isNotEmpty() && currentTextOnPage != "[BOOK_COVER]") {
+                                    val isWebViewBk = viewModel.bookState.value?.filePath?.let { it.endsWith(".epub", true) || it.endsWith(".fb2", true) || it.endsWith(".fb2.zip", true) || it.endsWith(".zip", true) } == true
+                                    val isWebViewPage = currentTextOnPage.startsWith("WEBVIEW_CONTENT") || currentTextOnPage.startsWith("WEBVIEW_PAGE_") || isWebViewBk
+                                    if (!isWebViewPage) {
+                                        val snippet = if (currentTextOnPage.length > 150) currentTextOnPage.substring(0, 150) + "..." else currentTextOnPage
+                                        showWordActionOrNoteDialog(currentTextOnPage, snippet)
+                                    }
                                 }
                             }
                         }
+                        handler.postDelayed(longPressRunnable!!, 600)
                     }
-                    handler.postDelayed(longPressRunnable!!, 600)
 
                     brightnessAnimator?.cancel()
                     isDraggingVerticalLeft = false
@@ -605,7 +609,7 @@ class BookReaderActivity : BaseActivity() {
                     val diffY = event.y - touchStartY
                     val duration = System.currentTimeMillis() - touchStartTime
 
-                    if (Math.abs(diffX) > 15 || Math.abs(diffY) > 15) {
+                    if (Math.abs(diffX) > 50 || Math.abs(diffY) > 50) {
                         longPressRunnable?.let {
                             handler.removeCallbacks(it)
                             longPressRunnable = null
@@ -628,6 +632,7 @@ class BookReaderActivity : BaseActivity() {
                             tvBrightness.visibility = View.VISIBLE
                             tvBrightness.text = "☀ ${(newBrightness * 100).toInt()}%"
                             handler.removeCallbacks(hideIndicatorsRunnable)
+                            return@OnTouchListener true
                         } else if (isDraggingVerticalRight) {
                             val delta = (-diffY / screenHeight) * 100f
                             val newIntensity = (initialGestureValue + delta).coerceIn(0f, 100f).toInt()
@@ -638,11 +643,13 @@ class BookReaderActivity : BaseActivity() {
                             tvWarmth.visibility = View.VISIBLE
                             tvWarmth.text = "🌡 $newIntensity%"
                             handler.removeCallbacks(hideIndicatorsRunnable)
+                            return@OnTouchListener true
                         } else if (isDraggingVerticalCenter && diffY < 0 && !isBarsVisible) {
                             val dragDistance = -diffY
                             val maxDragDistance = 350f
                             val progress = (dragDistance / maxDragDistance).coerceIn(0f, 1f)
                             showFullscreenHUDProgress(progress)
+                            return@OnTouchListener true
                         }
                     }
                 }
@@ -661,6 +668,7 @@ class BookReaderActivity : BaseActivity() {
                         } else {
                             hideFullscreenHUD()
                         }
+                        return@OnTouchListener true
                     } else if (Math.abs(diffX) > 50f && Math.abs(diffX) > Math.abs(diffY) * 1.2f && duration < 1000) {
                         val currentPage = viewModel.currentPage.value
                         val totalPages = viewModel.pagesState.value.size
@@ -682,19 +690,20 @@ class BookReaderActivity : BaseActivity() {
                                 ensureWebViewAligned()
                             }
                         }
+                        return@OnTouchListener true
                     } else if (Math.abs(diffX) < 25f && Math.abs(diffY) < 25f && duration < 350) {
-                        toggleToolbars()
-                    } else {
-                        ensureWebViewAligned()
+                        if (!isWebView) {
+                            toggleToolbars()
+                            return@OnTouchListener true
+                        }
                     }
-                    
-                    isDraggingVerticalLeft = false
-                    isDraggingVerticalRight = false
-                    isDraggingVerticalCenter = false
-                    isHorizontalSwipeLocked = false
-                    handler.postDelayed(hideIndicatorsRunnable, 1000)
                 }
             }
+
+            if (isWebView) {
+                return@OnTouchListener false
+            }
+
             true
         }
 
