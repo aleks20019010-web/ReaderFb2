@@ -74,7 +74,7 @@ class BookmarksListBottomSheet : DialogFragment() {
         dialog?.setCanceledOnTouchOutside(true)
 
         val context = requireContext()
-        activeTheme = SettingsManager.getTheme(context)
+        activeTheme = SettingsManager.getReadingTheme(context)
 
         // Find views
         rvBookmarks = view.findViewById(R.id.rvBookmarks)

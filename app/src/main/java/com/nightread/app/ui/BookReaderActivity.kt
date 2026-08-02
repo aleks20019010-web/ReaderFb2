@@ -669,6 +669,9 @@ class BookReaderActivity : BaseActivity() {
                             hideFullscreenHUD()
                         }
                         return@OnTouchListener true
+                    } else if (isDraggingVerticalLeft || isDraggingVerticalRight) {
+                        handler.postDelayed(hideIndicatorsRunnable, 1000)
+                        return@OnTouchListener true
                     } else if (Math.abs(diffX) > 50f && Math.abs(diffX) > Math.abs(diffY) * 1.2f && duration < 1000) {
                         val currentPage = viewModel.currentPage.value
                         val totalPages = viewModel.pagesState.value.size
@@ -1605,6 +1608,8 @@ class BookReaderActivity : BaseActivity() {
     override fun onPause() {
         super.onPause()
         brightnessAnimator?.cancel()
+        silentModeJob?.cancel()
+        sleepTimerJob?.cancel()
         viewModel.saveProgress()
         val bookSha1 = viewModel.bookState.value?.sha1
         val progressChar = viewModel.bookState.value?.currentProgressChar ?: 0
@@ -1796,6 +1801,7 @@ class BookReaderActivity : BaseActivity() {
         brightnessAnimator?.cancel()
         autoBrightnessAnimator?.cancel()
         sleepTimerJob?.cancel()
+        silentModeJob?.cancel()
         unregisterSensors()
     }
 

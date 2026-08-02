@@ -94,7 +94,7 @@ class BookNavigationDialog : DialogFragment() {
         dialog?.setCanceledOnTouchOutside(true)
 
         val context = requireContext()
-        activeTheme = SettingsManager.getTheme(context)
+        activeTheme = SettingsManager.getReadingTheme(context)
         viewModel = ViewModelProvider(requireActivity()).get(ReaderViewModel::class.java)
 
         // Find Toolbar and Base views
@@ -507,8 +507,7 @@ class BookNavigationDialog : DialogFragment() {
     private fun setupQuotesList() {
         noteAdapter = NoteAdapter(
             onNoteClicked = { note ->
-                val pageIdx = viewModel.getPageForOffset(note.charOffset)
-                (activity as? BookReaderActivity)?.loadPage(pageIdx)
+                (activity as? BookReaderActivity)?.navigateToOffset(note.charOffset)
                 dismiss()
             },
             onNoteDeleteClicked = { note ->
