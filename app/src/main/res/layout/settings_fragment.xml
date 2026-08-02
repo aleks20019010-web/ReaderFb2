@@ -128,15 +128,6 @@
                     android:spinnerMode="dropdown"
                     android:popupBackground="@color/surface"
                     android:textColor="@color/text_primary" />
-
-                <Button
-                    android:id="@+id/btnDownloadDictionary"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="12dp"
-                    android:text="Скачать офлайн-словарь"
-                    android:backgroundTint="@color/primary"
-                    android:textColor="@color/white" />
             </LinearLayout>
 
             <!-- ================= СИНХРОНИЗАЦИЯ ================= -->

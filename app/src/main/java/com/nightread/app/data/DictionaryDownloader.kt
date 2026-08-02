@@ -24,6 +24,35 @@ object DictionaryDownloader {
         return File(dir, DICT_FILE_NAME)
     }
 
+    fun initDictionaryFromAssets(context: Context) {
+        val file = getDictionaryFile(context)
+        if (file.exists() && file.length() > 0) {
+            return
+        }
+        try {
+            context.assets.open("dictionary.db").use { input ->
+                FileOutputStream(file).use { output ->
+                    input.copyTo(output)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to copy dictionary.db from assets, creating fallback", e)
+            try {
+                if (file.exists()) file.delete()
+                val db = SQLiteDatabase.openOrCreateDatabase(file, null)
+                db.execSQL("CREATE TABLE IF NOT EXISTS dict (word TEXT, translation TEXT);")
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_word ON dict(word);")
+                db.execSQL("INSERT INTO dict (word, translation) VALUES ('hello', 'привет, здравствуйте');")
+                db.execSQL("INSERT INTO dict (word, translation) VALUES ('book', 'книга');")
+                db.execSQL("INSERT INTO dict (word, translation) VALUES ('read', 'читать');")
+                db.execSQL("INSERT INTO dict (word, translation) VALUES ('night', 'ночь');")
+                db.close()
+            } catch (ex: Exception) {
+                Log.e(TAG, "Error creating fallback dictionary", ex)
+            }
+        }
+    }
+
     fun isDictionaryDownloaded(context: Context): Boolean {
         val file = getDictionaryFile(context)
         return file.exists() && file.length() > 0

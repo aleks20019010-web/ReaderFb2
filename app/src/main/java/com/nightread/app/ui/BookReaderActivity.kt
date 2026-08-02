@@ -166,6 +166,7 @@ class BookReaderActivity : BaseActivity() {
         currentLanguage = SettingsManager.getLanguage(this)
         setContentView(R.layout.activity_book)
 
+        com.nightread.app.data.DictionaryDownloader.initDictionaryFromAssets(this)
         com.nightread.app.ui.customlayout.PageSplitter.init(this)
         com.nightread.app.ui.HyphenatorHelper.init(this)
 

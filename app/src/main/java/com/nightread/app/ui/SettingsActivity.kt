@@ -153,27 +153,6 @@ class SettingsActivity : BaseActivity() {
             CleanupDialogFragment().show(supportFragmentManager, "CleanupDialogFragment")
         }
 
-        val btnDownloadDict = findViewById<Button>(R.id.btnDownloadDictionary)
-        updateDictButtonText(btnDownloadDict)
-        btnDownloadDict.setOnClickListener {
-            btnDownloadDict.isEnabled = false
-            btnDownloadDict.text = "Инициализация... 0%"
-            lifecycleScope.launch {
-                val success = DictionaryDownloader.downloadDictionary(this@SettingsActivity) { progress, message ->
-                    runOnUiThread {
-                        btnDownloadDict.text = message
-                    }
-                }
-                btnDownloadDict.isEnabled = true
-                updateDictButtonText(btnDownloadDict)
-                if (success) {
-                    CustomToast.show(this@SettingsActivity, "Словарь успешно скачан")
-                } else {
-                    CustomToast.show(this@SettingsActivity, "Не удалось скачать словарь")
-                }
-            }
-        }
-
         // --- СИНХРОНИЗАЦИЯ ---
         // Auto-Sync Switch
         val switchAutoSync = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchAutoSync)
@@ -271,13 +250,5 @@ class SettingsActivity : BaseActivity() {
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
-    }
-
-    private fun updateDictButtonText(button: Button) {
-        if (DictionaryDownloader.isDictionaryDownloaded(this)) {
-            button.text = "Обновить офлайн-словарь"
-        } else {
-            button.text = "Скачать офлайн-словарь"
-        }
     }
 }
