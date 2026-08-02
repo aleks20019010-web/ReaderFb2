@@ -881,7 +881,7 @@ class LibraryFragment : Fragment() {
                         (book.author ?: "").contains(query, ignoreCase = true)
             }
         }
-        if (filterType == "reading" && viewModel.sortOption.value == com.nightread.app.data.SettingsManager.SORT_DATE_DESC) {
+        if (filterType == "reading") {
             return filtered.sortedWith(
                 compareByDescending<BookEntity> { it.lastReadTime }
                     .thenByDescending { it.dateAdded }

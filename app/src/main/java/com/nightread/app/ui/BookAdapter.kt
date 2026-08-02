@@ -177,21 +177,20 @@ class BookAdapter(
         
         holder.itemView.animate().cancel()
         
-        if (position > lastAnimatedPosition) {
+        if (holder.isFirstBind) {
+            holder.isFirstBind = false
             val density = holder.itemView.context.resources.displayMetrics.density
-            val startTranslationY = 16f * density
-            holder.itemView.translationY = startTranslationY
-            holder.itemView.alpha = 0.3f
+            holder.itemView.translationY = 80f * density
+            holder.itemView.alpha = 0f
             
+            val rowIndex = position / 3
             holder.itemView.animate()
                 .translationY(0f)
                 .alpha(1f)
-                .setDuration(220)
-                .setStartDelay(0)
+                .setDuration(300)
+                .setStartDelay(rowIndex * 50L)
                 .setInterpolator(android.view.animation.DecelerateInterpolator())
                 .start()
-            
-            lastAnimatedPosition = position
         } else {
             holder.itemView.alpha = 1f
             holder.itemView.translationY = 0f
@@ -346,6 +345,7 @@ class BookAdapter(
     }
 
     class BookViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView), ParallaxSensorManager.ParallaxListener {
+        var isFirstBind = true
         private val tvBookTitle: TextView = itemView.findViewById(R.id.tvBookTitle)
         private val tvBookAuthor: TextView = itemView.findViewById(R.id.tvBookAuthor)
         private val tvBookSeries: TextView = itemView.findViewById(R.id.tvBookSeries)
