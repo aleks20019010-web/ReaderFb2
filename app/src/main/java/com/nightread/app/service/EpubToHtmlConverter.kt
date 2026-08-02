@@ -252,6 +252,11 @@ object EpubToHtmlConverter {
                         return false;
                     }
 
+                    function scrollToPage(pageIndex) {
+                        var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                        window.scrollTo(pageIndex * pageWidth, 0);
+                    }
+
                     window.onload = function() { setTimeout(calculatePages, 200); };
                     window.onresize = function() { setTimeout(calculatePages, 200); };
 
@@ -278,6 +283,7 @@ object EpubToHtmlConverter {
                             if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onTextSelected) {
                                 AndroidInterface.onTextSelected(selectedText, contextSnippet);
                             }
+                            selection.removeAllRanges();
                         }
                     }
 

@@ -18,6 +18,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.KeyEvent
+import android.view.ActionMode
 import android.widget.FrameLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -464,9 +465,8 @@ class BookReaderActivity : BaseActivity() {
                 } else {
                     isWebViewLoading = false
                     val pageIdx = viewModel.currentPage.value
-                    val w = webView.width
-                    if (w > 0 && pageIdx > 1) {
-                        webView.scrollTo((pageIdx - 1) * w, 0)
+                    if (pageIdx > 1) {
+                        webView.evaluateJavascript("scrollToPage(${pageIdx - 1});", null)
                     }
                     hideReaderSplash()
                 }
@@ -586,7 +586,7 @@ class BookReaderActivity : BaseActivity() {
                                 }
                             }
                         }
-                        handler.postDelayed(longPressRunnable!!, 600)
+                        handler.postDelayed(longPressRunnable!!, 950)
                     }
 
                     brightnessAnimator?.cancel()
@@ -609,7 +609,7 @@ class BookReaderActivity : BaseActivity() {
                     val diffY = event.y - touchStartY
                     val duration = System.currentTimeMillis() - touchStartTime
 
-                    if (Math.abs(diffX) > 50 || Math.abs(diffY) > 50) {
+                    if (Math.abs(diffX) > 20 || Math.abs(diffY) > 20) {
                         longPressRunnable?.let {
                             handler.removeCallbacks(it)
                             longPressRunnable = null
@@ -1045,27 +1045,8 @@ class BookReaderActivity : BaseActivity() {
                 }
             } else {
                 isWebViewLoading = false
-                val w = webView.width
-                if (w > 0) {
-                    val targetX = if (pageIdx > 0) (pageIdx - 1) * w else 0
-                    val startX = webView.scrollX
-                    val animMode = com.nightread.app.data.SettingsManager.getPageAnimation(this)
-                    if (animMode == "slide" && startX != targetX) {
-                        pageScrollAnimator?.cancel()
-                        pageScrollAnimator = android.animation.ValueAnimator.ofInt(startX, targetX).apply {
-                            duration = 300
-                            interpolator = android.view.animation.DecelerateInterpolator()
-                            addUpdateListener { animator ->
-                                val currentX = animator.animatedValue as Int
-                                webView.scrollTo(currentX, 0)
-                            }
-                            start()
-                        }
-                    } else {
-                        pageScrollAnimator?.cancel()
-                        webView.scrollTo(targetX, 0)
-                    }
-                }
+                val targetPageIndex = (pageIdx - 1).coerceAtLeast(0)
+                webView.evaluateJavascript("scrollToPage($targetPageIndex);", null)
                 webView.postDelayed({
                     if (viewModel.pagesState.value.size <= 1) {
                         webView.evaluateJavascript("calculatePages();", null)
@@ -1620,6 +1601,15 @@ class BookReaderActivity : BaseActivity() {
         }
     }
 
+    override fun onActionModeStarted(mode: ActionMode?) {
+        super.onActionModeStarted(mode)
+        try {
+            mode?.finish()
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
+
     override fun onPause() {
         super.onPause()
         brightnessAnimator?.cancel()
@@ -2058,9 +2048,8 @@ class BookReaderActivity : BaseActivity() {
     fun onWebViewPagesCalculated(totalPages: Int) {
         viewModel.setWebViewPageCount(totalPages)
         val pageIdx = viewModel.currentPage.value
-        val w = webView.width
-        if (w > 0 && pageIdx > 0) {
-            webView.scrollTo((pageIdx - 1) * w, 0)
+        if (pageIdx > 0) {
+            webView.evaluateJavascript("scrollToPage(${pageIdx - 1});", null)
         }
     }
 
@@ -2078,12 +2067,8 @@ class BookReaderActivity : BaseActivity() {
 
     private fun ensureWebViewAligned() {
         if (::webView.isInitialized && webView.visibility == View.VISIBLE) {
-            val w = webView.width
             val pageIdx = viewModel.currentPage.value
-            if (w > 0) {
-                val targetX = (pageIdx - 1).coerceAtLeast(0) * w
-                webView.scrollTo(targetX, 0)
-            }
+            webView.evaluateJavascript("scrollToPage(${ (pageIdx - 1).coerceAtLeast(0) });", null)
         }
     }
 

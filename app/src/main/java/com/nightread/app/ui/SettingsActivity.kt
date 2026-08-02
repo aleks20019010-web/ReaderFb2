@@ -157,20 +157,19 @@ class SettingsActivity : BaseActivity() {
         updateDictButtonText(btnDownloadDict)
         btnDownloadDict.setOnClickListener {
             btnDownloadDict.isEnabled = false
-            btnDownloadDict.text = "Скачивание словаря... 0%"
+            btnDownloadDict.text = "Инициализация... 0%"
             lifecycleScope.launch {
-                val success = DictionaryDownloader.downloadDictionary(this@SettingsActivity) { progress ->
+                val success = DictionaryDownloader.downloadDictionary(this@SettingsActivity) { progress, message ->
                     runOnUiThread {
-                        btnDownloadDict.text = "Скачивание словаря... $progress%"
+                        btnDownloadDict.text = message
                     }
                 }
                 btnDownloadDict.isEnabled = true
+                updateDictButtonText(btnDownloadDict)
                 if (success) {
                     CustomToast.show(this@SettingsActivity, "Словарь успешно скачан")
-                    updateDictButtonText(btnDownloadDict)
                 } else {
-                    CustomToast.show(this@SettingsActivity, "Ошибка скачивания словаря")
-                    updateDictButtonText(btnDownloadDict)
+                    CustomToast.show(this@SettingsActivity, "Не удалось скачать словарь")
                 }
             }
         }

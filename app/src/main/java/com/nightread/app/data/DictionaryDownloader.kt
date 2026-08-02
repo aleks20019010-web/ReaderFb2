@@ -29,15 +29,15 @@ object DictionaryDownloader {
         return file.exists() && file.length() > 0
     }
 
-    suspend fun downloadDictionary(context: Context, onProgress: (Int) -> Unit = {}): Boolean {
+    suspend fun downloadDictionary(context: Context, onProgress: (Int, String) -> Unit = { _, _ -> }): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                onProgress(20)
+                onProgress(10, "Инициализация словаря... 10%")
                 val file = getDictionaryFile(context)
                 if (file.exists()) {
                     file.delete()
                 }
-                onProgress(50)
+                onProgress(30, "Создание локальной базы... 30%")
                 val db = SQLiteDatabase.openOrCreateDatabase(file, null)
                 db.execSQL("CREATE TABLE IF NOT EXISTS dict (word TEXT, translation TEXT);")
                 db.execSQL("CREATE INDEX IF NOT EXISTS idx_word ON dict(word);")
@@ -170,6 +170,7 @@ object DictionaryDownloader {
                     "purple" to "фиолетовый"
                 )
 
+                onProgress(50, "Заполнение словаря (50%)")
                 db.beginTransaction()
                 try {
                     val stmt = db.compileStatement("INSERT INTO dict (word, translation) VALUES (?, ?);")
@@ -183,9 +184,9 @@ object DictionaryDownloader {
                     db.endTransaction()
                 }
                 db.close()
-                onProgress(80)
+                onProgress(70, "База данных готова (70%)")
 
-                // Try downloading full dictionary from network in background
+                // Try downloading full dictionary from network in background with percentage/time
                 try {
                     var currentUrl = DICT_URL
                     var redirectCount = 0
@@ -209,10 +210,28 @@ object DictionaryDownloader {
                                 break
                             }
                         } else if (responseCode == HttpURLConnection.HTTP_OK) {
+                            val fileLength = conn.contentLength
                             val tempFile = File(context.filesDir, "dict_temp.sqlite")
                             val inputStream = conn.inputStream
                             val outputStream = FileOutputStream(tempFile)
-                            inputStream.copyTo(outputStream)
+                            val data = ByteArray(8192)
+                            var total: Long = 0
+                            var count: Int
+                            val startTime = System.currentTimeMillis()
+
+                            while (inputStream.read(data).also { count = it } != -1) {
+                                total += count.toLong()
+                                outputStream.write(data, 0, count)
+                                if (fileLength > 0) {
+                                    val progress = 70 + ((total * 25) / fileLength).toInt().coerceIn(0, 25)
+                                    val elapsedSec = (System.currentTimeMillis() - startTime) / 1000L
+                                    val speed = if (elapsedSec > 0) total / elapsedSec else total
+                                    val remainingBytes = fileLength - total
+                                    val remainingSec = if (speed > 0) remainingBytes / speed else 0
+                                    onProgress(progress, "Скачивание: $progress% (осталось ${remainingSec}с)")
+                                }
+                            }
+                            outputStream.flush()
                             outputStream.close()
                             inputStream.close()
                             conn.disconnect()
@@ -227,10 +246,10 @@ object DictionaryDownloader {
                         }
                     }
                 } catch (e: Exception) {
-                    // Network optional, local dictionary is already fully populated
+                    Log.w(TAG, "Network dictionary download skipped/failed, using local fallback", e)
                 }
 
-                onProgress(100)
+                onProgress(100, "Словарь успешно скачан (100%)")
                 true
             } catch (e: Exception) {
                 Log.e(TAG, "Error creating dictionary", e)
