@@ -230,15 +230,29 @@ class BookReaderActivity : BaseActivity() {
         val btnSearch = findViewById<ImageButton>(R.id.btnSearch)
         btnSearch.visibility = View.VISIBLE
         btnSearch.setOnClickListener {
-            val sheet = BookRagSearchBottomSheet.newInstance()
-            sheet.setOnResultSelectedListener { offset, pageIndex ->
-                if (offset >= 0) {
-                    navigateToOffset(offset)
-                } else if (pageIndex >= 0) {
-                    loadPage(pageIndex)
+            val pub = com.nightread.app.readium.ReadiumEngine.getPublication()
+            if (pub != null) {
+                val searchSheet = com.nightread.app.readium.ReadiumSearchBottomSheet.newInstance(pub) { locator ->
+                    locator.locations.progression?.let { prog ->
+                        val totalPages = viewModel.pagesState.value.size
+                        if (totalPages > 0) {
+                            val targetPage = (prog * (totalPages - 1)).toInt()
+                            loadPage(targetPage)
+                        }
+                    }
                 }
+                searchSheet.show(supportFragmentManager, "readium_search")
+            } else {
+                val sheet = BookRagSearchBottomSheet.newInstance()
+                sheet.setOnResultSelectedListener { offset, pageIndex ->
+                    if (offset >= 0) {
+                        navigateToOffset(offset)
+                    } else if (pageIndex >= 0) {
+                        loadPage(pageIndex)
+                    }
+                }
+                sheet.show(supportFragmentManager, "rag_search")
             }
-            sheet.show(supportFragmentManager, "rag_search")
         }
 
         val btnBookmark = findViewById<ImageButton>(R.id.btnBookmark)
@@ -975,6 +989,11 @@ class BookReaderActivity : BaseActivity() {
                     if (isEpub && book != null) {
                         val file = java.io.File(book.filePath ?: "")
                         if (file.exists()) {
+                            try {
+                                com.nightread.app.readium.ReadiumEngine.openPublication(this@BookReaderActivity, file)
+                            } catch (e: Exception) {
+                                android.util.Log.e("BookReaderActivity", "Readium engine failed to open publication", e)
+                            }
                             val extractedDir = java.io.File(cacheDir, "extracted_epubs/${book.sha1}")
                             com.nightread.app.data.EpubIdentifierHelper.unzip(file, extractedDir)
                             val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(file)

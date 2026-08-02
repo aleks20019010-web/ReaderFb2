@@ -71,8 +71,9 @@ android {
     }
   }
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    isCoreLibraryDesugaringEnabled = true
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
   }
   buildFeatures {
     compose = true
@@ -94,7 +95,18 @@ secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
 }
+
+configurations.all {
+    exclude(group = "com.android.support")
+}
+
 dependencies {
+  coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+  implementation("org.readium.kotlin-toolkit:readium-shared:3.0.0")
+  implementation("org.readium.kotlin-toolkit:readium-streamer:3.0.0")
+  implementation("org.readium.kotlin-toolkit:readium-navigator:3.0.0")
+  implementation("org.readium.kotlin-toolkit:readium-navigator-media2:3.0.0")
+  implementation("org.readium.kotlin-toolkit:readium-adapter-pdfium:3.0.0")
   implementation(libs.yandex.authsdk)
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.activity.compose)
