@@ -53,19 +53,27 @@ class MainActivity : BaseActivity() {
             }
         }
 
-        // Show splash screen instantly
-        setContentView(R.layout.activity_splash)
+        // Show splash screen instantly based on current theme
+        val nightMode = androidx.appcompat.app.AppCompatDelegate.getDefaultNightMode()
+        val isNightMode = when (nightMode) {
+            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES -> true
+            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO -> false
+            else -> com.nightread.app.data.ThemeHelper.shouldBeNightMode(this)
+        }
 
         if (hasShownSplash) {
+            setContentView(R.layout.activity_main)
             initMainUI(savedInstanceState)
         } else {
+            val splashLayout = if (isNightMode) R.layout.activity_splash else R.layout.activity_splash_light
+            setContentView(splashLayout)
             hasShownSplash = true
             isSplashActive = true
-            runSplashAndLoadData(savedInstanceState)
+            runSplashAndLoadData(savedInstanceState, isNightMode)
         }
     }
 
-    private fun runSplashAndLoadData(savedInstanceState: Bundle?) {
+    private fun runSplashAndLoadData(savedInstanceState: Bundle?, isNightMode: Boolean) {
         runSplashAnimation()
 
         val preventAutoOpen = intent.getBooleanExtra("PREVENT_AUTO_OPEN", false)
@@ -115,7 +123,11 @@ class MainActivity : BaseActivity() {
             val taskLoadBackground = async(Dispatchers.Default) {
                 withContext(Dispatchers.Main) {
                     val starryBg = findViewById<android.view.View>(R.id.splash_starry_bg)?.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
-                    starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
+                    if (isNightMode) {
+                        starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
+                    } else {
+                        starryBg?.setFireflyThemeColor(Color.parseColor("#D4AF37"))
+                    }
                 }
             }
 
@@ -125,9 +137,12 @@ class MainActivity : BaseActivity() {
             // Smooth transition delay for UX
             delay(350)
 
-            // 4. Set main layout and initialize drawer & navigation
+            // 4. Set main layout and initialize drawer & navigation with smooth fade in
             isSplashActive = false
             setContentView(R.layout.activity_main)
+            val mainRoot = findViewById<View>(R.id.drawer_layout) ?: findViewById<View>(R.id.fragment_container)
+            mainRoot?.alpha = 0f
+            mainRoot?.animate()?.alpha(1f)?.setDuration(300)?.start()
             initMainUI(savedInstanceState)
 
             if (shouldAutoOpen && lastReadBookSha1 != null) {

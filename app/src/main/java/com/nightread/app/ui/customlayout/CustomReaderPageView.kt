@@ -28,6 +28,7 @@ class CustomReaderPageView(context: Context, attrs: AttributeSet? = null) : View
         this.layout = layout
         this.isJustified = isJustified
         this.justifiedLines = null
+        this.originalTextColor = layout?.paint?.color
         
         if (layout != null) {
             precomputeJustifiedLines(layout)
@@ -181,10 +182,36 @@ class CustomReaderPageView(context: Context, attrs: AttributeSet? = null) : View
 
     private var dawnProgress = 1f
     private var dawnAnimator: android.animation.ValueAnimator? = null
+    private var isNightTheme = true
+    private var dawnBackgroundColor = android.graphics.Color.parseColor("#120E16")
+    private var dawnTextColor = android.graphics.Color.parseColor("#E6E1E5")
+    private var originalTextColor: Int? = null
 
     fun startDawnAnimation() {
         dawnAnimator?.cancel()
         dawnProgress = 0f
+
+        val nightMode = androidx.appcompat.app.AppCompatDelegate.getDefaultNightMode()
+        isNightTheme = when (nightMode) {
+            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES -> true
+            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO -> false
+            else -> com.nightread.app.data.ThemeHelper.shouldBeNightMode(context)
+        }
+
+        if (isNightTheme) {
+            dawnBackgroundColor = android.graphics.Color.parseColor("#120E16")
+            dawnTextColor = android.graphics.Color.parseColor("#E6E1E5")
+        } else {
+            dawnBackgroundColor = android.graphics.Color.parseColor("#F5F0EB")
+            dawnTextColor = android.graphics.Color.parseColor("#1A1A1A")
+        }
+
+        layout?.paint?.let {
+            if (originalTextColor == null) {
+                originalTextColor = it.color
+            }
+        }
+
         invalidate()
         
         val animator = android.animation.ValueAnimator.ofFloat(0f, 1f)
@@ -202,6 +229,29 @@ class CustomReaderPageView(context: Context, attrs: AttributeSet? = null) : View
         super.onDraw(canvas)
         val currentLayout = layout ?: return
         
+        if (dawnProgress < 1f) {
+            canvas.drawColor(dawnBackgroundColor)
+            currentLayout.paint.color = dawnTextColor
+            justifiedLines?.forEach { line ->
+                when (line) {
+                    is JustifiedLine.NormalLine -> line.singleLineLayout.paint.color = dawnTextColor
+                    is JustifiedLine.LetterSpacedLine -> line.singleLineLayout.paint.color = dawnTextColor
+                    is JustifiedLine.WordSpacedLine -> line.paint.color = dawnTextColor
+                }
+            }
+        } else {
+            originalTextColor?.let { origColor ->
+                currentLayout.paint.color = origColor
+                justifiedLines?.forEach { line ->
+                    when (line) {
+                        is JustifiedLine.NormalLine -> line.singleLineLayout.paint.color = origColor
+                        is JustifiedLine.LetterSpacedLine -> line.singleLineLayout.paint.color = origColor
+                        is JustifiedLine.WordSpacedLine -> line.paint.color = origColor
+                    }
+                }
+            }
+        }
+
         canvas.save()
         canvas.translate(paddingLeft.toFloat(), paddingTop.toFloat())
         
