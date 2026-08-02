@@ -82,7 +82,7 @@ object Fb2ToHtmlConverterAdvanced {
                             width: 100vw;
                             height: 100vh;
                             box-sizing: border-box;
-                            overflow-x: hidden;
+                            overflow-x: scroll;
                             overflow-y: hidden;
                             -webkit-column-width: $columnWidthCss;
                             -webkit-column-gap: $columnGapCss;

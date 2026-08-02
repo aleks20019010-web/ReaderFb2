@@ -73,7 +73,7 @@ object EpubToHtmlConverter {
                         padding-top: $topMargin; padding-bottom: $bottomMargin;
                         padding-left: $sideMargin; padding-right: $sideMargin;
                         width: 100vw; height: 100vh; box-sizing: border-box;
-                        overflow-x: hidden; overflow-y: hidden;
+                        overflow-x: scroll; overflow-y: hidden;
                         -webkit-column-width: $columnWidthCss; -webkit-column-gap: $columnGapCss;
                         column-width: $columnWidthCss; column-gap: $columnGapCss;
                         background-color: $bgColor; color: $textColor;
