@@ -35,7 +35,7 @@ class BookmarksFragment : Fragment(R.layout.fragment_bookmarks) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        view.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
+        GalaxyBgHelper.applyBackground(view)
 
         val btnMenu = view.findViewById<ImageButton>(R.id.header_btn_left) ?: view.findViewById<ImageButton>(R.id.btnMenu)
         view.findViewById<TextView>(R.id.header_title)?.text = "Закладки"

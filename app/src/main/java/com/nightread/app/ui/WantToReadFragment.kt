@@ -33,7 +33,7 @@ class WantToReadFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        view.findViewById<StarryNightView>(R.id.starryOverlay)?.transparentBackground = true
+        GalaxyBgHelper.applyBackground(view)
 
         val glassHeader = view.findViewById<View>(R.id.glassHeader)
         glassHeader.findViewById<TextView>(R.id.header_title).text = getString(R.string.drawer_want_to_read)

@@ -405,6 +405,10 @@ class BookReaderActivity : BaseActivity() {
             allowContentAccess = true
         }
 
+        webView.isLongClickable = true
+        webView.isFocusable = true
+        webView.isFocusableInTouchMode = true
+
         
         webView.addJavascriptInterface(WebAppInterface(this), "AndroidInterface")
         webView.webViewClient = object : android.webkit.WebViewClient() {

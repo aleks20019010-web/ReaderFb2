@@ -51,15 +51,15 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
             com.nightread.app.data.SettingsManager.SORT_TITLE_DESC -> books.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.title })
             com.nightread.app.data.SettingsManager.SORT_AUTHOR_ASC -> books.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.author ?: "" })
             com.nightread.app.data.SettingsManager.SORT_AUTHOR_DESC -> books.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.author ?: "" })
-            com.nightread.app.data.SettingsManager.SORT_DATE_ASC -> books.sortedBy { if (it.dateAdded > 0) it.dateAdded else it.lastReadTime }
-            com.nightread.app.data.SettingsManager.SORT_DATE_DESC -> books.sortedByDescending { if (it.dateAdded > 0) it.dateAdded else it.lastReadTime }
+            com.nightread.app.data.SettingsManager.SORT_DATE_ASC -> books.sortedBy { if (it.lastReadTime > 0) it.lastReadTime else it.dateAdded }
+            com.nightread.app.data.SettingsManager.SORT_DATE_DESC -> books.sortedByDescending { if (it.lastReadTime > 0) it.lastReadTime else it.dateAdded }
             com.nightread.app.data.SettingsManager.SORT_PROGRESS_ASC -> books.sortedBy { 
                 if (it.totalCharacters > 0) (it.currentProgressChar.toFloat() / it.totalCharacters) else 0f 
             }
             com.nightread.app.data.SettingsManager.SORT_PROGRESS_DESC -> books.sortedByDescending { 
                 if (it.totalCharacters > 0) (it.currentProgressChar.toFloat() / it.totalCharacters) else 0f 
             }
-            else -> books.sortedByDescending { if (it.dateAdded > 0) it.dateAdded else it.lastReadTime }
+            else -> books.sortedByDescending { if (it.lastReadTime > 0) it.lastReadTime else it.dateAdded }
         }
     }
 

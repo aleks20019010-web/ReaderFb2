@@ -210,7 +210,16 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
                 val restoredBook = book.copy(
                     currentPageIndex = effectivePage,
-                    currentProgressChar = effectiveOffset
+                    currentProgressChar = effectiveOffset,
+                    lastReadTime = System.currentTimeMillis()
+                )
+
+                bookDao.updateProgressAndPage(
+                    bookSha1,
+                    effectiveOffset,
+                    effectivePage,
+                    book.totalCharacters,
+                    System.currentTimeMillis()
                 )
 
                 if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty() && BookCache.paragraphOffsets.isNotEmpty()) {

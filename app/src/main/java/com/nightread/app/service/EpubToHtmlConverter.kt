@@ -83,6 +83,7 @@ object EpubToHtmlConverter {
                         -webkit-hyphens: auto; -ms-hyphens: auto; hyphens: auto;
                         -webkit-user-select: text;
                         user-select: text;
+                        -webkit-touch-callout: default;
                     }
                     p { margin-top: 0; margin-bottom: 0em; text-indent: 1.5em; text-align: justify; }
                     h1, h2, h3, h4, h5, h6 { margin-top: 1em; margin-bottom: 0.5em; font-weight: bold; text-align: center; }

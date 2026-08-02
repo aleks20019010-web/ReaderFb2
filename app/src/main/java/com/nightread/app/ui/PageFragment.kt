@@ -115,6 +115,9 @@ class PageFragment : Fragment() {
         webView.isVerticalScrollBarEnabled = false
         webView.isHorizontalScrollBarEnabled = false
         webView.overScrollMode = android.view.View.OVER_SCROLL_NEVER
+        webView.isLongClickable = true
+        webView.isFocusable = true
+        webView.isFocusableInTouchMode = true
         webView.addJavascriptInterface(BookReaderActivity.WebAppInterface(activity as? BookReaderActivity ?: return), "AndroidInterface")
 
         webView.webViewClient = object : android.webkit.WebViewClient() {
@@ -244,6 +247,7 @@ class PageFragment : Fragment() {
                         word-wrap: break-word;
                         -webkit-user-select: text;
                         user-select: text;
+                        -webkit-touch-callout: default;
                     }
                     
                     p {
