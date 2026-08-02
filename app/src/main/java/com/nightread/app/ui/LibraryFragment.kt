@@ -43,6 +43,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.nightread.app.R
 import com.nightread.app.data.BookEntity
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 
@@ -667,10 +668,12 @@ class LibraryFragment : Fragment() {
         }
 
         // Observe Books Stream
-        val booksFlow = if (filterType == "reading") {
+        val booksFlow = (if (filterType == "reading") {
             viewModel.loadReadingBooks()
         } else {
             viewModel.allBooks
+        }).distinctUntilChanged { old, new ->
+            old.map { it.sha1 } == new.map { it.sha1 }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -678,7 +681,7 @@ class LibraryFragment : Fragment() {
             if (!com.nightread.app.MainActivity.isSplashActive) {
                 kotlinx.coroutines.delay(800)
             }
-            booksFlow.collectLatest { books ->
+            booksFlow.distinctUntilChanged().collectLatest { books ->
                 allBooksList = books
                 filterAndApplyBooks()
             }

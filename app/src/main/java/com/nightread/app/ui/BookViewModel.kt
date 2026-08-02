@@ -28,6 +28,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     // Observables from Database with robust error catching
     val allBooks: StateFlow<List<BookEntity>> = repository.allBooks
+        .distinctUntilChanged { old, new ->
+            old.map { it.sha1 } == new.map { it.sha1 }
+        }
         .catch { e ->
             if (e is CancellationException) throw e
             Log.e("BookViewModel", "Exception loading books from database", e)
@@ -69,12 +72,15 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class, kotlinx.coroutines.FlowPreview::class)
     val searchedBooks: StateFlow<List<BookEntity>> = searchQuery
-                .flatMapLatest { query ->
+        .flatMapLatest { query ->
             if (query.isBlank()) {
                 repository.allBooks.debounce(500)
             } else {
                 repository.searchBooks(query).debounce(500)
             }
+        }
+        .distinctUntilChanged { old, new ->
+            old.map { it.sha1 } == new.map { it.sha1 }
         }
         .catch { e ->
             Log.e("BookViewModel", "Exception searching books from database", e)
@@ -107,7 +113,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadReadingBooks(): Flow<List<BookEntity>> {
-        return repository.getReadingBooks()
+        return repository.getReadingBooks().distinctUntilChanged { old, new ->
+            old.map { it.sha1 } == new.map { it.sha1 }
+        }
     }
 
     fun loadFavoriteBooks(): Flow<List<BookEntity>> {
