@@ -6,32 +6,41 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.ImageButton
 import android.widget.SeekBar
+import android.widget.Spinner
 import android.widget.TextView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.nightread.app.R
+import com.nightread.app.data.SettingsManager
 import com.nightread.app.service.TtsForegroundService
 
 class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
 
     interface TtsSettingsListener {
-        fun onTtsStartRequested(speed: Float, pitch: Float, continuous: Boolean)
+        fun onTtsStartRequested(speed: Float, pitch: Float, voiceName: String?, continuous: Boolean)
         fun onTtsPauseRequested()
         fun onTtsStopRequested()
         fun onTtsSpeedChanged(speed: Float)
         fun onTtsPitchChanged(pitch: Float)
+        fun onTtsVoiceChanged(voiceName: String)
     }
 
     private var listener: TtsSettingsListener? = null
     private var currentTextToSpeak: String = ""
     private var bookTitle: String = "NightRead"
 
+    private lateinit var tvVoiceLabel: TextView
+    private lateinit var spinnerVoice: Spinner
     private lateinit var tvSpeedLabel: TextView
     private lateinit var seekBarSpeed: SeekBar
     private lateinit var tvPitchLabel: TextView
@@ -41,6 +50,9 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
     private lateinit var btnStop: MaterialButton
 
     private var isCurrentlySpeaking = false
+    private var tempTts: TextToSpeech? = null
+    private var selectedVoiceName: String? = null
+    private var voiceList: List<Voice> = emptyList()
 
     private val ttsStatusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -85,6 +97,8 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        tvVoiceLabel = view.findViewById(R.id.tvVoiceLabel)
+        spinnerVoice = view.findViewById(R.id.spinnerVoice)
         tvSpeedLabel = view.findViewById(R.id.tvSpeedLabel)
         seekBarSpeed = view.findViewById(R.id.seekBarSpeed)
         tvPitchLabel = view.findViewById(R.id.tvPitchLabel)
@@ -97,9 +111,12 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
             dismiss()
         }
 
-        val prefs = requireContext().getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
-        val savedSpeed = prefs.getFloat("tts_speed", 1.0f)
-        val savedPitch = prefs.getFloat("tts_pitch", 1.0f)
+        val context = requireContext()
+        val savedSpeed = SettingsManager.getTtsSpeed(context)
+        val savedPitch = SettingsManager.getTtsPitch(context)
+        selectedVoiceName = SettingsManager.getTtsVoice(context)
+
+        val prefs = context.getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
         val savedContinuous = prefs.getBoolean("tts_continuous", true)
 
         // Speed mapping: progress 0..25 => 0.5x..3.0x
@@ -118,6 +135,7 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 val speed = 0.5f + (progress * 0.1f)
                 updateSpeedText(speed)
+                SettingsManager.setTtsSpeed(requireContext(), speed)
                 prefs.edit().putFloat("tts_speed", speed).apply()
                 listener?.onTtsSpeedChanged(speed)
             }
@@ -129,6 +147,7 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 val pitch = 0.5f + (progress * 0.1f)
                 updatePitchText(pitch)
+                SettingsManager.setTtsPitch(requireContext(), pitch)
                 prefs.edit().putFloat("tts_pitch", pitch).apply()
                 listener?.onTtsPitchChanged(pitch)
             }
@@ -149,7 +168,7 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
                 listener?.onTtsPauseRequested()
                 isCurrentlySpeaking = false
             } else {
-                listener?.onTtsStartRequested(speed, pitch, continuous)
+                listener?.onTtsStartRequested(speed, pitch, selectedVoiceName, continuous)
                 isCurrentlySpeaking = true
             }
             updatePlayPauseButtonUI()
@@ -163,6 +182,68 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
 
         isCurrentlySpeaking = TtsForegroundService.isServiceRunning
         updatePlayPauseButtonUI()
+
+        tempTts = TextToSpeech(requireContext().applicationContext) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                try {
+                    val availableVoices = tempTts?.voices?.filter { voice ->
+                        !voice.isNetworkConnectionRequired &&
+                        voice.features?.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) != true
+                    }?.sortedBy { it.locale.displayName } ?: emptyList()
+
+                    voiceList = if (availableVoices.isNotEmpty()) availableVoices else (tempTts?.voices?.toList() ?: emptyList())
+                    setupVoiceSpinner()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
+    private fun setupVoiceSpinner() {
+        if (!isAdded) return
+        val ctx = context ?: return
+
+        val displayItems = mutableListOf<String>()
+        var selectedIndex = 0
+
+        if (voiceList.isEmpty()) {
+            displayItems.add("Голос по умолчанию (Система)")
+        } else {
+            val ruLocale = java.util.Locale("ru")
+            voiceList.forEachIndexed { index, voice ->
+                val langName = voice.locale.getDisplayName(ruLocale).replaceFirstChar { it.uppercase() }
+                val variant = voice.name.substringAfterLast("-").ifEmpty { voice.name.takeLast(6) }
+                val label = "$langName ($variant)"
+                displayItems.add(label)
+
+                if (selectedVoiceName != null && voice.name == selectedVoiceName) {
+                    selectedIndex = index
+                }
+            }
+        }
+
+        val adapter = ArrayAdapter(ctx, R.layout.spinner_item, displayItems)
+        adapter.setDropDownViewResource(R.layout.spinner_item)
+        spinnerVoice.adapter = adapter
+        if (selectedIndex < displayItems.size) {
+            spinnerVoice.setSelection(selectedIndex)
+        }
+
+        spinnerVoice.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (voiceList.isNotEmpty() && position in voiceList.indices) {
+                    val newVoice = voiceList[position].name
+                    if (newVoice != selectedVoiceName) {
+                        selectedVoiceName = newVoice
+                        SettingsManager.setTtsVoice(requireContext(), newVoice)
+                        listener?.onTtsVoiceChanged(newVoice)
+                    }
+                }
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
     }
 
     private fun updateSpeedText(speed: Float) {
@@ -200,5 +281,16 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
         } catch (e: Exception) {
             // Receiver not registered
         }
+    }
+
+    override fun onDestroyView() {
+        try {
+            tempTts?.stop()
+            tempTts?.shutdown()
+            tempTts = null
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        super.onDestroyView()
     }
 }

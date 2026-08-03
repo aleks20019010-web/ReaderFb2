@@ -53,6 +53,7 @@ object SettingsManager {
     const val KEY_SORT_OPTION = "library_sort_option"
     const val KEY_TTS_SPEED = "tts_speed"
     const val KEY_TTS_PITCH = "tts_pitch"
+    const val KEY_TTS_VOICE = "tts_voice_name"
 
     const val SORT_TITLE_ASC = "TITLE_ASC"
     const val SORT_TITLE_DESC = "TITLE_DESC"
@@ -727,6 +728,15 @@ object SettingsManager {
 
     fun setTtsPitch(context: Context, pitch: Float) {
         getPrefs(context).edit().putFloat(KEY_TTS_PITCH, pitch).apply()
+        notifyChanged()
+    }
+
+    fun getTtsVoice(context: Context): String? {
+        return getPrefs(context).getString(KEY_TTS_VOICE, null)
+    }
+
+    fun setTtsVoice(context: Context, voiceName: String?) {
+        getPrefs(context).edit().putString(KEY_TTS_VOICE, voiceName).apply()
         notifyChanged()
     }
 

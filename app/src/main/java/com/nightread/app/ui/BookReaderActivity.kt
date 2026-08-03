@@ -25,6 +25,9 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.SeekBar
 import android.widget.ImageButton
+import android.widget.Toast
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import android.content.Context
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
@@ -239,7 +242,7 @@ class BookReaderActivity : BaseActivity() {
             val currentPageText = viewModel.pagesState.value.getOrNull(currentPageIdx)?.toString() ?: ""
             val ttsSheet = TtsSettingsBottomSheet.newInstance(currentPageText, title)
             ttsSheet.setTtsListener(object : TtsSettingsBottomSheet.TtsSettingsListener {
-                override fun onTtsStartRequested(speed: Float, pitch: Float, continuous: Boolean) {
+                override fun onTtsStartRequested(speed: Float, pitch: Float, voiceName: String?, continuous: Boolean) {
                     val idx = viewModel.currentPage.value
                     val pageText = viewModel.pagesState.value.getOrNull(idx)?.toString() ?: ""
                     val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
@@ -248,6 +251,9 @@ class BookReaderActivity : BaseActivity() {
                         putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
                         putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
                         putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
+                        if (!voiceName.isNullOrEmpty()) {
+                            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voiceName)
+                        }
                     }
                     startService(intent)
                 }
@@ -281,6 +287,14 @@ class BookReaderActivity : BaseActivity() {
                     }
                     startService(intent)
                 }
+
+                override fun onTtsVoiceChanged(voiceName: String) {
+                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                        action = com.nightread.app.service.TtsForegroundService.ACTION_SET_VOICE
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voiceName)
+                    }
+                    startService(intent)
+                }
             })
             ttsSheet.show(supportFragmentManager, "TtsSettingsBottomSheet")
         }
@@ -291,11 +305,15 @@ class BookReaderActivity : BaseActivity() {
             val pub = com.nightread.app.readium.ReadiumEngine.getPublication()
             if (pub != null) {
                 val searchSheet = com.nightread.app.readium.ReadiumSearchBottomSheet.newInstance(pub) { locator ->
-                    locator.locations.progression?.let { prog ->
-                        val totalPages = viewModel.pagesState.value.size
-                        if (totalPages > 0) {
-                            val targetPage = (prog * (totalPages - 1)).toInt()
-                            loadPage(targetPage)
+                    if (readiumReaderFragment != null && readiumReaderFragment?.isVisible == true) {
+                        readiumReaderFragment?.go(locator)
+                    } else {
+                        locator.locations.progression?.let { prog ->
+                            val totalPages = viewModel.pagesState.value.size
+                            if (totalPages > 0) {
+                                val targetPage = (prog * (totalPages - 1)).toInt()
+                                loadPage(targetPage)
+                            }
                         }
                     }
                 }
@@ -346,6 +364,18 @@ class BookReaderActivity : BaseActivity() {
             true
         }
 
+        val fabToggleBookmark = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabToggleBookmark)
+        fabToggleBookmark?.setOnClickListener {
+            toggleBookmark()
+        }
+        fabToggleBookmark?.setOnLongClickListener {
+            val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
+            if (sha1.isNotEmpty()) {
+                BookNavigationDialog.newInstance(sha1, 1).show(supportFragmentManager, "navigation")
+            }
+            true
+        }
+
         val bookmarkArea = findViewById<View>(R.id.bookmarkArea)
         bookmarkArea.visibility = View.VISIBLE
         bookmarkArea.setOnClickListener {
@@ -355,6 +385,7 @@ class BookReaderActivity : BaseActivity() {
         topToolbar = findViewById(R.id.topToolbar)
         bottomToolbar = findViewById(R.id.bottomToolbar)
         isBarsVisible = true
+        setupSyncStatusIndicator()
         
         progressBar = ProgressBar(this).apply { visibility = View.GONE }
         val progressParams = FrameLayout.LayoutParams(
@@ -824,7 +855,9 @@ class BookReaderActivity : BaseActivity() {
                     val themeKey = SettingsManager.getTheme(this@BookReaderActivity)
                     val fontSizeSp = SettingsManager.getFontSize(this@BookReaderActivity)
                     val fontMultiplier = (fontSizeSp / 18.0f).toDouble().coerceIn(0.6, 2.5)
-                    fragment.updatePreferences(themeKey, fontMultiplier)
+                    val lineSpacing = SettingsManager.getLineSpacing(this@BookReaderActivity).toDouble()
+                    val fontFamily = SettingsManager.getFontFamily(this@BookReaderActivity)
+                    fragment.updatePreferences(themeKey, fontMultiplier, fontFamily, lineSpacing)
 
                     observeAndApplyDecorations(book.sha1)
 
@@ -916,7 +949,7 @@ class BookReaderActivity : BaseActivity() {
                         selectedText = text,
                         noteText = "",
                         charOffset = 0,
-                        locatorJson = locator.toJSON().toString(),
+                        locatorJson = locator?.toJSON()?.toString(),
                         color = color
                     )
                 }
@@ -932,7 +965,7 @@ class BookReaderActivity : BaseActivity() {
                         selectedText = text,
                         noteText = noteText,
                         charOffset = 0,
-                        locatorJson = locator.toJSON().toString(),
+                        locatorJson = locator?.toJSON()?.toString(),
                         color = 0xFFFFEE58.toInt()
                     )
                 }
@@ -942,9 +975,74 @@ class BookReaderActivity : BaseActivity() {
             fetchAndShowFreeDictionary(word)
         }
         sheet.onTtsListener = { text ->
-            // Trigger TTS if available
+            val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                action = com.nightread.app.service.TtsForegroundService.ACTION_START
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, text)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, getOpenedBookTitle())
+            }
+            startService(intent)
         }
         sheet.show(supportFragmentManager, "readium_selection_sheet")
+    }
+
+    fun showCustomSelectionBottomSheet(selectedText: String, contextSnippet: String) {
+        if (selectedText.isBlank()) return
+        val sheet = com.nightread.app.readium.ReadiumSelectionBottomSheet.newInstance(selectedText, null)
+        sheet.onHighlightListener = { _, color, text ->
+            lifecycleScope.launch {
+                val book = viewModel.bookState.value
+                if (book != null) {
+                    noteManager.addNote(
+                        bookId = book.sha1,
+                        bookTitle = book.title,
+                        selectedText = text,
+                        noteText = "",
+                        charOffset = 0,
+                        locatorJson = null,
+                        color = color
+                    )
+                }
+            }
+            val colorHex = String.format("#%06X", 0xFFFFFF and color)
+            supportFragmentManager.fragments.forEach { fragment ->
+                if (fragment is PageFragment && fragment.isVisible) {
+                    fragment.highlightCurrentSelection(colorHex)
+                }
+            }
+        }
+        sheet.onNoteListener = { _, text, noteText ->
+            lifecycleScope.launch {
+                val book = viewModel.bookState.value
+                if (book != null) {
+                    noteManager.addNote(
+                        bookId = book.sha1,
+                        bookTitle = book.title,
+                        selectedText = text,
+                        noteText = noteText,
+                        charOffset = 0,
+                        locatorJson = null,
+                        color = 0xFFFFEE58.toInt()
+                    )
+                }
+            }
+            supportFragmentManager.fragments.forEach { fragment ->
+                if (fragment is PageFragment && fragment.isVisible) {
+                    fragment.highlightCurrentSelection("#FFEE58")
+                }
+            }
+        }
+        sheet.onDictionaryListener = { word ->
+            fetchAndShowFreeDictionary(word)
+        }
+        sheet.onTtsListener = { text ->
+            val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                action = com.nightread.app.service.TtsForegroundService.ACTION_START
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, text)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, getOpenedBookTitle())
+            }
+            startService(intent)
+        }
+        sheet.show(supportFragmentManager, "custom_selection_sheet")
     }
 
     private fun showNoteActionDialog(noteId: Int) {
@@ -1026,7 +1124,9 @@ class BookReaderActivity : BaseActivity() {
         val themeKey = viewModel.themeState.value
         val fontSizeSp = viewModel.fontSizeState.value
         val fontMultiplier = (fontSizeSp / 18.0f).toDouble().coerceIn(0.6, 2.5)
-        readiumReaderFragment?.updatePreferences(themeKey, fontMultiplier)
+        val lineSpacing = viewModel.lineSpacingState.value.toDouble()
+        val fontFamily = viewModel.fontFamilyState.value
+        readiumReaderFragment?.updatePreferences(themeKey, fontMultiplier, fontFamily, lineSpacing)
     }
 
     private fun updatePageIndicator() {
@@ -1055,6 +1155,19 @@ class BookReaderActivity : BaseActivity() {
             val isBookmarked = db.bookmarkDao().getBookmarkAtOffset(sha1, offset) != null
             withContext(Dispatchers.Main) {
                 val ivDogEar = findViewById<ImageView>(R.id.ivDogEar)
+                val fabToggleBookmark = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabToggleBookmark)
+                if (fabToggleBookmark != null) {
+                    val accentColor = androidx.core.content.ContextCompat.getColor(this@BookReaderActivity, R.color.accent)
+                    if (isBookmarked) {
+                        fabToggleBookmark.setImageResource(R.drawable.ic_bookmark_filled)
+                        fabToggleBookmark.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFFFFB74D.toInt())
+                        fabToggleBookmark.imageTintList = android.content.res.ColorStateList.valueOf(0xFF212121.toInt())
+                    } else {
+                        fabToggleBookmark.setImageResource(R.drawable.ic_bookmark)
+                        fabToggleBookmark.backgroundTintList = android.content.res.ColorStateList.valueOf(accentColor)
+                        fabToggleBookmark.imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFFFFF.toInt())
+                    }
+                }
                 if (ivDogEar != null) {
                     val currentPageIdx = viewModel.currentPage.value
                     val isPageChange = currentPageIdx != lastBookmarkCheckedPageIdx
@@ -1458,6 +1571,7 @@ class BookReaderActivity : BaseActivity() {
         registerSensors()
         animateBrightnessRise()
         if (com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(this)) {
+            reEvaluateAutoTheme()
             lastKnownLux?.let { handleLightSensorChanged(it) }
         }
     }
@@ -1564,11 +1678,11 @@ class BookReaderActivity : BaseActivity() {
 
     private fun handleLightSensorChanged(lux: Float) {
         lastKnownLux = lux
+        com.nightread.app.data.SettingsManager.setAmbientLux(this, lux)
         val antiGlare = lux > 10000f
         if (isAntiGlareActive != antiGlare) {
             isAntiGlareActive = antiGlare
             updatePage()
-            
         }
 
         if (com.nightread.app.data.SettingsManager.isAutoBrightnessEnabled(this)) {
@@ -1625,18 +1739,20 @@ class BookReaderActivity : BaseActivity() {
     }
 
     private fun reEvaluateAutoTheme() {
-        val lux = lastKnownLux ?: return
         if (com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(this)) {
             val currentTheme = viewModel.themeState.value
             val preferredDayTheme = com.nightread.app.data.SettingsManager.getUserPreferredDayTheme(this)
             val preferredNightTheme = com.nightread.app.data.SettingsManager.getUserPreferredNightTheme(this)
             
-            val targetTheme = if (lux < 15f) {
-                preferredNightTheme
-            } else if (lux > 30f) {
-                preferredDayTheme
-            } else {
-                return // Preserve current theme in the 15..30 lux deadband
+            val lux = lastKnownLux
+            val targetTheme = when {
+                lux != null && lux < 15f -> preferredNightTheme
+                lux != null && lux > 30f -> preferredDayTheme
+                else -> {
+                    // Sensor in deadband (15..30 lux) or sensor unavailable/null:
+                    // evaluate based on local sunset/night time
+                    if (com.nightread.app.data.ThemeHelper.isNightTime()) preferredNightTheme else preferredDayTheme
+                }
             }
             
             if (currentTheme != targetTheme) {
@@ -2192,7 +2308,11 @@ class BookReaderActivity : BaseActivity() {
         }
 
         @android.webkit.JavascriptInterface
-        fun onTextSelected(selectedText: String, contextSnippet: String) {}
+        fun onTextSelected(selectedText: String, contextSnippet: String) {
+            activity.runOnUiThread {
+                activity.showCustomSelectionBottomSheet(selectedText, contextSnippet)
+            }
+        }
 
         @android.webkit.JavascriptInterface
         fun lookupYandexDictionary(word: String) {
@@ -2535,6 +2655,7 @@ class BookReaderActivity : BaseActivity() {
         val pageText = viewModel.pagesState.value.getOrNull(idx)?.toString() ?: ""
         val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this)
         val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
+        val voiceName = com.nightread.app.data.SettingsManager.getTtsVoice(this)
 
         val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
             action = com.nightread.app.service.TtsForegroundService.ACTION_START
@@ -2542,6 +2663,9 @@ class BookReaderActivity : BaseActivity() {
             putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
             putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
             putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
+            if (!voiceName.isNullOrEmpty()) {
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voiceName)
+            }
         }
         startService(intent)
     }
@@ -2568,6 +2692,76 @@ class BookReaderActivity : BaseActivity() {
     fun readPreviousTtsChunk() {
         onReaderSwipeRight()
         handler.postDelayed({ startOrResumeTts() }, 300)
+    }
+
+    private fun setupSyncStatusIndicator() {
+        val layoutSyncStatus = findViewById<View>(R.id.layoutSyncStatus) ?: return
+        val ivSyncStatusIcon = findViewById<ImageView>(R.id.ivSyncStatusIcon)
+        val tvSyncStatusText = findViewById<TextView>(R.id.tvSyncStatusText)
+
+        fun isNetworkConnected(): Boolean {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+            val net = cm?.activeNetwork ?: return false
+            val caps = cm.getNetworkCapabilities(net) ?: return false
+            return caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        }
+
+        fun updateSyncUI(syncState: com.nightread.app.data.YandexSyncState) {
+            val online = isNetworkConnected()
+            val isSyncing = syncState.isRunning || com.nightread.app.data.SyncSettingsManager.isSyncing(this)
+
+            when {
+                !online -> {
+                    ivSyncStatusIcon?.setImageResource(R.drawable.ic_cloud_off)
+                    ivSyncStatusIcon?.imageTintList = ColorStateList.valueOf(0xFFFF9800.toInt())
+                    tvSyncStatusText?.text = "Офлайн"
+                }
+                isSyncing -> {
+                    ivSyncStatusIcon?.setImageResource(R.drawable.ic_cloud_sync)
+                    ivSyncStatusIcon?.imageTintList = ColorStateList.valueOf(0xFF2196F3.toInt())
+                    tvSyncStatusText?.text = "Синхронизация..."
+                }
+                else -> {
+                    ivSyncStatusIcon?.setImageResource(R.drawable.ic_cloud_done)
+                    ivSyncStatusIcon?.imageTintList = ColorStateList.valueOf(0xFF4CAF50.toInt())
+                    tvSyncStatusText?.text = "Синхронизировано"
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                com.nightread.app.data.YandexSyncState.state.collect { state ->
+                    updateSyncUI(state)
+                }
+            }
+        }
+
+        try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+            val networkCallback = object : android.net.ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: android.net.Network) {
+                    runOnUiThread { updateSyncUI(com.nightread.app.data.YandexSyncState.state.value) }
+                }
+                override fun onLost(network: android.net.Network) {
+                    runOnUiThread { updateSyncUI(com.nightread.app.data.YandexSyncState.state.value) }
+                }
+            }
+            cm?.registerDefaultNetworkCallback(networkCallback)
+        } catch (e: Exception) {
+            Log.e("BookReaderActivity", "Error registering network callback", e)
+        }
+
+        layoutSyncStatus.setOnClickListener {
+            val online = isNetworkConnected()
+            val isSyncing = com.nightread.app.data.YandexSyncState.state.value.isRunning || com.nightread.app.data.SyncSettingsManager.isSyncing(this)
+            val msg = when {
+                !online -> "Устройство офлайн. Проверьте подключение к сети."
+                isSyncing -> "Идет синхронизация с облачным хранилищем Firebase..."
+                else -> "Все данные чтения синхронизированы с Firebase."
+            }
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+        }
     }
 
 }

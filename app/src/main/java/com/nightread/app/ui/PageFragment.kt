@@ -25,6 +25,7 @@ import java.io.FileOutputStream
 
 class PageFragment : Fragment() {
     private var pageText: CharSequence = ""
+    private var mWebView: android.webkit.WebView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +41,7 @@ class PageFragment : Fragment() {
         val view = inflater.inflate(R.layout.fragment_page, container, false)
         val root = view.findViewById<FrameLayout>(R.id.rootContainer)
         val webView = view.findViewById<android.webkit.WebView>(R.id.bookWebView)
+        mWebView = webView
         
         updateStyle(root, webView)
 
@@ -475,6 +477,26 @@ class PageFragment : Fragment() {
             }
         }
         return fontFile.absolutePath
+    }
+
+    fun highlightCurrentSelection(colorHex: String) {
+        val wv = mWebView ?: return
+        val js = """
+            (function() {
+                var sel = window.getSelection();
+                if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
+                    var range = sel.getRangeAt(0);
+                    var span = document.createElement('mark');
+                    span.style.backgroundColor = '$colorHex';
+                    span.style.color = 'inherit';
+                    span.style.borderRadius = '3px';
+                    span.style.padding = '0 2px';
+                    range.surroundContents(span);
+                    sel.removeAllRanges();
+                }
+            })();
+        """.trimIndent()
+        wv.evaluateJavascript(js, null)
     }
 
     companion object {

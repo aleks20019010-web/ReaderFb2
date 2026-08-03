@@ -69,15 +69,59 @@
             android:src="@drawable/ic_arrow_back"
             app:tint="@color/icon_tint" />
 
-        <TextView
-            android:id="@+id/tvBookTitle"
+        <LinearLayout
+            android:id="@+id/layoutBookTitleAndSync"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="220 вольт"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:orientation="vertical"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
+
+            <TextView
+                android:id="@+id/tvBookTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="220 вольт"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/layoutSyncStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:background="@drawable/bg_sync_pill"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="6dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="2dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/ivSyncStatusIcon"
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:src="@drawable/ic_cloud_done"
+                    app:tint="#4CAF50"
+                    android:contentDescription="Статус синхронизации" />
+
+                <TextView
+                    android:id="@+id/tvSyncStatusText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="Синхронизировано"
+                    android:textColor="@color/text_primary"
+                    android:textSize="10sp" />
+            </LinearLayout>
+        </LinearLayout>
 
         <ImageButton
             android:id="@+id/btnSearch"
@@ -169,6 +213,21 @@
             app:tint="@color/icon_tint"
             android:contentDescription="Закладка" />
     </LinearLayout>
+
+    <!-- Floating Action Button for Quick Bookmark Toggle -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabToggleBookmark"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="72dp"
+        android:contentDescription="Быстрая закладка"
+        android:src="@drawable/ic_bookmark"
+        app:backgroundTint="@color/accent"
+        app:tint="#FFFFFF"
+        app:elevation="6dp"
+        app:fabSize="normal" />
 
     <View
         android:id="@+id/amberFilterOverlay"

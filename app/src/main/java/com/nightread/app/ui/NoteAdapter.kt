@@ -43,6 +43,7 @@ class NoteAdapter(
     override fun getItemCount(): Int = notesList.size
 
     inner class NoteViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val ivNoteIcon: android.widget.ImageView = itemView.findViewById(R.id.ivNoteIcon)
         private val tvBookTitle: TextView = itemView.findViewById(R.id.tvNoteBookTitle)
         private val tvPageAndDate: TextView = itemView.findViewById(R.id.tvNotePageAndDate)
         private val tvSelectedText: TextView = itemView.findViewById(R.id.tvSelectedText)
@@ -57,7 +58,26 @@ class NoteAdapter(
             tvPageAndDate.text = dateStr
             
             tvSelectedText.text = note.selectedText.trim().ifEmpty { "(Текст не выбран)" }
-            tvNoteText.text = note.noteText
+
+            if (note.noteText.isBlank()) {
+                tvNoteText.visibility = View.GONE
+                (tvNoteText.parent as? View)?.visibility = View.GONE
+            } else {
+                tvNoteText.visibility = View.VISIBLE
+                (tvNoteText.parent as? View)?.visibility = View.VISIBLE
+                tvNoteText.text = note.noteText
+            }
+
+            val colorInt = if (note.color != 0) note.color else 0xFFFFEE58.toInt()
+            ivNoteIcon.imageTintList = android.content.res.ColorStateList.valueOf(colorInt)
+
+            val bgDrawable = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                cornerRadius = 8f
+                setColor((colorInt and 0x00FFFFFF) or 0x20000000)
+                setStroke(2, colorInt)
+            }
+            tvSelectedText.background = bgDrawable
 
             itemView.setOnClickListener {
                 onNoteClicked(note)

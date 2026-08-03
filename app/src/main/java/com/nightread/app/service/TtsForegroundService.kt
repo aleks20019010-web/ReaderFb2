@@ -30,11 +30,13 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         const val ACTION_STOP = "com.nightread.app.action.TTS_STOP"
         const val ACTION_SET_SPEED = "com.nightread.app.action.TTS_SET_SPEED"
         const val ACTION_SET_PITCH = "com.nightread.app.action.TTS_SET_PITCH"
+        const val ACTION_SET_VOICE = "com.nightread.app.action.TTS_SET_VOICE"
 
         const val EXTRA_TEXT = "extra_text"
         const val EXTRA_BOOK_TITLE = "extra_book_title"
         const val EXTRA_SPEED = "extra_speed"
         const val EXTRA_PITCH = "extra_pitch"
+        const val EXTRA_VOICE = "extra_voice"
 
         const val BROADCAST_TTS_STATUS = "com.nightread.app.broadcast.TTS_STATUS"
         const val EXTRA_IS_SPEAKING = "extra_is_speaking"
@@ -50,6 +52,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
     private var currentBookTitle: String = "NightRead"
     private var speechRate: Float = 1.0f
     private var speechPitch: Float = 1.0f
+    private var selectedVoiceName: String? = null
     private var isSpeakingState: Boolean = false
 
     private var mediaSession: MediaSessionCompat? = null
@@ -72,6 +75,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
             tts?.language = Locale("ru")
             tts?.setSpeechRate(speechRate)
             tts?.setPitch(speechPitch)
+            applySelectedVoice()
 
             tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {
@@ -108,9 +112,11 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 currentBookTitle = intent.getStringExtra(EXTRA_BOOK_TITLE) ?: "NightRead"
                 speechRate = intent.getFloatExtra(EXTRA_SPEED, 1.0f)
                 speechPitch = intent.getFloatExtra(EXTRA_PITCH, 1.0f)
+                selectedVoiceName = intent.getStringExtra(EXTRA_VOICE)
 
                 tts?.setSpeechRate(speechRate)
                 tts?.setPitch(speechPitch)
+                applySelectedVoice()
 
                 try {
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
@@ -152,9 +158,30 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 speechPitch = intent.getFloatExtra(EXTRA_PITCH, 1.0f)
                 tts?.setPitch(speechPitch)
             }
+            ACTION_SET_VOICE -> {
+                selectedVoiceName = intent.getStringExtra(EXTRA_VOICE)
+                applySelectedVoice()
+                if (isSpeakingState) {
+                    speakCurrentText()
+                }
+            }
         }
 
         return START_NOT_STICKY
+    }
+
+    private fun applySelectedVoice() {
+        val voiceName = selectedVoiceName
+        if (!voiceName.isNullOrBlank() && isTtsInitialized) {
+            val targetVoice = tts?.voices?.find { it.name == voiceName }
+            if (targetVoice != null) {
+                try {
+                    tts?.voice = targetVoice
+                } catch (e: Exception) {
+                    Log.e("TtsForegroundService", "Error setting TTS voice: $voiceName", e)
+                }
+            }
+        }
     }
 
     private fun speakCurrentText() {

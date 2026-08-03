@@ -20,8 +20,8 @@ class ReadiumSelectionBottomSheet : BottomSheetDialogFragment() {
     private var selectedText: String = ""
     private var locator: Locator? = null
 
-    var onHighlightListener: ((Locator, Int, String) -> Unit)? = null
-    var onNoteListener: ((Locator, String, String) -> Unit)? = null
+    var onHighlightListener: ((Locator?, Int, String) -> Unit)? = null
+    var onNoteListener: ((Locator?, String, String) -> Unit)? = null
     var onDictionaryListener: ((String) -> Unit)? = null
     var onTtsListener: ((String) -> Unit)? = null
 
@@ -79,14 +79,12 @@ class ReadiumSelectionBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun applyHighlight(colorInt: Int) {
-        val loc = locator ?: return
-        onHighlightListener?.invoke(loc, colorInt, selectedText)
+        onHighlightListener?.invoke(locator, colorInt, selectedText)
         Toast.makeText(requireContext(), "Цитата сохранена", Toast.LENGTH_SHORT).show()
         dismiss()
     }
 
     private fun showAddNoteDialog() {
-        val loc = locator ?: return
         val etNote = EditText(requireContext()).apply {
             hint = "Введите текст заметки..."
             setPadding(32, 32, 32, 32)
@@ -98,7 +96,7 @@ class ReadiumSelectionBottomSheet : BottomSheetDialogFragment() {
             .setPositiveButton("Сохранить") { _, _ ->
                 val noteText = etNote.text.toString().trim()
                 if (noteText.isNotEmpty()) {
-                    onNoteListener?.invoke(loc, selectedText, noteText)
+                    onNoteListener?.invoke(locator, selectedText, noteText)
                     Toast.makeText(requireContext(), "Заметка сохранена", Toast.LENGTH_SHORT).show()
                     dismiss()
                 }
@@ -108,7 +106,7 @@ class ReadiumSelectionBottomSheet : BottomSheetDialogFragment() {
     }
 
     companion object {
-        fun newInstance(text: String, loc: Locator): ReadiumSelectionBottomSheet {
+        fun newInstance(text: String, loc: Locator? = null): ReadiumSelectionBottomSheet {
             return ReadiumSelectionBottomSheet().apply {
                 selectedText = text
                 locator = loc

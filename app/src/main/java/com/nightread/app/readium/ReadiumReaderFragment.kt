@@ -177,7 +177,8 @@ class ReadiumReaderFragment : Fragment() {
     fun updatePreferences(
         themeMode: String,
         fontSizeMultiplier: Double = 1.0,
-        fontFamilyName: String? = null
+        fontFamilyName: String? = null,
+        lineSpacing: Double = 1.2
     ) {
         val nav = navigatorFragment ?: return
         val theme = when (themeMode.lowercase()) {
@@ -188,7 +189,10 @@ class ReadiumReaderFragment : Fragment() {
 
         val prefs = EpubPreferences(
             theme = theme,
-            fontSize = fontSizeMultiplier
+            fontSize = fontSizeMultiplier,
+            lineHeight = lineSpacing,
+            textAlign = org.readium.r2.navigator.preferences.TextAlign.JUSTIFY,
+            hyphens = true
         )
         nav.submitPreferences(prefs)
     }
