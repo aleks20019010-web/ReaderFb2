@@ -52,7 +52,8 @@ class BookReaderActivity : BaseActivity() {
     }
 
     private var readiumReaderFragment: com.nightread.app.readium.ReadiumReaderFragment? = null
-    private var appTtsManager: com.nightread.app.tts.AppTtsManager? = null
+    private var androidTtsEngine: org.readium.r2.navigator.tts.AndroidTtsEngine? = null
+    private var publicationSpeechSynthesizer: org.readium.r2.navigator.tts.PublicationSpeechSynthesizer? = null
     private val noteManager by lazy { com.nightread.app.data.NoteManager(this) }
     private var openedBookSha1: String? = null
     fun navigateToReadiumLocator(locator: org.readium.r2.shared.publication.Locator) {
@@ -197,7 +198,11 @@ class BookReaderActivity : BaseActivity() {
         readerSplashStarryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
         viewModel = ViewModelProvider(this).get(ReaderViewModel::class.java)
-        appTtsManager = com.nightread.app.tts.AppTtsManager(this)
+        androidTtsEngine = org.readium.r2.navigator.tts.AndroidTtsEngine(this)
+        val pub = com.nightread.app.readium.ReadiumEngine.getPublication()
+        if (pub != null) {
+            publicationSpeechSynthesizer = org.readium.r2.navigator.tts.PublicationSpeechSynthesizer(pub, androidTtsEngine!!)
+        }
 
         val btnBack = findViewById<View>(R.id.btnBack)
         btnBack.setOnClickListener { finish() }
@@ -247,25 +252,27 @@ class BookReaderActivity : BaseActivity() {
                 override fun onTtsStartRequested(speed: Float, pitch: Float, voiceName: String?, continuous: Boolean) {
                     val idx = viewModel.currentPage.value
                     val pageText = viewModel.pagesState.value.getOrNull(idx)?.toString() ?: ""
-                    appTtsManager?.setSpeed(speed)
-                    appTtsManager?.setPitch(pitch)
-                    appTtsManager?.speak(pageText)
+                    publicationSpeechSynthesizer?.load(org.readium.r2.navigator.tts.PublicationSpeechSynthesizer.Configuration(rate = speed, pitch = pitch))
+                    val locator = getCurrentOrFallbackLocator().copy(
+                        locations = org.readium.r2.shared.publication.Locator.Locations(progression = idx.toDouble())
+                    )
+                    publicationSpeechSynthesizer?.play(pageText, locator)
                 }
 
                 override fun onTtsPauseRequested() {
-                    appTtsManager?.pause()
+                    publicationSpeechSynthesizer?.pause()
                 }
 
                 override fun onTtsStopRequested() {
-                    appTtsManager?.stop()
+                    publicationSpeechSynthesizer?.stop()
                 }
 
                 override fun onTtsSpeedChanged(speed: Float) {
-                    appTtsManager?.setSpeed(speed)
+                    publicationSpeechSynthesizer?.setRate(speed)
                 }
 
                 override fun onTtsPitchChanged(pitch: Float) {
-                    appTtsManager?.setPitch(pitch)
+                    publicationSpeechSynthesizer?.setPitch(pitch)
                 }
 
                 override fun onTtsVoiceChanged(voiceName: String) {
@@ -958,7 +965,8 @@ class BookReaderActivity : BaseActivity() {
             fetchAndShowFreeDictionary(word)
         }
         sheet.onTtsListener = { text ->
-            appTtsManager?.speak(text)
+            val locator = getCurrentOrFallbackLocator()
+            publicationSpeechSynthesizer?.play(text, locator)
         }
         sheet.show(supportFragmentManager, "readium_selection_sheet")
     }
@@ -1013,7 +1021,8 @@ class BookReaderActivity : BaseActivity() {
             fetchAndShowFreeDictionary(word)
         }
         sheet.onTtsListener = { text ->
-            appTtsManager?.speak(text)
+            val locator = getCurrentOrFallbackLocator()
+            publicationSpeechSynthesizer?.play(text, locator)
         }
         sheet.show(supportFragmentManager, "custom_selection_sheet")
     }
@@ -1766,7 +1775,8 @@ class BookReaderActivity : BaseActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        appTtsManager?.shutdown()
+        publicationSpeechSynthesizer?.close()
+        androidTtsEngine?.close()
         brightnessAnimator?.cancel()
         autoBrightnessAnimator?.cancel()
         sleepTimerJob?.cancel()
@@ -2639,21 +2649,36 @@ class BookReaderActivity : BaseActivity() {
     }
 
     fun startOrResumeTts() {
+        if (publicationSpeechSynthesizer == null) {
+            val pub = com.nightread.app.readium.ReadiumEngine.getPublication()
+            if (pub != null && androidTtsEngine != null) {
+                publicationSpeechSynthesizer = org.readium.r2.navigator.tts.PublicationSpeechSynthesizer(pub, androidTtsEngine!!)
+            }
+        }
         val idx = viewModel.currentPage.value
         val pageText = viewModel.pagesState.value.getOrNull(idx)?.toString() ?: ""
         val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this)
         val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
-        appTtsManager?.setSpeed(speed)
-        appTtsManager?.setPitch(pitch)
-        appTtsManager?.speak(pageText)
+        publicationSpeechSynthesizer?.load(org.readium.r2.navigator.tts.PublicationSpeechSynthesizer.Configuration(rate = speed, pitch = pitch))
+        val locator = getCurrentOrFallbackLocator().copy(
+            locations = org.readium.r2.shared.publication.Locator.Locations(progression = idx.toDouble())
+        )
+        publicationSpeechSynthesizer?.play(pageText, locator)
+    }
+
+    private fun getCurrentOrFallbackLocator(): org.readium.r2.shared.publication.Locator {
+        val pub = com.nightread.app.readium.ReadiumEngine.getPublication()
+        return readiumReaderFragment?.currentLocator?.value
+            ?: pub?.let { p -> p.locatorFromLink(p.readingOrder.first()) }
+            ?: throw IllegalStateException("No locator available")
     }
 
     fun pauseTts() {
-        appTtsManager?.pause()
+        publicationSpeechSynthesizer?.pause()
     }
 
     fun stopTts() {
-        appTtsManager?.stop()
+        publicationSpeechSynthesizer?.stop()
     }
 
     fun readNextTtsChunk() {
