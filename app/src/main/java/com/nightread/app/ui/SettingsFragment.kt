@@ -129,8 +129,7 @@ class SettingsFragment : Fragment() {
         }
 
         view.findViewById<Button>(R.id.btnScanLibrary).setOnClickListener {
-            viewModel.startLocalBookScan()
-            CustomToast.show(ctx, getString(R.string.settings_toast_scan_started))
+            checkStoragePermissionAndScan()
         }
 
         view.findViewById<Button>(R.id.btnManualImport).setOnClickListener {
@@ -217,6 +216,47 @@ class SettingsFragment : Fragment() {
         }
 
         view.findViewById<TextView>(R.id.tvAppVersion).text = getString(R.string.settings_app_version, com.nightread.app.BuildConfig.VERSION_NAME)
+    }
+
+    private fun checkStoragePermissionAndScan() {
+        val ctx = context ?: return
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            if (android.os.Environment.isExternalStorageManager()) {
+                viewModel.startLocalBookScan()
+                CustomToast.show(ctx, getString(R.string.settings_toast_scan_started))
+            } else {
+                try {
+                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                        data = android.net.Uri.parse("package:${ctx.packageName}")
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                    startActivity(intent)
+                }
+            }
+        } else {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                viewModel.startLocalBookScan()
+                CustomToast.show(ctx, getString(R.string.settings_toast_scan_started))
+            } else {
+                requestPermissions(arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE), 101)
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 101) {
+            if (grantResults.isNotEmpty() && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                val ctx = context ?: return
+                viewModel.startLocalBookScan()
+                CustomToast.show(ctx, getString(R.string.settings_toast_scan_started))
+            } else {
+                val ctx = context ?: return
+                CustomToast.show(ctx, "Разрешение на чтение файлов отклонено")
+            }
+        }
     }
 
     private fun showPickBackgroundDialog() {

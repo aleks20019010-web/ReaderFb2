@@ -563,7 +563,8 @@ object EpubIdentifierHelper {
                 if (!coversDir.exists()) {
                     coversDir.mkdirs()
                 }
-                val coverFile = File(coversDir, "${sha1}.jpg")
+                val sanitizedSha1 = sha1.replace("[^a-zA-Z0-9._-]".toRegex(), "_")
+                val coverFile = File(coversDir, "${sanitizedSha1}.jpg")
                 coverFile.writeBytes(coverBytes)
                 coverFile.absolutePath
             } else {

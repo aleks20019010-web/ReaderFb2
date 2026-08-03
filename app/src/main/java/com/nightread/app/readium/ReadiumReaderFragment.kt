@@ -107,14 +107,10 @@ class ReadiumReaderFragment : Fragment() {
                     act?.toggleBookmark()
                     return true
                 } else if (normX < 0.25f) {
-                    if (!goBackward()) {
-                        act?.onReaderTapLeft()
-                    }
+                    act?.onReaderTapLeft()
                     return true
                 } else if (normX > 0.75f) {
-                    if (!goForward()) {
-                        act?.onReaderTapRight()
-                    }
+                    act?.onReaderTapRight()
                     return true
                 } else {
                     onTapListener?.invoke()
@@ -178,7 +174,9 @@ class ReadiumReaderFragment : Fragment() {
         themeMode: String,
         fontSizeMultiplier: Double = 1.0,
         fontFamilyName: String? = null,
-        lineSpacing: Double = 1.2
+        lineSpacing: Double = 1.2,
+        fontWeight: Double? = null,
+        pageMargins: Double? = null
     ) {
         val nav = navigatorFragment ?: return
         val theme = when (themeMode.lowercase()) {
@@ -187,10 +185,25 @@ class ReadiumReaderFragment : Fragment() {
             else -> Theme.LIGHT
         }
 
+        val font = fontFamilyName?.let { name ->
+            when (name.lowercase()) {
+                "serif" -> org.readium.r2.navigator.preferences.FontFamily.SERIF
+                "sans-serif" -> org.readium.r2.navigator.preferences.FontFamily.SANS_SERIF
+                "monospace" -> org.readium.r2.navigator.preferences.FontFamily.MONOSPACE
+                "cursive" -> org.readium.r2.navigator.preferences.FontFamily.CURSIVE
+                "opendyslexic" -> org.readium.r2.navigator.preferences.FontFamily.OPEN_DYSLEXIC
+                else -> org.readium.r2.navigator.preferences.FontFamily(name)
+            }
+        }
+
         val prefs = EpubPreferences(
             theme = theme,
             fontSize = fontSizeMultiplier,
             lineHeight = lineSpacing,
+            fontFamily = font,
+            fontWeight = fontWeight,
+            pageMargins = pageMargins,
+            publisherStyles = false,
             textAlign = org.readium.r2.navigator.preferences.TextAlign.JUSTIFY,
             hyphens = true
         )
@@ -201,12 +214,12 @@ class ReadiumReaderFragment : Fragment() {
         return navigatorFragment?.go(locator, animated = true) ?: false
     }
 
-    fun goForward(): Boolean {
-        return navigatorFragment?.goForward(animated = true) ?: false
+    fun goForward(animated: Boolean = true): Boolean {
+        return navigatorFragment?.goForward(animated = animated) ?: false
     }
 
-    fun goBackward(): Boolean {
-        return navigatorFragment?.goBackward(animated = true) ?: false
+    fun goBackward(animated: Boolean = true): Boolean {
+        return navigatorFragment?.goBackward(animated = animated) ?: false
     }
 
     suspend fun applyDecorations(decorations: List<Decoration>, group: String) {

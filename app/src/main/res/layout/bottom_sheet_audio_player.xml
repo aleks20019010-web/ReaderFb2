@@ -39,7 +39,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Название аудиокниги"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/text_primary"
         android:textSize="20sp"
         android:textStyle="bold"
         android:gravity="center"
@@ -52,7 +52,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Автор / Чтец"
-        android:textColor="#A0A0C0"
+        android:textColor="@color/text_secondary"
         android:textSize="15sp"
         android:gravity="center"
         android:maxLines="1"
@@ -94,7 +94,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="00:00:00"
-                android:textColor="#A0A0C0"
+                android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:layout_alignParentStart="true" />
 
@@ -103,7 +103,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="00:00:00"
-                android:textColor="#A0A0C0"
+                android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:layout_alignParentEnd="true" />
         </RelativeLayout>
@@ -133,7 +133,7 @@
             android:layout_height="52dp"
             android:src="@drawable/ic_media_prev_custom"
             android:background="?attr/selectableItemBackgroundBorderless"
-            app:tint="#FFFFFF"
+            app:tint="@color/text_primary"
             android:layout_marginHorizontal="16dp" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -142,7 +142,7 @@
             android:layout_height="wrap_content"
             android:src="@drawable/ic_media_play_custom"
             app:fabSize="normal"
-            app:tint="#FFFFFF"
+            app:tint="@color/onPrimary"
             app:backgroundTint="@color/accent"
             app:elevation="6dp" />
 
@@ -152,7 +152,7 @@
             android:layout_height="52dp"
             android:src="@drawable/ic_media_next_custom"
             android:background="?attr/selectableItemBackgroundBorderless"
-            app:tint="#FFFFFF"
+            app:tint="@color/text_primary"
             android:layout_marginHorizontal="16dp" />
 
         <ImageButton
@@ -161,7 +161,7 @@
             android:layout_height="40dp"
             android:src="@android:drawable/ic_menu_recent_history"
             android:background="?attr/selectableItemBackgroundBorderless"
-            app:tint="#A0A0C0" />
+            app:tint="@color/text_secondary" />
 
         <ImageButton
             android:id="@+id/btnChapters"
@@ -169,7 +169,7 @@
             android:layout_height="40dp"
             android:src="@android:drawable/ic_menu_agenda"
             android:background="?attr/selectableItemBackgroundBorderless"
-            app:tint="#A0A0C0"
+            app:tint="@color/text_secondary"
             android:layout_marginStart="8dp" />
     </LinearLayout>
 

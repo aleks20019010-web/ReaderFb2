@@ -22,7 +22,7 @@ object Fb2ToEpubConverter {
 
     fun convertIfNeeded(context: Context, inputFile: File): File {
         val nameLower = inputFile.name.lowercase()
-        if (!nameLower.endsWith(".fb2") && !nameLower.endsWith(".fb2.zip")) {
+        if (!nameLower.endsWith(".fb2") && !nameLower.endsWith(".fb2.zip") && !nameLower.endsWith(".zip")) {
             return inputFile
         }
 

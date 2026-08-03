@@ -74,8 +74,13 @@ class BookReaderActivity : BaseActivity() {
     private lateinit var tvBrightness: TextView
     private lateinit var tvWarmth: TextView
     private var isBarsVisible = true
+    private var isPageTurning = false
     private var touchStartY: Float = 0f
     private var touchStartTime: Long = 0L
+    private var isDraggingVerticalLeft = false
+    private var isDraggingVerticalRight = false
+    private var isHorizontalSwipeLocked = false
+    private var initialGestureValue = 0f
 
     // Fullscreen HUD Elements
     private lateinit var fullscreenTopHUD: View
@@ -245,18 +250,14 @@ class BookReaderActivity : BaseActivity() {
         btnTts?.visibility = View.VISIBLE
         btnTts?.setOnClickListener {
             val title = findViewById<TextView>(R.id.tvTitle)?.text?.toString() ?: "NightRead"
-            val currentPageIdx = viewModel.currentPage.value
-            val currentPageText = viewModel.pagesState.value.getOrNull(currentPageIdx)?.toString() ?: ""
-            val ttsSheet = TtsSettingsBottomSheet.newInstance(currentPageText, title)
+            val textToSpeak = getTtsTextToSpeak()
+            val ttsSheet = TtsSettingsBottomSheet.newInstance(textToSpeak, title)
             ttsSheet.setTtsListener(object : TtsSettingsBottomSheet.TtsSettingsListener {
                 override fun onTtsStartRequested(speed: Float, pitch: Float, voiceName: String?, continuous: Boolean) {
-                    val idx = viewModel.currentPage.value
-                    val pageText = viewModel.pagesState.value.getOrNull(idx)?.toString() ?: ""
+                    val currentTextToSpeak = getTtsTextToSpeak()
                     publicationSpeechSynthesizer?.load(org.readium.r2.navigator.tts.PublicationSpeechSynthesizer.Configuration(rate = speed, pitch = pitch))
-                    val locator = getCurrentOrFallbackLocator().copy(
-                        locations = org.readium.r2.shared.publication.Locator.Locations(progression = idx.toDouble())
-                    )
-                    publicationSpeechSynthesizer?.play(pageText, locator)
+                    val locator = getCurrentOrFallbackLocator()
+                    publicationSpeechSynthesizer?.play(currentTextToSpeak, locator)
                 }
 
                 override fun onTtsPauseRequested() {
@@ -498,159 +499,18 @@ class BookReaderActivity : BaseActivity() {
         lifecycleScope.launch {
             viewModel.fontFamilyState.collectLatest { updatePage() }
         }
+        lifecycleScope.launch {
+            viewModel.fontWeightState.collectLatest { updatePage() }
+        }
+        lifecycleScope.launch {
+            viewModel.pageMarginsState.collectLatest { updatePage() }
+        }
 
         startSilentModeTracker()
 
 
 
-        var touchStartX = 0f
-        var touchStartY = 0f
-        var touchStartTime = 0L
-        var isDraggingVerticalLeft = false
-        var isDraggingVerticalRight = false
-        var isHorizontalSwipeLocked = false
-        var initialGestureValue = 0f
 
-        val gestureTouchListener = View.OnTouchListener { view, event ->
-            val screenWidth = view.width.toFloat()
-            val screenHeight = view.height.toFloat()
-            if (screenWidth <= 0 || screenHeight <= 0) return@OnTouchListener false
-
-            val isWebView = false
-
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    touchStartX = event.x
-                    touchStartY = event.y
-                    touchStartTime = System.currentTimeMillis()
-                    isHorizontalSwipeLocked = false
-                    isDraggingVerticalLeft = false
-                    isDraggingVerticalRight = false
-                    isDraggingVerticalCenter = false
-
-                    brightnessAnimator?.cancel()
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val diffX = event.x - touchStartX
-                    val diffY = event.y - touchStartY
-                    val duration = System.currentTimeMillis() - touchStartTime
-
-                    if (Math.abs(diffX) > Math.abs(diffY) * 1.2f && Math.abs(diffX) > 20f) {
-                        isHorizontalSwipeLocked = true
-                    }
-
-                    if (isHorizontalSwipeLocked) {
-                        activePageView.translationX = diffX
-                    } else if (duration > 100 && Math.abs(diffY) > 50 && Math.abs(diffY) > Math.abs(diffX) * 2f) {
-                        if (!isDraggingVerticalLeft && !isDraggingVerticalRight && !isDraggingVerticalCenter) {
-                            if (touchStartX < screenWidth * 0.35f) {
-                                isDraggingVerticalLeft = true
-                                val lp = window.attributes
-                                initialGestureValue = if (lp.screenBrightness < 0) 0.5f else lp.screenBrightness
-                            } else if (touchStartX > screenWidth * 0.65f) {
-                                isDraggingVerticalRight = true
-                                initialGestureValue = com.nightread.app.data.SettingsManager.getAmberFilterIntensity(this@BookReaderActivity).toFloat()
-                            } else {
-                                isDraggingVerticalCenter = true
-                            }
-                        }
-
-                        if (isDraggingVerticalLeft) {
-                            val delta = -diffY / screenHeight
-                            val newBrightness = (initialGestureValue + delta).coerceIn(0.01f, 1.0f)
-                            val lp = window.attributes
-                            lp.screenBrightness = newBrightness
-                            window.attributes = lp
-                            com.nightread.app.data.SettingsManager.setBrightness(this@BookReaderActivity, newBrightness)
-                            
-                            tvBrightness.visibility = View.VISIBLE
-                            tvBrightness.text = "☀ ${(newBrightness * 100).toInt()}%"
-                            handler.removeCallbacks(hideIndicatorsRunnable)
-                            return@OnTouchListener true
-                        } else if (isDraggingVerticalRight) {
-                            val delta = (-diffY / screenHeight) * 100f
-                            val newIntensity = (initialGestureValue + delta).coerceIn(0f, 100f).toInt()
-                            com.nightread.app.data.SettingsManager.setAmberFilterEnabled(this@BookReaderActivity, true)
-                            com.nightread.app.data.SettingsManager.setAmberFilterIntensity(this@BookReaderActivity, newIntensity)
-                            applyScreenSettings()
-                            
-                            tvWarmth.visibility = View.VISIBLE
-                            tvWarmth.text = "🌡 $newIntensity%"
-                            handler.removeCallbacks(hideIndicatorsRunnable)
-                            return@OnTouchListener true
-                        } else if (isDraggingVerticalCenter && diffY < 0 && !isBarsVisible) {
-                            val dragDistance = -diffY
-                            val maxDragDistance = 350f
-                            val progress = (dragDistance / maxDragDistance).coerceIn(0f, 1f)
-                            showFullscreenHUDProgress(progress)
-                            return@OnTouchListener true
-                        }
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    val diffX = event.x - touchStartX
-                    val diffY = event.y - touchStartY
-                    val duration = System.currentTimeMillis() - touchStartTime
-
-                    if (isHorizontalSwipeLocked || (Math.abs(diffX) > 30f && Math.abs(diffX) > Math.abs(diffY))) {
-                        val currentPage = viewModel.currentPage.value
-                        val totalPages = viewModel.pagesState.value.size
-                        if (diffX < 0) {
-                            if (currentPage < totalPages - 1) {
-                                viewModel.setCurrentPage(currentPage + 1)
-                            } else {
-                                activePageView.animate().translationX(0f).setDuration(150).start()
-                                ensureWebViewAligned()
-                            }
-                        } else {
-                            if (currentPage > 0) {
-                                viewModel.setCurrentPage(currentPage - 1)
-                            } else {
-                                activePageView.animate().translationX(0f).setDuration(150).start()
-                                ensureWebViewAligned()
-                            }
-                        }
-                        return@OnTouchListener true
-                    } else if (isDraggingVerticalLeft || isDraggingVerticalRight) {
-                        handler.postDelayed(hideIndicatorsRunnable, 1000)
-                        return@OnTouchListener true
-                    } else if (!isHorizontalSwipeLocked && isDraggingVerticalCenter && !isBarsVisible && Math.abs(diffY) > Math.abs(diffX) * 2f) {
-                        if (diffY < -50) {
-                            showFullscreenHUD()
-                        } else {
-                            hideFullscreenHUD()
-                        }
-                        return@OnTouchListener true
-                    } else if (Math.abs(diffX) < 30f && Math.abs(diffY) < 30f && duration < 500) {
-                        val touchX = event.x
-                        val touchY = event.y
-                        val currentPage = viewModel.currentPage.value
-                        val totalPages = viewModel.pagesState.value.size
-                        
-                        // Tap in top-right corner to bookmark
-                        if (touchX > screenWidth * 0.75f && touchY < screenHeight * 0.25f) {
-                            toggleBookmark()
-                            return@OnTouchListener true
-                        } else if (touchX < screenWidth * 0.25f) {
-                            if (currentPage > 0) {
-                                viewModel.setCurrentPage(currentPage - 1)
-                            }
-                            return@OnTouchListener true
-                        } else if (touchX > screenWidth * 0.75f) {
-                            if (currentPage < totalPages - 1) {
-                                viewModel.setCurrentPage(currentPage + 1)
-                            }
-                            return@OnTouchListener true
-                        } else {
-                            toggleToolbars()
-                            return@OnTouchListener true
-                        }
-                    }
-                }
-            }
-
-            true
-        }
 
         lifecycleScope.launch {
             com.nightread.app.data.SettingsManager.settingsChanged.collectLatest {
@@ -667,6 +527,116 @@ class BookReaderActivity : BaseActivity() {
         }
 
 
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent?): Boolean {
+        if (event == null) return super.dispatchTouchEvent(event)
+        val screenWidth = rootLayout.width.toFloat()
+        val screenHeight = rootLayout.height.toFloat()
+        if (screenWidth <= 0 || screenHeight <= 0) return super.dispatchTouchEvent(event)
+
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                touchStartX = event.x
+                touchStartY = event.y
+                touchStartTime = System.currentTimeMillis()
+                isHorizontalSwipeLocked = false
+                isDraggingVerticalLeft = false
+                isDraggingVerticalRight = false
+                isDraggingVerticalCenter = false
+                brightnessAnimator?.cancel()
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val diffX = event.x - touchStartX
+                val diffY = event.y - touchStartY
+                val duration = System.currentTimeMillis() - touchStartTime
+
+                if (Math.abs(diffX) > Math.abs(diffY) * 1.2f && Math.abs(diffX) > 20f) {
+                    isHorizontalSwipeLocked = true
+                }
+
+                if (!isHorizontalSwipeLocked && duration > 100 && Math.abs(diffY) > 50 && Math.abs(diffY) > Math.abs(diffX) * 2f) {
+                    if (!isDraggingVerticalLeft && !isDraggingVerticalRight && !isDraggingVerticalCenter) {
+                        if (touchStartX < screenWidth * 0.35f) {
+                            isDraggingVerticalLeft = true
+                            val lp = window.attributes
+                            initialGestureValue = if (lp.screenBrightness < 0) 0.5f else lp.screenBrightness
+                        } else if (touchStartX > screenWidth * 0.65f) {
+                            isDraggingVerticalRight = true
+                            initialGestureValue = com.nightread.app.data.SettingsManager.getAmberFilterIntensity(this@BookReaderActivity).toFloat()
+                        } else {
+                            isDraggingVerticalCenter = true
+                        }
+                    }
+                }
+
+                if (isDraggingVerticalLeft) {
+                    val delta = -diffY / screenHeight
+                    val newBrightness = (initialGestureValue + delta).coerceIn(0.01f, 1.0f)
+                    val lp = window.attributes
+                    lp.screenBrightness = newBrightness
+                    window.attributes = lp
+                    com.nightread.app.data.SettingsManager.setBrightness(this@BookReaderActivity, newBrightness)
+                    
+                    tvBrightness.visibility = View.VISIBLE
+                    tvBrightness.text = "☀ ${(newBrightness * 100).toInt()}%"
+                    handler.removeCallbacks(hideIndicatorsRunnable)
+                    return true
+                } else if (isDraggingVerticalRight) {
+                    val delta = (-diffY / screenHeight) * 100f
+                    val newIntensity = (initialGestureValue + delta).coerceIn(0f, 100f).toInt()
+                    com.nightread.app.data.SettingsManager.setAmberFilterEnabled(this@BookReaderActivity, true)
+                    com.nightread.app.data.SettingsManager.setAmberFilterIntensity(this@BookReaderActivity, newIntensity)
+                    applyScreenSettings()
+                    
+                    tvWarmth.visibility = View.VISIBLE
+                    tvWarmth.text = "🌡 $newIntensity%"
+                    handler.removeCallbacks(hideIndicatorsRunnable)
+                    return true
+                } else if (isDraggingVerticalCenter && diffY < 0 && !isBarsVisible) {
+                    val dragDistance = -diffY
+                    val maxDragDistance = 350f
+                    val progress = (dragDistance / maxDragDistance).coerceIn(0f, 1f)
+                    showFullscreenHUDProgress(progress)
+                    return true
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                val diffX = event.x - touchStartX
+                val diffY = event.y - touchStartY
+                val duration = System.currentTimeMillis() - touchStartTime
+
+                if (isDraggingVerticalLeft || isDraggingVerticalRight) {
+                    handler.postDelayed(hideIndicatorsRunnable, 1000)
+                    isDraggingVerticalLeft = false
+                    isDraggingVerticalRight = false
+                    return true
+                } else if (!isHorizontalSwipeLocked && isDraggingVerticalCenter && !isBarsVisible && Math.abs(diffY) > Math.abs(diffX) * 2f) {
+                    if (diffY < -50) {
+                        showFullscreenHUD()
+                    } else {
+                        hideFullscreenHUD()
+                    }
+                    isDraggingVerticalCenter = false
+                    return true
+                } else if (Math.abs(diffX) < 30f && Math.abs(diffY) < 30f && duration < 500) {
+                    val touchX = event.x
+                    val touchY = event.y
+                    
+                    if (touchX > screenWidth * 0.35f && touchX < screenWidth * 0.65f &&
+                        touchY > screenHeight * 0.3f && touchY < screenHeight * 0.7f) {
+                        toggleToolbars()
+                        return true
+                    }
+                }
+                
+                isDraggingVerticalLeft = false
+                isDraggingVerticalRight = false
+                isDraggingVerticalCenter = false
+            }
+        }
+
+        return super.dispatchTouchEvent(event)
     }
 
     private fun getThemeColors(themeKey: String): Pair<Int, Int> {
@@ -842,12 +812,7 @@ class BookReaderActivity : BaseActivity() {
                     })
                     readiumReaderFragment = fragment
 
-                    val themeKey = SettingsManager.getTheme(this@BookReaderActivity)
-                    val fontSizeSp = SettingsManager.getFontSize(this@BookReaderActivity)
-                    val fontMultiplier = (fontSizeSp / 18.0f).toDouble().coerceIn(0.6, 2.5)
-                    val lineSpacing = SettingsManager.getLineSpacing(this@BookReaderActivity).toDouble()
-                    val fontFamily = SettingsManager.getFontFamily(this@BookReaderActivity)
-                    fragment.updatePreferences(themeKey, fontMultiplier, fontFamily, lineSpacing)
+                    updatePage()
 
                     observeAndApplyDecorations(book.sha1)
 
@@ -1108,7 +1073,16 @@ class BookReaderActivity : BaseActivity() {
         val fontMultiplier = (fontSizeSp / 18.0f).toDouble().coerceIn(0.6, 2.5)
         val lineSpacing = viewModel.lineSpacingState.value.toDouble()
         val fontFamily = viewModel.fontFamilyState.value
-        readiumReaderFragment?.updatePreferences(themeKey, fontMultiplier, fontFamily, lineSpacing)
+        val fontWeight = if (viewModel.fontWeightState.value > 0) 1.5 else 1.0
+        val pageMargins = if (viewModel.pageMarginsState.value) 1.2 else 0.5
+        readiumReaderFragment?.updatePreferences(
+            themeMode = themeKey,
+            fontSizeMultiplier = fontMultiplier,
+            fontFamilyName = fontFamily,
+            lineSpacing = lineSpacing,
+            fontWeight = fontWeight,
+            pageMargins = pageMargins
+        )
     }
 
     private fun updatePageIndicator() {
@@ -2585,19 +2559,25 @@ class BookReaderActivity : BaseActivity() {
     }
 
     fun onReaderSwipeLeft() {
+        if (isPageTurning) return
         val currentPage = viewModel.currentPage.value
         val totalPages = viewModel.pagesState.value.size
         if (readiumReaderFragment != null && readiumReaderFragment?.isVisible == true) {
-            readiumReaderFragment?.goForward()
+            isPageTurning = true
+            readiumReaderFragment?.goForward(animated = true)
+            handler.postDelayed({ isPageTurning = false }, 250)
         } else if (currentPage < totalPages - 1) {
             viewModel.setCurrentPage(currentPage + 1)
         }
     }
 
     fun onReaderSwipeRight() {
+        if (isPageTurning) return
         val currentPage = viewModel.currentPage.value
         if (readiumReaderFragment != null && readiumReaderFragment?.isVisible == true) {
-            readiumReaderFragment?.goBackward()
+            isPageTurning = true
+            readiumReaderFragment?.goBackward(animated = true)
+            handler.postDelayed({ isPageTurning = false }, 250)
         } else if (currentPage > 0) {
             viewModel.setCurrentPage(currentPage - 1)
         }
@@ -2648,6 +2628,35 @@ class BookReaderActivity : BaseActivity() {
         return viewModel.bookState.value?.title ?: findViewById<TextView>(R.id.tvTitle)?.text?.toString() ?: "NightRead"
     }
 
+    fun getTtsTextToSpeak(): String {
+        val idx = viewModel.currentPage.value
+        val pages = viewModel.pagesState.value
+        val pageText = pages.getOrNull(idx)?.toString() ?: ""
+        
+        val filePath = viewModel.bookState.value?.filePath ?: ""
+        val isWebViewBook = filePath.endsWith(".fb2", true) || 
+                           filePath.endsWith(".fb2.zip", true) || 
+                           filePath.endsWith(".zip", true) ||
+                           filePath.endsWith(".epub", true)
+        
+        if (isWebViewBook || pageText.startsWith("WEBVIEW_CONTENT_")) {
+            val fullText = viewModel.getContentText()
+            if (fullText.isEmpty()) return ""
+            
+            val locator = try { getCurrentOrFallbackLocator() } catch (e: Exception) { null }
+            val progression = locator?.locations?.progression ?: 0.0
+            
+            val startIdx = (progression * fullText.length).toInt().coerceIn(0, fullText.length)
+            val endIdx = (startIdx + 2500).coerceAtMost(fullText.length)
+            val chunk = fullText.substring(startIdx, endIdx)
+            
+            val cleanChunk = android.text.Html.fromHtml(chunk, android.text.Html.FROM_HTML_MODE_LEGACY).toString()
+            return cleanChunk.trim()
+        }
+        
+        return pageText
+    }
+
     fun startOrResumeTts() {
         if (publicationSpeechSynthesizer == null) {
             val pub = com.nightread.app.readium.ReadiumEngine.getPublication()
@@ -2655,15 +2664,13 @@ class BookReaderActivity : BaseActivity() {
                 publicationSpeechSynthesizer = org.readium.r2.navigator.tts.PublicationSpeechSynthesizer(pub, androidTtsEngine!!)
             }
         }
-        val idx = viewModel.currentPage.value
-        val pageText = viewModel.pagesState.value.getOrNull(idx)?.toString() ?: ""
+        val textToSpeak = getTtsTextToSpeak()
+        if (textToSpeak.isBlank()) return
         val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this)
         val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
         publicationSpeechSynthesizer?.load(org.readium.r2.navigator.tts.PublicationSpeechSynthesizer.Configuration(rate = speed, pitch = pitch))
-        val locator = getCurrentOrFallbackLocator().copy(
-            locations = org.readium.r2.shared.publication.Locator.Locations(progression = idx.toDouble())
-        )
-        publicationSpeechSynthesizer?.play(pageText, locator)
+        val locator = getCurrentOrFallbackLocator()
+        publicationSpeechSynthesizer?.play(textToSpeak, locator)
     }
 
     private fun getCurrentOrFallbackLocator(): org.readium.r2.shared.publication.Locator {

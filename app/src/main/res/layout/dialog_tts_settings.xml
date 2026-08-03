@@ -41,7 +41,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Настройки озвучки (TTS)"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -54,7 +54,7 @@
             android:layout_centerVertical="true"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_close_clear_cancel"
-            app:tint="#A0A0B0" />
+            app:tint="@color/text_secondary" />
     </RelativeLayout>
 
     <!-- Controls Container -->
@@ -72,7 +72,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Язык озвучки:"
-            android:textColor="#E0E0E0"
+            android:textColor="@color/text_primary"
             android:textSize="14sp"
             android:textStyle="bold"
             android:layout_marginBottom="6dp" />
@@ -85,6 +85,7 @@
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
             android:spinnerMode="dropdown"
+            android:popupBackground="@color/bg_card"
             android:layout_marginBottom="16dp" />
 
         <!-- Voice Selection -->
@@ -93,7 +94,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Голос озвучки:"
-            android:textColor="#E0E0E0"
+            android:textColor="@color/text_primary"
             android:textSize="14sp"
             android:textStyle="bold"
             android:layout_marginBottom="6dp" />
@@ -106,6 +107,7 @@
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
             android:spinnerMode="dropdown"
+            android:popupBackground="@color/bg_card"
             android:layout_marginBottom="16dp" />
 
         <!-- Speed control -->
@@ -114,7 +116,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Скорость речи: 1.0x"
-            android:textColor="#E0E0E0"
+            android:textColor="@color/text_primary"
             android:textSize="14sp"
             android:textStyle="bold"
             android:layout_marginBottom="6dp" />
@@ -133,7 +135,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Высота голоса: 1.0x"
-            android:textColor="#E0E0E0"
+            android:textColor="@color/text_primary"
             android:textSize="14sp"
             android:textStyle="bold"
             android:layout_marginBottom="6dp" />
@@ -152,7 +154,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Непрерывное чтение страниц"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_primary"
             android:textSize="14sp"
             android:checked="true" />
     </LinearLayout>
@@ -179,7 +181,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Озвучка продолжается в фоновом режиме даже при заблокированном экране."
-            android:textColor="#A0A0C0"
+            android:textColor="@color/text_secondary"
             android:textSize="12sp" />
     </LinearLayout>
 
@@ -211,8 +213,8 @@
             app:cornerRadius="12dp"
             android:layout_marginStart="8dp"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:textColor="#FFFFFF"
-            app:strokeColor="#50FFFFFF" />
+            android:textColor="@color/text_primary"
+            app:strokeColor="@color/text_secondary" />
     </LinearLayout>
 
 </LinearLayout>

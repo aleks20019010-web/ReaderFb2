@@ -482,7 +482,8 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     try { tempLocalFile.delete() } catch (ignored: Exception) {}
                 }
 
-                val localFile = java.io.File(importedFolder, "$computedSha1.$ext")
+                val sanitizedFileName = computedSha1.replace("[^a-zA-Z0-9._-]".toRegex(), "_")
+                val localFile = java.io.File(importedFolder, "$sanitizedFileName.$ext")
                 localFile.writeBytes(bytes)
 
                 Log.d("BookScanner", "[MANUAL-SHA1] Calculated SHA-1: $computedSha1 for manual imported file: $fileName")
@@ -1433,7 +1434,8 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
             if (!cacheDir.exists()) {
                 cacheDir.mkdirs()
             }
-            val file = java.io.File(cacheDir, "$sha1.jpg")
+            val sanitizedSha1 = sha1.replace("[^a-zA-Z0-9._-]".toRegex(), "_")
+            val file = java.io.File(cacheDir, "$sanitizedSha1.jpg")
             java.io.FileOutputStream(file).use { out ->
                 bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out)
             }

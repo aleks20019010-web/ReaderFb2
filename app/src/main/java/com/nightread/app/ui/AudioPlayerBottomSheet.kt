@@ -20,6 +20,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.nightread.app.R
 import com.nightread.app.service.AudiobookPlaybackService
+import com.nightread.app.data.SettingsManager
 
 data class AudiobookChapter(val name: String, val startMs: Int, val durationMs: Int)
 
@@ -218,6 +219,9 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
             }
         })
 
+        val themeKey = SettingsManager.getReadingTheme(requireContext())
+        applyThemeColors(themeKey, view)
+
         // Auto-play on open if not already playing this file
         if (!AudiobookPlaybackService.isPlayingAudiobook || AudiobookPlaybackService.currentFilePath != filePath) {
             val intent = Intent(requireContext(), AudiobookPlaybackService::class.java).apply {
@@ -362,6 +366,65 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
         } catch (e: Exception) {
             0
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val dialog = dialog as? com.google.android.material.bottomsheet.BottomSheetDialog
+        val bottomSheet = dialog?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+        bottomSheet?.background = android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+    }
+
+    private fun applyThemeColors(themeKey: String, rootView: View) {
+        val isDark = themeKey == "dark" || themeKey == "amoled" || themeKey == "contrast"
+        val bgHex = when (themeKey) {
+            "light" -> "#FFFFFF"
+            "sepia" -> "#F4ECD8"
+            "dark" -> "#1A1A24"
+            "amoled" -> "#000000"
+            "contrast" -> "#0D0D0D"
+            else -> "#1A1A24"
+        }
+        val textPrimaryHex = if (isDark) "#E0E0E0" else "#2A1A36"
+        val textSecondaryHex = if (isDark) "#A0A0B0" else "#605070"
+        val accentHex = if (isDark) "#9B59B6" else "#8e44ad"
+        val accentColor = android.graphics.Color.parseColor(accentHex)
+        val primaryColor = android.graphics.Color.parseColor(textPrimaryHex)
+        val secondaryColor = android.graphics.Color.parseColor(textSecondaryHex)
+
+        try {
+            val shape = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                val density = rootView.resources.displayMetrics.density
+                val cornerRadiusValue = 24 * density
+                cornerRadii = floatArrayOf(cornerRadiusValue, cornerRadiusValue, cornerRadiusValue, cornerRadiusValue, 0f, 0f, 0f, 0f)
+                setColor(android.graphics.Color.parseColor(bgHex))
+            }
+            rootView.background = shape
+        } catch (e: Exception) {}
+
+        tvTitle.setTextColor(primaryColor)
+        tvAuthor.setTextColor(secondaryColor)
+        tvPlayerChapter.setTextColor(accentColor)
+        tvCurrentPosition.setTextColor(secondaryColor)
+        tvTotalDuration.setTextColor(secondaryColor)
+
+        btnSpeedToggle.setTextColor(accentColor)
+        btnSkipBackward.imageTintList = ColorStateList.valueOf(primaryColor)
+        btnSkipForward.imageTintList = ColorStateList.valueOf(primaryColor)
+        
+        btnSleepTimer.imageTintList = ColorStateList.valueOf(secondaryColor)
+        btnChapters.imageTintList = ColorStateList.valueOf(secondaryColor)
+
+        // SeekBar styling
+        val trackColor = android.graphics.Color.parseColor(if (isDark) "#4A3B5E" else "#D1C4E9")
+        seekBar.progressTintList = ColorStateList.valueOf(accentColor)
+        seekBar.progressBackgroundTintList = ColorStateList.valueOf(trackColor)
+        seekBar.thumbTintList = ColorStateList.valueOf(accentColor)
+
+        // Floating Action Button styling
+        fabPlayPause.backgroundTintList = ColorStateList.valueOf(accentColor)
+        fabPlayPause.imageTintList = ColorStateList.valueOf(android.graphics.Color.WHITE)
     }
 
     override fun onResume() {

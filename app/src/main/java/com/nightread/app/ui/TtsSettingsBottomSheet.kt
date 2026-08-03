@@ -59,6 +59,10 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
     private var languagesList: List<String> = emptyList()
     private var selectedLanguageCode: String = "ru"
 
+    private var themeIsDark: Boolean = true
+    private var themeTextColorHex: String = "#E0E0E0"
+    private var themeBgHex: String = "#1A1A24"
+
     private val ttsStatusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == TtsForegroundService.BROADCAST_TTS_STATUS) {
@@ -220,7 +224,7 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
         }
 
         val ctx = context ?: return
-        val langAdapter = ArrayAdapter(ctx, R.layout.spinner_item, langDisplayItems)
+        val langAdapter = ThemeAwareAdapter(ctx, R.layout.spinner_item, langDisplayItems, themeTextColorHex, themeIsDark)
         langAdapter.setDropDownViewResource(R.layout.spinner_item)
         spinnerLanguage.adapter = langAdapter
 
@@ -273,7 +277,7 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
             }
         }
 
-        val adapter = ArrayAdapter(ctx, R.layout.spinner_item, displayItems)
+        val adapter = ThemeAwareAdapter(ctx, R.layout.spinner_item, displayItems, themeTextColorHex, themeIsDark)
         adapter.setDropDownViewResource(R.layout.spinner_item)
         spinnerVoice.adapter = adapter
         if (selectedIndex < displayItems.size) {
@@ -320,6 +324,10 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
         }
         val textPrimaryHex = if (isDark) "#E0E0E0" else "#2A1A36"
 
+        themeIsDark = isDark
+        themeBgHex = bgHex
+        themeTextColorHex = textPrimaryHex
+
         try {
             rootView.setBackgroundColor(android.graphics.Color.parseColor(bgHex))
         } catch (e: Exception) {}
@@ -332,6 +340,58 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
         switchContinuous.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
         btnStop.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
         btnStop.strokeColor = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(textPrimaryHex))
+
+        // Programmatically style spinner backgrounds and dropdown popups
+        val spinnerBgColor = if (isDark) "#2A1A3E" else "#F0EAE1"
+        val spinnerStrokeColor = if (isDark) "#9B59B6" else "#D4AF37"
+        val popupBgColor = if (isDark) "#2A1A3E" else "#FFFFFF"
+
+        val spinnerBg = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = 18f
+            setColor(android.graphics.Color.parseColor(spinnerBgColor))
+            setStroke(3, android.graphics.Color.parseColor(spinnerStrokeColor))
+        }
+        spinnerLanguage.background = spinnerBg
+        spinnerVoice.background = spinnerBg
+
+        val popupBg = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = 18f
+            setColor(android.graphics.Color.parseColor(popupBgColor))
+            setStroke(3, android.graphics.Color.parseColor(spinnerStrokeColor))
+        }
+        spinnerLanguage.setPopupBackgroundDrawable(popupBg)
+        spinnerVoice.setPopupBackgroundDrawable(popupBg)
+    }
+
+    private class ThemeAwareAdapter(
+        context: Context,
+        resource: Int,
+        objects: List<String>,
+        private val textColorHex: String,
+        private val isDark: Boolean
+    ) : ArrayAdapter<String>(context, resource, objects) {
+
+        private val textColor = android.graphics.Color.parseColor(textColorHex)
+        private val dropdownBgColor = android.graphics.Color.parseColor(if (isDark) "#2A1A3E" else "#FFFFFF")
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val view = super.getView(position, convertView, parent)
+            if (view is TextView) {
+                view.setTextColor(textColor)
+            }
+            return view
+        }
+
+        override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val view = super.getDropDownView(position, convertView, parent)
+            if (view is TextView) {
+                view.setTextColor(textColor)
+                view.setBackgroundColor(dropdownBgColor)
+            }
+            return view
+        }
     }
 
     private fun updatePlayPauseButtonUI() {
