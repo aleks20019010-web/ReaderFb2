@@ -80,6 +80,10 @@ class BookReaderActivity : BaseActivity() {
     private lateinit var pbFullscreenProgress: ProgressBar
     private var isDraggingVerticalCenter = false
     private val hideFullscreenHUDRunnable = Runnable { hideFullscreenHUD() }
+    private val hideIndicatorsRunnable = Runnable {
+        if (::tvBrightness.isInitialized) tvBrightness.visibility = View.GONE
+        if (::tvWarmth.isInitialized) tvWarmth.visibility = View.GONE
+    }
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var currentTextPaint: android.text.TextPaint? = null
     private var isAntiGlareActive = false
@@ -483,10 +487,6 @@ class BookReaderActivity : BaseActivity() {
         var isDraggingVerticalRight = false
         var isHorizontalSwipeLocked = false
         var initialGestureValue = 0f
-        val hideIndicatorsRunnable = Runnable {
-            tvBrightness.visibility = View.GONE
-            tvWarmth.visibility = View.GONE
-        }
 
         val gestureTouchListener = View.OnTouchListener { view, event ->
             val screenWidth = view.width.toFloat()
@@ -843,22 +843,31 @@ class BookReaderActivity : BaseActivity() {
     }
 
     private fun onReadiumLocatorChanged(locator: org.readium.r2.shared.publication.Locator, pub: org.readium.r2.shared.publication.Publication) {
-        val progression = locator.locations.progression ?: 0.0
-        val percent = (progression * 100).toInt()
+        val totalProgression = locator.locations.totalProgression ?: run {
+            val chapterIdx = pub.readingOrder.indexOfFirst { it.href == locator.href }.coerceAtLeast(0)
+            val totalChapters = pub.readingOrder.size.coerceAtLeast(1)
+            val chapterProg = locator.locations.progression ?: 0.0
+            (chapterIdx.toDouble() + chapterProg) / totalChapters.toDouble()
+        }
+        val percent = (totalProgression * 100).toInt().coerceIn(0, 100)
 
         findViewById<TextView>(R.id.tvPageIndicator)?.text = "Прогресс: $percent%"
         findViewById<TextView>(R.id.tvFullscreenProgressLabel)?.text = "Прогресс: $percent%"
 
         val seekBar = findViewById<SeekBar>(R.id.seekBar)
         if (!isUserTrackingSeekBar && seekBar != null) {
+            seekBar.max = 100
             seekBar.progress = percent
         }
 
-        findViewById<ProgressBar>(R.id.pbFullscreenProgress)?.progress = percent
+        findViewById<ProgressBar>(R.id.pbFullscreenProgress)?.let {
+            it.max = 100
+            it.progress = percent
+        }
 
         val book = viewModel.bookState.value
         if (book != null) {
-            viewModel.updateProgress(progression)
+            viewModel.updateProgress(totalProgression)
         }
     }
 
@@ -1245,7 +1254,7 @@ class BookReaderActivity : BaseActivity() {
         lastPageAnimationIdx = newPageIdx
     }
 
-    private fun toggleToolbars() {
+    fun toggleToolbars() {
         isBarsVisible = !isBarsVisible
         
         val duration = 250L
@@ -1774,7 +1783,7 @@ class BookReaderActivity : BaseActivity() {
         navigateToOffset(pIndex * 100)
     }
 
-    private fun toggleBookmark() {
+    fun toggleBookmark() {
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
         val pageIdx = viewModel.currentPage.value
         val filePath = viewModel.bookState.value?.filePath ?: ""
@@ -2454,6 +2463,111 @@ class BookReaderActivity : BaseActivity() {
             androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
         }
         androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(targetMode)
+    }
+
+    fun onReaderSwipeLeft() {
+        val currentPage = viewModel.currentPage.value
+        val totalPages = viewModel.pagesState.value.size
+        if (readiumReaderFragment != null && readiumReaderFragment?.isVisible == true) {
+            readiumReaderFragment?.goForward()
+        } else if (currentPage < totalPages - 1) {
+            viewModel.setCurrentPage(currentPage + 1)
+        }
+    }
+
+    fun onReaderSwipeRight() {
+        val currentPage = viewModel.currentPage.value
+        if (readiumReaderFragment != null && readiumReaderFragment?.isVisible == true) {
+            readiumReaderFragment?.goBackward()
+        } else if (currentPage > 0) {
+            viewModel.setCurrentPage(currentPage - 1)
+        }
+    }
+
+    fun onReaderTapLeft() {
+        onReaderSwipeRight()
+    }
+
+    fun onReaderTapRight() {
+        onReaderSwipeLeft()
+    }
+
+    fun adjustBrightnessByDrag(distanceY: Float) {
+        val screenHeight = resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1000f)
+        val delta = distanceY / screenHeight
+        val lp = window.attributes
+        val current = if (lp.screenBrightness < 0) 0.5f else lp.screenBrightness
+        val newBrightness = (current + delta).coerceIn(0.01f, 1.0f)
+        lp.screenBrightness = newBrightness
+        window.attributes = lp
+        com.nightread.app.data.SettingsManager.setBrightness(this, newBrightness)
+
+        tvBrightness.visibility = View.VISIBLE
+        tvBrightness.text = "☀ ${(newBrightness * 100).toInt()}%"
+        handler.removeCallbacks(hideIndicatorsRunnable)
+    }
+
+    fun adjustWarmthByDrag(distanceY: Float) {
+        val screenHeight = resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1000f)
+        val currentIntensity = com.nightread.app.data.SettingsManager.getAmberFilterIntensity(this).toFloat()
+        val delta = (distanceY / screenHeight) * 100f
+        val newIntensity = (currentIntensity + delta).coerceIn(0f, 100f).toInt()
+        com.nightread.app.data.SettingsManager.setAmberFilterEnabled(this, true)
+        com.nightread.app.data.SettingsManager.setAmberFilterIntensity(this, newIntensity)
+        applyScreenSettings()
+
+        tvWarmth.visibility = View.VISIBLE
+        tvWarmth.text = "🌡 $newIntensity%"
+        handler.removeCallbacks(hideIndicatorsRunnable)
+    }
+
+    fun onGestureEnded() {
+        handler.postDelayed(hideIndicatorsRunnable, 1000)
+    }
+
+    fun getOpenedBookTitle(): String {
+        return viewModel.bookState.value?.title ?: findViewById<TextView>(R.id.tvTitle)?.text?.toString() ?: "NightRead"
+    }
+
+    fun startOrResumeTts() {
+        val title = getOpenedBookTitle()
+        val idx = viewModel.currentPage.value
+        val pageText = viewModel.pagesState.value.getOrNull(idx)?.toString() ?: ""
+        val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this)
+        val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
+
+        val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
+            action = com.nightread.app.service.TtsForegroundService.ACTION_START
+            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, pageText)
+            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
+            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
+            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
+        }
+        startService(intent)
+    }
+
+    fun pauseTts() {
+        val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
+            action = com.nightread.app.service.TtsForegroundService.ACTION_PAUSE
+        }
+        startService(intent)
+    }
+
+    fun stopTts() {
+        val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
+            action = com.nightread.app.service.TtsForegroundService.ACTION_STOP
+        }
+        startService(intent)
+    }
+
+    fun readNextTtsChunk() {
+        onReaderSwipeLeft()
+        handler.postDelayed({ startOrResumeTts() }, 300)
+    }
+
+    fun readPreviousTtsChunk() {
+        onReaderSwipeRight()
+        handler.postDelayed({ startOrResumeTts() }, 300)
     }
 
 }

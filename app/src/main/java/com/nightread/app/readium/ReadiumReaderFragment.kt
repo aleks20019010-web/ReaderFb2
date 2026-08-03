@@ -94,8 +94,32 @@ class ReadiumReaderFragment : Fragment() {
                 onExternalLinkListener?.invoke(url)
             }
             override fun onTap(point: PointF): Boolean {
-                onTapListener?.invoke()
-                return true
+                val containerView = view ?: return false
+                val viewWidth = containerView.width.toFloat().coerceAtLeast(1000f)
+                val viewHeight = containerView.height.toFloat().coerceAtLeast(1800f)
+
+                val normX = if (point.x > 1.0f) point.x / viewWidth else point.x
+                val normY = if (point.y > 1.0f) point.y / viewHeight else point.y
+
+                val act = activity as? com.nightread.app.ui.BookReaderActivity
+
+                if (normX > 0.75f && normY < 0.20f) {
+                    act?.toggleBookmark()
+                    return true
+                } else if (normX < 0.25f) {
+                    if (!goBackward()) {
+                        act?.onReaderTapLeft()
+                    }
+                    return true
+                } else if (normX > 0.75f) {
+                    if (!goForward()) {
+                        act?.onReaderTapRight()
+                    }
+                    return true
+                } else {
+                    onTapListener?.invoke()
+                    return true
+                }
             }
         }
 
@@ -171,6 +195,14 @@ class ReadiumReaderFragment : Fragment() {
 
     fun go(locator: Locator): Boolean {
         return navigatorFragment?.go(locator, animated = true) ?: false
+    }
+
+    fun goForward(): Boolean {
+        return navigatorFragment?.goForward(animated = true) ?: false
+    }
+
+    fun goBackward(): Boolean {
+        return navigatorFragment?.goBackward(animated = true) ?: false
     }
 
     suspend fun applyDecorations(decorations: List<Decoration>, group: String) {

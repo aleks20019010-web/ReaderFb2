@@ -148,6 +148,81 @@ class PageFragment : Fragment() {
             }
         }
 
+        val gestureDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapConfirmed(e: android.view.MotionEvent): Boolean {
+                val width = webView.width.toFloat()
+                val height = webView.height.toFloat()
+                if (width <= 0 || height <= 0) return false
+
+                val x = e.x
+                val y = e.y
+                val act = activity as? BookReaderActivity ?: return false
+
+                if (x > width * 0.75f && y < height * 0.20f) {
+                    act.toggleBookmark()
+                    return true
+                }
+                if (x < width * 0.25f) {
+                    act.onReaderTapLeft()
+                    return true
+                }
+                if (x > width * 0.75f) {
+                    act.onReaderTapRight()
+                    return true
+                }
+                act.toggleToolbars()
+                return true
+            }
+
+            override fun onFling(e1: android.view.MotionEvent?, e2: android.view.MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                if (e1 == null) return false
+                val dx = e2.x - e1.x
+                val dy = e2.y - e1.y
+                val act = activity as? BookReaderActivity ?: return false
+
+                if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 80 && Math.abs(velocityX) > 150) {
+                    if (dx < 0) {
+                        act.onReaderSwipeLeft()
+                        return true
+                    } else {
+                        act.onReaderSwipeRight()
+                        return true
+                    }
+                }
+                return false
+            }
+
+            override fun onScroll(e1: android.view.MotionEvent?, e2: android.view.MotionEvent, distanceX: Float, distanceY: Float): Boolean {
+                if (e1 == null) return false
+                val act = activity as? BookReaderActivity ?: return false
+                val width = webView.width.toFloat()
+                if (width <= 0) return false
+
+                val startX = e1.x
+                if (startX < width * 0.35f && Math.abs(distanceY) > Math.abs(distanceX) * 1.5f) {
+                    act.adjustBrightnessByDrag(distanceY)
+                    return true
+                }
+                if (startX > width * 0.65f && Math.abs(distanceY) > Math.abs(distanceX) * 1.5f) {
+                    act.adjustWarmthByDrag(distanceY)
+                    return true
+                }
+                return false
+            }
+        })
+
+        webView.setOnTouchListener { _, event ->
+            val handled = gestureDetector.onTouchEvent(event)
+            if (handled) {
+                true
+            } else {
+                if (event.action == android.view.MotionEvent.ACTION_UP || event.action == android.view.MotionEvent.ACTION_CANCEL) {
+                    (activity as? BookReaderActivity)?.onGestureEnded()
+                }
+                false
+            }
+        }
+
         // Calculate exact font size and line height in physical pixels
         val paint = android.text.TextPaint().apply {
             isAntiAlias = true
@@ -241,18 +316,35 @@ class PageFragment : Fragment() {
                         font-weight: ${SettingsManager.getFontWeightAsInt(context)};
                         letter-spacing: ${letterSpacing}em;
                         text-align: justify;
+                        text-align-last: left;
+                        -webkit-text-align-last: left;
                         -webkit-hyphens: auto;
+                        -moz-hyphens: auto;
+                        -ms-hyphens: auto;
                         hyphens: auto;
                         overflow: hidden;
                         word-wrap: break-word;
+                        word-break: break-word;
+                        overflow-wrap: break-word;
                         -webkit-user-select: text;
                         user-select: text;
                         -webkit-touch-callout: default;
                     }
                     
                     p {
-                        margin: 0;
+                        margin-top: 0;
+                        margin-bottom: 0.15em;
                         padding: 0;
+                        text-indent: 1.25em;
+                        text-align: justify;
+                        text-align-last: left;
+                        -webkit-text-align-last: left;
+                        -webkit-hyphens: auto;
+                        -moz-hyphens: auto;
+                        -ms-hyphens: auto;
+                        hyphens: auto;
+                        word-break: break-word;
+                        overflow-wrap: break-word;
                     }
                     
                     a {

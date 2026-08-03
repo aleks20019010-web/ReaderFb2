@@ -113,6 +113,15 @@
             app:tint="@color/icon_tint" />
 
         <ImageButton
+            android:id="@+id/btnTts"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_tts"
+            app:tint="@color/icon_tint"
+            android:contentDescription="Озвучка TTS" />
+
+        <ImageButton
             android:id="@+id/btnSettings"
             android:layout_width="48dp"
             android:layout_height="48dp"

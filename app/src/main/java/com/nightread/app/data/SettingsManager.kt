@@ -51,6 +51,8 @@ object SettingsManager {
     const val KEY_PARAGRAPH_INDENT = "paragraph_indent"
     const val KEY_SILENT_MODE_ENABLED = "silent_mode_enabled"
     const val KEY_SORT_OPTION = "library_sort_option"
+    const val KEY_TTS_SPEED = "tts_speed"
+    const val KEY_TTS_PITCH = "tts_pitch"
 
     const val SORT_TITLE_ASC = "TITLE_ASC"
     const val SORT_TITLE_DESC = "TITLE_DESC"
@@ -707,6 +709,24 @@ object SettingsManager {
 
     fun setSortOption(context: Context, option: String) {
         getPrefs(context).edit().putString(KEY_SORT_OPTION, option).apply()
+        notifyChanged()
+    }
+
+    fun getTtsSpeed(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_TTS_SPEED, 1.0f)
+    }
+
+    fun setTtsSpeed(context: Context, speed: Float) {
+        getPrefs(context).edit().putFloat(KEY_TTS_SPEED, speed).apply()
+        notifyChanged()
+    }
+
+    fun getTtsPitch(context: Context): Float {
+        return getPrefs(context).getFloat(KEY_TTS_PITCH, 1.0f)
+    }
+
+    fun setTtsPitch(context: Context, pitch: Float) {
+        getPrefs(context).edit().putFloat(KEY_TTS_PITCH, pitch).apply()
         notifyChanged()
     }
 

@@ -156,10 +156,10 @@ object Fb2ToEpubConverter {
 
             // 3. OEBPS/style.css
             zos.putNextEntry(ZipEntry("OEBPS/style.css"))
-            val css = "body { font-family: sans-serif; margin: 5%; line-height: 1.6; }\n" +
-                    "h1, h2, h3 { text-align: center; margin-top: 1.5em; }\n" +
-                    "p { text-indent: 1.2em; margin-bottom: 0.5em; text-align: justify; }\n" +
-                    "blockquote { font-style: italic; margin: 1em 2em; }\n" +
+            val css = "html, body { font-family: sans-serif; margin: 0; padding: 0 4px; line-height: 1.5; text-align: justify; text-align-last: left; -webkit-text-align-last: left; -webkit-hyphens: auto; -moz-hyphens: auto; -ms-hyphens: auto; hyphens: auto; word-break: break-word; overflow-wrap: break-word; }\n" +
+                    "h1, h2, h3 { text-align: center; margin-top: 1.2em; margin-bottom: 0.6em; }\n" +
+                    "p { text-indent: 1.25em; margin-top: 0; margin-bottom: 0.15em; padding: 0; text-align: justify; -webkit-hyphens: auto; hyphens: auto; word-break: break-word; overflow-wrap: break-word; }\n" +
+                    "blockquote { font-style: italic; margin: 0.8em 1.2em; }\n" +
                     "img { max-width: 100%; height: auto; display: block; margin: 1em auto; }\n"
             zos.write(css.toByteArray(Charsets.UTF_8))
             zos.closeEntry()

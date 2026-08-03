@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_dark_purple_bottom_sheet"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_sheet_handle" />
+
+    <TextView
+        android:id="@+id/tvTtsBookTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:text="Озвучка книги"
+        android:layout_marginBottom="20dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:layout_marginBottom="24dp">
+
+        <ImageButton
+            android:id="@+id/btnTtsPrev"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_media_prev_custom"
+            app:tint="#FFFFFF"
+            android:contentDescription="Предыдущая фраза" />
+
+        <ImageButton
+            android:id="@+id/btnTtsPlayPause"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_marginHorizontal="20dp"
+            android:background="@drawable/bg_button_circle"
+            android:src="@drawable/ic_media_play_custom"
+            app:tint="#FFFFFF"
+            android:contentDescription="Воспроизведение / Пауза" />
+
+        <ImageButton
+            android:id="@+id/btnTtsNext"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_media_next_custom"
+            app:tint="#FFFFFF"
+            android:contentDescription="Следующая фраза" />
+
+        <ImageButton
+            android:id="@+id/btnTtsStop"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:layout_marginStart="16dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_media_stop_custom"
+            app:tint="#FF5252"
+            android:contentDescription="Остановить" />
+
+    </LinearLayout>
+
+    <!-- Speed controls -->
+    <TextView
+        android:id="@+id/tvTtsSpeedLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#E0E0E0"
+        android:textSize="14sp"
+        android:text="Скорость речи: 1.0x"
+        android:layout_marginBottom="6dp" />
+
+    <SeekBar
+        android:id="@+id/seekBarTtsSpeed"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:progressTint="@color/accent"
+        android:thumbTint="@color/accent"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Pitch controls -->
+    <TextView
+        android:id="@+id/tvTtsPitchLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#E0E0E0"
+        android:textSize="14sp"
+        android:text="Тон голоса: 1.0x"
+        android:layout_marginBottom="6dp" />
+
+    <SeekBar
+        android:id="@+id/seekBarTtsPitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:progressTint="@color/accent"
+        android:thumbTint="@color/accent"
+        android:layout_marginBottom="16dp" />
+
+</LinearLayout>
