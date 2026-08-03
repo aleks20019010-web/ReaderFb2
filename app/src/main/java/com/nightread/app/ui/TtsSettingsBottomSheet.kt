@@ -228,10 +228,14 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
         spinnerVoice.adapter = adapter
         if (selectedIndex < displayItems.size) {
             spinnerVoice.setSelection(selectedIndex)
+            tvVoiceLabel.text = "Голос озвучки: ${displayItems[selectedIndex]}"
         }
 
         spinnerVoice.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (displayItems.isNotEmpty() && position in displayItems.indices) {
+                    tvVoiceLabel.text = "Голос озвучки: ${displayItems[position]}"
+                }
                 if (voiceList.isNotEmpty() && position in voiceList.indices) {
                     val newVoice = voiceList[position].name
                     if (newVoice != selectedVoiceName) {

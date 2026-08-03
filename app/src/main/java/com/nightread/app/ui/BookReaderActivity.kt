@@ -670,8 +670,6 @@ class BookReaderActivity : BaseActivity() {
             true
         }
 
-        findViewById<View>(R.id.touchInterceptorView)?.setOnTouchListener(gestureTouchListener)
-
         lifecycleScope.launch {
             com.nightread.app.data.SettingsManager.settingsChanged.collectLatest {
                 applyScreenSettings()
@@ -1995,20 +1993,13 @@ class BookReaderActivity : BaseActivity() {
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    val currentPage = viewModel.currentPage.value
-                    val totalPages = viewModel.pagesState.value.size
-                    if (currentPage < totalPages - 1) {
-                        viewModel.setCurrentPage(currentPage + 1)
-                    }
+                    onReaderSwipeLeft()
                 }
                 return true
             }
             KeyEvent.KEYCODE_VOLUME_UP -> {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    val currentPage = viewModel.currentPage.value
-                    if (currentPage > 0) {
-                        viewModel.setCurrentPage(currentPage - 1)
-                    }
+                    onReaderSwipeRight()
                 }
                 return true
             }
@@ -2019,18 +2010,11 @@ class BookReaderActivity : BaseActivity() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                val currentPage = viewModel.currentPage.value
-                val totalPages = viewModel.pagesState.value.size
-                if (currentPage < totalPages - 1) {
-                    viewModel.setCurrentPage(currentPage + 1)
-                }
+                onReaderSwipeLeft()
                 return true
             }
             KeyEvent.KEYCODE_VOLUME_UP -> {
-                val currentPage = viewModel.currentPage.value
-                if (currentPage > 0) {
-                    viewModel.setCurrentPage(currentPage - 1)
-                }
+                onReaderSwipeRight()
                 return true
             }
         }
