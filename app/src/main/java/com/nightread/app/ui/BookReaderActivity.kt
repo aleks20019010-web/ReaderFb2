@@ -507,6 +507,16 @@ class BookReaderActivity : BaseActivity() {
             }
         }
 
+        lifecycleScope.launch {
+            viewModel.fontSizeState.collectLatest { updatePage() }
+        }
+        lifecycleScope.launch {
+            viewModel.lineSpacingState.collectLatest { updatePage() }
+        }
+        lifecycleScope.launch {
+            viewModel.fontFamilyState.collectLatest { updatePage() }
+        }
+
         startSilentModeTracker()
 
 
@@ -660,7 +670,7 @@ class BookReaderActivity : BaseActivity() {
             true
         }
 
-        findViewById<View>(R.id.readiumContainerView)?.setOnTouchListener(gestureTouchListener)
+        findViewById<View>(R.id.touchInterceptorView)?.setOnTouchListener(gestureTouchListener)
 
         lifecycleScope.launch {
             com.nightread.app.data.SettingsManager.settingsChanged.collectLatest {

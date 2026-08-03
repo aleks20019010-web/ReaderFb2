@@ -156,11 +156,12 @@ object Fb2ToEpubConverter {
 
             // 3. OEBPS/style.css
             zos.putNextEntry(ZipEntry("OEBPS/style.css"))
-            val css = "html, body { font-family: sans-serif; margin: 0; padding: 0 4px; line-height: 1.5; text-align: justify; text-align-last: left; -webkit-text-align-last: left; -webkit-hyphens: auto; -moz-hyphens: auto; -ms-hyphens: auto; hyphens: auto; word-break: break-word; overflow-wrap: break-word; }\n" +
+            val css = "html, body { font-family: sans-serif; margin: 0; padding: 0; line-height: 1.5; text-align: justify; text-align-last: left; -webkit-text-align-last: left; -webkit-hyphens: auto; -moz-hyphens: auto; -ms-hyphens: auto; hyphens: auto; word-break: normal; overflow-wrap: break-word; }\n" +
                     "h1, h2, h3 { text-align: center; margin-top: 1.2em; margin-bottom: 0.6em; }\n" +
-                    "p { text-indent: 1.25em; margin-top: 0; margin-bottom: 0.15em; padding: 0; text-align: justify; -webkit-hyphens: auto; hyphens: auto; word-break: break-word; overflow-wrap: break-word; }\n" +
+                    "p { text-indent: 1.25em; margin-top: 0; margin-bottom: 0.2em; padding: 0; text-align: justify; text-align-last: left; -webkit-text-align-last: left; -webkit-hyphens: auto; -moz-hyphens: auto; -ms-hyphens: auto; hyphens: auto; word-break: normal; overflow-wrap: break-word; }\n" +
                     "blockquote { font-style: italic; margin: 0.8em 1.2em; }\n" +
-                    "img { max-width: 100%; height: auto; display: block; margin: 1em auto; }\n"
+                    "img { max-width: 100%; height: auto; display: block; margin: 1em auto; }\n" +
+                    ".tts-highlight { background-color: rgba(255, 235, 59, 0.4); border-radius: 4px; }\n"
             zos.write(css.toByteArray(Charsets.UTF_8))
             zos.closeEntry()
 
@@ -259,7 +260,7 @@ object Fb2ToEpubConverter {
                         "p" -> sb.append("<p>").append(parseElementToHtml(elem)).append("</p>\n")
                         "title" -> sb.append("<h2>").append(parseElementToHtml(elem)).append("</h2>\n")
                         "subtitle" -> sb.append("<h3>").append(parseElementToHtml(elem)).append("</h3>\n")
-                        "empty-line" -> sb.append("<br/>\n")
+                        "empty-line" -> sb.append("<div style=\"height: 0.5em; margin: 0;\"></div>\n")
                         "emphasis" -> sb.append("<em>").append(parseElementToHtml(elem)).append("</em>")
                         "strong" -> sb.append("<strong>").append(parseElementToHtml(elem)).append("</strong>")
                         "cite" -> sb.append("<blockquote>").append(parseElementToHtml(elem)).append("</blockquote>\n")
