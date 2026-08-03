@@ -186,11 +186,11 @@ class AudiobooksFragment : Fragment() {
                 if (dir.exists()) {
                     dir.walkTopDown().forEach { file ->
                         if (file.isFile && isAudioFile(file.absolutePath, file.length())) {
-                            val title = file.nameWithoutExtension
+                            val (title, author) = extractAudioMetadata(file.absolutePath)
                             val entity = BookEntity(
                                 sha1 = getFileSha1(file),
                                 title = title,
-                                author = "Аудиокнига",
+                                author = author,
                                 category = "Audiobook",
                                 filePath = file.absolutePath,
                                 fileSize = file.length(),
@@ -237,10 +237,11 @@ class AudiobooksFragment : Fragment() {
                         continue
                     }
 
+                    val (title, author) = extractAudioMetadata(destFile.absolutePath)
                     val entity = BookEntity(
                         sha1 = getFileSha1(destFile),
-                        title = destFile.nameWithoutExtension,
-                        author = "Импортированная аудиокнига",
+                        title = title,
+                        author = author,
                         category = "Audiobook",
                         filePath = destFile.absolutePath,
                         fileSize = destFile.length(),
@@ -257,6 +258,24 @@ class AudiobooksFragment : Fragment() {
                 allAudiobooks = allAudio
                 updateListUI(allAudio)
             }
+        }
+    }
+
+    private fun extractAudioMetadata(path: String): Pair<String, String> {
+        return try {
+            val retriever = android.media.MediaMetadataRetriever()
+            retriever.setDataSource(path)
+            val t = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)
+            val a = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_AUTHOR)
+            retriever.release()
+            val file = File(path)
+            val title = if (!t.isNullOrBlank()) t else file.nameWithoutExtension
+            val author = if (!a.isNullOrBlank()) a else "Аудиокнига"
+            Pair(title, author)
+        } catch (e: Exception) {
+            val file = File(path)
+            Pair(file.nameWithoutExtension, "Аудиокнига")
         }
     }
 

@@ -112,6 +112,8 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
         }
 
         val context = requireContext()
+        applyThemeColors(SettingsManager.getReadingTheme(context), view)
+
         val savedSpeed = SettingsManager.getTtsSpeed(context)
         val savedPitch = SettingsManager.getTtsPitch(context)
         selectedVoiceName = SettingsManager.getTtsVoice(context)
@@ -256,6 +258,29 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
 
     private fun updatePitchText(pitch: Float) {
         tvPitchLabel.text = String.format("Высота голоса: %.1fx", pitch)
+    }
+
+    private fun applyThemeColors(themeKey: String, rootView: View) {
+        val isDark = themeKey == "dark" || themeKey == "amoled" || themeKey == "contrast"
+        val bgHex = when (themeKey) {
+            "light" -> "#FFFFFF"
+            "sepia" -> "#F4ECD8"
+            "dark" -> "#1A1A24"
+            "amoled" -> "#000000"
+            "contrast" -> "#0D0D0D"
+            else -> "#1A1A24"
+        }
+        val textPrimaryHex = if (isDark) "#E0E0E0" else "#2A1A36"
+
+        try {
+            rootView.setBackgroundColor(android.graphics.Color.parseColor(bgHex))
+        } catch (e: Exception) {}
+
+        rootView.findViewById<TextView>(R.id.tvTtsSettingsTitle)?.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
+        tvVoiceLabel.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
+        tvSpeedLabel.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
+        tvPitchLabel.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
+        switchContinuous.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
     }
 
     private fun updatePlayPauseButtonUI() {

@@ -326,7 +326,7 @@ class PageFragment : Fragment() {
                         hyphens: auto;
                         overflow: hidden;
                         word-wrap: break-word;
-                        word-break: break-word;
+                        word-break: normal;
                         overflow-wrap: break-word;
                         -webkit-user-select: text;
                         user-select: text;
@@ -345,7 +345,7 @@ class PageFragment : Fragment() {
                         -moz-hyphens: auto;
                         -ms-hyphens: auto;
                         hyphens: auto;
-                        word-break: break-word;
+                        word-break: normal;
                         overflow-wrap: break-word;
                     }
                     
@@ -361,6 +361,11 @@ class PageFragment : Fragment() {
                         font-size: 1.4em;
                         margin-top: 1.2em;
                         margin-bottom: 1.2em;
+                    }
+
+                    .tts-highlight {
+                        background-color: rgba(255, 235, 59, 0.4);
+                        border-radius: 4px;
                     }
                 </style>
                 <script type="text/javascript">
@@ -382,6 +387,51 @@ class PageFragment : Fragment() {
                             }
                         }
                     });
+
+                    function highlightTtsText(start, end) {
+                        clearTtsHighlight();
+                        if (start < 0 || end <= start) return;
+                        let charCount = 0;
+                        let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+                        let node;
+                        let startNode = null, startOffset = 0;
+                        let endNode = null, endOffset = 0;
+                        while (node = walker.nextNode()) {
+                            let nodeLen = node.nodeValue.length;
+                            if (startNode === null && charCount + nodeLen >= start) {
+                                startNode = node;
+                                startOffset = start - charCount;
+                            }
+                            if (endNode === null && charCount + nodeLen >= end) {
+                                endNode = node;
+                                endOffset = end - charCount;
+                                break;
+                            }
+                            charCount += nodeLen;
+                        }
+                        if (startNode && endNode) {
+                            try {
+                                let range = document.createRange();
+                                range.setStart(startNode, startOffset);
+                                range.setEnd(endNode, endOffset);
+                                let span = document.createElement('span');
+                                span.className = 'tts-highlight';
+                                range.surroundContents(span);
+                                span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            } catch (e) {}
+                        }
+                    }
+
+                    function clearTtsHighlight() {
+                        let highlights = document.querySelectorAll('.tts-highlight');
+                        highlights.forEach(span => {
+                            let parent = span.parentNode;
+                            if (parent) {
+                                parent.replaceChild(document.createTextNode(span.textContent), span);
+                                parent.normalize();
+                            }
+                        });
+                    }
                 </script>
             </head>
             <body>
@@ -497,6 +547,14 @@ class PageFragment : Fragment() {
             })();
         """.trimIndent()
         wv.evaluateJavascript(js, null)
+    }
+
+    fun highlightTtsRange(start: Int, end: Int) {
+        mWebView?.evaluateJavascript("javascript:highlightTtsText($start, $end);", null)
+    }
+
+    fun clearTtsHighlight() {
+        mWebView?.evaluateJavascript("javascript:clearTtsHighlight();", null)
     }
 
     companion object {

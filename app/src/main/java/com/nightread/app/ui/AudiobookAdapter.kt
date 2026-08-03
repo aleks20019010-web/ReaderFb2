@@ -43,9 +43,19 @@ class AudiobookAdapter(
 
         val sizeMb = if (book.fileSize > 0) String.format("%.1f MB", book.fileSize / (1024f * 1024f)) else "Аудио"
         val durMs = if (book.totalCharacters > 0) book.totalCharacters else getDurationMs(book.filePath)
+        val currentPos = book.currentProgressChar
         val formattedDur = if (durMs > 0) formatMs(durMs) else null
+        val formattedCurr = if (currentPos > 0) formatMs(currentPos) else null
 
-        holder.tvDuration.text = if (formattedDur != null) "$formattedDur • $sizeMb" else sizeMb
+        val progressStr = if (formattedCurr != null && formattedDur != null) {
+            "$formattedCurr / $formattedDur"
+        } else if (formattedDur != null) {
+            formattedDur
+        } else {
+            "Аудио"
+        }
+
+        holder.tvDuration.text = "$progressStr • $sizeMb"
 
         holder.itemView.setOnClickListener { onItemClick(book) }
         holder.btnPlay.setOnClickListener { onItemClick(book) }

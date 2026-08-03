@@ -92,6 +92,7 @@ class AudiobookPlaybackService : Service() {
                     if (Math.abs(pos - lastSavedPos) >= 5000) {
                         lastSavedPos = pos
                         saveProgress(pos, dur)
+                        updateNotification(true)
                     }
                     handler.postDelayed(this, 1000)
                 }
@@ -355,6 +356,18 @@ class AudiobookPlaybackService : Service() {
         mediaSession?.setMetadata(metadataBuilder.build())
     }
 
+    private fun formatMs(ms: Int): String {
+        val totalSeconds = ms / 1000
+        val seconds = totalSeconds % 60
+        val minutes = (totalSeconds / 60) % 60
+        val hours = totalSeconds / 3600
+        return if (hours > 0) {
+            String.format("%d ч %02d мин", hours, minutes)
+        } else {
+            String.format("%02d:%02d", minutes, seconds)
+        }
+    }
+
     private fun buildNotification(isPlaying: Boolean): Notification {
         val openAppIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -383,10 +396,16 @@ class AudiobookPlaybackService : Service() {
             NotificationCompat.Action.Builder(R.drawable.ic_media_play_custom, "Воспроизведение", pendingPlay).build()
         }
 
+        val player = mediaPlayer
+        val pos = player?.currentPosition ?: 0
+        val dur = player?.duration ?: 0
+        val timeInfo = if (dur > 0) "${formatMs(pos)} / ${formatMs(dur)}" else ""
+        val contentText = if (timeInfo.isNotEmpty()) "$author • $timeInfo" else author
+
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_headphones)
             .setContentTitle(title)
-            .setContentText(author)
+            .setContentText(contentText)
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
                     .setShowActionsInCompactView(0, 1, 2)

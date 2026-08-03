@@ -1564,6 +1564,26 @@ class BookReaderActivity : BaseActivity() {
         }
     }
 
+    private val ttsStatusReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == com.nightread.app.service.TtsForegroundService.BROADCAST_TTS_STATUS) {
+                val isSpeaking = intent.getBooleanExtra(com.nightread.app.service.TtsForegroundService.EXTRA_IS_SPEAKING, false)
+                val start = intent.getIntExtra(com.nightread.app.service.TtsForegroundService.EXTRA_START_IDX, -1)
+                val end = intent.getIntExtra(com.nightread.app.service.TtsForegroundService.EXTRA_END_IDX, -1)
+
+                supportFragmentManager.fragments.forEach { fragment ->
+                    if (fragment is PageFragment && fragment.isVisible) {
+                        if (isSpeaking && start >= 0 && end > start) {
+                            fragment.highlightTtsRange(start, end)
+                        } else if (!isSpeaking) {
+                            fragment.clearTtsHighlight()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         hideSystemUI()
@@ -1582,6 +1602,12 @@ class BookReaderActivity : BaseActivity() {
             reEvaluateAutoTheme()
             lastKnownLux?.let { handleLightSensorChanged(it) }
         }
+        val filter = android.content.IntentFilter(com.nightread.app.service.TtsForegroundService.BROADCAST_TTS_STATUS)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(ttsStatusReceiver, filter, RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(ttsStatusReceiver, filter)
+        }
     }
 
     override fun onActionModeStarted(mode: ActionMode?) {
@@ -1595,6 +1621,9 @@ class BookReaderActivity : BaseActivity() {
 
     override fun onPause() {
         super.onPause()
+        try {
+            unregisterReceiver(ttsStatusReceiver)
+        } catch (e: Exception) {}
         brightnessAnimator?.cancel()
         silentModeJob?.cancel()
         sleepTimerJob?.cancel()

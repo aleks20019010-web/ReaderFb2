@@ -41,6 +41,8 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         const val BROADCAST_TTS_STATUS = "com.nightread.app.broadcast.TTS_STATUS"
         const val EXTRA_IS_SPEAKING = "extra_is_speaking"
         const val EXTRA_UTTERANCE_DONE = "extra_utterance_done"
+        const val EXTRA_START_IDX = "extra_start_idx"
+        const val EXTRA_END_IDX = "extra_end_idx"
 
         var isServiceRunning = false
             private set
@@ -72,7 +74,10 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             isTtsInitialized = true
-            tts?.language = Locale("ru")
+            val langResult = tts?.setLanguage(Locale("ru"))
+            if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                tts?.setLanguage(Locale.getDefault())
+            }
             tts?.setSpeechRate(speechRate)
             tts?.setPitch(speechPitch)
             applySelectedVoice()
@@ -81,19 +86,24 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 override fun onStart(utteranceId: String?) {
                     isSpeakingState = true
                     updateNotification(true)
-                    sendStatusBroadcast(isPlaying = true, isDone = false)
+                    sendStatusBroadcast(isPlaying = true, isDone = false, start = 0, end = 0)
+                }
+
+                override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
+                    super.onRangeStart(utteranceId, start, end, frame)
+                    sendStatusBroadcast(isPlaying = true, isDone = false, start = start, end = end)
                 }
 
                 override fun onDone(utteranceId: String?) {
                     isSpeakingState = false
                     updateNotification(false)
-                    sendStatusBroadcast(isPlaying = false, isDone = true)
+                    sendStatusBroadcast(isPlaying = false, isDone = true, start = -1, end = -1)
                 }
 
                 override fun onError(utteranceId: String?) {
                     isSpeakingState = false
                     updateNotification(false)
-                    sendStatusBroadcast(isPlaying = false, isDone = false)
+                    sendStatusBroadcast(isPlaying = false, isDone = false, start = -1, end = -1)
                 }
             })
 
@@ -297,10 +307,12 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         }
     }
 
-    private fun sendStatusBroadcast(isPlaying: Boolean, isDone: Boolean) {
+    private fun sendStatusBroadcast(isPlaying: Boolean, isDone: Boolean, start: Int = -1, end: Int = -1) {
         val intent = Intent(BROADCAST_TTS_STATUS).apply {
             putExtra(EXTRA_IS_SPEAKING, isPlaying)
             putExtra(EXTRA_UTTERANCE_DONE, isDone)
+            putExtra(EXTRA_START_IDX, start)
+            putExtra(EXTRA_END_IDX, end)
         }
         sendBroadcast(intent)
     }
