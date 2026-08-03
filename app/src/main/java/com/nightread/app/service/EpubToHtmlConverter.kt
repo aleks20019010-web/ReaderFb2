@@ -43,7 +43,7 @@ object EpubToHtmlConverter {
         val columnGapCss = "${sideMarginPx * 2}px"
         val topMargin = "${paddingTop}px"
         val bottomMargin = "${paddingBottom}px"
-        val fontWeightCss = if (fontWeight > 0) "bold" else "normal"
+        val fontWeightCss = fontWeight.toString()
 
         // Inject IDs into paragraphs and headings to support chapter/bookmark navigation
         var paragraphCounter = 0

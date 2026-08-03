@@ -60,6 +60,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
     private var speechPitch: Float = 1.0f
     private var selectedVoiceName: String? = null
     private var isSpeakingState: Boolean = false
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
 
     private var mediaSession: MediaSessionCompat? = null
 
@@ -83,6 +84,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 tts?.setLanguage(Locale.getDefault())
             }
             tts?.setSpeechRate(speechRate)
+                acquireWakeLock()
             tts?.setPitch(speechPitch)
             applySelectedVoice()
 
@@ -100,7 +102,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 override fun onDone(utteranceId: String?) {
                     val prefs = getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
                     val continuous = prefs.getBoolean("tts_continuous", true)
-                    if (continuous) {
+                    if (continuous && currentParagraphIndex >= 0) {
                         currentParagraphIndex++
                         if (currentParagraphIndex < TtsDataProvider.paragraphs.size) {
                             speakCurrentText()
@@ -112,6 +114,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                     } else {
                         isSpeakingState = false
                         updateNotification(false)
+                        releaseWakeLock()
                         sendStatusBroadcast(isPlaying = false, isDone = true, start = -1, end = -1, paragraphId = currentParagraphId)
                     }
                 }
@@ -119,6 +122,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 override fun onError(utteranceId: String?) {
                     isSpeakingState = false
                     updateNotification(false)
+                    releaseWakeLock()
                     sendStatusBroadcast(isPlaying = false, isDone = false, start = -1, end = -1, paragraphId = currentParagraphId)
                 }
             })
@@ -141,14 +145,15 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 speechPitch = intent.getFloatExtra(EXTRA_PITCH, 1.0f)
                 selectedVoiceName = intent.getStringExtra(EXTRA_VOICE)
 
-                if (customText.isNotEmpty() && TtsDataProvider.paragraphs.isEmpty()) {
+                if (customText.isNotEmpty()) {
                     currentText = customText
-                    currentParagraphIndex = 0
+                    currentParagraphIndex = -1
                 } else {
                     currentParagraphIndex = startIdx
                 }
 
                 tts?.setSpeechRate(speechRate)
+                acquireWakeLock()
                 tts?.setPitch(speechPitch)
                 applySelectedVoice()
 
@@ -184,6 +189,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
             ACTION_SET_SPEED -> {
                 speechRate = intent.getFloatExtra(EXTRA_SPEED, 1.0f)
                 tts?.setSpeechRate(speechRate)
+                acquireWakeLock()
                 if (isSpeakingState) {
                     speakCurrentText()
                 }
@@ -218,9 +224,26 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         }
     }
 
+    
+    private fun acquireWakeLock() {
+        if (wakeLock == null) {
+            val powerManager = getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+            wakeLock = powerManager.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "NightRead:TtsWakeLock")
+        }
+        if (wakeLock?.isHeld == false) {
+            wakeLock?.acquire()
+        }
+    }
+
+    private fun releaseWakeLock() {
+        if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
+        }
+    }
+
     private fun speakCurrentText() {
         if (!isTtsInitialized) return
-        if (TtsDataProvider.paragraphs.isNotEmpty() && currentParagraphIndex in TtsDataProvider.paragraphs.indices) {
+        if (currentParagraphIndex >= 0 && TtsDataProvider.paragraphs.isNotEmpty() && currentParagraphIndex in TtsDataProvider.paragraphs.indices) {
             val p = TtsDataProvider.paragraphs[currentParagraphIndex]
             currentText = p.text
             currentParagraphId = p.id
@@ -230,6 +253,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
 
         tts?.stop()
         isSpeakingState = true
+        acquireWakeLock()
         val params = Bundle().apply {
             putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "UTTERANCE_NIGHTREAD_BG_TTS")
         }
@@ -242,6 +266,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         }
         isSpeakingState = false
         updateNotification(false)
+        releaseWakeLock()
         sendStatusBroadcast(isPlaying = false, isDone = false)
     }
 
@@ -254,6 +279,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
     private fun stopTts() {
         tts?.stop()
         isSpeakingState = false
+        releaseWakeLock()
         sendStatusBroadcast(isPlaying = false, isDone = false)
     }
 
@@ -358,6 +384,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
     override fun onDestroy() {
 
         isServiceRunning = false
+        releaseWakeLock()
         tts?.stop()
         tts?.shutdown()
         tts = null

@@ -56,7 +56,7 @@ object Fb2ToHtmlConverterAdvanced {
             val columnGapCss = "${sideMarginPx * 2}px"
             val topMargin = "${paddingTop}px"
             val bottomMargin = "${paddingBottom}px"
-            val fontWeightCss = if (fontWeight > 0) "bold" else "normal"
+            val fontWeightCss = fontWeight.toString()
 
             val htmlContent = handler.getHtml()
 

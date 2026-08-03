@@ -1,0 +1,101 @@
+            }
+            window.decorView.systemUiVisibility = flags
+        }
+    }
+
+    private fun openBook(book: com.nightread.app.data.BookEntity) {
+        val splashOverlay = findViewById<View>(R.id.reader_splash_overlay)
+        splashOverlay?.visibility = View.VISIBLE
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val file = java.io.File(book.filePath ?: "")
+            if (!file.exists()) {
+                withContext(Dispatchers.Main) {
+                    splashOverlay?.visibility = View.GONE
+                    com.nightread.app.ui.CustomToast.show(this@BookReaderActivity, "Файл книги не найден")
+                }
+                return@launch
+            }
+
+            withContext(Dispatchers.Main) {
+                splashOverlay?.visibility = View.GONE
+                var fragment = supportFragmentManager.findFragmentByTag("book_reader") as? com.nightread.app.ui.BookReaderFragment
+                if (fragment == null) {
+                    fragment = com.nightread.app.ui.BookReaderFragment()
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.bookContainerView, fragment, "book_reader")
+                        .commitNowAllowingStateLoss()
+                }
+                fragment.initBook(file, book.sha1)
+                bookReaderFragment = fragment
+
+                updatePage()
+            }
+        }
+    }
+
+    fun showCustomSelectionBottomSheet(selectedText: String, contextSnippet: String) {
+        if (selectedText.isBlank()) return
+        val sheet = com.nightread.app.ui.SelectionBottomSheet.newInstance(selectedText)
+        sheet.setTtsListener { text ->
+            val title = findViewById<TextView>(R.id.tvBookTitle).text.toString()
+            val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this)
+            val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
+            val voice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
+            val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                action = com.nightread.app.service.TtsForegroundService.ACTION_START
+                        val startIdx = viewModel.bookState.value?.currentProgressChar ?: 0
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_START_IDX, startIdx)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, text)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voice)
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        }
+        sheet.show(supportFragmentManager, "custom_selection_sheet")
+    }
+
+
+
+    private fun updatePage() {
+        bookReaderFragment?.updatePreferences()
+    }
+
+    private fun updatePageIndicator() {
+        val cur = bookReaderFragment?.currentPage?.value ?: 0
+        val total = bookReaderFragment?.totalPages?.value ?: 1
+        val percent = if (total > 1) (cur.toDouble() / (total - 1).toDouble() * 100).toInt() else 0
+        findViewById<TextView>(R.id.tvPageIndicator)?.text = "Стр. ${cur + 1} из $total ($percent%)"
+        
+        // Update dog-ear bookmark status
+        val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
+        val offset = cur
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val db = com.nightread.app.data.BookmarkDatabase.getDatabase(this@BookReaderActivity)
+            val isBookmarked = db.bookmarkDao().getBookmarkAtOffset(sha1, offset) != null
+            withContext(Dispatchers.Main) {
+                val ivDogEar = findViewById<ImageView>(R.id.ivDogEar)
+                
+                val btnBottomBookmark = findViewById<ImageButton>(R.id.btnBottomBookmark)
+                if (btnBottomBookmark != null) {
+                    val accentColor = androidx.core.content.ContextCompat.getColor(this@BookReaderActivity, R.color.accent)
+                    if (isBookmarked) {
+                        btnBottomBookmark.setImageResource(R.drawable.ic_bookmark_filled)
+                        btnBottomBookmark.imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFB74D.toInt())
+                    } else {
+                        btnBottomBookmark.setImageResource(R.drawable.ic_bookmark)
+                        val buttonTintList = android.content.res.ColorStateList.valueOf(
+                            androidx.core.content.ContextCompat.getColor(this@BookReaderActivity, R.color.icon_tint)
+                        )
+                        btnBottomBookmark.imageTintList = buttonTintList
+                    }
+                }
+
+                if (ivDogEar != null) {

@@ -149,6 +149,7 @@ class BookReaderActivity : BaseActivity() {
     private var lastPage: Int = -1
     private var lastBookmarkCheckedPageIdx: Int = -1
     private var systemTopInset: Int = 0
+    var systemCutoutTop: Int = 0
     private var systemBottomInset: Int = 0
     private var cachedMaxTopInset: Int = 0
     private var sleepTimerJob: kotlinx.coroutines.Job? = null
@@ -247,6 +248,8 @@ class BookReaderActivity : BaseActivity() {
                     val currentTextToSpeak = getTtsTextToSpeak()
                     val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
                         action = com.nightread.app.service.TtsForegroundService.ACTION_START
+                        val startIdx = viewModel.bookState.value?.currentProgressChar ?: 0
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_START_IDX, startIdx)
                         putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, currentTextToSpeak)
                         putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
                         putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
@@ -405,6 +408,8 @@ class BookReaderActivity : BaseActivity() {
             val topInset = maxOf(currentMeasuredTop, cachedMaxTopInset, defaultMinTopInset)
             
             systemTopInset = topInset
+            systemCutoutTop = displayCutout.top
+            bookReaderFragment?.updateTopMargin(systemCutoutTop)
             systemBottomInset = navBarInsets.bottom
             
             // 1. Top toolbar handles status bar height and cutout
@@ -644,7 +649,6 @@ class BookReaderActivity : BaseActivity() {
                 val color = animator.animatedValue as Int
                 rootLayout.setBackgroundColor(color)
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                    window.statusBarColor = color
                 }
             }
             bgAnimation.start()
@@ -670,7 +674,6 @@ class BookReaderActivity : BaseActivity() {
             txtAnimation.start()
         } else {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                window.statusBarColor = bgColor
             }
             rootLayout.setBackgroundColor(bgColor)
             if (::tvFullscreenTimeBattery.isInitialized) {
@@ -764,7 +767,6 @@ class BookReaderActivity : BaseActivity() {
             }
 
             withContext(Dispatchers.Main) {
-                splashOverlay?.visibility = View.GONE
                 var fragment = supportFragmentManager.findFragmentByTag("book_reader") as? com.nightread.app.ui.BookReaderFragment
                 if (fragment == null) {
                     fragment = com.nightread.app.ui.BookReaderFragment()
@@ -790,6 +792,8 @@ class BookReaderActivity : BaseActivity() {
             val voice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
             val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
                 action = com.nightread.app.service.TtsForegroundService.ACTION_START
+                        val startIdx = viewModel.bookState.value?.currentProgressChar ?: 0
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_START_IDX, startIdx)
                 putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, text)
                 putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
                 putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
@@ -1444,16 +1448,7 @@ class BookReaderActivity : BaseActivity() {
             val preferredDayTheme = com.nightread.app.data.SettingsManager.getUserPreferredDayTheme(this)
             val preferredNightTheme = com.nightread.app.data.SettingsManager.getUserPreferredNightTheme(this)
             
-            val lux = lastKnownLux
-            val targetTheme = when {
-                lux != null && lux < 15f -> preferredNightTheme
-                lux != null && lux > 30f -> preferredDayTheme
-                else -> {
-                    // Sensor in deadband (15..30 lux) or sensor unavailable/null:
-                    // evaluate based on local sunset/night time
-                    if (com.nightread.app.data.ThemeHelper.isNightTime()) preferredNightTheme else preferredDayTheme
-                }
-            }
+            val targetTheme = if (com.nightread.app.data.ThemeHelper.isNightTime()) preferredNightTheme else preferredDayTheme
             
             if (currentTheme != targetTheme) {
                 com.nightread.app.data.SettingsManager.setAutoReadingTheme(this, targetTheme)
@@ -1497,7 +1492,7 @@ class BookReaderActivity : BaseActivity() {
         }
     }
 
-    private fun hideReaderSplash() {
+    fun hideReaderSplash() {
         runOnUiThread {
             isReaderReady = true
             val splash = findViewById<View>(R.id.reader_splash_overlay) ?: return@runOnUiThread
@@ -2048,6 +2043,7 @@ class BookReaderActivity : BaseActivity() {
     }
 
     private fun triggerLightVibration() {
+        if (!com.nightread.app.data.SettingsManager.isHapticFeedbackEnabled(this)) return
         val vibrator = getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
         if (vibrator != null && vibrator.hasVibrator()) {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {

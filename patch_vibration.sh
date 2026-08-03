@@ -1,0 +1,1 @@
+sed -i -e '/private fun triggerLightVibration()/a\        if (!com.nightread.app.data.SettingsManager.isHapticFeedbackEnabled(this)) return' app/src/main/java/com/nightread/app/ui/BookReaderActivity.kt

@@ -760,6 +760,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             .putInt("book_page_${book.sha1}", _currentPage.value)
             .putInt("book_char_offset_${book.sha1}", pIndex)
             .commit()
+            
+        saveProgress()
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {

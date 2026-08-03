@@ -96,6 +96,13 @@ class BookReaderFragment : Fragment() {
         // Javascript Interface for callbacks
         wv.addJavascriptInterface(object : Any() {
             @JavascriptInterface
+            fun onReadyToDisplay() {
+                activity?.runOnUiThread {
+                    (activity as? BookReaderActivity)?.hideReaderSplash()
+                }
+            }
+            
+            @JavascriptInterface
             fun onPagesCalculated(total: Int) {
                 activity?.runOnUiThread {
                     _totalPages.value = total.coerceAtLeast(1)
@@ -133,11 +140,11 @@ class BookReaderFragment : Fragment() {
         wv.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
+                val savedProgress = viewModel.bookState.value?.currentProgressChar ?: 0
+                wv.evaluateJavascript("savedParagraphId = 'p_$savedProgress';", null)
                 updatePreferences()
-                wv.postDelayed({
-                    val savedProgress = viewModel.bookState.value?.currentProgressChar ?: 0
-                    scrollToParagraph("p_$savedProgress")
-                }, 300)
+                val cutoutPx = (activity as? BookReaderActivity)?.systemCutoutTop ?: 0
+                updateTopMargin(cutoutPx)
             }
         }
 
@@ -243,14 +250,9 @@ class BookReaderFragment : Fragment() {
             val leftRightMarginDp = 8
             val bottomMarginDp = 16
 
-            val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
-            val statusBarHeightPx = if (resourceId > 0) {
-                context.resources.getDimensionPixelSize(resourceId)
-            } else {
-                0
-            }
-            val statusBarHeightDp = (statusBarHeightPx / density).toInt()
-            val topMarginDp = statusBarHeightDp + 3
+            val cutoutPx = (activity as? BookReaderActivity)?.systemCutoutTop ?: 0
+            val cutoutDp = (cutoutPx / density).toInt()
+            val topMarginDp = cutoutDp + 3
 
             val html = withContext(Dispatchers.Default) {
                 val sha1 = bookSha1 ?: "unknown_book"
@@ -346,6 +348,7 @@ class BookReaderFragment : Fragment() {
                             if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPagesCalculated) {
                                 AndroidInterface.onPagesCalculated(totalPages);
                             }
+                            restoreSavedParagraph();
                         }, 50);
                     }
                 }
@@ -435,6 +438,9 @@ class BookReaderFragment : Fragment() {
                         scrollToParagraph(savedParagraphId);
                         savedParagraphId = null;
                     }
+                    if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onReadyToDisplay) {
+                        AndroidInterface.onReadyToDisplay();
+                    }
                 }
 
                 function updateStyles(bgColor, textColor, fontFamily, fontSize, fontWeight, lineSpacing) {
@@ -449,7 +455,6 @@ class BookReaderFragment : Fragment() {
                     clearTimeout(resizeTimer);
                     resizeTimer = setTimeout(function() {
                         calculatePages();
-                        setTimeout(restoreSavedParagraph, 100);
                     }, 200);
                 }
                 
@@ -577,6 +582,15 @@ class BookReaderFragment : Fragment() {
         webView?.evaluateJavascript("clearHighlight()", null)
     }
 
+    fun updateTopMargin(cutoutPx: Int) {
+        if (isAdded && webView != null) {
+            val density = resources.displayMetrics.density
+            val cutoutDp = (cutoutPx / density).toInt()
+            val topMarginDp = cutoutDp + 3
+            val js = "document.documentElement.style.setProperty(--top-margin, '${topMarginDp}px'); calculatePages();"
+            webView?.evaluateJavascript(js, null)
+        }
+    }
     fun updatePreferences() {
         if (isAdded && webView != null) {
             val context = requireContext()
@@ -604,7 +618,7 @@ class BookReaderFragment : Fragment() {
                 else -> "#FFFBF0" to "#1A1A1A"
             }
 
-            val fontWeightCss = if (fontWeight > 0) "bold" else "normal"
+            val fontWeightCss = fontWeight.toString()
 
             val js = "updateStyles('$bgColor', '$textColor', \"${cssFontFamily}\", $fontSize, '$fontWeightCss', $lineSpacing);"
             webView?.evaluateJavascript(js, null)

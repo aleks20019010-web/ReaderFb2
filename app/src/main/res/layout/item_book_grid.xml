@@ -2,7 +2,7 @@
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="280dp"
     android:layout_margin="5dp"
     android:clickable="true"
     android:focusable="true"
@@ -17,7 +17,7 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:orientation="vertical">
 
         <!-- Cover container taking most of the card height -->
@@ -161,7 +161,7 @@
         <LinearLayout
             android:id="@+id/textContainer"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="72dp"
             android:orientation="vertical"
             android:paddingHorizontal="10dp"
             android:paddingTop="8dp"
@@ -172,6 +172,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
+                android:lines="2"
                 android:maxLines="2"
                 android:textColor="@color/text_primary"
                 android:textSize="12sp"
