@@ -315,15 +315,6 @@ class BookReaderActivity : BaseActivity() {
             sheet.show(supportFragmentManager, "rag_search")
         }
 
-        val btnBookmark = findViewById<ImageButton>(R.id.btnBookmark)
-        btnBookmark.visibility = View.GONE
-        btnBookmark.setOnClickListener {
-            val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
-            if (sha1.isNotEmpty()) {
-                BookNavigationDialog.newInstance(sha1, 1).show(supportFragmentManager, "navigation")
-            }
-        }
-
         val btnChapters = findViewById<ImageButton>(R.id.btnChapters)
         btnChapters.visibility = View.VISIBLE
         btnChapters.setOnClickListener {
@@ -341,18 +332,6 @@ class BookReaderActivity : BaseActivity() {
             toggleBookmark()
         }
         btnBottomBookmark.setOnLongClickListener {
-            val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
-            if (sha1.isNotEmpty()) {
-                BookNavigationDialog.newInstance(sha1, 1).show(supportFragmentManager, "navigation")
-            }
-            true
-        }
-
-        val fabToggleBookmark = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabToggleBookmark)
-        fabToggleBookmark?.setOnClickListener {
-            toggleBookmark()
-        }
-        fabToggleBookmark?.setOnLongClickListener {
             val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
             if (sha1.isNotEmpty()) {
                 BookNavigationDialog.newInstance(sha1, 1).show(supportFragmentManager, "navigation")
@@ -723,7 +702,6 @@ class BookReaderActivity : BaseActivity() {
         findViewById<ImageButton>(R.id.btnSettings)?.imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnTts)?.imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnSearch)?.imageTintList = buttonTint
-        findViewById<ImageButton>(R.id.btnBookmark)?.imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnChapters)?.imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnNotes)?.imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnBottomBookmark)?.imageTintList = buttonTint
@@ -848,19 +826,22 @@ class BookReaderActivity : BaseActivity() {
             val isBookmarked = db.bookmarkDao().getBookmarkAtOffset(sha1, offset) != null
             withContext(Dispatchers.Main) {
                 val ivDogEar = findViewById<ImageView>(R.id.ivDogEar)
-                val fabToggleBookmark = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabToggleBookmark)
-                if (fabToggleBookmark != null) {
+                
+                val btnBottomBookmark = findViewById<ImageButton>(R.id.btnBottomBookmark)
+                if (btnBottomBookmark != null) {
                     val accentColor = androidx.core.content.ContextCompat.getColor(this@BookReaderActivity, R.color.accent)
                     if (isBookmarked) {
-                        fabToggleBookmark.setImageResource(R.drawable.ic_bookmark_filled)
-                        fabToggleBookmark.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFFFFB74D.toInt())
-                        fabToggleBookmark.imageTintList = android.content.res.ColorStateList.valueOf(0xFF212121.toInt())
+                        btnBottomBookmark.setImageResource(R.drawable.ic_bookmark_filled)
+                        btnBottomBookmark.imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFB74D.toInt())
                     } else {
-                        fabToggleBookmark.setImageResource(R.drawable.ic_bookmark)
-                        fabToggleBookmark.backgroundTintList = android.content.res.ColorStateList.valueOf(accentColor)
-                        fabToggleBookmark.imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFFFFF.toInt())
+                        btnBottomBookmark.setImageResource(R.drawable.ic_bookmark)
+                        val buttonTintList = android.content.res.ColorStateList.valueOf(
+                            androidx.core.content.ContextCompat.getColor(this@BookReaderActivity, R.color.icon_tint)
+                        )
+                        btnBottomBookmark.imageTintList = buttonTintList
                     }
                 }
+
                 if (ivDogEar != null) {
                     val currentPageIdx = viewModel.currentPage.value
                     val isPageChange = currentPageIdx != lastBookmarkCheckedPageIdx
@@ -1254,26 +1235,13 @@ class BookReaderActivity : BaseActivity() {
             if (intent?.action == com.nightread.app.service.TtsForegroundService.BROADCAST_TTS_STATUS) {
                 val isSpeaking = intent.getBooleanExtra(com.nightread.app.service.TtsForegroundService.EXTRA_IS_SPEAKING, false)
                 val isDone = intent.getBooleanExtra(com.nightread.app.service.TtsForegroundService.EXTRA_UTTERANCE_DONE, false)
-                val start = intent.getIntExtra(com.nightread.app.service.TtsForegroundService.EXTRA_START_IDX, -1)
-                val end = intent.getIntExtra(com.nightread.app.service.TtsForegroundService.EXTRA_END_IDX, -1)
+                val paragraphId = intent.getStringExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PARAGRAPH_ID)
 
-                if (isDone) {
-                    val prefs = getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
-                    val continuous = prefs.getBoolean("tts_continuous", true)
-                    if (continuous) {
-                        readNextTtsChunk()
-                        return
-                    }
-                }
-
-                supportFragmentManager.fragments.forEach { fragment ->
-                    if (fragment is PageFragment && fragment.isVisible) {
-                        if (isSpeaking && start >= 0 && end > start) {
-                            fragment.highlightTtsRange(start, end)
-                        } else if (!isSpeaking) {
-                            fragment.clearTtsHighlight()
-                        }
-                    }
+                if (isSpeaking && !paragraphId.isNullOrEmpty()) {
+                    bookReaderFragment?.highlightParagraph(paragraphId)
+                    bookReaderFragment?.go(paragraphId)
+                } else if (!isSpeaking) {
+                    bookReaderFragment?.clearHighlight()
                 }
             }
         }
@@ -2335,19 +2303,7 @@ class BookReaderActivity : BaseActivity() {
     }
 
     fun getTtsTextToSpeak(): String {
-        val fullText = viewModel.getContentText()
-        if (fullText.isEmpty()) return ""
-
-        val curPage = bookReaderFragment?.currentPage?.value ?: 0
-        val totalPages = bookReaderFragment?.totalPages?.value ?: 1
-        val progression = if (totalPages > 1) curPage.toDouble() / (totalPages - 1).toDouble() else 0.0
-
-        val startIdx = (progression * fullText.length).toInt().coerceIn(0, fullText.length)
-        val endIdx = (startIdx + 2500).coerceAtMost(fullText.length)
-        val chunk = fullText.substring(startIdx, endIdx)
-
-        val cleanChunk = android.text.Html.fromHtml(chunk, android.text.Html.FROM_HTML_MODE_LEGACY).toString()
-        return cleanChunk.trim()
+        return ""
     }
 
     fun startOrResumeTts() {
@@ -2357,15 +2313,14 @@ class BookReaderActivity : BaseActivity() {
             }
             startService(intent)
         } else {
-            val textToSpeak = getTtsTextToSpeak()
-            if (textToSpeak.isBlank()) return
             val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this)
             val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
             val voice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
             val title = getBookTitle()
+            val startIdx = viewModel.bookState.value?.currentProgressChar ?: 0
             val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
                 action = com.nightread.app.service.TtsForegroundService.ACTION_START
-                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, textToSpeak)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_START_IDX, startIdx)
                 putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
                 putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
                 putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)

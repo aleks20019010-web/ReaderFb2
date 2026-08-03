@@ -135,14 +135,6 @@
             android:contentDescription="Поиск RAG по книге" />
 
         <ImageButton
-            android:id="@+id/btnBookmark"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_bookmark"
-            app:tint="@color/icon_tint" />
-
-        <ImageButton
             android:id="@+id/btnChapters"
             android:layout_width="48dp"
             android:layout_height="48dp"
@@ -215,21 +207,6 @@
             app:tint="@color/icon_tint"
             android:contentDescription="Закладка" />
     </LinearLayout>
-
-    <!-- Floating Action Button for Quick Bookmark Toggle -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fabToggleBookmark"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="72dp"
-        android:contentDescription="Быстрая закладка"
-        android:src="@drawable/ic_bookmark"
-        app:backgroundTint="@color/accent"
-        app:tint="#FFFFFF"
-        app:elevation="6dp"
-        app:fabSize="normal" />
 
     <View
         android:id="@+id/amberFilterOverlay"

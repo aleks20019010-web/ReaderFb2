@@ -21,6 +21,8 @@ import com.nightread.app.service.Fb2ToHtmlConverterAdvanced
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.io.File
 
 class BookReaderFragment : Fragment() {
@@ -131,6 +133,7 @@ class BookReaderFragment : Fragment() {
         wv.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
+                updatePreferences()
                 wv.postDelayed({
                     val savedProgress = viewModel.bookState.value?.currentProgressChar ?: 0
                     scrollToParagraph("p_$savedProgress")
@@ -229,7 +232,7 @@ class BookReaderFragment : Fragment() {
         val file = bookFile ?: return
 
         lifecycleScope.launch {
-            val contentStr = viewModel.getContentText()
+            val contentStr = withContext(Dispatchers.IO) { viewModel.getContentText() }
             val theme = SettingsManager.getReadingTheme(context)
             val fontSize = SettingsManager.getFontSize(context)
             val lineSpacing = SettingsManager.getLineSpacing(context)
@@ -237,64 +240,80 @@ class BookReaderFragment : Fragment() {
             val fontWeight = SettingsManager.getFontWeightAsInt(context)
 
             val density = resources.displayMetrics.density
-            val leftRightMarginPx = (8 * density).toInt()
-            val bottomMarginPx = (16 * density).toInt()
+            val leftRightMarginDp = 8
+            val bottomMarginDp = 16
 
             val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
-            val statusBarHeight = if (resourceId > 0) {
+            val statusBarHeightPx = if (resourceId > 0) {
                 context.resources.getDimensionPixelSize(resourceId)
             } else {
                 0
             }
-            val topMarginPx = statusBarHeight + (3 * density).toInt()
+            val statusBarHeightDp = (statusBarHeightPx / density).toInt()
+            val topMarginDp = statusBarHeightDp + 3
 
-            val html = if (file.extension.lowercase() == "fb2" || file.name.endsWith(".fb2.zip", true) || file.name.endsWith(".zip", true)) {
-                Fb2ToHtmlConverterAdvanced.convert(
-                    fb2Xml = contentStr,
-                    theme = theme,
-                    fontSize = fontSize,
-                    lineSpacing = lineSpacing,
-                    fontFamily = fontFamily,
-                    fontWeight = fontWeight,
-                    fontAlignment = "JUSTIFY",
-                    pageMargins = true,
-                    paddingTop = topMarginPx,
-                    paddingBottom = bottomMarginPx,
-                    paddingLeft = leftRightMarginPx,
-                    paddingRight = leftRightMarginPx
-                )
-            } else if (file.extension.lowercase() == "epub") {
-                EpubToHtmlConverter.convert(
-                    xhtmlContent = contentStr,
-                    theme = theme,
-                    fontSize = fontSize,
-                    lineSpacing = lineSpacing,
-                    fontFamily = fontFamily,
-                    fontWeight = fontWeight,
-                    fontAlignment = "JUSTIFY",
-                    pageMargins = true,
-                    paddingTop = topMarginPx,
-                    paddingBottom = bottomMarginPx,
-                    paddingLeft = leftRightMarginPx,
-                    paddingRight = leftRightMarginPx
-                )
-            } else {
-                val cleanHtml = contentStr.replace("\n", "<br/>")
-                EpubToHtmlConverter.convert(
-                    xhtmlContent = "<div>$cleanHtml</div>",
-                    theme = theme,
-                    fontSize = fontSize,
-                    lineSpacing = lineSpacing,
-                    fontFamily = fontFamily,
-                    fontWeight = fontWeight,
-                    fontAlignment = "JUSTIFY",
-                    pageMargins = true,
-                    paddingTop = topMarginPx,
-                    paddingBottom = bottomMarginPx,
-                    paddingLeft = leftRightMarginPx,
-                    paddingRight = leftRightMarginPx
-                )
+            val html = withContext(Dispatchers.Default) {
+                val sha1 = bookSha1 ?: "unknown_book"
+                val cacheFile = java.io.File(context.cacheDir, "$sha1.html")
+                if (cacheFile.exists()) {
+                    cacheFile.readText()
+                } else {
+                    val converted = if (file.extension.lowercase() == "fb2" || file.name.endsWith(".fb2.zip", true) || file.name.endsWith(".zip", true)) {
+                        Fb2ToHtmlConverterAdvanced.convert(
+                            fb2Xml = contentStr,
+                            theme = theme,
+                            fontSize = fontSize,
+                            lineSpacing = lineSpacing,
+                            fontFamily = fontFamily,
+                            fontWeight = fontWeight,
+                            fontAlignment = "JUSTIFY",
+                            pageMargins = true,
+                            paddingTop = topMarginDp,
+                            paddingBottom = bottomMarginDp,
+                            paddingLeft = leftRightMarginDp,
+                            paddingRight = leftRightMarginDp
+                        )
+                    } else if (file.extension.lowercase() == "epub") {
+                        EpubToHtmlConverter.convert(
+                            xhtmlContent = contentStr,
+                            theme = theme,
+                            fontSize = fontSize,
+                            lineSpacing = lineSpacing,
+                            fontFamily = fontFamily,
+                            fontWeight = fontWeight,
+                            fontAlignment = "JUSTIFY",
+                            pageMargins = true,
+                            paddingTop = topMarginDp,
+                            paddingBottom = bottomMarginDp,
+                            paddingLeft = leftRightMarginDp,
+                            paddingRight = leftRightMarginDp
+                        )
+                    } else {
+                        val cleanHtml = contentStr.replace("\n", "<br/>")
+                        EpubToHtmlConverter.convert(
+                            xhtmlContent = "<div>$cleanHtml</div>",
+                            theme = theme,
+                            fontSize = fontSize,
+                            lineSpacing = lineSpacing,
+                            fontFamily = fontFamily,
+                            fontWeight = fontWeight,
+                            fontAlignment = "JUSTIFY",
+                            pageMargins = true,
+                            paddingTop = topMarginDp,
+                            paddingBottom = bottomMarginDp,
+                            paddingLeft = leftRightMarginDp,
+                            paddingRight = leftRightMarginDp
+                        )
+                    }
+                    try { cacheFile.writeText(converted) } catch (e: Exception) { e.printStackTrace() }
+                    converted
+                }
             }
+
+            val paragraphs = withContext(Dispatchers.Default) {
+                com.nightread.app.service.TtsExtractor.extractParagraphs(html)
+            }
+            com.nightread.app.service.TtsDataProvider.paragraphs = paragraphs
 
             val modifiedHtml = injectCustomScript(html)
             wv.loadDataWithBaseURL("file:///android_asset/", modifiedHtml, "text/html", "UTF-8", null)
@@ -308,17 +327,26 @@ class BookReaderFragment : Fragment() {
                 var currentPage = 0;
                 
                 function calculatePages() {
-                    var totalWidth = Math.max(
-                        document.body.scrollWidth || 0,
-                        document.documentElement.scrollWidth || 0,
-                        document.body.offsetWidth || 0
-                    );
                     var pageWidth = window.innerWidth || document.documentElement.clientWidth;
                     if (pageWidth > 0) {
-                        totalPages = Math.max(1, Math.round(totalWidth / pageWidth));
-                        if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPagesCalculated) {
-                            AndroidInterface.onPagesCalculated(totalPages);
-                        }
+                        var sideMarginStr = getComputedStyle(document.documentElement).getPropertyValue('--side-margin');
+                        var sideMargin = parseInt(sideMarginStr) || 0;
+                        var colWidth = pageWidth - (sideMargin * 2);
+                        var colGap = sideMargin * 2;
+                        document.documentElement.style.setProperty('--column-width', colWidth + 'px');
+                        document.documentElement.style.setProperty('--column-gap', colGap + 'px');
+                        
+                        setTimeout(function() {
+                            var totalWidth = Math.max(
+                                document.body.scrollWidth || 0,
+                                document.documentElement.scrollWidth || 0,
+                                document.body.offsetWidth || 0
+                            );
+                            totalPages = Math.max(1, Math.round(totalWidth / pageWidth));
+                            if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPagesCalculated) {
+                                AndroidInterface.onPagesCalculated(totalPages);
+                            }
+                        }, 50);
                     }
                 }
                 
@@ -366,9 +394,75 @@ class BookReaderFragment : Fragment() {
                     }
                 }
                 
+                function highlightParagraph(pId) {
+                    clearHighlight();
+                    var element = document.getElementById(pId);
+                    if (element) {
+                        element.classList.add('tts-highlight');
+                        element.style.backgroundColor = 'rgba(255, 255, 0, 0.4)';
+                        element.style.borderRadius = '4px';
+                    }
+                }
+                
+                function clearHighlight() {
+                    var elements = document.getElementsByClassName('tts-highlight');
+                    while(elements.length > 0){
+                        elements[0].style.backgroundColor = '';
+                        elements[0].style.borderRadius = '';
+                        elements[0].classList.remove('tts-highlight');
+                    }
+                }
+                
+                var resizeTimer;
+                var savedParagraphId = null;
+
+                function saveCurrentParagraph() {
+                    if (!savedParagraphId) {
+                        var elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
+                        var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                        for (var i = 0; i < elements.length; i++) {
+                            var rect = elements[i].getBoundingClientRect();
+                            if (rect.right > 5 && rect.left < pageWidth) {
+                                savedParagraphId = elements[i].id;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                function restoreSavedParagraph() {
+                    if (savedParagraphId) {
+                        scrollToParagraph(savedParagraphId);
+                        savedParagraphId = null;
+                    }
+                }
+
+                function updateStyles(bgColor, textColor, fontFamily, fontSize, fontWeight, lineSpacing) {
+                    saveCurrentParagraph();
+                    document.documentElement.style.setProperty('--bg-color', bgColor);
+                    document.documentElement.style.setProperty('--text-color', textColor);
+                    document.documentElement.style.setProperty('--font-family', fontFamily);
+                    document.documentElement.style.setProperty('--font-size', fontSize + 'px');
+                    document.documentElement.style.setProperty('--font-weight', fontWeight);
+                    document.documentElement.style.setProperty('--line-spacing', lineSpacing);
+                    
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(function() {
+                        calculatePages();
+                        setTimeout(restoreSavedParagraph, 100);
+                    }, 200);
+                }
+                
                 window.addEventListener('load', function() {
                     calculatePages();
-                    window.addEventListener('resize', calculatePages);
+                    window.addEventListener('resize', function() {
+                        saveCurrentParagraph();
+                        clearTimeout(resizeTimer);
+                        resizeTimer = setTimeout(function() {
+                            calculatePages();
+                            setTimeout(restoreSavedParagraph, 100);
+                        }, 200);
+                    });
                 });
             </script>
         """.trimIndent()
@@ -384,7 +478,7 @@ class BookReaderFragment : Fragment() {
         val cur = _currentPage.value
         val total = _totalPages.value
         if (cur < total - 1) {
-            scrollToPage(cur + 1)
+            scrollToPage(cur + 1, animated)
             return true
         }
         return false
@@ -393,33 +487,127 @@ class BookReaderFragment : Fragment() {
     fun goBackward(animated: Boolean = true): Boolean {
         val cur = _currentPage.value
         if (cur > 0) {
-            scrollToPage(cur - 1)
+            scrollToPage(cur - 1, animated)
             return true
         }
         return false
     }
 
     fun go(pageIndex: Int) {
-        scrollToPage(pageIndex)
+        scrollToPage(pageIndex, false)
     }
 
     fun go(pId: String) {
         scrollToParagraph(pId)
     }
 
-    private fun scrollToPage(index: Int) {
-        _currentPage.value = index
-        webView?.evaluateJavascript("scrollToPage($index)", null)
-        updateProgressUI()
+    private fun scrollToPage(index: Int, animated: Boolean = false) {
+        if (!isAdded || webView == null) return
+        val cur = _currentPage.value
+        val animMode = if (animated) SettingsManager.getPageAnimation(requireContext()) else "none"
+
+        if (animMode != "none" && cur != index) {
+            val wv = webView!!
+            val bitmap = android.graphics.Bitmap.createBitmap(wv.width, wv.height, android.graphics.Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bitmap)
+            wv.draw(canvas)
+
+            val imageView = android.widget.ImageView(requireContext()).apply {
+                layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+                setImageBitmap(bitmap)
+            }
+            val container = view?.findViewById<FrameLayout>(R.id.readiumFragmentContainer)
+            container?.addView(imageView)
+
+            _currentPage.value = index
+            wv.evaluateJavascript("scrollToPage($index)", null)
+            updateProgressUI()
+
+            if (animMode == "slide") {
+                val isForward = index > cur
+                val screenWidth = resources.displayMetrics.widthPixels.toFloat()
+                imageView.animate()
+                    .translationX(if (isForward) -screenWidth else screenWidth)
+                    .setDuration(250)
+                    .withEndAction {
+                        container?.removeView(imageView)
+                        bitmap.recycle()
+                    }
+                    .start()
+            } else if (animMode == "fade") {
+                imageView.animate()
+                    .alpha(0f)
+                    .setDuration(250)
+                    .withEndAction {
+                        container?.removeView(imageView)
+                        bitmap.recycle()
+                    }
+                    .start()
+            } else if (animMode == "depth") {
+                imageView.animate()
+                    .scaleX(0.8f)
+                    .scaleY(0.8f)
+                    .alpha(0f)
+                    .setDuration(250)
+                    .withEndAction {
+                        container?.removeView(imageView)
+                        bitmap.recycle()
+                    }
+                    .start()
+            } else {
+                container?.removeView(imageView)
+                bitmap.recycle()
+            }
+        } else {
+            _currentPage.value = index
+            webView?.evaluateJavascript("scrollToPage($index)", null)
+            updateProgressUI()
+        }
     }
 
     private fun scrollToParagraph(pId: String) {
         webView?.evaluateJavascript("scrollToParagraph('$pId')", null)
     }
 
+    fun highlightParagraph(pId: String) {
+        webView?.evaluateJavascript("highlightParagraph('$pId')", null)
+    }
+
+    fun clearHighlight() {
+        webView?.evaluateJavascript("clearHighlight()", null)
+    }
+
     fun updatePreferences() {
         if (isAdded && webView != null) {
-            loadBookContent()
+            val context = requireContext()
+            val theme = SettingsManager.getReadingTheme(context)
+            val fontSize = SettingsManager.getFontSize(context)
+            val lineSpacing = SettingsManager.getLineSpacing(context)
+            val fontFamily = SettingsManager.getFontFamily(context)
+            val fontWeight = SettingsManager.getFontWeightAsInt(context)
+
+            val cssFontFamily = when (fontFamily) {
+                "EB Garamond" -> "'EB Garamond', serif"
+                "Literata" -> "'Literata', serif"
+                "Lora" -> "'Lora', serif"
+                "Roboto", "Sans Serif" -> "'Roboto', sans-serif"
+                "Serif", "Times New Roman" -> "serif"
+                "Monospace" -> "monospace"
+                else -> "sans-serif"
+            }
+
+            val (bgColor, textColor) = when (theme.lowercase()) {
+                "light", "beige" -> "#FFFBF0" to "#1A1A1A"
+                "sepia", "sepia_contrast" -> "#F4ECD8" to "#5C4033"
+                "dark", "contrast" -> "#121212" to "#E0E0E0"
+                "amoled" -> "#000000" to "#FFFFFF"
+                else -> "#FFFBF0" to "#1A1A1A"
+            }
+
+            val fontWeightCss = if (fontWeight > 0) "bold" else "normal"
+
+            val js = "updateStyles('$bgColor', '$textColor', \"${cssFontFamily}\", $fontSize, '$fontWeightCss', $lineSpacing);"
+            webView?.evaluateJavascript(js, null)
         }
     }
 

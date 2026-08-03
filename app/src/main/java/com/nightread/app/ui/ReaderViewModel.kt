@@ -165,9 +165,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     init {
         loadSettings()
         viewModelScope.launch {
-            @OptIn(kotlinx.coroutines.FlowPreview::class)
             SettingsManager.settingsChanged
-                .debounce(150)
                 .collect {
                     loadSettings()
                 }

@@ -66,12 +66,26 @@ object Fb2ToHtmlConverterAdvanced {
                 <head>
                     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
                     <style>
+                        :root {
+                            --bg-color: $bgColor;
+                            --text-color: $textColor;
+                            --top-margin: $topMargin;
+                            --bottom-margin: $bottomMargin;
+                            --side-margin: $sideMargin;
+                            --column-width: $columnWidthCss;
+                            --column-gap: $columnGapCss;
+                            --font-family: $cssFontFamily;
+                            --font-size: ${fontSize}px;
+                            --font-weight: $fontWeightCss;
+                            --line-spacing: $lineSpacing;
+                            --text-align: ${fontAlignment.lowercase()};
+                        }
                         html {
                             margin: 0;
                             padding: 0;
                             width: 100%;
                             height: 100%;
-                            background-color: $bgColor;
+                            background-color: var(--bg-color);
                             overflow: hidden;
                         }
                         body {
@@ -79,7 +93,7 @@ object Fb2ToHtmlConverterAdvanced {
                             padding: 0;
                             width: 100vw;
                             height: 100vh;
-                            background-color: $bgColor;
+                            background-color: var(--bg-color);
                             overflow: hidden;
                             -webkit-user-select: none;
                             user-select: none;
@@ -87,24 +101,24 @@ object Fb2ToHtmlConverterAdvanced {
                         }
                         #column-container {
                             margin: 0;
-                            padding-top: $topMargin;
-                            padding-bottom: $bottomMargin;
-                            padding-left: $sideMargin;
-                            padding-right: $sideMargin;
+                            padding-top: var(--top-margin);
+                            padding-bottom: var(--bottom-margin);
+                            padding-left: var(--side-margin);
+                            padding-right: var(--side-margin);
                             height: 100vh;
                             box-sizing: border-box;
-                            -webkit-column-width: $columnWidthCss;
-                            -webkit-column-gap: $columnGapCss;
-                            column-width: $columnWidthCss;
-                            column-gap: $columnGapCss;
+                            -webkit-column-width: var(--column-width);
+                            -webkit-column-gap: var(--column-gap);
+                            column-width: var(--column-width);
+                            column-gap: var(--column-gap);
                             -webkit-column-fill: auto;
                             column-fill: auto;
-                            color: $textColor;
-                            font-family: $cssFontFamily;
-                            font-size: ${fontSize}px;
-                            font-weight: $fontWeightCss;
-                            line-height: $lineSpacing;
-                            text-align: ${fontAlignment.lowercase()};
+                            color: var(--text-color);
+                            font-family: var(--font-family);
+                            font-size: var(--font-size);
+                            font-weight: var(--font-weight);
+                            line-height: var(--line-spacing);
+                            text-align: var(--text-align);
                             -webkit-hyphens: auto;
                             -ms-hyphens: auto;
                             hyphens: auto;

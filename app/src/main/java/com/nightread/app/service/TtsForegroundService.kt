@@ -44,6 +44,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         const val EXTRA_UTTERANCE_DONE = "extra_utterance_done"
         const val EXTRA_START_IDX = "extra_start_idx"
         const val EXTRA_END_IDX = "extra_end_idx"
+        const val EXTRA_PARAGRAPH_ID = "extra_paragraph_id"
 
         var isServiceRunning = false
             private set
@@ -52,6 +53,8 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
     private var isTtsInitialized = false
     private var currentText: String = ""
+    private var currentParagraphId: String = ""
+    private var currentParagraphIndex: Int = 0
     private var currentBookTitle: String = "NightRead"
     private var speechRate: Float = 1.0f
     private var speechPitch: Float = 1.0f
@@ -87,24 +90,36 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 override fun onStart(utteranceId: String?) {
                     isSpeakingState = true
                     updateNotification(true)
-                    sendStatusBroadcast(isPlaying = true, isDone = false, start = 0, end = 0)
+                    sendStatusBroadcast(isPlaying = true, isDone = false, start = 0, end = 0, paragraphId = currentParagraphId)
                 }
 
                 override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
                     super.onRangeStart(utteranceId, start, end, frame)
-                    sendStatusBroadcast(isPlaying = true, isDone = false, start = start, end = end)
                 }
 
                 override fun onDone(utteranceId: String?) {
-                    isSpeakingState = false
-                    updateNotification(false)
-                    sendStatusBroadcast(isPlaying = false, isDone = true, start = -1, end = -1)
+                    val prefs = getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
+                    val continuous = prefs.getBoolean("tts_continuous", true)
+                    if (continuous) {
+                        currentParagraphIndex++
+                        if (currentParagraphIndex < TtsDataProvider.paragraphs.size) {
+                            speakCurrentText()
+                        } else {
+                            isSpeakingState = false
+                            updateNotification(false)
+                            sendStatusBroadcast(isPlaying = false, isDone = true, start = -1, end = -1, paragraphId = currentParagraphId)
+                        }
+                    } else {
+                        isSpeakingState = false
+                        updateNotification(false)
+                        sendStatusBroadcast(isPlaying = false, isDone = true, start = -1, end = -1, paragraphId = currentParagraphId)
+                    }
                 }
 
                 override fun onError(utteranceId: String?) {
                     isSpeakingState = false
                     updateNotification(false)
-                    sendStatusBroadcast(isPlaying = false, isDone = false, start = -1, end = -1)
+                    sendStatusBroadcast(isPlaying = false, isDone = false, start = -1, end = -1, paragraphId = currentParagraphId)
                 }
             })
 
@@ -119,11 +134,19 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
 
         when (action) {
             ACTION_START -> {
-                currentText = intent.getStringExtra(EXTRA_TEXT) ?: ""
+                val customText = intent.getStringExtra(EXTRA_TEXT) ?: ""
+                val startIdx = intent.getIntExtra(EXTRA_START_IDX, 0)
                 currentBookTitle = intent.getStringExtra(EXTRA_BOOK_TITLE) ?: "NightRead"
                 speechRate = intent.getFloatExtra(EXTRA_SPEED, 1.0f)
                 speechPitch = intent.getFloatExtra(EXTRA_PITCH, 1.0f)
                 selectedVoiceName = intent.getStringExtra(EXTRA_VOICE)
+
+                if (customText.isNotEmpty() && TtsDataProvider.paragraphs.isEmpty()) {
+                    currentText = customText
+                    currentParagraphIndex = 0
+                } else {
+                    currentParagraphIndex = startIdx
+                }
 
                 tts?.setSpeechRate(speechRate)
                 tts?.setPitch(speechPitch)
@@ -143,7 +166,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                     Log.e("TtsForegroundService", "Error starting foreground in TTS service", e)
                 }
 
-                if (isTtsInitialized && currentText.isNotEmpty()) {
+                if (isTtsInitialized) {
                     speakCurrentText()
                 }
             }
@@ -196,7 +219,15 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun speakCurrentText() {
-        if (!isTtsInitialized || currentText.isBlank()) return
+        if (!isTtsInitialized) return
+        if (TtsDataProvider.paragraphs.isNotEmpty() && currentParagraphIndex in TtsDataProvider.paragraphs.indices) {
+            val p = TtsDataProvider.paragraphs[currentParagraphIndex]
+            currentText = p.text
+            currentParagraphId = p.id
+        } else if (currentText.isBlank()) {
+            return
+        }
+
         tts?.stop()
         isSpeakingState = true
         val params = Bundle().apply {
@@ -311,12 +342,13 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         }
     }
 
-    private fun sendStatusBroadcast(isPlaying: Boolean, isDone: Boolean, start: Int = -1, end: Int = -1) {
+    private fun sendStatusBroadcast(isPlaying: Boolean, isDone: Boolean, start: Int = -1, end: Int = -1, paragraphId: String = "") {
         val intent = Intent(BROADCAST_TTS_STATUS).apply {
             putExtra(EXTRA_IS_SPEAKING, isPlaying)
             putExtra(EXTRA_UTTERANCE_DONE, isDone)
             putExtra(EXTRA_START_IDX, start)
             putExtra(EXTRA_END_IDX, end)
+            putExtra(EXTRA_PARAGRAPH_ID, paragraphId)
         }
         sendBroadcast(intent)
     }
