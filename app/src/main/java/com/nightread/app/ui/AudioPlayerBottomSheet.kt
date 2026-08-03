@@ -53,7 +53,8 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
             if (intent?.action == AudiobookPlaybackService.BROADCAST_AUDIOBOOK_STATUS) {
                 isPlaying = intent.getBooleanExtra(AudiobookPlaybackService.EXTRA_IS_PLAYING, false)
                 val pos = intent.getIntExtra(AudiobookPlaybackService.EXTRA_CURRENT_POSITION, 0)
-                val duration = intent.getIntExtra(AudiobookPlaybackService.EXTRA_DURATION, 0)
+                val intentDuration = intent.getIntExtra(AudiobookPlaybackService.EXTRA_DURATION, 0)
+                val duration = if (intentDuration > 0) intentDuration else getAudioFileDuration(filePath)
                 currentSpeed = intent.getFloatExtra(AudiobookPlaybackService.EXTRA_SPEED, 1.0f)
                 val timerRemaining = intent.getIntExtra(AudiobookPlaybackService.EXTRA_SLEEP_TIMER_REMAINING, 0)
 
@@ -62,15 +63,17 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
 
                 btnSpeedToggle.text = "${currentSpeed}x"
 
-                if (duration > 0 && chaptersList.isEmpty()) {
-                    generateChapters(duration)
+                tvCurrentPosition.text = formatTime(pos)
+                if (duration > 0) {
+                    seekBar.max = duration
+                    tvTotalDuration.text = formatTime(duration)
+                    if (chaptersList.isEmpty()) {
+                        generateChapters(duration)
+                    }
                 }
 
                 if (!isUserTrackingSeekBar && duration > 0) {
-                    seekBar.max = duration
                     seekBar.progress = pos
-                    tvCurrentPosition.text = formatTime(pos)
-                    tvTotalDuration.text = formatTime(duration)
                 }
                 
                 updateChapterUI(pos)
@@ -127,6 +130,16 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
 
         tvTitle.text = title
         tvAuthor.text = author
+
+        val initialDuration = getAudioFileDuration(filePath)
+        if (initialDuration > 0) {
+            seekBar.max = initialDuration
+            tvTotalDuration.text = formatTime(initialDuration)
+            generateChapters(initialDuration)
+        } else {
+            tvTotalDuration.text = "--:--"
+        }
+        tvCurrentPosition.text = formatTime(0)
 
         fabPlayPause.setOnClickListener {
             if (isPlaying) {
@@ -335,6 +348,19 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
             String.format("%02d:%02d:%02d", hours, minutes, seconds)
         } else {
             String.format("%02d:%02d", minutes, seconds)
+        }
+    }
+
+    private fun getAudioFileDuration(path: String): Int {
+        if (path.isEmpty()) return 0
+        return try {
+            val retriever = android.media.MediaMetadataRetriever()
+            retriever.setDataSource(path)
+            val timeStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+            retriever.release()
+            timeStr?.toIntOrNull() ?: 0
+        } catch (e: Exception) {
+            0
         }
     }
 

@@ -217,12 +217,27 @@ class AudiobookPlaybackService : Service() {
                 stopSelf()
             }
             ACTION_GET_STATUS -> {
-                mediaPlayer?.let { player ->
+                val player = mediaPlayer
+                if (player != null) {
+                    val pos = try { player.currentPosition } catch (e: Exception) { 0 }
+                    val dur = try { player.duration } catch (e: Exception) { 0 }
+                    val finalDur = if (dur > 0) dur else getAudioDuration(currentFilePath)
                     sendProgressBroadcast(
                         isPlaying = isPlayingAudiobook,
-                        position = player.currentPosition,
-                        duration = player.duration
+                        position = pos,
+                        duration = finalDur
                     )
+                } else if (!currentFilePath.isNullOrEmpty()) {
+                    val path = currentFilePath!!
+                    serviceScope.launch {
+                        val db = AppDatabase.getDatabase(this@AudiobookPlaybackService)
+                        val book = db.bookDao().getAllBooksSync().find { it.filePath == path }
+                        val pos = book?.currentProgressChar ?: 0
+                        val dur = getAudioDuration(path)
+                        withContext(Dispatchers.Main) {
+                            sendProgressBroadcast(isPlaying = false, position = pos, duration = dur)
+                        }
+                    }
                 }
             }
         }
@@ -466,6 +481,19 @@ class AudiobookPlaybackService : Service() {
                 position = player.currentPosition,
                 duration = player.duration
             )
+        }
+    }
+
+    private fun getAudioDuration(path: String?): Int {
+        if (path.isNullOrEmpty()) return 0
+        return try {
+            val retriever = android.media.MediaMetadataRetriever()
+            retriever.setDataSource(path)
+            val timeStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+            retriever.release()
+            timeStr?.toIntOrNull() ?: 0
+        } catch (e: Exception) {
+            0
         }
     }
 

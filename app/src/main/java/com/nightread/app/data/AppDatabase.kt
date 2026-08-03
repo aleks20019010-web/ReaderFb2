@@ -41,19 +41,19 @@ abstract class AppDatabase : RoomDatabase() {
             val internalFile = context.getDatabasePath(name)
             val externalFile = File(getAppDir(context), name)
             try {
-                if (externalFile.exists() && !internalFile.exists()) {
-                    internalFile.parentFile?.mkdirs()
-                    externalFile.copyTo(internalFile, overwrite = true)
-                    val externalWal = File(externalFile.path + "-wal")
-                    if (externalWal.exists()) externalWal.copyTo(File(internalFile.path + "-wal"), overwrite = true)
-                    val externalShm = File(externalFile.path + "-shm")
-                    if (externalShm.exists()) externalShm.copyTo(File(internalFile.path + "-shm"), overwrite = true)
+                if (internalFile.exists() && (!externalFile.exists() || externalFile.length() == 0L)) {
+                    externalFile.parentFile?.mkdirs()
+                    internalFile.copyTo(externalFile, overwrite = true)
+                    val internalWal = File(internalFile.path + "-wal")
+                    if (internalWal.exists()) internalWal.copyTo(File(externalFile.path + "-wal"), overwrite = true)
+                    val internalShm = File(internalFile.path + "-shm")
+                    if (internalShm.exists()) internalShm.copyTo(File(externalFile.path + "-shm"), overwrite = true)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("AppDatabase", "Error migrating external DB to internal", e)
+                android.util.Log.e("AppDatabase", "Error syncing internal DB to external", e)
             }
-            internalFile.parentFile?.mkdirs()
-            return internalFile
+            externalFile.parentFile?.mkdirs()
+            return externalFile
         }
 
         fun getDatabase(context: Context): AppDatabase {

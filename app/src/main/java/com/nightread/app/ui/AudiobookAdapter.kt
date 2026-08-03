@@ -42,10 +42,38 @@ class AudiobookAdapter(
         }
 
         val sizeMb = if (book.fileSize > 0) String.format("%.1f MB", book.fileSize / (1024f * 1024f)) else "Аудио"
-        holder.tvDuration.text = sizeMb
+        val durMs = if (book.totalCharacters > 0) book.totalCharacters else getDurationMs(book.filePath)
+        val formattedDur = if (durMs > 0) formatMs(durMs) else null
+
+        holder.tvDuration.text = if (formattedDur != null) "$formattedDur • $sizeMb" else sizeMb
 
         holder.itemView.setOnClickListener { onItemClick(book) }
         holder.btnPlay.setOnClickListener { onItemClick(book) }
+    }
+
+    private fun getDurationMs(path: String?): Int {
+        if (path.isNullOrEmpty()) return 0
+        return try {
+            val retriever = android.media.MediaMetadataRetriever()
+            retriever.setDataSource(path)
+            val timeStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+            retriever.release()
+            timeStr?.toIntOrNull() ?: 0
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    private fun formatMs(ms: Int): String {
+        val totalSeconds = ms / 1000
+        val seconds = totalSeconds % 60
+        val minutes = (totalSeconds / 60) % 60
+        val hours = totalSeconds / 3600
+        return if (hours > 0) {
+            String.format("%d ч %02d мин", hours, minutes)
+        } else {
+            String.format("%02d:%02d", minutes, seconds)
+        }
     }
 
     override fun getItemCount(): Int = audiobooks.size

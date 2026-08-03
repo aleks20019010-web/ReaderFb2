@@ -74,12 +74,19 @@ class NewBookScanner(
                 prefs.edit().clear().apply()
             }
 
-            val paths = listOf(
+            val paths = listOfNotNull(
                 Environment.getExternalStorageDirectory(),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
                 File(Environment.getExternalStorageDirectory(), "Download"),
+                File(Environment.getExternalStorageDirectory(), "Downloads"),
                 File(Environment.getExternalStorageDirectory(), "Documents"),
-                File(Environment.getExternalStorageDirectory(), "Books")
-            )
+                File(Environment.getExternalStorageDirectory(), "Books"),
+                com.nightread.app.data.AppDatabase.getAppDir(context),
+                context.getExternalFilesDir(null),
+                context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS),
+                context.filesDir
+            ).distinct()
 
             val filesToProcess = mutableListOf<File>()
             val gatheredPaths = HashSet<String>()
@@ -300,12 +307,19 @@ class NewBookScanner(
                 prefs.edit().clear().apply()
             }
 
-            val paths = listOf(
+            val paths = listOfNotNull(
                 Environment.getExternalStorageDirectory(),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
                 File(Environment.getExternalStorageDirectory(), "Download"),
+                File(Environment.getExternalStorageDirectory(), "Downloads"),
                 File(Environment.getExternalStorageDirectory(), "Documents"),
-                File(Environment.getExternalStorageDirectory(), "Books")
-            )
+                File(Environment.getExternalStorageDirectory(), "Books"),
+                com.nightread.app.data.AppDatabase.getAppDir(context),
+                context.getExternalFilesDir(null),
+                context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS),
+                context.filesDir
+            ).distinct()
 
             val filesToProcess = mutableListOf<File>()
             val gatheredPaths = HashSet<String>()
@@ -751,6 +765,45 @@ class NewBookScanner(
             } catch (e: Throwable) {
                 Log.e(TAG, "Error handling epub file: ${file.absolutePath}", e)
             }
+        } else if (ext == "txt") {
+            try {
+                if (!file.exists() || !file.canRead()) return
+                val bytes = file.inputStream().buffered().use { it.readBytes() }
+                if (bytes.isEmpty()) return
+                val sha1 = computeSha1(bytes)
+                if (sha1ToPathMap.containsKey(sha1)) {
+                    val existingPath = sha1ToPathMap[sha1]
+                    if (existingPath != file.absolutePath) {
+                        try {
+                            kotlinx.coroutines.runBlocking {
+                                bookDao.updateFilePath(sha1, file.absolutePath)
+                            }
+                            sha1ToPathMap[sha1] = file.absolutePath
+                        } catch (ex: Exception) {
+                            Log.e(TAG, "Failed to update file path in DB for SHA-1: $sha1", ex)
+                        }
+                    }
+                    onStatsUpdated(0, 1)
+                    return
+                }
+                val rawText = decodeBytesToString(bytes)
+                val firstLine = rawText.lines().firstOrNull { it.isNotBlank() }?.take(80) ?: file.nameWithoutExtension
+                val title = resolveRussianTitle(firstLine, file.nameWithoutExtension)
+                val book = BookEntity(
+                    sha1 = sha1,
+                    title = title,
+                    author = "Текстовый документ",
+                    category = "Local",
+                    filePath = file.absolutePath,
+                    fileSize = file.length(),
+                    isNew = true
+                )
+                batchList.add(book)
+                sha1ToPathMap[sha1] = file.absolutePath
+                onStatsUpdated(1, 0)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error handling txt file: ${file.absolutePath}", e)
+            }
         }
     }
 
@@ -799,7 +852,7 @@ class NewBookScanner(
                     gatherFilesRecursive(file, list, depth + 1)
                 } else {
                     val ext = file.extension.lowercase()
-                    if (ext == "fb2" || ext == "zip" || ext == "epub") {
+                    if (ext == "fb2" || ext == "zip" || ext == "epub" || ext == "txt") {
                         if (file.length() > 0 && file.length() < 30 * 1024 * 1024) {
                             list.add(file)
                         } else {

@@ -668,12 +668,10 @@ class LibraryFragment : Fragment() {
         }
 
         // Observe Books Stream
-        val booksFlow = (if (filterType == "reading") {
+        val booksFlow = if (filterType == "reading") {
             viewModel.loadReadingBooks()
         } else {
             viewModel.allBooks
-        }).distinctUntilChanged { old, new ->
-            old.map { it.sha1 } == new.map { it.sha1 }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {

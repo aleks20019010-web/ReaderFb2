@@ -28,9 +28,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     // Observables from Database with robust error catching
     val allBooks: StateFlow<List<BookEntity>> = repository.allBooks
-        .distinctUntilChanged { old, new ->
-            old.map { it.sha1 } == new.map { it.sha1 }
-        }
         .catch { e ->
             if (e is CancellationException) throw e
             Log.e("BookViewModel", "Exception loading books from database", e)
