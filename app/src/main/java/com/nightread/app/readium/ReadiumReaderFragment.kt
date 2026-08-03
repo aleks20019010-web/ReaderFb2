@@ -50,7 +50,7 @@ class ReadiumReaderFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         if (publication != null && navigatorFragment == null) {
-            setupNavigator(savedInstanceState)
+            setupNavigator()
         }
     }
 
@@ -58,7 +58,7 @@ class ReadiumReaderFragment : Fragment() {
         this.publication = pub
         this.initialLocator = initialLoc
         if (isAdded && view != null && navigatorFragment == null) {
-            setupNavigator(null)
+            setupNavigator()
         }
     }
 
@@ -74,7 +74,7 @@ class ReadiumReaderFragment : Fragment() {
         navigatorFragment?.removeDecorationListener(listener)
     }
 
-    private fun setupNavigator(savedInstanceState: Bundle?) {
+    private fun setupNavigator() {
         val pub = publication ?: return
         if (childFragmentManager.findFragmentByTag("epub_navigator") != null) {
             val navFragment = childFragmentManager.findFragmentByTag("epub_navigator") as? EpubNavigatorFragment
@@ -106,55 +106,45 @@ class ReadiumReaderFragment : Fragment() {
 
         childFragmentManager.fragmentFactory = fragmentFactory
 
-        if (savedInstanceState == null) {
-            val navFragment = fragmentFactory.instantiate(
-                requireContext().classLoader,
-                EpubNavigatorFragment::class.java.name
-            ) as EpubNavigatorFragment
+        val navFragment = fragmentFactory.instantiate(
+            requireContext().classLoader,
+            EpubNavigatorFragment::class.java.name
+        ) as EpubNavigatorFragment
 
-            childFragmentManager.beginTransaction()
-                .replace(R.id.readiumFragmentContainer, navFragment, "epub_navigator")
-                .commitNowAllowingStateLoss()
+        childFragmentManager.beginTransaction()
+            .replace(R.id.readiumFragmentContainer, navFragment, "epub_navigator")
+            .commitNowAllowingStateLoss()
 
-            navigatorFragment = navFragment
+        navigatorFragment = navFragment
 
-            for ((group, l) in decorationListeners) {
-                navFragment.addDecorationListener(group, l)
+        for ((group, l) in decorationListeners) {
+            navFragment.addDecorationListener(group, l)
+        }
+
+        lifecycleScope.launch {
+            navFragment.currentLocator.collect { loc ->
+                _currentLocator.value = loc
             }
+        }
 
-            lifecycleScope.launch {
-                navFragment.currentLocator.collect { loc ->
-                    _currentLocator.value = loc
-                }
-            }
-
-            // Selection Polling Loop
-            viewLifecycleOwner.lifecycleScope.launch {
-                var lastSelectionText: String? = null
-                while (true) {
-                    kotlinx.coroutines.delay(500)
-                    try {
-                        val selection = navigatorFragment?.currentSelection()
-                        if (selection != null) {
-                            val text = selection.locator.text.highlight ?: ""
-                            if (text.isNotEmpty() && text != lastSelectionText) {
-                                lastSelectionText = text
-                                onSelectionListener?.invoke(selection)
-                            }
-                        } else {
-                            lastSelectionText = null
+        // Selection Polling Loop
+        viewLifecycleOwner.lifecycleScope.launch {
+            var lastSelectionText: String? = null
+            while (true) {
+                kotlinx.coroutines.delay(500)
+                try {
+                    val selection = navigatorFragment?.currentSelection()
+                    if (selection != null) {
+                        val text = selection.locator.text.highlight ?: ""
+                        if (text.isNotEmpty() && text != lastSelectionText) {
+                            lastSelectionText = text
+                            onSelectionListener?.invoke(selection)
                         }
-                    } catch (e: Exception) {
-                        // ignore
+                    } else {
+                        lastSelectionText = null
                     }
-                }
-            }
-        } else {
-            val navFragment = childFragmentManager.findFragmentByTag("epub_navigator") as? EpubNavigatorFragment
-            navigatorFragment = navFragment
-            if (navFragment != null) {
-                for ((group, l) in decorationListeners) {
-                    navFragment.addDecorationListener(group, l)
+                } catch (e: Exception) {
+                    // ignore
                 }
             }
         }

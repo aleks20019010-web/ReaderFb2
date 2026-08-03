@@ -35,6 +35,7 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
     private lateinit var seekBar: SeekBar
     private lateinit var tvCurrentPosition: TextView
     private lateinit var tvTotalDuration: TextView
+    private lateinit var tvPlayerChapter: TextView
     private lateinit var btnSpeedToggle: MaterialButton
     private lateinit var btnSkipBackward: ImageButton
     private lateinit var btnSkipForward: ImageButton
@@ -71,6 +72,8 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
                     tvCurrentPosition.text = formatTime(pos)
                     tvTotalDuration.text = formatTime(duration)
                 }
+                
+                updateChapterUI(pos)
             }
         }
     }
@@ -111,6 +114,7 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
 
         tvTitle = view.findViewById(R.id.tvPlayerTitle)
         tvAuthor = view.findViewById(R.id.tvPlayerAuthor)
+        tvPlayerChapter = view.findViewById(R.id.tvPlayerChapter)
         seekBar = view.findViewById(R.id.seekBarAudio)
         tvCurrentPosition = view.findViewById(R.id.tvCurrentPosition)
         tvTotalDuration = view.findViewById(R.id.tvTotalDuration)
@@ -234,6 +238,20 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
         chaptersList = list
     }
 
+    private fun updateChapterUI(currentMs: Int) {
+        if (chaptersList.isEmpty()) {
+            tvPlayerChapter.visibility = View.GONE
+            return
+        }
+        val currentChapter = chaptersList.find { currentMs >= it.startMs && currentMs < (it.startMs + it.durationMs) }
+        if (currentChapter != null) {
+            tvPlayerChapter.text = currentChapter.name
+            tvPlayerChapter.visibility = View.VISIBLE
+        } else {
+            tvPlayerChapter.visibility = View.GONE
+        }
+    }
+
     private fun showChaptersDialog() {
         if (chaptersList.isEmpty()) {
             Toast.makeText(requireContext(), "Главы недоступны", Toast.LENGTH_SHORT).show()
@@ -328,6 +346,12 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
         } else {
             requireContext().registerReceiver(audioStatusReceiver, filter)
         }
+        
+        // Request immediate state from the service to populate the UI correctly on startup
+        val intent = Intent(requireContext(), AudiobookPlaybackService::class.java).apply {
+            action = AudiobookPlaybackService.ACTION_GET_STATUS
+        }
+        requireContext().startService(intent)
     }
 
     override fun onPause() {

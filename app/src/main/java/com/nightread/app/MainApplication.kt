@@ -55,6 +55,12 @@ class MainApplication : Application(), ImageLoaderFactory, androidx.work.Configu
     override fun onCreate() {
         super.onCreate()
         
+        try {
+            androidx.work.WorkManager.initialize(this, workManagerConfiguration)
+        } catch (e: Exception) {
+            // Already initialized, ignore
+        }
+        
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {

@@ -41,6 +41,7 @@ class AudiobookPlaybackService : Service() {
         const val ACTION_SKIP_FORWARD = "com.nightread.app.action.AUDIOBOOK_SKIP_FORWARD"
         const val ACTION_SKIP_BACKWARD = "com.nightread.app.action.AUDIOBOOK_SKIP_BACKWARD"
         const val ACTION_SLEEP_TIMER = "com.nightread.app.action.AUDIOBOOK_SLEEP_TIMER"
+        const val ACTION_GET_STATUS = "com.nightread.app.action.AUDIOBOOK_GET_STATUS"
 
         const val EXTRA_FILE_PATH = "extra_file_path"
         const val EXTRA_SHA1 = "extra_sha1"
@@ -213,6 +214,15 @@ class AudiobookPlaybackService : Service() {
                 stopPlayback()
                 stopForeground(true)
                 stopSelf()
+            }
+            ACTION_GET_STATUS -> {
+                mediaPlayer?.let { player ->
+                    sendProgressBroadcast(
+                        isPlaying = isPlayingAudiobook,
+                        position = player.currentPosition,
+                        duration = player.duration
+                    )
+                }
             }
         }
 
