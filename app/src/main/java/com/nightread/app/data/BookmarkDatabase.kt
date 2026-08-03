@@ -15,7 +15,7 @@ abstract class BookmarkDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context): BookmarkDatabase {
             return INSTANCE ?: synchronized(this) {
-                val dbFile = java.io.File(AppDatabase.getReaderFb2Dir(context), "bookmarks.db")
+                val dbFile = AppDatabase.getDatabaseFile(context, "bookmarks.db")
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     BookmarkDatabase::class.java,

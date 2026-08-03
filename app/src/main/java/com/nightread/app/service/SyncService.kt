@@ -109,17 +109,29 @@ class SyncService : Service() {
     }
 
     private fun startForegroundServiceCompat() {
-        val notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Синхронизация с Яндекс Диском")
-            .setContentText("Запуск фоновой синхронизации...")
-            .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setProgress(100, 0, true)
-            .setContentIntent(getMainActivityPendingIntent())
-            .build()
+        try {
+            val notification = NotificationCompat.Builder(this, channelId)
+                .setContentTitle("Синхронизация с Яндекс Диском")
+                .setContentText("Запуск фоновой синхронизации...")
+                .setSmallIcon(android.R.drawable.stat_notify_sync)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setProgress(100, 0, true)
+                .setContentIntent(getMainActivityPendingIntent())
+                .build()
 
-        startForeground(notificationId, notification)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                startForeground(
+                    notificationId,
+                    notification,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                )
+            } else {
+                startForeground(notificationId, notification)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting foreground service", e)
+        }
     }
 
     private fun updateNotification(state: YandexSyncState) {

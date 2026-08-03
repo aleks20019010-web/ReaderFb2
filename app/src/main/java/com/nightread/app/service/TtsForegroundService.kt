@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.support.v4.media.session.MediaSessionCompat
@@ -111,7 +112,19 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 tts?.setSpeechRate(speechRate)
                 tts?.setPitch(speechPitch)
 
-                startForeground(NOTIFICATION_ID, buildNotification(true))
+                try {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        startForeground(
+                            NOTIFICATION_ID,
+                            buildNotification(true),
+                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                        )
+                    } else {
+                        startForeground(NOTIFICATION_ID, buildNotification(true))
+                    }
+                } catch (e: Exception) {
+                    Log.e("TtsForegroundService", "Error starting foreground in TTS service", e)
+                }
 
                 if (isTtsInitialized && currentText.isNotEmpty()) {
                     speakCurrentText()

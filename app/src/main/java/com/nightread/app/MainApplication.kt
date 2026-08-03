@@ -49,7 +49,12 @@ class MainApplication : Application(), ImageLoaderFactory, androidx.work.Configu
     }
 
     override fun attachBaseContext(base: Context) {
-        super.attachBaseContext(SettingsManager.applyLocale(base))
+        super.attachBaseContext(base)
+        try {
+            SettingsManager.applyLocale(this)
+        } catch (e: Exception) {
+            Log.e("MainApplication", "Error applying locale in attachBaseContext", e)
+        }
     }
 
     override fun onCreate() {

@@ -37,9 +37,28 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getReaderFb2Dir(context: Context): File = getAppDir(context)
 
+        fun getDatabaseFile(context: Context, name: String): File {
+            val internalFile = context.getDatabasePath(name)
+            val externalFile = File(getAppDir(context), name)
+            try {
+                if (externalFile.exists() && !internalFile.exists()) {
+                    internalFile.parentFile?.mkdirs()
+                    externalFile.copyTo(internalFile, overwrite = true)
+                    val externalWal = File(externalFile.path + "-wal")
+                    if (externalWal.exists()) externalWal.copyTo(File(internalFile.path + "-wal"), overwrite = true)
+                    val externalShm = File(externalFile.path + "-shm")
+                    if (externalShm.exists()) externalShm.copyTo(File(internalFile.path + "-shm"), overwrite = true)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("AppDatabase", "Error migrating external DB to internal", e)
+            }
+            internalFile.parentFile?.mkdirs()
+            return internalFile
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                val dbFile = File(getAppDir(context), "books.db")
+                val dbFile = getDatabaseFile(context, "books.db")
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,

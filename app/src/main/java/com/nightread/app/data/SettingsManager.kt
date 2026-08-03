@@ -715,8 +715,13 @@ object SettingsManager {
         val locale = java.util.Locale(lang)
         java.util.Locale.setDefault(locale)
         val config = android.content.res.Configuration(context.resources.configuration)
+        config.setLocale(locale)
+        if (context is android.app.Application) {
+            @Suppress("DEPRECATION")
+            context.resources.updateConfiguration(config, context.resources.displayMetrics)
+            return context
+        }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            config.setLocale(locale)
             return context.createConfigurationContext(config)
         } else {
             @Suppress("DEPRECATION")

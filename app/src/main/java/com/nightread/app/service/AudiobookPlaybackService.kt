@@ -15,6 +15,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import android.support.v4.media.session.MediaSessionCompat
 import androidx.core.app.NotificationCompat
 import com.nightread.app.MainActivity
@@ -169,7 +170,7 @@ class AudiobookPlaybackService : Service() {
                     mediaPlayer?.start()
                     isPlayingAudiobook = true
                     updateMetadata()
-                    startForeground(NOTIFICATION_ID, buildNotification(true))
+                    safeStartForeground()
                     startProgressTracker()
                 }
             }
@@ -239,7 +240,7 @@ class AudiobookPlaybackService : Service() {
                 mp.start()
                 isPlayingAudiobook = true
                 updateMetadata()
-                startForeground(NOTIFICATION_ID, buildNotification(true))
+                safeStartForeground()
                 startProgressTracker()
             }
             setOnCompletionListener {
@@ -249,6 +250,22 @@ class AudiobookPlaybackService : Service() {
                 sendProgressBroadcast(isPlaying = false, position = duration, duration = duration)
             }
             prepareAsync()
+        }
+    }
+
+    private fun safeStartForeground() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    buildNotification(true),
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, buildNotification(true))
+            }
+        } catch (e: Exception) {
+            Log.e("AudiobookPlaybackService", "Error starting foreground in Audiobook service", e)
         }
     }
 
