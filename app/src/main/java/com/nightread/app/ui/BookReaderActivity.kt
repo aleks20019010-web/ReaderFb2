@@ -51,14 +51,9 @@ class BookReaderActivity : BaseActivity() {
         super.attachBaseContext(SettingsManager.applyLocale(newBase))
     }
 
-    private var readiumReaderFragment: com.nightread.app.readium.ReadiumReaderFragment? = null
-    private var androidTtsEngine: org.readium.r2.navigator.tts.AndroidTtsEngine? = null
-    private var publicationSpeechSynthesizer: org.readium.r2.navigator.tts.PublicationSpeechSynthesizer? = null
+    private var bookReaderFragment: com.nightread.app.ui.BookReaderFragment? = null
     private val noteManager by lazy { com.nightread.app.data.NoteManager(this) }
     private var openedBookSha1: String? = null
-    fun navigateToReadiumLocator(locator: org.readium.r2.shared.publication.Locator) {
-        readiumReaderFragment?.go(locator)
-    }
     private lateinit var ivBookCoverPage: ImageView
     private lateinit var pageIndicatorView: TextView
     private lateinit var progressBar: ProgressBar
@@ -203,11 +198,6 @@ class BookReaderActivity : BaseActivity() {
         readerSplashStarryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
         viewModel = ViewModelProvider(this).get(ReaderViewModel::class.java)
-        androidTtsEngine = org.readium.r2.navigator.tts.AndroidTtsEngine(this)
-        val pub = com.nightread.app.readium.ReadiumEngine.getPublication()
-        if (pub != null) {
-            publicationSpeechSynthesizer = org.readium.r2.navigator.tts.PublicationSpeechSynthesizer(pub, androidTtsEngine!!)
-        }
 
         val btnBack = findViewById<View>(R.id.btnBack)
         btnBack.setOnClickListener { finish() }
@@ -314,33 +304,15 @@ class BookReaderActivity : BaseActivity() {
         val btnSearch = findViewById<ImageButton>(R.id.btnSearch)
         btnSearch.visibility = View.VISIBLE
         btnSearch.setOnClickListener {
-            val pub = com.nightread.app.readium.ReadiumEngine.getPublication()
-            if (pub != null) {
-                val searchSheet = com.nightread.app.readium.ReadiumSearchBottomSheet.newInstance(pub) { locator ->
-                    if (readiumReaderFragment != null && readiumReaderFragment?.isVisible == true) {
-                        readiumReaderFragment?.go(locator)
-                    } else {
-                        locator.locations.progression?.let { prog ->
-                            val totalPages = viewModel.pagesState.value.size
-                            if (totalPages > 0) {
-                                val targetPage = (prog * (totalPages - 1)).toInt()
-                                loadPage(targetPage)
-                            }
-                        }
-                    }
+            val sheet = BookRagSearchBottomSheet.newInstance()
+            sheet.setOnResultSelectedListener { offset, pageIndex ->
+                if (offset >= 0) {
+                    navigateToOffset(offset)
+                } else if (pageIndex >= 0) {
+                    loadPage(pageIndex)
                 }
-                searchSheet.show(supportFragmentManager, "readium_search")
-            } else {
-                val sheet = BookRagSearchBottomSheet.newInstance()
-                sheet.setOnResultSelectedListener { offset, pageIndex ->
-                    if (offset >= 0) {
-                        navigateToOffset(offset)
-                    } else if (pageIndex >= 0) {
-                        loadPage(pageIndex)
-                    }
-                }
-                sheet.show(supportFragmentManager, "rag_search")
             }
+            sheet.show(supportFragmentManager, "rag_search")
         }
 
         val btnBookmark = findViewById<ImageButton>(R.id.btnBookmark)
@@ -480,7 +452,7 @@ class BookReaderActivity : BaseActivity() {
             insets
         }
 
-        // Collect Book Details and load into Readium Engine
+        // Collect Book Details and load into Book Reader
         lifecycleScope.launch {
             viewModel.bookState.collectLatest { book ->
                 if (book != null) {
@@ -488,7 +460,7 @@ class BookReaderActivity : BaseActivity() {
                     findViewById<TextView>(R.id.tvTitle)?.text = book.title
                     if (openedBookSha1 != book.sha1) {
                         openedBookSha1 = book.sha1
-                        openBookInReadium(book)
+                        openBook(book)
                     }
                 }
             }
@@ -799,7 +771,7 @@ class BookReaderActivity : BaseActivity() {
         }
     }
 
-    private fun openBookInReadium(book: com.nightread.app.data.BookEntity) {
+    private fun openBook(book: com.nightread.app.data.BookEntity) {
         val splashOverlay = findViewById<View>(R.id.reader_splash_overlay)
         splashOverlay?.visibility = View.VISIBLE
 
@@ -813,327 +785,63 @@ class BookReaderActivity : BaseActivity() {
                 return@launch
             }
 
-            val pub = com.nightread.app.readium.ReadiumEngine.openPublication(this@BookReaderActivity, file)
-
             withContext(Dispatchers.Main) {
                 splashOverlay?.visibility = View.GONE
-                if (pub != null) {
-                    var fragment = supportFragmentManager.findFragmentByTag("readium_reader") as? com.nightread.app.readium.ReadiumReaderFragment
-                    if (fragment == null) {
-                        fragment = com.nightread.app.readium.ReadiumReaderFragment()
-                        supportFragmentManager.beginTransaction()
-                            .replace(R.id.readiumContainerView, fragment, "readium_reader")
-                            .commitNowAllowingStateLoss()
-                    }
-                    fragment.initPublication(pub)
-                    fragment.onTapListener = {
-                        toggleToolbars()
-                    }
-                    fragment.onSelectionListener = { selection ->
-                        showReadiumSelectionBottomSheet(selection)
-                    }
-                    fragment.addDecorationListener("highlights", object : org.readium.r2.navigator.DecorableNavigator.Listener {
-                        override fun onDecorationActivated(event: org.readium.r2.navigator.DecorableNavigator.OnActivatedEvent): Boolean {
-                            val noteId = (event.decoration.extras["noteId"] as? Number)?.toInt() ?: return false
-                            showNoteActionDialog(noteId)
-                            return true
-                        }
-                    })
-                    readiumReaderFragment = fragment
-
-                    updatePage()
-
-                    observeAndApplyDecorations(book.sha1)
-
-                    lifecycleScope.launch {
-                        fragment.currentLocator.collectLatest { locator ->
-                            if (locator != null) {
-                                onReadiumLocatorChanged(locator, pub)
-                            }
-                        }
-                    }
-                } else {
-                    com.nightread.app.ui.CustomToast.show(this@BookReaderActivity, "Не удалось открыть книгу через Readium")
+                var fragment = supportFragmentManager.findFragmentByTag("book_reader") as? com.nightread.app.ui.BookReaderFragment
+                if (fragment == null) {
+                    fragment = com.nightread.app.ui.BookReaderFragment()
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.bookContainerView, fragment, "book_reader")
+                        .commitNowAllowingStateLoss()
                 }
+                fragment.initBook(file, book.sha1)
+                bookReaderFragment = fragment
+
+                updatePage()
             }
         }
-    }
-
-    private fun onReadiumLocatorChanged(locator: org.readium.r2.shared.publication.Locator, pub: org.readium.r2.shared.publication.Publication) {
-        val totalProgression = locator.locations.totalProgression ?: run {
-            val chapterIdx = pub.readingOrder.indexOfFirst { it.href == locator.href }.coerceAtLeast(0)
-            val totalChapters = pub.readingOrder.size.coerceAtLeast(1)
-            val chapterProg = locator.locations.progression ?: 0.0
-            (chapterIdx.toDouble() + chapterProg) / totalChapters.toDouble()
-        }
-        val percent = (totalProgression * 100).toInt().coerceIn(0, 100)
-
-        findViewById<TextView>(R.id.tvPageIndicator)?.text = "Прогресс: $percent%"
-        findViewById<TextView>(R.id.tvFullscreenProgressLabel)?.text = "Прогресс: $percent%"
-
-        val seekBar = findViewById<SeekBar>(R.id.seekBar)
-        if (!isUserTrackingSeekBar && seekBar != null) {
-            seekBar.max = 100
-            seekBar.progress = percent
-        }
-
-        findViewById<ProgressBar>(R.id.pbFullscreenProgress)?.let {
-            it.max = 100
-            it.progress = percent
-        }
-
-        val book = viewModel.bookState.value
-        if (book != null) {
-            viewModel.updateProgress(totalProgression)
-        }
-    }
-
-    private fun observeAndApplyDecorations(bookId: String) {
-        lifecycleScope.launch {
-            noteManager.getNotesForBook(bookId).collectLatest { notes ->
-                val decorations = notes.mapNotNull { note ->
-                    val locatorJson = note.locatorJson ?: return@mapNotNull null
-                    try {
-                        val locator = org.readium.r2.shared.publication.Locator.Companion.fromJSON(
-                            org.json.JSONObject(locatorJson),
-                            null
-                        ) ?: return@mapNotNull null
-                        
-                        org.readium.r2.navigator.Decoration(
-                            id = "note_${note.id}",
-                            locator = locator,
-                            style = org.readium.r2.navigator.Decoration.Style.Highlight(
-                                tint = note.color,
-                                isActive = true
-                            ),
-                            extras = mapOf("noteId" to note.id)
-                        )
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        null
-                    }
-                }
-                readiumReaderFragment?.applyDecorations(decorations, "highlights")
-            }
-        }
-    }
-
-    private fun showReadiumSelectionBottomSheet(selection: org.readium.r2.navigator.Selection) {
-        val highlightedText = selection.locator.text.highlight ?: ""
-        if (highlightedText.isEmpty()) return
-
-        val sheet = com.nightread.app.readium.ReadiumSelectionBottomSheet.newInstance(highlightedText, selection.locator)
-        sheet.onHighlightListener = { locator, color, text ->
-            lifecycleScope.launch {
-                val book = viewModel.bookState.value
-                if (book != null) {
-                    noteManager.addNote(
-                        bookId = book.sha1,
-                        bookTitle = book.title,
-                        selectedText = text,
-                        noteText = "",
-                        charOffset = 0,
-                        locatorJson = locator?.toJSON()?.toString(),
-                        color = color
-                    )
-                }
-            }
-        }
-        sheet.onNoteListener = { locator, text, noteText ->
-            lifecycleScope.launch {
-                val book = viewModel.bookState.value
-                if (book != null) {
-                    noteManager.addNote(
-                        bookId = book.sha1,
-                        bookTitle = book.title,
-                        selectedText = text,
-                        noteText = noteText,
-                        charOffset = 0,
-                        locatorJson = locator?.toJSON()?.toString(),
-                        color = 0xFFFFEE58.toInt()
-                    )
-                }
-            }
-        }
-        sheet.onDictionaryListener = { word ->
-            fetchAndShowFreeDictionary(word)
-        }
-        sheet.onTtsListener = { text ->
-            val locator = getCurrentOrFallbackLocator()
-            publicationSpeechSynthesizer?.play(text, locator)
-        }
-        sheet.show(supportFragmentManager, "readium_selection_sheet")
     }
 
     fun showCustomSelectionBottomSheet(selectedText: String, contextSnippet: String) {
         if (selectedText.isBlank()) return
-        val sheet = com.nightread.app.readium.ReadiumSelectionBottomSheet.newInstance(selectedText, null)
-        sheet.onHighlightListener = { _, color, text ->
-            lifecycleScope.launch {
-                val book = viewModel.bookState.value
-                if (book != null) {
-                    noteManager.addNote(
-                        bookId = book.sha1,
-                        bookTitle = book.title,
-                        selectedText = text,
-                        noteText = "",
-                        charOffset = 0,
-                        locatorJson = null,
-                        color = color
-                    )
-                }
+        val sheet = com.nightread.app.ui.SelectionBottomSheet.newInstance(selectedText)
+        sheet.setTtsListener { text ->
+            val title = findViewById<TextView>(R.id.tvBookTitle).text.toString()
+            val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this)
+            val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
+            val voice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
+            val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                action = com.nightread.app.service.TtsForegroundService.ACTION_START
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, text)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voice)
             }
-            val colorHex = String.format("#%06X", 0xFFFFFF and color)
-            supportFragmentManager.fragments.forEach { fragment ->
-                if (fragment is PageFragment && fragment.isVisible) {
-                    fragment.highlightCurrentSelection(colorHex)
-                }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
             }
-        }
-        sheet.onNoteListener = { _, text, noteText ->
-            lifecycleScope.launch {
-                val book = viewModel.bookState.value
-                if (book != null) {
-                    noteManager.addNote(
-                        bookId = book.sha1,
-                        bookTitle = book.title,
-                        selectedText = text,
-                        noteText = noteText,
-                        charOffset = 0,
-                        locatorJson = null,
-                        color = 0xFFFFEE58.toInt()
-                    )
-                }
-            }
-            supportFragmentManager.fragments.forEach { fragment ->
-                if (fragment is PageFragment && fragment.isVisible) {
-                    fragment.highlightCurrentSelection("#FFEE58")
-                }
-            }
-        }
-        sheet.onDictionaryListener = { word ->
-            fetchAndShowFreeDictionary(word)
-        }
-        sheet.onTtsListener = { text ->
-            val locator = getCurrentOrFallbackLocator()
-            publicationSpeechSynthesizer?.play(text, locator)
         }
         sheet.show(supportFragmentManager, "custom_selection_sheet")
     }
 
-    private fun showNoteActionDialog(noteId: Int) {
-        lifecycleScope.launch {
-            val note = noteManager.getNoteById(noteId) ?: return@launch
-            val title = if (note.noteText.isNotEmpty()) "Заметка" else "Цитата"
-            
-            val builder = androidx.appcompat.app.AlertDialog.Builder(this@BookReaderActivity, R.style.DarkPurpleBottomSheetDialog)
-            builder.setTitle(title)
-            
-            val view = layoutInflater.inflate(R.layout.dialog_readium_note_actions, null)
-            val tvQuote = view.findViewById<TextView>(R.id.tvDialogQuote)
-            val tvNote = view.findViewById<TextView>(R.id.tvDialogNoteText)
-            val btnEdit = view.findViewById<View>(R.id.btnDialogEdit)
-            val btnDelete = view.findViewById<View>(R.id.btnDialogDelete)
-            val btnCopy = view.findViewById<View>(R.id.btnDialogCopy)
-            
-            tvQuote.text = "«${note.selectedText}»"
-            if (note.noteText.isNotEmpty()) {
-                tvNote.text = note.noteText
-                tvNote.visibility = View.VISIBLE
-            } else {
-                tvNote.visibility = View.GONE
-            }
-            
-            val dialog = builder.setView(view).create()
-            
-            btnEdit.setOnClickListener {
-                dialog.dismiss()
-                showEditNoteDialog(note)
-            }
-            
-            btnDelete.setOnClickListener {
-                dialog.dismiss()
-                lifecycleScope.launch {
-                    noteManager.deleteNote(noteId)
-                    com.nightread.app.ui.CustomToast.show(this@BookReaderActivity, "Удалено")
-                }
-            }
-            
-            btnCopy.setOnClickListener {
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                val textToCopy = if (note.noteText.isNotEmpty()) {
-                    "Цитата: ${note.selectedText}\nЗаметка: ${note.noteText}"
-                } else {
-                    note.selectedText
-                }
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Quote", textToCopy))
-                com.nightread.app.ui.CustomToast.show(this@BookReaderActivity, "Скопировано")
-                dialog.dismiss()
-            }
-            
-            dialog.show()
-        }
-    }
 
-    private fun showEditNoteDialog(note: com.nightread.app.data.NoteEntity) {
-        val etNote = android.widget.EditText(this).apply {
-            setText(note.noteText)
-            hint = "Введите текст заметки..."
-            setPadding(32, 32, 32, 32)
-        }
-        
-        androidx.appcompat.app.AlertDialog.Builder(this, R.style.DarkPurpleBottomSheetDialog)
-            .setTitle("Редактировать заметку")
-            .setView(etNote)
-            .setPositiveButton("Сохранить") { _, _ ->
-                val text = etNote.text.toString().trim()
-                lifecycleScope.launch {
-                    noteManager.updateNoteText(note.id, text)
-                    com.nightread.app.ui.CustomToast.show(this@BookReaderActivity, "Сохранено")
-                }
-            }
-            .setNegativeButton("Отмена", null)
-            .show()
-    }
 
     private fun updatePage() {
-        val themeKey = viewModel.themeState.value
-        val fontSizeSp = viewModel.fontSizeState.value
-        val fontMultiplier = (fontSizeSp / 18.0f).toDouble().coerceIn(0.6, 2.5)
-        val lineSpacing = viewModel.lineSpacingState.value.toDouble()
-        val fontFamily = viewModel.fontFamilyState.value
-        val fontWeight = if (viewModel.fontWeightState.value > 0) 1.5 else 1.0
-        val pageMargins = if (viewModel.pageMarginsState.value) 1.2 else 0.5
-        readiumReaderFragment?.updatePreferences(
-            themeMode = themeKey,
-            fontSizeMultiplier = fontMultiplier,
-            fontFamilyName = fontFamily,
-            lineSpacing = lineSpacing,
-            fontWeight = fontWeight,
-            pageMargins = pageMargins
-        )
+        bookReaderFragment?.updatePreferences()
     }
 
     private fun updatePageIndicator() {
-        val locator = readiumReaderFragment?.currentLocator?.value
-        val prog = locator?.locations?.progression ?: 0.0
-        val percent = (prog * 100).toInt()
-        findViewById<TextView>(R.id.tvPageIndicator)?.text = "Прогресс: $percent%"
+        val cur = bookReaderFragment?.currentPage?.value ?: 0
+        val total = bookReaderFragment?.totalPages?.value ?: 1
+        val percent = if (total > 1) (cur.toDouble() / (total - 1).toDouble() * 100).toInt() else 0
+        findViewById<TextView>(R.id.tvPageIndicator)?.text = "Стр. ${cur + 1} из $total ($percent%)"
         
         // Update dog-ear bookmark status
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
-        val filePath = viewModel.bookState.value?.filePath ?: ""
-        val isWebViewBook = filePath.endsWith(".fb2", true) || 
-                           filePath.endsWith(".fb2.zip", true) || 
-                           filePath.endsWith(".zip", true) ||
-                           filePath.endsWith(".epub", true)
-        
-        val offset = if (isWebViewBook) {
-            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
-            viewModel.getOffsetForParagraphIndex(pIndex)
-        } else {
-            viewModel.getOffsetForPage(viewModel.currentPage.value)
-        }
+        val offset = cur
 
         lifecycleScope.launch(Dispatchers.IO) {
             val db = com.nightread.app.data.BookmarkDatabase.getDatabase(this@BookReaderActivity)
@@ -1210,7 +918,7 @@ class BookReaderActivity : BaseActivity() {
 
     private val activePageView: View
         get() {
-            return findViewById<View>(R.id.readiumContainerView) ?: rootLayout
+            return findViewById<View>(R.id.bookContainerView) ?: rootLayout
         }
 
     private fun updatePageWithAnimation(newPageIdx: Int) {
@@ -1788,8 +1496,6 @@ class BookReaderActivity : BaseActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        publicationSpeechSynthesizer?.close()
-        androidTtsEngine?.close()
         brightnessAnimator?.cancel()
         autoBrightnessAnimator?.cancel()
         sleepTimerJob?.cancel()
@@ -1898,48 +1604,22 @@ class BookReaderActivity : BaseActivity() {
     }
 
     fun navigateToOffset(offset: Int) {
-        val pub = com.nightread.app.readium.ReadiumEngine.getPublication() ?: return
-        val totalLength = viewModel.fullContentLength.coerceAtLeast(1)
-        val targetProg = (offset.toDouble() / totalLength.toDouble()).coerceIn(0.0, 1.0)
-        val firstLink = pub.readingOrder.firstOrNull() ?: return
-        val baseLocator = pub.locatorFromLink(firstLink) ?: return
-        val locator = baseLocator.copy(
-            locations = org.readium.r2.shared.publication.Locator.Locations(progression = targetProg)
-        )
-        readiumReaderFragment?.go(locator)
+        val pIndex = viewModel.getParagraphIndexFromOffset(offset)
+        bookReaderFragment?.go("p_$pIndex")
     }
 
     fun loadPage(pageNumber: Int) {
-        val pub = com.nightread.app.readium.ReadiumEngine.getPublication() ?: return
-        val totalPositions = pub.readingOrder.size
-        val targetProg = if (totalPositions > 0) (pageNumber.toDouble() / totalPositions.toDouble()).coerceIn(0.0, 1.0) else 0.0
-        val firstLink = pub.readingOrder.firstOrNull() ?: return
-        val baseLocator = pub.locatorFromLink(firstLink) ?: return
-        val locator = baseLocator.copy(
-            locations = org.readium.r2.shared.publication.Locator.Locations(progression = targetProg)
-        )
-        readiumReaderFragment?.go(locator)
+        bookReaderFragment?.go(pageNumber)
     }
 
     fun navigateToParagraph(pIndex: Int) {
-        navigateToOffset(pIndex * 100)
+        bookReaderFragment?.go("p_$pIndex")
     }
 
     fun toggleBookmark() {
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
-        val pageIdx = viewModel.currentPage.value
-        val filePath = viewModel.bookState.value?.filePath ?: ""
-        val isWebViewBook = filePath.endsWith(".fb2", true) || 
-                           filePath.endsWith(".fb2.zip", true) || 
-                           filePath.endsWith(".zip", true) ||
-                           filePath.endsWith(".epub", true)
-        
-        val offset = if (isWebViewBook) {
-            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
-            viewModel.getOffsetForParagraphIndex(pIndex)
-        } else {
-            viewModel.getOffsetForPage(pageIdx)
-        }
+        val pageIdx = bookReaderFragment?.currentPage?.value ?: 0
+        val offset = pageIdx
         val title = findViewById<TextView>(R.id.tvBookTitle).text.toString()
 
         if (sha1.isNotEmpty()) {
@@ -1955,35 +1635,7 @@ class BookReaderActivity : BaseActivity() {
                         updatePageIndicator()
                     }
                 } else {
-                    var snippetText = "..."
-                    if (isWebViewBook) {
-                        try {
-                            val pIndex = viewModel.bookState.value?.currentProgressChar ?: 0
-                            val plainText = getParagraphText(pIndex)
-                            snippetText = if (plainText.length > 80) plainText.take(80) + "..." else plainText
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                        if (snippetText == "..." || snippetText.isEmpty()) {
-                            try {
-                                val startOffset = offset
-                                val endOffset = (startOffset + 150).coerceAtMost(BookCache.content.length)
-                                val subText = BookCache.content.substring(startOffset, endOffset)
-                                val plainText = subText.replace(Regex("<[^>]*>"), "").trim()
-                                snippetText = if (plainText.length > 80) plainText.take(80) + "..." else plainText
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        }
-                    } else {
-                        val pages = viewModel.pagesState.value
-                        if (!pages.isEmpty() && pageIdx in pages.indices) {
-                            val fullText = pages[pageIdx].toString()
-                            val plainText = fullText.replace(Regex("<[^>]*>"), "")
-                            snippetText = if (plainText.length > 80) plainText.take(80) + "..." else plainText
-                        }
-                    }
-
+                    val snippetText = "Страница ${pageIdx + 1}"
                     val newBookmark = com.nightread.app.data.BookmarkEntity(
                         bookSha1 = sha1,
                         bookTitle = title,
@@ -2042,9 +1694,31 @@ class BookReaderActivity : BaseActivity() {
     fun showFootnote(noteId: String) {}
     fun performSmartSearch(word: String) {}
 
-    fun onWebViewPagesCalculated(totalPages: Int) {}
+    fun onWebViewPagesCalculated(totalPages: Int) {
+        val seekBar = findViewById<SeekBar>(R.id.seekBar)
+        seekBar?.max = (totalPages - 1).coerceAtLeast(0)
+    }
     fun onParagraphVisible(pId: String) {}
     fun onWebViewPageRestored(pageIndex: Int) {}
+
+    fun updateProgressFromFragment(currentPage: Int, totalPages: Int) {
+        viewModel.setCurrentPage(currentPage)
+        updatePageIndicator()
+        
+        val seekBar = findViewById<SeekBar>(R.id.seekBar)
+        if (!isUserTrackingSeekBar && seekBar != null) {
+            seekBar.max = (totalPages - 1).coerceAtLeast(0)
+            seekBar.progress = currentPage
+        }
+
+        findViewById<ProgressBar>(R.id.pbFullscreenProgress)?.let {
+            it.max = (totalPages - 1).coerceAtLeast(0)
+            it.progress = currentPage
+        }
+        
+        val percent = if (totalPages > 1) currentPage.toDouble() / (totalPages - 1).toDouble() else 0.0
+        viewModel.updateProgress(percent)
+    }
     private fun ensureWebViewAligned() {}
 
     fun saveNoteForBook(selectedText: String, noteText: String) {}
@@ -2599,26 +2273,19 @@ class BookReaderActivity : BaseActivity() {
 
     fun onReaderSwipeLeft() {
         if (isPageTurning) return
-        val currentPage = viewModel.currentPage.value
-        val totalPages = viewModel.pagesState.value.size
-        if (readiumReaderFragment != null && readiumReaderFragment?.isVisible == true) {
+        if (bookReaderFragment != null && bookReaderFragment?.isVisible == true) {
             isPageTurning = true
-            readiumReaderFragment?.goForward(animated = true)
+            bookReaderFragment?.goForward(animated = true)
             handler.postDelayed({ isPageTurning = false }, 250)
-        } else if (currentPage < totalPages - 1) {
-            viewModel.setCurrentPage(currentPage + 1)
         }
     }
 
     fun onReaderSwipeRight() {
         if (isPageTurning) return
-        val currentPage = viewModel.currentPage.value
-        if (readiumReaderFragment != null && readiumReaderFragment?.isVisible == true) {
+        if (bookReaderFragment != null && bookReaderFragment?.isVisible == true) {
             isPageTurning = true
-            readiumReaderFragment?.goBackward(animated = true)
+            bookReaderFragment?.goBackward(animated = true)
             handler.postDelayed({ isPageTurning = false }, 250)
-        } else if (currentPage > 0) {
-            viewModel.setCurrentPage(currentPage - 1)
         }
     }
 
@@ -2668,32 +2335,19 @@ class BookReaderActivity : BaseActivity() {
     }
 
     fun getTtsTextToSpeak(): String {
-        val idx = viewModel.currentPage.value
-        val pages = viewModel.pagesState.value
-        val pageText = pages.getOrNull(idx)?.toString() ?: ""
-        
-        val filePath = viewModel.bookState.value?.filePath ?: ""
-        val isWebViewBook = filePath.endsWith(".fb2", true) || 
-                           filePath.endsWith(".fb2.zip", true) || 
-                           filePath.endsWith(".zip", true) ||
-                           filePath.endsWith(".epub", true)
-        
-        if (isWebViewBook || pageText.startsWith("WEBVIEW_CONTENT_")) {
-            val fullText = viewModel.getContentText()
-            if (fullText.isEmpty()) return ""
-            
-            val locator = try { getCurrentOrFallbackLocator() } catch (e: Exception) { null }
-            val progression = locator?.locations?.progression ?: 0.0
-            
-            val startIdx = (progression * fullText.length).toInt().coerceIn(0, fullText.length)
-            val endIdx = (startIdx + 2500).coerceAtMost(fullText.length)
-            val chunk = fullText.substring(startIdx, endIdx)
-            
-            val cleanChunk = android.text.Html.fromHtml(chunk, android.text.Html.FROM_HTML_MODE_LEGACY).toString()
-            return cleanChunk.trim()
-        }
-        
-        return pageText
+        val fullText = viewModel.getContentText()
+        if (fullText.isEmpty()) return ""
+
+        val curPage = bookReaderFragment?.currentPage?.value ?: 0
+        val totalPages = bookReaderFragment?.totalPages?.value ?: 1
+        val progression = if (totalPages > 1) curPage.toDouble() / (totalPages - 1).toDouble() else 0.0
+
+        val startIdx = (progression * fullText.length).toInt().coerceIn(0, fullText.length)
+        val endIdx = (startIdx + 2500).coerceAtMost(fullText.length)
+        val chunk = fullText.substring(startIdx, endIdx)
+
+        val cleanChunk = android.text.Html.fromHtml(chunk, android.text.Html.FROM_HTML_MODE_LEGACY).toString()
+        return cleanChunk.trim()
     }
 
     fun startOrResumeTts() {
@@ -2727,13 +2381,6 @@ class BookReaderActivity : BaseActivity() {
 
     fun getBookTitle(): String {
         return viewModel.bookState.value?.title ?: findViewById<TextView>(R.id.tvTitle)?.text?.toString() ?: "NightRead"
-    }
-
-    private fun getCurrentOrFallbackLocator(): org.readium.r2.shared.publication.Locator {
-        val pub = com.nightread.app.readium.ReadiumEngine.getPublication()
-        return readiumReaderFragment?.currentLocator?.value
-            ?: pub?.let { p -> p.locatorFromLink(p.readingOrder.first()) }
-            ?: throw IllegalStateException("No locator available")
     }
 
     fun pauseTts() {

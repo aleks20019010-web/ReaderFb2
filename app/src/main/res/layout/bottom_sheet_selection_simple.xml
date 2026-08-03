@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvSelectedText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="3"
+        android:textSize="16sp"
+        android:textStyle="italic"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/btnCopy"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Копировать"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/btnDictionary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Словарь"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/btnSpeak"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Озвучить (TTS)" />
+
+</LinearLayout>
