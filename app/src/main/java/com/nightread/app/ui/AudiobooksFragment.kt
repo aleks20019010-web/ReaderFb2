@@ -89,7 +89,7 @@ class AudiobooksFragment : Fragment() {
 
         adapter = AudiobookAdapter(emptyList()) { book ->
             val path = book.filePath ?: return@AudiobookAdapter
-            val player = AudioPlayerBottomSheet.newInstance(path, book.title, book.author ?: "Audiobook")
+            val player = AudioPlayerBottomSheet.newInstance(path, book.title, book.author ?: "Audiobook", book.sha1)
             player.show(parentFragmentManager, "AudioPlayerBottomSheet")
         }
 
@@ -104,8 +104,9 @@ class AudiobooksFragment : Fragment() {
             val book = allAudiobooks.find { it.filePath == currentPath }
             val title = book?.title ?: tvMiniTitle.text.toString()
             val author = book?.author ?: tvMiniAuthor.text.toString()
+            val sha1 = book?.sha1 ?: ""
 
-            val player = AudioPlayerBottomSheet.newInstance(currentPath, title, author)
+            val player = AudioPlayerBottomSheet.newInstance(currentPath, title, author, sha1)
             player.show(parentFragmentManager, "AudioPlayerBottomSheet")
         }
 
@@ -138,7 +139,7 @@ class AudiobooksFragment : Fragment() {
             val db = AppDatabase.getDatabase(requireContext())
             val books = db.bookDao().getAllBooksSync()
 
-            val audioList = books.filter { isAudioFile(it.filePath) || it.category == "Audiobook" }
+            val audioList = books.filter { isAudioFile(it.filePath, it.fileSize) }
 
             withContext(Dispatchers.Main) {
                 allAudiobooks = audioList
@@ -184,7 +185,7 @@ class AudiobooksFragment : Fragment() {
             for (dir in dirsToScan) {
                 if (dir.exists()) {
                     dir.walkTopDown().forEach { file ->
-                        if (file.isFile && isAudioFile(file.absolutePath)) {
+                        if (file.isFile && isAudioFile(file.absolutePath, file.length())) {
                             val title = file.nameWithoutExtension
                             val entity = BookEntity(
                                 sha1 = getFileSha1(file),
@@ -206,7 +207,7 @@ class AudiobooksFragment : Fragment() {
                 db.bookDao().insertBook(audio)
             }
 
-            val allAudio = db.bookDao().getAllBooksSync().filter { isAudioFile(it.filePath) || it.category == "Audiobook" }
+            val allAudio = db.bookDao().getAllBooksSync().filter { isAudioFile(it.filePath, it.fileSize) }
 
             withContext(Dispatchers.Main) {
                 allAudiobooks = allAudio
@@ -231,6 +232,11 @@ class AudiobooksFragment : Fragment() {
                         }
                     }
 
+                    if (!isAudioFile(destFile.absolutePath, destFile.length())) {
+                        destFile.delete()
+                        continue
+                    }
+
                     val entity = BookEntity(
                         sha1 = getFileSha1(destFile),
                         title = destFile.nameWithoutExtension,
@@ -246,7 +252,7 @@ class AudiobooksFragment : Fragment() {
                 }
             }
 
-            val allAudio = db.bookDao().getAllBooksSync().filter { isAudioFile(it.filePath) || it.category == "Audiobook" }
+            val allAudio = db.bookDao().getAllBooksSync().filter { isAudioFile(it.filePath, it.fileSize) }
             withContext(Dispatchers.Main) {
                 allAudiobooks = allAudio
                 updateListUI(allAudio)
@@ -265,11 +271,37 @@ class AudiobooksFragment : Fragment() {
         }
     }
 
-    private fun isAudioFile(path: String?): Boolean {
+    private fun isAudioFile(path: String?, sizeInBytes: Long? = null): Boolean {
         if (path.isNullOrEmpty()) return false
         val lower = path.lowercase()
-        return lower.endsWith(".mp3") || lower.endsWith(".m4b") || lower.endsWith(".m4a") ||
-               lower.endsWith(".aac") || lower.endsWith(".ogg") || lower.endsWith(".flac")
+        val isM4b = lower.endsWith(".m4b")
+        val isMp3OrM4a = lower.endsWith(".mp3") || lower.endsWith(".m4a")
+        val isOtherAudio = lower.endsWith(".aac") || lower.endsWith(".ogg") || lower.endsWith(".flac")
+        
+        if (!isM4b && !isMp3OrM4a && !isOtherAudio) return false
+
+        // 1. Проверять расширение файла: если .m4b — сразу считать аудиокнигой.
+        if (isM4b) return true
+
+        val size = sizeInBytes ?: try {
+            File(path).length()
+        } catch (e: Exception) {
+            0L
+        }
+
+        if (isMp3OrM4a) {
+            // 3. Если размер файла > 50 МБ — считать аудиокнигой.
+            if (size > 50 * 1024 * 1024) {
+                return true
+            }
+            // 4. Если размер файла < 10 МБ — считать обычной песней (и не показывать в библиотеке).
+            if (size < 10 * 1024 * 1024) {
+                return false
+            }
+            return true
+        }
+
+        return size >= 10 * 1024 * 1024
     }
 
     private fun updateMiniPlayerUI(isPlaying: Boolean, position: Int, duration: Int) {

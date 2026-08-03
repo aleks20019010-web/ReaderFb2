@@ -35,6 +35,10 @@ class ReadiumReaderFragment : Fragment() {
     var onExternalLinkListener: ((AbsoluteUrl) -> Unit)? = null
     var onSelectionListener: ((org.readium.r2.navigator.Selection) -> Unit)? = null
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(null)
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,

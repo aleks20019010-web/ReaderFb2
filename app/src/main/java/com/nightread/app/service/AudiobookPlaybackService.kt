@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.MediaPlayer
 import android.media.PlaybackParams
 import android.os.Build
@@ -17,6 +19,12 @@ import android.support.v4.media.session.MediaSessionCompat
 import androidx.core.app.NotificationCompat
 import com.nightread.app.MainActivity
 import com.nightread.app.R
+import com.nightread.app.data.AppDatabase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class AudiobookPlaybackService : Service() {
@@ -32,17 +40,21 @@ class AudiobookPlaybackService : Service() {
         const val ACTION_STOP = "com.nightread.app.action.AUDIOBOOK_STOP"
         const val ACTION_SKIP_FORWARD = "com.nightread.app.action.AUDIOBOOK_SKIP_FORWARD"
         const val ACTION_SKIP_BACKWARD = "com.nightread.app.action.AUDIOBOOK_SKIP_BACKWARD"
+        const val ACTION_SLEEP_TIMER = "com.nightread.app.action.AUDIOBOOK_SLEEP_TIMER"
 
         const val EXTRA_FILE_PATH = "extra_file_path"
+        const val EXTRA_SHA1 = "extra_sha1"
         const val EXTRA_TITLE = "extra_title"
         const val EXTRA_AUTHOR = "extra_author"
         const val EXTRA_SEEK_POSITION = "extra_seek_position"
         const val EXTRA_SPEED = "extra_speed"
+        const val EXTRA_TIMER_DURATION = "extra_timer_duration"
 
         const val BROADCAST_AUDIOBOOK_STATUS = "com.nightread.app.broadcast.AUDIOBOOK_STATUS"
         const val EXTRA_IS_PLAYING = "extra_is_playing"
         const val EXTRA_CURRENT_POSITION = "extra_current_position"
         const val EXTRA_DURATION = "extra_duration"
+        const val EXTRA_SLEEP_TIMER_REMAINING = "extra_sleep_timer_remaining"
 
         var isPlayingAudiobook = false
             private set
@@ -56,18 +68,52 @@ class AudiobookPlaybackService : Service() {
     private var title: String = "Аудиокнига"
     private var author: String = "NightRead"
     private var speed: Float = 1.0f
+    private var currentSha1: String? = null
+    private var coverBitmap: Bitmap? = null
+
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private val handler = Handler(Looper.getMainLooper())
+    private var lastSavedPos = 0
     private val progressRunnable = object : Runnable {
         override fun run() {
             mediaPlayer?.let { player ->
                 if (player.isPlaying) {
+                    val pos = player.currentPosition
+                    val dur = player.duration
                     sendProgressBroadcast(
                         isPlaying = true,
+                        position = pos,
+                        duration = dur
+                    )
+                    
+                    if (Math.abs(pos - lastSavedPos) >= 5000) {
+                        lastSavedPos = pos
+                        saveProgress(pos, dur)
+                    }
+                    handler.postDelayed(this, 1000)
+                }
+            }
+        }
+    }
+
+    private var sleepTimerRemainingSec = 0
+    private val sleepTimerHandler = Handler(Looper.getMainLooper())
+    private val sleepTimerCountdownRunnable = object : Runnable {
+        override fun run() {
+            if (sleepTimerRemainingSec > 0) {
+                sleepTimerRemainingSec--
+                if (sleepTimerRemainingSec == 0) {
+                    pausePlayback()
+                } else {
+                    sleepTimerHandler.postDelayed(this, 1000)
+                }
+                mediaPlayer?.let { player ->
+                    sendProgressBroadcast(
+                        isPlaying = isPlayingAudiobook,
                         position = player.currentPosition,
                         duration = player.duration
                     )
-                    handler.postDelayed(this, 1000)
                 }
             }
         }
@@ -90,17 +136,38 @@ class AudiobookPlaybackService : Service() {
                 val newTitle = intent.getStringExtra(EXTRA_TITLE) ?: title
                 val newAuthor = intent.getStringExtra(EXTRA_AUTHOR) ?: author
                 val seekPos = intent.getIntExtra(EXTRA_SEEK_POSITION, -1)
+                val sha1 = intent.getStringExtra(EXTRA_SHA1)
 
                 title = newTitle
                 author = newAuthor
 
                 if (filePath != null && filePath != currentFilePath) {
                     currentFilePath = filePath
-                    initAndPlay(filePath, seekPos)
+                    currentSha1 = sha1
+                    serviceScope.launch {
+                        val db = AppDatabase.getDatabase(this@AudiobookPlaybackService)
+                        val book = if (!sha1.isNullOrEmpty()) {
+                            db.bookDao().getBookBySha1(sha1)
+                        } else {
+                            db.bookDao().getAllBooksSync().find { it.filePath == filePath }
+                        }
+                        
+                        val savedPos = book?.currentProgressChar ?: 0
+                        currentSha1 = book?.sha1
+                        
+                        coverBitmap = loadCoverBitmap(book?.coverPath)
+                        
+                        withContext(Dispatchers.Main) {
+                            val startPos = if (seekPos >= 0) seekPos else savedPos
+                            initAndPlay(filePath, startPos)
+                        }
+                    }
                 } else if (mediaPlayer != null) {
+                    val targetPos = if (seekPos >= 0) seekPos else mediaPlayer?.currentPosition ?: 0
                     if (seekPos >= 0) mediaPlayer?.seekTo(seekPos)
                     mediaPlayer?.start()
                     isPlayingAudiobook = true
+                    updateMetadata()
                     startForeground(NOTIFICATION_ID, buildNotification(true))
                     startProgressTracker()
                 }
@@ -111,26 +178,35 @@ class AudiobookPlaybackService : Service() {
             ACTION_SEEK -> {
                 val seekPos = intent.getIntExtra(EXTRA_SEEK_POSITION, 0)
                 mediaPlayer?.seekTo(seekPos)
+                val curPos = mediaPlayer?.currentPosition ?: 0
+                val dur = mediaPlayer?.duration ?: 0
+                saveProgress(curPos, dur)
                 sendProgressBroadcast(
                     isPlaying = mediaPlayer?.isPlaying == true,
-                    position = mediaPlayer?.currentPosition ?: 0,
-                    duration = mediaPlayer?.duration ?: 0
+                    position = curPos,
+                    duration = dur
                 )
             }
             ACTION_SPEED -> {
                 speed = intent.getFloatExtra(EXTRA_SPEED, 1.0f)
                 setPlaybackSpeed(speed)
             }
+            ACTION_SLEEP_TIMER -> {
+                val durationMin = intent.getIntExtra(EXTRA_TIMER_DURATION, 0)
+                startSleepTimer(durationMin)
+            }
             ACTION_SKIP_FORWARD -> {
                 mediaPlayer?.let { player ->
                     val target = (player.currentPosition + 30000).coerceAtMost(player.duration)
                     player.seekTo(target)
+                    saveProgress(target, player.duration)
                 }
             }
             ACTION_SKIP_BACKWARD -> {
                 mediaPlayer?.let { player ->
                     val target = (player.currentPosition - 15000).coerceAtLeast(0)
                     player.seekTo(target)
+                    saveProgress(target, player.duration)
                 }
             }
             ACTION_STOP -> {
@@ -152,6 +228,7 @@ class AudiobookPlaybackService : Service() {
                 setPlaybackSpeed(speed)
                 mp.start()
                 isPlayingAudiobook = true
+                updateMetadata()
                 startForeground(NOTIFICATION_ID, buildNotification(true))
                 startProgressTracker()
             }
@@ -187,17 +264,25 @@ class AudiobookPlaybackService : Service() {
         isPlayingAudiobook = false
         stopProgressTracker()
         updateNotification(false)
+        val pos = mediaPlayer?.currentPosition ?: 0
+        val dur = mediaPlayer?.duration ?: 0
+        saveProgress(pos, dur)
         sendProgressBroadcast(
             isPlaying = false,
-            position = mediaPlayer?.currentPosition ?: 0,
-            duration = mediaPlayer?.duration ?: 0
+            position = pos,
+            duration = dur
         )
     }
 
     private fun stopPlayback() {
         stopProgressTracker()
-        mediaPlayer?.stop()
-        mediaPlayer?.release()
+        mediaPlayer?.let { player ->
+            val pos = player.currentPosition
+            val dur = player.duration
+            saveProgress(pos, dur)
+            player.stop()
+            player.release()
+        }
         mediaPlayer = null
         isPlayingAudiobook = false
         currentFilePath = null
@@ -216,6 +301,16 @@ class AudiobookPlaybackService : Service() {
     private fun updateNotification(isPlaying: Boolean) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, buildNotification(isPlaying))
+    }
+
+    private fun updateMetadata() {
+        val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, title)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, author)
+        coverBitmap?.let {
+            metadataBuilder.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART, it)
+        }
+        mediaSession?.setMetadata(metadataBuilder.build())
     }
 
     private fun buildNotification(isPlaying: Boolean): Notification {
@@ -246,7 +341,7 @@ class AudiobookPlaybackService : Service() {
             NotificationCompat.Action.Builder(R.drawable.ic_media_play_custom, "Воспроизведение", pendingPlay).build()
         }
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_headphones)
             .setContentTitle(title)
             .setContentText(author)
@@ -262,7 +357,12 @@ class AudiobookPlaybackService : Service() {
             .addAction(NotificationCompat.Action.Builder(R.drawable.ic_media_prev_custom, "-15с", pendingSkipBack).build())
             .addAction(playPauseAction)
             .addAction(NotificationCompat.Action.Builder(R.drawable.ic_media_next_custom, "+30с", pendingSkipFwd).build())
-            .build()
+
+        coverBitmap?.let {
+            builder.setLargeIcon(it)
+        }
+
+        return builder.build()
     }
 
     private fun createNotificationChannel() {
@@ -285,15 +385,68 @@ class AudiobookPlaybackService : Service() {
             putExtra(EXTRA_IS_PLAYING, isPlaying)
             putExtra(EXTRA_CURRENT_POSITION, position)
             putExtra(EXTRA_DURATION, duration)
+            putExtra(EXTRA_SPEED, speed)
+            putExtra(EXTRA_SLEEP_TIMER_REMAINING, sleepTimerRemainingSec)
         }
         sendBroadcast(intent)
+    }
+
+    private fun loadCoverBitmap(path: String?): Bitmap? {
+        if (path.isNullOrEmpty()) return null
+        return try {
+            val file = File(path)
+            if (file.exists()) {
+                BitmapFactory.decodeFile(file.absolutePath)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun saveProgress(position: Int, duration: Int) {
+        val sha1 = currentSha1 ?: return
+        serviceScope.launch {
+            try {
+                val db = AppDatabase.getDatabase(this@AudiobookPlaybackService)
+                val book = db.bookDao().getBookBySha1(sha1)
+                if (book != null) {
+                    val updatedBook = book.copy(
+                        currentProgressChar = position,
+                        totalCharacters = duration,
+                        lastReadTime = System.currentTimeMillis()
+                    )
+                    db.bookDao().updateBook(updatedBook)
+                }
+            } catch (e: Exception) {
+                // Ignore DB save errors
+            }
+        }
+    }
+
+    private fun startSleepTimer(minutes: Int) {
+        sleepTimerHandler.removeCallbacks(sleepTimerCountdownRunnable)
+        if (minutes <= 0) {
+            sleepTimerRemainingSec = 0
+        } else {
+            sleepTimerRemainingSec = minutes * 60
+            sleepTimerHandler.post(sleepTimerCountdownRunnable)
+        }
+        mediaPlayer?.let { player ->
+            sendProgressBroadcast(
+                isPlaying = isPlayingAudiobook,
+                position = player.currentPosition,
+                duration = player.duration
+            )
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-
         stopProgressTracker()
+        sleepTimerHandler.removeCallbacks(sleepTimerCountdownRunnable)
         mediaPlayer?.release()
         mediaPlayer = null
         mediaSession?.release()

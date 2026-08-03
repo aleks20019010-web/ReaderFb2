@@ -150,6 +150,15 @@
             android:src="@android:drawable/ic_menu_recent_history"
             android:background="?attr/selectableItemBackgroundBorderless"
             app:tint="#A0A0C0" />
+
+        <ImageButton
+            android:id="@+id/btnChapters"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@android:drawable/ic_menu_agenda"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="#A0A0C0"
+            android:layout_marginStart="8dp" />
     </LinearLayout>
 
 </LinearLayout>
