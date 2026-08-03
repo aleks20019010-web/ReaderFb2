@@ -39,6 +39,8 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
     private var currentTextToSpeak: String = ""
     private var bookTitle: String = "NightRead"
 
+    private lateinit var tvLanguageLabel: TextView
+    private lateinit var spinnerLanguage: Spinner
     private lateinit var tvVoiceLabel: TextView
     private lateinit var spinnerVoice: Spinner
     private lateinit var tvSpeedLabel: TextView
@@ -53,6 +55,9 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
     private var tempTts: TextToSpeech? = null
     private var selectedVoiceName: String? = null
     private var voiceList: List<Voice> = emptyList()
+    private var allVoices: List<Voice> = emptyList()
+    private var languagesList: List<String> = emptyList()
+    private var selectedLanguageCode: String = "ru"
 
     private val ttsStatusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -97,6 +102,8 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        tvLanguageLabel = view.findViewById(R.id.tvLanguageLabel)
+        spinnerLanguage = view.findViewById(R.id.spinnerLanguage)
         tvVoiceLabel = view.findViewById(R.id.tvVoiceLabel)
         spinnerVoice = view.findViewById(R.id.spinnerVoice)
         tvSpeedLabel = view.findViewById(R.id.tvSpeedLabel)
@@ -193,13 +200,54 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
                         voice.features?.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) != true
                     }?.sortedBy { it.locale.displayName } ?: emptyList()
 
-                    voiceList = if (availableVoices.isNotEmpty()) availableVoices else (tempTts?.voices?.toList() ?: emptyList())
-                    setupVoiceSpinner()
+                    allVoices = if (availableVoices.isNotEmpty()) availableVoices else (tempTts?.voices?.toList() ?: emptyList())
+                    setupLanguageAndVoices()
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
             }
         }
+    }
+
+    private fun setupLanguageAndVoices() {
+        if (!isAdded) return
+        val langs = allVoices.map { it.locale.language }.distinct().sorted()
+        languagesList = if (langs.isNotEmpty()) langs else listOf("ru", "en")
+
+        val langDisplayItems = languagesList.map { code ->
+            val loc = java.util.Locale(code)
+            loc.getDisplayName(java.util.Locale("ru")).replaceFirstChar { it.uppercase() } + " ($code)"
+        }
+
+        val ctx = context ?: return
+        val langAdapter = ArrayAdapter(ctx, R.layout.spinner_item, langDisplayItems)
+        langAdapter.setDropDownViewResource(R.layout.spinner_item)
+        spinnerLanguage.adapter = langAdapter
+
+        var langIndex = languagesList.indexOf("ru")
+        if (langIndex < 0) langIndex = 0
+        spinnerLanguage.setSelection(langIndex)
+        selectedLanguageCode = languagesList[langIndex]
+
+        spinnerLanguage.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (position in languagesList.indices) {
+                    selectedLanguageCode = languagesList[position]
+                    filterVoicesForLanguage(selectedLanguageCode)
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        filterVoicesForLanguage(selectedLanguageCode)
+    }
+
+    private fun filterVoicesForLanguage(langCode: String) {
+        voiceList = allVoices.filter { it.locale.language.equals(langCode, ignoreCase = true) }
+        if (voiceList.isEmpty()) {
+            voiceList = allVoices
+        }
+        setupVoiceSpinner()
     }
 
     private fun setupVoiceSpinner() {
@@ -277,10 +325,13 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
         } catch (e: Exception) {}
 
         rootView.findViewById<TextView>(R.id.tvTtsSettingsTitle)?.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
+        tvLanguageLabel.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
         tvVoiceLabel.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
         tvSpeedLabel.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
         tvPitchLabel.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
         switchContinuous.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
+        btnStop.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
+        btnStop.strokeColor = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(textPrimaryHex))
     }
 
     private fun updatePlayPauseButtonUI() {

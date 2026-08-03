@@ -48,6 +48,7 @@ object SettingsManager {
     const val KEY_AMBIENT_GLOW_COLOR = "ambient_glow_color"
     const val KEY_HAPTIC_FEEDBACK_ENABLED = "haptic_feedback_enabled"
     const val KEY_LETTER_SPACING = "letter_spacing"
+    const val KEY_WORD_SPACING = "word_spacing"
     const val KEY_PARAGRAPH_INDENT = "paragraph_indent"
     const val KEY_SILENT_MODE_ENABLED = "silent_mode_enabled"
     const val KEY_SORT_OPTION = "library_sort_option"
@@ -101,6 +102,7 @@ object SettingsManager {
     private var cachedAmbientGlowColor: String? = null
     private var cachedHapticFeedbackEnabled: Boolean? = null
     private var cachedLetterSpacing: Float? = null
+    private var cachedWordSpacing: Float? = null
     private var cachedParagraphIndent: Int? = null
     private var cachedSilentModeEnabled: Boolean? = null
 
@@ -655,6 +657,20 @@ object SettingsManager {
         if (cachedLetterSpacing == spacing) return
         cachedLetterSpacing = spacing
         getPrefs(context).edit().putFloat(KEY_LETTER_SPACING, spacing).apply()
+        notifyChanged()
+    }
+
+    fun getWordSpacing(context: Context): Float {
+        if (cachedWordSpacing == null) {
+            cachedWordSpacing = getPrefs(context).getFloat(KEY_WORD_SPACING, 0.0f)
+        }
+        return cachedWordSpacing!!
+    }
+
+    fun setWordSpacing(context: Context, spacing: Float) {
+        if (cachedWordSpacing == spacing) return
+        cachedWordSpacing = spacing
+        getPrefs(context).edit().putFloat(KEY_WORD_SPACING, spacing).apply()
         notifyChanged()
     }
 

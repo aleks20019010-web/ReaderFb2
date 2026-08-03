@@ -52,6 +52,7 @@ class BookReaderActivity : BaseActivity() {
     }
 
     private var readiumReaderFragment: com.nightread.app.readium.ReadiumReaderFragment? = null
+    private var appTtsManager: com.nightread.app.tts.AppTtsManager? = null
     private val noteManager by lazy { com.nightread.app.data.NoteManager(this) }
     private var openedBookSha1: String? = null
     fun navigateToReadiumLocator(locator: org.readium.r2.shared.publication.Locator) {
@@ -196,6 +197,7 @@ class BookReaderActivity : BaseActivity() {
         readerSplashStarryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
         viewModel = ViewModelProvider(this).get(ReaderViewModel::class.java)
+        appTtsManager = com.nightread.app.tts.AppTtsManager(this)
 
         val btnBack = findViewById<View>(R.id.btnBack)
         btnBack.setOnClickListener { finish() }
@@ -245,55 +247,28 @@ class BookReaderActivity : BaseActivity() {
                 override fun onTtsStartRequested(speed: Float, pitch: Float, voiceName: String?, continuous: Boolean) {
                     val idx = viewModel.currentPage.value
                     val pageText = viewModel.pagesState.value.getOrNull(idx)?.toString() ?: ""
-                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
-                        action = com.nightread.app.service.TtsForegroundService.ACTION_START
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, pageText)
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
-                        if (!voiceName.isNullOrEmpty()) {
-                            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voiceName)
-                        }
-                    }
-                    startService(intent)
+                    appTtsManager?.setSpeed(speed)
+                    appTtsManager?.setPitch(pitch)
+                    appTtsManager?.speak(pageText)
                 }
 
                 override fun onTtsPauseRequested() {
-                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
-                        action = com.nightread.app.service.TtsForegroundService.ACTION_PAUSE
-                    }
-                    startService(intent)
+                    appTtsManager?.pause()
                 }
 
                 override fun onTtsStopRequested() {
-                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
-                        action = com.nightread.app.service.TtsForegroundService.ACTION_STOP
-                    }
-                    startService(intent)
+                    appTtsManager?.stop()
                 }
 
                 override fun onTtsSpeedChanged(speed: Float) {
-                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
-                        action = com.nightread.app.service.TtsForegroundService.ACTION_SET_SPEED
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
-                    }
-                    startService(intent)
+                    appTtsManager?.setSpeed(speed)
                 }
 
                 override fun onTtsPitchChanged(pitch: Float) {
-                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
-                        action = com.nightread.app.service.TtsForegroundService.ACTION_SET_PITCH
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
-                    }
-                    startService(intent)
+                    appTtsManager?.setPitch(pitch)
                 }
 
                 override fun onTtsVoiceChanged(voiceName: String) {
-                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
-                        action = com.nightread.app.service.TtsForegroundService.ACTION_SET_VOICE
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voiceName)
-                    }
-                    startService(intent)
                 }
             })
             ttsSheet.show(supportFragmentManager, "TtsSettingsBottomSheet")
@@ -983,12 +958,7 @@ class BookReaderActivity : BaseActivity() {
             fetchAndShowFreeDictionary(word)
         }
         sheet.onTtsListener = { text ->
-            val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
-                action = com.nightread.app.service.TtsForegroundService.ACTION_START
-                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, text)
-                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, getOpenedBookTitle())
-            }
-            startService(intent)
+            appTtsManager?.speak(text)
         }
         sheet.show(supportFragmentManager, "readium_selection_sheet")
     }
@@ -1043,12 +1013,7 @@ class BookReaderActivity : BaseActivity() {
             fetchAndShowFreeDictionary(word)
         }
         sheet.onTtsListener = { text ->
-            val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
-                action = com.nightread.app.service.TtsForegroundService.ACTION_START
-                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, text)
-                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, getOpenedBookTitle())
-            }
-            startService(intent)
+            appTtsManager?.speak(text)
         }
         sheet.show(supportFragmentManager, "custom_selection_sheet")
     }
@@ -1801,6 +1766,7 @@ class BookReaderActivity : BaseActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        appTtsManager?.shutdown()
         brightnessAnimator?.cancel()
         autoBrightnessAnimator?.cancel()
         sleepTimerJob?.cancel()
@@ -2673,38 +2639,21 @@ class BookReaderActivity : BaseActivity() {
     }
 
     fun startOrResumeTts() {
-        val title = getOpenedBookTitle()
         val idx = viewModel.currentPage.value
         val pageText = viewModel.pagesState.value.getOrNull(idx)?.toString() ?: ""
         val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this)
         val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
-        val voiceName = com.nightread.app.data.SettingsManager.getTtsVoice(this)
-
-        val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
-            action = com.nightread.app.service.TtsForegroundService.ACTION_START
-            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, pageText)
-            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
-            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
-            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
-            if (!voiceName.isNullOrEmpty()) {
-                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voiceName)
-            }
-        }
-        startService(intent)
+        appTtsManager?.setSpeed(speed)
+        appTtsManager?.setPitch(pitch)
+        appTtsManager?.speak(pageText)
     }
 
     fun pauseTts() {
-        val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
-            action = com.nightread.app.service.TtsForegroundService.ACTION_PAUSE
-        }
-        startService(intent)
+        appTtsManager?.pause()
     }
 
     fun stopTts() {
-        val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
-            action = com.nightread.app.service.TtsForegroundService.ACTION_STOP
-        }
-        startService(intent)
+        appTtsManager?.stop()
     }
 
     fun readNextTtsChunk() {

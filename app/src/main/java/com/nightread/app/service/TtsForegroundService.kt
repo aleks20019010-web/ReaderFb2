@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import android.speech.tts.TextToSpeech
@@ -198,7 +199,10 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         if (!isTtsInitialized || currentText.isBlank()) return
         tts?.stop()
         isSpeakingState = true
-        tts?.speak(currentText, TextToSpeech.QUEUE_FLUSH, null, "UTTERANCE_NIGHTREAD_BG_TTS")
+        val params = Bundle().apply {
+            putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "UTTERANCE_NIGHTREAD_BG_TTS")
+        }
+        tts?.speak(currentText, TextToSpeech.QUEUE_FLUSH, params, "UTTERANCE_NIGHTREAD_BG_TTS")
     }
 
     private fun pauseTts() {

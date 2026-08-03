@@ -60,14 +60,13 @@ class PageFragment : Fragment() {
             if (currentMeasuredTop > cachedMaxTop) {
                 cachedMaxTop = currentMeasuredTop
             }
-            val minTop = (36 * v.resources.displayMetrics.density).toInt()
-            val topInset = maxOf(currentMeasuredTop, cachedMaxTop, minTop)
+            val topInset = maxOf(currentMeasuredTop, cachedMaxTop)
             
-            val dp6 = (6 * v.resources.displayMetrics.density).toInt()
             val dp8 = (8 * v.resources.displayMetrics.density).toInt()
-            val dp14 = (14 * v.resources.displayMetrics.density).toInt()
+            val dp16 = (16 * v.resources.displayMetrics.density).toInt()
+            val paddingTop = if (topInset > 0) topInset else dp8
             
-            v.setPadding(dp6, dp8 + topInset, dp6, dp14)
+            v.setPadding(dp8, paddingTop, dp8, dp16)
             windowInsets
         }
         view.requestApplyInsets()
@@ -243,8 +242,10 @@ class PageFragment : Fragment() {
         val cssFontSize = paint.textSize / density
         val cssLineHeight = lineHeight / density
         val letterSpacing = SettingsManager.getLetterSpacing(context)
+        val wordSpacing = SettingsManager.getWordSpacing(context)
+        val hyphenationEnabled = SettingsManager.isHyphenationEnabled(context)
 
-        val htmlString = buildBookHtml(context, pageText, cssFontSize, cssLineHeight, fontFamily, themeName, letterSpacing)
+        val htmlString = buildBookHtml(context, pageText, cssFontSize, cssLineHeight, fontFamily, themeName, letterSpacing, wordSpacing, hyphenationEnabled)
         webView.loadDataWithBaseURL("file:///android_asset/", htmlString, "text/html", "UTF-8", null)
     }
 
@@ -255,7 +256,9 @@ class PageFragment : Fragment() {
         cssLineHeight: Float,
         fontFamily: String,
         themeName: String,
-        letterSpacing: Float
+        letterSpacing: Float,
+        wordSpacing: Float,
+        hyphenationEnabled: Boolean
     ): String {
         val htmlContent = spannedToHtml(text)
 
@@ -292,7 +295,17 @@ class PageFragment : Fragment() {
             else -> ""
         }
 
-        val fontStyle = if (fontFaceCss.isNotEmpty()) "font-family: 'CustomFont', serif;" else "font-family: sans-serif;"
+        val fontStyle = when (fontFamily) {
+            "Lora", "EB Garamond", "Literata" -> "font-family: 'CustomFont', serif;"
+            "Georgia" -> "font-family: Georgia, serif;"
+            "Times New Roman" -> "font-family: 'Times New Roman', serif;"
+            "Merriweather" -> "font-family: Merriweather, serif;"
+            "OpenDyslexic" -> "font-family: 'OpenDyslexic', sans-serif-condensed, sans-serif;"
+            "Monospace" -> "font-family: monospace;"
+            else -> "font-family: sans-serif;"
+        }
+
+        val hyphensVal = if (hyphenationEnabled) "auto" else "none"
 
         return """
             <!DOCTYPE html>
@@ -317,13 +330,14 @@ class PageFragment : Fragment() {
                         $fontStyle
                         font-weight: ${SettingsManager.getFontWeightAsInt(context)};
                         letter-spacing: ${letterSpacing}em;
+                        word-spacing: ${wordSpacing}em;
                         text-align: justify;
                         text-align-last: left;
                         -webkit-text-align-last: left;
-                        -webkit-hyphens: auto;
-                        -moz-hyphens: auto;
-                        -ms-hyphens: auto;
-                        hyphens: auto;
+                        -webkit-hyphens: $hyphensVal;
+                        -moz-hyphens: $hyphensVal;
+                        -ms-hyphens: $hyphensVal;
+                        hyphens: $hyphensVal;
                         overflow: hidden;
                         word-wrap: break-word;
                         word-break: normal;
@@ -341,10 +355,10 @@ class PageFragment : Fragment() {
                         text-align: justify;
                         text-align-last: left;
                         -webkit-text-align-last: left;
-                        -webkit-hyphens: auto;
-                        -moz-hyphens: auto;
-                        -ms-hyphens: auto;
-                        hyphens: auto;
+                        -webkit-hyphens: $hyphensVal;
+                        -moz-hyphens: $hyphensVal;
+                        -ms-hyphens: $hyphensVal;
+                        hyphens: $hyphensVal;
                         word-break: normal;
                         overflow-wrap: break-word;
                     }

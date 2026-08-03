@@ -1,13 +1,14 @@
-package com.nightread.app.readium
+package com.nightread.app.tts
 
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.speech.tts.Voice
 import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-class ReadiumTtsManager(context: Context) : TextToSpeech.OnInitListener {
+class AppTtsManager(context: Context) : TextToSpeech.OnInitListener {
 
     private var tts: TextToSpeech? = TextToSpeech(context.applicationContext, this)
     private var isInitialized = false
@@ -20,6 +21,7 @@ class ReadiumTtsManager(context: Context) : TextToSpeech.OnInitListener {
 
     private var speechRate = 1.0f
     private var speechPitch = 1.0f
+    private var currentVoice: Voice? = null
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
@@ -49,8 +51,15 @@ class ReadiumTtsManager(context: Context) : TextToSpeech.OnInitListener {
         _currentText.value = text
         tts?.setSpeechRate(speechRate)
         tts?.setPitch(speechPitch)
+        currentVoice?.let { voice ->
+            try {
+                tts?.voice = voice
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
         _isPlaying.value = true
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "UTTERANCE_READIUM_TTS")
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "UTTERANCE_APP_TTS")
     }
 
     fun pause() {
@@ -75,6 +84,20 @@ class ReadiumTtsManager(context: Context) : TextToSpeech.OnInitListener {
 
     fun setPitch(pitch: Float) {
         speechPitch = pitch
+        if (_isPlaying.value && _currentText.value.isNotEmpty()) {
+            speak(_currentText.value)
+        }
+    }
+
+    fun setVoice(voice: Voice?) {
+        currentVoice = voice
+        voice?.let { v ->
+            try {
+                tts?.voice = v
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
         if (_isPlaying.value && _currentText.value.isNotEmpty()) {
             speak(_currentText.value)
         }

@@ -447,6 +447,60 @@ class SettingsBottomSheet : DialogFragment() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
+        // Word Spacing Hookup
+        val tvWordSpacingValue = view.findViewById<TextView>(R.id.tvWordSpacingValue)
+        val seekBarWordSpacing = view.findViewById<SeekBar>(R.id.seekBarWordSpacing)
+        val currentWordSpacing = SettingsManager.getWordSpacing(context)
+        tvWordSpacingValue.text = String.format("%.2f em", currentWordSpacing)
+        seekBarWordSpacing.progress = ((currentWordSpacing + 0.05f) * 100f).toInt().coerceIn(0, 20)
+        var lastWordSpacingProgress = seekBarWordSpacing.progress
+        seekBarWordSpacing.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val newSpacing = (progress - 5) / 100f
+                tvWordSpacingValue.text = String.format("%.2f em", newSpacing)
+                if (fromUser) {
+                    SettingsManager.setWordSpacing(context, newSpacing)
+                    if (progress != lastWordSpacingProgress) {
+                        seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                        lastWordSpacingProgress = progress
+                    }
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        // Letter Spacing Hookup
+        val tvLetterSpacingValue = view.findViewById<TextView>(R.id.tvLetterSpacingValue)
+        val seekBarLetterSpacing = view.findViewById<SeekBar>(R.id.seekBarLetterSpacing)
+        val currentLetterSpacing = SettingsManager.getLetterSpacing(context)
+        tvLetterSpacingValue.text = String.format("%.2f em", currentLetterSpacing)
+        seekBarLetterSpacing.progress = ((currentLetterSpacing + 0.05f) * 100f).toInt().coerceIn(0, 20)
+        var lastLetterSpacingProgress = seekBarLetterSpacing.progress
+        seekBarLetterSpacing.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val newSpacing = (progress - 5) / 100f
+                tvLetterSpacingValue.text = String.format("%.2f em", newSpacing)
+                if (fromUser) {
+                    SettingsManager.setLetterSpacing(context, newSpacing)
+                    if (progress != lastLetterSpacingProgress) {
+                        seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                        lastLetterSpacingProgress = progress
+                    }
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        // Hyphenation Switch Hookup
+        val switchHyphenation = view.findViewById<SwitchCompat>(R.id.switchHyphenation)
+        switchHyphenation.isChecked = SettingsManager.isHyphenationEnabled(context)
+        switchHyphenation.setOnCheckedChangeListener { _, isChecked ->
+            switchHyphenation.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            SettingsManager.setHyphenationEnabled(context, isChecked)
+        }
+
         // 8. Color Scheme Circle Buttons Hookup
         val btnThemeLight = view.findViewById<FrameLayout>(R.id.btnThemeLight)
         val btnThemeSepia = view.findViewById<FrameLayout>(R.id.btnThemeSepia)
