@@ -147,20 +147,36 @@ class ReadiumReaderFragment : Fragment() {
             }
         }
 
-        // Selection Polling Loop
+        // Selection Polling Loop with stability check to prevent accidental selection on swipe
         viewLifecycleOwner.lifecycleScope.launch {
             var lastSelectionText: String? = null
+            var pendingSelection: org.readium.r2.navigator.Selection? = null
+            var stableSelectionCount = 0
             while (true) {
-                kotlinx.coroutines.delay(500)
+                kotlinx.coroutines.delay(200)
                 try {
                     val selection = navigatorFragment?.currentSelection()
                     if (selection != null) {
                         val text = selection.locator.text.highlight ?: ""
-                        if (text.isNotEmpty() && text != lastSelectionText) {
-                            lastSelectionText = text
-                            onSelectionListener?.invoke(selection)
+                        if (text.isNotEmpty()) {
+                            if (text == pendingSelection?.locator?.text?.highlight) {
+                                stableSelectionCount++
+                                if (stableSelectionCount >= 4 && text != lastSelectionText) {
+                                    lastSelectionText = text
+                                    onSelectionListener?.invoke(selection)
+                                }
+                            } else {
+                                pendingSelection = selection
+                                stableSelectionCount = 0
+                            }
+                        } else {
+                            pendingSelection = null
+                            stableSelectionCount = 0
+                            lastSelectionText = null
                         }
                     } else {
+                        pendingSelection = null
+                        stableSelectionCount = 0
                         lastSelectionText = null
                     }
                 } catch (e: Exception) {

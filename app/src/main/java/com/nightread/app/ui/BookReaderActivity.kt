@@ -255,28 +255,57 @@ class BookReaderActivity : BaseActivity() {
             ttsSheet.setTtsListener(object : TtsSettingsBottomSheet.TtsSettingsListener {
                 override fun onTtsStartRequested(speed: Float, pitch: Float, voiceName: String?, continuous: Boolean) {
                     val currentTextToSpeak = getTtsTextToSpeak()
-                    publicationSpeechSynthesizer?.load(org.readium.r2.navigator.tts.PublicationSpeechSynthesizer.Configuration(rate = speed, pitch = pitch))
-                    val locator = getCurrentOrFallbackLocator()
-                    publicationSpeechSynthesizer?.play(currentTextToSpeak, locator)
+                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                        action = com.nightread.app.service.TtsForegroundService.ACTION_START
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, currentTextToSpeak)
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voiceName)
+                    }
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        startForegroundService(intent)
+                    } else {
+                        startService(intent)
+                    }
                 }
 
                 override fun onTtsPauseRequested() {
-                    publicationSpeechSynthesizer?.pause()
+                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                        action = com.nightread.app.service.TtsForegroundService.ACTION_PAUSE
+                    }
+                    startService(intent)
                 }
 
                 override fun onTtsStopRequested() {
-                    publicationSpeechSynthesizer?.stop()
+                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                        action = com.nightread.app.service.TtsForegroundService.ACTION_STOP
+                    }
+                    startService(intent)
                 }
 
                 override fun onTtsSpeedChanged(speed: Float) {
-                    publicationSpeechSynthesizer?.setRate(speed)
+                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                        action = com.nightread.app.service.TtsForegroundService.ACTION_SET_SPEED
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
+                    }
+                    startService(intent)
                 }
 
                 override fun onTtsPitchChanged(pitch: Float) {
-                    publicationSpeechSynthesizer?.setPitch(pitch)
+                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                        action = com.nightread.app.service.TtsForegroundService.ACTION_SET_PITCH
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
+                    }
+                    startService(intent)
                 }
 
                 override fun onTtsVoiceChanged(voiceName: String) {
+                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                        action = com.nightread.app.service.TtsForegroundService.ACTION_SET_VOICE
+                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voiceName)
+                    }
+                    startService(intent)
                 }
             })
             ttsSheet.show(supportFragmentManager, "TtsSettingsBottomSheet")
@@ -1516,8 +1545,18 @@ class BookReaderActivity : BaseActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == com.nightread.app.service.TtsForegroundService.BROADCAST_TTS_STATUS) {
                 val isSpeaking = intent.getBooleanExtra(com.nightread.app.service.TtsForegroundService.EXTRA_IS_SPEAKING, false)
+                val isDone = intent.getBooleanExtra(com.nightread.app.service.TtsForegroundService.EXTRA_UTTERANCE_DONE, false)
                 val start = intent.getIntExtra(com.nightread.app.service.TtsForegroundService.EXTRA_START_IDX, -1)
                 val end = intent.getIntExtra(com.nightread.app.service.TtsForegroundService.EXTRA_END_IDX, -1)
+
+                if (isDone) {
+                    val prefs = getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
+                    val continuous = prefs.getBoolean("tts_continuous", true)
+                    if (continuous) {
+                        readNextTtsChunk()
+                        return
+                    }
+                }
 
                 supportFragmentManager.fragments.forEach { fragment ->
                     if (fragment is PageFragment && fragment.isVisible) {
@@ -2658,19 +2697,36 @@ class BookReaderActivity : BaseActivity() {
     }
 
     fun startOrResumeTts() {
-        if (publicationSpeechSynthesizer == null) {
-            val pub = com.nightread.app.readium.ReadiumEngine.getPublication()
-            if (pub != null && androidTtsEngine != null) {
-                publicationSpeechSynthesizer = org.readium.r2.navigator.tts.PublicationSpeechSynthesizer(pub, androidTtsEngine!!)
+        if (com.nightread.app.service.TtsForegroundService.isServiceRunning) {
+            val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                action = com.nightread.app.service.TtsForegroundService.ACTION_RESUME
+            }
+            startService(intent)
+        } else {
+            val textToSpeak = getTtsTextToSpeak()
+            if (textToSpeak.isBlank()) return
+            val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this)
+            val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
+            val voice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
+            val title = getBookTitle()
+            val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
+                action = com.nightread.app.service.TtsForegroundService.ACTION_START
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, textToSpeak)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voice)
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
             }
         }
-        val textToSpeak = getTtsTextToSpeak()
-        if (textToSpeak.isBlank()) return
-        val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this)
-        val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
-        publicationSpeechSynthesizer?.load(org.readium.r2.navigator.tts.PublicationSpeechSynthesizer.Configuration(rate = speed, pitch = pitch))
-        val locator = getCurrentOrFallbackLocator()
-        publicationSpeechSynthesizer?.play(textToSpeak, locator)
+    }
+
+    fun getBookTitle(): String {
+        return viewModel.bookState.value?.title ?: findViewById<TextView>(R.id.tvTitle)?.text?.toString() ?: "NightRead"
     }
 
     private fun getCurrentOrFallbackLocator(): org.readium.r2.shared.publication.Locator {
@@ -2681,21 +2737,27 @@ class BookReaderActivity : BaseActivity() {
     }
 
     fun pauseTts() {
-        publicationSpeechSynthesizer?.pause()
+        val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
+            action = com.nightread.app.service.TtsForegroundService.ACTION_PAUSE
+        }
+        startService(intent)
     }
 
     fun stopTts() {
-        publicationSpeechSynthesizer?.stop()
+        val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
+            action = com.nightread.app.service.TtsForegroundService.ACTION_STOP
+        }
+        startService(intent)
     }
 
     fun readNextTtsChunk() {
         onReaderSwipeLeft()
-        handler.postDelayed({ startOrResumeTts() }, 300)
+        handler.postDelayed({ startOrResumeTts() }, 400)
     }
 
     fun readPreviousTtsChunk() {
         onReaderSwipeRight()
-        handler.postDelayed({ startOrResumeTts() }, 300)
+        handler.postDelayed({ startOrResumeTts() }, 400)
     }
 
     private fun setupSyncStatusIndicator() {

@@ -383,22 +383,38 @@ class PageFragment : Fragment() {
                     }
                 </style>
                 <script type="text/javascript">
+                    var selectionTimeout = null;
                     document.addEventListener('touchend', function() {
-                        var selection = window.getSelection();
-                        var selectedText = selection.toString().trim();
-                        if (selectedText.length > 0) {
-                            var container = null;
-                            if (selection.rangeCount > 0) {
-                                var range = selection.getRangeAt(0);
-                                container = range.commonAncestorContainer;
-                                while (container && container.nodeType !== 1) {
-                                    container = container.parentNode;
+                        if (selectionTimeout) clearTimeout(selectionTimeout);
+                        selectionTimeout = setTimeout(function() {
+                            var selection = window.getSelection();
+                            var selectedText = selection.toString().trim();
+                            if (selectedText.length > 0) {
+                                var container = null;
+                                if (selection.rangeCount > 0) {
+                                    var range = selection.getRangeAt(0);
+                                    container = range.commonAncestorContainer;
+                                    while (container && container.nodeType !== 1) {
+                                        container = container.parentNode;
+                                    }
+                                }
+                                var contextSnippet = container ? container.innerText || "" : "";
+                                if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onTextSelected) {
+                                    AndroidInterface.onTextSelected(selectedText, contextSnippet);
                                 }
                             }
-                            var contextSnippet = container ? container.innerText || "" : "";
-                            if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onTextSelected) {
-                                AndroidInterface.onTextSelected(selectedText, contextSnippet);
-                            }
+                        }, 500); // 500ms delay to prevent accidental selection during swipe
+                    });
+                    document.addEventListener('touchstart', function() {
+                        if (selectionTimeout) {
+                            clearTimeout(selectionTimeout);
+                            selectionTimeout = null;
+                        }
+                    });
+                    document.addEventListener('touchmove', function() {
+                        if (selectionTimeout) {
+                            clearTimeout(selectionTimeout);
+                            selectionTimeout = null;
                         }
                     });
 

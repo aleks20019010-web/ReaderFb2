@@ -73,9 +73,12 @@ class SettingsActivity : BaseActivity() {
                 WindowInsetsCompat.Type.statusBars() or
                 WindowInsetsCompat.Type.displayCutout()
             )
-            val topPadding = insets.top + (12 * resources.displayMetrics.density).toInt()
-            val bottomPadding = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-            view.setPadding(0, topPadding, 0, bottomPadding)
+            val density = resources.displayMetrics.density
+            val leftPadding = (8 * density).toInt()
+            val rightPadding = (8 * density).toInt()
+            val topPadding = insets.top + (3 * density).toInt()
+            val bottomPadding = (16 * density).toInt()
+            view.setPadding(leftPadding, topPadding, rightPadding, bottomPadding)
             windowInsets
         }
 
