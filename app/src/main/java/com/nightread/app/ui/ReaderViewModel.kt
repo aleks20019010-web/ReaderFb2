@@ -257,23 +257,28 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                     if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty()) {
                         content = BookCache.content
                     } else {
-                        val file = java.io.File(restoredBook.filePath ?: "")
-                        if (file.exists()) {
-                            val rawContent = if (file.extension.lowercase() == "zip") {
-                                readZipFile(file)
-                            } else if (file.extension.lowercase() == "epub") {
-                                com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
+                        try {
+                            val file = java.io.File(restoredBook.filePath ?: "")
+                            if (file.exists()) {
+                                val rawContent = if (file.extension.lowercase() == "zip") {
+                                    readZipFile(file)
+                                } else if (file.extension.lowercase() == "epub") {
+                                    com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
+                                } else {
+                                    file.readText(java.nio.charset.StandardCharsets.UTF_8)
+                                }
+                                
+                                if (file.extension.lowercase() == "fb2" || file.extension.lowercase() == "zip" || file.extension.lowercase() == "epub") {
+                                    content = rawContent
+                                } else {
+                                    content = TextCleaner.cleanText(rawContent) as String
+                                }
                             } else {
-                                file.readText(java.nio.charset.StandardCharsets.UTF_8)
+                                content = ""
                             }
-                            
-                            if (file.extension.lowercase() == "fb2" || file.extension.lowercase() == "zip" || file.extension.lowercase() == "epub") {
-                                content = rawContent
-                            } else {
-                                content = TextCleaner.cleanText(rawContent) as String
-                            }
-                        } else {
-                            content = ""
+                        } catch (e: Exception) {
+                            android.util.Log.e("ReaderViewModel", "Error reading book file", e)
+                            content = "Ошибка при открытии файла книги: ${e.localizedMessage}"
                         }
                     }
                     
