@@ -329,10 +329,10 @@ class BookReaderFragment : Fragment() {
                 var currentPage = 0;
                 
                 function calculatePages() {
-                    var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                    var pageWidth = document.documentElement.getBoundingClientRect().width || window.innerWidth;
                     if (pageWidth > 0) {
                         var sideMarginStr = getComputedStyle(document.documentElement).getPropertyValue('--side-margin');
-                        var sideMargin = parseInt(sideMarginStr) || 0;
+                        var sideMargin = parseFloat(sideMarginStr) || 0;
                         var colWidth = pageWidth - (sideMargin * 2);
                         var colGap = sideMargin * 2;
                         document.documentElement.style.setProperty('--column-width', colWidth + 'px');
@@ -354,10 +354,10 @@ class BookReaderFragment : Fragment() {
                 }
                 
                 function scrollToPage(pageIndex) {
-                    var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                    var pageWidth = document.documentElement.getBoundingClientRect().width || window.innerWidth;
                     if (pageWidth <= 0) return;
                     currentPage = pageIndex;
-                    var x = Math.round(pageIndex * pageWidth);
+                    var x = pageIndex * pageWidth;
                     window.scrollTo(x, 0);
                     document.body.scrollLeft = x;
                     document.documentElement.scrollLeft = x;
@@ -369,7 +369,7 @@ class BookReaderFragment : Fragment() {
                 
                 function reportCurrentParagraph() {
                     var elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
-                    var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                    var pageWidth = document.documentElement.getBoundingClientRect().width || window.innerWidth;
                     for (var i = 0; i < elements.length; i++) {
                         var rect = elements[i].getBoundingClientRect();
                         if (rect.right > 5 && rect.left < pageWidth) {
@@ -387,7 +387,7 @@ class BookReaderFragment : Fragment() {
                         var rect = element.getBoundingClientRect();
                         var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft;
                         var elementLeft = rect.left + scrollLeft;
-                        var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                        var pageWidth = document.documentElement.getBoundingClientRect().width || window.innerWidth;
                         if (pageWidth > 0) {
                             var pageIndex = Math.floor(elementLeft / pageWidth);
                             scrollToPage(pageIndex);

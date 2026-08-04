@@ -122,6 +122,8 @@ object Fb2ToHtmlConverterAdvanced {
                             -webkit-hyphens: auto;
                             -ms-hyphens: auto;
                             hyphens: auto;
+                            orphans: 1;
+                            widows: 1;
                         }
                         #column-container * {
                             max-width: 100% !important;

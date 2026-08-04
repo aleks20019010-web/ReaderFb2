@@ -102,6 +102,7 @@ object EpubToHtmlConverter {
                         font-weight: var(--font-weight); line-height: var(--line-spacing);
                         text-align: var(--text-align);
                         -webkit-hyphens: auto; -ms-hyphens: auto; hyphens: auto;
+                        orphans: 1; widows: 1;
                     }
                     #column-container * {
                         max-width: 100% !important;
