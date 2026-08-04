@@ -1,7 +1,8 @@
 package com.nightread.app.service
 
 import java.io.File
-import java.util.regex.Pattern
+import com.itextpdf.text.pdf.PdfReader
+import com.itextpdf.text.pdf.parser.PdfTextExtractor
 
 object PdfParser : BookParser {
     override fun parse(file: File, defaultTitle: String): BookParser.ParsedBook {
@@ -25,62 +26,21 @@ object PdfParser : BookParser {
     }
 
     private fun extractPdfText(file: File): String {
-        val bytes = file.readBytes()
-        val contentStr = String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
         val sb = java.lang.StringBuilder()
-        
-        val streamPattern = Pattern.compile("stream\\r?\\n(.*?)\\r?\\nendstream", Pattern.DOTALL)
-        val streamMatcher = streamPattern.matcher(contentStr)
-        
-        while (streamMatcher.find()) {
-            val streamContent = streamMatcher.group(1) ?: continue
-            val btEtPattern = Pattern.compile("BT(.*?)ET", Pattern.DOTALL)
-            val btEtMatcher = btEtPattern.matcher(streamContent)
-            while (btEtMatcher.find()) {
-                val textBlock = btEtMatcher.group(1) ?: continue
-                val textPattern = Pattern.compile("\\((.*?)\\)")
-                val textMatcher = textPattern.matcher(textBlock)
-                val paragraph = java.lang.StringBuilder()
-                while (textMatcher.find()) {
-                    val part = textMatcher.group(1) ?: continue
-                    val decoded = decodePdfString(part)
-                    paragraph.append(decoded)
-                }
-                if (paragraph.isNotBlank()) {
-                    sb.append(paragraph.toString().trim()).append("\n")
+        try {
+            val reader = PdfReader(file.absolutePath)
+            val pages = reader.numberOfPages
+            for (i in 1..pages) {
+                val pageText = PdfTextExtractor.getTextFromPage(reader, i)
+                if (pageText.isNotBlank()) {
+                    sb.append(pageText).append("\n\n")
                 }
             }
+            reader.close()
+        } catch (e: Exception) {
+            android.util.Log.e("PdfParser", "Error extracting PDF text", e)
         }
-
-        val lines = sb.toString().split("\n")
-            .map { it.trim() }
-            .filter { line ->
-                line.length > 2 && line.count { it.isLetterOrDigit() || it == ' ' } > 0.4 * line.length
-            }
-        return lines.joinToString("\n")
-    }
-
-    private fun decodePdfString(str: String): String {
-        var s = str.replace("\\)", ")")
-            .replace("\\(", "(")
-            .replace("\\\\", "\\")
-            .replace("\\r", "")
-            .replace("\\n", " ")
-        
-        val octalPattern = Pattern.compile("\\\\([0-7]{1,3})")
-        val matcher = octalPattern.matcher(s)
-        val sb = java.lang.StringBuffer()
-        while (matcher.find()) {
-            val octal = matcher.group(1) ?: ""
-            try {
-                val byteVal = octal.toInt(8).toChar()
-                matcher.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(byteVal.toString()))
-            } catch (e: Exception) {
-                matcher.appendReplacement(sb, "")
-            }
-        }
-        matcher.appendTail(sb)
-        return sb.toString()
+        return sb.toString().trim()
     }
 
     private fun escapeHtml(text: String): String {

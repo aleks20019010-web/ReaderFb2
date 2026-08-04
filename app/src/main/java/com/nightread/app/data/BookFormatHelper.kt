@@ -29,8 +29,29 @@ object BookFormatHelper {
 
     fun isWebViewBook(filePath: String?): Boolean {
         if (filePath == null) return false
-        val ext = File(filePath).extension.lowercase()
+        var ext = File(filePath).extension.lowercase()
+        
+        if (ext.isEmpty() || ext == "bin" || ext == "txt") {
+            try {
+                val file = File(filePath)
+                if (file.exists() && file.length() > 4) {
+                    val stream = java.io.FileInputStream(file)
+                    val header = ByteArray(4)
+                    stream.read(header)
+                    stream.close()
+                    if (header[0] == '%'.code.toByte() && header[1] == 'P'.code.toByte() && header[2] == 'D'.code.toByte() && header[3] == 'F'.code.toByte()) {
+                        ext = "pdf"
+                    } else if (header[0] == 0xFF.toByte() && header[1] == 0xD8.toByte()) {
+                        ext = "jpg"
+                    } else if (header[0] == 'P'.code.toByte() && header[1] == 'K'.code.toByte() && header[2] == 3.toByte() && header[3] == 4.toByte()) {
+                        ext = "zip"
+                    }
+                }
+            } catch (e: Exception) {}
+        }
+        
         if (filePath.lowercase().endsWith(".fb2.zip")) return true
+        if (ext == "jpg" || ext == "jpeg" || ext == "png" || ext == "gif") return false
         // Every supported format except plain .txt is rendered via WebView
         return (EBOOK_EXTENSIONS.contains(ext) || DOCUMENT_EXTENSIONS.contains(ext)) && ext != "txt"
     }

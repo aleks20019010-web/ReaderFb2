@@ -255,7 +255,19 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                         try {
                             val file = java.io.File(restoredBook.filePath ?: "")
                             if (file.exists()) {
-                                val rawContent = when (val ext = file.extension.lowercase()) {
+                                var ext = file.extension.lowercase()
+                                val bytes = file.readBytes()
+                                if (ext.isEmpty() || ext == "bin" || ext == "txt") {
+                                    if (bytes.size > 4 && bytes[0] == '%'.code.toByte() && bytes[1] == 'P'.code.toByte() && bytes[2] == 'D'.code.toByte() && bytes[3] == 'F'.code.toByte()) {
+                                        ext = "pdf"
+                                    } else if (bytes.size > 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte()) {
+                                        ext = "jpg"
+                                    } else if (bytes.size > 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte() && bytes[2] == 3.toByte() && bytes[3] == 4.toByte()) {
+                                        ext = "zip"
+                                    }
+                                }
+
+                                val rawContent = when (ext) {
                                     "zip" -> readZipFile(file)
                                     "epub" -> com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
                                     "mobi", "azw", "azw3" -> com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension).content
@@ -264,11 +276,12 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                                     "docx" -> com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension).content
                                     "doc" -> com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension).content
                                     "pdf" -> com.nightread.app.service.PdfParser.parse(file, file.nameWithoutExtension).content
-                                    "txt" -> decodeBytesToString(file.readBytes())
-                                    else -> file.readText(java.nio.charset.StandardCharsets.UTF_8)
+                                    "jpg", "jpeg", "png", "gif" -> "Файл является изображением и не содержит читаемого текста."
+                                    "txt" -> decodeBytesToString(bytes)
+                                    else -> decodeBytesToString(bytes)
                                 }
                                 
-                                if (file.extension.lowercase() in listOf("fb2", "zip", "epub", "mobi", "azw", "azw3", "html", "htm", "md", "docx", "doc", "pdf")) {
+                                if (ext in listOf("fb2", "zip", "epub", "mobi", "azw", "azw3", "html", "htm", "md", "docx", "doc", "pdf", "jpg", "jpeg", "png", "gif")) {
                                     content = rawContent
                                 } else {
                                     content = TextCleaner.cleanText(rawContent) as String

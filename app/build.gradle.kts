@@ -106,6 +106,7 @@ configurations.all {
 }
 
 dependencies {
+  implementation("com.tomroush:pdfbox-android:2.0.27.0")
   coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
   implementation("androidx.media:media:1.6.0")
 

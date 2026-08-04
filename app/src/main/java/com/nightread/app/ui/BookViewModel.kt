@@ -404,7 +404,24 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 
-                val ext = fileName.substringAfterLast(".", "").lowercase()
+                var ext = fileName.substringAfterLast(".", "").lowercase()
+                if (ext == fileName.lowercase()) ext = ""
+                if (ext.isEmpty() || ext == "bin" || ext == "file") {
+                    val mimeType = contentResolver.getType(uri)
+                    ext = when (mimeType) {
+                        "application/pdf" -> "pdf"
+                        "application/epub+zip" -> "epub"
+                        "text/plain" -> "txt"
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> "docx"
+                        "application/msword" -> "doc"
+                        "application/zip" -> "zip"
+                        "application/x-mobipocket-ebook" -> "mobi"
+                        "application/vnd.amazon.ebook" -> "azw"
+                        "text/markdown" -> "md"
+                        else -> ext
+                    }
+                }
+                
                 val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 if (bytes == null || bytes.isEmpty()) {
                     withContext(Dispatchers.Main) {
