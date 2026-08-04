@@ -598,7 +598,7 @@ class NewBookScanner(
                     while (entry != null) {
                         try {
                             val entryName = entry.name.lowercase()
-                            if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".txt") || entryName.endsWith(".epub") || entryName.endsWith(".html") || entryName.endsWith(".htm"))) {
+                            if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".epub") || entryName.endsWith(".html") || entryName.endsWith(".htm"))) {
                                 val tempBytes = try {
                                     val buffer = java.io.ByteArrayOutputStream()
                                     val data = ByteArray(8192)
@@ -755,7 +755,6 @@ class NewBookScanner(
                     coverPath = savedCoverPath,
                     annotation = metadata.description,
                     fileSize = file.length(),
-                    series = null,
                     seriesIndex = null,
                     language = "Unknown",
                     isNew = true
@@ -765,45 +764,6 @@ class NewBookScanner(
                 onStatsUpdated(1, 0)
             } catch (e: Throwable) {
                 Log.e(TAG, "Error handling epub file: ${file.absolutePath}", e)
-            }
-        } else if (ext == "txt") {
-            try {
-                if (!file.exists() || !file.canRead()) return
-                val bytes = file.inputStream().buffered().use { it.readBytes() }
-                if (bytes.isEmpty()) return
-                val sha1 = computeSha1(bytes)
-                if (sha1ToPathMap.containsKey(sha1)) {
-                    val existingPath = sha1ToPathMap[sha1]
-                    if (existingPath != file.absolutePath) {
-                        try {
-                            kotlinx.coroutines.runBlocking {
-                                bookDao.updateFilePath(sha1, file.absolutePath)
-                            }
-                            sha1ToPathMap[sha1] = file.absolutePath
-                        } catch (ex: Exception) {
-                            Log.e(TAG, "Failed to update file path in DB for SHA-1: $sha1", ex)
-                        }
-                    }
-                    onStatsUpdated(0, 1)
-                    return
-                }
-                val rawText = decodeBytesToString(bytes)
-                val firstLine = rawText.lines().firstOrNull { it.isNotBlank() }?.take(80) ?: file.nameWithoutExtension
-                val title = resolveRussianTitle(firstLine, file.nameWithoutExtension)
-                val book = BookEntity(
-                    sha1 = sha1,
-                    title = title,
-                    author = "Текстовый документ",
-                    category = "Local",
-                    filePath = file.absolutePath,
-                    fileSize = file.length(),
-                    isNew = true
-                )
-                batchList.add(book)
-                sha1ToPathMap[sha1] = file.absolutePath
-                onStatsUpdated(1, 0)
-            } catch (e: Throwable) {
-                Log.e(TAG, "Error handling txt file: ${file.absolutePath}", e)
             }
         } else if (ext in listOf("mobi", "azw", "azw3")) {
             try {

@@ -124,7 +124,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:gravity="center"
-                    android:text="Добавьте или сканируйте файлы в форматах: md, docx, doc, pdf, html, htm, txt"
+                    android:text="Добавьте или сканируйте файлы в форматах: md, docx, doc, pdf, html, htm"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp" />
             </LinearLayout>

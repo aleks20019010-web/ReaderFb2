@@ -411,7 +411,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     ext = when (mimeType) {
                         "application/pdf" -> "pdf"
                         "application/epub+zip" -> "epub"
-                        "text/plain" -> "txt"
                         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> "docx"
                         "application/msword" -> "doc"
                         "application/zip" -> "zip"
@@ -580,8 +579,11 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     parsedAuthor = parsed.author
                     parsedContent = parsed.content
                 } else {
-                    parsedContent = decodeBytesToString(bytes)
-                    parsedAuthor = "Локальный TXT"
+                    withContext(Dispatchers.Main) {
+                        onResult(false, "Формат $ext не поддерживается.")
+                    }
+                    try { localFile.delete() } catch (e: Exception) {}
+                    return@launch
                 }
                 
                 if (parsedContent.isBlank()) {
@@ -1039,7 +1041,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 
                 if (filesToProcess.isEmpty()) {
                     withContext(Dispatchers.Main) {
-                        scanProgressText = "Книг (*.txt, *.fb2, *.zip, *.epub, *.mobi, *.azw, *.azw3, *.md, *.docx, *.doc, *.pdf) не найдено в $rootPath"
+                        scanProgressText = "Книг (*.fb2, *.zip, *.epub, *.mobi, *.azw, *.azw3, *.md, *.docx, *.doc, *.pdf) не найдено в $rootPath"
                     }
                     return@withContext
                 }

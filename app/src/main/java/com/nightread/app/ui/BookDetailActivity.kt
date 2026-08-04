@@ -329,7 +329,6 @@ class BookDetailActivity : BaseActivity() {
                 file.name.endsWith(".epub", ignoreCase = true) -> "application/epub+zip"
                 file.name.endsWith(".mobi", ignoreCase = true) || file.name.endsWith(".azw", ignoreCase = true) || file.name.endsWith(".azw3", ignoreCase = true) -> "application/x-mobipocket-ebook"
                 file.name.endsWith(".html", ignoreCase = true) || file.name.endsWith(".htm", ignoreCase = true) -> "text/html"
-                file.name.endsWith(".txt", ignoreCase = true) -> "text/plain"
                 else -> "*/*"
             }
             val uri: Uri = FileProvider.getUriForFile(
@@ -510,7 +509,7 @@ class BookDetailActivity : BaseActivity() {
                         )
                     }
                     tvCoverLetter.visibility = View.GONE
-                } else if (!book.filePath.isNullOrEmpty() && File(book.filePath).exists() && (com.nightread.app.data.BookFormatHelper.isWebViewBook(book.filePath) || book.filePath.endsWith(".txt", ignoreCase = true))) {
+                } else if (!book.filePath.isNullOrEmpty() && File(book.filePath).exists() && (com.nightread.app.data.BookFormatHelper.isWebViewBook(book.filePath))) {
                     ivCover.setImageDrawable(null)
                     tvCoverLetter.visibility = View.VISIBLE
                     tvCoverLetter.text = if (book.title.isNotEmpty()) book.title.take(1).uppercase(Locale.ROOT) else "?"

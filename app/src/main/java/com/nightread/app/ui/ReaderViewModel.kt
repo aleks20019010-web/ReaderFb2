@@ -257,7 +257,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                             if (file.exists()) {
                                 var ext = file.extension.lowercase()
                                 val bytes = file.readBytes()
-                                if (ext.isEmpty() || ext == "bin" || ext == "txt") {
+                                if (ext.isEmpty() || ext == "bin") {
                                     if (bytes.size > 4 && bytes[0] == '%'.code.toByte() && bytes[1] == 'P'.code.toByte() && bytes[2] == 'D'.code.toByte() && bytes[3] == 'F'.code.toByte()) {
                                         ext = "pdf"
                                     } else if (bytes.size > 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte()) {
@@ -277,7 +277,6 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                                     "doc" -> com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension).content
                                     "pdf" -> com.nightread.app.service.PdfParser.parse(file, file.nameWithoutExtension).content
                                     "jpg", "jpeg", "png", "gif" -> "Файл является изображением и не содержит читаемого текста."
-                                    "txt" -> decodeBytesToString(bytes)
                                     else -> decodeBytesToString(bytes)
                                 }
                                 
@@ -875,7 +874,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 var entry = zis.nextEntry
                 while (entry != null) {
                     val entryName = entry.name.lowercase()
-                    if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".txt"))) {
+                    if (!entry.isDirectory && entryName.endsWith(".fb2")) {
                         val bytes = zis.readBytes()
                         return decodeBytesToString(bytes)
                     }
