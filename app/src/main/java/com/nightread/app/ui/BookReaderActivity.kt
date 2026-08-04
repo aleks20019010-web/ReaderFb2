@@ -2303,30 +2303,23 @@ class BookReaderActivity : BaseActivity() {
     }
 
     fun startOrResumeTts() {
-        if (com.nightread.app.service.TtsForegroundService.isServiceRunning) {
-            val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
-                action = com.nightread.app.service.TtsForegroundService.ACTION_RESUME
-            }
-            startService(intent)
+        val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this)
+        val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
+        val voice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
+        val title = getBookTitle()
+        val startIdx = viewModel.bookState.value?.currentProgressChar ?: 0
+        val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
+            action = com.nightread.app.service.TtsForegroundService.ACTION_START
+            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_START_IDX, startIdx)
+            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
+            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
+            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
+            putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voice)
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(intent)
         } else {
-            val speed = com.nightread.app.data.SettingsManager.getTtsSpeed(this)
-            val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
-            val voice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
-            val title = getBookTitle()
-            val startIdx = viewModel.bookState.value?.currentProgressChar ?: 0
-            val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
-                action = com.nightread.app.service.TtsForegroundService.ACTION_START
-                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_START_IDX, startIdx)
-                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
-                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
-                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
-                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voice)
-            }
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
+            startService(intent)
         }
     }
 

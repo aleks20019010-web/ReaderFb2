@@ -149,7 +149,9 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                     currentText = customText
                     currentParagraphIndex = -1
                 } else {
-                    currentParagraphIndex = startIdx
+                    val targetId = "p_$startIdx"
+                    val foundIndex = TtsDataProvider.paragraphs.indexOfFirst { it.id == targetId }
+                    currentParagraphIndex = if (foundIndex != -1) foundIndex else 0
                 }
 
                 tts?.setSpeechRate(speechRate)
