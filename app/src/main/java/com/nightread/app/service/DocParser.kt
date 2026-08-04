@@ -9,10 +9,18 @@ object DocParser : BookParser {
             val bytes = file.readBytes()
             val text = extractReadableText(bytes)
             val htmlContent = "<html><body>" + text.split("\n").filter { it.isNotBlank() }.joinToString("") { "<p>${escapeHtml(it)}</p>" } + "</body></html>"
-            BookParser.ParsedBook(title, "Word Документ (DOC)", htmlContent)
+            val preview = makePreview(text)
+            BookParser.ParsedBook(title, "Word Документ (DOC)", htmlContent, annotation = preview)
         } catch (e: Exception) {
             BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
         }
+    }
+
+    private fun makePreview(rawText: String): String {
+        val clean = rawText.replace(Regex("<[^>]*>"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        return if (clean.length > 180) clean.take(180) + "..." else clean
     }
 
     private fun extractReadableText(bytes: ByteArray): String {

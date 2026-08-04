@@ -1000,8 +1000,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                                 }
                                 traverse(file)
                             } else {
-                                val ext = file.extension.lowercase()
-                                if (ext == "txt" || ext == "fb2" || ext == "zip") {
+                                if (com.nightread.app.data.BookFormatHelper.isSupported(file.absolutePath)) {
                                     // Exclude files >= 30MB to prevent memory crashes
                                     if (file.length() < 30 * 1024 * 1024 && file.length() > 0) {
                                         filesToProcess.add(file)
@@ -1023,7 +1022,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 
                 if (filesToProcess.isEmpty()) {
                     withContext(Dispatchers.Main) {
-                        scanProgressText = "Книг (*.txt, *.fb2, *.zip, *.epub, *.mobi, *.azw, *.azw3) не найдено в $rootPath"
+                        scanProgressText = "Книг (*.txt, *.fb2, *.zip, *.epub, *.mobi, *.azw, *.azw3, *.md, *.docx, *.doc, *.pdf) не найдено в $rootPath"
                     }
                     return@withContext
                 }
@@ -1049,29 +1048,81 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                         var parsedContent = ""
                         var parsedSeries: String? = null
                         var parsedLanguage: String? = "ru"
+                        var parsedAnnotation: String? = null
                         
-                        if (ext == "fb2") {
-                            val parsed = parseFb2Detailed(file)
-                            parsedTitle = parsed.title
-                            parsedAuthor = parsed.author
-                            parsedContent = parsed.content
-                            parsedSeries = parsed.series
-                            parsedLanguage = parsed.language
-                        } else if (ext == "zip") {
-                            val parsed = parseFb2FromZip(file)
-                            parsedTitle = parsed.title
-                            parsedAuthor = parsed.author
-                            parsedContent = parsed.content
-                            parsedSeries = parsed.series
-                            parsedLanguage = parsed.language
-                        } else if (ext in listOf("mobi", "azw", "azw3")) {
-                            val parsed = com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension)
-                            parsedTitle = parsed.title
-                            parsedAuthor = parsed.author
-                            parsedContent = parsed.content
-                        } else {
-                            parsedContent = readTextFile(file)
-                            parsedAuthor = "Локальный TXT"
+                        when (ext) {
+                            "fb2" -> {
+                                val parsed = parseFb2Detailed(file)
+                                parsedTitle = parsed.title
+                                parsedAuthor = parsed.author
+                                parsedContent = parsed.content
+                                parsedSeries = parsed.series
+                                parsedLanguage = parsed.language
+                                parsedAnnotation = parsed.annotation
+                            }
+                            "zip" -> {
+                                val parsed = parseFb2FromZip(file)
+                                parsedTitle = parsed.title
+                                parsedAuthor = parsed.author
+                                parsedContent = parsed.content
+                                parsedSeries = parsed.series
+                                parsedLanguage = parsed.language
+                                parsedAnnotation = parsed.annotation
+                            }
+                            "epub" -> {
+                                val parsed = com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension)
+                                parsedTitle = parsed.title
+                                parsedAuthor = parsed.author
+                                parsedContent = parsed.content
+                                parsedAnnotation = parsed.annotation
+                            }
+                            "mobi", "azw", "azw3" -> {
+                                val parsed = com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension)
+                                parsedTitle = parsed.title
+                                parsedAuthor = parsed.author
+                                parsedContent = parsed.content
+                                parsedAnnotation = parsed.annotation
+                            }
+                            "html", "htm" -> {
+                                val parsed = com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension)
+                                parsedTitle = parsed.title
+                                parsedAuthor = parsed.author
+                                parsedContent = parsed.content
+                                parsedAnnotation = parsed.annotation
+                            }
+                            "md" -> {
+                                val parsed = com.nightread.app.service.MdParser.parse(file, file.nameWithoutExtension)
+                                parsedTitle = parsed.title
+                                parsedAuthor = parsed.author
+                                parsedContent = parsed.content
+                                parsedAnnotation = parsed.annotation
+                            }
+                            "docx" -> {
+                                val parsed = com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension)
+                                parsedTitle = parsed.title
+                                parsedAuthor = parsed.author
+                                parsedContent = parsed.content
+                                parsedAnnotation = parsed.annotation
+                            }
+                            "doc" -> {
+                                val parsed = com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension)
+                                parsedTitle = parsed.title
+                                parsedAuthor = parsed.author
+                                parsedContent = parsed.content
+                                parsedAnnotation = parsed.annotation
+                            }
+                            "pdf" -> {
+                                val parsed = com.nightread.app.service.PdfParser.parse(file, file.nameWithoutExtension)
+                                parsedTitle = parsed.title
+                                parsedAuthor = parsed.author
+                                parsedContent = parsed.content
+                                parsedAnnotation = parsed.annotation
+                            }
+                            else -> {
+                                val bytes = file.readBytes()
+                                parsedContent = decodeBytesToString(bytes)
+                                parsedAuthor = "Локальный TXT"
+                            }
                         }
                         
                         if (existingTitles.contains(parsedTitle.lowercase())) {
@@ -1100,7 +1151,8 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                                 series = parsedSeries,
                                 language = parsedLanguage,
                                 fileSize = file.length(),
-                                coverPath = coverPath
+                                coverPath = coverPath,
+                                annotation = parsedAnnotation
                             )
                             repository.insertBook(newBook)
                             existingSha1s.add(computedSha1)

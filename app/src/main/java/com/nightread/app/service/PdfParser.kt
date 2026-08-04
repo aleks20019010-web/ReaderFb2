@@ -10,10 +10,18 @@ object PdfParser : BookParser {
             val text = extractPdfText(file)
             val cleanText = if (text.isBlank()) "Файл PDF (Текст закодирован или содержит только изображения)" else text
             val htmlContent = "<html><body>" + cleanText.split("\n").filter { it.isNotBlank() }.joinToString("") { "<p>${escapeHtml(it)}</p>" } + "</body></html>"
-            BookParser.ParsedBook(title, "PDF Документ", htmlContent)
+            val preview = makePreview(cleanText)
+            BookParser.ParsedBook(title, "PDF Документ", htmlContent, annotation = preview)
         } catch (e: Exception) {
             BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
         }
+    }
+
+    private fun makePreview(rawText: String): String {
+        val clean = rawText.replace(Regex("<[^>]*>"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        return if (clean.length > 180) clean.take(180) + "..." else clean
     }
 
     private fun extractPdfText(file: File): String {
@@ -66,7 +74,7 @@ object PdfParser : BookParser {
             val octal = matcher.group(1) ?: ""
             try {
                 val byteVal = octal.toInt(8).toChar()
-                matcher.appendReplacement(sb, byteVal.toString())
+                matcher.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(byteVal.toString()))
             } catch (e: Exception) {
                 matcher.appendReplacement(sb, "")
             }

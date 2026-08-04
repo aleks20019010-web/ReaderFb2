@@ -9,10 +9,19 @@ object MdParser : BookParser {
             val text = file.readText(StandardCharsets.UTF_8)
             val title = file.nameWithoutExtension.ifBlank { defaultTitle }
             val htmlContent = convertMarkdownToHtml(text)
-            BookParser.ParsedBook(title, "Markdown Документ", htmlContent)
+            val preview = makePreview(text)
+            BookParser.ParsedBook(title, "Markdown Документ", htmlContent, annotation = preview)
         } catch (e: Exception) {
             BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
         }
+    }
+
+    private fun makePreview(rawText: String): String {
+        val clean = rawText.replace(Regex("<[^>]*>"), "")
+            .replace(Regex("[#*`_\\-~]"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        return if (clean.length > 180) clean.take(180) + "..." else clean
     }
 
     fun convertMarkdownToHtml(mdText: String): String {

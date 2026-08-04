@@ -897,15 +897,7 @@ class BookReaderActivity : BaseActivity() {
         val pages = viewModel.pagesState.value
         
         val filePath = viewModel.bookState.value?.filePath ?: ""
-        val isWebViewBook = filePath.endsWith(".fb2", true) || 
-                           filePath.endsWith(".fb2.zip", true) || 
-                           filePath.endsWith(".zip", true) ||
-                           filePath.endsWith(".epub", true) ||
-                           filePath.endsWith(".mobi", true) ||
-                           filePath.endsWith(".azw", true) ||
-                           filePath.endsWith(".azw3", true) ||
-                           filePath.endsWith(".html", true) ||
-                           filePath.endsWith(".htm", true)
+        val isWebViewBook = com.nightread.app.data.BookFormatHelper.isWebViewBook(filePath)
 
         if (pages.isEmpty()) return
         if (!isWebViewBook && newPageIdx !in pages.indices) return
@@ -2300,15 +2292,7 @@ class BookReaderActivity : BaseActivity() {
         val title = getBookTitle()
         
         val filePath = viewModel.bookState.value?.filePath ?: ""
-        val isWebViewBook = filePath.endsWith(".fb2", true) || 
-                           filePath.endsWith(".fb2.zip", true) || 
-                           filePath.endsWith(".zip", true) ||
-                           filePath.endsWith(".epub", true) ||
-                           filePath.endsWith(".mobi", true) ||
-                           filePath.endsWith(".azw", true) ||
-                           filePath.endsWith(".azw3", true) ||
-                           filePath.endsWith(".html", true) ||
-                           filePath.endsWith(".htm", true)
+        val isWebViewBook = com.nightread.app.data.BookFormatHelper.isWebViewBook(filePath)
                            
         var startIdx = 0
         if (isWebViewBook) {

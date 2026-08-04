@@ -10,10 +10,18 @@ object DocxParser : BookParser {
             val title = file.nameWithoutExtension.ifBlank { defaultTitle }
             val text = extractTextFromDocx(file)
             val htmlContent = "<html><body>" + text.split("\n").filter { it.isNotBlank() }.joinToString("") { "<p>${escapeHtml(it)}</p>" } + "</body></html>"
-            BookParser.ParsedBook(title, "Word Документ (DOCX)", htmlContent)
+            val preview = makePreview(text)
+            BookParser.ParsedBook(title, "Word Документ (DOCX)", htmlContent, annotation = preview)
         } catch (e: Exception) {
             BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
         }
+    }
+
+    private fun makePreview(rawText: String): String {
+        val clean = rawText.replace(Regex("<[^>]*>"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        return if (clean.length > 180) clean.take(180) + "..." else clean
     }
 
     private fun extractTextFromDocx(file: File): String {
@@ -22,8 +30,8 @@ object DocxParser : BookParser {
             zip.getInputStream(entry).use { stream ->
                 val xml = stream.bufferedReader(java.nio.charset.StandardCharsets.UTF_8).readText()
                 val sb = java.lang.StringBuilder()
-                val pPattern = Pattern.compile("<w:p(?: [^>]*)?>(.*?)</w:p>")
-                val tPattern = Pattern.compile("<w:t(?: [^>]*)?>(.*?)</w:t>")
+                val pPattern = Pattern.compile("<w:p(?: [^>]*)?>(.*?)</w:p>", Pattern.DOTALL)
+                val tPattern = Pattern.compile("<w:t(?: [^>]*)?>(.*?)</w:t>", Pattern.DOTALL)
                 
                 val pMatcher = pPattern.matcher(xml)
                 while (pMatcher.find()) {

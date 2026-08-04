@@ -58,11 +58,18 @@ object TxtParser : BookParser {
                 }
             }
 
+            val previewText = text.replace(Regex("<[^>]*>"), "")
+                .replace(Regex("\\[NOTE:[^\\]]+\\][^\\[]+\\[/NOTE\\]"), "")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+            val preview = if (previewText.length > 180) previewText.take(180) + "..." else previewText
+
             return BookParser.ParsedBook(
                 title = file.nameWithoutExtension,
                 author = "Неизвестен",
                 content = TextCleaner.cleanText(text.replace(Regex("([ \\t\\r]*\\n[ \\t\\r]*){2,}"), "\n").trim()) as String,
-                notes = notesMap
+                notes = notesMap,
+                annotation = preview
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing TXT", e)
