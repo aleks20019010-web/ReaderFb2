@@ -13,8 +13,8 @@ android {
     applicationId = "com.nightread.app"
     minSdk = 24
     targetSdk = 36
-    versionCode = 7
-    versionName = "3.0.1"
+    versionCode = 8
+    versionName = "3.0.3"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
   signingConfigs {
@@ -106,7 +106,7 @@ configurations.all {
 }
 
 dependencies {
-  implementation("com.tomroush:pdfbox-android:2.0.27.0")
+  implementation("com.itextpdf:itextg:5.5.10")
   coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
   implementation("androidx.media:media:1.6.0")
 
