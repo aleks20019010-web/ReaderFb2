@@ -101,7 +101,31 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 override fun onStart(utteranceId: String?) {
                     isSpeakingState = true
                     updateNotification(true)
-                    sendStatusBroadcast(isPlaying = true, isDone = false, start = 0, end = 0, paragraphId = currentParagraphId)
+                    
+                    var pIndex = -1
+                    if (utteranceId != null && utteranceId != "UTTERANCE_CUSTOM_TEXT") {
+                        pIndex = TtsDataProvider.paragraphs.indexOfFirst { it.id == utteranceId }
+                        if (pIndex >= 0) {
+                            currentParagraphIndex = pIndex
+                            currentParagraphId = utteranceId
+                            currentText = TtsDataProvider.paragraphs[pIndex].text
+                        }
+                    }
+                    
+                    sendStatusBroadcast(isPlaying = true, isDone = false, start = 0, end = 0, paragraphId = utteranceId ?: "")
+                    
+                    val prefs = getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
+                    val continuous = prefs.getBoolean("tts_continuous", true)
+                    if (continuous && pIndex >= 0) {
+                        val nextIndex = pIndex + 1
+                        if (nextIndex < TtsDataProvider.paragraphs.size) {
+                            val nextP = TtsDataProvider.paragraphs[nextIndex]
+                            val params = Bundle().apply {
+                                putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, nextP.id)
+                            }
+                            tts?.speak(nextP.text, TextToSpeech.QUEUE_ADD, params, nextP.id)
+                        }
+                    }
                 }
 
                 override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
@@ -111,20 +135,22 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 override fun onDone(utteranceId: String?) {
                     val prefs = getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
                     val continuous = prefs.getBoolean("tts_continuous", true)
-                    if (continuous && currentParagraphIndex >= 0) {
-                        currentParagraphIndex++
-                        if (currentParagraphIndex < TtsDataProvider.paragraphs.size) {
-                            speakCurrentText()
-                        } else {
-                            isSpeakingState = false
-                            updateNotification(false)
-                            sendStatusBroadcast(isPlaying = false, isDone = true, start = -1, end = -1, paragraphId = currentParagraphId)
+                    
+                    var isLast = false
+                    if (utteranceId != null && utteranceId != "UTTERANCE_CUSTOM_TEXT") {
+                        val pIndex = TtsDataProvider.paragraphs.indexOfFirst { it.id == utteranceId }
+                        if (pIndex == TtsDataProvider.paragraphs.size - 1) {
+                            isLast = true
                         }
-                    } else {
+                    } else if (utteranceId == "UTTERANCE_CUSTOM_TEXT") {
+                        isLast = true
+                    }
+
+                    if (!continuous || isLast) {
                         isSpeakingState = false
                         updateNotification(false)
                         releaseWakeLock()
-                        sendStatusBroadcast(isPlaying = false, isDone = true, start = -1, end = -1, paragraphId = currentParagraphId)
+                        sendStatusBroadcast(isPlaying = false, isDone = true, start = -1, end = -1, paragraphId = utteranceId ?: "")
                     }
                 }
 
@@ -132,7 +158,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                     isSpeakingState = false
                     updateNotification(false)
                     releaseWakeLock()
-                    sendStatusBroadcast(isPlaying = false, isDone = false, start = -1, end = -1, paragraphId = currentParagraphId)
+                    sendStatusBroadcast(isPlaying = false, isDone = false, start = -1, end = -1, paragraphId = utteranceId ?: "")
                 }
             })
 
@@ -262,8 +288,9 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         }
     }
 
-    private fun speakCurrentText() {
+    private fun speakCurrentText(flush: Boolean = true) {
         if (!isTtsInitialized) return
+        
         if (currentParagraphIndex >= 0 && TtsDataProvider.paragraphs.isNotEmpty() && currentParagraphIndex in TtsDataProvider.paragraphs.indices) {
             val p = TtsDataProvider.paragraphs[currentParagraphIndex]
             currentText = p.text
@@ -272,13 +299,20 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
             return
         }
 
-        tts?.stop()
+        if (flush) {
+            tts?.stop()
+        }
+        
         isSpeakingState = true
         acquireWakeLock()
+        
+        val uId = if (currentParagraphIndex >= 0) currentParagraphId else "UTTERANCE_CUSTOM_TEXT"
         val params = Bundle().apply {
-            putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "UTTERANCE_NIGHTREAD_BG_TTS")
+            putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, uId)
         }
-        tts?.speak(currentText, TextToSpeech.QUEUE_FLUSH, params, "UTTERANCE_NIGHTREAD_BG_TTS")
+        
+        val queueMode = if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+        tts?.speak(currentText, queueMode, params, uId)
     }
 
     private fun pauseTts() {
