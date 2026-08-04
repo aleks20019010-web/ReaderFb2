@@ -176,25 +176,8 @@ class BookAdapter(
         )
         
         holder.itemView.animate().cancel()
-        
-        if (holder.isFirstBind) {
-            holder.isFirstBind = false
-            val density = holder.itemView.context.resources.displayMetrics.density
-            holder.itemView.translationY = 80f * density
-            holder.itemView.alpha = 0f
-            
-            val rowIndex = position / 3
-            holder.itemView.animate()
-                .translationY(0f)
-                .alpha(1f)
-                .setDuration(300)
-                .setStartDelay(rowIndex * 50L)
-                .setInterpolator(android.view.animation.DecelerateInterpolator())
-                .start()
-        } else {
-            holder.itemView.alpha = 1f
-            holder.itemView.translationY = 0f
-        }
+        holder.itemView.alpha = 1f
+        holder.itemView.translationY = 0f
     }
 
     override fun onViewRecycled(holder: BookViewHolder) {

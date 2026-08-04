@@ -185,7 +185,7 @@ class BookNavigationDialog : DialogFragment() {
                 val rawTitle = match.groupValues[2]
                 val cleanTitle = cleanHtmlText(rawTitle)
                 if (cleanTitle.isNotEmpty()) {
-                    if (cleanTitle.length <= 80) {
+                    if (cleanTitle.length <= 45) {
                         tempMatches.add(Pair(offset, cleanTitle))
                     } else {
                         tempMatches.add(Pair(offset, "Глава ${tempMatches.size + 1}"))
@@ -204,7 +204,7 @@ class BookNavigationDialog : DialogFragment() {
                     val titleMatch = Regex("<h[1-4][^>]*>(.*?)</h[1-4]>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).find(searchArea)
                     val title = if (titleMatch != null) {
                         val clean = cleanHtmlText(titleMatch.groupValues[1])
-                        if (clean.length > 80) "" else clean
+                        if (clean.length > 45) "" else clean
                     } else {
                         ""
                     }
@@ -233,7 +233,7 @@ class BookNavigationDialog : DialogFragment() {
                         rawText.startsWith("Эпилог", ignoreCase = true) ||
                         rawText.startsWith("Заключение", ignoreCase = true)) {
                         
-                        val cleanTitle = if (rawText.length > 80) "Глава ${tempMatches.size + 1}" else rawText
+                        val cleanTitle = if (rawText.length > 45) "Глава ${tempMatches.size + 1}" else rawText
                         tempMatches.add(Pair(offset, cleanTitle))
                     }
                 }
@@ -649,7 +649,7 @@ class BookNavigationDialog : DialogFragment() {
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val offset = offsets[position]
-            holder.tvTitle.text = titles.getOrNull(position) ?: "Глава ${position + 1}"
+            holder.tvTitle.text = "Глава ${position + 1}"
 
             // Map and style backgrounds matching activeTheme
             val itemBgHex = when (activeTheme) {
