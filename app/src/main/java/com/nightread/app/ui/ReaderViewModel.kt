@@ -221,10 +221,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             if (book != null) {
                 pendingTargetOffset = targetOffset
                 
-                val isWebView = book.filePath?.endsWith(".fb2", true) == true || 
-                                book.filePath?.endsWith(".fb2.zip", true) == true || 
-                                book.filePath?.endsWith(".zip", true) == true ||
-                                book.filePath?.endsWith(".epub", true) == true
+                val isWebView = com.nightread.app.data.BookFormatHelper.isWebViewBook(book.filePath)
 
                 // Retrieve latest saved position from SharedPreferences if set
                 val spPage = sharedPrefs.getInt("book_page_${book.sha1}", -1)
@@ -262,11 +259,15 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                                     readZipFile(file)
                                 } else if (file.extension.lowercase() == "epub") {
                                     com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
+                                } else if (file.extension.lowercase() in listOf("mobi", "azw", "azw3")) {
+                                    com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension).content
+                                } else if (file.extension.lowercase() in listOf("html", "htm")) {
+                                    com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension).content
                                 } else {
                                     file.readText(java.nio.charset.StandardCharsets.UTF_8)
                                 }
                                 
-                                if (file.extension.lowercase() == "fb2" || file.extension.lowercase() == "zip" || file.extension.lowercase() == "epub") {
+                                if (file.extension.lowercase() in listOf("fb2", "zip", "epub", "mobi", "azw", "azw3", "html", "htm")) {
                                     content = rawContent
                                 } else {
                                     content = TextCleaner.cleanText(rawContent) as String
@@ -444,10 +445,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         // Clear the PageSplitter layout cache for fresh pagination
         com.nightread.app.ui.customlayout.PageSplitter.clearCache()
 
-        if (book.filePath?.endsWith(".fb2", true) == true || 
-            book.filePath?.endsWith(".fb2.zip", true) == true || 
-            book.filePath?.endsWith(".zip", true) == true ||
-            book.filePath?.endsWith(".epub", true) == true) {
+        if (com.nightread.app.data.BookFormatHelper.isWebViewBook(book.filePath)) {
             
             // For WebView books, we reset pagesState to trigger a reload in Activity, 
             // but we MUST NOT reset _currentPage to 0 if it was already set.
@@ -807,10 +805,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         val book = _bookState.value ?: return
         val pageIdx = _currentPage.value
         
-        val isWebViewBook = book.filePath?.endsWith(".fb2", true) == true || 
-                            book.filePath?.endsWith(".fb2.zip", true) == true || 
-                            book.filePath?.endsWith(".zip", true) == true ||
-                            book.filePath?.endsWith(".epub", true) == true
+        val isWebViewBook = com.nightread.app.data.BookFormatHelper.isWebViewBook(book.filePath)
 
         if (isWebViewBook) {
             val savedParagraphIndex = book.currentProgressChar

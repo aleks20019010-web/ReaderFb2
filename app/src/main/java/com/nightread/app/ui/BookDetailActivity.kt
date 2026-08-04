@@ -327,6 +327,8 @@ class BookDetailActivity : BaseActivity() {
             val mimeType = when {
                 file.name.endsWith(".fb2", ignoreCase = true) || file.name.endsWith(".fb2.zip", ignoreCase = true) -> "application/x-fictionbook+xml"
                 file.name.endsWith(".epub", ignoreCase = true) -> "application/epub+zip"
+                file.name.endsWith(".mobi", ignoreCase = true) || file.name.endsWith(".azw", ignoreCase = true) || file.name.endsWith(".azw3", ignoreCase = true) -> "application/x-mobipocket-ebook"
+                file.name.endsWith(".html", ignoreCase = true) || file.name.endsWith(".htm", ignoreCase = true) -> "text/html"
                 file.name.endsWith(".txt", ignoreCase = true) -> "text/plain"
                 else -> "*/*"
             }
@@ -508,14 +510,29 @@ class BookDetailActivity : BaseActivity() {
                         )
                     }
                     tvCoverLetter.visibility = View.GONE
-                } else if (!book.filePath.isNullOrEmpty() && File(book.filePath).exists() && book.filePath.endsWith(".epub", ignoreCase = true)) {
+                } else if (!book.filePath.isNullOrEmpty() && File(book.filePath).exists() && (com.nightread.app.data.BookFormatHelper.isWebViewBook(book.filePath) || book.filePath.endsWith(".txt", ignoreCase = true))) {
                     ivCover.setImageDrawable(null)
                     tvCoverLetter.visibility = View.VISIBLE
                     tvCoverLetter.text = if (book.title.isNotEmpty()) book.title.take(1).uppercase(Locale.ROOT) else "?"
                     lifecycleScope.launch(Dispatchers.IO) {
                         val bookFile = File(book.filePath)
-                        val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(bookFile)
-                        val extractedCover = com.nightread.app.data.EpubIdentifierHelper.extractAndSaveEpubCover(bookFile, metadata?.coverPath, book.sha1, this@BookDetailActivity)
+                        val extractedCover = if (book.filePath.endsWith(".epub", ignoreCase = true)) {
+                            val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(bookFile)
+                            com.nightread.app.data.EpubIdentifierHelper.extractAndSaveEpubCover(bookFile, metadata?.coverPath, book.sha1, this@BookDetailActivity)
+                        } else if (book.filePath.endsWith(".html", ignoreCase = true) || book.filePath.endsWith(".htm", ignoreCase = true) || book.filePath.endsWith(".md", ignoreCase = true) || book.filePath.endsWith(".docx", ignoreCase = true) || book.filePath.endsWith(".doc", ignoreCase = true) || book.filePath.endsWith(".pdf", ignoreCase = true)) {
+                            null
+                        } else {
+                            val parsed = com.nightread.app.service.MobiParser.parse(bookFile, book.title)
+                            if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
+                                try {
+                                    val coversDir = File(filesDir, "covers")
+                                    if (!coversDir.exists()) coversDir.mkdirs()
+                                    val coverFile = File(coversDir, "${book.sha1}.jpg")
+                                    coverFile.writeBytes(parsed.coverBytes)
+                                    coverFile.absolutePath
+                                } catch (e: Exception) { null }
+                            } else null
+                        }
                         if (!extractedCover.isNullOrEmpty() && File(extractedCover).exists()) {
                             db.bookDao().updateBook(book.copy(coverPath = extractedCover))
                             withContext(Dispatchers.Main) {

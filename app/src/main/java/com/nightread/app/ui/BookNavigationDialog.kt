@@ -278,10 +278,7 @@ class BookNavigationDialog : DialogFragment() {
                     layoutChaptersEmpty.visibility = View.GONE
                     rvChapters.adapter = ChapterNavigationAdapter(chapterOffsets, chapterTitles) { offset ->
                         val filePath = viewModel.bookState.value?.filePath ?: ""
-                        val isWebViewBook = filePath.endsWith(".fb2", true) || 
-                                           filePath.endsWith(".fb2.zip", true) || 
-                                           filePath.endsWith(".zip", true) ||
-                                           filePath.endsWith(".epub", true)
+                        val isWebViewBook = com.nightread.app.data.BookFormatHelper.isWebViewBook(filePath)
                         
                         val readerActivity = activity as? BookReaderActivity
                         if (isWebViewBook && readerActivity != null) {

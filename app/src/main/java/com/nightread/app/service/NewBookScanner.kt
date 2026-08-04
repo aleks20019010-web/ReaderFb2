@@ -131,11 +131,7 @@ class NewBookScanner(
 
             val sha1ToPathMap = try {
                 val dbMap = bookDao.getSha1ToPathMap().associate { it.sha1 to it.filePath }.toMutableMap()
-                val deletedList = com.nightread.app.data.AppDatabase.getDatabase(context).deletedBookDao().getAllDeletedBooks()
-                for (deleted in deletedList) {
-                    dbMap[deleted.sha1] = deleted.filePath ?: "DELETED"
-                }
-                Log.d(TAG, "[SCAN-DB-STATE] Loaded ${dbMap.size} existing SHA-1 values and ${deletedList.size} deleted SHA-1 values from database for comparison.")
+                Log.d(TAG, "[SCAN-DB-STATE] Loaded ${dbMap.size} existing SHA-1 values from database for comparison.")
                 dbMap
             } catch (e: SecurityException) {
                 Log.e(TAG, "SecurityException fetching SHA1 map from DB", e)
@@ -361,14 +357,6 @@ class NewBookScanner(
 
             val booksByPath = allBooksList.filter { !it.filePath.isNullOrBlank() }.associateBy { it.filePath!! }
             val sha1ToPathMap = allBooksList.associate { it.sha1 to it.filePath }.toMutableMap()
-            try {
-                val deletedList = com.nightread.app.data.AppDatabase.getDatabase(context).deletedBookDao().getAllDeletedBooks()
-                for (deleted in deletedList) {
-                    sha1ToPathMap[deleted.sha1] = deleted.filePath ?: "DELETED"
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error loading deleted books in scanner", e)
-            }
             
             val prefs = context.getSharedPreferences("book_scanner_cache", Context.MODE_PRIVATE)
 
@@ -610,7 +598,7 @@ class NewBookScanner(
                     while (entry != null) {
                         try {
                             val entryName = entry.name.lowercase()
-                            if (!entry.isDirectory && entryName.endsWith(".fb2")) {
+                            if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".txt") || entryName.endsWith(".epub") || entryName.endsWith(".html") || entryName.endsWith(".htm"))) {
                                 val tempBytes = try {
                                     val buffer = java.io.ByteArrayOutputStream()
                                     val data = ByteArray(8192)
@@ -659,8 +647,21 @@ class NewBookScanner(
                                         onStatsUpdated(0, 1)
                                     } else {
                                         val rawText = decodeBytesToString(tempBytes)
-                                        val entryFallback = entryName.removeSuffix(".fb2")
-                                        val metadata = Fb2Parser.parse(rawText, entryFallback)
+                                        val isHtml = entryName.endsWith(".html") || entryName.endsWith(".htm")
+                                        val entryFallback = entryName.removeSuffix(".fb2").removeSuffix(".html").removeSuffix(".htm")
+                                        val metadata = if (isHtml) {
+                                            val parsedHtml = com.nightread.app.service.HtmlParser.parseString(rawText, entryFallback)
+                                            BookMetadata(
+                                                title = parsedHtml.title,
+                                                author = parsedHtml.author,
+                                                content = parsedHtml.content,
+                                                series = null,
+                                                seriesIndex = null,
+                                                language = "ru"
+                                            )
+                                        } else {
+                                            Fb2Parser.parse(rawText, entryFallback)
+                                        }
                                         
                                         // Resolve correct Russian title with transliteration support
                                         val resolvedTitle = resolveRussianTitle(metadata.title, entryFallback)
@@ -804,6 +805,99 @@ class NewBookScanner(
             } catch (e: Throwable) {
                 Log.e(TAG, "Error handling txt file: ${file.absolutePath}", e)
             }
+        } else if (ext in listOf("mobi", "azw", "azw3")) {
+            try {
+                if (!file.exists() || !file.canRead()) return
+                val bytes = file.inputStream().buffered().use { it.readBytes() }
+                if (bytes.isEmpty()) return
+                val sha1 = computeSha1(bytes)
+                if (sha1ToPathMap.containsKey(sha1)) {
+                    val existingPath = sha1ToPathMap[sha1]
+                    if (existingPath != file.absolutePath) {
+                        try {
+                            kotlinx.coroutines.runBlocking {
+                                bookDao.updateFilePath(sha1, file.absolutePath)
+                            }
+                            sha1ToPathMap[sha1] = file.absolutePath
+                        } catch (ex: Exception) {
+                            Log.e(TAG, "Failed to update file path in DB for SHA-1: $sha1", ex)
+                        }
+                    }
+                    onStatsUpdated(0, 1)
+                    return
+                }
+                val parsed = com.nightread.app.service.MobiParser.parseBytes(bytes, file.nameWithoutExtension)
+                var coverPath: String? = null
+                if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
+                    try {
+                        val coversDir = File(context.filesDir, "covers")
+                        if (!coversDir.exists()) coversDir.mkdirs()
+                        val coverFile = File(coversDir, "$sha1.jpg")
+                        coverFile.writeBytes(parsed.coverBytes)
+                        coverPath = coverFile.absolutePath
+                    } catch (ce: Exception) {
+                        Log.e(TAG, "Failed saving cover for mobi: $sha1", ce)
+                    }
+                }
+                val book = BookEntity(
+                    sha1 = sha1,
+                    title = parsed.title,
+                    author = parsed.author,
+                    coverPath = coverPath,
+                    category = "Local",
+                    filePath = file.absolutePath,
+                    fileSize = file.length(),
+                    isNew = true
+                )
+                batchList.add(book)
+                sha1ToPathMap[sha1] = file.absolutePath
+                onStatsUpdated(1, 0)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error handling mobi/azw file: ${file.absolutePath}", e)
+            }
+        } else if (ext in listOf("html", "htm", "md", "docx", "doc", "pdf")) {
+            try {
+                if (!file.exists() || !file.canRead()) return
+                val bytes = file.inputStream().buffered().use { it.readBytes() }
+                if (bytes.isEmpty()) return
+                val sha1 = computeSha1(bytes)
+                if (sha1ToPathMap.containsKey(sha1)) {
+                    val existingPath = sha1ToPathMap[sha1]
+                    if (existingPath != file.absolutePath) {
+                        try {
+                            kotlinx.coroutines.runBlocking {
+                                bookDao.updateFilePath(sha1, file.absolutePath)
+                            }
+                            sha1ToPathMap[sha1] = file.absolutePath
+                        } catch (ex: Exception) {
+                            Log.e(TAG, "Failed to update file path in DB for SHA-1: $sha1", ex)
+                        }
+                    }
+                    onStatsUpdated(0, 1)
+                    return
+                }
+                val parsed = when (ext) {
+                    "md" -> com.nightread.app.service.MdParser.parse(file, file.nameWithoutExtension)
+                    "docx" -> com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension)
+                    "doc" -> com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension)
+                    "pdf" -> com.nightread.app.service.PdfParser.parse(file, file.nameWithoutExtension)
+                    else -> com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension)
+                }
+                val book = BookEntity(
+                    sha1 = sha1,
+                    title = parsed.title,
+                    author = parsed.author,
+                    category = "Local",
+                    filePath = file.absolutePath,
+                    fileSize = file.length(),
+                    isNew = true
+                )
+                batchList.add(book)
+                sha1ToPathMap[sha1] = file.absolutePath
+                onStatsUpdated(1, 0)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error handling $ext file: ${file.absolutePath}", e)
+            }
         }
     }
 
@@ -852,7 +946,7 @@ class NewBookScanner(
                     gatherFilesRecursive(file, list, depth + 1)
                 } else {
                     val ext = file.extension.lowercase()
-                    if (ext == "fb2" || ext == "zip" || ext == "epub" || ext == "txt") {
+                    if (com.nightread.app.data.BookFormatHelper.isSupported(file.absolutePath) || ext == "zip") {
                         if (file.length() > 0 && file.length() < 30 * 1024 * 1024) {
                             list.add(file)
                         } else {

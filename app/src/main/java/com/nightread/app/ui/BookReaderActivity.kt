@@ -900,7 +900,12 @@ class BookReaderActivity : BaseActivity() {
         val isWebViewBook = filePath.endsWith(".fb2", true) || 
                            filePath.endsWith(".fb2.zip", true) || 
                            filePath.endsWith(".zip", true) ||
-                           filePath.endsWith(".epub", true)
+                           filePath.endsWith(".epub", true) ||
+                           filePath.endsWith(".mobi", true) ||
+                           filePath.endsWith(".azw", true) ||
+                           filePath.endsWith(".azw3", true) ||
+                           filePath.endsWith(".html", true) ||
+                           filePath.endsWith(".htm", true)
 
         if (pages.isEmpty()) return
         if (!isWebViewBook && newPageIdx !in pages.indices) return
@@ -2298,7 +2303,12 @@ class BookReaderActivity : BaseActivity() {
         val isWebViewBook = filePath.endsWith(".fb2", true) || 
                            filePath.endsWith(".fb2.zip", true) || 
                            filePath.endsWith(".zip", true) ||
-                           filePath.endsWith(".epub", true)
+                           filePath.endsWith(".epub", true) ||
+                           filePath.endsWith(".mobi", true) ||
+                           filePath.endsWith(".azw", true) ||
+                           filePath.endsWith(".azw3", true) ||
+                           filePath.endsWith(".html", true) ||
+                           filePath.endsWith(".htm", true)
                            
         var startIdx = 0
         if (isWebViewBook) {

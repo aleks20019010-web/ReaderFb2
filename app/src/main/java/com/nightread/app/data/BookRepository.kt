@@ -14,16 +14,24 @@ class BookRepository(
     val allNotes: Flow<List<NoteEntity>> = noteDao.getAllNotes()
 
     fun filterBooksByFormat(books: List<BookEntity>, showAll: Boolean): List<BookEntity> {
-        if (showAll) return books
         return books.filter { book ->
-            val path = book.filePath?.lowercase() ?: ""
-            path.endsWith(".fb2") || path.endsWith(".fb2.zip") || path.endsWith(".zip") || path.endsWith(".epub") || book.filePath.isNullOrEmpty()
+            val path = book.filePath
+            path == null || BookFormatHelper.isEbook(path)
         }
     }
 
     fun getFilteredBooks(showAll: Boolean): Flow<List<BookEntity>> {
         return bookDao.getAllBooks().map { books ->
             filterBooksByFormat(books, showAll)
+        }
+    }
+
+    fun getFilteredDocuments(): Flow<List<BookEntity>> {
+        return bookDao.getAllBooks().map { books ->
+            books.filter { book ->
+                val path = book.filePath
+                path != null && BookFormatHelper.isDocument(path)
+            }
         }
     }
 
@@ -109,6 +117,11 @@ class BookRepository(
 
     suspend fun clearScanCache(context: android.content.Context) = withContext(Dispatchers.IO) {
         bookDao.deleteAllScannedFiles()
+        try {
+            AppDatabase.getDatabase(context).deletedBookDao().deleteAllDeletedBooks()
+        } catch (e: Exception) {
+            Log.e("BookRepo", "Error clearing deleted books: ${e.message}")
+        }
         val prefs = context.getSharedPreferences("book_scanner_cache", android.content.Context.MODE_PRIVATE)
         prefs.edit().clear().apply()
     }

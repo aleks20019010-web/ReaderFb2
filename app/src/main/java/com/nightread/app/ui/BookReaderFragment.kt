@@ -281,7 +281,7 @@ class BookReaderFragment : Fragment() {
                             paddingLeft = leftRightMarginDp,
                             paddingRight = leftRightMarginDp
                         )
-                    } else if (file.extension.lowercase() == "epub") {
+                    } else if (file.extension.lowercase() in listOf("epub", "mobi", "azw", "azw3", "html", "htm", "md", "docx", "doc", "pdf")) {
                         EpubToHtmlConverter.convert(
                             xhtmlContent = contentStr,
                             theme = theme,

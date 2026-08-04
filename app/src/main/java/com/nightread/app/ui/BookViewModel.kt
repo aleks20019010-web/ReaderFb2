@@ -35,6 +35,14 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allDocuments: StateFlow<List<BookEntity>> = repository.getFilteredDocuments()
+        .catch { e ->
+            if (e is CancellationException) throw e
+            Log.e("BookViewModel", "Exception loading documents from database", e)
+            emit(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val searchQuery = MutableStateFlow("")
 
     private val _sortOption = MutableStateFlow(com.nightread.app.data.SettingsManager.getSortOption(application))
@@ -529,6 +537,31 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     if (metadata != null) {
                         coverPath = com.nightread.app.data.EpubIdentifierHelper.extractAndSaveEpubCover(localFile, metadata.coverPath, computedSha1, context)
                     }
+                } else if (ext in listOf("mobi", "azw", "azw3")) {
+                    val parsed = com.nightread.app.service.MobiParser.parse(localFile, fileName.substringBeforeLast("."))
+                    parsedTitle = parsed.title
+                    parsedAuthor = parsed.author
+                    parsedContent = parsed.content
+                    if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
+                        try {
+                            val coversDir = File(context.filesDir, "covers")
+                            if (!coversDir.exists()) coversDir.mkdirs()
+                            val coverFile = File(coversDir, "$computedSha1.jpg")
+                            coverFile.writeBytes(parsed.coverBytes)
+                            coverPath = coverFile.absolutePath
+                        } catch (e: Exception) { Log.e("BookScanner", "Cover error", e) }
+                    }
+                } else if (ext in listOf("html", "htm", "md", "docx", "doc", "pdf")) {
+                    val parsed = when (ext) {
+                        "md" -> com.nightread.app.service.MdParser.parse(localFile, fileName.substringBeforeLast("."))
+                        "docx" -> com.nightread.app.service.DocxParser.parse(localFile, fileName.substringBeforeLast("."))
+                        "doc" -> com.nightread.app.service.DocParser.parse(localFile, fileName.substringBeforeLast("."))
+                        "pdf" -> com.nightread.app.service.PdfParser.parse(localFile, fileName.substringBeforeLast("."))
+                        else -> com.nightread.app.service.HtmlParser.parse(localFile, fileName.substringBeforeLast("."))
+                    }
+                    parsedTitle = parsed.title
+                    parsedAuthor = parsed.author
+                    parsedContent = parsed.content
                 } else {
                     parsedContent = decodeBytesToString(bytes)
                     parsedAuthor = "Локальный TXT"
@@ -990,7 +1023,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 
                 if (filesToProcess.isEmpty()) {
                     withContext(Dispatchers.Main) {
-                        scanProgressText = "Книг (*.txt, *.fb2, *.zip) не найдено в $rootPath"
+                        scanProgressText = "Книг (*.txt, *.fb2, *.zip, *.epub, *.mobi, *.azw, *.azw3) не найдено в $rootPath"
                     }
                     return@withContext
                 }
@@ -1031,6 +1064,11 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             parsedContent = parsed.content
                             parsedSeries = parsed.series
                             parsedLanguage = parsed.language
+                        } else if (ext in listOf("mobi", "azw", "azw3")) {
+                            val parsed = com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension)
+                            parsedTitle = parsed.title
+                            parsedAuthor = parsed.author
+                            parsedContent = parsed.content
                         } else {
                             parsedContent = readTextFile(file)
                             parsedAuthor = "Локальный TXT"

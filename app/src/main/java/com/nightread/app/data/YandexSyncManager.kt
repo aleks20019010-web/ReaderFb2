@@ -176,7 +176,7 @@ class YandexSyncManager(private val context: Context) {
             // Фильтруем только поддерживаемые форматы книг
             val cloudBooks = cloudItems.filter {
                 val name = it.name.lowercase()
-                val isSupported = name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".zip") || name.endsWith(".epub")
+                val isSupported = com.nightread.app.data.BookFormatHelper.isSupported(name) || name.endsWith(".zip")
                 if (!isSupported) {
                     Log.d(TAG, "Файл не поддерживается: ${it.name}")
                 }
@@ -681,6 +681,10 @@ class YandexSyncManager(private val context: Context) {
                         
                         var processSuccess = false
                         
+                        val extLower = originalName.lowercase(java.util.Locale.ROOT)
+                        val isMobi = extLower.endsWith(".mobi") || extLower.endsWith(".azw") || extLower.endsWith(".azw3")
+                        val isHtml = extLower.endsWith(".html") || extLower.endsWith(".htm") || extLower.endsWith(".md") || extLower.endsWith(".docx") || extLower.endsWith(".doc") || extLower.endsWith(".pdf")
+                        
                         if (isEpub) {
                             val metadata = EpubIdentifierHelper.getEpubMetadata(tempFile)
                             if (metadata != null) {
@@ -696,6 +700,43 @@ class YandexSyncManager(private val context: Context) {
                             } else {
                                 Log.e(TAG, "Failed to get metadata for downloaded EPUB: $originalName")
                             }
+                        } else if (isHtml) {
+                            val parsed = when {
+                                extLower.endsWith(".md") -> com.nightread.app.service.MdParser.parse(tempFile, originalName.substringBeforeLast("."))
+                                extLower.endsWith(".docx") -> com.nightread.app.service.DocxParser.parse(tempFile, originalName.substringBeforeLast("."))
+                                extLower.endsWith(".doc") -> com.nightread.app.service.DocParser.parse(tempFile, originalName.substringBeforeLast("."))
+                                extLower.endsWith(".pdf") -> com.nightread.app.service.PdfParser.parse(tempFile, originalName.substringBeforeLast("."))
+                                else -> com.nightread.app.service.HtmlParser.parse(tempFile, originalName.substringBeforeLast("."))
+                            }
+                            sha1 = computeSha1(bytes)
+                            titleText = parsed.title
+                            authorText = parsed.author
+                            seriesText = null
+                            seriesIdx = null
+                            langText = "Unknown"
+                            truncatedAnnotation = null
+                            processSuccess = true
+                        } else if (isMobi) {
+                            val parsed = com.nightread.app.service.MobiParser.parse(tempFile, originalName.substringBeforeLast("."))
+                            sha1 = computeSha1(bytes)
+                            titleText = parsed.title
+                            authorText = parsed.author
+                            seriesText = null
+                            seriesIdx = null
+                            langText = "Unknown"
+                            truncatedAnnotation = null
+                            if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
+                                try {
+                                    val coversDir = File(context.filesDir, "covers")
+                                    if (!coversDir.exists()) coversDir.mkdirs()
+                                    val coverFile = File(coversDir, "$sha1.jpg")
+                                    coverFile.writeBytes(parsed.coverBytes)
+                                    coverPath = coverFile.absolutePath
+                                } catch (ce: Exception) {
+                                    Log.e(TAG, "Failed saving cover for mobi", ce)
+                                }
+                            }
+                            processSuccess = true
                         } else {
                             val fb2Bytes = extractFb2Bytes(bytes, originalName)
                             if (fb2Bytes.isNotEmpty()) {
