@@ -245,22 +245,7 @@ class BookReaderActivity : BaseActivity() {
             val ttsSheet = TtsSettingsBottomSheet.newInstance(textToSpeak, title)
             ttsSheet.setTtsListener(object : TtsSettingsBottomSheet.TtsSettingsListener {
                 override fun onTtsStartRequested(speed: Float, pitch: Float, voiceName: String?, continuous: Boolean) {
-                    val currentTextToSpeak = getTtsTextToSpeak()
-                    val intent = Intent(this@BookReaderActivity, com.nightread.app.service.TtsForegroundService::class.java).apply {
-                        action = com.nightread.app.service.TtsForegroundService.ACTION_START
-                        val startIdx = viewModel.bookState.value?.currentProgressChar ?: 0
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_START_IDX, startIdx)
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, currentTextToSpeak)
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_PITCH, pitch)
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_VOICE, voiceName)
-                    }
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                        startForegroundService(intent)
-                    } else {
-                        startService(intent)
-                    }
+                    startOrResumeTts()
                 }
 
                 override fun onTtsPauseRequested() {
@@ -792,8 +777,9 @@ class BookReaderActivity : BaseActivity() {
             val voice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
             val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
                 action = com.nightread.app.service.TtsForegroundService.ACTION_START
-                        val startIdx = viewModel.bookState.value?.currentProgressChar ?: 0
-                        putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_START_IDX, startIdx)
+                val charOffset = viewModel.bookState.value?.currentProgressChar ?: 0
+                val startIdx = viewModel.getParagraphIndexFromOffset(charOffset)
+                putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_START_IDX, startIdx)
                 putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_TEXT, text)
                 putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_BOOK_TITLE, title)
                 putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_SPEED, speed)
@@ -2307,7 +2293,39 @@ class BookReaderActivity : BaseActivity() {
         val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
         val voice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
         val title = getBookTitle()
-        val startIdx = viewModel.bookState.value?.currentProgressChar ?: 0
+        val charOffset = viewModel.bookState.value?.currentProgressChar ?: 0
+        var startIdx = viewModel.getParagraphIndexFromOffset(charOffset)
+        
+        val filePath = viewModel.bookState.value?.filePath ?: ""
+        val isWebViewBook = filePath.endsWith(".fb2", true) || 
+                           filePath.endsWith(".fb2.zip", true) || 
+                           filePath.endsWith(".zip", true) ||
+                           filePath.endsWith(".epub", true)
+                           
+        if (!isWebViewBook && com.nightread.app.ui.BookCache.content.isNotEmpty()) {
+            val lines = com.nightread.app.ui.BookCache.content.split("\n")
+            val paragraphs = mutableListOf<com.nightread.app.service.TtsParagraph>()
+            var currentOffset = 0
+            var pIndex = 0
+            for (line in lines) {
+                val trimmed = line.trim()
+                if (trimmed.isNotEmpty()) {
+                    var remaining = trimmed
+                    while (remaining.isNotEmpty()) {
+                        val chunk = if (remaining.length > 3800) remaining.substring(0, 3800) else remaining
+                        remaining = if (remaining.length > 3800) remaining.substring(3800) else ""
+                        paragraphs.add(com.nightread.app.service.TtsParagraph("p_$pIndex", chunk))
+                        if (charOffset >= currentOffset && charOffset <= currentOffset + line.length) {
+                            startIdx = pIndex
+                        }
+                        pIndex++
+                    }
+                }
+                currentOffset += line.length + 1
+            }
+            com.nightread.app.service.TtsDataProvider.paragraphs = paragraphs
+        }
+
         val intent = Intent(this, com.nightread.app.service.TtsForegroundService::class.java).apply {
             action = com.nightread.app.service.TtsForegroundService.ACTION_START
             putExtra(com.nightread.app.service.TtsForegroundService.EXTRA_START_IDX, startIdx)
