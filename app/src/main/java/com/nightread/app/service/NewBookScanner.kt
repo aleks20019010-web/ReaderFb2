@@ -843,7 +843,10 @@ class NewBookScanner(
                     sha1 = sha1,
                     title = parsed.title,
                     author = parsed.author,
+                    coverGradientStart = getRandomGradientStartColor(),
+                    coverGradientEnd = getRandomGradientEndColor(),
                     coverPath = coverPath,
+                    annotation = parsed.annotation,
                     category = "Local",
                     filePath = file.absolutePath,
                     fileSize = file.length(),
@@ -887,9 +890,12 @@ class NewBookScanner(
                     sha1 = sha1,
                     title = parsed.title,
                     author = parsed.author,
+                    coverGradientStart = getRandomGradientStartColor(),
+                    coverGradientEnd = getRandomGradientEndColor(),
                     category = "Local",
                     filePath = file.absolutePath,
                     fileSize = file.length(),
+                    annotation = parsed.annotation,
                     isNew = true
                 )
                 batchList.add(book)
@@ -965,19 +971,34 @@ class NewBookScanner(
     }
 
     private fun decodeBytesToString(bytes: ByteArray): String {
-        return try {
-            // Determine encoding by scanning only the first 2048 bytes of the file, avoiding dual 25MB string allocations
-            val prefixLen = minOf(bytes.size, 2048)
-            val prefix = String(bytes, 0, prefixLen, Charsets.UTF_8)
-            if (prefix.contains("<?xml", ignoreCase = true) || prefix.contains("<fictionbook", ignoreCase = true)) {
-                String(bytes, Charsets.UTF_8)
-            } else {
-                String(bytes, java.nio.charset.Charset.forName("windows-1251"))
+        try {
+            // Check for XML encoding header first
+            val headerSize = if (bytes.size > 2048) 2048 else bytes.size
+            val header = String(bytes, 0, headerSize, java.nio.charset.StandardCharsets.ISO_8859_1)
+            val match = """encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(header)
+            if (match != null) {
+                val encName = match.groupValues[1].trim()
+                try {
+                    return String(bytes, java.nio.charset.Charset.forName(encName))
+                } catch (e: Exception) {
+                    // fall back
+                }
             }
-        } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-            String(bytes, Charsets.UTF_8)
+        } catch (e: Exception) {
+            // ignore
+        }
+
+        try {
+            val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+            utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
+            return charBuffer.toString()
+        } catch (e: Exception) {
+            try {
+                return String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
+            } catch (e2: Exception) {
+                return String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+            }
         }
     }
 

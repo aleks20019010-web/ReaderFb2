@@ -42,6 +42,7 @@ object MobiParser : BookParser {
 
         var extractedTitle: String? = null
         var extractedAuthor: String? = null
+        var extractedDescription: String? = null
         var coverImageBytes: ByteArray? = null
         var coverRecordIndex: Int = -1
 
@@ -89,6 +90,9 @@ object MobiParser : BookParser {
                                     val t = String(data, valOffset, valDataLen, Charsets.UTF_8).trim()
                                     if (t.isNotBlank()) extractedTitle = t
                                 }
+                                103 -> { // Description / Annotation
+                                    extractedDescription = String(data, valOffset, valDataLen, Charsets.UTF_8).trim()
+                                }
                                 201 -> { // Cover record index
                                     if (valDataLen >= 4) {
                                         coverRecordIndex = readUInt32(data, valOffset).toInt()
@@ -103,13 +107,54 @@ object MobiParser : BookParser {
         }
 
         // Try extracting cover image if index found
+        val candidateIndices = mutableListOf<Int>()
         if (coverRecordIndex in 0 until numRecords) {
-            val cStart = readUInt32(data, 78 + coverRecordIndex * 8).toInt()
-            val cEnd = if (coverRecordIndex + 1 < numRecords) readUInt32(data, 78 + (coverRecordIndex + 1) * 8).toInt() else data.size
-            if (cStart in 0 until data.size && cEnd in (cStart + 1)..data.size) {
-                val candidateBytes = data.copyOfRange(cStart, cEnd)
-                if (isImage(candidateBytes)) {
-                    coverImageBytes = candidateBytes
+            candidateIndices.add(coverRecordIndex)
+            // also try relative to firstImageIndex
+            var firstImageIndex = -1
+            if (mobiMagicOffset + 112 <= data.size) {
+                firstImageIndex = readUInt32(data, mobiMagicOffset + 108).toInt()
+                if (firstImageIndex in 0 until numRecords) {
+                    candidateIndices.add(firstImageIndex + coverRecordIndex)
+                }
+            }
+        }
+
+        for (idx in candidateIndices) {
+            if (idx in 0 until numRecords) {
+                val cStart = readUInt32(data, 78 + idx * 8).toInt()
+                val cEnd = if (idx + 1 < numRecords) readUInt32(data, 78 + (idx + 1) * 8).toInt() else data.size
+                if (cStart in 0 until data.size && cEnd in (cStart + 1)..data.size) {
+                    val candidateBytes = data.copyOfRange(cStart, cEnd)
+                    if (isImage(candidateBytes)) {
+                        coverImageBytes = candidateBytes
+                        break
+                    }
+                }
+            }
+        }
+
+        // Fallback: scan starting from firstImageIndex to find the first valid image record
+        if (coverImageBytes == null) {
+            var startScanIdx = 1
+            if (mobiMagicOffset + 112 <= data.size) {
+                val firstImg = readUInt32(data, mobiMagicOffset + 108).toInt()
+                if (firstImg in 1 until numRecords) {
+                    startScanIdx = firstImg
+                }
+            }
+            for (idx in startScanIdx until numRecords) {
+                val cStart = readUInt32(data, 78 + idx * 8).toInt()
+                val cEnd = if (idx + 1 < numRecords) readUInt32(data, 78 + (idx + 1) * 8).toInt() else data.size
+                if (cStart in 0 until data.size && cEnd in (cStart + 1)..data.size) {
+                    val size = cEnd - cStart
+                    if (size in 512..(2 * 1024 * 1024)) { // 512B to 2MB is normal for cover image
+                        val candidateBytes = data.copyOfRange(cStart, cEnd)
+                        if (isImage(candidateBytes)) {
+                            coverImageBytes = candidateBytes
+                            break
+                        }
+                    }
                 }
             }
         }
@@ -166,7 +211,8 @@ object MobiParser : BookParser {
             title = finalTitle,
             author = finalAuthor,
             content = formattedContent,
-            coverBytes = coverImageBytes
+            coverBytes = coverImageBytes,
+            annotation = extractedDescription
         )
     }
 

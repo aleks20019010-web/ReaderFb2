@@ -255,19 +255,20 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                         try {
                             val file = java.io.File(restoredBook.filePath ?: "")
                             if (file.exists()) {
-                                val rawContent = if (file.extension.lowercase() == "zip") {
-                                    readZipFile(file)
-                                } else if (file.extension.lowercase() == "epub") {
-                                    com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
-                                } else if (file.extension.lowercase() in listOf("mobi", "azw", "azw3")) {
-                                    com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension).content
-                                } else if (file.extension.lowercase() in listOf("html", "htm")) {
-                                    com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension).content
-                                } else {
-                                    file.readText(java.nio.charset.StandardCharsets.UTF_8)
+                                val rawContent = when (val ext = file.extension.lowercase()) {
+                                    "zip" -> readZipFile(file)
+                                    "epub" -> com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
+                                    "mobi", "azw", "azw3" -> com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension).content
+                                    "html", "htm" -> com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension).content
+                                    "md" -> com.nightread.app.service.MdParser.parse(file, file.nameWithoutExtension).content
+                                    "docx" -> com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension).content
+                                    "doc" -> com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension).content
+                                    "pdf" -> com.nightread.app.service.PdfParser.parse(file, file.nameWithoutExtension).content
+                                    "txt" -> decodeBytesToString(file.readBytes())
+                                    else -> file.readText(java.nio.charset.StandardCharsets.UTF_8)
                                 }
                                 
-                                if (file.extension.lowercase() in listOf("fb2", "zip", "epub", "mobi", "azw", "azw3", "html", "htm")) {
+                                if (file.extension.lowercase() in listOf("fb2", "zip", "epub", "mobi", "azw", "azw3", "html", "htm", "md", "docx", "doc", "pdf")) {
                                     content = rawContent
                                 } else {
                                     content = TextCleaner.cleanText(rawContent) as String
@@ -862,13 +863,46 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 while (entry != null) {
                     val entryName = entry.name.lowercase()
                     if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".txt"))) {
-                        return zis.bufferedReader().use { it.readText() }
+                        val bytes = zis.readBytes()
+                        return decodeBytesToString(bytes)
                     }
                     entry = zis.nextEntry
                 }
             }
         }
         return ""
+    }
+
+    private fun decodeBytesToString(bytes: ByteArray): String {
+        try {
+            // Safe detection from XML prolog first
+            val headerSize = if (bytes.size > 1024) 1024 else bytes.size
+            val header = String(bytes, 0, headerSize, java.nio.charset.StandardCharsets.ISO_8859_1)
+            val match = """encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(header)
+            if (match != null) {
+                val encName = match.groupValues[1].trim()
+                try {
+                    return String(bytes, java.nio.charset.Charset.forName(encName))
+                } catch (e: Exception) {
+                    // fall back if charset name is invalid or unsupported
+                }
+            }
+        } catch (e: Exception) {
+            // ignore and fallback
+        }
+
+        try {
+            val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+            utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
+            return charBuffer.toString()
+        } catch (e: Exception) {
+            try {
+                return String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
+            } catch (e2: Exception) {
+                return String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+            }
+        }
     }
 
     fun getNotesForBook(bookSha1: String): kotlinx.coroutines.flow.Flow<List<com.nightread.app.data.NoteEntity>> {

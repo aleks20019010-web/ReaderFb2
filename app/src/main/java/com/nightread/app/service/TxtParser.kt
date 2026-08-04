@@ -9,7 +9,8 @@ object TxtParser : BookParser {
 
     override fun parse(file: File, defaultTitle: String): BookParser.ParsedBook {
         try {
-            val rawText = file.readText(StandardCharsets.UTF_8)
+            val bytes = file.readBytes()
+            val rawText = decodeBytesToString(bytes)
             val lines = rawText.split(Regex("\\r?\\n"))
             val notesMap = mutableMapOf<String, String>()
             val cleanLines = mutableListOf<String>()
@@ -66,6 +67,21 @@ object TxtParser : BookParser {
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing TXT", e)
             return BookParser.ParsedBook(defaultTitle, "Неизвестен", "")
+        }
+    }
+
+    private fun decodeBytesToString(bytes: ByteArray): String {
+        try {
+            val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+            utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
+            return charBuffer.toString()
+        } catch (e: Exception) {
+            try {
+                return String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
+            } catch (e2: Exception) {
+                return String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+            }
         }
     }
 }
