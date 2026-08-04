@@ -95,8 +95,10 @@ class MainActivity : BaseActivity() {
             val taskLoadBooks = async(Dispatchers.IO) {
                 if (!preventAutoOpen && !hasAutoOpenedInSession) {
                     try {
+                        val progressMgr = com.nightread.app.data.SafeProgressManager.getInstance(this@MainActivity)
+                        val lastBookId = progressMgr.getLastOpenedBookId()
+                        val spSha1 = lastBookId ?: com.nightread.app.data.SettingsManager.getLastReadBookSha1(this@MainActivity)
                         val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
-                        val spSha1 = com.nightread.app.data.SettingsManager.getLastReadBookSha1(this@MainActivity)
                         val dbLastRead = db.bookDao().getLastReadBook()
                         val spBook = if (!spSha1.isNullOrEmpty()) db.bookDao().getBookBySha1(spSha1) else null
 

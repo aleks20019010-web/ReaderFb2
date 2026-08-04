@@ -125,6 +125,12 @@ class BookReaderFragment : Fragment() {
                 activity?.runOnUiThread {
                     _currentPage.value = pageIndex
                     updateProgressUI()
+                    bookSha1?.let { sha1 ->
+                        context?.let { ctx ->
+                            com.nightread.app.data.SafeProgressManager.getInstance(ctx)
+                                .saveProgress(sha1, pageIndex, _totalPages.value)
+                        }
+                    }
                 }
             }
 

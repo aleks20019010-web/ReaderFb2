@@ -8,13 +8,14 @@ import androidx.room.RoomDatabase
 import com.nightread.app.R
 import java.io.File
 
-@Database(entities = [BookEntity::class, NoteEntity::class, CloudFileEntity::class, CacheEntry::class, DeletedBook::class], version = 12, exportSchema = false)
+@Database(entities = [BookEntity::class, NoteEntity::class, CloudFileEntity::class, CacheEntry::class, DeletedBook::class, ReadingProgressEntity::class], version = 13, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
     abstract fun noteDao(): NoteDao
     abstract fun cloudFileDao(): CloudFileDao
     abstract fun sha1CacheDao(): Sha1CacheDao
     abstract fun deletedBookDao(): DeletedBookDao
+    abstract fun readingProgressDao(): ReadingProgressDao
 
     companion object {
         @Volatile
