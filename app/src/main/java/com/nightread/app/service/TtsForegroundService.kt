@@ -79,6 +79,15 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             isTtsInitialized = true
+            
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                val audioAttributes = android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                tts?.setAudioAttributes(audioAttributes)
+            }
+
             val langResult = tts?.setLanguage(Locale("ru"))
             if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
                 tts?.setLanguage(Locale.getDefault())
@@ -127,7 +136,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 }
             })
 
-            if (currentText.isNotEmpty()) {
+            if (currentText.isNotEmpty() || (currentParagraphIndex >= 0 && TtsDataProvider.paragraphs.isNotEmpty())) {
                 speakCurrentText()
             }
         }
@@ -223,7 +232,6 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
 
             val voiceToUse = targetVoice ?: voices.find { voice ->
                 voice.locale.language.equals("ru", ignoreCase = true) &&
-                !voice.isNetworkConnectionRequired &&
                 voice.features?.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) != true
             } ?: voices.firstOrNull()
 
@@ -284,7 +292,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun resumeTts() {
-        if (currentText.isNotEmpty()) {
+        if (currentText.isNotEmpty() || (currentParagraphIndex >= 0 && TtsDataProvider.paragraphs.isNotEmpty())) {
             speakCurrentText()
         }
     }

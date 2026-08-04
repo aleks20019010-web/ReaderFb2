@@ -108,6 +108,17 @@
             android:paddingEnd="12dp"
             android:spinnerMode="dropdown"
             android:popupBackground="@color/bg_card"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDownloadVoices"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:text="Скачать качественные голоса"
+            app:cornerRadius="8dp"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:textColor="@color/text_primary"
+            app:strokeColor="@color/accent"
             android:layout_marginBottom="16dp" />
 
         <!-- Speed control -->

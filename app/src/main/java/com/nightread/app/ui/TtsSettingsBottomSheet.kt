@@ -50,6 +50,7 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
     private lateinit var switchContinuous: SwitchMaterial
     private lateinit var btnPlayPause: MaterialButton
     private lateinit var btnStop: MaterialButton
+    private lateinit var btnDownloadVoices: MaterialButton
 
     private var isCurrentlySpeaking = false
     private var tempTts: TextToSpeech? = null
@@ -117,9 +118,19 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
         switchContinuous = view.findViewById(R.id.switchContinuous)
         btnPlayPause = view.findViewById(R.id.btnTtsPlayPause)
         btnStop = view.findViewById(R.id.btnTtsStop)
+        btnDownloadVoices = view.findViewById(R.id.btnDownloadVoices)
 
         view.findViewById<ImageButton>(R.id.btnCloseTts)?.setOnClickListener {
             dismiss()
+        }
+
+        btnDownloadVoices.setOnClickListener {
+            try {
+                val intent = Intent("com.android.settings.TTS_SETTINGS")
+                startActivity(intent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
 
         val context = requireContext()
@@ -200,7 +211,6 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
             if (status == TextToSpeech.SUCCESS) {
                 try {
                     val availableVoices = tempTts?.voices?.filter { voice ->
-                        !voice.isNetworkConnectionRequired &&
                         voice.features?.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) != true
                     }?.sortedBy { it.locale.displayName } ?: emptyList()
 
@@ -268,7 +278,8 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
             voiceList.forEachIndexed { index, voice ->
                 val langName = voice.locale.getDisplayName(ruLocale).replaceFirstChar { it.uppercase() }
                 val variant = voice.name.substringAfterLast("-").ifEmpty { voice.name.takeLast(6) }
-                val label = "$langName ($variant)"
+                val networkTag = if (voice.isNetworkConnectionRequired) " [Network]" else ""
+                val label = "$langName ($variant)$networkTag"
                 displayItems.add(label)
 
                 if (selectedVoiceName != null && voice.name == selectedVoiceName) {
@@ -344,6 +355,9 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
         switchContinuous.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
         btnStop.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
         btnStop.strokeColor = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(textPrimaryHex))
+        
+        btnDownloadVoices.setTextColor(android.graphics.Color.parseColor(textPrimaryHex))
+        btnDownloadVoices.strokeColor = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(if (isDark) "#9B59B6" else "#D4AF37")) // Accent color
 
         // Programmatically style spinner backgrounds and dropdown popups
         val spinnerBgColor = if (isDark) "#2A1A3E" else "#F0EAE1"
