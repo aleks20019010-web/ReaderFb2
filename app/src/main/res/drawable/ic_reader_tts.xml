@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/apk/res/aapt"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Мягкая тень -->
+    <path
+        android:pathData="M3,9 V15 H7 L12,20 V4 L7,9 H3 Z M16.5,12 C16.5,10.23 15.48,8.71 14,7.97 V16.02 C15.48,15.29 16.5,13.77 16.5,12 Z M14,3.23 V5.29 C16.89,6.15 19,8.83 19,12 C19,15.17 16.89,17.85 14,18.71 V20.77 C18.01,19.86 21,16.28 21,12 C21,7.72 18.01,4.14 14,3.23 Z"
+        android:fillColor="#40D4AF37"
+        android:strokeWidth="0"
+        android:strokeColor="#00000000"
+        android:translateX="0.5"
+        android:translateY="1.5" />
+
+    <!-- Основная иконка с градиентом -->
+    <path
+        android:pathData="M3,9 V15 H7 L12,20 V4 L7,9 H3 Z M16.5,12 C16.5,10.23 15.48,8.71 14,7.97 V16.02 C15.48,15.29 16.5,13.77 16.5,12 Z M14,3.23 V5.29 C16.89,6.15 19,8.83 19,12 C19,15.17 16.89,17.85 14,18.71 V20.77 C18.01,19.86 21,16.28 21,12 C21,7.72 18.01,4.14 14,3.23 Z"
+        android:strokeWidth="0"
+        android:strokeColor="#00000000">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="2"
+                android:startY="2"
+                android:endX="22"
+                android:endY="22"
+                android:type="linear">
+                <item android:offset="0" android:color="#D4AF37" />
+                <item android:offset="1" android:color="#F5E6C8" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

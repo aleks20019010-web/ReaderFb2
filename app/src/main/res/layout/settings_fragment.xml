@@ -307,7 +307,7 @@
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:text="@string/settings_scan_library"
-                app:icon="@drawable/ic_custom_scan"
+                app:icon="@drawable/ic_action_import"
                 app:iconGravity="textStart"
                 app:iconTint="@color/btn_text" />
 
@@ -321,7 +321,7 @@
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:text="@string/settings_manual_import"
-                app:icon="@drawable/ic_custom_import"
+                app:icon="@drawable/ic_action_import"
                 app:iconGravity="textStart"
                 app:iconTint="@color/btn_text" />
 

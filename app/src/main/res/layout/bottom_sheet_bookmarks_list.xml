@@ -106,7 +106,7 @@
                     android:id="@+id/ivEmptyIcon"
                     android:layout_width="64dp"
                     android:layout_height="64dp"
-                    android:src="@drawable/ic_bookmark"
+                    android:src="@drawable/ic_reader_bookmark"
                     android:contentDescription="Нет закладок"
                     android:layout_marginBottom="12dp"
                     app:tint="#9B59B6" />

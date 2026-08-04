@@ -47,7 +47,7 @@
                 <ImageView
                     android:layout_width="96dp"
                     android:layout_height="96dp"
-                    android:src="@drawable/ic_bookmark"
+                    android:src="@drawable/ic_reader_bookmark"
                     android:contentDescription="Нет закладок"
                     android:layout_marginBottom="16dp"
                     app:tint="@color/accent" />

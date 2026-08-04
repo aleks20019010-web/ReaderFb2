@@ -51,7 +51,7 @@
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
                 android:text="Сканировать"
-                app:icon="@drawable/ic_custom_scan"
+                app:icon="@drawable/ic_action_import"
                 app:cornerRadius="20dp"
                 android:textSize="12sp"
                 android:backgroundTint="@color/accent" />
@@ -108,7 +108,7 @@
             android:layout_width="wrap_content"
             android:layout_height="48dp"
             android:text="Найти аудиокниги"
-            app:icon="@drawable/ic_custom_scan"
+            app:icon="@drawable/ic_action_import"
             app:cornerRadius="24dp"
             android:backgroundTint="@color/accent" />
     </LinearLayout>

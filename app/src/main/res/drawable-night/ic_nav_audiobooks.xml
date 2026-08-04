@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/apk/res/aapt"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Мягкая тень -->
+    <path
+        android:pathData="M12,2 C6.48,2 2,6.48 2,12 V20 H6 V14 H3 C3.5,8.14 8.14,3.5 14,3.5 C19.86,3.5 24.5,8.14 25,14 H22 V20 H26 V12 C26,6.48 21.52,2 16,2 Z M10,12 A2,2 0 1,1 10,16 A2,2 0 1,1 10,12 M18,12 A2,2 0 1,1 18,16 A2,2 0 1,1 18,12"
+        android:fillColor="#4C9B59B6"
+        android:strokeWidth="0"
+        android:strokeColor="#00000000"
+        android:translateX="0.5"
+        android:translateY="1.5" />
+
+    <!-- Основная иконка с градиентом -->
+    <path
+        android:pathData="M12,2 C6.48,2 2,6.48 2,12 V20 H6 V14 H3 C3.5,8.14 8.14,3.5 14,3.5 C19.86,3.5 24.5,8.14 25,14 H22 V20 H26 V12 C26,6.48 21.52,2 16,2 Z M10,12 A2,2 0 1,1 10,16 A2,2 0 1,1 10,12 M18,12 A2,2 0 1,1 18,16 A2,2 0 1,1 18,12"
+        android:strokeWidth="0"
+        android:strokeColor="#00000000">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="2"
+                android:startY="2"
+                android:endX="22"
+                android:endY="22"
+                android:type="linear">
+                <item android:offset="0" android:color="#C39BD3" />
+                <item android:offset="1" android:color="#9B59B6" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

@@ -128,7 +128,7 @@
                         android:id="@+id/ivChaptersEmptyIcon"
                         android:layout_width="64dp"
                         android:layout_height="64dp"
-                        android:src="@drawable/ic_custom_list"
+                        android:src="@drawable/ic_action_view"
                         android:contentDescription="Главы не найдены"
                         app:tint="#9B59B6"
                         android:layout_marginBottom="12dp" />
@@ -197,7 +197,7 @@
                         android:id="@+id/ivBookmarksEmptyIcon"
                         android:layout_width="64dp"
                         android:layout_height="64dp"
-                        android:src="@drawable/ic_bookmark"
+                        android:src="@drawable/ic_reader_bookmark"
                         android:contentDescription="Закладок нет"
                         app:tint="#9B59B6"
                         android:layout_marginBottom="12dp" />

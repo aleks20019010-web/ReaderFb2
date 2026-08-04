@@ -22,7 +22,7 @@
             android:id="@+id/ivIcon"
             android:layout_width="28dp"
             android:layout_height="28dp"
-            android:src="@drawable/ic_bookmark_filled"
+            android:src="@drawable/ic_reader_bookmark_filled"
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
             app:tint="@color/accent"

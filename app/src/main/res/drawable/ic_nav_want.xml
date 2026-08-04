@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/apk/res/aapt"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Мягкая тень -->
+    <path
+        android:pathData="M4,4 H16 V20 H4 Z M10,8 A3,3 0 1,1 10,14 A3,3 0 1,1 10,8 M10,10 A1,1 0 1,0 10,12 A1,1 0 1,0 10,10"
+        android:fillColor="#40D4AF37"
+        android:strokeWidth="0"
+        android:strokeColor="#00000000"
+        android:translateX="0.5"
+        android:translateY="1.5" />
+
+    <!-- Основная иконка с градиентом -->
+    <path
+        android:pathData="M4,4 H16 V20 H4 Z M10,8 A3,3 0 1,1 10,14 A3,3 0 1,1 10,8 M10,10 A1,1 0 1,0 10,12 A1,1 0 1,0 10,10"
+        android:strokeWidth="0"
+        android:strokeColor="#00000000">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="2"
+                android:startY="2"
+                android:endX="22"
+                android:endY="22"
+                android:type="linear">
+                <item android:offset="0" android:color="#D4AF37" />
+                <item android:offset="1" android:color="#F5E6C8" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

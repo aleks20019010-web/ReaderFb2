@@ -68,7 +68,7 @@
                 android:textColor="@color/btn_text"
                 app:backgroundTint="@color/btn_bg"
                 app:cornerRadius="12dp"
-                app:icon="@drawable/ic_custom_search"
+                app:icon="@drawable/ic_action_search"
                 app:iconTint="@color/btn_text"
                 app:iconGravity="textStart"
                 android:textAllCaps="false" />

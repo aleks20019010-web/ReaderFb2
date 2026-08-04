@@ -22,7 +22,7 @@
             android:layout_height="24dp"
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
-            android:src="@drawable/ic_bookmark_filled"
+            android:src="@drawable/ic_reader_bookmark_filled"
             app:tint="#9B59B6"
             android:contentDescription="Закладка" />
 

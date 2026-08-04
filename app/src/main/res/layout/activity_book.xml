@@ -130,7 +130,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_search"
+            android:src="@drawable/ic_action_search"
             app:tint="@color/icon_tint"
             android:contentDescription="Поиск RAG по книге" />
 
@@ -139,7 +139,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_bookmarks_list"
+            android:src="@drawable/ic_reader_toc"
             app:tint="@color/icon_tint" />
 
         <ImageButton
@@ -155,7 +155,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_tts"
+            android:src="@drawable/ic_reader_tts"
             app:tint="@color/icon_tint"
             android:contentDescription="Озвучка TTS" />
 
@@ -203,7 +203,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_bookmark"
+            android:src="@drawable/ic_reader_bookmark"
             app:tint="@color/icon_tint"
             android:contentDescription="Закладка" />
     </LinearLayout>
