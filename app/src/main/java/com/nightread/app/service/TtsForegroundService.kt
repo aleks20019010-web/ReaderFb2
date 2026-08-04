@@ -201,7 +201,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
             ACTION_SET_VOICE -> {
                 selectedVoiceName = intent.getStringExtra(EXTRA_VOICE)
                 applySelectedVoice()
-                if (isSpeakingState) {
+                if (isSpeakingState || currentText.isNotEmpty()) {
                     speakCurrentText()
                 }
             }
@@ -211,14 +211,25 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun applySelectedVoice() {
-        val voiceName = selectedVoiceName
-        if (!voiceName.isNullOrBlank() && isTtsInitialized) {
-            val targetVoice = tts?.voices?.find { it.name == voiceName }
-            if (targetVoice != null) {
+        if (!isTtsInitialized) return
+        val voices = tts?.voices
+        if (!voices.isNullOrEmpty()) {
+            val voiceName = selectedVoiceName
+            val targetVoice = if (!voiceName.isNullOrBlank()) {
+                voices.find { it.name == voiceName }
+            } else null
+
+            val voiceToUse = targetVoice ?: voices.find { voice ->
+                voice.locale.language.equals("ru", ignoreCase = true) &&
+                !voice.isNetworkConnectionRequired &&
+                voice.features?.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) != true
+            } ?: voices.firstOrNull()
+
+            if (voiceToUse != null) {
                 try {
-                    tts?.voice = targetVoice
+                    tts?.voice = voiceToUse
                 } catch (e: Exception) {
-                    Log.e("TtsForegroundService", "Error setting TTS voice: $voiceName", e)
+                    Log.e("TtsForegroundService", "Error setting TTS voice", e)
                 }
             }
         }

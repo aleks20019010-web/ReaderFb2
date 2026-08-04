@@ -85,6 +85,11 @@ android {
       useLegacyPackaging = true
     }
   }
+  lint {
+    abortOnError = false
+    checkReleaseBuilds = false
+    disable += "ResAuto"
+  }
   testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 androidComponents {

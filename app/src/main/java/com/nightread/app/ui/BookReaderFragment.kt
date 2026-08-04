@@ -312,13 +312,13 @@ class BookReaderFragment : Fragment() {
                 }
             }
 
-            val paragraphs = withContext(Dispatchers.Default) {
-                com.nightread.app.service.TtsExtractor.extractParagraphs(html)
-            }
-            com.nightread.app.service.TtsDataProvider.paragraphs = paragraphs
-
             val modifiedHtml = injectCustomScript(html)
             wv.loadDataWithBaseURL("file:///android_asset/", modifiedHtml, "text/html", "UTF-8", null)
+
+            lifecycleScope.launch(Dispatchers.Default) {
+                val paragraphs = com.nightread.app.service.TtsExtractor.extractParagraphs(html)
+                com.nightread.app.service.TtsDataProvider.paragraphs = paragraphs
+            }
         }
     }
 
@@ -392,6 +392,8 @@ class BookReaderFragment : Fragment() {
                             var pageIndex = Math.floor(elementLeft / pageWidth);
                             scrollToPage(pageIndex);
                         }
+                    } else if (typeof currentPage !== 'undefined' && currentPage > 0) {
+                        scrollToPage(currentPage);
                     } else {
                         scrollToPage(0);
                     }

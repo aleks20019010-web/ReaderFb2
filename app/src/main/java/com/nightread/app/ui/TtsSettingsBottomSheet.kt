@@ -275,6 +275,10 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
                     selectedIndex = index
                 }
             }
+            if (voiceList.isNotEmpty() && (selectedVoiceName == null || voiceList.none { it.name == selectedVoiceName })) {
+                selectedVoiceName = voiceList[selectedIndex].name
+                SettingsManager.setTtsVoice(ctx, selectedVoiceName)
+            }
         }
 
         val adapter = ThemeAwareAdapter(ctx, R.layout.spinner_item, displayItems, themeTextColorHex, themeIsDark)

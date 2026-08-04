@@ -52,8 +52,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private val _fontFamilyState = MutableStateFlow("Merriweather")
     val fontFamilyState: StateFlow<String> = _fontFamilyState.asStateFlow()
 
-    // Font weight state: 0 = Normal, 1 = Bold
-    private val _fontWeightState = MutableStateFlow(0)
+    // Font weight state: e.g. 400 = Normal, 700 = Bold
+    private val _fontWeightState = MutableStateFlow(400)
     val fontWeightState: StateFlow<Int> = _fontWeightState.asStateFlow()
 
     // Font alignment state: "justify", "left", "right", "center"
@@ -180,7 +180,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         val newFontFamily = SettingsManager.getFontFamily(context)
         
         val weightInt = SettingsManager.getFontWeightAsInt(context)
-        val newFontWeight = if (weightInt >= 600) 1 else 0
+        val newFontWeight = weightInt
         
         val newFontAlignment = sharedPrefs.getString("saved_font_alignment", "justify") ?: "justify"
         val newPageMargins = sharedPrefs.getBoolean("saved_page_margins", true)
