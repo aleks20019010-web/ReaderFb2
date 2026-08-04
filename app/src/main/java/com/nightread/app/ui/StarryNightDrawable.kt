@@ -115,9 +115,15 @@ class StarryNightDrawable : Drawable() {
 }
 
 fun android.app.Activity.applyStarryBackground() {
-    window.setBackgroundDrawable(StarryNightDrawable())
+    val isNightMode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
+    if (isNightMode) {
+        window.setBackgroundDrawable(StarryNightDrawable())
+    }
 }
 
 fun android.app.Dialog.applyStarryBackground() {
-    window?.setBackgroundDrawable(StarryNightDrawable())
+    val isNightMode = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
+    if (isNightMode) {
+        window?.setBackgroundDrawable(StarryNightDrawable())
+    }
 }

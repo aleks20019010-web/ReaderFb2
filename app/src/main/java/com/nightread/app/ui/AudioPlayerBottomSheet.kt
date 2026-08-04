@@ -271,7 +271,7 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
 
     private fun showChaptersDialog() {
         if (chaptersList.isEmpty()) {
-            Toast.makeText(requireContext(), "Главы недоступны", Toast.LENGTH_SHORT).show()
+            CustomToast.show(requireContext(), "Главы недоступны", Toast.LENGTH_SHORT)
             return
         }
 
@@ -291,7 +291,7 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
                     putExtra(AudiobookPlaybackService.EXTRA_SEEK_POSITION, selectedChapter.startMs)
                 }
                 requireContext().startService(intent)
-                Toast.makeText(requireContext(), "Переход к ${selectedChapter.name}", Toast.LENGTH_SHORT).show()
+                CustomToast.show(requireContext(), "Переход к ${selectedChapter.name}", Toast.LENGTH_SHORT)
             }
             .setNegativeButton("Закрыть", null)
             .show()
@@ -318,9 +318,9 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
                 }
                 requireContext().startService(intent)
                 if (selectedMin > 0) {
-                    Toast.makeText(requireContext(), "Таймер установлен на $selectedMin минут", Toast.LENGTH_SHORT).show()
+                    CustomToast.show(requireContext(), "Таймер установлен на $selectedMin минут", Toast.LENGTH_SHORT)
                 } else {
-                    Toast.makeText(requireContext(), "Таймер сна выключен", Toast.LENGTH_SHORT).show()
+                    CustomToast.show(requireContext(), "Таймер сна выключен", Toast.LENGTH_SHORT)
                 }
             }
             .setNegativeButton("Отмена", null)

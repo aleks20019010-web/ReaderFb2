@@ -91,38 +91,7 @@
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
-            <LinearLayout
-                android:id="@+id/layoutSyncStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:background="@drawable/bg_sync_pill"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="6dp"
-                android:paddingTop="2dp"
-                android:paddingEnd="8dp"
-                android:paddingBottom="2dp"
-                android:clickable="true"
-                android:focusable="true">
 
-                <ImageView
-                    android:id="@+id/ivSyncStatusIcon"
-                    android:layout_width="12dp"
-                    android:layout_height="12dp"
-                    android:src="@drawable/ic_cloud_done"
-                    app:tint="#4CAF50"
-                    android:contentDescription="Статус синхронизации" />
-
-                <TextView
-                    android:id="@+id/tvSyncStatusText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text="Синхронизировано"
-                    android:textColor="@color/text_primary"
-                    android:textSize="10sp" />
-            </LinearLayout>
         </LinearLayout>
 
         <ImageButton

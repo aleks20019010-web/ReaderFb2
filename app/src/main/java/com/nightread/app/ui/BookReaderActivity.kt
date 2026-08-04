@@ -351,7 +351,6 @@ class BookReaderActivity : BaseActivity() {
         topToolbar = findViewById(R.id.topToolbar)
         bottomToolbar = findViewById(R.id.bottomToolbar)
         isBarsVisible = true
-        setupSyncStatusIndicator()
         
         progressBar = ProgressBar(this).apply { visibility = View.GONE }
         val progressParams = FrameLayout.LayoutParams(
@@ -384,6 +383,7 @@ class BookReaderActivity : BaseActivity() {
                 isUserTrackingSeekBar = false
                 seekBar?.let {
                     viewModel.setCurrentPage(it.progress)
+                    bookReaderFragment?.go(it.progress)
                 }
             }
         })
@@ -2358,74 +2358,6 @@ class BookReaderActivity : BaseActivity() {
         handler.postDelayed({ startOrResumeTts() }, 400)
     }
 
-    private fun setupSyncStatusIndicator() {
-        val layoutSyncStatus = findViewById<View>(R.id.layoutSyncStatus) ?: return
-        val ivSyncStatusIcon = findViewById<ImageView>(R.id.ivSyncStatusIcon)
-        val tvSyncStatusText = findViewById<TextView>(R.id.tvSyncStatusText)
 
-        fun isNetworkConnected(): Boolean {
-            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
-            val net = cm?.activeNetwork ?: return false
-            val caps = cm.getNetworkCapabilities(net) ?: return false
-            return caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
-        }
-
-        fun updateSyncUI(syncState: com.nightread.app.data.YandexSyncState) {
-            val online = isNetworkConnected()
-            val isSyncing = syncState.isRunning || com.nightread.app.data.SyncSettingsManager.isSyncing(this)
-
-            when {
-                !online -> {
-                    ivSyncStatusIcon?.setImageResource(R.drawable.ic_cloud_off)
-                    ivSyncStatusIcon?.imageTintList = ColorStateList.valueOf(0xFFFF9800.toInt())
-                    tvSyncStatusText?.text = "Офлайн"
-                }
-                isSyncing -> {
-                    ivSyncStatusIcon?.setImageResource(R.drawable.ic_cloud_sync)
-                    ivSyncStatusIcon?.imageTintList = ColorStateList.valueOf(0xFF2196F3.toInt())
-                    tvSyncStatusText?.text = "Синхронизация..."
-                }
-                else -> {
-                    ivSyncStatusIcon?.setImageResource(R.drawable.ic_cloud_done)
-                    ivSyncStatusIcon?.imageTintList = ColorStateList.valueOf(0xFF4CAF50.toInt())
-                    tvSyncStatusText?.text = "Синхронизировано"
-                }
-            }
-        }
-
-        lifecycleScope.launch {
-            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                com.nightread.app.data.YandexSyncState.state.collect { state ->
-                    updateSyncUI(state)
-                }
-            }
-        }
-
-        try {
-            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
-            val networkCallback = object : android.net.ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: android.net.Network) {
-                    runOnUiThread { updateSyncUI(com.nightread.app.data.YandexSyncState.state.value) }
-                }
-                override fun onLost(network: android.net.Network) {
-                    runOnUiThread { updateSyncUI(com.nightread.app.data.YandexSyncState.state.value) }
-                }
-            }
-            cm?.registerDefaultNetworkCallback(networkCallback)
-        } catch (e: Exception) {
-            Log.e("BookReaderActivity", "Error registering network callback", e)
-        }
-
-        layoutSyncStatus.setOnClickListener {
-            val online = isNetworkConnected()
-            val isSyncing = com.nightread.app.data.YandexSyncState.state.value.isRunning || com.nightread.app.data.SyncSettingsManager.isSyncing(this)
-            val msg = when {
-                !online -> "Устройство офлайн. Проверьте подключение к сети."
-                isSyncing -> "Идет синхронизация с облачным хранилищем Firebase..."
-                else -> "Все данные чтения синхронизированы с Firebase."
-            }
-            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-        }
-    }
 
 }

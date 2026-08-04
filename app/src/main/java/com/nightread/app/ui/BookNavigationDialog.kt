@@ -184,8 +184,12 @@ class BookNavigationDialog : DialogFragment() {
                 val offset = match.range.first
                 val rawTitle = match.groupValues[2]
                 val cleanTitle = cleanHtmlText(rawTitle)
-                if (cleanTitle.isNotEmpty() && cleanTitle.length < 150) {
-                    tempMatches.add(Pair(offset, cleanTitle))
+                if (cleanTitle.isNotEmpty()) {
+                    if (cleanTitle.length <= 80) {
+                        tempMatches.add(Pair(offset, cleanTitle))
+                    } else {
+                        tempMatches.add(Pair(offset, "Глава ${tempMatches.size + 1}"))
+                    }
                 }
             }
 
@@ -199,15 +203,10 @@ class BookNavigationDialog : DialogFragment() {
                     val searchArea = content.substring(offset, searchEnd)
                     val titleMatch = Regex("<h[1-4][^>]*>(.*?)</h[1-4]>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).find(searchArea)
                     val title = if (titleMatch != null) {
-                        cleanHtmlText(titleMatch.groupValues[1])
+                        val clean = cleanHtmlText(titleMatch.groupValues[1])
+                        if (clean.length > 80) "" else clean
                     } else {
-                        val paraMatch = Regex("<p[^>]*>(.*?)</p>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).find(searchArea)
-                        if (paraMatch != null) {
-                            val cleanPara = cleanHtmlText(paraMatch.groupValues[1])
-                            if (cleanPara.length > 50) cleanPara.take(47) + "..." else cleanPara
-                        } else {
-                            ""
-                        }
+                        ""
                     }
                     if (title.isNotEmpty()) {
                         tempMatches.add(Pair(offset, title))
@@ -234,7 +233,7 @@ class BookNavigationDialog : DialogFragment() {
                         rawText.startsWith("Эпилог", ignoreCase = true) ||
                         rawText.startsWith("Заключение", ignoreCase = true)) {
                         
-                        val cleanTitle = if (rawText.length > 80) rawText.take(80) + "..." else rawText
+                        val cleanTitle = if (rawText.length > 80) "Глава ${tempMatches.size + 1}" else rawText
                         tempMatches.add(Pair(offset, cleanTitle))
                     }
                 }
