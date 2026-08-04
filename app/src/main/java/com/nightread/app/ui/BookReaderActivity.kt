@@ -2293,8 +2293,6 @@ class BookReaderActivity : BaseActivity() {
         val pitch = com.nightread.app.data.SettingsManager.getTtsPitch(this)
         val voice = com.nightread.app.data.SettingsManager.getTtsVoice(this)
         val title = getBookTitle()
-        val charOffset = viewModel.bookState.value?.currentProgressChar ?: 0
-        var startIdx = viewModel.getParagraphIndexFromOffset(charOffset)
         
         val filePath = viewModel.bookState.value?.filePath ?: ""
         val isWebViewBook = filePath.endsWith(".fb2", true) || 
@@ -2302,11 +2300,21 @@ class BookReaderActivity : BaseActivity() {
                            filePath.endsWith(".zip", true) ||
                            filePath.endsWith(".epub", true)
                            
+        var startIdx = 0
+        if (isWebViewBook) {
+            startIdx = viewModel.bookState.value?.currentProgressChar ?: 0
+        } else {
+            val charOffset = viewModel.getOffsetForPage(viewModel.currentPage.value)
+            startIdx = viewModel.getParagraphIndexFromOffset(charOffset)
+        }
+        
         if (!isWebViewBook && com.nightread.app.ui.BookCache.content.isNotEmpty()) {
             val lines = com.nightread.app.ui.BookCache.content.split("\n")
             val paragraphs = mutableListOf<com.nightread.app.service.TtsParagraph>()
             var currentOffset = 0
             var pIndex = 0
+            val charOffsetForText = viewModel.getOffsetForPage(viewModel.currentPage.value)
+            
             for (line in lines) {
                 val trimmed = line.trim()
                 if (trimmed.isNotEmpty()) {
@@ -2315,7 +2323,7 @@ class BookReaderActivity : BaseActivity() {
                         val chunk = if (remaining.length > 3800) remaining.substring(0, 3800) else remaining
                         remaining = if (remaining.length > 3800) remaining.substring(3800) else ""
                         paragraphs.add(com.nightread.app.service.TtsParagraph("p_$pIndex", chunk))
-                        if (charOffset >= currentOffset && charOffset <= currentOffset + line.length) {
+                        if (charOffsetForText >= currentOffset && charOffsetForText <= currentOffset + line.length) {
                             startIdx = pIndex
                         }
                         pIndex++
