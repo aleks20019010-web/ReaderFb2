@@ -284,7 +284,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/warning_swipe_to_exit"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_primary"
             android:textSize="13sp"
             android:fontFamily="sans-serif-medium" />
     </LinearLayout>

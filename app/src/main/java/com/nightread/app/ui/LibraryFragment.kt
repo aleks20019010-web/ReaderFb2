@@ -572,7 +572,9 @@ class LibraryFragment : Fragment() {
 
         // Toggle Search Input visibility
         btnSearchToggle.setOnClickListener {
+            val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
             if (etSearch.visibility == View.VISIBLE) {
+                imm?.hideSoftInputFromWindow(etSearch.windowToken, 0)
                 etSearch.visibility = View.GONE
                 tvTitle.visibility = View.VISIBLE
                 tvBookCount.visibility = View.VISIBLE
@@ -592,7 +594,18 @@ class LibraryFragment : Fragment() {
                 btnToggleTheme.visibility = View.GONE
                 btnToggleViewMode.visibility = View.GONE
                 btnSearchToggle.animate().rotation(90f).setDuration(300).start()
-                etSearch.requestFocus()
+                
+                etSearch.isIconified = false
+                val searchEditText = etSearch.findViewById<EditText>(androidx.appcompat.R.id.search_src_text)
+                searchEditText?.requestFocus() ?: etSearch.requestFocus()
+                
+                val showKeyboardAction = Runnable {
+                    val targetView = searchEditText ?: etSearch
+                    targetView.requestFocus()
+                    imm?.showSoftInput(targetView, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                }
+                (searchEditText ?: etSearch).post(showKeyboardAction)
+                (searchEditText ?: etSearch).postDelayed(showKeyboardAction, 100)
             }
         }
 
