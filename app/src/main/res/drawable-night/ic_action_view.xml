@@ -1,34 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
 
-    <!-- Мягкая тень -->
+    <!-- Glow -->
     <path
-        android:pathData="M4,4 H10 V10 H4 Z M14,4 H20 V10 H14 Z M4,14 H10 V20 H4 Z M14,14 H20 V20 H14 Z"
-        android:fillColor="#4C9B59B6"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000"
-        android:translateX="0.5"
-        android:translateY="1.5" />
+        android:pathData="M4,27 C10,25 22,25 28,27 C29,27.5 28,29 16,29 C4,29 3,27.5 4,27 Z"
+        android:fillColor="#507C4DFF" />
 
-    <!-- Основная иконка с градиентом -->
+    <!-- Tile Top Left (Neon Magenta) -->
     <path
-        android:pathData="M4,4 H10 V10 H4 Z M14,4 H20 V10 H14 Z M4,14 H10 V20 H4 Z M14,14 H20 V20 H14 Z"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000">
+        android:pathData="M4,7 C4,5.3 5.3,4 7,4 L13,4 C14.7,4 16,5.3 16,7 L16,13 C16,14.7 14.7,16 13,16 L7,16 C5.3,16 4,14.7 4,13 Z">
         <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="2"
-                android:startY="2"
-                android:endX="22"
-                android:endY="22"
-                android:type="linear">
-                <item android:offset="0" android:color="#C39BD3" />
-                <item android:offset="1" android:color="#9B59B6" />
+            <gradient android:type="linear" android:startX="4" android:startY="4" android:endX="16" android:endY="16">
+                <item android:offset="0.0" android:color="#FFFF4081" />
+                <item android:offset="1.0" android:color="#FFC2185B" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M4,7 L7,4 L13,4 L16,7 Z"
+        android:fillColor="#40FFFFFF" />
+
+    <!-- Tile Top Right (Neon Cyan) -->
+    <path
+        android:pathData="M19,7 C19,5.3 20.3,4 22,4 L25,4 C26.7,4 28,5.3 28,7 L28,13 C28,14.7 26.7,16 25,16 L22,16 C20.3,16 19,14.7 19,13 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="19" android:startY="4" android:endX="28" android:endY="16">
+                <item android:offset="0.0" android:color="#FF18FFFF" />
+                <item android:offset="1.0" android:color="#FF00B0FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Tile Bottom Left (Neon Purple) -->
+    <path
+        android:pathData="M4,22 C4,20.3 5.3,19 7,19 L13,19 C14.7,19 16,20.3 16,22 L16,25 C16,26.7 14.7,28 13,28 L7,28 C5.3,28 4,26.7 4,25 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="4" android:startY="19" android:endX="16" android:endY="28">
+                <item android:offset="0.0" android:color="#FF7C4DFF" />
+                <item android:offset="1.0" android:color="#FF304FFE" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Tile Bottom Right (Neon Yellow Gold) -->
+    <path
+        android:pathData="M19,22 C19,20.3 20.3,19 22,19 L25,19 C26.7,19 28,20.3 28,22 L28,25 C28,26.7 26.7,28 25,28 L22,28 C20.3,28 19,26.7 19,25 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="19" android:startY="19" android:endX="28" android:endY="28">
+                <item android:offset="0.0" android:color="#FFFFE082" />
+                <item android:offset="1.0" android:color="#FFFFB74D" />
             </gradient>
         </aapt:attr>
     </path>

@@ -1,35 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
 
-    <!-- Мягкая тень -->
+    <!-- Glow -->
     <path
-        android:pathData="M15.5,14 H14.71 L14.43,13.73 C15.41,12.59 16,11.11 16,9.5 C16,5.91 13.09,3 9.5,3 C5.91,3 3,5.91 3,9.5 C3,13.09 5.91,16 9.5,16 C11.11,16 12.59,15.41 13.73,14.43 L14,14.71 V15.5 L19,20.49 L20.49,19 L15.5,14 Z M9.5,14 C7.01,14 5,11.99 5,9.5 C5,7.01 7.01,5 9.5,5 C11.99,5 14,7.01 14,9.5 C14,11.99 11.99,14 9.5,14 Z M9.5,7 A2.5,2.5 0 1,0 9.5,12 A2.5,2.5 0 1,0 9.5,7 Z"
-        android:fillColor="#4C9B59B6"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000"
-        android:translateX="0.5"
-        android:translateY="1.5" />
+        android:pathData="M18,28 L28,28 C28.5,28 29,28.5 29,29 C29,29.5 28.5,30 28,30 L18,30 C17.5,30 17,29.5 17,29 C17,28.5 17.5,28 18,28 Z"
+        android:fillColor="#5018FFFF" />
 
-    <!-- Основная иконка с градиентом -->
+    <!-- Handle (Neon Magenta Cylinder) -->
     <path
-        android:pathData="M15.5,14 H14.71 L14.43,13.73 C15.41,12.59 16,11.11 16,9.5 C16,5.91 13.09,3 9.5,3 C5.91,3 3,5.91 3,9.5 C3,13.09 5.91,16 9.5,16 C11.11,16 12.59,15.41 13.73,14.43 L14,14.71 V15.5 L19,20.49 L20.49,19 L15.5,14 Z M9.5,14 C7.01,14 5,11.99 5,9.5 C5,7.01 7.01,5 9.5,5 C11.99,5 14,7.01 14,9.5 C14,11.99 11.99,14 9.5,14 Z M9.5,7 A2.5,2.5 0 1,0 9.5,12 A2.5,2.5 0 1,0 9.5,7 Z"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000">
+        android:pathData="M17.5,17.5 L27,27 L25,29 L15.5,19.5 Z">
         <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="2"
-                android:startY="2"
-                android:endX="22"
-                android:endY="22"
-                android:type="linear">
-                <item android:offset="0" android:color="#C39BD3" />
-                <item android:offset="1" android:color="#9B59B6" />
+            <gradient android:type="linear" android:startX="15" android:startY="17" android:endX="27" android:endY="29">
+                <item android:offset="0.0" android:color="#FFFF4081" />
+                <item android:offset="1.0" android:color="#FFC2185B" />
             </gradient>
         </aapt:attr>
     </path>
+
+    <!-- Outer Rim (Neon Purple / Cyan Electric Ring) -->
+    <path
+        android:pathData="M13,3 C18.5,3 23,7.5 23,13 C23,18.5 18.5,23 13,23 C7.5,23 3,18.5 3,13 C3,7.5 7.5,3 13,3 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="3" android:startY="3" android:endX="23" android:endY="23">
+                <item android:offset="0.0" android:color="#FF7C4DFF" />
+                <item android:offset="1.0" android:color="#FF304FFE" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Translucent Lens Inner (Neon Cyan Glow) -->
+    <path
+        android:pathData="M13,6 C16.9,6 20,9.1 20,13 C20,16.9 16.9,20 13,20 C9.1,20 6,16.9 6,13 C6,9.1 9.1,6 13,6 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="6" android:startY="6" android:endX="20" android:endY="20">
+                <item android:offset="0.0" android:color="#FF84FFFF" />
+                <item android:offset="1.0" android:color="#FF00B0FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Reflection Arc -->
+    <path
+        android:pathData="M8,9 C10,7 13,6.5 15,7 C12,7 9,8.5 8,9 Z"
+        android:fillColor="#FFFFFFFF" />
 </vector>

@@ -1,35 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
 
-    <!-- Мягкая тень -->
+    <!-- 3D Glow Shadow -->
     <path
-        android:pathData="M19.35,10.04 C18.67,6.59 15.64,4 12,4 C9.11,4 6.6,5.64 5.35,8.04 C2.34,8.36 0,10.91 0,14 C0,17.31 2.69,20 6,20 H19 C21.76,20 24,17.76 24,15 C24,12.36 21.95,10.22 19.35,10.04 Z M12,18 L8,14 H11 V11 H13 V14 H16 L12,18 Z"
-        android:fillColor="#4C9B59B6"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000"
-        android:translateX="0.5"
-        android:translateY="1.5" />
+        android:pathData="M8,26 C12,25 20,25 24,26 C25,26.5 24,28 16,28 C8,28 7,26.5 8,26 Z"
+        android:fillColor="#507C4DFF" />
 
-    <!-- Основная иконка с градиентом -->
+    <!-- 3D Cloud (Deep Cosmic Blue / Indigo Gradient) -->
     <path
-        android:pathData="M19.35,10.04 C18.67,6.59 15.64,4 12,4 C9.11,4 6.6,5.64 5.35,8.04 C2.34,8.36 0,10.91 0,14 C0,17.31 2.69,20 6,20 H19 C21.76,20 24,17.76 24,15 C24,12.36 21.95,10.22 19.35,10.04 Z M12,18 L8,14 H11 V11 H13 V14 H16 L12,18 Z"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000">
+        android:pathData="M11,22 C8.2,22 6,19.8 6,17 C6,14.6 7.7,12.6 10,12.1 C10.5,9.2 13,7 16,7 C19.6,7 22.5,9.8 22.9,13.3 C24.7,13.7 26,15.2 26,17 C26,19.8 23.8,22 21,22 Z">
         <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="2"
-                android:startY="2"
-                android:endX="22"
-                android:endY="22"
-                android:type="linear">
-                <item android:offset="0" android:color="#C39BD3" />
-                <item android:offset="1" android:color="#9B59B6" />
+            <gradient android:type="linear" android:startX="6" android:startY="7" android:endX="26" android:endY="22">
+                <item android:offset="0.0" android:color="#FF7C4DFF" />
+                <item android:offset="0.5" android:color="#FF536DFE" />
+                <item android:offset="1.0" android:color="#FF1A237E" />
             </gradient>
         </aapt:attr>
     </path>
+
+    <!-- Top Highlight -->
+    <path
+        android:pathData="M16,7 C18.5,7 20.7,8.7 21.3,11.2 C20.3,10.4 19,10 17.5,10 C14.5,10 12,12.2 11.5,15 C10,15 8.7,15.8 8,17 C8,14.6 9.7,12.6 12,12.1 C12.5,9.2 14,7 16,7 Z"
+        android:fillColor="#40FFFFFF" />
+
+    <!-- Orbiting Arrow Top (Neon Electric Cyan) -->
+    <path
+        android:pathData="M23,10 C21.2,7.5 18.3,6 15,6 C11.5,6 8.3,7.7 6.5,10.5"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="6" android:startY="6" android:endX="23" android:endY="10">
+                <item android:offset="0.0" android:color="#FF18FFFF" />
+                <item android:offset="1.0" android:color="#FF00B0FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M20,7 L24,10 L20,13"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FF18FFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Orbiting Arrow Bottom (Neon Magenta) -->
+    <path
+        android:pathData="M9,24 C10.8,26.5 13.7,28 17,28 C20.5,28 23.7,26.3 25.5,23.5"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="9" android:startY="23" android:endX="25.5" android:endY="28">
+                <item android:offset="0.0" android:color="#FFFF4081" />
+                <item android:offset="1.0" android:color="#FFC2185B" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M12,27 L8,24 L12,21"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFF4081"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
 </vector>

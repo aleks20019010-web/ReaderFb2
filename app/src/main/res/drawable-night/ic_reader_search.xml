@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
+
+    <!-- Glow -->
+    <path
+        android:pathData="M5,27 L27,27 C28,27 29,27.8 29,29 C29,29.8 28,30 27,30 L5,30 C4,30 3,29.8 3,29 C3,27.8 4,27 5,27 Z"
+        android:fillColor="#5018FFFF" />
+
+    <!-- 3D Page Canvas (Deep Slate Indigo) -->
+    <path
+        android:pathData="M5,4 L21,4 C22.7,4 24,5.3 24,7 L24,24 C24,25.7 22.7,27 21,27 L5,27 C3.3,27 2,25.7 2,24 L2,7 C2,5.3 3.3,4 5,4 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="2" android:startY="4" android:endX="24" android:endY="27">
+                <item android:offset="0.0" android:color="#FF3F51B5" />
+                <item android:offset="1.0" android:color="#FF1A237E" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Document Lines Glowing Cyan -->
+    <path
+        android:pathData="M6,8 L18,8 M6,12 L14,12 M6,16 L12,16 M6,20 L16,20"
+        android:strokeWidth="1.8"
+        android:strokeColor="#FF80DEEA"
+        android:strokeLineCap="round" />
+
+    <!-- Handle Magenta -->
+    <path
+        android:pathData="M22,22 L29,29 L27,30 L20,23 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="20" android:startY="22" android:endX="29" android:endY="30">
+                <item android:offset="0.0" android:color="#FFFF4081" />
+                <item android:offset="1.0" android:color="#FFC2185B" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Outer Rim Neon Violet -->
+    <path
+        android:pathData="M18,11 C22.4,11 26,14.6 26,19 C26,23.4 22.4,27 18,27 C13.6,27 10,23.4 10,19 C10,14.6 13.6,11 18,11 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="10" android:startY="11" android:endX="26" android:endY="27">
+                <item android:offset="0.0" android:color="#FF7C4DFF" />
+                <item android:offset="1.0" android:color="#FF304FFE" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Lens Inner Glowing Cyan -->
+    <path
+        android:pathData="M18,13.5 C21,13.5 23.5,16 23.5,19 C23.5,22 21,24.5 18,24.5 C15,24.5 12.5,22 12.5,19 C12.5,16 15,13.5 18,13.5 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="12.5" android:startY="13.5" android:endX="23.5" android:endY="24.5">
+                <item android:offset="0.0" android:color="#FF84FFFF" />
+                <item android:offset="1.0" android:color="#FF00B0FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

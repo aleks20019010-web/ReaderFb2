@@ -1,35 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
 
-    <!-- Мягкая тень -->
+    <!-- Shadow -->
     <path
-        android:pathData="M12,2 C6.48,2 2,6.48 2,12 V20 H6 V14 H3 C3.5,8.14 8.14,3.5 14,3.5 C19.86,3.5 24.5,8.14 25,14 H22 V20 H26 V12 C26,6.48 21.52,2 16,2 Z M10,12 A2,2 0 1,1 10,16 A2,2 0 1,1 10,12 M18,12 A2,2 0 1,1 18,16 A2,2 0 1,1 18,12"
-        android:fillColor="#40D4AF37"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000"
-        android:translateX="0.5"
-        android:translateY="1.5" />
+        android:pathData="M6,27 C12,25 20,25 26,27 C27,27.5 25,29 16,29 C7,29 5,27.5 6,27 Z"
+        android:fillColor="#25000000" />
 
-    <!-- Основная иконка с градиентом -->
+    <!-- Headphone Band (Silver / Polished Titanium 3D Arc) -->
     <path
-        android:pathData="M12,2 C6.48,2 2,6.48 2,12 V20 H6 V14 H3 C3.5,8.14 8.14,3.5 14,3.5 C19.86,3.5 24.5,8.14 25,14 H22 V20 H26 V12 C26,6.48 21.52,2 16,2 Z M10,12 A2,2 0 1,1 10,16 A2,2 0 1,1 10,12 M18,12 A2,2 0 1,1 18,16 A2,2 0 1,1 18,12"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="2"
-                android:startY="2"
-                android:endX="22"
-                android:endY="22"
-                android:type="linear">
-                <item android:offset="0" android:color="#D4AF37" />
-                <item android:offset="1" android:color="#F5E6C8" />
+        android:pathData="M7,16 C7,10.2 11.2,5 16,5 C20.8,5 25,10.2 25,16"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="7" android:startY="5" android:endX="25" android:endY="16">
+                <item android:offset="0.0" android:color="#FF78909C" />
+                <item android:offset="0.5" android:color="#FFECEFF1" />
+                <item android:offset="1.0" android:color="#FF455A64" />
             </gradient>
         </aapt:attr>
     </path>
+
+    <!-- Ear Cup Left (Vibrant Crimson Red 3D Capsule) -->
+    <path
+        android:pathData="M4,15 C4,13.3 5.3,12 7,12 L8,12 C9.7,12 11,13.3 11,15 L11,21 C11,22.7 9.7,24 8,24 L7,24 C5.3,24 4,22.7 4,21 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="4" android:startY="12" android:endX="11" android:endY="24">
+                <item android:offset="0.0" android:color="#FFE53935" />
+                <item android:offset="1.0" android:color="#FF8E0000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Ear Cushion Cushion Left -->
+    <path
+        android:pathData="M9,13.5 L11,13.5 L11,22.5 L9,22.5 Z"
+        android:fillColor="#FF212121" />
+
+    <!-- Ear Cup Right (Vibrant Crimson Red 3D Capsule) -->
+    <path
+        android:pathData="M21,15 C21,13.3 22.3,12 24,12 L25,12 C26.7,12 28,13.3 28,15 L28,21 C28,22.7 26.7,24 25,24 L24,24 C22.3,24 21,22.7 21,21 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="21" android:startY="12" android:endX="28" android:endY="24">
+                <item android:offset="0.0" android:color="#FFE53935" />
+                <item android:offset="1.0" android:color="#FF8E0000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Ear Cushion Right -->
+    <path
+        android:pathData="M21,13.5 L23,13.5 L23,22.5 L21,22.5 Z"
+        android:fillColor="#FF212121" />
+
+    <!-- Center 3D Book Disk / Audio Waves -->
+    <path
+        android:pathData="M16,13 C18.2,13 20,14.8 20,17 C20,19.2 18.2,21 16,21 C13.8,21 12,19.2 12,17 C12,14.8 13.8,13 16,13 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="12" android:startY="13" android:endX="20" android:endY="21">
+                <item android:offset="0.0" android:color="#FFFFB74D" />
+                <item android:offset="1.0" android:color="#FFF57C00" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M16,15.5 C16.8,15.5 17.5,16.2 17.5,17 C17.5,17.8 16.8,18.5 16,18.5 C15.2,18.5 14.5,17.8 14.5,17 C14.5,16.2 15.2,15.5 16,15.5 Z"
+        android:fillColor="#FFFFFFFF" />
 </vector>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
+
+    <!-- Glow -->
+    <path
+        android:pathData="M3,26 C9,23 23,23 29,26 C30,26.5 29,28 16,28 C3,28 2,26.5 3,26 Z"
+        android:fillColor="#507C4DFF" />
+
+    <!-- Open Book Left Page (Deep Indigo) -->
+    <path
+        android:pathData="M3,7 C8,5 15,6.5 16,7.5 L16,21 C15,20 8,18.5 3,20.5 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="3" android:startY="5" android:endX="16" android:endY="21">
+                <item android:offset="0.0" android:color="#FF5C6BC0" />
+                <item android:offset="1.0" android:color="#FF1A237E" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Open Book Right Page (Deep Indigo) -->
+    <path
+        android:pathData="M16,7.5 C17,6.5 24,5 29,7 L29,20.5 C24,18.5 17,20 16,21 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="16" android:startY="5" android:endX="29" android:endY="21">
+                <item android:offset="0.0" android:color="#FF3F51B5" />
+                <item android:offset="1.0" android:color="#FF283593" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 3D Floating Neon Pink Gear Badge -->
+    <path
+        android:pathData="M18,14 L16.8,14 L16.6,15 C16.3,15.1 16,15.3 15.8,15.5 L14.8,15.1 L13.8,16.1 L14.2,17.1 C14,17.3 13.8,17.6 13.7,17.9 L12.7,18.1 L12.7,19.5 L13.7,19.7 C13.8,20 14,20.3 14.2,20.5 L13.8,21.5 L14.8,22.5 L15.8,22.1 C16,22.3 16.3,22.5 16.6,22.6 L16.8,23.6 L18.2,23.6 L18.4,22.6 C18.7,22.5 19,22.3 19.2,22.1 L20.2,22.5 L21.2,21.5 L20.8,20.5 C21,20.3 21.2,20 21.3,19.7 L22.3,19.5 L22.3,18.1 L21.3,17.9 C21.2,17.6 21,17.3 20.8,17.1 L21.2,16.1 L20.2,15.1 L19.2,15.5 C19,15.3 18.7,15.1 18.4,15 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="12.7" android:startY="14" android:endX="22.3" android:endY="23.6">
+                <item android:offset="0.0" android:color="#FFFF4081" />
+                <item android:offset="1.0" android:color="#FFC2185B" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Gear Center Core (Neon Cyan) -->
+    <circle cx="17.5" cy="18.8" r="2.2" android:fillColor="#FF18FFFF" />
+</vector>

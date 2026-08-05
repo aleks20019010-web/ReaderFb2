@@ -1,34 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
 
-    <!-- Мягкая тень -->
+    <!-- Track 1 (Neon Violet) -->
     <path
-        android:pathData="M9,3 L5,7 H8 V21 H10 V7 H13 L9,3 Z M15,21 L19,17 H16 V3 H14 V17 H11 L15,21 Z"
-        android:fillColor="#4C9B59B6"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000"
-        android:translateX="0.5"
-        android:translateY="1.5" />
-
-    <!-- Основная иконка с градиентом -->
+        android:pathData="M5,8 L27,8"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="5" android:startY="8" android:endX="27" android:endY="8">
+                <item android:offset="0.0" android:color="#FF7C4DFF" />
+                <item android:offset="1.0" android:color="#FF536DFE" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Knob 1 (Neon Pink) -->
     <path
-        android:pathData="M9,3 L5,7 H8 V21 H10 V7 H13 L9,3 Z M15,21 L19,17 H16 V3 H14 V17 H11 L15,21 Z"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000">
+        android:pathData="M11,8 C11,6.3 12.3,5 14,5 C15.7,5 17,6.3 17,8 C17,9.7 15.7,11 14,11 C12.3,11 11,9.7 11,8 Z">
         <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="2"
-                android:startY="2"
-                android:endX="22"
-                android:endY="22"
-                android:type="linear">
-                <item android:offset="0" android:color="#C39BD3" />
-                <item android:offset="1" android:color="#9B59B6" />
+            <gradient android:type="linear" android:startX="11" android:startY="5" android:endX="17" android:endY="11">
+                <item android:offset="0.0" android:color="#FFFF4081" />
+                <item android:offset="1.0" android:color="#FFC2185B" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Track 2 (Neon Cyan) -->
+    <path
+        android:pathData="M5,16 L27,16"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="5" android:startY="16" android:endX="27" android:endY="16">
+                <item android:offset="0.0" android:color="#FF18FFFF" />
+                <item android:offset="1.0" android:color="#FF00B0FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Knob 2 (Neon Yellow) -->
+    <path
+        android:pathData="M19,16 C19,14.3 20.3,13 22,13 C23.7,13 25,14.3 25,16 C25,17.7 23.7,19 22,19 C20.3,19 19,17.7 19,16 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="19" android:startY="13" android:endX="25" android:endY="19">
+                <item android:offset="0.0" android:color="#FFFFE082" />
+                <item android:offset="1.0" android:color="#FFFFB74D" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Track 3 (Neon Purple) -->
+    <path
+        android:pathData="M5,24 L27,24"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="5" android:startY="24" android:endX="27" android:endY="24">
+                <item android:offset="0.0" android:color="#FFE040FB" />
+                <item android:offset="1.0" android:color="#FFAA00FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Knob 3 (Neon Lime Green) -->
+    <path
+        android:pathData="M7,24 C7,22.3 8.3,21 10,21 C11.7,21 13,22.3 13,24 C13,25.7 11.7,27 10,27 C8.3,27 7,25.7 7,24 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="7" android:startY="21" android:endX="13" android:endY="27">
+                <item android:offset="0.0" android:color="#FFB2FF59" />
+                <item android:offset="1.0" android:color="#FF64DD17" />
             </gradient>
         </aapt:attr>
     </path>

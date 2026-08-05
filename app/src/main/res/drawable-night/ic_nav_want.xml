@@ -1,35 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
 
-    <!-- Мягкая тень -->
+    <!-- 3D Glow -->
     <path
-        android:pathData="M4,4 H16 V20 H4 Z M10,8 A3,3 0 1,1 10,14 A3,3 0 1,1 10,8 M10,10 A1,1 0 1,0 10,12 A1,1 0 1,0 10,10"
-        android:fillColor="#4C9B59B6"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000"
-        android:translateX="0.5"
-        android:translateY="1.5" />
+        android:pathData="M5,27 L27,27 C28,27 29,27.8 29,29 C29,29.8 28,30 27,30 L5,30 C4,30 3,29.8 3,29 C3,27.8 4,27 5,27 Z"
+        android:fillColor="#5000E5FF" />
 
-    <!-- Основная иконка с градиентом -->
+    <!-- Book Body (Electric Cyan Blue Gradient) -->
     <path
-        android:pathData="M4,4 H16 V20 H4 Z M10,8 A3,3 0 1,1 10,14 A3,3 0 1,1 10,8 M10,10 A1,1 0 1,0 10,12 A1,1 0 1,0 10,10"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000">
+        android:pathData="M6,5 L23,5 C24.7,5 26,6.3 26,8 L26,24 C26,25.7 24.7,27 23,27 L6,27 C4.3,27 3,25.7 3,24 L3,8 C3,6.3 4.3,5 6,5 Z">
         <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="2"
-                android:startY="2"
-                android:endX="22"
-                android:endY="22"
-                android:type="linear">
-                <item android:offset="0" android:color="#C39BD3" />
-                <item android:offset="1" android:color="#9B59B6" />
+            <gradient android:type="linear" android:startX="3" android:startY="5" android:endX="26" android:endY="27">
+                <item android:offset="0.0" android:color="#FF00E5FF" />
+                <item android:offset="1.0" android:color="#FF006064" />
             </gradient>
         </aapt:attr>
     </path>
+
+    <!-- Spine Bevel -->
+    <path
+        android:pathData="M3,8 L6,5 L6,27 L3,24 Z"
+        android:fillColor="#40FFFFFF" />
+
+    <!-- Floating Neon Pink Ribbon Bookmark -->
+    <path
+        android:pathData="M16,3 L21,3 L21,17 L18.5,14.5 L16,17 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="16" android:startY="3" android:endX="21" android:endY="17">
+                <item android:offset="0.0" android:color="#FFFF4081" />
+                <item android:offset="1.0" android:color="#FFC2185B" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Ribbon Pin Yellow -->
+    <path
+        android:pathData="M18.5,5 C19.3,5 20,5.7 20,6.5 C20,7.3 19.3,8 18.5,8 C17.7,8 17,7.3 17,6.5 C17,5.7 17.7,5 18.5,5 Z"
+        android:fillColor="#FFFFE082" />
 </vector>

@@ -1,35 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
 
-    <!-- Мягкая тень -->
+    <!-- 3D Glow Aura -->
     <path
-        android:pathData="M12,2 L15,9 L22,9 L16,14 L18,21 L12,17 L6,21 L8,14 L2,9 L9,9 Z M12,0 C5.37,0 0,5.37 0,12 C0,18.63 5.37,24 12,24 C18.63,24 24,18.63 24,12 C24,5.37 18.63,0 12,0 Z M12,2 C17.52,2 22,6.48 22,12 C22,17.52 17.52,22 12,22 C6.48,22 2,17.52 2,12 C2,6.48 6.48,2 12,2 Z"
-        android:fillColor="#4C9B59B6"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000"
-        android:translateX="0.5"
-        android:translateY="1.5" />
+        android:pathData="M16,29 C21,29 27,27 27,25.5 C27,24 21,25 16,25 C11,25 5,24 5,25.5 C5,27 11,29 16,29 Z"
+        android:fillColor="#50FFD54F" />
 
-    <!-- Основная иконка с градиентом -->
+    <!-- Main Star Neon Gold / Pink Faceted Shape -->
     <path
-        android:pathData="M12,2 L15,9 L22,9 L16,14 L18,21 L12,17 L6,21 L8,14 L2,9 L9,9 Z M12,0 C5.37,0 0,5.37 0,12 C0,18.63 5.37,24 12,24 C18.63,24 24,18.63 24,12 C24,5.37 18.63,0 12,0 Z M12,2 C17.52,2 22,6.48 22,12 C22,17.52 17.52,22 12,22 C6.48,22 2,17.52 2,12 C2,6.48 6.48,2 12,2 Z"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000">
+        android:pathData="M16,3 L19.8,11.2 L28.8,12.2 L22.1,18.3 L24,27.2 L16,22.7 L8,27.2 L9.9,18.3 L3.2,12.2 L12.2,11.2 Z">
         <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="2"
-                android:startY="2"
-                android:endX="22"
-                android:endY="22"
-                android:type="linear">
-                <item android:offset="0" android:color="#C39BD3" />
-                <item android:offset="1" android:color="#9B59B6" />
+            <gradient android:type="linear" android:startX="3" android:startY="3" android:endX="28" android:endY="27">
+                <item android:offset="0.0" android:color="#FFFFE082" />
+                <item android:offset="0.5" android:color="#FFFFB74D" />
+                <item android:offset="1.0" android:color="#FFFF4081" />
             </gradient>
         </aapt:attr>
     </path>
+
+    <!-- Facet Highlight 1 -->
+    <path
+        android:pathData="M16,3 L16,16 L12.2,11.2 Z"
+        android:fillColor="#50FFFFFF" />
+
+    <!-- Facet Highlight 2 -->
+    <path
+        android:pathData="M16,3 L19.8,11.2 L16,16 Z"
+        android:fillColor="#30FFFFFF" />
+
+    <!-- Facet Shadow -->
+    <path
+        android:pathData="M16,16 L8,27.2 L9.9,18.3 Z"
+        android:fillColor="#40000000" />
 </vector>

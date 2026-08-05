@@ -1,35 +1,75 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
 
-    <!-- Мягкая тень -->
+    <!-- 3D Base Shadow -->
     <path
-        android:pathData="M2,22 H22 V20 H2 Z M4,18 V10 L8,14 L14,6 L20,12 V18 Z M14,4 L15,2 L17,3 L15.5,4.5 L16,6 L14,5 L12,6 L12.5,4.5 L11,3 L13,2 Z"
-        android:fillColor="#40D4AF37"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000"
-        android:translateX="0.5"
-        android:translateY="1.5" />
+        android:pathData="M3,27 L29,27 C29.5,27 30,27.5 30,28.5 C30,29.5 29.5,30 29,30 L3,30 C2.5,30 2,29.5 2,28.5 C2,27.5 2.5,27 3,27 Z"
+        android:fillColor="#25000000" />
 
-    <!-- Основная иконка с градиентом -->
+    <!-- Pillar 1 (Left, Amber Gold) -->
     <path
-        android:pathData="M2,22 H22 V20 H2 Z M4,18 V10 L8,14 L14,6 L20,12 V18 Z M14,4 L15,2 L17,3 L15.5,4.5 L16,6 L14,5 L12,6 L12.5,4.5 L11,3 L13,2 Z"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000">
+        android:pathData="M4,17 C4,15.9 4.9,15 6,15 C7.1,15 8,15.9 8,17 L8,26 C8,26.5 7.5,27 7,27 L5,27 C4.5,27 4,26.5 4,26 Z">
         <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="2"
-                android:startY="2"
-                android:endX="22"
-                android:endY="22"
-                android:type="linear">
-                <item android:offset="0" android:color="#D4AF37" />
-                <item android:offset="1" android:color="#F5E6C8" />
+            <gradient android:type="linear" android:startX="4" android:startY="15" android:endX="8" android:endY="27">
+                <item android:offset="0.0" android:color="#FFFFB74D" />
+                <item android:offset="1.0" android:color="#FFF57C00" />
             </gradient>
         </aapt:attr>
     </path>
+    <!-- Cap 1 Highlight -->
+    <path
+        android:pathData="M4,17 C4,15.9 4.9,15 6,15 C7.1,15 8,15.9 8,17 Z"
+        android:fillColor="#40FFFFFF" />
+
+    <!-- Pillar 2 (Middle Left, Coral Red) -->
+    <path
+        android:pathData="M11,12 C11,10.9 11.9,10 13,10 C14.1,10 15,10.9 15,12 L15,26 C15,26.5 14.5,27 14,27 L12,27 C11.5,27 11,26.5 11,26 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="11" android:startY="10" android:endX="15" android:endY="27">
+                <item android:offset="0.0" android:color="#FFEF5350" />
+                <item android:offset="1.0" android:color="#FFC62828" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Pillar 3 (Middle Right, Sapphire Blue) -->
+    <path
+        android:pathData="M18,15 C18,13.9 18.9,13 20,13 C21.1,13 22,13.9 22,15 L22,26 C22,26.5 21.5,27 21,27 L19,27 C18.5,27 18,26.5 18,26 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="18" android:startY="13" android:endX="22" android:endY="27">
+                <item android:offset="0.0" android:color="#FF42A5F5" />
+                <item android:offset="1.0" android:color="#FF1565C0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Pillar 4 (Right Tallest, Emerald Green) -->
+    <path
+        android:pathData="M25,8 C25,6.9 25.9,6 27,6 C28.1,6 29,6.9 29,8 L29,26 C29,26.5 28.5,27 28,27 L26,27 C25.5,27 25,26.5 25,26 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="25" android:startY="6" android:endX="29" android:endY="27">
+                <item android:offset="0.0" android:color="#FF66BB6A" />
+                <item android:offset="1.0" android:color="#FF2E7D32" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 3D Floating Trend Arrow (Golden Purple) -->
+    <path
+        android:pathData="M5,13 L13,8 L19,11 L28,4"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FF7E57C2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M24,4 L28,4 L28,8"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FF7E57C2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
 </vector>

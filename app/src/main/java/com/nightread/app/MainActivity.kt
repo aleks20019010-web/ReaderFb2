@@ -246,6 +246,7 @@ class MainActivity : BaseActivity() {
 
         drawerLayout = findViewById(R.id.drawer_layout)
         navView = findViewById(R.id.nav_view)
+        navView.itemIconTintList = null
 
         val starryBg = findViewById<android.view.View>(R.id.starry_bg)?.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
         val sunbeamBg = findViewById<android.view.View>(R.id.starry_bg)?.findViewById<com.nightread.app.ui.SunbeamParticlesView>(R.id.sunbeamOverlay)

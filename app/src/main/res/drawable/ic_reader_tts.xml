@@ -1,34 +1,64 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
 
-    <!-- Мягкая тень -->
+    <!-- Shadow -->
     <path
-        android:pathData="M3,9 V15 H7 L12,20 V4 L7,9 H3 Z M16.5,12 C16.5,10.23 15.48,8.71 14,7.97 V16.02 C15.48,15.29 16.5,13.77 16.5,12 Z M14,3.23 V5.29 C16.89,6.15 19,8.83 19,12 C19,15.17 16.89,17.85 14,18.71 V20.77 C18.01,19.86 21,16.28 21,12 C21,7.72 18.01,4.14 14,3.23 Z"
-        android:fillColor="#40D4AF37"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000"
-        android:translateX="0.5"
-        android:translateY="1.5" />
+        android:pathData="M3,27 L29,27 C29.5,27 30,27.5 30,28.5 C30,29.5 29.5,30 29,30 L3,30 C2.5,30 2,29.5 2,28.5 C2,27.5 2.5,27 3,27 Z"
+        android:fillColor="#25000000" />
 
-    <!-- Основная иконка с градиентом -->
+    <!-- Speaker Base Rect 3D (Titanium Grey) -->
     <path
-        android:pathData="M3,9 V15 H7 L12,20 V4 L7,9 H3 Z M16.5,12 C16.5,10.23 15.48,8.71 14,7.97 V16.02 C15.48,15.29 16.5,13.77 16.5,12 Z M14,3.23 V5.29 C16.89,6.15 19,8.83 19,12 C19,15.17 16.89,17.85 14,18.71 V20.77 C18.01,19.86 21,16.28 21,12 C21,7.72 18.01,4.14 14,3.23 Z"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000">
+        android:pathData="M3,11 C3,9.9 3.9,9 5,9 L8,9 C8.6,9 9,9.4 9,10 L9,22 C9,22.6 8.6,23 8,23 L5,23 C3.9,23 3,22.1 3,21 Z">
         <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="2"
-                android:startY="2"
-                android:endX="22"
-                android:endY="22"
-                android:type="linear">
-                <item android:offset="0" android:color="#D4AF37" />
-                <item android:offset="1" android:color="#F5E6C8" />
+            <gradient android:type="linear" android:startX="3" android:startY="9" android:endX="9" android:endY="23">
+                <item android:offset="0.0" android:color="#FFB0BEC5" />
+                <item android:offset="1.0" android:color="#FF455A64" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Speaker Cone 3D (Sapphire Blue Gradient) -->
+    <path
+        android:pathData="M9,10 L17,4 L18,4 C18.6,4 19,4.4 19,5 L19,27 C19,27.6 18.6,28 18,28 L17,28 L9,22 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="9" android:startY="4" android:endX="19" android:endY="28">
+                <item android:offset="0.0" android:color="#FF42A5F5" />
+                <item android:offset="1.0" android:color="#FF0D47A1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Cone Bevel Top Highlight -->
+    <path
+        android:pathData="M9,10 L17,4 L19,5 L11,11 Z"
+        android:fillColor="#40FFFFFF" />
+
+    <!-- Soundwave 1 Inner Arc (Coral Red) -->
+    <path
+        android:pathData="M22,11 C23.7,12.7 23.7,19.3 22,21"
+        android:strokeWidth="3"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="22" android:startY="11" android:endX="23.7" android:endY="21">
+                <item android:offset="0.0" android:color="#FFFF7043" />
+                <item android:offset="1.0" android:color="#FFD84315" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Soundwave 2 Outer Arc (Amber Gold) -->
+    <path
+        android:pathData="M26,7 C29.3,10.3 29.3,21.7 26,25"
+        android:strokeWidth="3"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="26" android:startY="7" android:endX="29.3" android:endY="25">
+                <item android:offset="0.0" android:color="#FFFFD54F" />
+                <item android:offset="1.0" android:color="#FFFF8F00" />
             </gradient>
         </aapt:attr>
     </path>
