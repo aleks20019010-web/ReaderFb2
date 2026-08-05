@@ -58,7 +58,7 @@ object MobiParser : BookParser {
                     val fullNameLength = readUInt32(data, mobiMagicOffset + 88).toInt()
                     val nameAbsOffset = rec0Offset + fullNameOffset
                     if (fullNameOffset > 0 && fullNameLength > 0 && nameAbsOffset + fullNameLength <= data.size) {
-                        extractedTitle = String(data, nameAbsOffset, fullNameLength, Charsets.UTF_8).trim()
+                        extractedTitle = decodeString(data, nameAbsOffset, fullNameLength).trim()
                     }
                 }
 
@@ -84,14 +84,14 @@ object MobiParser : BookParser {
                             val valOffset = curr + 8
                             when (recType) {
                                 100 -> { // Author
-                                    extractedAuthor = String(data, valOffset, valDataLen, Charsets.UTF_8).trim()
+                                    extractedAuthor = decodeString(data, valOffset, valDataLen).trim()
                                 }
                                 503 -> { // Updated Title
-                                    val t = String(data, valOffset, valDataLen, Charsets.UTF_8).trim()
+                                    val t = decodeString(data, valOffset, valDataLen).trim()
                                     if (t.isNotBlank()) extractedTitle = t
                                 }
                                 103 -> { // Description / Annotation
-                                    extractedDescription = String(data, valOffset, valDataLen, Charsets.UTF_8).trim()
+                                    extractedDescription = decodeString(data, valOffset, valDataLen).trim()
                                 }
                                 201 -> { // Cover record index
                                     if (valDataLen >= 4) {
@@ -189,11 +189,11 @@ object MobiParser : BookParser {
         }
 
         val decompressedBytes = textBytesStream.toByteArray()
-        val textContent = decodeText(decompressedBytes)
+        val textContent = decodeBytes(decompressedBytes)
 
-        val formattedContent = if (textContent.contains("<html", ignoreCase = true) || 
-                                    textContent.contains("<p>", ignoreCase = true) || 
-                                    textContent.contains("<div>", ignoreCase = true)) {
+        val isHtml = textContent.contains(Regex("<(?i)[a-z]+[>\\s]"))
+        
+        val formattedContent = if (isHtml) {
             textContent
         } else {
             // Convert plain text to HTML paragraphs
@@ -255,9 +255,18 @@ object MobiParser : BookParser {
         return out.toByteArray()
     }
 
-    private fun decodeText(bytes: ByteArray): String {
+    private fun decodeString(data: ByteArray, offset: Int, length: Int): String {
+        return decodeBytes(data.copyOfRange(offset, offset + length))
+    }
+
+    private fun decodeBytes(bytes: ByteArray): String {
         return try {
-            String(bytes, Charsets.UTF_8)
+            val utf8 = String(bytes, Charsets.UTF_8)
+            // A simple check: if it contains a lot of replacement characters, it's probably not UTF-8
+            if (utf8.count { it == '\uFFFD' } > bytes.size / 5) {
+                throw Exception("Too many replacement characters")
+            }
+            utf8
         } catch (e: Exception) {
             try {
                 String(bytes, Charset.forName("windows-1251"))
