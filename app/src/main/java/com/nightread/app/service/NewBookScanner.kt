@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
@@ -227,7 +228,7 @@ class NewBookScanner(
             val batchList = java.util.Collections.synchronizedList(mutableListOf<BookEntity>())
             val sha1ConcurrentMap = ConcurrentHashMap(sha1ToPathMap)
 
-            coroutineScope {
+            supervisorScope {
                 val jobs = filesToScan.map { file ->
                     async(Dispatchers.IO) {
                         semaphore.withPermit {
@@ -244,16 +245,19 @@ class NewBookScanner(
                                 skippedBooks = skippedCount
                             ))
 
-                            withTimeoutOrNull(8000) {
-                                try {
+                            try {
+                                withTimeoutOrNull(10000) {
                                     processFile(file, sha1ConcurrentMap, batchList) { added, skipped ->
                                         if (added > 0) addedCountAtomic.addAndGet(added)
                                         if (skipped > 0) skippedCountAtomic.addAndGet(skipped)
                                     }
                                     prefs.edit().putLong("mod_${file.absolutePath}", file.lastModified()).putLong("size_${file.absolutePath}", file.length()).apply()
-                                } catch (e: Throwable) {
-                                    Log.e(TAG, "Error processing ${file.absolutePath}", e)
                                 }
+                            } catch (ce: CancellationException) {
+                                if (!kotlin.coroutines.coroutineContext.isActive) throw ce
+                                Log.w(TAG, "Processing timed out for ${file.name}")
+                            } catch (e: Throwable) {
+                                Log.e(TAG, "Error processing ${file.absolutePath}", e)
                             }
 
                             flushBatchToDb(batchList)
@@ -424,7 +428,7 @@ class NewBookScanner(
             val batchList = java.util.Collections.synchronizedList(mutableListOf<BookEntity>())
             val sha1ConcurrentMap = ConcurrentHashMap(sha1ToPathMap)
 
-            coroutineScope {
+            supervisorScope {
                 val jobs = filesToScan.map { file ->
                     async(Dispatchers.IO) {
                         semaphore.withPermit {
@@ -441,8 +445,8 @@ class NewBookScanner(
                                 skippedBooks = skippedCount
                             ))
 
-                            withTimeoutOrNull(8000) {
-                                try {
+                            try {
+                                withTimeoutOrNull(10000) {
                                     processFile(file, sha1ConcurrentMap, batchList) { added, skipped ->
                                         if (added > 0) addedCountAtomic.addAndGet(added)
                                         if (skipped > 0) skippedCountAtomic.addAndGet(skipped)
@@ -452,9 +456,12 @@ class NewBookScanner(
                                         putLong("mod_${file.absolutePath}", file.lastModified())
                                         putLong("size_${file.absolutePath}", file.length())
                                     }.apply()
-                                } catch (e: Throwable) {
-                                    Log.e(TAG, "Error incremental processing for ${file.absolutePath}", e)
                                 }
+                            } catch (ce: CancellationException) {
+                                if (!kotlin.coroutines.coroutineContext.isActive) throw ce
+                                Log.w(TAG, "Incremental processing timed out for ${file.name}")
+                            } catch (e: Throwable) {
+                                Log.e(TAG, "Error incremental processing for ${file.absolutePath}", e)
                             }
 
                             flushBatchToDb(batchList)
@@ -623,13 +630,29 @@ class NewBookScanner(
                     return
                 }
 
-                val bytes = file.inputStream().buffered().use { it.readBytes() }
-                if (bytes.isEmpty()) return
-
-                val rawText = decodeBytesToString(bytes)
-                val metadata = Fb2Parser.parse(rawText, file.nameWithoutExtension)
+                val metadata = file.inputStream().buffered().use { stream ->
+                    Fb2Parser.parse(stream, file.nameWithoutExtension)
+                }
                 val resolvedTitle = resolveRussianTitle(metadata.title, file.nameWithoutExtension)
-                val coverPath = NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
+                
+                val coverPath = try {
+                    if (file.length() < 3 * 1024 * 1024) {
+                        val bytes = file.inputStream().buffered().use { it.readBytes() }
+                        val rawText = decodeBytesToString(bytes)
+                        NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
+                    } else {
+                        // For large FB2 files, read only the first 2MB for cover block
+                        val buffer = ByteArray(2 * 1024 * 1024)
+                        val bytesRead = file.inputStream().buffered().use { it.read(buffer) }
+                        if (bytesRead > 0) {
+                            val rawTextHeader = String(buffer, 0, bytesRead, Charsets.UTF_8)
+                            NewCoverExtractor.extractAndSaveCover(rawTextHeader, sha1, context)
+                        } else null
+                    }
+                } catch (e: Throwable) {
+                    Log.w(TAG, "Failed to extract cover for FB2 file ${file.name}", e)
+                    null
+                }
 
                 val book = BookEntity(
                     sha1 = sha1,

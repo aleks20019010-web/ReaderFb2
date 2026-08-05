@@ -154,14 +154,19 @@ object EpubIdentifierHelper {
             ZipInputStream(file.inputStream().buffered()).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
-                    val content = zip.readBytes()
                     val normalizedName = cleanZipPath(entry.name)
-                    if (normalizedName == "meta-inf/container.xml") {
-                        val strContent = content.toString(Charsets.UTF_8)
-                        val match = Regex("<rootfile\\s+[^>]*full-path\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(strContent)
-                        opfPath = match?.groupValues?.get(1)
+                    val ext = normalizedName.substringAfterLast(".", "").lowercase()
+                    // Only store opf, xml, container, and meta files to save memory
+                    if (ext == "opf" || ext == "xml" || normalizedName.contains("meta-inf") ||
+                        normalizedName.contains("annotation") || normalizedName.contains("description")) {
+                        val content = zip.readBytes()
+                        if (normalizedName == "meta-inf/container.xml") {
+                            val strContent = content.toString(Charsets.UTF_8)
+                            val match = Regex("<rootfile\\s+[^>]*full-path\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(strContent)
+                            opfPath = match?.groupValues?.get(1)
+                        }
+                        zipFiles[normalizedName] = content
                     }
-                    zipFiles[normalizedName] = content
                     entry = zip.nextEntry
                 }
             }
@@ -477,7 +482,13 @@ object EpubIdentifierHelper {
                 var entry = zip.nextEntry
                 while (entry != null) {
                     if (!entry.isDirectory) {
-                        zipEntriesMap[cleanZipPath(entry.name)] = zip.readBytes()
+                        val name = cleanZipPath(entry.name)
+                        val ext = name.substringAfterLast(".", "").lowercase()
+                        if (ext in setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "xhtml", "html", "htm") || name.contains("cover")) {
+                            if (entry.size < 10 * 1024 * 1024) {
+                                zipEntriesMap[name] = zip.readBytes()
+                            }
+                        }
                     }
                     entry = zip.nextEntry
                 }

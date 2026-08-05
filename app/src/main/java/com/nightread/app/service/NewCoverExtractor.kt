@@ -64,11 +64,8 @@ object NewCoverExtractor {
                 return null
             }
 
-            // Clean up any potential spaces/newlines in base64 block
-            val cleanBase64 = base64Data.replace(Regex("\\s+"), "")
-
-            // Decode base64
-            val imageBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+            // Decode base64 directly (Base64.DEFAULT automatically handles whitespace and newlines)
+            val imageBytes = Base64.decode(base64Data, Base64.DEFAULT)
             if (imageBytes.isEmpty()) {
                 Log.w("NewCoverExtractor", "Decoded image bytes are empty for book SHA1: $sha1")
                 return null

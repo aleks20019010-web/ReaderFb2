@@ -173,9 +173,9 @@ object MobiParser : BookParser {
             }
         }
 
-        // Extract and decompress text records
+        // Extract and decompress text records (limit to first 15 records for metadata scanning)
         val textBytesStream = ByteArrayOutputStream()
-        val numTextRecords = minOf(recordCount, numRecords - 1)
+        val numTextRecords = minOf(15, minOf(recordCount, numRecords - 1))
 
         for (r in 1..numTextRecords) {
             val recStart = readUInt32(data, 78 + r * 8).toInt()
