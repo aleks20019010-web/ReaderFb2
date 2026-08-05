@@ -62,8 +62,8 @@ object MobiParser : BookParser {
                     if (enc != 0) mobiTextEncoding = enc
                 }
 
-                // Read extra record data flags (at mobiMagicOffset + 242)
-                if (mobiHeaderLen >= 228 && mobiMagicOffset + 244 <= data.size) {
+                // Read extra record data flags (at mobiMagicOffset + 242) only if header is long enough
+                if (mobiHeaderLen >= 244 && mobiMagicOffset + 244 <= data.size) {
                     extraRecordDataFlags = readUInt16(data, mobiMagicOffset + 242)
                 }
                 
@@ -210,26 +210,40 @@ object MobiParser : BookParser {
             .replace(Regex("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]"), "")
             .replace(Regex("<mbp:pagebreak[^>]*/>", RegexOption.IGNORE_CASE), "<br/>")
 
-        // Look for Title inside text tags if metadata titles look like slugs/filenames
+        // Search for Cyrillic title in text headings/tags
         var textTitle: String? = null
-        val titlePatterns = listOf(
-            Regex("<title[^>]*>(.*?)</title>", RegexOption.IGNORE_CASE),
-            Regex("<dc:title[^>]*>(.*?)</dc:title>", RegexOption.IGNORE_CASE),
-            Regex("<meta[^>]*name=[\"'](?:title|dc:title)[\"'][^>]*content=[\"'](.*?)[\"']", RegexOption.IGNORE_CASE),
-            Regex("<meta[^>]*content=[\"'](.*?)[\"'][^>]*name=[\"'](?:title|dc:title)[\"']", RegexOption.IGNORE_CASE),
-            Regex("<h1[^>]*>(.*?)</h1>", RegexOption.IGNORE_CASE),
-            Regex("<h2[^>]*>(.*?)</h2>", RegexOption.IGNORE_CASE),
-            Regex("<p[^>]*class=[\"'][^\"']*title[^\"']*[\"'][^>]*>(.*?)</p>", RegexOption.IGNORE_CASE),
-            Regex("<div[^>]*class=[\"'][^\"']*title[^\"']*[\"'][^>]*>(.*?)</div>", RegexOption.IGNORE_CASE)
-        )
+        val cyrillicHeadingRegex = Regex("<(?:h1|h2|h3|p|div|title|dc:title)[^>]*>(.*?)</(?:h1|h2|h3|p|div|title|dc:title)>", RegexOption.IGNORE_CASE)
+        val textSnippet = if (textContent.length > 30000) textContent.substring(0, 30000) else textContent
 
-        for (pattern in titlePatterns) {
-            val match = pattern.find(textContent)
-            if (match != null) {
-                val candidate = stripTags(unescapeHtml(match.groupValues[1].trim()))
-                if (candidate.isNotBlank() && !isSlugTitle(candidate)) {
+        for (match in cyrillicHeadingRegex.findAll(textSnippet)) {
+            val candidate = stripTags(unescapeHtml(match.groupValues[1].trim()))
+            if (candidate.isNotBlank() && candidate.length in 3..150) {
+                val cyrCount = candidate.count { it in '\u0400'..'\u04FF' }
+                if (cyrCount >= 3 && !isSlugTitle(candidate)) {
                     textTitle = candidate
                     break
+                }
+            }
+        }
+
+        if (textTitle == null) {
+            val titlePatterns = listOf(
+                Regex("<title[^>]*>(.*?)</title>", RegexOption.IGNORE_CASE),
+                Regex("<dc:title[^>]*>(.*?)</dc:title>", RegexOption.IGNORE_CASE),
+                Regex("<meta[^>]*name=[\"'](?:title|dc:title)[\"'][^>]*content=[\"'](.*?)[\"']", RegexOption.IGNORE_CASE),
+                Regex("<meta[^>]*content=[\"'](.*?)[\"'][^>]*name=[\"'](?:title|dc:title)[\"']", RegexOption.IGNORE_CASE),
+                Regex("<h1[^>]*>(.*?)</h1>", RegexOption.IGNORE_CASE),
+                Regex("<h2[^>]*>(.*?)</h2>", RegexOption.IGNORE_CASE)
+            )
+
+            for (pattern in titlePatterns) {
+                val match = pattern.find(textSnippet)
+                if (match != null) {
+                    val candidate = stripTags(unescapeHtml(match.groupValues[1].trim()))
+                    if (candidate.isNotBlank() && !isSlugTitle(candidate)) {
+                        textTitle = candidate
+                        break
+                    }
                 }
             }
         }
@@ -241,12 +255,11 @@ object MobiParser : BookParser {
             Regex("<meta[^>]*name=[\"'](?:author|dc:creator)[\"'][^>]*content=[\"'](.*?)[\"']", RegexOption.IGNORE_CASE),
             Regex("<meta[^>]*content=[\"'](.*?)[\"'][^>]*name=[\"'](?:author|dc:creator)[\"']", RegexOption.IGNORE_CASE),
             Regex("<p[^>]*class=[\"'][^\"']*author[^\"']*[\"'][^>]*>(.*?)</p>", RegexOption.IGNORE_CASE),
-            Regex("<div[^>]*class=[\"'][^\"']*author[^\"']*[\"'][^>]*>(.*?)</div>", RegexOption.IGNORE_CASE),
-            Regex("<h2[^>]*class=[\"'][^\"']*author[^\"']*[\"'][^>]*>(.*?)</h2>", RegexOption.IGNORE_CASE)
+            Regex("<div[^>]*class=[\"'][^\"']*author[^\"']*[\"'][^>]*>(.*?)</div>", RegexOption.IGNORE_CASE)
         )
 
         for (pattern in authorPatterns) {
-            val match = pattern.find(textContent)
+            val match = pattern.find(textSnippet)
             if (match != null) {
                 val candidate = stripTags(unescapeHtml(match.groupValues[1].trim()))
                 if (candidate.isNotBlank() && candidate != "Неизвестен") {
@@ -261,14 +274,11 @@ object MobiParser : BookParser {
         val descPatterns = listOf(
             Regex("<dc:description[^>]*>(.*?)</dc:description>", RegexOption.IGNORE_CASE),
             Regex("<meta[^>]*name=[\"'](?:description|dc:description)[\"'][^>]*content=[\"'](.*?)[\"']", RegexOption.IGNORE_CASE),
-            Regex("<meta[^>]*content=[\"'](.*?)[\"'][^>]*name=[\"'](?:description|dc:description)[\"']", RegexOption.IGNORE_CASE),
-            Regex("<div[^>]*class=[\"'][^\"']*(?:annotation|description)[^\"']*[\"'][^>]*>(.*? accumulated)?.*?(?:</div>|$)", RegexOption.IGNORE_CASE),
-            Regex("<section[^>]*class=[\"'][^\"']*(?:annotation|description)[^\"']*[\"'][^>]*>(.*?)</section>", RegexOption.IGNORE_CASE),
-            Regex("<p[^>]*class=[\"'][^\"']*(?:annotation|description)[^\"']*[\"'][^>]*>(.*?)</p>", RegexOption.IGNORE_CASE)
+            Regex("<meta[^>]*content=[\"'](.*?)[\"'][^>]*name=[\"'](?:description|dc:description)[\"']", RegexOption.IGNORE_CASE)
         )
 
         for (pattern in descPatterns) {
-            val match = pattern.find(textContent)
+            val match = pattern.find(textSnippet)
             if (match != null) {
                 val candidate = stripTags(unescapeHtml(match.groupValues[1].trim()))
                 if (candidate.isNotBlank()) {
@@ -278,21 +288,21 @@ object MobiParser : BookParser {
             }
         }
 
-        // Final title determination prioritizing clean human-readable titles over slugs
         val candidateTitles = listOfNotNull(
-            textTitle?.takeIf { it.isNotBlank() && !isSlugTitle(it) },
-            headerFullName?.takeIf { it.isNotBlank() && !isSlugTitle(it) },
-            exthTitle?.takeIf { it.isNotBlank() && !isSlugTitle(it) },
-            headerFullName?.takeIf { it.isNotBlank() }?.let { cleanSlugTitle(it) },
-            exthTitle?.takeIf { it.isNotBlank() }?.let { cleanSlugTitle(it) },
-            fallbackTitle.takeIf { it.isNotBlank() }?.let { if (isSlugTitle(it)) cleanSlugTitle(it) else it }
+            textTitle?.takeIf { !isSlugTitle(it) },
+            headerFullName?.takeIf { !isSlugTitle(it) },
+            exthTitle?.takeIf { !isSlugTitle(it) },
+            textTitle,
+            headerFullName?.let { cleanSlugTitle(it) },
+            exthTitle?.let { cleanSlugTitle(it) },
+            if (isSlugTitle(fallbackTitle)) cleanSlugTitle(fallbackTitle) else fallbackTitle
         )
 
         val finalTitle = candidateTitles.firstOrNull { it.isNotBlank() } ?: fallbackTitle
         val finalAuthor = textAuthor ?: extractedAuthor?.takeIf { it.isNotBlank() } ?: "Неизвестен"
         val finalDescription = textDescription ?: extractedDescription
 
-        val isHtml = textContent.contains(Regex("<(?i)[a-z]+[>\\s]"))
+        val isHtml = textContent.contains(Regex("<(?i)[a-z]+[>\\s]")) || textContent.contains("</html>") || textContent.contains("</p>") || textContent.contains("<p>") || textContent.contains("<div")
 
         val formattedContent = if (isHtml) {
             textContent
@@ -363,6 +373,7 @@ object MobiParser : BookParser {
 
     private fun trimExtraRecordData(buf: ByteArray, flags: Int): ByteArray {
         var current = buf
+        if (flags == 0) return current
 
         // Process trailing entry sizes (bits 1..15)
         for (b in 1..15) {
@@ -386,9 +397,13 @@ object MobiParser : BookParser {
 
         // Process bit 0: extra multibyte bytes overlap
         if ((flags and 1) != 0 && current.isNotEmpty()) {
-            val extraMB = (current.last().toInt() and 0x03) + 1
-            if (extraMB in 1..current.size) {
-                current = current.copyOfRange(0, current.size - extraMB)
+            val lastByte = current.last().toInt() and 0xFF
+            // If the last byte is a UTF-8 continuation byte (0x80..0xBF), do NOT trim it!
+            if (lastByte !in 0x80..0xBF) {
+                val extraMB = (lastByte and 0x03) + 1
+                if (extraMB in 1..current.size) {
+                    current = current.copyOfRange(0, current.size - extraMB)
+                }
             }
         }
 
@@ -402,23 +417,31 @@ object MobiParser : BookParser {
     private fun decodeBytes(bytes: ByteArray, preferredEncoding: Int = 65001): String {
         if (bytes.isEmpty()) return ""
 
-        if (preferredEncoding == 65001) {
-            try {
-                val utf8 = String(bytes, Charsets.UTF_8)
-                val replacementCount = utf8.count { it == '\uFFFD' }
-                if (replacementCount <= bytes.size / 20) {
-                    return utf8
-                }
-            } catch (_: Exception) {}
-        }
-
+        // 1. Try UTF-8 first (strict checking for replacement character \uFFFD)
         try {
-            val win1251 = String(bytes, Charset.forName("windows-1251"))
-            if (win1251.any { it in '\u0400'..'\u04FF' } || preferredEncoding == 1252) {
-                return win1251
+            val utf8 = String(bytes, Charsets.UTF_8)
+            val replacementCount = utf8.count { it == '\uFFFD' }
+            if (replacementCount <= (bytes.size / 200).coerceAtLeast(2)) {
+                return utf8
             }
         } catch (_: Exception) {}
 
+        // 2. Try Windows-1251 (CP1251 for Russian books)
+        try {
+            val win1251 = String(bytes, Charset.forName("windows-1251"))
+            val cyrillicCount = win1251.count { it in '\u0400'..'\u04FF' }
+            if (cyrillicCount > 0) {
+                // Verify that win1251 is not UTF-8 misdecoded as win1251 ("РўРЎР°...")
+                val krakozyabryCount = win1251.windowed(2).count {
+                    it[0] == 'Р' && (it[1] in '°'..'я' || it[1] in 'А'..'Я' || it[1] in "µ¶·ё№є»ЅїСТУФХЦЧШЩЪЫЬЭЮЯ")
+                }
+                if (krakozyabryCount < (cyrillicCount / 10).coerceAtLeast(3)) {
+                    return win1251
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 3. Fallback to default UTF-8
         return try {
             String(bytes, Charsets.UTF_8)
         } catch (_: Exception) {
@@ -441,12 +464,35 @@ object MobiParser : BookParser {
         cleaned = cleaned.replace(Regex("^[0-9]{4,}[-_]\\s*"), "")
         cleaned = cleaned.replace(Regex("[-_]+"), " ")
         cleaned = cleaned.replace(Regex("\\s+"), " ").trim()
-        if (cleaned.none { it.isUpperCase() }) {
+
+        if (cleaned.none { it in '\u0400'..'\u04FF' }) {
+            cleaned = transliterateSlugToCyrillic(cleaned)
+        } else if (cleaned.none { it.isUpperCase() }) {
             cleaned = cleaned.split(" ").joinToString(" ") { word ->
                 word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
             }
         }
         return cleaned
+    }
+
+    private fun transliterateSlugToCyrillic(text: String): String {
+        var res = text.lowercase()
+        val map = listOf(
+            "shch" to "щ", "sch" to "щ", "ch" to "ч", "sh" to "ш", "zh" to "ж",
+            "kh" to "х", "tz" to "ц", "cz" to "ц", "ya" to "я", "ja" to "я",
+            "yu" to "ю", "ju" to "ю", "yo" to "ё", "jo" to "ё", "yi" to "и",
+            "a" to "а", "b" to "б", "v" to "в", "g" to "г", "d" to "д",
+            "e" to "е", "z" to "з", "i" to "и", "j" to "й", "k" to "к",
+            "l" to "л", "m" to "м", "n" to "н", "o" to "о", "p" to "п",
+            "r" to "р", "s" to "с", "t" to "т", "u" to "у", "f" to "ф",
+            "h" to "х", "c" to "ц", "y" to "ы"
+        )
+        for ((latin, cyr) in map) {
+            res = res.replace(latin, cyr)
+        }
+        return res.split(" ").joinToString(" ") { word ->
+            word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        }
     }
 
     private fun isImage(bytes: ByteArray): Boolean {
