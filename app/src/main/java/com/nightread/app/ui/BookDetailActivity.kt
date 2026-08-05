@@ -518,7 +518,7 @@ class BookDetailActivity : BaseActivity() {
                         val extractedCover = if (book.filePath.endsWith(".epub", ignoreCase = true)) {
                             val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(bookFile)
                             com.nightread.app.data.EpubIdentifierHelper.extractAndSaveEpubCover(bookFile, metadata?.coverPath, book.sha1, this@BookDetailActivity)
-                        } else if (book.filePath.endsWith(".html", ignoreCase = true) || book.filePath.endsWith(".htm", ignoreCase = true) || book.filePath.endsWith(".md", ignoreCase = true) || book.filePath.endsWith(".docx", ignoreCase = true) || book.filePath.endsWith(".doc", ignoreCase = true) || book.filePath.endsWith(".pdf", ignoreCase = true)) {
+                        } else if (book.filePath.endsWith(".html", ignoreCase = true) || book.filePath.endsWith(".htm", ignoreCase = true) || book.filePath.endsWith(".md", ignoreCase = true) || book.filePath.endsWith(".docx", ignoreCase = true) || book.filePath.endsWith(".doc", ignoreCase = true)) {
                             null
                         } else {
                             val parsed = com.nightread.app.service.MobiParser.parse(bookFile, book.title)

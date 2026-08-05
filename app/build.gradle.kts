@@ -106,7 +106,6 @@ configurations.all {
 }
 
 dependencies {
-  implementation("com.itextpdf:itextg:5.5.10")
   coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
   implementation("androidx.media:media:1.6.0")
 

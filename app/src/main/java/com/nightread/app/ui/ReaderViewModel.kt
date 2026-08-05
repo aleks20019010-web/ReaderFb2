@@ -258,9 +258,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                                 var ext = file.extension.lowercase()
                                 val bytes = file.readBytes()
                                 if (ext.isEmpty() || ext == "bin") {
-                                    if (bytes.size > 4 && bytes[0] == '%'.code.toByte() && bytes[1] == 'P'.code.toByte() && bytes[2] == 'D'.code.toByte() && bytes[3] == 'F'.code.toByte()) {
-                                        ext = "pdf"
-                                    } else if (bytes.size > 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte()) {
+                                    if (bytes.size > 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte()) {
                                         ext = "jpg"
                                     } else if (bytes.size > 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte() && bytes[2] == 3.toByte() && bytes[3] == 4.toByte()) {
                                         ext = "zip"
@@ -275,12 +273,11 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                                     "md" -> com.nightread.app.service.MdParser.parse(file, file.nameWithoutExtension).content
                                     "docx" -> com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension).content
                                     "doc" -> com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension).content
-                                    "pdf" -> com.nightread.app.service.PdfParser.parse(file, file.nameWithoutExtension).content
                                     "jpg", "jpeg", "png", "gif" -> "Файл является изображением и не содержит читаемого текста."
                                     else -> decodeBytesToString(bytes)
                                 }
                                 
-                                if (ext in listOf("fb2", "zip", "epub", "mobi", "azw", "azw3", "html", "htm", "md", "docx", "doc", "pdf", "jpg", "jpeg", "png", "gif")) {
+                                if (ext in listOf("fb2", "zip", "epub", "mobi", "azw", "azw3", "html", "htm", "md", "docx", "doc", "jpg", "jpeg", "png", "gif")) {
                                     content = rawContent
                                 } else {
                                     content = TextCleaner.cleanText(rawContent) as String

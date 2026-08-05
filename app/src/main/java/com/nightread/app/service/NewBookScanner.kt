@@ -818,7 +818,7 @@ class NewBookScanner(
             } catch (e: Throwable) {
                 Log.e(TAG, "Error handling mobi/azw file: ${file.absolutePath}", e)
             }
-        } else if (ext in listOf("html", "htm", "md", "docx", "doc", "pdf")) {
+        } else if (ext in listOf("html", "htm", "md", "docx", "doc")) {
             try {
                 if (!file.exists() || !file.canRead()) return
                 val bytes = file.inputStream().buffered().use { it.readBytes() }
@@ -843,7 +843,6 @@ class NewBookScanner(
                     "md" -> com.nightread.app.service.MdParser.parse(file, file.nameWithoutExtension)
                     "docx" -> com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension)
                     "doc" -> com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension)
-                    "pdf" -> com.nightread.app.service.PdfParser.parse(file, file.nameWithoutExtension)
                     else -> com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension)
                 }
                 val book = BookEntity(

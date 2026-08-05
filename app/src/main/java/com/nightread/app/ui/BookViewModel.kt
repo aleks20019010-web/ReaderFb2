@@ -409,7 +409,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 if (ext.isEmpty() || ext == "bin" || ext == "file") {
                     val mimeType = contentResolver.getType(uri)
                     ext = when (mimeType) {
-                        "application/pdf" -> "pdf"
                         "application/epub+zip" -> "epub"
                         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> "docx"
                         "application/msword" -> "doc"
@@ -567,12 +566,11 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             coverPath = coverFile.absolutePath
                         } catch (e: Exception) { Log.e("BookScanner", "Cover error", e) }
                     }
-                } else if (ext in listOf("html", "htm", "md", "docx", "doc", "pdf")) {
+                } else if (ext in listOf("html", "htm", "md", "docx", "doc")) {
                     val parsed = when (ext) {
                         "md" -> com.nightread.app.service.MdParser.parse(localFile, fileName.substringBeforeLast("."))
                         "docx" -> com.nightread.app.service.DocxParser.parse(localFile, fileName.substringBeforeLast("."))
                         "doc" -> com.nightread.app.service.DocParser.parse(localFile, fileName.substringBeforeLast("."))
-                        "pdf" -> com.nightread.app.service.PdfParser.parse(localFile, fileName.substringBeforeLast("."))
                         else -> com.nightread.app.service.HtmlParser.parse(localFile, fileName.substringBeforeLast("."))
                     }
                     parsedTitle = parsed.title
@@ -1041,7 +1039,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 
                 if (filesToProcess.isEmpty()) {
                     withContext(Dispatchers.Main) {
-                        scanProgressText = "Книг (*.fb2, *.zip, *.epub, *.mobi, *.azw, *.azw3, *.md, *.docx, *.doc, *.pdf) не найдено в $rootPath"
+                        scanProgressText = "Книг (*.fb2, *.zip, *.epub, *.mobi, *.azw, *.azw3, *.md, *.docx, *.doc) не найдено в $rootPath"
                     }
                     return@withContext
                 }
@@ -1125,13 +1123,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             }
                             "doc" -> {
                                 val parsed = com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension)
-                                parsedTitle = parsed.title
-                                parsedAuthor = parsed.author
-                                parsedContent = parsed.content
-                                parsedAnnotation = parsed.annotation
-                            }
-                            "pdf" -> {
-                                val parsed = com.nightread.app.service.PdfParser.parse(file, file.nameWithoutExtension)
                                 parsedTitle = parsed.title
                                 parsedAuthor = parsed.author
                                 parsedContent = parsed.content

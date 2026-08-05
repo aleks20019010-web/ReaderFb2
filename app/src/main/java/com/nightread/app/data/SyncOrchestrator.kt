@@ -401,7 +401,7 @@ class SyncOrchestrator(
 
                                         val extLower = originalName.lowercase(java.util.Locale.ROOT)
                                         val isMobi = extLower.endsWith(".mobi") || extLower.endsWith(".azw") || extLower.endsWith(".azw3")
-                                        val isHtml = extLower.endsWith(".html") || extLower.endsWith(".htm") || extLower.endsWith(".md") || extLower.endsWith(".docx") || extLower.endsWith(".doc") || extLower.endsWith(".pdf")
+                                        val isHtml = extLower.endsWith(".html") || extLower.endsWith(".htm") || extLower.endsWith(".md") || extLower.endsWith(".docx") || extLower.endsWith(".doc")
 
                                         if (isEpub) {
                                             val metadata = EpubIdentifierHelper.getEpubMetadata(tempFile)
@@ -419,7 +419,7 @@ class SyncOrchestrator(
                                                 Log.e(TAG, "Failed to get metadata for downloaded EPUB: $originalName")
                                             }
                                         } else if (isHtml) {
-                                            val parsed = if (extLower.endsWith(".md")) com.nightread.app.service.MdParser.parse(tempFile, originalName.substringBeforeLast(".")) else if (extLower.endsWith(".docx")) com.nightread.app.service.DocxParser.parse(tempFile, originalName.substringBeforeLast(".")) else if (extLower.endsWith(".doc")) com.nightread.app.service.DocParser.parse(tempFile, originalName.substringBeforeLast(".")) else if (extLower.endsWith(".pdf")) com.nightread.app.service.PdfParser.parse(tempFile, originalName.substringBeforeLast(".")) else com.nightread.app.service.HtmlParser.parse(tempFile, originalName.substringBeforeLast("."))
+                                            val parsed = if (extLower.endsWith(".md")) com.nightread.app.service.MdParser.parse(tempFile, originalName.substringBeforeLast(".")) else if (extLower.endsWith(".docx")) com.nightread.app.service.DocxParser.parse(tempFile, originalName.substringBeforeLast(".")) else if (extLower.endsWith(".doc")) com.nightread.app.service.DocParser.parse(tempFile, originalName.substringBeforeLast(".")) else com.nightread.app.service.HtmlParser.parse(tempFile, originalName.substringBeforeLast("."))
                                             sha1 = computeSha1(bytes)
                                             titleText = parsed.title
                                             authorText = parsed.author

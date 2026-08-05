@@ -10,7 +10,7 @@ object BookFormatHelper {
 
     // Document formats displayed ONLY in the Documents screen
     val DOCUMENT_EXTENSIONS = setOf(
-        "md", "docx", "doc", "pdf", "html", "htm"
+        "md", "docx", "doc", "html", "htm"
     )
 
     fun isEbook(filePath: String?): Boolean {
@@ -39,9 +39,7 @@ object BookFormatHelper {
                     val header = ByteArray(4)
                     stream.read(header)
                     stream.close()
-                    if (header[0] == '%'.code.toByte() && header[1] == 'P'.code.toByte() && header[2] == 'D'.code.toByte() && header[3] == 'F'.code.toByte()) {
-                        ext = "pdf"
-                    } else if (header[0] == 0xFF.toByte() && header[1] == 0xD8.toByte()) {
+                    if (header[0] == 0xFF.toByte() && header[1] == 0xD8.toByte()) {
                         ext = "jpg"
                     } else if (header[0] == 'P'.code.toByte() && header[1] == 'K'.code.toByte() && header[2] == 3.toByte() && header[3] == 4.toByte()) {
                         ext = "zip"
