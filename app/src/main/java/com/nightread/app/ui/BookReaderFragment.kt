@@ -117,7 +117,9 @@ class BookReaderFragment : Fragment() {
             fun onParagraphVisible(pId: String) {
                 activity?.runOnUiThread {
                     val pIndex = pId.substringAfter("p_").toIntOrNull() ?: 0
-                    viewModel.updateWebViewParagraphProgress(pIndex)
+                    if (pIndex > 0 || (viewModel.bookState.value?.currentProgressChar ?: 0) == 0) {
+                        viewModel.updateWebViewParagraphProgress(pIndex)
+                    }
                 }
             }
 

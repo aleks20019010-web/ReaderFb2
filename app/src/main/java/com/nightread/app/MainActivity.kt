@@ -42,6 +42,8 @@ class MainActivity : BaseActivity() {
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var navView: NavigationView
 
+    private var isMainUiInitialized = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // 1. Theme and super setup, then immediate splash view
         com.nightread.app.data.ThemeHelper.applyTheme(this)
@@ -129,18 +131,13 @@ class MainActivity : BaseActivity() {
             }
 
             if (shouldAutoOpen && lastReadBookSha1 != null) {
+                isSplashActive = false
                 val openIntent = Intent(this@MainActivity, com.nightread.app.ui.BookReaderActivity::class.java).apply {
                     putExtra("BOOK_SHA1", lastReadBookSha1)
                     putExtra("FROM_SPLASH", true)
                 }
                 startActivity(openIntent)
                 overridePendingTransition(0, 0)
-
-                // Initialize main UI behind BookReaderActivity without flickering Library screen
-                delay(400L)
-                isSplashActive = false
-                setContentView(R.layout.activity_main)
-                initMainUI(savedInstanceState)
             } else {
                 // 3. Set main layout and initialize drawer & navigation with smooth fade in
                 isSplashActive = false
@@ -240,6 +237,9 @@ class MainActivity : BaseActivity() {
     }
 
     private fun initMainUI(savedInstanceState: Bundle?) {
+        if (isMainUiInitialized) return
+        isMainUiInitialized = true
+
         lifecycleScope.launch(Dispatchers.IO) {
             com.nightread.app.ui.HyphenatorHelper.init(this@MainActivity)
         }
@@ -367,6 +367,10 @@ class MainActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (!isSplashActive && !isMainUiInitialized) {
+            setContentView(R.layout.activity_main)
+            initMainUI(null)
+        }
         com.nightread.app.service.ReminderWorker.updateLastOpenTime(this)
         com.nightread.app.service.ReminderWorker.schedule(this)
     }

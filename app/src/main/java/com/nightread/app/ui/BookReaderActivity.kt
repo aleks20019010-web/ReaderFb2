@@ -195,6 +195,11 @@ class BookReaderActivity : BaseActivity() {
         tvWarmth = findViewById(R.id.tvWarmth)
         
         // Initialize Reader Splash Screen Background
+        val splashOverlay = findViewById<View>(R.id.reader_splash_overlay)
+        val isFromSplash = intent.getBooleanExtra("FROM_SPLASH", false)
+        if (isFromSplash) {
+            splashOverlay?.visibility = View.GONE
+        }
         val readerSplashStarryBg = findViewById<View>(R.id.reader_splash_starry_bg)?.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
         readerSplashStarryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
@@ -738,7 +743,12 @@ class BookReaderActivity : BaseActivity() {
 
     private fun openBook(book: com.nightread.app.data.BookEntity) {
         val splashOverlay = findViewById<View>(R.id.reader_splash_overlay)
-        splashOverlay?.visibility = View.VISIBLE
+        val isFromSplash = intent.getBooleanExtra("FROM_SPLASH", false)
+        if (isFromSplash) {
+            splashOverlay?.visibility = View.GONE
+        } else {
+            splashOverlay?.visibility = View.VISIBLE
+        }
 
         lifecycleScope.launch(Dispatchers.IO) {
             val file = java.io.File(book.filePath ?: "")
@@ -1449,11 +1459,17 @@ class BookReaderActivity : BaseActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        viewModel.saveProgress()
         brightnessAnimator?.cancel()
         autoBrightnessAnimator?.cancel()
         sleepTimerJob?.cancel()
         silentModeJob?.cancel()
         unregisterSensors()
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        viewModel.saveProgress()
     }
 
     private fun animateBrightnessRise() {
