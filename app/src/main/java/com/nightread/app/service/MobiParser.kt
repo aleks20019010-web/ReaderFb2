@@ -40,25 +40,40 @@ object MobiParser : BookParser {
         val textLength = readUInt32(data, rec0Offset + 4).toInt()
         val recordCount = readUInt16(data, rec0Offset + 8)
 
-        var extractedTitle: String? = null
+        var headerFullName: String? = null
+        var exthTitle: String? = null
         var extractedAuthor: String? = null
         var extractedDescription: String? = null
         var coverImageBytes: ByteArray? = null
         var coverRecordIndex: Int = -1
+
+        var mobiTextEncoding = 65001 // Default UTF-8
+        var extraRecordDataFlags = 0
 
         val mobiMagicOffset = rec0Offset + 16
         if (mobiMagicOffset + 12 <= data.size) {
             val magic = String(data, mobiMagicOffset, 4, Charsets.US_ASCII)
             if (magic == "MOBI") {
                 val mobiHeaderLen = readUInt32(data, mobiMagicOffset + 4).toInt()
+
+                // Read text encoding
+                if (mobiMagicOffset + 32 <= data.size) {
+                    val enc = readUInt32(data, mobiMagicOffset + 28).toInt()
+                    if (enc != 0) mobiTextEncoding = enc
+                }
+
+                // Read extra record data flags (at mobiMagicOffset + 242)
+                if (mobiHeaderLen >= 228 && mobiMagicOffset + 244 <= data.size) {
+                    extraRecordDataFlags = readUInt16(data, mobiMagicOffset + 242)
+                }
                 
-                // Read full name offset/length
+                // Read full name offset/length from MOBI header
                 if (mobiMagicOffset + 88 <= data.size) {
                     val fullNameOffset = readUInt32(data, mobiMagicOffset + 84).toInt()
                     val fullNameLength = readUInt32(data, mobiMagicOffset + 88).toInt()
                     val nameAbsOffset = rec0Offset + fullNameOffset
                     if (fullNameOffset > 0 && fullNameLength > 0 && nameAbsOffset + fullNameLength <= data.size) {
-                        extractedTitle = decodeString(data, nameAbsOffset, fullNameLength).trim()
+                        headerFullName = decodeString(data, nameAbsOffset, fullNameLength, mobiTextEncoding).trim()
                     }
                 }
 
@@ -84,14 +99,14 @@ object MobiParser : BookParser {
                             val valOffset = curr + 8
                             when (recType) {
                                 100 -> { // Author
-                                    extractedAuthor = decodeString(data, valOffset, valDataLen).trim()
+                                    extractedAuthor = decodeString(data, valOffset, valDataLen, mobiTextEncoding).trim()
                                 }
                                 503 -> { // Updated Title
-                                    val t = decodeString(data, valOffset, valDataLen).trim()
-                                    if (t.isNotBlank()) extractedTitle = t
+                                    val t = decodeString(data, valOffset, valDataLen, mobiTextEncoding).trim()
+                                    if (t.isNotBlank()) exthTitle = t
                                 }
                                 103 -> { // Description / Annotation
-                                    extractedDescription = decodeString(data, valOffset, valDataLen).trim()
+                                    extractedDescription = decodeString(data, valOffset, valDataLen, mobiTextEncoding).trim()
                                 }
                                 201 -> { // Cover record index
                                     if (valDataLen >= 4) {
@@ -110,7 +125,6 @@ object MobiParser : BookParser {
         val candidateIndices = mutableListOf<Int>()
         if (coverRecordIndex in 0 until numRecords) {
             candidateIndices.add(coverRecordIndex)
-            // also try relative to firstImageIndex
             var firstImageIndex = -1
             if (mobiMagicOffset + 112 <= data.size) {
                 firstImageIndex = readUInt32(data, mobiMagicOffset + 108).toInt()
@@ -148,7 +162,7 @@ object MobiParser : BookParser {
                 val cEnd = if (idx + 1 < numRecords) readUInt32(data, 78 + (idx + 1) * 8).toInt() else data.size
                 if (cStart in 0 until data.size && cEnd in (cStart + 1)..data.size) {
                     val size = cEnd - cStart
-                    if (size in 512..(2 * 1024 * 1024)) { // 512B to 2MB is normal for cover image
+                    if (size in 512..(2 * 1024 * 1024)) {
                         val candidateBytes = data.copyOfRange(cStart, cEnd)
                         if (isImage(candidateBytes)) {
                             coverImageBytes = candidateBytes
@@ -158,9 +172,6 @@ object MobiParser : BookParser {
                 }
             }
         }
-
-        val finalTitle = extractedTitle.takeIf { !it.isNullOrBlank() } ?: fallbackTitle
-        val finalAuthor = extractedAuthor.takeIf { !it.isNullOrBlank() } ?: "Неизвестен"
 
         // Extract and decompress text records
         val textBytesStream = ByteArrayOutputStream()
@@ -175,28 +186,82 @@ object MobiParser : BookParser {
             }
 
             val chunk = data.copyOfRange(recStart, recEnd)
-            when (compression) {
-                1 -> textBytesStream.write(chunk)
-                2 -> {
-                    val decompressed = decompressPalmDoc(chunk)
-                    textBytesStream.write(decompressed)
-                }
-                else -> {
-                    // Fallback to raw bytes if unknown compression
-                    textBytesStream.write(chunk)
+            var decompressedChunk = when (compression) {
+                1 -> chunk
+                2 -> decompressPalmDoc(chunk)
+                else -> chunk
+            }
+
+            // Trim MOBI trailing extra data entries (line offsets, multibyte overlap)
+            if (extraRecordDataFlags != 0 && decompressedChunk.isNotEmpty()) {
+                decompressedChunk = trimExtraRecordData(decompressedChunk, extraRecordDataFlags)
+            }
+
+            textBytesStream.write(decompressedChunk)
+        }
+
+        val decompressedBytes = textBytesStream.toByteArray()
+        var textContent = decodeBytes(decompressedBytes, mobiTextEncoding)
+
+        // Clean up control characters and replacement chars
+        textContent = textContent
+            .replace("\u0000", "")
+            .replace("\uFFFD", "")
+            .replace(Regex("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]"), "")
+            .replace(Regex("<mbp:pagebreak[^>]*/>", RegexOption.IGNORE_CASE), "<br/>")
+
+        // Look for Title inside text tags if metadata titles look like slugs/filenames
+        var textTitle: String? = null
+        val titleMatch = Regex("<title[^>]*>(.*?)</title>", RegexOption.IGNORE_CASE).find(textContent)
+            ?: Regex("<dc:title[^>]*>(.*?)</dc:title>", RegexOption.IGNORE_CASE).find(textContent)
+        if (titleMatch != null) {
+            val candidate = unescapeHtml(titleMatch.groupValues[1].trim())
+            if (candidate.isNotBlank() && !isSlugTitle(candidate)) {
+                textTitle = candidate
+            }
+        }
+
+        // Also look for Author inside text if missing
+        if (extractedAuthor.isNullOrBlank() || extractedAuthor == "Неизвестен") {
+            val creatorMatch = Regex("<dc:creator[^>]*>(.*?)</dc:creator>", RegexOption.IGNORE_CASE).find(textContent)
+                ?: Regex("<p[^>]*class=\"[^\"]*author[^\"]*\"[^>]*>(.*?)</p>", RegexOption.IGNORE_CASE).find(textContent)
+            if (creatorMatch != null) {
+                val candidate = stripTags(unescapeHtml(creatorMatch.groupValues[1].trim()))
+                if (candidate.isNotBlank()) {
+                    extractedAuthor = candidate
                 }
             }
         }
 
-        val decompressedBytes = textBytesStream.toByteArray()
-        val textContent = decodeBytes(decompressedBytes)
+        // Also look for Description/Annotation inside text if missing
+        if (extractedDescription.isNullOrBlank()) {
+            val descMatch = Regex("<dc:description[^>]*>(.*?)</dc:description>", RegexOption.IGNORE_CASE).find(textContent)
+                ?: Regex("<div[^>]*class=\"[^\"]*annotation[^\"]*\"[^>]*>(.*?)</div>", RegexOption.IGNORE_CASE).find(textContent)
+            if (descMatch != null) {
+                val candidate = stripTags(unescapeHtml(descMatch.groupValues[1].trim()))
+                if (candidate.isNotBlank()) {
+                    extractedDescription = candidate
+                }
+            }
+        }
+
+        // Final title determination prioritizing clean human-readable titles over slugs
+        val finalTitle = when {
+            !headerFullName.isNullOrBlank() && !isSlugTitle(headerFullName) -> headerFullName
+            !textTitle.isNullOrBlank() -> textTitle
+            !exthTitle.isNullOrBlank() && !isSlugTitle(exthTitle) -> exthTitle
+            !headerFullName.isNullOrBlank() -> headerFullName
+            !exthTitle.isNullOrBlank() -> exthTitle
+            else -> fallbackTitle
+        }
+
+        val finalAuthor = extractedAuthor.takeIf { !it.isNullOrBlank() } ?: "Неизвестен"
 
         val isHtml = textContent.contains(Regex("<(?i)[a-z]+[>\\s]"))
-        
+
         val formattedContent = if (isHtml) {
             textContent
         } else {
-            // Convert plain text to HTML paragraphs
             val paragraphs = textContent.split(Regex("\\r?\\n\\s*\\r?\\n|\\r?\\n"))
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
@@ -255,32 +320,81 @@ object MobiParser : BookParser {
         return out.toByteArray()
     }
 
-    private fun decodeString(data: ByteArray, offset: Int, length: Int): String {
-        return decodeBytes(data.copyOfRange(offset, offset + length))
-    }
+    private fun trimExtraRecordData(buf: ByteArray, flags: Int): ByteArray {
+        var current = buf
 
-    private fun decodeBytes(bytes: ByteArray): String {
-        return try {
-            val utf8 = String(bytes, Charsets.UTF_8)
-            // A simple check: if it contains a lot of replacement characters, it's probably not UTF-8
-            if (utf8.count { it == '\uFFFD' } > bytes.size / 5) {
-                throw Exception("Too many replacement characters")
-            }
-            utf8
-        } catch (e: Exception) {
-            try {
-                String(bytes, Charset.forName("windows-1251"))
-            } catch (ex: Exception) {
-                String(bytes, Charset.defaultCharset())
+        // Process trailing entry sizes (bits 1..15)
+        for (b in 1..15) {
+            if ((flags and (1 shl b)) != 0) {
+                if (current.isEmpty()) break
+                var bitpos = 0
+                var extraLen = 0
+                var curSize = current.size
+                while (curSize > 0) {
+                    val v = current[curSize - 1].toInt() and 0xFF
+                    extraLen = extraLen or ((v and 0x7F) shl bitpos)
+                    bitpos += 7
+                    curSize--
+                    if ((v and 0x80) != 0 || curSize == 0 || bitpos >= 28) break
+                }
+                if (extraLen in 1..current.size) {
+                    current = current.copyOfRange(0, current.size - extraLen)
+                }
             }
         }
+
+        // Process bit 0: extra multibyte bytes overlap
+        if ((flags and 1) != 0 && current.isNotEmpty()) {
+            val extraMB = (current.last().toInt() and 0x03) + 1
+            if (extraMB in 1..current.size) {
+                current = current.copyOfRange(0, current.size - extraMB)
+            }
+        }
+
+        return current
+    }
+
+    private fun decodeString(data: ByteArray, offset: Int, length: Int, preferredEncoding: Int = 65001): String {
+        return decodeBytes(data.copyOfRange(offset, offset + length), preferredEncoding)
+    }
+
+    private fun decodeBytes(bytes: ByteArray, preferredEncoding: Int = 65001): String {
+        if (bytes.isEmpty()) return ""
+
+        if (preferredEncoding == 65001) {
+            try {
+                val utf8 = String(bytes, Charsets.UTF_8)
+                val replacementCount = utf8.count { it == '\uFFFD' }
+                if (replacementCount <= bytes.size / 20) {
+                    return utf8
+                }
+            } catch (_: Exception) {}
+        }
+
+        try {
+            val win1251 = String(bytes, Charset.forName("windows-1251"))
+            if (win1251.any { it in '\u0400'..'\u04FF' } || preferredEncoding == 1252) {
+                return win1251
+            }
+        } catch (_: Exception) {}
+
+        return try {
+            String(bytes, Charsets.UTF_8)
+        } catch (_: Exception) {
+            String(bytes, Charset.defaultCharset())
+        }
+    }
+
+    private fun isSlugTitle(title: String): Boolean {
+        val t = title.trim()
+        if (t.matches(Regex("^[0-9]{4,}-[a-zA-Z0-9_-]+$"))) return true
+        if (t.matches(Regex("^[a-zA-Z0-9_-]+$")) && (t.contains("-") || t.contains("_")) && !t.contains(" ")) return true
+        return false
     }
 
     private fun isImage(bytes: ByteArray): Boolean {
         if (bytes.size < 4) return false
-        // JPEG magic FF D8 FF
         if ((bytes[0].toInt() and 0xFF) == 0xFF && (bytes[1].toInt() and 0xFF) == 0xD8 && (bytes[2].toInt() and 0xFF) == 0xFF) return true
-        // PNG magic 89 50 4E 47
         if ((bytes[0].toInt() and 0xFF) == 0x89 && bytes[1] == 'P'.toByte() && bytes[2] == 'N'.toByte() && bytes[3] == 'G'.toByte()) return true
         return false
     }
@@ -290,6 +404,19 @@ object MobiParser : BookParser {
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("\"", "&quot;")
+    }
+
+    private fun unescapeHtml(text: String): String {
+        return text.replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .replace("&#39;", "'")
+    }
+
+    private fun stripTags(text: String): String {
+        return text.replace(Regex("<[^>]*>"), "").trim()
     }
 
     private fun readUInt16(data: ByteArray, offset: Int): Int {
