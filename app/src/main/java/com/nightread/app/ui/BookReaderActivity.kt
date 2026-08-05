@@ -689,14 +689,14 @@ class BookReaderActivity : BaseActivity() {
         findViewById<TextView>(R.id.tvBookTitle)?.setTextColor(barTextColor)
         pageIndicatorView.setTextColor(barTextColor)
         
-        val buttonTint = ColorStateList.valueOf(iconTint)
+        val buttonTint = ColorStateList.valueOf(barTextColor)
         findViewById<ImageButton>(R.id.btnBack)?.imageTintList = buttonTint
         findViewById<ImageButton>(R.id.btnSettings)?.imageTintList = buttonTint
-        findViewById<ImageButton>(R.id.btnTts)?.imageTintList = buttonTint
-        findViewById<ImageButton>(R.id.btnSearch)?.imageTintList = buttonTint
-        findViewById<ImageButton>(R.id.btnChapters)?.imageTintList = buttonTint
-        findViewById<ImageButton>(R.id.btnNotes)?.imageTintList = buttonTint
-        findViewById<ImageButton>(R.id.btnBottomBookmark)?.imageTintList = buttonTint
+        findViewById<ImageButton>(R.id.btnTts)?.imageTintList = null
+        findViewById<ImageButton>(R.id.btnSearch)?.imageTintList = null
+        findViewById<ImageButton>(R.id.btnChapters)?.imageTintList = null
+        findViewById<ImageButton>(R.id.btnNotes)?.imageTintList = null
+        findViewById<ImageButton>(R.id.btnBottomBookmark)?.imageTintList = null
         
         val seekBar = findViewById<SeekBar>(R.id.seekBar)
         seekBar.progressTintList = ColorStateList.valueOf(accentColor)
@@ -833,11 +833,8 @@ class BookReaderActivity : BaseActivity() {
                         btnBottomBookmark.setImageResource(R.drawable.ic_bookmark_filled)
                         btnBottomBookmark.imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFB74D.toInt())
                     } else {
-                        btnBottomBookmark.setImageResource(R.drawable.ic_bookmark)
-                        val buttonTintList = android.content.res.ColorStateList.valueOf(
-                            androidx.core.content.ContextCompat.getColor(this@BookReaderActivity, R.color.icon_tint)
-                        )
-                        btnBottomBookmark.imageTintList = buttonTintList
+                        btnBottomBookmark.setImageResource(R.drawable.ic_reader_bookmark)
+                        btnBottomBookmark.imageTintList = null
                     }
                 }
 

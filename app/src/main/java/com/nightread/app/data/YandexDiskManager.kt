@@ -502,8 +502,10 @@ object YandexDiskManager {
             val book = database.bookDao().getBookBySha1(sha1) ?: return@withContext
             val totalChars = book.totalCharacters
             val progress = if (totalChars > 0) (progressChar.toLong() * 100 / totalChars).toInt().coerceIn(0, 100) else 0
+            val fileName = book.filePath?.let { File(it).name } ?: "${book.title}.fb2"
+            val syncKey = SyncKeyHelper.getSyncKey(fileName, sha1)
             val payload = BookProgressPayload(
-                sha1 = sha1,
+                sha1 = syncKey,
                 page = book.currentPageIndex,
                 charOffset = progressChar,
                 progress = progress,
@@ -512,7 +514,7 @@ object YandexDiskManager {
             )
             val progressAdapter = moshi.adapter(BookProgressPayload::class.java)
             val json = progressAdapter.toJson(payload)
-            val cloudProgressName = "$sha1.json"
+            val cloudProgressName = "$syncKey.json"
             val cleanPath = normalizePath("$syncFolder/Progress/$cloudProgressName")
             val link = try {
                 api.getUploadLink(authHeader, cleanPath)
@@ -522,7 +524,7 @@ object YandexDiskManager {
                 api.getUploadLink(authHeader, cleanPath)
             }
             api.uploadFile(link.href, json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType()))
-            Log.d(TAG, "Direct push progress for book $sha1 successful.")
+            Log.d(TAG, "Direct push progress for book $sha1 (key: $syncKey) successful.")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to push single progress to cloud", e)
         }
@@ -537,6 +539,12 @@ object YandexDiskManager {
             val progressFolder = "$syncFolder/Progress"
             val progressItems = getAllFilesFromFolder(context, authHeader, progressFolder)
             val progressAdapter = moshi.adapter(BookProgressPayload::class.java)
+            val allBooks = database.bookDao().getAllBooksSync()
+            val localBooksByKey = allBooks.associateBy {
+                val fn = it.filePath?.let { p -> File(p).name } ?: "${it.title}.fb2"
+                SyncKeyHelper.getSyncKey(fn, it.sha1)
+            }
+
             for (item in progressItems) {
                 val itemName = item.name ?: ""
                 if (itemName.endsWith(".json")) {
@@ -548,13 +556,13 @@ object YandexDiskManager {
                         if (!jsonStr.isNullOrBlank()) {
                             val cloudProgress = progressAdapter.fromJson(jsonStr)
                             if (cloudProgress != null) {
-                                val localBook = database.bookDao().getBookBySha1(cloudProgress.sha1)
+                                val localBook = localBooksByKey[cloudProgress.sha1] ?: database.bookDao().getBookBySha1(cloudProgress.sha1)
                                 if (localBook != null) {
                                     val isCloudZero = cloudProgress.page == 0 && cloudProgress.charOffset == 0
                                     val isLocalNonZero = localBook.currentPageIndex > 0 || localBook.currentProgressChar > 0
                                     if (cloudProgress.lastReadTime > localBook.lastReadTime && !(isCloudZero && isLocalNonZero)) {
                                         database.bookDao().updateProgressAndPage(
-                                            sha1 = cloudProgress.sha1,
+                                            sha1 = localBook.sha1,
                                             charOffset = cloudProgress.charOffset,
                                             pageIndex = cloudProgress.page,
                                             totalChars = cloudProgress.totalChars,

@@ -199,19 +199,32 @@ class YandexSyncManager(private val context: Context) {
             // Проверка кэша в локальной Room-БД
             for (cloudBook in cloudBooks) {
                 val cleanPath = YandexDiskManager.normalizePath(cloudBook.path ?: "$syncFolder/${cloudBook.name}")
-                val cached = cachedMap[cleanPath]
-                // Strictly check lastModified to avoid unnecessary re-downloads
-                if (cached != null && cached.size == (cloudBook.size ?: 0L) && cached.lastModified == (cloudBook.modified ?: "")) {
-                    updatedCloudBooks.add(cached)
+                if (!SyncKeyHelper.isFb2OrFb2Zip(cloudBook.name)) {
+                    // Для всех файлов кроме FB2/FB2.ZIP ключ синхронизации — имя файла
+                    val syncKey = SyncKeyHelper.getSyncKey(cloudBook.name, null)
+                    val entity = CloudFileEntity(
+                        path = cleanPath,
+                        sha1 = syncKey,
+                        size = cloudBook.size ?: 0L,
+                        lastModified = cloudBook.modified ?: ""
+                    )
+                    updatedCloudBooks.add(entity)
+                    cloudFileDao.insert(entity)
                 } else {
-                    val cloudSize = cloudBook.size ?: 0L
-                    val cloudModified = cloudBook.modified ?: ""
-                    val cachedSize = cached?.size
-                    val cachedModified = cached?.lastModified
-                    Log.d(TAG, "Cache miss for: ${cloudBook.name}. " +
-                            "Cached: (exists: ${cached != null}, size: $cachedSize, mod: $cachedModified). " +
-                            "Cloud: (size: $cloudSize, mod: $cloudModified)")
-                    needsSha1.add(cloudBook)
+                    val cached = cachedMap[cleanPath]
+                    // Strictly check lastModified to avoid unnecessary re-downloads
+                    if (cached != null && cached.size == (cloudBook.size ?: 0L) && cached.lastModified == (cloudBook.modified ?: "")) {
+                        updatedCloudBooks.add(cached)
+                    } else {
+                        val cloudSize = cloudBook.size ?: 0L
+                        val cloudModified = cloudBook.modified ?: ""
+                        val cachedSize = cached?.size
+                        val cachedModified = cached?.lastModified
+                        Log.d(TAG, "Cache miss for FB2: ${cloudBook.name}. " +
+                                "Cached: (exists: ${cached != null}, size: $cachedSize, mod: $cachedModified). " +
+                                "Cloud: (size: $cloudSize, mod: $cloudModified)")
+                        needsSha1.add(cloudBook)
+                    }
                 }
             }
 
@@ -392,27 +405,32 @@ class YandexSyncManager(private val context: Context) {
 
             // Получаем список всех локальных книг из базы данных
             val localBooks = database.bookDao().getAllBooks().first()
-            val localSha1Set = database.bookDao().getAllSha1s().filter { it.isNotEmpty() }.toSet()
-            val cloudSha1Set = updatedCloudBooks.map { it.sha1 }.filter { it.isNotEmpty() }.toSet()
-            
-            Log.d(TAG, "Локальных книг (по SHA-1): ${localSha1Set.size}")
-            Log.d(TAG, "Книг в облаке (по SHA-1): ${cloudSha1Set.size}")
+            val localBooksByKey = mutableMapOf<String, BookEntity>()
+            for (book in localBooks) {
+                val fileName = book.filePath?.let { File(it).name } ?: "${book.title}.fb2"
+                val key = SyncKeyHelper.getSyncKey(fileName, book.sha1)
+                if (key.isNotEmpty()) {
+                    localBooksByKey[key] = book
+                }
+            }
 
-            // Сравнение по SHA-1:
-            // toUpload = localSha1 - cloudSha1 (книги, которых нет на диске)
-            val toUploadSha1s = localSha1Set - cloudSha1Set
+            val localKeySet = localBooksByKey.keys
+            val cloudKeySet = updatedCloudBooks.map { it.sha1 }.filter { it.isNotEmpty() }.toSet()
             
-            // toDownload = cloudSha1 - localSha1 (книги, которых нет локально)
-            val toDownloadSha1s = cloudSha1Set - localSha1Set
+            Log.d(TAG, "Локальных книг (по ключам): ${localKeySet.size}")
+            Log.d(TAG, "Книг в облаке (по ключам): ${cloudKeySet.size}")
 
-            // 1. Книги для скачивания (берём по одной для каждого уникального SHA-1 из toDownload)
-            val cloudBooksBySha1 = updatedCloudBooks.associateBy { it.sha1 }
-            val toDownload = toDownloadSha1s.mapNotNull { cloudBooksBySha1[it] }
+            // Сравнение по ключам (SHA-1 для FB2, имя файла для остальных):
+            val toUploadKeys = localKeySet - cloudKeySet
+            val toDownloadKeys = cloudKeySet - localKeySet
+
+            // 1. Книги для скачивания (берём по одной для каждого уникального ключа)
+            val cloudBooksByKey = updatedCloudBooks.associateBy { it.sha1 }
+            val toDownload = toDownloadKeys.mapNotNull { cloudBooksByKey[it] }
             Log.d(TAG, "Книг для скачивания (разница cloud - local): ${toDownload.size}")
 
-            // 2. Книги для загрузки (берём по одной для каждого уникального SHA-1 из toUpload)
-            val localBooksBySha1 = localBooks.filter { !it.sha1.isNullOrEmpty() }.associateBy { it.sha1 }
-            val toUpload = toUploadSha1s.mapNotNull { localBooksBySha1[it] }
+            // 2. Книги для загрузки (берём по одной для каждого уникального ключа)
+            val toUpload = toUploadKeys.mapNotNull { localBooksByKey[it] }
             Log.d(TAG, "Книг для загрузки (разница local - cloud): ${toUpload.size}")
 
             val duplicates = updatedCloudBooks.size - toDownload.size
@@ -525,13 +543,18 @@ class YandexSyncManager(private val context: Context) {
                         val cloudProgress = progressAdapter.fromJson(jsonStr)
                         if (cloudProgress != null) {
                             cloudProgressMap[cloudProgress.sha1] = cloudProgress
-                            val localBook = repository.getBookBySha1(cloudProgress.sha1)
+                            val allBooksList = repository.allBooks.first()
+                            val localBook = allBooksList.firstOrNull { b ->
+                                val fn = b.filePath?.let { File(it).name } ?: "${b.title}.fb2"
+                                SyncKeyHelper.getSyncKey(fn, b.sha1) == cloudProgress.sha1
+                            } ?: repository.getBookBySha1(cloudProgress.sha1)
+                            
                             if (localBook != null) {
                                 val isCloudZero = cloudProgress.page == 0 && cloudProgress.charOffset == 0
                                 val isLocalNonZero = localBook.currentPageIndex > 0 || localBook.currentProgressChar > 0
                                 if (cloudProgress.lastReadTime > localBook.lastReadTime && !(isCloudZero && isLocalNonZero)) {
                                     database.bookDao().updateProgressAndPage(
-                                        sha1 = cloudProgress.sha1,
+                                        sha1 = localBook.sha1,
                                         charOffset = cloudProgress.charOffset,
                                         pageIndex = cloudProgress.page,
                                         totalChars = cloudProgress.totalChars,
@@ -539,8 +562,8 @@ class YandexSyncManager(private val context: Context) {
                                     )
                                     context.getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE)
                                         .edit()
-                                        .putInt("book_page_${cloudProgress.sha1}", cloudProgress.page)
-                                        .putInt("book_char_offset_${cloudProgress.sha1}", cloudProgress.charOffset)
+                                        .putInt("book_page_${localBook.sha1}", cloudProgress.page)
+                                        .putInt("book_char_offset_${localBook.sha1}", cloudProgress.charOffset)
                                         .apply()
                                     Log.d(TAG, "Обновлен локальный прогресс для книги: ${localBook.title} (смещение: ${cloudProgress.charOffset}, страница: ${cloudProgress.page})")
                                 }
@@ -556,11 +579,12 @@ class YandexSyncManager(private val context: Context) {
             val updatedLocalBooks = repository.allBooks.first()
             for (localBook in updatedLocalBooks) {
                 currentCoroutineContext().ensureActive()
-                val sha1 = localBook.sha1 ?: continue
-                if (sha1.isEmpty()) continue
+                val fileName = localBook.filePath?.let { File(it).name } ?: "${localBook.title}.fb2"
+                val syncKey = SyncKeyHelper.getSyncKey(fileName, localBook.sha1)
+                if (syncKey.isEmpty()) continue
 
-                val cloudProgressName = "$sha1.json"
-                val cloudProgress = cloudProgressMap[sha1]
+                val cloudProgressName = "$syncKey.json"
+                val cloudProgress = cloudProgressMap[syncKey]
 
                 // shouldUpload: if there's no cloud progress and we actually have some progress locally, OR if local is newer than cloud
                 val shouldUploadProgress = (cloudProgress == null && (localBook.currentProgressChar > 0 || localBook.lastReadTime > 0 || localBook.currentPageIndex > 0)) || 
@@ -572,7 +596,7 @@ class YandexSyncManager(private val context: Context) {
                         val progressPercent = if (totalChars > 0) (localBook.currentProgressChar.toLong() * 100 / totalChars).toInt().coerceIn(0, 100) else 0
                         
                         val payload = BookProgressPayload(
-                            sha1 = sha1,
+                            sha1 = syncKey,
                             page = localBook.currentPageIndex,
                             charOffset = localBook.currentProgressChar,
                             progress = progressPercent,

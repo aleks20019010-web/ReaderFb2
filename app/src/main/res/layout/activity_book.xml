@@ -69,7 +69,7 @@
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_arrow_back"
-            app:tint="@color/icon_tint" />
+            app:tint="@color/text_primary" />
 
         <LinearLayout
             android:id="@+id/layoutBookTitleAndSync"
@@ -100,7 +100,6 @@
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_action_search"
-            app:tint="@color/icon_tint"
             android:contentDescription="Поиск RAG по книге" />
 
         <ImageButton
@@ -108,16 +107,14 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_reader_toc"
-            app:tint="@color/icon_tint" />
+            android:src="@drawable/ic_reader_toc" />
 
         <ImageButton
             android:id="@+id/btnNotes"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_note"
-            app:tint="@color/icon_tint" />
+            android:src="@drawable/ic_note" />
 
         <ImageButton
             android:id="@+id/btnTts"
@@ -125,7 +122,6 @@
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_reader_tts"
-            app:tint="@color/icon_tint"
             android:contentDescription="Озвучка TTS" />
 
         <ImageButton
@@ -134,7 +130,7 @@
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_settings_24dp"
-            app:tint="@color/icon_tint" />
+            app:tint="@color/text_primary" />
 
     </LinearLayout>
 
@@ -173,7 +169,6 @@
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_reader_bookmark"
-            app:tint="@color/icon_tint"
             android:contentDescription="Закладка" />
     </LinearLayout>
 

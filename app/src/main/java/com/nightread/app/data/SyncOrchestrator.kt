@@ -98,10 +98,15 @@ class SyncOrchestrator(
                                         val body = YandexDiskManager.api.downloadFile(linkResponse.href)
                                         val jsonStr = body.string()
                                         val cloudProgress = progressAdapter.fromJson(jsonStr)
-                                        if (cloudProgress != null) {
+                                         if (cloudProgress != null) {
                                             cloudProgressMap[cloudProgress.sha1] = cloudProgress
                                             
-                                            val localBook = bookDao.getBookBySha1(cloudProgress.sha1)
+                                            val allLocalBooks = try { bookDao.getAllBooksSync() } catch (e: Exception) { emptyList() }
+                                            val localBook = allLocalBooks.firstOrNull { b ->
+                                                val fn = b.filePath?.let { File(it).name } ?: "${b.title}.fb2"
+                                                SyncKeyHelper.getSyncKey(fn, b.sha1) == cloudProgress.sha1
+                                            } ?: bookDao.getBookBySha1(cloudProgress.sha1)
+
                                             if (localBook != null) {
                                                 // Prevent cloud payload with 0 progress from overwriting actual local reading progress
                                                 val isCloudZero = cloudProgress.page == 0 && cloudProgress.charOffset == 0
@@ -186,46 +191,51 @@ class SyncOrchestrator(
                             try {
                                 var sha1: String? = null
                                 
-                                // 1. Проверяем кэш
-                                val cachedEntry = cacheManager.getByPath(normalizedPath)
-                                if (cachedEntry != null && cachedEntry.lastModified == file.modified && cachedEntry.size == file.size) {
-                                    sha1 = cachedEntry.sha1
-                                }
-
-                                // 2. Проверяем локальные книги по имени и размеру
-                                if (sha1 == null) {
-                                    val matchedSha1 = localBooksByNameAndSize["${file.name}_${file.size}"] 
-                                        ?: localBooksByName[file.name]
-                                        
-                                    if (matchedSha1 != null) {
-                                        sha1 = matchedSha1
-                                        cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
-                                        Log.d(TAG, "Matched by local name/size for ${file.name}: $sha1")
+                                if (!SyncKeyHelper.isFb2OrFb2Zip(file.name)) {
+                                    sha1 = SyncKeyHelper.getSyncKey(file.name, null)
+                                    cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
+                                } else {
+                                    // 1. Проверяем кэш
+                                    val cachedEntry = cacheManager.getByPath(normalizedPath)
+                                    if (cachedEntry != null && cachedEntry.lastModified == file.modified && cachedEntry.size == file.size) {
+                                        sha1 = cachedEntry.sha1
                                     }
-                                }
 
-                                // 3. Если ничего не помогло, скачиваем для вычисления SHA-1 (только новые книги)
-                                if (sha1 == null) {
-                                    Log.d(TAG, "Downloading temporarily and extracting SHA-1 for ${file.name}")
-                                    val tempFile = File(context.cacheDir, "temp_sha_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}_${file.name}")
-                                    try {
-                                        val success = cloudService.downloadFile(normalizedPath, tempFile)
-                                        if (success) {
-                                            sha1 = sha1Extractor.extractSha1(tempFile)
-                                            if (sha1 != null) {
-                                                cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
-                                                Log.d(TAG, "Calculated and cached SHA-1 for ${file.name}: $sha1")
-                                            }
+                                    // 2. Проверяем локальные книги по имени и размеру
+                                    if (sha1 == null) {
+                                        val matchedSha1 = localBooksByNameAndSize["${file.name}_${file.size}"] 
+                                            ?: localBooksByName[file.name]
+                                            
+                                        if (matchedSha1 != null) {
+                                            sha1 = matchedSha1
+                                            cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
+                                            Log.d(TAG, "Matched by local name/size for ${file.name}: $sha1")
                                         }
-                                    } catch (e: Exception) {
-                                        Log.e(TAG, "Error calculating SHA-1 for ${file.name}", e)
-                                    } finally {
+                                    }
+
+                                    // 3. Если ничего не помогло, скачиваем для вычисления SHA-1 (только новые FB2 книги)
+                                    if (sha1 == null) {
+                                        Log.d(TAG, "Downloading temporarily and extracting SHA-1 for FB2: ${file.name}")
+                                        val tempFile = File(context.cacheDir, "temp_sha_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}_${file.name}")
                                         try {
-                                            if (tempFile.exists()) {
-                                                tempFile.delete()
+                                            val success = cloudService.downloadFile(normalizedPath, tempFile)
+                                            if (success) {
+                                                sha1 = sha1Extractor.extractSha1(tempFile)
+                                                if (sha1 != null) {
+                                                    cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
+                                                    Log.d(TAG, "Calculated and cached SHA-1 for ${file.name}: $sha1")
+                                                }
                                             }
                                         } catch (e: Exception) {
-                                            Log.e(TAG, "Failed to delete temp SHA-1 file: ${tempFile.absolutePath}", e)
+                                            Log.e(TAG, "Error calculating SHA-1 for ${file.name}", e)
+                                        } finally {
+                                            try {
+                                                if (tempFile.exists()) {
+                                                    tempFile.delete()
+                                                }
+                                            } catch (e: Exception) {
+                                                Log.e(TAG, "Failed to delete temp SHA-1 file: ${tempFile.absolutePath}", e)
+                                            }
                                         }
                                     }
                                 }
@@ -248,41 +258,32 @@ class SyncOrchestrator(
                 jobs.awaitAll()
             }
 
-            // Stage 3: Получение локальных SHA-1 и сравнение
+            // Stage 3: Получение локальных ключей и сравнение
             progressTracker.startStage("Сравнение с библиотекой", 0, "Сравнение с библиотекой...")
             if (isCancelled) return
             val repository = BookRepository(bookDao, db.noteDao())
             
-            val localSha1s = try {
-                bookDao.getAllSha1s().toSet()
-            } catch (e: Exception) {
-                Log.e(TAG, "Stage 3: Failed to retrieve local SHA-1 set from database", e)
-                throw Exception("Ошибка чтения локальной библиотеки при сопоставлении: ${e.localizedMessage}", e)
-            }
-            val cloudSha1s = cloudSha1Map.values.toSet()
-
-            val toUploadSha1s = localSha1s - cloudSha1s
-            val toDownloadSha1s = cloudSha1s - localSha1s
-
-            val toUploadBooks = mutableListOf<BookEntity>()
-            for (sha1 in toUploadSha1s) {
-                try {
-                    val book = bookDao.getBookBySha1(sha1)
-                    if (book != null) {
-                        toUploadBooks.add(book)
-                        if (toUploadBooks.size <= 10) {
-                            Log.d(TAG, "Problematic book to upload (SHA-1): $sha1, title: ${book.title}")
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error looking up local book by SHA-1: $sha1", e)
+            val localBooksList = try { bookDao.getAllBooksSync() } catch (e: Exception) { emptyList() }
+            val localBooksByKey = mutableMapOf<String, BookEntity>()
+            for (book in localBooksList) {
+                val fileName = book.filePath?.let { File(it).name } ?: "${book.title}.fb2"
+                val key = SyncKeyHelper.getSyncKey(fileName, book.sha1)
+                if (key.isNotEmpty()) {
+                    localBooksByKey[key] = book
                 }
             }
 
-            val toDownloadPaths = toDownloadSha1s.mapNotNull { cloudSha1ToPath[it] }
+            val localKeys = localBooksByKey.keys
+            val cloudKeys = cloudSha1Map.values.toSet()
+
+            val toUploadKeys = localKeys - cloudKeys
+            val toDownloadKeys = cloudKeys - localKeys
+
+            val toUploadBooks = toUploadKeys.mapNotNull { localBooksByKey[it] }
+            val toDownloadPaths = toDownloadKeys.mapNotNull { cloudSha1ToPath[it] }
             
-            toDownloadSha1s.take(10).forEach { sha1 ->
-                Log.d(TAG, "Problematic book to download (SHA-1): $sha1, path: ${cloudSha1ToPath[sha1]}")
+            toDownloadKeys.take(10).forEach { key ->
+                Log.d(TAG, "Problematic book to download (Key): $key, path: ${cloudSha1ToPath[key]}")
             }
 
             progressTracker.updateStats(
@@ -595,11 +596,12 @@ class SyncOrchestrator(
                 coroutineScope {
                     val progressUploadJobs = updatedLocalBooks.map { localBook ->
                         async {
-                            val sha1 = localBook.sha1 ?: return@async
-                            if (sha1.isEmpty()) return@async
+                            val fileName = localBook.filePath?.let { File(it).name } ?: "${localBook.title}.fb2"
+                            val syncKey = SyncKeyHelper.getSyncKey(fileName, localBook.sha1)
+                            if (syncKey.isEmpty()) return@async
                             
-                            val cloudProgressName = "$sha1.json"
-                            val cloudProgress = cloudProgressMap[sha1]
+                            val cloudProgressName = "$syncKey.json"
+                            val cloudProgress = cloudProgressMap[syncKey]
 
                             val shouldUploadProgress = (cloudProgress == null && (localBook.currentProgressChar > 0 || localBook.lastReadTime > 0 || localBook.currentPageIndex > 0)) || 
                                                        (cloudProgress != null && localBook.lastReadTime > cloudProgress.lastReadTime)
@@ -612,7 +614,7 @@ class SyncOrchestrator(
                                         val progressPercent = if (totalChars > 0) (localBook.currentProgressChar.toLong() * 100 / totalChars).toInt().coerceIn(0, 100) else 0
                                         
                                         val payload = BookProgressPayload(
-                                            sha1 = sha1,
+                                            sha1 = syncKey,
                                             page = localBook.currentPageIndex,
                                             charOffset = localBook.currentProgressChar,
                                             progress = progressPercent,
