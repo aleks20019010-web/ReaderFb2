@@ -14,7 +14,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -33,6 +35,7 @@ class NewBookScanner(
 ) {
     val state = MutableStateFlow(ScannerState())
     private val TAG = "NewBookScanner"
+    private val dbMutex = Mutex()
 
     private var isBgScan: Boolean = false
     private var lastStateUpdateMs: Long = 0L
@@ -215,7 +218,7 @@ class NewBookScanner(
             }
 
             val totalToScan = filesToScan.size
-            val maxConcurrency = Runtime.getRuntime().availableProcessors().coerceIn(4, 8)
+            val maxConcurrency = 2
             val semaphore = Semaphore(maxConcurrency)
 
             val addedCountAtomic = AtomicInteger(0)
@@ -241,14 +244,14 @@ class NewBookScanner(
                                 skippedBooks = skippedCount
                             ))
 
-                            withTimeoutOrNull(5000) {
+                            withTimeoutOrNull(8000) {
                                 try {
                                     processFile(file, sha1ConcurrentMap, batchList) { added, skipped ->
                                         if (added > 0) addedCountAtomic.addAndGet(added)
                                         if (skipped > 0) skippedCountAtomic.addAndGet(skipped)
                                     }
                                     prefs.edit().putLong("mod_${file.absolutePath}", file.lastModified()).putLong("size_${file.absolutePath}", file.length()).apply()
-                                } catch (e: Exception) {
+                                } catch (e: Throwable) {
                                     Log.e(TAG, "Error processing ${file.absolutePath}", e)
                                 }
                             }
@@ -276,7 +279,7 @@ class NewBookScanner(
                 addedBooks = addedCountFinal,
                 skippedBooks = skippedCountFinal
             ))
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Critical error during scanBooks", e)
             updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Критическая ошибка сканирования: ${e.localizedMessage}"))
         }
@@ -412,7 +415,7 @@ class NewBookScanner(
             ))
 
             val totalToScan = filesToScan.size
-            val maxConcurrency = Runtime.getRuntime().availableProcessors().coerceIn(4, 8)
+            val maxConcurrency = 2
             val semaphore = Semaphore(maxConcurrency)
 
             val addedCountAtomic = AtomicInteger(0)
@@ -438,7 +441,7 @@ class NewBookScanner(
                                 skippedBooks = skippedCount
                             ))
 
-                            withTimeoutOrNull(5000) {
+                            withTimeoutOrNull(8000) {
                                 try {
                                     processFile(file, sha1ConcurrentMap, batchList) { added, skipped ->
                                         if (added > 0) addedCountAtomic.addAndGet(added)
@@ -449,7 +452,7 @@ class NewBookScanner(
                                         putLong("mod_${file.absolutePath}", file.lastModified())
                                         putLong("size_${file.absolutePath}", file.length())
                                     }.apply()
-                                } catch (e: Exception) {
+                                } catch (e: Throwable) {
                                     Log.e(TAG, "Error incremental processing for ${file.absolutePath}", e)
                                 }
                             }
@@ -482,7 +485,7 @@ class NewBookScanner(
                 skippedBooks = skippedCountFinal
             ))
 
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Critical error during checkForNewBooks", e)
             updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Ошибка обновления: ${e.localizedMessage}"))
         }
@@ -499,13 +502,15 @@ class NewBookScanner(
             }
         }
         if (itemsToInsert.isNotEmpty()) {
-            try {
-                AppDatabase.getDatabase(context).withTransaction {
-                    bookDao.insertBooks(itemsToInsert)
-                }
-            } catch (dbEx: Throwable) {
-                for (book in itemsToInsert) {
-                    try { bookDao.insertBooks(listOf(book)) } catch (sEx: Throwable) {}
+            dbMutex.withLock {
+                try {
+                    AppDatabase.getDatabase(context).withTransaction {
+                        bookDao.insertBooks(itemsToInsert)
+                    }
+                } catch (dbEx: Throwable) {
+                    for (book in itemsToInsert) {
+                        try { bookDao.insertBooks(listOf(book)) } catch (sEx: Throwable) {}
+                    }
                 }
             }
         }
@@ -517,24 +522,28 @@ class NewBookScanner(
         try {
             val uri = android.provider.MediaStore.Files.getContentUri("external")
             val projection = arrayOf(android.provider.MediaStore.Files.FileColumns.DATA)
-            val selection = supportedExtensions.joinToString(" OR ") {
-                "${android.provider.MediaStore.Files.FileColumns.DATA} LIKE '%.${it}'"
-            }
-            context.contentResolver.query(uri, projection, selection, null, null)?.use { cursor ->
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
                 val dataIndex = cursor.getColumnIndex(android.provider.MediaStore.Files.FileColumns.DATA)
                 if (dataIndex != -1) {
                     while (cursor.moveToNext()) {
-                        val path = cursor.getString(dataIndex)
-                        if (!path.isNullOrEmpty()) {
-                            val file = File(path)
-                            if (file.exists() && file.isFile && file.canRead()) {
-                                result.add(file)
+                        try {
+                            val path = cursor.getString(dataIndex)
+                            if (!path.isNullOrEmpty()) {
+                                val ext = path.substringAfterLast('.', "").lowercase()
+                                if (supportedExtensions.contains(ext)) {
+                                    val file = File(path)
+                                    if (file.exists() && file.isFile && file.canRead()) {
+                                        result.add(file)
+                                    }
+                                }
                             }
+                        } catch (e: Throwable) {
+                            // ignore row error
                         }
                     }
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "MediaStore query error: ${e.message}")
         }
         return result

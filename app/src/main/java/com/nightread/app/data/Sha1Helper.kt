@@ -29,23 +29,10 @@ object Sha1Helper {
 
     fun computeSha1FileNio(file: File): String? {
         return try {
-            val digest = MessageDigest.getInstance("SHA-1")
-            java.io.RandomAccessFile(file, "r").use { raf ->
-                val channel = raf.channel
-                val size = channel.size()
-                if (size <= 0) return ""
-                val bufferSize = 1024 * 1024 // 1MB buffer
-                val byteBuffer = java.nio.ByteBuffer.allocateDirect(bufferSize)
-                while (channel.read(byteBuffer) > 0) {
-                    byteBuffer.flip()
-                    digest.update(byteBuffer)
-                    byteBuffer.clear()
-                }
-            }
-            val hash = digest.digest()
-            hash.joinToString("") { "%02x".format(it) }
-        } catch (e: Exception) {
             file.inputStream().buffered().use { computeSha1Stream(it) }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error in computeSha1FileNio for ${file.name}", e)
+            null
         }
     }
 
