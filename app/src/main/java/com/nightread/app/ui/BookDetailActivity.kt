@@ -389,6 +389,78 @@ class BookDetailActivity : BaseActivity() {
             if (book != null) {
                 currentBook = book
                 tvTitle.text = book.title
+
+                // Pre-cache book content and HTML in background for instant opening
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val sha1 = book.sha1
+                    val cacheHtmlFile = java.io.File(cacheDir, "$sha1.html")
+                    if (!cacheHtmlFile.exists()) {
+                        val filePath = book.filePath ?: return@launch
+                        val file = java.io.File(filePath)
+                        if (file.exists()) {
+                            try {
+                                val theme = com.nightread.app.data.SettingsManager.getReadingTheme(this@BookDetailActivity)
+                                val fontSize = com.nightread.app.data.SettingsManager.getFontSize(this@BookDetailActivity)
+                                val lineSpacing = com.nightread.app.data.SettingsManager.getLineSpacing(this@BookDetailActivity)
+                                val fontFamily = com.nightread.app.data.SettingsManager.getFontFamily(this@BookDetailActivity)
+                                val fontWeight = com.nightread.app.data.SettingsManager.getFontWeightAsInt(this@BookDetailActivity)
+
+                                val contentCacheFile = java.io.File(cacheDir, "$sha1.content")
+                                val rawContent = if (contentCacheFile.exists()) {
+                                    contentCacheFile.readText()
+                                } else {
+                                    val parsed = when (file.extension.lowercase()) {
+                                        "fb3" -> com.nightread.app.service.Fb3Parser.parse(file, file.nameWithoutExtension).content
+                                        "epub" -> com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
+                                        "mobi", "azw", "azw3" -> com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension).content
+                                        "html", "htm" -> com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension).content
+                                        "md" -> com.nightread.app.service.MdParser.parse(file, file.nameWithoutExtension).content
+                                        "docx" -> com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension).content
+                                        "doc" -> com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension).content
+                                        else -> file.readText()
+                                    }
+                                    try { contentCacheFile.writeText(parsed) } catch (e: Exception) {}
+                                    parsed
+                                }
+
+                                val converted = if (file.extension.lowercase() == "fb2" || file.name.endsWith(".fb2.zip", true) || file.name.endsWith(".zip", true)) {
+                                    com.nightread.app.service.Fb2ToHtmlConverterAdvanced.convert(
+                                        fb2Xml = rawContent,
+                                        theme = theme,
+                                        fontSize = fontSize,
+                                        lineSpacing = lineSpacing,
+                                        fontFamily = fontFamily,
+                                        fontWeight = fontWeight,
+                                        fontAlignment = "JUSTIFY",
+                                        pageMargins = true,
+                                        paddingTop = 15,
+                                        paddingBottom = 16,
+                                        paddingLeft = 8,
+                                        paddingRight = 8
+                                    )
+                                } else {
+                                    com.nightread.app.service.EpubToHtmlConverter.convert(
+                                        xhtmlContent = rawContent,
+                                        theme = theme,
+                                        fontSize = fontSize,
+                                        lineSpacing = lineSpacing,
+                                        fontFamily = fontFamily,
+                                        fontWeight = fontWeight,
+                                        fontAlignment = "JUSTIFY",
+                                        pageMargins = true,
+                                        paddingTop = 15,
+                                        paddingBottom = 16,
+                                        paddingLeft = 8,
+                                        paddingRight = 8
+                                    )
+                                }
+                                try { cacheHtmlFile.writeText(converted) } catch (e: Exception) {}
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                    }
+                }
                 
                 // Author setup
                 val authorName = book.author ?: "Неизвестен"

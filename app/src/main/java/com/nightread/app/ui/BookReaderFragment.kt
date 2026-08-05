@@ -77,6 +77,7 @@ class BookReaderFragment : Fragment() {
             else -> "#FFFBF0" to "#1A1A1A"
         }
         wv.setBackgroundColor(Color.parseColor(bgColor))
+        wv.setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
         wv.settings.apply {
             javaScriptEnabled = true
@@ -86,7 +87,7 @@ class BookReaderFragment : Fragment() {
             loadWithOverviewMode = true
             useWideViewPort = true
             textZoom = 100
-            cacheMode = WebSettings.LOAD_NO_CACHE
+            cacheMode = WebSettings.LOAD_DEFAULT
         }
 
         wv.isVerticalScrollBarEnabled = false
@@ -243,29 +244,29 @@ class BookReaderFragment : Fragment() {
         val wv = webView ?: return
         val context = requireContext()
         val file = bookFile ?: return
+        val sha1 = bookSha1 ?: "unknown_book"
+        val cacheFile = java.io.File(context.cacheDir, "$sha1.html")
 
         lifecycleScope.launch {
-            val contentStr = withContext(Dispatchers.IO) { viewModel.getContentText() }
-            val theme = SettingsManager.getReadingTheme(context)
-            val fontSize = SettingsManager.getFontSize(context)
-            val lineSpacing = SettingsManager.getLineSpacing(context)
-            val fontFamily = SettingsManager.getFontFamily(context)
-            val fontWeight = SettingsManager.getFontWeightAsInt(context)
-
-            val density = resources.displayMetrics.density
-            val leftRightMarginDp = 8
-            val bottomMarginDp = 16
-
-            val cutoutPx = (activity as? BookReaderActivity)?.systemCutoutTop ?: 0
-            val cutoutDp = (cutoutPx / density).toInt()
-            val topMarginDp = cutoutDp + 3
-
-            val html = withContext(Dispatchers.Default) {
-                val sha1 = bookSha1 ?: "unknown_book"
-                val cacheFile = java.io.File(context.cacheDir, "$sha1.html")
+            val html = withContext(Dispatchers.IO) {
                 if (cacheFile.exists()) {
                     cacheFile.readText()
                 } else {
+                    val contentStr = viewModel.getContentText()
+                    val theme = SettingsManager.getReadingTheme(context)
+                    val fontSize = SettingsManager.getFontSize(context)
+                    val lineSpacing = SettingsManager.getLineSpacing(context)
+                    val fontFamily = SettingsManager.getFontFamily(context)
+                    val fontWeight = SettingsManager.getFontWeightAsInt(context)
+
+                    val density = resources.displayMetrics.density
+                    val leftRightMarginDp = 8
+                    val bottomMarginDp = 16
+
+                    val cutoutPx = (activity as? BookReaderActivity)?.systemCutoutTop ?: 0
+                    val cutoutDp = (cutoutPx / density).toInt()
+                    val topMarginDp = cutoutDp + 3
+
                     val converted = if (file.extension.lowercase() == "fb2" || file.name.endsWith(".fb2.zip", true) || file.name.endsWith(".zip", true)) {
                         Fb2ToHtmlConverterAdvanced.convert(
                             fb2Xml = contentStr,
@@ -320,8 +321,11 @@ class BookReaderFragment : Fragment() {
 
             val modifiedHtml = injectCustomScript(html)
             wv.loadDataWithBaseURL("file:///android_asset/", modifiedHtml, "text/html", "UTF-8", null)
+            updatePreferences()
 
-            lifecycleScope.launch(Dispatchers.Default) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                // Ensure content string and TTS paragraphs are prepped asynchronously without blocking UI
+                viewModel.getContentText()
                 val paragraphs = com.nightread.app.service.TtsExtractor.extractParagraphs(html)
                 com.nightread.app.service.TtsDataProvider.paragraphs = paragraphs
             }

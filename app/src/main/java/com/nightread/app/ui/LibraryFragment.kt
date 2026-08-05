@@ -1,6 +1,7 @@
 package com.nightread.app.ui
 
 import com.nightread.app.data.SettingsManager
+import com.nightread.app.data.ThemeHelper
 import android.view.ViewGroup
 
 import android.animation.AnimatorSet
@@ -82,7 +83,7 @@ class LibraryFragment : Fragment() {
     private lateinit var btnSort: View
     private var isGridView: Boolean = true
     private lateinit var btnSearchToggle: View
-    private lateinit var btnToggleTheme: View
+    private lateinit var btnToggleTheme: com.google.android.material.button.MaterialButton
     private lateinit var btnImport: View
     private lateinit var btnMenu: View
     private lateinit var tvTitle: TextView
@@ -340,6 +341,7 @@ class LibraryFragment : Fragment() {
         adapter = BookAdapter(
             books = emptyList(),
             onOpenBook = { book, coverView ->
+                com.nightread.app.data.BookPreloader.preload(requireContext(), book.sha1, book.filePath)
                 viewModel.openBook(book)
                 androidx.core.view.ViewCompat.setTransitionName(coverView, "cover_${book.sha1}")
                 val intent = android.content.Intent(requireContext(), BookDetailActivity::class.java).apply {
@@ -621,9 +623,11 @@ class LibraryFragment : Fragment() {
         updateThemeButtonState()
 
         btnToggleTheme.setOnClickListener {
-            if (!SettingsManager.isAppAutoThemeEnabled(requireContext())) {
-                toggleTheme()
-            }
+            toggleTheme()
+        }
+        btnToggleTheme.setOnLongClickListener {
+            showThemePopupMenu()
+            true
         }
 
         // Empty state Auto-Scan action
@@ -986,6 +990,13 @@ class LibraryFragment : Fragment() {
         adapter.updateData(filtered, isScanning = isScanning)
         updateBookCount(filtered.size)
 
+        // Preload top recent books in background
+        context?.let { ctx ->
+            filtered.take(3).forEach { book ->
+                com.nightread.app.data.BookPreloader.preload(ctx, book.sha1, book.filePath)
+            }
+        }
+
         if (filtered.isEmpty()) {
             layoutEmptyState.visibility = View.VISIBLE
             if (::progressBarEmptyState.isInitialized) {
@@ -1141,26 +1152,85 @@ class LibraryFragment : Fragment() {
     }
 
     /**
-     * Переключает тему между светлой и тёмной через AppCompatDelegate.setDefaultNightMode().
+     * Переключает тему приложения с выведением подсказки и обновлением иконки.
      */
     fun toggleTheme() {
-        val currentNightMode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
-        val targetMode = if (currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES) {
-            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
-        } else {
-            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
-        }
-        val newThemeStr = if (targetMode == androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES) "dark" else "light"
-        SettingsManager.setTheme(requireContext(), newThemeStr)
-        androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(targetMode)
+        val ctx = context ?: return
+        val isNight = ThemeHelper.shouldBeNightMode(ctx)
+        val newNight = !isNight
+        val newThemeStr = if (newNight) "dark" else "light"
+
+        SettingsManager.setAppAutoThemeEnabled(ctx, false)
+        SettingsManager.setTheme(ctx, newThemeStr)
+        ThemeHelper.applyTheme(ctx)
+
+        val message = if (newNight) "Включена тёмная тема" else "Включена светлая тема"
+        Toast.makeText(ctx, message, Toast.LENGTH_SHORT).show()
         updateThemeButtonState()
+    }
+
+    private fun showThemePopupMenu() {
+        val ctx = context ?: return
+        if (!::btnToggleTheme.isInitialized) return
+        val popup = androidx.appcompat.widget.PopupMenu(ctx, btnToggleTheme)
+        popup.menu.add(0, 1, 0, "☀️ Светлая тема")
+        popup.menu.add(0, 2, 1, "🌙 Тёмная тема")
+        popup.menu.add(0, 3, 2, "⚙️ Системная тема (авто)")
+
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                1 -> {
+                    SettingsManager.setAppAutoThemeEnabled(ctx, false)
+                    SettingsManager.setTheme(ctx, "light")
+                    ThemeHelper.applyTheme(ctx)
+                    Toast.makeText(ctx, "Включена светлая тема", Toast.LENGTH_SHORT).show()
+                }
+                2 -> {
+                    SettingsManager.setAppAutoThemeEnabled(ctx, false)
+                    SettingsManager.setTheme(ctx, "dark")
+                    ThemeHelper.applyTheme(ctx)
+                    Toast.makeText(ctx, "Включена тёмная тема", Toast.LENGTH_SHORT).show()
+                }
+                3 -> {
+                    SettingsManager.setAppAutoThemeEnabled(ctx, true)
+                    ThemeHelper.applyTheme(ctx)
+                    Toast.makeText(ctx, "Включена автоматическая тема", Toast.LENGTH_SHORT).show()
+                }
+            }
+            updateThemeButtonState()
+            true
+        }
+        popup.show()
     }
 
     private fun updateThemeButtonState() {
         if (!::btnToggleTheme.isInitialized) return
-        val isAutoTheme = SettingsManager.isAppAutoThemeEnabled(requireContext())
-        btnToggleTheme.isEnabled = !isAutoTheme
-        btnToggleTheme.alpha = if (isAutoTheme) 0.4f else 1.0f
+        val ctx = context ?: return
+        val isAuto = SettingsManager.isAppAutoThemeEnabled(ctx)
+        val isNight = ThemeHelper.shouldBeNightMode(ctx)
+
+        btnToggleTheme.isEnabled = true
+        btnToggleTheme.alpha = 1.0f
+
+        if (isAuto) {
+            btnToggleTheme.setIconResource(R.drawable.ic_theme_auto)
+            btnToggleTheme.setIconTint(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#FFC107")))
+            val desc = "Тема: Авто (системная). Нажмите для переключения или зажмите для выбора"
+            btnToggleTheme.contentDescription = desc
+            androidx.appcompat.widget.TooltipCompat.setTooltipText(btnToggleTheme, desc)
+        } else if (isNight) {
+            btnToggleTheme.setIconResource(R.drawable.ic_theme_sun)
+            btnToggleTheme.setIconTint(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#FFD54F")))
+            val desc = "Тема: Тёмная. Нажмите для светлой темы или зажмите для выбора"
+            btnToggleTheme.contentDescription = desc
+            androidx.appcompat.widget.TooltipCompat.setTooltipText(btnToggleTheme, desc)
+        } else {
+            btnToggleTheme.setIconResource(R.drawable.ic_theme_moon)
+            btnToggleTheme.setIconTint(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#7E57C2")))
+            val desc = "Тема: Светлая. Нажмите для тёмной темы или зажмите для выбора"
+            btnToggleTheme.contentDescription = desc
+            androidx.appcompat.widget.TooltipCompat.setTooltipText(btnToggleTheme, desc)
+        }
     }
 
     override fun onResume() {

@@ -182,8 +182,8 @@ class BookReaderActivity : BaseActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             com.nightread.app.data.DictionaryDownloader.initDictionaryFromAssets(this@BookReaderActivity)
+            com.nightread.app.ui.HyphenatorHelper.init(this@BookReaderActivity)
         }
-        com.nightread.app.ui.HyphenatorHelper.init(this)
 
         ivBookCoverPage = findViewById(R.id.ivBookCoverPage) ?: ImageView(this)
         rootLayout = findViewById(R.id.rootView)
@@ -1494,7 +1494,7 @@ class BookReaderActivity : BaseActivity() {
             
             splash.animate()
                 .alpha(0f)
-                .setDuration(400)
+                .setDuration(200)
                 .withEndAction {
                     splash.visibility = View.GONE
                 }

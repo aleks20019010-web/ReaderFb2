@@ -234,7 +234,9 @@ class MainActivity : BaseActivity() {
     }
 
     private fun initMainUI(savedInstanceState: Bundle?) {
-        com.nightread.app.ui.HyphenatorHelper.init(this)
+        lifecycleScope.launch(Dispatchers.IO) {
+            com.nightread.app.ui.HyphenatorHelper.init(this@MainActivity)
+        }
 
         drawerLayout = findViewById(R.id.drawer_layout)
         navView = findViewById(R.id.nav_view)

@@ -253,53 +253,65 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                         content = BookCache.content
                     } else {
                         try {
-                            val file = java.io.File(restoredBook.filePath ?: "")
-                            if (file.exists()) {
-                                var ext = file.extension.lowercase()
-                                val bytes = file.readBytes()
-                                if (ext.isEmpty() || ext == "bin") {
-                                    if (bytes.size > 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte()) {
-                                        ext = "jpg"
-                                    } else if (bytes.size > 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte() && bytes[2] == 3.toByte() && bytes[3] == 4.toByte()) {
-                                        ext = "zip"
-                                    }
-                                }
-
-                                val rawContent = when (ext) {
-                                    "zip" -> readZipFile(file)
-                                    "fb3" -> com.nightread.app.service.Fb3Parser.parse(file, file.nameWithoutExtension).content
-                                    "epub" -> com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
-                                    "mobi", "azw", "azw3" -> {
-                                        val parsed = com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension)
-                                        val needTitleFix = com.nightread.app.service.MobiParser.isSlugTitle(book.title)
-                                        val needAuthorFix = book.author == "Неизвестен"
-                                        val needAnnotFix = book.annotation.isNullOrBlank()
-                                        if (needTitleFix || needAuthorFix || needAnnotFix) {
-                                            val updatedBook = book.copy(
-                                                title = if (needTitleFix && parsed.title.isNotBlank()) parsed.title else book.title,
-                                                author = if (needAuthorFix && parsed.author != "Неизвестен") parsed.author else book.author,
-                                                annotation = if (needAnnotFix && !parsed.annotation.isNullOrBlank()) parsed.annotation else book.annotation
-                                            )
-                                            bookDao.updateBook(updatedBook)
-                                            _bookState.value = updatedBook
-                                        }
-                                        parsed.content
-                                    }
-                                    "html", "htm" -> com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension).content
-                                    "md" -> com.nightread.app.service.MdParser.parse(file, file.nameWithoutExtension).content
-                                    "docx" -> com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension).content
-                                    "doc" -> com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension).content
-                                    "jpg", "jpeg", "png", "gif" -> "Файл является изображением и не содержит читаемого текста."
-                                    else -> decodeBytesToString(bytes)
-                                }
-                                
-                                if (ext in listOf("fb2", "fb3", "zip", "epub", "mobi", "azw", "azw3", "html", "htm", "md", "docx", "doc", "jpg", "jpeg", "png", "gif")) {
-                                    content = rawContent
-                                } else {
-                                    content = TextCleaner.cleanText(rawContent) as String
-                                }
+                            val contentCacheFile = java.io.File(appContext.cacheDir, "$bookSha1.content")
+                            if (contentCacheFile.exists()) {
+                                content = contentCacheFile.readText()
                             } else {
-                                content = ""
+                                val file = java.io.File(restoredBook.filePath ?: "")
+                                if (file.exists()) {
+                                    var ext = file.extension.lowercase()
+                                    if (ext.isEmpty() || ext == "bin") {
+                                        val headerBytes = ByteArray(4)
+                                        try {
+                                            java.io.FileInputStream(file).use { fis -> fis.read(headerBytes) }
+                                        } catch (e: Exception) {}
+                                        if (headerBytes.size >= 2 && headerBytes[0] == 0xFF.toByte() && headerBytes[1] == 0xD8.toByte()) {
+                                            ext = "jpg"
+                                        } else if (headerBytes.size >= 4 && headerBytes[0] == 'P'.code.toByte() && headerBytes[1] == 'K'.code.toByte() && headerBytes[2] == 3.toByte() && headerBytes[3] == 4.toByte()) {
+                                            ext = "zip"
+                                        }
+                                    }
+
+                                    val rawContent = when (ext) {
+                                        "zip" -> readZipFile(file)
+                                        "fb3" -> com.nightread.app.service.Fb3Parser.parse(file, file.nameWithoutExtension).content
+                                        "epub" -> com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
+                                        "mobi", "azw", "azw3" -> {
+                                            val parsed = com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension)
+                                            val needTitleFix = com.nightread.app.service.MobiParser.isSlugTitle(book.title)
+                                            val needAuthorFix = book.author == "Неизвестен"
+                                            val needAnnotFix = book.annotation.isNullOrBlank()
+                                            if (needTitleFix || needAuthorFix || needAnnotFix) {
+                                                val updatedBook = book.copy(
+                                                    title = if (needTitleFix && parsed.title.isNotBlank()) parsed.title else book.title,
+                                                    author = if (needAuthorFix && parsed.author != "Неизвестен") parsed.author else book.author,
+                                                    annotation = if (needAnnotFix && !parsed.annotation.isNullOrBlank()) parsed.annotation else book.annotation
+                                                )
+                                                bookDao.updateBook(updatedBook)
+                                                _bookState.value = updatedBook
+                                            }
+                                            parsed.content
+                                        }
+                                        "html", "htm" -> com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension).content
+                                        "md" -> com.nightread.app.service.MdParser.parse(file, file.nameWithoutExtension).content
+                                        "docx" -> com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension).content
+                                        "doc" -> com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension).content
+                                        "jpg", "jpeg", "png", "gif" -> "Файл является изображением и не содержит читаемого текста."
+                                        else -> decodeBytesToString(file.readBytes())
+                                    }
+                                    
+                                    if (ext in listOf("fb2", "fb3", "zip", "epub", "mobi", "azw", "azw3", "html", "htm", "md", "docx", "doc", "jpg", "jpeg", "png", "gif")) {
+                                        content = rawContent
+                                    } else {
+                                        content = TextCleaner.cleanText(rawContent) as String
+                                    }
+
+                                    if (content.isNotEmpty()) {
+                                        try { contentCacheFile.writeText(content) } catch (e: Exception) {}
+                                    }
+                                } else {
+                                    content = ""
+                                }
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("ReaderViewModel", "Error reading book file", e)
