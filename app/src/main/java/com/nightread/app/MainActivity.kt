@@ -128,14 +128,6 @@ class MainActivity : BaseActivity() {
                 delay(1200L - elapsed)
             }
 
-            // 3. Set main layout and initialize drawer & navigation with smooth fade in
-            isSplashActive = false
-            setContentView(R.layout.activity_main)
-            val mainRoot = findViewById<View>(R.id.drawer_layout) ?: findViewById<View>(R.id.fragment_container)
-            mainRoot?.alpha = 0f
-            mainRoot?.animate()?.alpha(1f)?.setDuration(300)?.start()
-            initMainUI(savedInstanceState)
-
             if (shouldAutoOpen && lastReadBookSha1 != null) {
                 val openIntent = Intent(this@MainActivity, com.nightread.app.ui.BookReaderActivity::class.java).apply {
                     putExtra("BOOK_SHA1", lastReadBookSha1)
@@ -143,6 +135,20 @@ class MainActivity : BaseActivity() {
                 }
                 startActivity(openIntent)
                 overridePendingTransition(0, 0)
+
+                // Initialize main UI behind BookReaderActivity without flickering Library screen
+                delay(400L)
+                isSplashActive = false
+                setContentView(R.layout.activity_main)
+                initMainUI(savedInstanceState)
+            } else {
+                // 3. Set main layout and initialize drawer & navigation with smooth fade in
+                isSplashActive = false
+                setContentView(R.layout.activity_main)
+                val mainRoot = findViewById<View>(R.id.drawer_layout) ?: findViewById<View>(R.id.fragment_container)
+                mainRoot?.alpha = 0f
+                mainRoot?.animate()?.alpha(1f)?.setDuration(300)?.start()
+                initMainUI(savedInstanceState)
             }
 
             // 4. Run heavy tasks (library scan & cloud sync) in background AFTER main UI is shown
