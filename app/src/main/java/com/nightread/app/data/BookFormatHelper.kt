@@ -5,7 +5,7 @@ import java.io.File
 object BookFormatHelper {
     // Ebook formats displayed in the main Library screen
     val EBOOK_EXTENSIONS = setOf(
-        "fb2", "zip", "epub", "mobi", "azw", "azw3"
+        "fb2", "fb3", "zip", "epub", "mobi", "azw", "azw3"
     )
 
     // Document formats displayed ONLY in the Documents screen
@@ -16,8 +16,8 @@ object BookFormatHelper {
     fun isEbook(filePath: String?): Boolean {
         if (filePath == null) return false
         val ext = File(filePath).extension.lowercase()
-        // Special case: fb2.zip is an ebook
-        if (filePath.lowercase().endsWith(".fb2.zip")) return true
+        // Special cases: fb2.zip or fb3.zip are ebooks
+        if (filePath.lowercase().endsWith(".fb2.zip") || filePath.lowercase().endsWith(".fb3.zip")) return true
         return EBOOK_EXTENSIONS.contains(ext)
     }
 
@@ -48,7 +48,7 @@ object BookFormatHelper {
             } catch (e: Exception) {}
         }
         
-        if (filePath.lowercase().endsWith(".fb2.zip")) return true
+        if (filePath.lowercase().endsWith(".fb2.zip") || filePath.lowercase().endsWith(".fb3.zip")) return true
         if (ext == "jpg" || ext == "jpeg" || ext == "png" || ext == "gif") return false
         // All supported formats are rendered via WebView
         return EBOOK_EXTENSIONS.contains(ext) || DOCUMENT_EXTENSIONS.contains(ext)

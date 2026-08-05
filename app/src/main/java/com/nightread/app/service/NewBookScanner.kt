@@ -504,7 +504,55 @@ class NewBookScanner(
         onStatsUpdated: (added: Int, skipped: Int) -> Unit
     ) {
         val ext = file.extension.lowercase()
-        if (ext == "fb2") {
+        if (ext == "fb3" || file.name.endsWith(".fb3.zip", true)) {
+            try {
+                if (!file.exists() || !file.canRead()) return
+                val bytes = file.inputStream().buffered().use { it.readBytes() }
+                if (bytes.isEmpty()) return
+                val sha1 = computeSha1(bytes)
+                if (sha1ToPathMap.containsKey(sha1)) {
+                    val existingPath = sha1ToPathMap[sha1]
+                    if (existingPath != file.absolutePath) {
+                        try {
+                            kotlinx.coroutines.runBlocking {
+                                bookDao.updateFilePath(sha1, file.absolutePath)
+                            }
+                            sha1ToPathMap[sha1] = file.absolutePath
+                        } catch (ex: Exception) {
+                            Log.e(TAG, "Failed to update FB3 file path in DB for SHA-1: $sha1", ex)
+                        }
+                    }
+                    onStatsUpdated(0, 1)
+                    return
+                }
+                val parsed = com.nightread.app.service.Fb3Parser.parseFb3(file, file.nameWithoutExtension.removeSuffix(".fb3"))
+                var coverPath: String? = null
+                if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
+                    coverPath = com.nightread.app.service.NewCoverExtractor.saveCoverBytes(parsed.coverBytes, sha1, context)
+                }
+                val book = BookEntity(
+                    sha1 = sha1,
+                    title = parsed.title,
+                    author = parsed.author,
+                    coverGradientStart = getRandomGradientStartColor(),
+                    coverGradientEnd = getRandomGradientEndColor(),
+                    category = "Local",
+                    filePath = file.absolutePath,
+                    coverPath = coverPath,
+                    annotation = parsed.annotation,
+                    fileSize = file.length(),
+                    series = parsed.series,
+                    seriesIndex = parsed.seriesIndex,
+                    language = parsed.language,
+                    isNew = true
+                )
+                batchList.add(book)
+                sha1ToPathMap[sha1] = file.absolutePath
+                onStatsUpdated(1, 0)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error handling fb3 file: ${file.absolutePath}", e)
+            }
+        } else if (ext == "fb2") {
             try {
                 if (!file.exists() || !file.canRead()) {
                     Log.w(TAG, "File does not exist or is not readable: ${file.absolutePath}")
@@ -598,7 +646,7 @@ class NewBookScanner(
                     while (entry != null) {
                         try {
                             val entryName = entry.name.lowercase()
-                            if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".epub") || entryName.endsWith(".html") || entryName.endsWith(".htm"))) {
+                            if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".fb3") || entryName.endsWith(".epub") || entryName.endsWith(".html") || entryName.endsWith(".htm"))) {
                                 val tempBytes = try {
                                     val buffer = java.io.ByteArrayOutputStream()
                                     val data = ByteArray(8192)
@@ -648,8 +696,23 @@ class NewBookScanner(
                                     } else {
                                         val rawText = decodeBytesToString(tempBytes)
                                         val isHtml = entryName.endsWith(".html") || entryName.endsWith(".htm")
-                                        val entryFallback = entryName.removeSuffix(".fb2").removeSuffix(".html").removeSuffix(".htm")
-                                        val metadata = if (isHtml) {
+                                        val isFb3 = entryName.endsWith(".fb3")
+                                        val entryFallback = entryName.removeSuffix(".fb2").removeSuffix(".fb3").removeSuffix(".html").removeSuffix(".htm")
+                                        val (metadata, coverPath) = if (isFb3) {
+                                            val parsedFb3 = com.nightread.app.service.Fb3Parser.parseBytes(tempBytes, entryFallback)
+                                            val covPath = if (parsedFb3.coverBytes != null && parsedFb3.coverBytes.isNotEmpty()) {
+                                                com.nightread.app.service.NewCoverExtractor.saveCoverBytes(parsedFb3.coverBytes, sha1, context)
+                                            } else null
+                                            BookMetadata(
+                                                title = parsedFb3.title,
+                                                author = parsedFb3.author,
+                                                content = parsedFb3.content,
+                                                series = parsedFb3.series,
+                                                seriesIndex = parsedFb3.seriesIndex,
+                                                language = parsedFb3.language,
+                                                annotation = parsedFb3.annotation
+                                            ) to covPath
+                                        } else if (isHtml) {
                                             val parsedHtml = com.nightread.app.service.HtmlParser.parseString(rawText, entryFallback)
                                             BookMetadata(
                                                 title = parsedHtml.title,
@@ -658,16 +721,14 @@ class NewBookScanner(
                                                 series = null,
                                                 seriesIndex = null,
                                                 language = "ru"
-                                            )
+                                            ) to null
                                         } else {
-                                            Fb2Parser.parse(rawText, entryFallback)
+                                            val fb2Meta = Fb2Parser.parse(rawText, entryFallback)
+                                            val covPath = NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
+                                            fb2Meta to covPath
                                         }
                                         
-                                        // Resolve correct Russian title with transliteration support
                                         val resolvedTitle = resolveRussianTitle(metadata.title, entryFallback)
-                                        
-                                        // Extract and save cover image to context.filesDir
-                                        val coverPath = NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
                                         
                                         val book = BookEntity(
                                             sha1 = sha1,

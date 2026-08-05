@@ -325,7 +325,7 @@ class BookDetailActivity : BaseActivity() {
 
         try {
             val mimeType = when {
-                file.name.endsWith(".fb2", ignoreCase = true) || file.name.endsWith(".fb2.zip", ignoreCase = true) -> "application/x-fictionbook+xml"
+                file.name.endsWith(".fb2", ignoreCase = true) || file.name.endsWith(".fb2.zip", ignoreCase = true) || file.name.endsWith(".fb3", ignoreCase = true) || file.name.endsWith(".fb3.zip", ignoreCase = true) -> "application/x-fictionbook+xml"
                 file.name.endsWith(".epub", ignoreCase = true) -> "application/epub+zip"
                 file.name.endsWith(".mobi", ignoreCase = true) || file.name.endsWith(".azw", ignoreCase = true) || file.name.endsWith(".azw3", ignoreCase = true) -> "application/x-mobipocket-ebook"
                 file.name.endsWith(".html", ignoreCase = true) || file.name.endsWith(".htm", ignoreCase = true) -> "text/html"

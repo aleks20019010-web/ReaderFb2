@@ -267,6 +267,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
                                 val rawContent = when (ext) {
                                     "zip" -> readZipFile(file)
+                                    "fb3" -> com.nightread.app.service.Fb3Parser.parse(file, file.nameWithoutExtension).content
                                     "epub" -> com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
                                     "mobi", "azw", "azw3" -> {
                                         val parsed = com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension)
@@ -292,7 +293,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                                     else -> decodeBytesToString(bytes)
                                 }
                                 
-                                if (ext in listOf("fb2", "zip", "epub", "mobi", "azw", "azw3", "html", "htm", "md", "docx", "doc", "jpg", "jpeg", "png", "gif")) {
+                                if (ext in listOf("fb2", "fb3", "zip", "epub", "mobi", "azw", "azw3", "html", "htm", "md", "docx", "doc", "jpg", "jpeg", "png", "gif")) {
                                     content = rawContent
                                 } else {
                                     content = TextCleaner.cleanText(rawContent) as String
@@ -881,12 +882,19 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun readZipFile(file: java.io.File): String {
+        if (com.nightread.app.service.Fb3Parser.isFb3(file)) {
+            val parsed = com.nightread.app.service.Fb3Parser.parseFb3(file, file.nameWithoutExtension)
+            if (parsed.content.isNotBlank()) return parsed.content
+        }
         java.io.FileInputStream(file).use { fis ->
             java.util.zip.ZipInputStream(fis).use { zis ->
                 var entry = zis.nextEntry
                 while (entry != null) {
                     val entryName = entry.name.lowercase()
-                    if (!entry.isDirectory && entryName.endsWith(".fb2")) {
+                    if (!entry.isDirectory && entryName.endsWith(".fb3")) {
+                        val bytes = zis.readBytes()
+                        return com.nightread.app.service.Fb3Parser.parseBytes(bytes, entryName.removeSuffix(".fb3")).content
+                    } else if (!entry.isDirectory && entryName.endsWith(".fb2")) {
                         val bytes = zis.readBytes()
                         return decodeBytesToString(bytes)
                     }

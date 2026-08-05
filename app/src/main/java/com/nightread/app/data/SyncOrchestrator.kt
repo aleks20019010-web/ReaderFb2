@@ -400,10 +400,24 @@ class SyncOrchestrator(
                                         var processSuccess = false
 
                                         val extLower = originalName.lowercase(java.util.Locale.ROOT)
+                                        val isFb3 = extLower.endsWith(".fb3") || extLower.endsWith(".fb3.zip") || com.nightread.app.service.Fb3Parser.isFb3(tempFile)
                                         val isMobi = extLower.endsWith(".mobi") || extLower.endsWith(".azw") || extLower.endsWith(".azw3")
                                         val isHtml = extLower.endsWith(".html") || extLower.endsWith(".htm") || extLower.endsWith(".md") || extLower.endsWith(".docx") || extLower.endsWith(".doc")
 
-                                        if (isEpub) {
+                                        if (isFb3) {
+                                            val parsed = com.nightread.app.service.Fb3Parser.parseFb3(tempFile, originalName.substringBeforeLast(".").removeSuffix(".fb3"))
+                                            sha1 = computeSha1(bytes)
+                                            titleText = parsed.title
+                                            authorText = parsed.author
+                                            seriesText = parsed.series
+                                            seriesIdx = parsed.seriesIndex
+                                            langText = parsed.language
+                                            truncatedAnnotation = parsed.annotation?.take(1000)
+                                            if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
+                                                coverPath = com.nightread.app.service.NewCoverExtractor.saveCoverBytes(parsed.coverBytes, sha1, context)
+                                            }
+                                            processSuccess = true
+                                        } else if (isEpub) {
                                             val metadata = EpubIdentifierHelper.getEpubMetadata(tempFile)
                                             if (metadata != null) {
                                                 sha1 = metadata.identifier

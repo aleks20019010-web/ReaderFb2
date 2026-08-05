@@ -524,7 +524,19 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
                 
-                if (ext == "fb2") {
+                if (ext == "fb3" || fileName.endsWith(".fb3.zip", true)) {
+                    val parsed = com.nightread.app.service.Fb3Parser.parseFb3(localFile, fileName.substringBeforeLast(".").removeSuffix(".fb3"))
+                    parsedTitle = parsed.title
+                    parsedAuthor = parsed.author
+                    parsedContent = parsed.content
+                    parsedSeries = parsed.series
+                    parsedSeriesIndex = parsed.seriesIndex
+                    parsedLanguage = parsed.language
+                    parsedAnnotation = parsed.annotation
+                    if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
+                        coverPath = com.nightread.app.service.NewCoverExtractor.saveCoverBytes(parsed.coverBytes, computedSha1, context)
+                    }
+                } else if (ext == "fb2") {
                     val rawText = decodeBytesToString(bytes)
                     val parsed = parseFb2DetailedText(rawText, parsedTitle)
                     parsedTitle = parsed.title
@@ -536,17 +548,31 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     parsedAnnotation = parsed.annotation
                     coverPath = extractAndSaveCover(localFile, computedSha1)
                 } else if (ext == "zip") {
-                    // Extract data from the uncompressed bytes we found earlier
-                    val rawText = decodeBytesToString(finalBytesForSha1)
-                    val parsed = parseFb2DetailedText(rawText, fileName.substringBeforeLast(".").removeSuffix(".fb2"))
-                    parsedTitle = parsed.title
-                    parsedAuthor = parsed.author
-                    parsedContent = parsed.content
-                    parsedSeries = parsed.series
-                    parsedSeriesIndex = parsed.seriesIndex
-                    parsedLanguage = parsed.language
-                    parsedAnnotation = parsed.annotation
-                    coverPath = extractAndSaveCover(localFile, computedSha1)
+                    if (com.nightread.app.service.Fb3Parser.isFb3(localFile)) {
+                        val parsed = com.nightread.app.service.Fb3Parser.parseFb3(localFile, fileName.substringBeforeLast("."))
+                        parsedTitle = parsed.title
+                        parsedAuthor = parsed.author
+                        parsedContent = parsed.content
+                        parsedSeries = parsed.series
+                        parsedSeriesIndex = parsed.seriesIndex
+                        parsedLanguage = parsed.language
+                        parsedAnnotation = parsed.annotation
+                        if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
+                            coverPath = com.nightread.app.service.NewCoverExtractor.saveCoverBytes(parsed.coverBytes, computedSha1, context)
+                        }
+                    } else {
+                        // Extract data from the uncompressed bytes we found earlier
+                        val rawText = decodeBytesToString(finalBytesForSha1)
+                        val parsed = parseFb2DetailedText(rawText, fileName.substringBeforeLast(".").removeSuffix(".fb2"))
+                        parsedTitle = parsed.title
+                        parsedAuthor = parsed.author
+                        parsedContent = parsed.content
+                        parsedSeries = parsed.series
+                        parsedSeriesIndex = parsed.seriesIndex
+                        parsedLanguage = parsed.language
+                        parsedAnnotation = parsed.annotation
+                        coverPath = extractAndSaveCover(localFile, computedSha1)
+                    }
                 } else if (ext == "epub") {
                     val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(localFile)
                     if (metadata != null) {
