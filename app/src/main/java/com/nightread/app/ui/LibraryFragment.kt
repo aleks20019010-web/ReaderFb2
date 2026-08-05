@@ -621,7 +621,7 @@ class LibraryFragment : Fragment() {
         updateThemeButtonState()
 
         btnToggleTheme.setOnClickListener {
-            if (!SettingsManager.isAutoLightNightEnabled(requireContext())) {
+            if (!SettingsManager.isAppAutoThemeEnabled(requireContext())) {
                 toggleTheme()
             }
         }
@@ -1158,7 +1158,7 @@ class LibraryFragment : Fragment() {
 
     private fun updateThemeButtonState() {
         if (!::btnToggleTheme.isInitialized) return
-        val isAutoTheme = SettingsManager.isAutoLightNightEnabled(requireContext())
+        val isAutoTheme = SettingsManager.isAppAutoThemeEnabled(requireContext())
         btnToggleTheme.isEnabled = !isAutoTheme
         btnToggleTheme.alpha = if (isAutoTheme) 0.4f else 1.0f
     }

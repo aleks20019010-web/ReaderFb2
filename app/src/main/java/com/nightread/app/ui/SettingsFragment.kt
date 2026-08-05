@@ -86,9 +86,9 @@ class SettingsFragment : Fragment() {
         // --- ОФОРМЛЕНИЕ И ТЕМА ---
         val switchAutoTheme = view.findViewById<SwitchCompat>(R.id.switchAutoTheme)
         if (switchAutoTheme != null) {
-            switchAutoTheme.isChecked = SettingsManager.isAutoLightNightEnabled(ctx)
+            switchAutoTheme.isChecked = SettingsManager.isAppAutoThemeEnabled(ctx)
             switchAutoTheme.setOnCheckedChangeListener { _, isChecked ->
-                SettingsManager.setAutoLightNightEnabled(ctx, isChecked)
+                SettingsManager.setAppAutoThemeEnabled(ctx, isChecked)
                 com.nightread.app.data.ThemeHelper.applyTheme(ctx)
             }
         }

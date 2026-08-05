@@ -440,7 +440,6 @@ class BookReaderActivity : BaseActivity() {
             viewModel.themeState.collectLatest { theme ->
                 applyTheme(theme)
                 updatePage()
-                reEvaluateAutoTheme()
             }
         }
 
@@ -1248,9 +1247,8 @@ class BookReaderActivity : BaseActivity() {
         }
         registerSensors()
         animateBrightnessRise()
-        if (com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(this)) {
-            reEvaluateAutoTheme()
-            lastKnownLux?.let { handleLightSensorChanged(it) }
+        if (com.nightread.app.data.SettingsManager.isReaderAutoThemeEnabled(this)) {
+            reEvaluateAutoTheme(lastKnownLux)
         }
         val filter = android.content.IntentFilter(com.nightread.app.service.TtsForegroundService.BROADCAST_TTS_STATUS)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -1302,7 +1300,7 @@ class BookReaderActivity : BaseActivity() {
         
         val sleepTimerEnabled = com.nightread.app.data.SettingsManager.isSleepTimerEnabled(context)
         val shakeEnabled = com.nightread.app.data.SettingsManager.isShakeToExtendEnabled(context) && sleepTimerEnabled
-        val autoThemeEnabled = com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(context)
+        val autoThemeEnabled = com.nightread.app.data.SettingsManager.isReaderAutoThemeEnabled(context)
         
         if (shakeEnabled) {
             if (accelerometerListener == null) {
@@ -1375,7 +1373,7 @@ class BookReaderActivity : BaseActivity() {
         if (com.nightread.app.data.SettingsManager.isAutoBrightnessEnabled(this)) {
             adjustAutoBrightness(lux)
         }
-        reEvaluateAutoTheme()
+        reEvaluateAutoTheme(lux)
     }
 
     private var autoBrightnessAnimator: android.animation.ValueAnimator? = null
@@ -1425,13 +1423,22 @@ class BookReaderActivity : BaseActivity() {
         }
     }
 
-    private fun reEvaluateAutoTheme() {
-        if (com.nightread.app.data.SettingsManager.isAutoLightNightEnabled(this)) {
+    fun onReaderAutoThemeSettingChanged() {
+        updateSensors()
+        if (com.nightread.app.data.SettingsManager.isReaderAutoThemeEnabled(this)) {
+            reEvaluateAutoTheme(lastKnownLux)
+        }
+    }
+
+    private fun reEvaluateAutoTheme(lux: Float? = lastKnownLux) {
+        if (com.nightread.app.data.SettingsManager.isReaderAutoThemeEnabled(this)) {
             val currentTheme = viewModel.themeState.value
             val preferredDayTheme = com.nightread.app.data.SettingsManager.getUserPreferredDayTheme(this)
             val preferredNightTheme = com.nightread.app.data.SettingsManager.getUserPreferredNightTheme(this)
             
-            val targetTheme = if (com.nightread.app.data.ThemeHelper.isNightTime()) preferredNightTheme else preferredDayTheme
+            val currentLux = lux ?: com.nightread.app.data.SettingsManager.getAmbientLux()
+            val isNightLux = currentLux < 15f
+            val targetTheme = if (isNightLux) preferredNightTheme else preferredDayTheme
             
             if (currentTheme != targetTheme) {
                 com.nightread.app.data.SettingsManager.setAutoReadingTheme(this, targetTheme)

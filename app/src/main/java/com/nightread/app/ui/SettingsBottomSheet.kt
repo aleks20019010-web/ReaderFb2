@@ -294,12 +294,13 @@ class SettingsBottomSheet : DialogFragment() {
             }
         }
 
-        // 7b. Auto-Light-Night Switch
+        // 7b. Auto Reader Theme Switch (Light Sensor based)
         val switchAutoLightNight = view.findViewById<SwitchCompat>(R.id.switchAutoLightNight)
-        switchAutoLightNight.isChecked = SettingsManager.isAutoLightNightEnabled(context)
+        switchAutoLightNight.isChecked = SettingsManager.isReaderAutoThemeEnabled(context)
         switchAutoLightNight.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked != SettingsManager.isAutoLightNightEnabled(context)) {
-                SettingsManager.setAutoLightNightEnabled(context, isChecked)
+            if (isChecked != SettingsManager.isReaderAutoThemeEnabled(context)) {
+                SettingsManager.setReaderAutoThemeEnabled(context, isChecked)
+                (activity as? BookReaderActivity)?.onReaderAutoThemeSettingChanged()
             }
         }
 

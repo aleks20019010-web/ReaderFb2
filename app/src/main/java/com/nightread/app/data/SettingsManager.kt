@@ -23,6 +23,8 @@ object SettingsManager {
 
 
     const val KEY_AUTO_DISCOVERY = "auto_discovery"
+    const val KEY_APP_AUTO_THEME = "app_auto_theme"
+    const val KEY_READER_AUTO_THEME = "reader_auto_theme"
     const val KEY_AUTO_THEME = "auto_theme"
     const val KEY_AUTO_LIGHT_NIGHT = "auto_light_night"
     const val KEY_AUTO_BRIGHTNESS = "auto_brightness"
@@ -86,6 +88,8 @@ object SettingsManager {
 
     private var cachedOnboardingCompleted: Boolean? = null 
     private var cachedAutoDiscovery: Boolean? = null
+    private var cachedAppAutoTheme: Boolean? = null
+    private var cachedReaderAutoTheme: Boolean? = null
     private var cachedAutoTheme: Boolean? = null
     private var cachedAutoLightNight: Boolean? = null
     private var cachedAutoBrightness: Boolean? = null
@@ -132,33 +136,41 @@ object SettingsManager {
         notifyChanged()
     }
 
-    fun isAutoThemeEnabled(context: Context): Boolean {
-        if (cachedAutoTheme == null) {
-            cachedAutoTheme = getPrefs(context).getBoolean(KEY_AUTO_THEME, true)
+    fun isAppAutoThemeEnabled(context: Context): Boolean {
+        if (cachedAppAutoTheme == null) {
+            cachedAppAutoTheme = getPrefs(context).getBoolean(KEY_APP_AUTO_THEME, false)
         }
-        return cachedAutoTheme!!
+        return cachedAppAutoTheme!!
     }
 
-    fun setAutoThemeEnabled(context: Context, enabled: Boolean) {
-        if (cachedAutoTheme == enabled) return
-        cachedAutoTheme = enabled
-        getPrefs(context).edit().putBoolean(KEY_AUTO_THEME, enabled).apply()
+    fun setAppAutoThemeEnabled(context: Context, enabled: Boolean) {
+        if (cachedAppAutoTheme == enabled) return
+        cachedAppAutoTheme = enabled
+        getPrefs(context).edit().putBoolean(KEY_APP_AUTO_THEME, enabled).apply()
         notifyChanged()
     }
 
-    fun isAutoLightNightEnabled(context: Context): Boolean {
-        if (cachedAutoLightNight == null) {
-            cachedAutoLightNight = getPrefs(context).getBoolean(KEY_AUTO_LIGHT_NIGHT, false)
+    fun isReaderAutoThemeEnabled(context: Context): Boolean {
+        if (cachedReaderAutoTheme == null) {
+            cachedReaderAutoTheme = getPrefs(context).getBoolean(KEY_READER_AUTO_THEME, false)
         }
-        return cachedAutoLightNight!!
+        return cachedReaderAutoTheme!!
     }
 
-    fun setAutoLightNightEnabled(context: Context, enabled: Boolean) {
-        if (cachedAutoLightNight == enabled) return
-        cachedAutoLightNight = enabled
-        getPrefs(context).edit().putBoolean(KEY_AUTO_LIGHT_NIGHT, enabled).apply()
+    fun setReaderAutoThemeEnabled(context: Context, enabled: Boolean) {
+        if (cachedReaderAutoTheme == enabled) return
+        cachedReaderAutoTheme = enabled
+        getPrefs(context).edit().putBoolean(KEY_READER_AUTO_THEME, enabled).apply()
         notifyChanged()
     }
+
+    fun isAutoThemeEnabled(context: Context): Boolean = isAppAutoThemeEnabled(context)
+
+    fun setAutoThemeEnabled(context: Context, enabled: Boolean) = setAppAutoThemeEnabled(context, enabled)
+
+    fun isAutoLightNightEnabled(context: Context): Boolean = isReaderAutoThemeEnabled(context)
+
+    fun setAutoLightNightEnabled(context: Context, enabled: Boolean) = setReaderAutoThemeEnabled(context, enabled)
 
     fun isAutoBrightnessEnabled(context: Context): Boolean {
         if (cachedAutoBrightness == null) {

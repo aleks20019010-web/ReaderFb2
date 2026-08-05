@@ -99,9 +99,9 @@ class SettingsActivity : BaseActivity() {
         // --- ОФОРМЛЕНИЕ И ТЕМА ---
         val switchAutoTheme = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchAutoTheme)
         if (switchAutoTheme != null) {
-            switchAutoTheme.isChecked = SettingsManager.isAutoLightNightEnabled(this)
+            switchAutoTheme.isChecked = SettingsManager.isAppAutoThemeEnabled(this)
             switchAutoTheme.setOnCheckedChangeListener { _, isChecked ->
-                SettingsManager.setAutoLightNightEnabled(this, isChecked)
+                SettingsManager.setAppAutoThemeEnabled(this, isChecked)
                 com.nightread.app.data.ThemeHelper.applyTheme(this)
             }
         }

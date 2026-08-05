@@ -20,7 +20,10 @@ object ThemeHelper {
     }
 
     fun shouldBeNightMode(context: Context): Boolean {
-        if (!SettingsManager.isAutoLightNightEnabled(context)) {
+        if (!SettingsManager.isAppAutoThemeEnabled(context)) {
+            val themeSetting = SettingsManager.getTheme(context)
+            if (themeSetting == "dark") return true
+            if (themeSetting == "light") return false
             val currentNightMode = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
             return currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
         }
@@ -29,17 +32,15 @@ object ThemeHelper {
     }
 
     fun applyTheme(context: Context) {
-        if (SettingsManager.isAutoLightNightEnabled(context)) {
-            val isNight = shouldBeNightMode(context)
-            val targetMode = if (isNight) {
-                AppCompatDelegate.MODE_NIGHT_YES
-            } else {
-                AppCompatDelegate.MODE_NIGHT_NO
-            }
+        val isNight = shouldBeNightMode(context)
+        val targetMode = if (isNight) {
+            AppCompatDelegate.MODE_NIGHT_YES
+        } else {
+            AppCompatDelegate.MODE_NIGHT_NO
+        }
 
-            if (AppCompatDelegate.getDefaultNightMode() != targetMode) {
-                AppCompatDelegate.setDefaultNightMode(targetMode)
-            }
+        if (AppCompatDelegate.getDefaultNightMode() != targetMode) {
+            AppCompatDelegate.setDefaultNightMode(targetMode)
         }
     }
 }

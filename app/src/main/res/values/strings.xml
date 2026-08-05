@@ -6,8 +6,8 @@
     <string name="unknown_title">Неизвестно</string>
     <string name="local_txt">Локальный TXT</string>
     <string name="yandex_client_id">bfdea73d1e6242ba826f15d9d0374005</string>
-    <string name="auto_light_night_title">Авто тема</string>
-    <string name="auto_light_night_desc">Менять тему по датчику освещенности (Сепия/Ночь)</string>
+    <string name="auto_light_night_title">Авто тема для чтения</string>
+    <string name="auto_light_night_desc">Переключение темы экрана чтения по датчику освещенности</string>
     <string name="auto_brightness_title">Автояркость</string>
     <string name="auto_brightness_desc">Автоматическая подстройка яркости по датчику освещенности</string>
     <string name="amber_filter_title">Защита зрения</string>
@@ -67,8 +67,8 @@
 
     <!-- Settings Screen -->
     <string name="settings_section_appearance">ОФОРМЛЕНИЕ И ТЕМА</string>
-    <string name="settings_auto_theme">Автосмена темы</string>
-    <string name="settings_auto_theme_desc">Автоматическое переключение ночной темы (с 20:00 до 06:00)</string>
+    <string name="settings_auto_theme">Авто тема приложения</string>
+    <string name="settings_auto_theme_desc">Переключение светлой и темной темы приложения строго по времени (20:00 - 06:00)</string>
     <string name="settings_section_sync">СИНХРОНИЗАЦИЯ</string>
     <string name="settings_auto_sync">Авто-синхронизация</string>
     <string name="settings_auto_sync_desc">Синхронизация книг в фоновом режиме</string>
