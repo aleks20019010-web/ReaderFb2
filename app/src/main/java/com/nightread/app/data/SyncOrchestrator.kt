@@ -75,67 +75,105 @@ class SyncOrchestrator(
             val db = AppDatabase.getDatabase(context)
             val bookDao = db.bookDao()
 
-            // Fetch progress items from Yandex Disk
-            val progressItems = try {
-                YandexDiskManager.getAllFilesFromFolder(context, authHeader, progressFolder)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to fetch progress files list", e)
-                emptyList()
+            val cloudManifest = try { YandexDiskManager.fetchSyncManifestFromCloud(context) } catch (e: Exception) { null }
+            val allLocalBooks = try { bookDao.getAllBooksSync() } catch (e: Exception) { emptyList() }
+            val localBooksBySyncKey = HashMap<String, BookEntity>()
+            val localBooksBySha1 = HashMap<String, BookEntity>()
+            for (b in allLocalBooks) {
+                val fn = b.filePath?.let { File(it).name } ?: "${b.title}.fb2"
+                val syncKey = SyncKeyHelper.getSyncKey(fn, b.sha1)
+                if (syncKey.isNotEmpty()) {
+                    localBooksBySyncKey[syncKey] = b
+                }
+                if (!b.sha1.isNullOrEmpty()) {
+                    localBooksBySha1[b.sha1] = b
+                }
             }
 
-            if (progressItems.isNotEmpty()) {
-                progressTracker.startStage("Синхронизация прогресса", progressItems.size, "Синхронизация прогресса чтения...")
-                val progressSemaphore = Semaphore(10)
-                coroutineScope {
-                    val progressJobs = progressItems.map { item ->
-                        async {
-                            if (item.name.endsWith(".json")) {
-                                progressSemaphore.withPermit {
-                                    if (isCancelled) return@async
-                                    try {
-                                        val cleanPath = YandexDiskManager.normalizePath(item.path ?: "$progressFolder/${item.name}")
-                                        val linkResponse = YandexDiskManager.api.getDownloadLink(authHeader, cleanPath)
-                                        val body = YandexDiskManager.api.downloadFile(linkResponse.href)
-                                        val jsonStr = body.string()
-                                        val cloudProgress = progressAdapter.fromJson(jsonStr)
-                                         if (cloudProgress != null) {
-                                            cloudProgressMap[cloudProgress.sha1] = cloudProgress
-                                            
-                                            val allLocalBooks = try { bookDao.getAllBooksSync() } catch (e: Exception) { emptyList() }
-                                            val localBook = allLocalBooks.firstOrNull { b ->
-                                                val fn = b.filePath?.let { File(it).name } ?: "${b.title}.fb2"
-                                                SyncKeyHelper.getSyncKey(fn, b.sha1) == cloudProgress.sha1
-                                            } ?: bookDao.getBookBySha1(cloudProgress.sha1)
+            if (cloudManifest != null && cloudManifest.items.isNotEmpty()) {
+                Log.d(TAG, "Fast sync: Loaded cloud sync manifest with ${cloudManifest.items.size} items in 1 HTTP request.")
+                progressTracker.startStage("Синхронизация прогресса", cloudManifest.items.size, "Быстрая синхронизация прогресса...")
+                for (cloudProgress in cloudManifest.items) {
+                    cloudProgressMap[cloudProgress.sha1] = cloudProgress
+                    val localBook = localBooksBySyncKey[cloudProgress.sha1] ?: localBooksBySha1[cloudProgress.sha1]
+                    if (localBook != null) {
+                        val isCloudZero = cloudProgress.page == 0 && cloudProgress.charOffset == 0
+                        val isLocalNonZero = localBook.currentPageIndex > 0 || localBook.currentProgressChar > 0
+                        if (cloudProgress.lastReadTime > localBook.lastReadTime && !(isCloudZero && isLocalNonZero)) {
+                            bookDao.updateProgressAndPage(
+                                sha1 = localBook.sha1,
+                                charOffset = cloudProgress.charOffset,
+                                pageIndex = cloudProgress.page,
+                                totalChars = cloudProgress.totalChars,
+                                timestamp = cloudProgress.lastReadTime
+                            )
+                            context.getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE)
+                                .edit()
+                                .putInt("book_page_${cloudProgress.sha1}", cloudProgress.page)
+                                .putInt("book_char_offset_${cloudProgress.sha1}", cloudProgress.charOffset)
+                                .apply()
+                            Log.d(TAG, "Updated local progress via manifest for: ${localBook.title}")
+                        }
+                    }
+                }
+            } else {
+                // Fetch progress items from Yandex Disk
+                val progressItems = try {
+                    YandexDiskManager.getAllFilesFromFolder(context, authHeader, progressFolder)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to fetch progress files list", e)
+                    emptyList()
+                }
 
-                                            if (localBook != null) {
-                                                // Prevent cloud payload with 0 progress from overwriting actual local reading progress
-                                                val isCloudZero = cloudProgress.page == 0 && cloudProgress.charOffset == 0
-                                                val isLocalNonZero = localBook.currentPageIndex > 0 || localBook.currentProgressChar > 0
-                                                if (cloudProgress.lastReadTime > localBook.lastReadTime && !(isCloudZero && isLocalNonZero)) {
-                                                    bookDao.updateProgressAndPage(
-                                                        sha1 = cloudProgress.sha1,
-                                                        charOffset = cloudProgress.charOffset,
-                                                        pageIndex = cloudProgress.page,
-                                                        totalChars = cloudProgress.totalChars,
-                                                        timestamp = cloudProgress.lastReadTime
-                                                    )
-                                                    context.getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE)
-                                                        .edit()
-                                                        .putInt("book_page_${cloudProgress.sha1}", cloudProgress.page)
-                                                        .putInt("book_char_offset_${cloudProgress.sha1}", cloudProgress.charOffset)
-                                                        .apply()
-                                                    Log.d(TAG, "Updated local progress for: ${localBook.title} (offset: ${cloudProgress.charOffset}, page: ${cloudProgress.page})")
+                if (progressItems.isNotEmpty()) {
+                    progressTracker.startStage("Синхронизация прогресса", progressItems.size, "Синхронизация прогресса чтения...")
+                    val progressSemaphore = Semaphore(10)
+                    coroutineScope {
+                        val progressJobs = progressItems.map { item ->
+                            async {
+                                if (item.name.endsWith(".json")) {
+                                    progressSemaphore.withPermit {
+                                        if (isCancelled) return@async
+                                        try {
+                                            val cleanPath = YandexDiskManager.normalizePath(item.path ?: "$progressFolder/${item.name}")
+                                            val linkResponse = YandexDiskManager.api.getDownloadLink(authHeader, cleanPath)
+                                            val body = YandexDiskManager.api.downloadFile(linkResponse.href)
+                                            val jsonStr = body.string()
+                                            val cloudProgress = progressAdapter.fromJson(jsonStr)
+                                             if (cloudProgress != null) {
+                                                cloudProgressMap[cloudProgress.sha1] = cloudProgress
+                                                
+                                                val localBook = localBooksBySyncKey[cloudProgress.sha1] ?: localBooksBySha1[cloudProgress.sha1]
+
+                                                if (localBook != null) {
+                                                    val isCloudZero = cloudProgress.page == 0 && cloudProgress.charOffset == 0
+                                                    val isLocalNonZero = localBook.currentPageIndex > 0 || localBook.currentProgressChar > 0
+                                                    if (cloudProgress.lastReadTime > localBook.lastReadTime && !(isCloudZero && isLocalNonZero)) {
+                                                        bookDao.updateProgressAndPage(
+                                                            sha1 = localBook.sha1,
+                                                            charOffset = cloudProgress.charOffset,
+                                                            pageIndex = cloudProgress.page,
+                                                            totalChars = cloudProgress.totalChars,
+                                                            timestamp = cloudProgress.lastReadTime
+                                                        )
+                                                        context.getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE)
+                                                            .edit()
+                                                            .putInt("book_page_${cloudProgress.sha1}", cloudProgress.page)
+                                                            .putInt("book_char_offset_${cloudProgress.sha1}", cloudProgress.charOffset)
+                                                            .apply()
+                                                        Log.d(TAG, "Updated local progress for: ${localBook.title} (offset: ${cloudProgress.charOffset}, page: ${cloudProgress.page})")
+                                                    }
                                                 }
                                             }
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Error downloading or applying progress for ${item.name}", e)
                                         }
-                                    } catch (e: Exception) {
-                                        Log.e(TAG, "Error downloading or applying progress for ${item.name}", e)
                                     }
                                 }
                             }
                         }
+                        progressJobs.awaitAll()
                     }
-                    progressJobs.awaitAll()
                 }
             }
 
@@ -167,7 +205,7 @@ class SyncOrchestrator(
             val cloudSha1ToPath = java.util.concurrent.ConcurrentHashMap<String, String>() // sha1 -> cloudPath
             
             val processedCount = java.util.concurrent.atomic.AtomicInteger(0)
-            val semaphore = Semaphore(5)
+            val semaphore = Semaphore(8)
 
             // Предварительная загрузка локальных книг для сопоставления по имени и размеру
             val localBooks = try { bookDao.getAllBooksSync() } catch (e: Exception) { emptyList() }
@@ -300,11 +338,11 @@ class SyncOrchestrator(
             val uploadProcessedCount = java.util.concurrent.atomic.AtomicInteger(0)
             if (toUploadBooks.isNotEmpty()) {
                 progressTracker.startStage("Загрузка на диск", toUploadBooks.size, "Загрузка книг на Яндекс Диск...")
-                val semaphore = Semaphore(5)
+                val uploadSemaphore = Semaphore(8)
                 coroutineScope {
                     val jobs = toUploadBooks.map { book ->
                         async {
-                            semaphore.withPermit {
+                            uploadSemaphore.withPermit {
                                 if (isCancelled) return@async
                                 try {
                                     val localFile = book.filePath?.let { File(it) }
@@ -375,11 +413,11 @@ class SyncOrchestrator(
 
             if (toDownloadPaths.isNotEmpty()) {
                 progressTracker.startStage("Скачивание с диска", toDownloadPaths.size, "Скачивание новых книг...")
-                val semaphore = Semaphore(5)
+                val downloadSemaphore = Semaphore(8)
                 coroutineScope {
                     val jobs = toDownloadPaths.map { remotePath ->
                         async {
-                            semaphore.withPermit {
+                            downloadSemaphore.withPermit {
                                 if (isCancelled) return@async
 
                                 val originalName = File(remotePath).name
@@ -655,6 +693,7 @@ class SyncOrchestrator(
                     uploadedCount = uploadedCount.get()
                 )
             }
+            try { YandexDiskManager.pushSyncManifestToCloud(context) } catch (e: Exception) { Log.e(TAG, "Failed pushing manifest", e) }
             YandexDiskManager.saveSyncTimestamp(context)
 
         } catch (e: Exception) {

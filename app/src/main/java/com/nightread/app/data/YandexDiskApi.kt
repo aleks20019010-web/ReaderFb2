@@ -71,6 +71,13 @@ data class BookProgressPayload(
     @Json(name = "totalChars") val totalChars: Int
 )
 
+@JsonClass(generateAdapter = true)
+data class SyncManifestPayload(
+    @Json(name = "version") val version: Int = 1,
+    @Json(name = "lastUpdated") val lastUpdated: Long = System.currentTimeMillis(),
+    @Json(name = "items") val items: List<BookProgressPayload> = emptyList()
+)
+
 interface YandexDiskApi {
 
     @GET("v1/disk")

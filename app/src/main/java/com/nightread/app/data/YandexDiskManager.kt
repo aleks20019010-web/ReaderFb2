@@ -95,6 +95,8 @@ object YandexDiskManager {
         .build()
 
     private val okHttpClient = OkHttpClient.Builder()
+        .connectionPool(okhttp3.ConnectionPool(10, 5, TimeUnit.MINUTES))
+        .protocols(listOf(okhttp3.Protocol.HTTP_2, okhttp3.Protocol.HTTP_1_1))
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
@@ -588,9 +590,70 @@ object YandexDiskManager {
         }
     }
 
+    suspend fun pushSyncManifestToCloud(context: Context): Boolean = withContext(Dispatchers.IO) {
+        val syncFolder = getSyncFolder(context)
+        val token = getToken(context) ?: return@withContext false
+        val authHeader = "OAuth $token"
+        try {
+            val database = AppDatabase.getDatabase(context)
+            val books = database.bookDao().getAllBooksSync()
+            val items = books.map { book ->
+                val fileName = book.filePath?.let { File(it).name } ?: "${book.title}.fb2"
+                val syncKey = SyncKeyHelper.getSyncKey(fileName, book.sha1)
+                val totalChars = book.totalCharacters
+                val progress = if (totalChars > 0) (book.currentProgressChar.toLong() * 100 / totalChars).toInt().coerceIn(0, 100) else 0
+                BookProgressPayload(
+                    sha1 = syncKey,
+                    page = book.currentPageIndex,
+                    charOffset = book.currentProgressChar,
+                    progress = progress,
+                    lastReadTime = book.lastReadTime,
+                    totalChars = totalChars
+                )
+            }
+            val manifest = SyncManifestPayload(version = 1, lastUpdated = System.currentTimeMillis(), items = items)
+            val adapter = moshi.adapter(SyncManifestPayload::class.java)
+            val json = adapter.toJson(manifest)
+            val cleanPath = normalizePath("$syncFolder/sync_index.json")
+            val link = try {
+                api.getUploadLink(authHeader, cleanPath)
+            } catch (e: Exception) {
+                initDirectories(authHeader, syncFolder)
+                api.getUploadLink(authHeader, cleanPath)
+            }
+            api.uploadFile(link.href, json.toByteArray(StandardCharsets.UTF_8).toRequestBody("application/json".toMediaType()))
+            Log.d(TAG, "Sync manifest successfully pushed to cloud (${items.size} books).")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to push sync manifest", e)
+            false
+        }
+    }
+
+    suspend fun fetchSyncManifestFromCloud(context: Context): SyncManifestPayload? = withContext(Dispatchers.IO) {
+        val syncFolder = getSyncFolder(context)
+        val token = getToken(context) ?: return@withContext null
+        val authHeader = "OAuth $token"
+        try {
+            val cleanPath = normalizePath("$syncFolder/sync_index.json")
+            val linkResponse = api.getDownloadLink(authHeader, cleanPath)
+            val body = api.downloadFile(linkResponse.href)
+            val jsonStr = body.string()
+            if (!jsonStr.isNullOrBlank()) {
+                val adapter = moshi.adapter(SyncManifestPayload::class.java)
+                return@withContext adapter.fromJson(jsonStr)
+            }
+            null
+        } catch (e: Exception) {
+            Log.d(TAG, "No sync manifest found on cloud or failed to fetch: ${e.message}")
+            null
+        }
+    }
+
     suspend fun pushAllProgressToCloud(context: Context) = withContext(Dispatchers.IO) {
         val token = getToken(context) ?: return@withContext
         try {
+            pushSyncManifestToCloud(context)
             val database = AppDatabase.getDatabase(context)
             val books = database.bookDao().getAllBooksSync()
             for (book in books) {

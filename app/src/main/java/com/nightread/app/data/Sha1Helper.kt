@@ -17,13 +17,36 @@ object Sha1Helper {
     }
 
     fun computeSha1Stream(inputStream: InputStream): String {
-        val buffer = java.io.ByteArrayOutputStream()
-        val data = ByteArray(8192)
+        val digest = MessageDigest.getInstance("SHA-1")
+        val data = ByteArray(65536)
         var nRead: Int
         while (inputStream.read(data, 0, data.size).also { nRead = it } != -1) {
-            buffer.write(data, 0, nRead)
+            digest.update(data, 0, nRead)
         }
-        return computeSha1(buffer.toByteArray())
+        val hash = digest.digest()
+        return hash.joinToString("") { "%02x".format(it) }
+    }
+
+    fun computeSha1FileNio(file: File): String? {
+        return try {
+            val digest = MessageDigest.getInstance("SHA-1")
+            java.io.RandomAccessFile(file, "r").use { raf ->
+                val channel = raf.channel
+                val size = channel.size()
+                if (size <= 0) return ""
+                val bufferSize = 1024 * 1024 // 1MB buffer
+                val byteBuffer = java.nio.ByteBuffer.allocateDirect(bufferSize)
+                while (channel.read(byteBuffer) > 0) {
+                    byteBuffer.flip()
+                    digest.update(byteBuffer)
+                    byteBuffer.clear()
+                }
+            }
+            val hash = digest.digest()
+            hash.joinToString("") { "%02x".format(it) }
+        } catch (e: Exception) {
+            file.inputStream().buffered().use { computeSha1Stream(it) }
+        }
     }
 
     fun computeSha1FromContent(file: File): String? {
@@ -41,9 +64,9 @@ object Sha1Helper {
                     }
                 }
                 // Fallback to computing the SHA-1 of the zip archive itself
-                file.inputStream().buffered().use { computeSha1Stream(it) }
+                computeSha1FileNio(file)
             } else {
-                file.inputStream().buffered().use { computeSha1Stream(it) }
+                computeSha1FileNio(file)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error calculating SHA-1", e)

@@ -1,23 +1,30 @@
 package com.nightread.app.service
 
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.isActive
 import android.content.Context
-
-
 import android.os.Environment
 import android.util.Log
 import com.nightread.app.data.BookDao
 import com.nightread.app.data.BookEntity
 import com.nightread.app.data.EpubIdentifierHelper
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import androidx.room.withTransaction
+import com.nightread.app.data.AppDatabase
 import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.zip.ZipException
 
 class NewBookScanner(
@@ -28,6 +35,7 @@ class NewBookScanner(
     private val TAG = "NewBookScanner"
 
     private var isBgScan: Boolean = false
+    private var lastStateUpdateMs: Long = 0L
 
     private fun updateLocalAndGlobalState(newState: ScannerState) {
         state.value = newState
@@ -36,23 +44,31 @@ class NewBookScanner(
         }
     }
 
+    private fun updateStateThrottled(newState: ScannerState, force: Boolean = false) {
+        val now = System.currentTimeMillis()
+        if (force || now - lastStateUpdateMs >= 200L) {
+            lastStateUpdateMs = now
+            updateLocalAndGlobalState(newState)
+        }
+    }
+
     suspend fun scan(isBackground: Boolean = false) {
         scanBooks(isBackground)
     }
 
-    suspend fun scanBooks(isBackground: Boolean = false) {
-        this.isBgScan = isBackground
+    suspend fun scanBooks(isBackground: Boolean = false) = withContext(Dispatchers.IO) {
+        this@NewBookScanner.isBgScan = isBackground
         Log.d(TAG, "scanBooks: Starting auto-scanning sequence. isBackground=$isBackground")
-        
+
         if ((context as? Context) == null) {
             Log.e(TAG, "scanBooks: Context is null, cannot proceed.")
             updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Критическая ошибка: Context is null"))
-            return
+            return@withContext
         }
         if ((bookDao as? BookDao) == null) {
             Log.e(TAG, "scanBooks: BookDao is null, cannot proceed.")
             updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Критическая ошибка: BookDao is null"))
-            return
+            return@withContext
         }
 
         updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Сканирование запущено..."))
@@ -63,6 +79,9 @@ class NewBookScanner(
             } catch (e: Exception) {
                 0
             }
+
+            val prefs = context.getSharedPreferences("book_scanner_cache", Context.MODE_PRIVATE)
+
             if (booksCount == 0) {
                 Log.d(TAG, "Database is empty. Automatically clearing scanner cache to ensure full re-indexing.")
                 try {
@@ -70,7 +89,6 @@ class NewBookScanner(
                 } catch (e: Exception) {
                     Log.e(TAG, "Error deleting cloud file cache", e)
                 }
-                val prefs = context.getSharedPreferences("book_scanner_cache", Context.MODE_PRIVATE)
                 prefs.edit().clear().apply()
             }
 
@@ -90,24 +108,31 @@ class NewBookScanner(
 
             val filesToProcess = mutableListOf<File>()
             val gatheredPaths = HashSet<String>()
+            val visitedDirs = HashSet<String>()
+
+            // 1. Android MediaStore API Query for instant indexed discovery
+            val mediaStoreFiles = queryMediaStoreBooks(context)
+            for (file in mediaStoreFiles) {
+                val canonical = try { file.canonicalPath } catch (e: Exception) { file.absolutePath }
+                if (gatheredPaths.add(canonical)) {
+                    filesToProcess.add(file)
+                }
+            }
+            Log.d(TAG, "MediaStore API returned ${mediaStoreFiles.size} candidate files.")
+
             for (path in paths) {
-                if (!kotlin.coroutines.coroutineContext.isActive) return
+                if (!kotlin.coroutines.coroutineContext.isActive) return@withContext
                 try {
                     if (path.exists() && path.isDirectory && path.canRead()) {
                         Log.d(TAG, "Checking path for gathering: ${path.absolutePath}")
                         val tempFileList = mutableListOf<File>()
-                        gatherFilesRecursive(path, tempFileList, 0)
+                        gatherFilesRecursive(path, tempFileList, 0, visitedDirs)
                         for (file in tempFileList) {
-                            val canonical = file.canonicalPath
-                            if (!gatheredPaths.contains(canonical)) {
-                                gatheredPaths.add(canonical)
+                            val canonical = try { file.canonicalPath } catch (e: Exception) { file.absolutePath }
+                            if (gatheredPaths.add(canonical)) {
                                 filesToProcess.add(file)
-                            } else {
-                                Log.d(TAG, "[SCAN-DUPLICATE-PATH] Skipped already gathered file path: $canonical")
                             }
                         }
-                    } else {
-                        Log.w(TAG, "Path is not accessible: ${path.absolutePath} (exists=${path.exists()}, isDir=${path.isDirectory()}, canRead=${path.canRead()})")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error checking root path: ${path.absolutePath}", e)
@@ -116,11 +141,11 @@ class NewBookScanner(
 
             val total = filesToProcess.size
             Log.d(TAG, "Total FB2/ZIP/EPUB files gathered after path de-duplication: $total")
-            
+
             if (total == 0) {
                 Log.d(TAG, "Finished scanning: no supported books found.")
                 updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Книги не найдены. Проверьте папки Download, Documents или Books."))
-                return
+                return@withContext
             }
 
             updateLocalAndGlobalState(ScannerState(
@@ -133,146 +158,123 @@ class NewBookScanner(
                 val dbMap = bookDao.getSha1ToPathMap().associate { it.sha1 to it.filePath }.toMutableMap()
                 Log.d(TAG, "[SCAN-DB-STATE] Loaded ${dbMap.size} existing SHA-1 values from database for comparison.")
                 dbMap
-            } catch (e: SecurityException) {
-                Log.e(TAG, "SecurityException fetching SHA1 map from DB", e)
-                mutableMapOf()
-            } catch (e: CancellationException) {
-                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching SHA1 map from DB", e)
                 mutableMapOf()
             }
 
-            val batchList = mutableListOf<BookEntity>()
-            var addedCount = 0
+            val allBooksList = try {
+                bookDao.getAllBooks().first()
+            } catch (e: Exception) {
+                emptyList<BookEntity>()
+            }
+            val booksByPath = allBooksList.filter { !it.filePath.isNullOrBlank() }.associateBy { it.filePath!! }
+
             var skippedCount = 0
-            val batchSize = 10 // Quick saves of 10 to keep the UI refreshed and avoid large OOMs
+            val batchSize = 10
 
-            val existingPaths = sha1ToPathMap.values.filterNotNull().toSet()
+            val filesToScan = mutableListOf<File>()
 
-            for ((index, file) in filesToProcess.withIndex()) {
-                if (!kotlin.coroutines.coroutineContext.isActive) return
-                val fileIndex = index + 1
-                
-                if (existingPaths.contains(file.absolutePath)) {
-                    skippedCount++
-                    if (!isBgScan && (fileIndex % 50 == 0 || fileIndex == total)) {
-                        updateLocalAndGlobalState(ScannerState(
-                            isScanning = true,
-                            status = "Поиск новых книг... ($fileIndex/$total)",
-                            totalFiles = total,
-                            processedFiles = fileIndex,
-                            addedBooks = addedCount,
-                            skippedBooks = skippedCount
-                        ))
+            for (file in filesToProcess) {
+                val absolutePath = file.absolutePath
+                val lastMod = file.lastModified()
+                val sizeOnDisk = file.length()
+
+                val existingBook = booksByPath[absolutePath]
+                val cachedMod = prefs.getLong("mod_$absolutePath", 0L)
+                val cachedSize = prefs.getLong("size_$absolutePath", 0L)
+
+                if (existingBook != null) {
+                    if (existingBook.fileSize == sizeOnDisk || (cachedMod == lastMod && cachedSize == sizeOnDisk)) {
+                        skippedCount++
+                        if (cachedMod == 0L) {
+                            prefs.edit().putLong("mod_$absolutePath", lastMod).putLong("size_$absolutePath", sizeOnDisk).apply()
+                        }
+                        continue
                     }
+                } else if (cachedMod == lastMod && cachedSize == sizeOnDisk && sha1ToPathMap.values.contains(absolutePath)) {
+                    skippedCount++
                     continue
                 }
 
-                Log.d(TAG, "Processing file [$fileIndex/$total]: ${file.name}")
-                
+                filesToScan.add(file)
+            }
+
+            Log.d(TAG, "scanBooks: Filtered $total files down to ${filesToScan.size} that need full parsing. Skipped: $skippedCount")
+
+            if (filesToScan.isEmpty()) {
                 updateLocalAndGlobalState(ScannerState(
-                    isScanning = true,
-                    status = "Обработка: ${file.name} ($fileIndex/$total)",
+                    isScanning = false,
+                    status = "Сканирование завершено. Новых книг: 0, уже в библиотеке: $skippedCount",
                     totalFiles = total,
-                    processedFiles = fileIndex,
-                    addedBooks = addedCount,
+                    processedFiles = total,
+                    addedBooks = 0,
                     skippedBooks = skippedCount
                 ))
+                return@withContext
+            }
 
-                // Timeout of 5 seconds per file to avoid hanging on massive or corrupted files
-                val success = withTimeoutOrNull(5000) {
-                    try {
-                        processFile(file, sha1ToPathMap, batchList) { added, skipped ->
-                            addedCount += added
-                            skippedCount += skipped
-                        }
-                        true
-                    } catch (e: SecurityException) {
-                        Log.e(TAG, "SecurityException in processFile for: ${file.absolutePath}", e)
-                        false
-                    } catch (e: ZipException) {
-                        Log.e(TAG, "ZipException in processFile for: ${file.absolutePath}", e)
-                        false
-                    } catch (e: IOException) {
-                        Log.e(TAG, "IOException in processFile for: ${file.absolutePath}", e)
-                        false
-                    } catch (e: OutOfMemoryError) {
-                        Log.e(TAG, "OutOfMemoryError in processFile for: ${file.absolutePath}", e)
-                        System.gc()
-                        false
-                    } catch (e: Throwable) {
-                        Log.e(TAG, "Unknown error in processFile for: ${file.absolutePath}", e)
-                        false
-                    }
-                }
-                if (success == null) {
-                    Log.e(TAG, "Timeout of 5 seconds exceeded processing file: ${file.absolutePath}")
-                }
+            val totalToScan = filesToScan.size
+            val maxConcurrency = Runtime.getRuntime().availableProcessors().coerceIn(4, 8)
+            val semaphore = Semaphore(maxConcurrency)
 
-                // Insert to DB in batches to maximize performance and ensure data is committed incrementally
-                if (batchList.size >= batchSize) {
-                    try {
-                        Log.d(TAG, "[DB-INSERT] Batch writing ${batchList.size} books to database: " + batchList.map { "${it.title} (SHA-1: ${it.sha1})" }.joinToString(", "))
-                        bookDao.insertBooks(batchList)
-                        Log.d(TAG, "Inserted batch of ${batchList.size} books to database successfully.")
-                    } catch (dbEx: Throwable) {
-                        Log.e(TAG, "Batch insert failed, falling back to safe one-by-one insert to prevent discard", dbEx)
-                        for (book in batchList) {
-                            try {
-                                Log.d(TAG, "[DB-INSERT] Safe fallback inserting book: ${book.title} (SHA-1: ${book.sha1})")
-                                bookDao.insertBooks(listOf(book))
-                                Log.d(TAG, "Successfully inserted single book after batch fallback: ${book.title}")
-                            } catch (singleEx: Throwable) {
-                                Log.e(TAG, "Failed to insert single book in fallback: ${book.title}", singleEx)
+            val addedCountAtomic = AtomicInteger(0)
+            val skippedCountAtomic = AtomicInteger(0)
+            val processedCountAtomic = AtomicInteger(0)
+            val batchList = java.util.Collections.synchronizedList(mutableListOf<BookEntity>())
+            val sha1ConcurrentMap = ConcurrentHashMap(sha1ToPathMap)
+
+            coroutineScope {
+                val jobs = filesToScan.map { file ->
+                    async(Dispatchers.IO) {
+                        semaphore.withPermit {
+                            if (!kotlin.coroutines.coroutineContext.isActive) return@async
+
+                            val fileIndex = processedCountAtomic.incrementAndGet()
+
+                            updateStateThrottled(ScannerState(
+                                isScanning = true,
+                                status = "Обработка: ${file.name} ($fileIndex/$totalToScan)",
+                                totalFiles = totalToScan,
+                                processedFiles = fileIndex,
+                                addedBooks = addedCountAtomic.get(),
+                                skippedBooks = skippedCount
+                            ))
+
+                            withTimeoutOrNull(5000) {
+                                try {
+                                    processFile(file, sha1ConcurrentMap, batchList) { added, skipped ->
+                                        if (added > 0) addedCountAtomic.addAndGet(added)
+                                        if (skipped > 0) skippedCountAtomic.addAndGet(skipped)
+                                    }
+                                    prefs.edit().putLong("mod_${file.absolutePath}", file.lastModified()).putLong("size_${file.absolutePath}", file.length()).apply()
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error processing ${file.absolutePath}", e)
+                                }
                             }
-                        }
-                    }
-                    batchList.clear()
-                    
-                    // Immediately update status with successful DB save
-                    updateLocalAndGlobalState(ScannerState(
-                        isScanning = true,
-                        status = "Сохранение книг в библиотеку... ($fileIndex/$total)",
-                        totalFiles = total,
-                        processedFiles = fileIndex,
-                        addedBooks = addedCount,
-                        skippedBooks = skippedCount
-                    ))
-                }
-            }
 
-            // Final insert of remaining books
-            if (batchList.isNotEmpty()) {
-                try {
-                    Log.d(TAG, "[DB-INSERT] Final writing ${batchList.size} books to database: " + batchList.map { "${it.title} (SHA-1: ${it.sha1})" }.joinToString(", "))
-                    bookDao.insertBooks(batchList)
-                    Log.d(TAG, "Inserted final batch of ${batchList.size} books to database successfully.")
-                } catch (dbEx: Throwable) {
-                    Log.e(TAG, "Final batch insert failed, falling back to safe one-by-one insert", dbEx)
-                    for (book in batchList) {
-                        try {
-                            Log.d(TAG, "[DB-INSERT] Safe final fallback inserting book: ${book.title} (SHA-1: ${book.sha1})")
-                            bookDao.insertBooks(listOf(book))
-                            Log.d(TAG, "Successfully inserted single book after final batch fallback: ${book.title}")
-                        } catch (singleEx: Throwable) {
-                            Log.e(TAG, "Failed to insert single book in final fallback: ${book.title}", singleEx)
+                            flushBatchToDb(batchList)
                         }
                     }
                 }
-                batchList.clear()
+                jobs.awaitAll()
             }
 
-            val finalStatus = "Сканирование завершено. Добавлено книг: $addedCount, дубликатов пропущено: $skippedCount."
-            Log.d(TAG, "Scan sequence completed successfully: totalFiles=$total, added=$addedCount, skipped=$skippedCount")
-            
+            flushBatchToDb(batchList, forceAll = true)
+
+            val addedCountFinal = addedCountAtomic.get()
+            val skippedCountFinal = skippedCount + skippedCountAtomic.get()
+
+            val finalStatus = "Сканирование завершено. Добавлено книг: $addedCountFinal, пропущено: $skippedCountFinal."
+            Log.d(TAG, "Scan sequence completed successfully: totalFiles=$total, added=$addedCountFinal, skipped=$skippedCountFinal")
+
             updateLocalAndGlobalState(ScannerState(
                 isScanning = false,
                 status = finalStatus,
                 totalFiles = total,
                 processedFiles = total,
-                addedBooks = addedCount,
-                skippedBooks = skippedCount
+                addedBooks = addedCountFinal,
+                skippedBooks = skippedCountFinal
             ))
         } catch (e: Exception) {
             Log.e(TAG, "Critical error during scanBooks", e)
@@ -283,7 +285,7 @@ class NewBookScanner(
     suspend fun checkForNewBooks() = withContext(Dispatchers.IO) {
         isBgScan = false
         Log.d(TAG, "checkForNewBooks: Starting incremental book scanning sequence.")
-        
+
         updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Быстрое сканирование..."))
 
         try {
@@ -292,6 +294,8 @@ class NewBookScanner(
             } catch (e: Exception) {
                 0
             }
+            val prefs = context.getSharedPreferences("book_scanner_cache", Context.MODE_PRIVATE)
+
             if (booksCount == 0) {
                 Log.d(TAG, "Database is empty. Automatically clearing scanner cache to ensure full re-indexing.")
                 try {
@@ -299,7 +303,6 @@ class NewBookScanner(
                 } catch (e: Exception) {
                     Log.e(TAG, "Error deleting cloud file cache", e)
                 }
-                val prefs = context.getSharedPreferences("book_scanner_cache", Context.MODE_PRIVATE)
                 prefs.edit().clear().apply()
             }
 
@@ -319,17 +322,17 @@ class NewBookScanner(
 
             val filesToProcess = mutableListOf<File>()
             val gatheredPaths = HashSet<String>()
+            val visitedDirs = HashSet<String>()
+
             for (path in paths) {
                 if (!kotlin.coroutines.coroutineContext.isActive) return@withContext
                 try {
                     if (path.exists() && path.isDirectory && path.canRead()) {
-                        Log.d(TAG, "Checking path for gathering: ${path.absolutePath}")
                         val tempFileList = mutableListOf<File>()
-                        gatherFilesRecursive(path, tempFileList, 0)
+                        gatherFilesRecursive(path, tempFileList, 0, visitedDirs)
                         for (file in tempFileList) {
-                            val canonical = file.canonicalPath
-                            if (!gatheredPaths.contains(canonical)) {
-                                gatheredPaths.add(canonical)
+                            val canonical = try { file.canonicalPath } catch (e: Exception) { file.absolutePath }
+                            if (gatheredPaths.add(canonical)) {
                                 filesToProcess.add(file)
                             }
                         }
@@ -341,13 +344,12 @@ class NewBookScanner(
 
             val total = filesToProcess.size
             Log.d(TAG, "checkForNewBooks: Total FB2/ZIP files gathered: $total")
-            
+
             if (total == 0) {
                 updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Новых книг не найдено."))
                 return@withContext
             }
 
-            // Get all books in the DB
             val allBooksList = try {
                 bookDao.getAllBooks().first()
             } catch (e: Exception) {
@@ -357,8 +359,6 @@ class NewBookScanner(
 
             val booksByPath = allBooksList.filter { !it.filePath.isNullOrBlank() }.associateBy { it.filePath!! }
             val sha1ToPathMap = allBooksList.associate { it.sha1 to it.filePath }.toMutableMap()
-            
-            val prefs = context.getSharedPreferences("book_scanner_cache", Context.MODE_PRIVATE)
 
             val filesToScan = mutableListOf<File>()
             var skippedCount = 0
@@ -369,27 +369,22 @@ class NewBookScanner(
                 val sizeOnDisk = file.length()
 
                 val existingBook = booksByPath[absolutePath]
-                if (existingBook != null) {
-                    // Check if file size on disk is the same as stored in DB, and lastModified matches cache
-                    val cachedMod = prefs.getLong("mod_$absolutePath", 0L)
-                    val cachedSize = prefs.getLong("size_$absolutePath", 0L)
+                val cachedMod = prefs.getLong("mod_$absolutePath", 0L)
+                val cachedSize = prefs.getLong("size_$absolutePath", 0L)
 
-                    if (cachedMod == lastModifiedOnDisk && cachedSize == sizeOnDisk && existingBook.fileSize == sizeOnDisk) {
-                        // File has not changed, skip it!
-                        skippedCount++
-                        continue
-                    } else if (cachedMod == 0L && existingBook.fileSize == sizeOnDisk) {
-                        // No cache yet, but size matches. Save cache and skip!
-                        prefs.edit().apply {
-                            putLong("mod_$absolutePath", lastModifiedOnDisk)
-                            putLong("size_$absolutePath", sizeOnDisk)
-                        }.apply()
+                if (existingBook != null) {
+                    if ((cachedMod == lastModifiedOnDisk && cachedSize == sizeOnDisk) || existingBook.fileSize == sizeOnDisk) {
+                        if (cachedMod == 0L) {
+                            prefs.edit().putLong("mod_$absolutePath", lastModifiedOnDisk).putLong("size_$absolutePath", sizeOnDisk).apply()
+                        }
                         skippedCount++
                         continue
                     }
+                } else if (cachedMod == lastModifiedOnDisk && cachedSize == sizeOnDisk && sha1ToPathMap.values.contains(absolutePath)) {
+                    skippedCount++
+                    continue
                 }
-                
-                // File is new or has been modified!
+
                 filesToScan.add(file)
             }
 
@@ -416,79 +411,75 @@ class NewBookScanner(
                 skippedBooks = skippedCount
             ))
 
-            val batchList = mutableListOf<BookEntity>()
-            var addedCount = 0
-            val batchSize = 5
+            val totalToScan = filesToScan.size
+            val maxConcurrency = Runtime.getRuntime().availableProcessors().coerceIn(4, 8)
+            val semaphore = Semaphore(maxConcurrency)
 
-            for ((index, file) in filesToScan.withIndex()) {
-                if (!kotlin.coroutines.coroutineContext.isActive) return@withContext
-                val fileIndex = index + 1
-                
-                Log.d(TAG, "Incremental processing file [$fileIndex/${filesToScan.size}]: ${file.name}")
-                
-                updateLocalAndGlobalState(ScannerState(
-                    isScanning = true,
-                    status = "Обработка: ${file.name} ($fileIndex/${filesToScan.size})",
-                    totalFiles = filesToScan.size,
-                    processedFiles = fileIndex,
-                    addedBooks = addedCount,
-                    skippedBooks = skippedCount
-                ))
+            val addedCountAtomic = AtomicInteger(0)
+            val skippedCountAtomic = AtomicInteger(0)
+            val processedCountAtomic = AtomicInteger(0)
+            val batchList = java.util.Collections.synchronizedList(mutableListOf<BookEntity>())
+            val sha1ConcurrentMap = ConcurrentHashMap(sha1ToPathMap)
 
-                val success = withTimeoutOrNull(5000) {
-                    try {
-                        processFile(file, sha1ToPathMap, batchList) { added, skipped ->
-                            addedCount += added
-                            skippedCount += skipped
+            coroutineScope {
+                val jobs = filesToScan.map { file ->
+                    async(Dispatchers.IO) {
+                        semaphore.withPermit {
+                            if (!kotlin.coroutines.coroutineContext.isActive) return@async
+
+                            val fileIndex = processedCountAtomic.incrementAndGet()
+
+                            updateStateThrottled(ScannerState(
+                                isScanning = true,
+                                status = "Обработка: ${file.name} ($fileIndex/$totalToScan)",
+                                totalFiles = totalToScan,
+                                processedFiles = fileIndex,
+                                addedBooks = addedCountAtomic.get(),
+                                skippedBooks = skippedCount
+                            ))
+
+                            withTimeoutOrNull(5000) {
+                                try {
+                                    processFile(file, sha1ConcurrentMap, batchList) { added, skipped ->
+                                        if (added > 0) addedCountAtomic.addAndGet(added)
+                                        if (skipped > 0) skippedCountAtomic.addAndGet(skipped)
+                                    }
+
+                                    prefs.edit().apply {
+                                        putLong("mod_${file.absolutePath}", file.lastModified())
+                                        putLong("size_${file.absolutePath}", file.length())
+                                    }.apply()
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error incremental processing for ${file.absolutePath}", e)
+                                }
+                            }
+
+                            flushBatchToDb(batchList)
                         }
-                        
-                        // Update cache
-                        prefs.edit().apply {
-                            putLong("mod_${file.absolutePath}", file.lastModified())
-                            putLong("size_${file.absolutePath}", file.length())
-                        }.apply()
-                        
-                        true
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error incremental processing for ${file.absolutePath}", e)
-                        false
                     }
                 }
-
-                if (batchList.size >= batchSize) {
-                    bookDao.insertBooks(batchList)
-                    batchList.clear()
-                    
-                    updateLocalAndGlobalState(ScannerState(
-                        isScanning = true,
-                        status = "Сохранение книг... ($fileIndex/${filesToScan.size})",
-                        totalFiles = filesToScan.size,
-                        processedFiles = fileIndex,
-                        addedBooks = addedCount,
-                        skippedBooks = skippedCount
-                    ))
-                }
+                jobs.awaitAll()
             }
 
-            if (batchList.isNotEmpty()) {
-                bookDao.insertBooks(batchList)
-                batchList.clear()
-            }
+            flushBatchToDb(batchList, forceAll = true)
 
-            val finalStatus = if (addedCount > 0) {
-                "Найдено новых книг: $addedCount."
+            val addedCountFinal = addedCountAtomic.get()
+            val skippedCountFinal = skippedCount + skippedCountAtomic.get()
+
+            val finalStatus = if (addedCountFinal > 0) {
+                "Найдено новых книг: $addedCountFinal."
             } else {
                 "Новых книг не найдено."
             }
-            Log.d(TAG, "checkForNewBooks completed: added=$addedCount, skipped=$skippedCount")
+            Log.d(TAG, "checkForNewBooks completed: added=$addedCountFinal, skipped=$skippedCountFinal")
 
             updateLocalAndGlobalState(ScannerState(
                 isScanning = false,
                 status = finalStatus,
                 totalFiles = total,
                 processedFiles = total,
-                addedBooks = addedCount,
-                skippedBooks = skippedCount
+                addedBooks = addedCountFinal,
+                skippedBooks = skippedCountFinal
             ))
 
         } catch (e: Exception) {
@@ -497,7 +488,59 @@ class NewBookScanner(
         }
     }
 
-    private fun processFile(
+    private suspend fun flushBatchToDb(batchList: MutableList<BookEntity>, forceAll: Boolean = false) {
+        val itemsToInsert = synchronized(batchList) {
+            if (forceAll || batchList.size >= 15) {
+                val copy = ArrayList(batchList)
+                batchList.clear()
+                copy
+            } else {
+                emptyList()
+            }
+        }
+        if (itemsToInsert.isNotEmpty()) {
+            try {
+                AppDatabase.getDatabase(context).withTransaction {
+                    bookDao.insertBooks(itemsToInsert)
+                }
+            } catch (dbEx: Throwable) {
+                for (book in itemsToInsert) {
+                    try { bookDao.insertBooks(listOf(book)) } catch (sEx: Throwable) {}
+                }
+            }
+        }
+    }
+
+    private fun queryMediaStoreBooks(context: Context): List<File> {
+        val result = mutableListOf<File>()
+        val supportedExtensions = setOf("fb2", "epub", "zip", "fb3", "mobi", "azw", "azw3", "txt", "docx", "doc", "pdf", "md")
+        try {
+            val uri = android.provider.MediaStore.Files.getContentUri("external")
+            val projection = arrayOf(android.provider.MediaStore.Files.FileColumns.DATA)
+            val selection = supportedExtensions.joinToString(" OR ") {
+                "${android.provider.MediaStore.Files.FileColumns.DATA} LIKE '%.${it}'"
+            }
+            context.contentResolver.query(uri, projection, selection, null, null)?.use { cursor ->
+                val dataIndex = cursor.getColumnIndex(android.provider.MediaStore.Files.FileColumns.DATA)
+                if (dataIndex != -1) {
+                    while (cursor.moveToNext()) {
+                        val path = cursor.getString(dataIndex)
+                        if (!path.isNullOrEmpty()) {
+                            val file = File(path)
+                            if (file.exists() && file.isFile && file.canRead()) {
+                                result.add(file)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "MediaStore query error: ${e.message}")
+        }
+        return result
+    }
+
+    private suspend fun processFile(
         file: File,
         sha1ToPathMap: MutableMap<String, String?>,
         batchList: MutableList<BookEntity>,
@@ -507,16 +550,12 @@ class NewBookScanner(
         if (ext == "fb3" || file.name.endsWith(".fb3.zip", true)) {
             try {
                 if (!file.exists() || !file.canRead()) return
-                val bytes = file.inputStream().buffered().use { it.readBytes() }
-                if (bytes.isEmpty()) return
-                val sha1 = computeSha1(bytes)
+                val sha1 = computeSha1ForFile(file)
                 if (sha1ToPathMap.containsKey(sha1)) {
                     val existingPath = sha1ToPathMap[sha1]
                     if (existingPath != file.absolutePath) {
                         try {
-                            kotlinx.coroutines.runBlocking {
-                                bookDao.updateFilePath(sha1, file.absolutePath)
-                            }
+                            bookDao.updateFilePath(sha1, file.absolutePath)
                             sha1ToPathMap[sha1] = file.absolutePath
                         } catch (ex: Exception) {
                             Log.e(TAG, "Failed to update FB3 file path in DB for SHA-1: $sha1", ex)
@@ -525,6 +564,7 @@ class NewBookScanner(
                     onStatsUpdated(0, 1)
                     return
                 }
+
                 val parsed = com.nightread.app.service.Fb3Parser.parseFb3(file, file.nameWithoutExtension.removeSuffix(".fb3"))
                 var coverPath: String? = null
                 if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
@@ -554,64 +594,34 @@ class NewBookScanner(
             }
         } else if (ext == "fb2") {
             try {
-                if (!file.exists() || !file.canRead()) {
-                    Log.w(TAG, "File does not exist or is not readable: ${file.absolutePath}")
-                    return
-                }
+                if (!file.exists() || !file.canRead()) return
 
-                val bytes = try {
-                    file.inputStream().buffered().use { fis ->
-                        fis.readBytes()
-                    }
-                } catch (e: SecurityException) {
-                    Log.e(TAG, "SecurityException reading file: ${file.absolutePath}", e)
-                    return
-                } catch (e: IOException) {
-                    Log.e(TAG, "IOException reading file: ${file.absolutePath}", e)
-                    return
-                } catch (e: OutOfMemoryError) {
-                    Log.e(TAG, "OutOfMemoryError reading file: ${file.absolutePath}", e)
-                    System.gc()
-                    return
-                } catch (e: Throwable) {
-                    Log.e(TAG, "Unknown error reading file: ${file.absolutePath}", e)
-                    return
-                }
+                val sha1 = computeSha1ForFile(file)
+                Log.d(TAG, "[SCAN-SHA1] Calculated SHA-1: $sha1 for FB2 file: ${file.name}")
 
-                if (bytes.isEmpty()) return
-                
-                val sha1 = computeSha1(bytes)
-                Log.d(TAG, "[SCAN-SHA1] Calculated SHA-1: $sha1 for FB2 file: ${file.name} (path: ${file.absolutePath})")
-                
                 if (sha1ToPathMap.containsKey(sha1)) {
                     val existingPath = sha1ToPathMap[sha1]
                     if (existingPath != file.absolutePath) {
-                        Log.d(TAG, "Book with SHA-1 $sha1 already exists but path changed from '$existingPath' to '${file.absolutePath}'. Updating path in database.")
+                        Log.d(TAG, "Book with SHA-1 $sha1 already exists but path changed. Updating path.")
                         try {
-                            // Direct database update to prevent duplicate rows while resolving new paths
-                            kotlinx.coroutines.runBlocking {
-                                bookDao.updateFilePath(sha1, file.absolutePath)
-                            }
+                            bookDao.updateFilePath(sha1, file.absolutePath)
                             sha1ToPathMap[sha1] = file.absolutePath
                         } catch (ex: Exception) {
-                            Log.e(TAG, "Failed to update file path in DB during scanning for SHA-1: $sha1", ex)
+                            Log.e(TAG, "Failed to update file path in DB for SHA-1: $sha1", ex)
                         }
-                    } else {
-                        Log.d(TAG, "Skipped existing FB2 book by SHA-1 ($sha1): ${file.name}")
                     }
                     onStatsUpdated(0, 1)
                     return
                 }
-                
+
+                val bytes = file.inputStream().buffered().use { it.readBytes() }
+                if (bytes.isEmpty()) return
+
                 val rawText = decodeBytesToString(bytes)
                 val metadata = Fb2Parser.parse(rawText, file.nameWithoutExtension)
-                
-                // Resolve correct Russian title with transliteration support
                 val resolvedTitle = resolveRussianTitle(metadata.title, file.nameWithoutExtension)
-                
-                // Extract and save cover image to context.filesDir
                 val coverPath = NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
-                
+
                 val book = BookEntity(
                     sha1 = sha1,
                     title = resolvedTitle,
@@ -636,10 +646,7 @@ class NewBookScanner(
             }
         } else if (ext == "zip") {
             try {
-                if (!file.exists() || !file.canRead()) {
-                    Log.w(TAG, "Zip file does not exist or is not readable: ${file.absolutePath}")
-                    return
-                }
+                if (!file.exists() || !file.canRead()) return
 
                 java.util.zip.ZipInputStream(file.inputStream().buffered()).use { zis ->
                     var entry = zis.nextEntry
@@ -655,42 +662,22 @@ class NewBookScanner(
                                         buffer.write(data, 0, nRead)
                                     }
                                     buffer.toByteArray()
-                                } catch (e: SecurityException) {
-                                    Log.e(TAG, "SecurityException reading zip entry: $entryName in ${file.absolutePath}", e)
-                                    byteArrayOf()
-                                } catch (e: ZipException) {
-                                    Log.e(TAG, "ZipException reading zip entry: $entryName in ${file.absolutePath}", e)
-                                    byteArrayOf()
-                                } catch (e: IOException) {
-                                    Log.e(TAG, "IOException reading zip entry: $entryName in ${file.absolutePath}", e)
-                                    byteArrayOf()
-                                } catch (e: OutOfMemoryError) {
-                                    Log.e(TAG, "OutOfMemoryError reading zip entry: $entryName in ${file.absolutePath}", e)
-                                    System.gc()
-                                    byteArrayOf()
                                 } catch (e: Throwable) {
-                                    Log.e(TAG, "Throwable reading zip entry: $entryName in ${file.absolutePath}", e)
                                     byteArrayOf()
                                 }
 
                                 if (tempBytes.isNotEmpty()) {
                                     val sha1 = computeSha1(tempBytes)
-                                    Log.d(TAG, "[SCAN-SHA1] Calculated SHA-1: $sha1 for ZIP-entry: $entryName inside: ${file.name}")
-                                    
+
                                     if (sha1ToPathMap.containsKey(sha1)) {
                                         val existingPath = sha1ToPathMap[sha1]
                                         if (existingPath != file.absolutePath) {
-                                            Log.d(TAG, "Book with SHA-1 $sha1 already exists but path changed from '$existingPath' to '${file.absolutePath}'. Updating path in database.")
                                             try {
-                                                kotlinx.coroutines.runBlocking {
-                                                    bookDao.updateFilePath(sha1, file.absolutePath)
-                                                }
+                                                bookDao.updateFilePath(sha1, file.absolutePath)
                                                 sha1ToPathMap[sha1] = file.absolutePath
                                             } catch (ex: Exception) {
                                                 Log.e(TAG, "Failed to update file path in DB for ZIP entry SHA-1: $sha1", ex)
                                             }
-                                        } else {
-                                            Log.d(TAG, "Skipped existing ZIP-entry book by SHA-1 ($sha1): $entryName")
                                         }
                                         onStatsUpdated(0, 1)
                                     } else {
@@ -727,9 +714,9 @@ class NewBookScanner(
                                             val covPath = NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
                                             fb2Meta to covPath
                                         }
-                                        
+
                                         val resolvedTitle = resolveRussianTitle(metadata.title, entryFallback)
-                                        
+
                                         val book = BookEntity(
                                             sha1 = sha1,
                                             title = resolvedTitle,
@@ -744,7 +731,7 @@ class NewBookScanner(
                                             series = metadata.series,
                                             seriesIndex = metadata.seriesIndex,
                                             language = metadata.language,
-                    isNew = true
+                                            isNew = true
                                         )
                                         batchList.add(book)
                                         sha1ToPathMap[sha1] = file.absolutePath
@@ -758,52 +745,32 @@ class NewBookScanner(
                         entry = zis.nextEntry
                     }
                 }
-            } catch (e: SecurityException) {
-                Log.e(TAG, "SecurityException opening zip archive: ${file.absolutePath}", e)
-            } catch (e: ZipException) {
-                Log.e(TAG, "ZipException opening zip archive: ${file.absolutePath}", e)
-            } catch (e: IOException) {
-                Log.e(TAG, "IOException opening zip archive: ${file.absolutePath}", e)
-            } catch (e: OutOfMemoryError) {
-                Log.e(TAG, "OutOfMemoryError opening zip archive: ${file.absolutePath}", e)
-                System.gc()
             } catch (e: Throwable) {
                 Log.e(TAG, "Error opening zip archive: ${file.absolutePath}", e)
             }
         } else if (ext == "epub") {
             try {
-                if (!file.exists() || !file.canRead()) {
-                    Log.w(TAG, "EPUB file does not exist or is not readable: ${file.absolutePath}")
-                    return
-                }
-                
+                if (!file.exists() || !file.canRead()) return
+
                 val metadata = EpubIdentifierHelper.getEpubMetadata(file)
-                if (metadata == null) {
-                    Log.w(TAG, "Failed to get metadata or ID for EPUB: ${file.absolutePath}")
-                    return
-                }
-                
+                if (metadata == null) return
+
                 val identifier = metadata.identifier
-                
+
                 if (sha1ToPathMap.containsKey(identifier)) {
                     val existingPath = sha1ToPathMap[identifier]
                     if (existingPath != file.absolutePath) {
-                        Log.d(TAG, "Book with ID $identifier already exists but path changed from '$existingPath' to '${file.absolutePath}'. Updating path in database.")
                         try {
-                            kotlinx.coroutines.runBlocking {
-                                bookDao.updateFilePath(identifier, file.absolutePath)
-                            }
+                            bookDao.updateFilePath(identifier, file.absolutePath)
                             sha1ToPathMap[identifier] = file.absolutePath
                         } catch (ex: Exception) {
-                            Log.e(TAG, "Failed to update file path in DB during scanning for ID: $identifier", ex)
+                            Log.e(TAG, "Failed to update file path in DB for ID: $identifier", ex)
                         }
-                    } else {
-                        Log.d(TAG, "Skipped existing EPUB book by ID ($identifier): ${file.name}")
                     }
                     onStatsUpdated(0, 1)
                     return
                 }
-                
+
                 val savedCoverPath = EpubIdentifierHelper.extractAndSaveEpubCover(file, metadata.coverPath, identifier, context)
                 val book = BookEntity(
                     sha1 = identifier,
@@ -829,33 +796,30 @@ class NewBookScanner(
         } else if (ext in listOf("mobi", "azw", "azw3")) {
             try {
                 if (!file.exists() || !file.canRead()) return
-                val bytes = file.inputStream().buffered().use { it.readBytes() }
-                if (bytes.isEmpty()) return
-                val sha1 = computeSha1(bytes)
+                val sha1 = computeSha1ForFile(file)
                 if (sha1ToPathMap.containsKey(sha1)) {
                     val existingPath = sha1ToPathMap[sha1]
                     try {
-                        kotlinx.coroutines.runBlocking {
-                            val existingBook = bookDao.getBookBySha1(sha1)
-                            if (existingBook != null) {
-                                val needTitleFix = com.nightread.app.service.MobiParser.isSlugTitle(existingBook.title)
-                                val needAuthorFix = existingBook.author == "Неизвестен"
-                                val needAnnotFix = existingBook.annotation.isNullOrBlank()
-                                if (needTitleFix || needAuthorFix || needAnnotFix) {
-                                    val parsed = com.nightread.app.service.MobiParser.parseBytes(bytes, file.nameWithoutExtension)
-                                    val updatedBook = existingBook.copy(
-                                        title = if (needTitleFix && parsed.title.isNotBlank()) parsed.title else existingBook.title,
-                                        author = if (needAuthorFix && parsed.author != "Неизвестен") parsed.author else existingBook.author,
-                                        annotation = if (needAnnotFix && !parsed.annotation.isNullOrBlank()) parsed.annotation else existingBook.annotation,
-                                        filePath = file.absolutePath
-                                    )
-                                    bookDao.updateBook(updatedBook)
-                                } else if (existingPath != file.absolutePath) {
-                                    bookDao.updateFilePath(sha1, file.absolutePath)
-                                }
+                        val existingBook = bookDao.getBookBySha1(sha1)
+                        if (existingBook != null) {
+                            val needTitleFix = com.nightread.app.service.MobiParser.isSlugTitle(existingBook.title)
+                            val needAuthorFix = existingBook.author == "Неизвестен"
+                            val needAnnotFix = existingBook.annotation.isNullOrBlank()
+                            if (needTitleFix || needAuthorFix || needAnnotFix) {
+                                val bytes = file.inputStream().buffered().use { it.readBytes() }
+                                val parsed = com.nightread.app.service.MobiParser.parseBytes(bytes, file.nameWithoutExtension)
+                                val updatedBook = existingBook.copy(
+                                    title = if (needTitleFix && parsed.title.isNotBlank()) parsed.title else existingBook.title,
+                                    author = if (needAuthorFix && parsed.author != "Неизвестен") parsed.author else existingBook.author,
+                                    annotation = if (needAnnotFix && !parsed.annotation.isNullOrBlank()) parsed.annotation else existingBook.annotation,
+                                    filePath = file.absolutePath
+                                )
+                                bookDao.updateBook(updatedBook)
                             } else if (existingPath != file.absolutePath) {
                                 bookDao.updateFilePath(sha1, file.absolutePath)
                             }
+                        } else if (existingPath != file.absolutePath) {
+                            bookDao.updateFilePath(sha1, file.absolutePath)
                         }
                         sha1ToPathMap[sha1] = file.absolutePath
                     } catch (ex: Exception) {
@@ -864,6 +828,9 @@ class NewBookScanner(
                     onStatsUpdated(0, 1)
                     return
                 }
+
+                val bytes = file.inputStream().buffered().use { it.readBytes() }
+                if (bytes.isEmpty()) return
                 val parsed = com.nightread.app.service.MobiParser.parseBytes(bytes, file.nameWithoutExtension)
                 var coverPath: String? = null
                 if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
@@ -899,16 +866,12 @@ class NewBookScanner(
         } else if (ext in listOf("html", "htm", "md", "docx", "doc")) {
             try {
                 if (!file.exists() || !file.canRead()) return
-                val bytes = file.inputStream().buffered().use { it.readBytes() }
-                if (bytes.isEmpty()) return
-                val sha1 = computeSha1(bytes)
+                val sha1 = computeSha1ForFile(file)
                 if (sha1ToPathMap.containsKey(sha1)) {
                     val existingPath = sha1ToPathMap[sha1]
                     if (existingPath != file.absolutePath) {
                         try {
-                            kotlinx.coroutines.runBlocking {
-                                bookDao.updateFilePath(sha1, file.absolutePath)
-                            }
+                            bookDao.updateFilePath(sha1, file.absolutePath)
                             sha1ToPathMap[sha1] = file.absolutePath
                         } catch (ex: Exception) {
                             Log.e(TAG, "Failed to update file path in DB for SHA-1: $sha1", ex)
@@ -944,14 +907,11 @@ class NewBookScanner(
         }
     }
 
-    private fun gatherFilesRecursive(dir: File, list: MutableList<File>, depth: Int) {
-        if (depth > 6) {
-            Log.d(TAG, "Max recursion depth (6) reached at: ${dir.absolutePath}")
-            return
-        }
-        if (!dir.exists() || !dir.isDirectory() || !dir.canRead()) {
-            return
-        }
+    private fun gatherFilesRecursive(dir: File, list: MutableList<File>, depth: Int, visitedDirs: HashSet<String>) {
+        if (depth > 6) return
+        val canonicalDir = try { dir.canonicalPath } catch (e: Exception) { dir.absolutePath }
+        if (!visitedDirs.add(canonicalDir)) return
+        if (!dir.exists() || !dir.isDirectory() || !dir.canRead()) return
 
         val files = try {
             dir.listFiles()
@@ -959,8 +919,8 @@ class NewBookScanner(
             Log.e(TAG, "SecurityException listing files for directory: ${dir.absolutePath}", e)
             null
         } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
+            throw e
+        } catch (e: Exception) {
             Log.e(TAG, "Failed listFiles for directory: ${dir.absolutePath}", e)
             null
         } ?: return
@@ -977,16 +937,30 @@ class NewBookScanner(
                         name == "vendor" || 
                         name == "cache" || 
                         name == "temp" || 
+                        name == "tmp" ||
                         name == "dcim" || 
                         name == "pictures" || 
+                        name == "camera" ||
+                        name == "photos" ||
+                        name == "screenshots" ||
                         name == "alarms" || 
                         name == "notifications" || 
                         name == "ringtones" || 
-                        name == "podcasts"
+                        name == "podcasts" ||
+                        name == "movies" ||
+                        name == "music" ||
+                        name == "audiobooks" ||
+                        name == "media" ||
+                        name == "video" ||
+                        name == "videos" ||
+                        name == "whatsapp" ||
+                        name == "telegram" ||
+                        name == "viber" ||
+                        name == "backups"
                     ) {
                         continue
                     }
-                    gatherFilesRecursive(file, list, depth + 1)
+                    gatherFilesRecursive(file, list, depth + 1, visitedDirs)
                 } else {
                     val ext = file.extension.lowercase()
                     if (com.nightread.app.data.BookFormatHelper.isSupported(file.absolutePath) || ext == "zip") {
@@ -1009,7 +983,6 @@ class NewBookScanner(
 
     private fun decodeBytesToString(bytes: ByteArray): String {
         try {
-            // Check for XML encoding header first
             val headerSize = if (bytes.size > 2048) 2048 else bytes.size
             val header = String(bytes, 0, headerSize, java.nio.charset.StandardCharsets.ISO_8859_1)
             val match = """encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(header)
@@ -1018,11 +991,9 @@ class NewBookScanner(
                 try {
                     return String(bytes, java.nio.charset.Charset.forName(encName))
                 } catch (e: Exception) {
-                    // fall back
                 }
             }
         } catch (e: Exception) {
-            // ignore
         }
 
         try {
@@ -1039,6 +1010,19 @@ class NewBookScanner(
         }
     }
 
+    private fun computeSha1ForFile(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-1")
+        file.inputStream().buffered(65536).use { fis ->
+            val buffer = ByteArray(65536)
+            var read: Int
+            while (fis.read(buffer).also { read = it } != -1) {
+                digest.update(buffer, 0, read)
+            }
+        }
+        val hash = digest.digest()
+        return hash.joinToString("") { "%02x".format(it) }
+    }
+
     private fun computeSha1(bytes: ByteArray): String {
         val digest = MessageDigest.getInstance("SHA-1")
         val hash = digest.digest(bytes)
@@ -1053,22 +1037,18 @@ class NewBookScanner(
         val cleanMetadataTitle = metadataTitle.trim()
         val cleanFilename = filename.trim()
 
-        // 1. If metadata title has Cyrillic, use it directly (corresponds to: "Если в FB2 есть тег <title> — использовать его")
         if (cleanMetadataTitle.isNotEmpty() && containsCyrillic(cleanMetadataTitle)) {
             return cleanMetadataTitle
         }
 
-        // 2. If the filename has Cyrillic, use the filename as the base title ("Если имя файла содержит русские буквы — использовать их как основу")
         if (containsCyrillic(cleanFilename)) {
             return cleanFilename
         }
 
-        // 3. If there is a metadata title but it is in Latin, transliterate it ("Если заголовок на латинице или отсутствует — транслитерировать с помощью TitleHelper.transliterate()")
         if (cleanMetadataTitle.isNotEmpty()) {
             return TitleHelper.transliterate(cleanMetadataTitle)
         }
 
-        // 4. Otherwise, transliterate the filename as fallback
         return TitleHelper.transliterate(cleanFilename)
     }
 
@@ -1080,21 +1060,5 @@ class NewBookScanner(
     private fun getRandomGradientEndColor(): String {
         val colors = listOf("#E94560", "#00ADB5", "#FF2E63", "#FF9F43", "#F35588")
         return colors.random()
-    }
-
-    private fun readLimitedBytes(inputStream: java.io.InputStream, limit: Int): ByteArray {
-        val buffer = java.io.ByteArrayOutputStream()
-        val data = ByteArray(8192)
-        var totalRead = 0
-        var nRead: Int
-        while (inputStream.read(data, 0, data.size).also { nRead = it } != -1) {
-            totalRead += nRead
-            if (totalRead > limit) {
-                Log.w(TAG, "File size limit exceeded while reading stream ($totalRead > $limit bytes), truncating.")
-                break
-            }
-            buffer.write(data, 0, nRead)
-        }
-        return buffer.toByteArray()
     }
 }
