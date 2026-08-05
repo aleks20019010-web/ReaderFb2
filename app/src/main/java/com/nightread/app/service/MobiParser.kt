@@ -212,50 +212,85 @@ object MobiParser : BookParser {
 
         // Look for Title inside text tags if metadata titles look like slugs/filenames
         var textTitle: String? = null
-        val titleMatch = Regex("<title[^>]*>(.*?)</title>", RegexOption.IGNORE_CASE).find(textContent)
-            ?: Regex("<dc:title[^>]*>(.*?)</dc:title>", RegexOption.IGNORE_CASE).find(textContent)
-        if (titleMatch != null) {
-            val candidate = unescapeHtml(titleMatch.groupValues[1].trim())
-            if (candidate.isNotBlank() && !isSlugTitle(candidate)) {
-                textTitle = candidate
-            }
-        }
+        val titlePatterns = listOf(
+            Regex("<title[^>]*>(.*?)</title>", RegexOption.IGNORE_CASE),
+            Regex("<dc:title[^>]*>(.*?)</dc:title>", RegexOption.IGNORE_CASE),
+            Regex("<meta[^>]*name=[\"'](?:title|dc:title)[\"'][^>]*content=[\"'](.*?)[\"']", RegexOption.IGNORE_CASE),
+            Regex("<meta[^>]*content=[\"'](.*?)[\"'][^>]*name=[\"'](?:title|dc:title)[\"']", RegexOption.IGNORE_CASE),
+            Regex("<h1[^>]*>(.*?)</h1>", RegexOption.IGNORE_CASE),
+            Regex("<h2[^>]*>(.*?)</h2>", RegexOption.IGNORE_CASE),
+            Regex("<p[^>]*class=[\"'][^\"']*title[^\"']*[\"'][^>]*>(.*?)</p>", RegexOption.IGNORE_CASE),
+            Regex("<div[^>]*class=[\"'][^\"']*title[^\"']*[\"'][^>]*>(.*?)</div>", RegexOption.IGNORE_CASE)
+        )
 
-        // Also look for Author inside text if missing
-        if (extractedAuthor.isNullOrBlank() || extractedAuthor == "Неизвестен") {
-            val creatorMatch = Regex("<dc:creator[^>]*>(.*?)</dc:creator>", RegexOption.IGNORE_CASE).find(textContent)
-                ?: Regex("<p[^>]*class=\"[^\"]*author[^\"]*\"[^>]*>(.*?)</p>", RegexOption.IGNORE_CASE).find(textContent)
-            if (creatorMatch != null) {
-                val candidate = stripTags(unescapeHtml(creatorMatch.groupValues[1].trim()))
-                if (candidate.isNotBlank()) {
-                    extractedAuthor = candidate
+        for (pattern in titlePatterns) {
+            val match = pattern.find(textContent)
+            if (match != null) {
+                val candidate = stripTags(unescapeHtml(match.groupValues[1].trim()))
+                if (candidate.isNotBlank() && !isSlugTitle(candidate)) {
+                    textTitle = candidate
+                    break
                 }
             }
         }
 
-        // Also look for Description/Annotation inside text if missing
-        if (extractedDescription.isNullOrBlank()) {
-            val descMatch = Regex("<dc:description[^>]*>(.*?)</dc:description>", RegexOption.IGNORE_CASE).find(textContent)
-                ?: Regex("<div[^>]*class=\"[^\"]*annotation[^\"]*\"[^>]*>(.*?)</div>", RegexOption.IGNORE_CASE).find(textContent)
-            if (descMatch != null) {
-                val candidate = stripTags(unescapeHtml(descMatch.groupValues[1].trim()))
+        // Look for Author inside text if missing or "Неизвестен"
+        var textAuthor: String? = null
+        val authorPatterns = listOf(
+            Regex("<dc:creator[^>]*>(.*?)</dc:creator>", RegexOption.IGNORE_CASE),
+            Regex("<meta[^>]*name=[\"'](?:author|dc:creator)[\"'][^>]*content=[\"'](.*?)[\"']", RegexOption.IGNORE_CASE),
+            Regex("<meta[^>]*content=[\"'](.*?)[\"'][^>]*name=[\"'](?:author|dc:creator)[\"']", RegexOption.IGNORE_CASE),
+            Regex("<p[^>]*class=[\"'][^\"']*author[^\"']*[\"'][^>]*>(.*?)</p>", RegexOption.IGNORE_CASE),
+            Regex("<div[^>]*class=[\"'][^\"']*author[^\"']*[\"'][^>]*>(.*?)</div>", RegexOption.IGNORE_CASE),
+            Regex("<h2[^>]*class=[\"'][^\"']*author[^\"']*[\"'][^>]*>(.*?)</h2>", RegexOption.IGNORE_CASE)
+        )
+
+        for (pattern in authorPatterns) {
+            val match = pattern.find(textContent)
+            if (match != null) {
+                val candidate = stripTags(unescapeHtml(match.groupValues[1].trim()))
+                if (candidate.isNotBlank() && candidate != "Неизвестен") {
+                    textAuthor = candidate
+                    break
+                }
+            }
+        }
+
+        // Look for Description/Annotation inside text if missing
+        var textDescription: String? = null
+        val descPatterns = listOf(
+            Regex("<dc:description[^>]*>(.*?)</dc:description>", RegexOption.IGNORE_CASE),
+            Regex("<meta[^>]*name=[\"'](?:description|dc:description)[\"'][^>]*content=[\"'](.*?)[\"']", RegexOption.IGNORE_CASE),
+            Regex("<meta[^>]*content=[\"'](.*?)[\"'][^>]*name=[\"'](?:description|dc:description)[\"']", RegexOption.IGNORE_CASE),
+            Regex("<div[^>]*class=[\"'][^\"']*(?:annotation|description)[^\"']*[\"'][^>]*>(.*? accumulated)?.*?(?:</div>|$)", RegexOption.IGNORE_CASE),
+            Regex("<section[^>]*class=[\"'][^\"']*(?:annotation|description)[^\"']*[\"'][^>]*>(.*?)</section>", RegexOption.IGNORE_CASE),
+            Regex("<p[^>]*class=[\"'][^\"']*(?:annotation|description)[^\"']*[\"'][^>]*>(.*?)</p>", RegexOption.IGNORE_CASE)
+        )
+
+        for (pattern in descPatterns) {
+            val match = pattern.find(textContent)
+            if (match != null) {
+                val candidate = stripTags(unescapeHtml(match.groupValues[1].trim()))
                 if (candidate.isNotBlank()) {
-                    extractedDescription = candidate
+                    textDescription = candidate
+                    break
                 }
             }
         }
 
         // Final title determination prioritizing clean human-readable titles over slugs
-        val finalTitle = when {
-            !headerFullName.isNullOrBlank() && !isSlugTitle(headerFullName) -> headerFullName
-            !textTitle.isNullOrBlank() -> textTitle
-            !exthTitle.isNullOrBlank() && !isSlugTitle(exthTitle) -> exthTitle
-            !headerFullName.isNullOrBlank() -> headerFullName
-            !exthTitle.isNullOrBlank() -> exthTitle
-            else -> fallbackTitle
-        }
+        val candidateTitles = listOfNotNull(
+            textTitle?.takeIf { it.isNotBlank() && !isSlugTitle(it) },
+            headerFullName?.takeIf { it.isNotBlank() && !isSlugTitle(it) },
+            exthTitle?.takeIf { it.isNotBlank() && !isSlugTitle(it) },
+            headerFullName?.takeIf { it.isNotBlank() }?.let { cleanSlugTitle(it) },
+            exthTitle?.takeIf { it.isNotBlank() }?.let { cleanSlugTitle(it) },
+            fallbackTitle.takeIf { it.isNotBlank() }?.let { if (isSlugTitle(it)) cleanSlugTitle(it) else it }
+        )
 
-        val finalAuthor = extractedAuthor.takeIf { !it.isNullOrBlank() } ?: "Неизвестен"
+        val finalTitle = candidateTitles.firstOrNull { it.isNotBlank() } ?: fallbackTitle
+        val finalAuthor = textAuthor ?: extractedAuthor?.takeIf { it.isNotBlank() } ?: "Неизвестен"
+        val finalDescription = textDescription ?: extractedDescription
 
         val isHtml = textContent.contains(Regex("<(?i)[a-z]+[>\\s]"))
 
@@ -277,7 +312,7 @@ object MobiParser : BookParser {
             author = finalAuthor,
             content = formattedContent,
             coverBytes = coverImageBytes,
-            annotation = extractedDescription
+            annotation = finalDescription
         )
     }
 
@@ -307,10 +342,16 @@ object MobiParser : BookParser {
                         val distance = ((b and 0x3F) shl 5) or (b2 shr 3)
                         val length = (b2 and 0x07) + 3
                         val currentBuf = out.toByteArray()
-                        val start = currentBuf.size - distance
-                        if (start >= 0) {
+                        val currentSize = currentBuf.size
+                        val startPos = currentSize - distance
+                        if (distance > 0 && startPos >= 0) {
                             for (k in 0 until length) {
-                                out.write(currentBuf[(start + k) % currentBuf.size].toInt() and 0xFF)
+                                val byteToCopy = if (startPos + k < currentSize) {
+                                    currentBuf[startPos + k]
+                                } else {
+                                    currentBuf[startPos + (k % distance)]
+                                }
+                                out.write(byteToCopy.toInt() and 0xFF)
                             }
                         }
                     }
@@ -385,11 +426,27 @@ object MobiParser : BookParser {
         }
     }
 
-    private fun isSlugTitle(title: String): Boolean {
+    fun isSlugTitle(title: String): Boolean {
         val t = title.trim()
-        if (t.matches(Regex("^[0-9]{4,}-[a-zA-Z0-9_-]+$"))) return true
-        if (t.matches(Regex("^[a-zA-Z0-9_-]+$")) && (t.contains("-") || t.contains("_")) && !t.contains(" ")) return true
+        if (t.isBlank()) return true
+        if (t.matches(Regex("^[0-9]{4,}[-_].*"))) return true
+        val cyrillicCount = t.count { it in '\u0400'..'\u04FF' }
+        if (cyrillicCount == 0 && (t.contains("-") || t.contains("_"))) return true
+        if (t.matches(Regex("^[a-zA-Z0-9_\\-\\s\\.]+$")) && (t.contains("-") || t.contains("_"))) return true
         return false
+    }
+
+    fun cleanSlugTitle(slug: String): String {
+        var cleaned = slug.trim()
+        cleaned = cleaned.replace(Regex("^[0-9]{4,}[-_]\\s*"), "")
+        cleaned = cleaned.replace(Regex("[-_]+"), " ")
+        cleaned = cleaned.replace(Regex("\\s+"), " ").trim()
+        if (cleaned.none { it.isUpperCase() }) {
+            cleaned = cleaned.split(" ").joinToString(" ") { word ->
+                word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+            }
+        }
+        return cleaned
     }
 
     private fun isImage(bytes: ByteArray): Boolean {

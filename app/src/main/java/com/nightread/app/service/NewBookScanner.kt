@@ -773,15 +773,32 @@ class NewBookScanner(
                 val sha1 = computeSha1(bytes)
                 if (sha1ToPathMap.containsKey(sha1)) {
                     val existingPath = sha1ToPathMap[sha1]
-                    if (existingPath != file.absolutePath) {
-                        try {
-                            kotlinx.coroutines.runBlocking {
+                    try {
+                        kotlinx.coroutines.runBlocking {
+                            val existingBook = bookDao.getBookBySha1(sha1)
+                            if (existingBook != null) {
+                                val needTitleFix = com.nightread.app.service.MobiParser.isSlugTitle(existingBook.title)
+                                val needAuthorFix = existingBook.author == "Неизвестен"
+                                val needAnnotFix = existingBook.annotation.isNullOrBlank()
+                                if (needTitleFix || needAuthorFix || needAnnotFix) {
+                                    val parsed = com.nightread.app.service.MobiParser.parseBytes(bytes, file.nameWithoutExtension)
+                                    val updatedBook = existingBook.copy(
+                                        title = if (needTitleFix && parsed.title.isNotBlank()) parsed.title else existingBook.title,
+                                        author = if (needAuthorFix && parsed.author != "Неизвестен") parsed.author else existingBook.author,
+                                        annotation = if (needAnnotFix && !parsed.annotation.isNullOrBlank()) parsed.annotation else existingBook.annotation,
+                                        filePath = file.absolutePath
+                                    )
+                                    bookDao.updateBook(updatedBook)
+                                } else if (existingPath != file.absolutePath) {
+                                    bookDao.updateFilePath(sha1, file.absolutePath)
+                                }
+                            } else if (existingPath != file.absolutePath) {
                                 bookDao.updateFilePath(sha1, file.absolutePath)
                             }
-                            sha1ToPathMap[sha1] = file.absolutePath
-                        } catch (ex: Exception) {
-                            Log.e(TAG, "Failed to update file path in DB for SHA-1: $sha1", ex)
                         }
+                        sha1ToPathMap[sha1] = file.absolutePath
+                    } catch (ex: Exception) {
+                        Log.e(TAG, "Failed to update existing MOBI book in DB for SHA-1: $sha1", ex)
                     }
                     onStatsUpdated(0, 1)
                     return

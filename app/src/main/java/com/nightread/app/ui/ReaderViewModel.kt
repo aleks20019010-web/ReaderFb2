@@ -244,12 +244,12 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                     System.currentTimeMillis()
                 )
 
-                if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty() && BookCache.paragraphOffsets.isNotEmpty()) {
+                if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty() && BookCache.paragraphOffsets.isNotEmpty() && !BookCache.content.contains("\uFFFD")) {
                     content = BookCache.content
                     paragraphOffsets = BookCache.paragraphOffsets
                     totalParagraphCount = BookCache.totalParagraphCount
                 } else {
-                    if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty()) {
+                    if (BookCache.sha1 == bookSha1 && BookCache.content.isNotEmpty() && !BookCache.content.contains("\uFFFD")) {
                         content = BookCache.content
                     } else {
                         try {
@@ -268,7 +268,22 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                                 val rawContent = when (ext) {
                                     "zip" -> readZipFile(file)
                                     "epub" -> com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
-                                    "mobi", "azw", "azw3" -> com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension).content
+                                    "mobi", "azw", "azw3" -> {
+                                        val parsed = com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension)
+                                        val needTitleFix = com.nightread.app.service.MobiParser.isSlugTitle(book.title)
+                                        val needAuthorFix = book.author == "Неизвестен"
+                                        val needAnnotFix = book.annotation.isNullOrBlank()
+                                        if (needTitleFix || needAuthorFix || needAnnotFix) {
+                                            val updatedBook = book.copy(
+                                                title = if (needTitleFix && parsed.title.isNotBlank()) parsed.title else book.title,
+                                                author = if (needAuthorFix && parsed.author != "Неизвестен") parsed.author else book.author,
+                                                annotation = if (needAnnotFix && !parsed.annotation.isNullOrBlank()) parsed.annotation else book.annotation
+                                            )
+                                            bookDao.updateBook(updatedBook)
+                                            _bookState.value = updatedBook
+                                        }
+                                        parsed.content
+                                    }
                                     "html", "htm" -> com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension).content
                                     "md" -> com.nightread.app.service.MdParser.parse(file, file.nameWithoutExtension).content
                                     "docx" -> com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension).content
