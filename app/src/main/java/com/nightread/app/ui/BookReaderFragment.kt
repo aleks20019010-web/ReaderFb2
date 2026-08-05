@@ -434,16 +434,18 @@ class BookReaderFragment : Fragment() {
                 var savedParagraphId = null;
 
                 function saveCurrentParagraph() {
-                    if (!savedParagraphId) {
-                        var elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
-                        var pageWidth = window.innerWidth || document.documentElement.clientWidth;
-                        for (var i = 0; i < elements.length; i++) {
-                            var rect = elements[i].getBoundingClientRect();
-                            if (rect.right > 5 && rect.left < pageWidth) {
-                                savedParagraphId = elements[i].id;
-                                break;
-                            }
+                    var elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
+                    var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                    var found = null;
+                    for (var i = 0; i < elements.length; i++) {
+                        var rect = elements[i].getBoundingClientRect();
+                        if (rect.right > 5 && rect.left < pageWidth) {
+                            found = elements[i].id;
+                            break;
                         }
+                    }
+                    if (found) {
+                        savedParagraphId = found;
                     }
                 }
 

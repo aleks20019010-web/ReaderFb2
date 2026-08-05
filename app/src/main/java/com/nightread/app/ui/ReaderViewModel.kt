@@ -228,8 +228,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 val spOffset = sharedPrefs.getInt("book_char_offset_${book.sha1}", -1)
                 val safeRecord = com.nightread.app.data.SafeProgressManager.getInstance(appContext).loadProgressRecord(book.sha1)
 
-                val effectivePage = maxOf(spPage, safeRecord.pageIndex, book.currentPageIndex).coerceAtLeast(0)
-                val effectiveOffset = maxOf(spOffset, book.currentProgressChar).coerceAtLeast(0)
+                val effectivePage = if (spPage >= 0) spPage else maxOf(safeRecord.pageIndex, book.currentPageIndex).coerceAtLeast(0)
+                val effectiveOffset = if (spOffset >= 0) spOffset else maxOf(safeRecord.pageIndex, book.currentProgressChar).coerceAtLeast(0)
 
                 val restoredBook = book.copy(
                     currentPageIndex = effectivePage,
@@ -509,7 +509,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             // 1. Determine current reading position (character offset)
             val currentOffset: Int = if (pendingTargetOffset != -1) {
                 pendingTargetOffset
-            } else if (!wasFallback && currentOffsetsSnapshot.isNotEmpty() && currentPageSnapshot < currentOffsetsSnapshot.size && currentPageSnapshot > 0) {
+            } else if (!wasFallback && currentOffsetsSnapshot.isNotEmpty() && currentPageSnapshot < currentOffsetsSnapshot.size && currentPageSnapshot >= 0) {
                 currentOffsetsSnapshot[currentPageSnapshot]
             } else if (savedOffset > 0) {
                 savedOffset
@@ -857,34 +857,15 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             if (isWebViewBook) BookCache.totalParagraphCount else _pagesState.value.size
         )
 
-        if (isWebViewBook) {
-            val savedParagraphIndex = book.currentProgressChar
-            val totalParagraphs = BookCache.totalParagraphCount
-            
-            _bookState.value = book.copy(
-                currentPageIndex = pageIdx,
-                currentProgressChar = savedParagraphIndex,
-                totalCharacters = totalParagraphs,
-                lastReadTime = System.currentTimeMillis()
-            )
-
-            sharedPrefs.edit()
-                .putInt("book_page_${book.sha1}", pageIdx)
-                .putInt("book_char_offset_${book.sha1}", savedParagraphIndex)
-                .commit()
-
-            viewModelScope.launch {
-                withContext(Dispatchers.IO) {
-                    bookDao.updateProgressAndPage(book.sha1, savedParagraphIndex, pageIdx, totalParagraphs, System.currentTimeMillis())
-                }
-            }
-            return
-        }
-
-        val charOffset = if (pageStartOffsets.isNotEmpty() && pageIdx < pageStartOffsets.size) {
-            pageStartOffsets[pageIdx]
-        } else {
+        val totalChars = if (isWebViewBook) BookCache.totalParagraphCount else book.totalCharacters
+        val charOffset = if (isWebViewBook) {
             book.currentProgressChar
+        } else {
+            if (pageStartOffsets.isNotEmpty() && pageIdx < pageStartOffsets.size && pageIdx >= 0) {
+                pageStartOffsets[pageIdx]
+            } else {
+                book.currentProgressChar
+            }
         }
 
         sharedPrefs.edit()
@@ -895,13 +876,28 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         _bookState.value = book.copy(
             currentPageIndex = pageIdx,
             currentProgressChar = charOffset,
+            totalCharacters = totalChars,
             lastReadTime = System.currentTimeMillis()
         )
 
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                bookDao.updateProgressAndPage(book.sha1, charOffset, pageIdx, book.totalCharacters, System.currentTimeMillis())
+        try {
+            kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                bookDao.updateProgressAndPage(
+                    book.sha1,
+                    charOffset,
+                    pageIdx,
+                    totalChars,
+                    System.currentTimeMillis()
+                )
             }
+        } catch (e: Exception) {
+            android.util.Log.e("ReaderViewModel", "Error synchronously saving progress to Room: ${e.message}")
+        }
+
+        try {
+            com.nightread.app.service.ProgressSyncWorker.scheduleProgressSync(appContext, book.sha1, charOffset)
+        } catch (e: Exception) {
+            android.util.Log.e("ReaderViewModel", "Error scheduling background progress sync worker: ${e.message}")
         }
     }
 
