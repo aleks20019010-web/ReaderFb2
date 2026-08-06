@@ -413,10 +413,6 @@ class BookDetailActivity : BaseActivity() {
                                         "fb3" -> com.nightread.app.service.Fb3Parser.parse(file, file.nameWithoutExtension).content
                                         "epub" -> com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
                                         "mobi", "azw", "azw3" -> com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension).content
-                                        "html", "htm" -> com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension).content
-                                        "md" -> com.nightread.app.service.MdParser.parse(file, file.nameWithoutExtension).content
-                                        "docx" -> com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension).content
-                                        "doc" -> com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension).content
                                         else -> file.readText()
                                     }
                                     try { contentCacheFile.writeText(parsed) } catch (e: Exception) {}

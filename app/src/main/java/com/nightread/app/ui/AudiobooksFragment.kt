@@ -282,8 +282,14 @@ class AudiobooksFragment : Fragment() {
     private fun getFileSha1(file: File): String {
         return try {
             val digest = java.security.MessageDigest.getInstance("SHA-1")
-            val bytes = file.readBytes()
-            val hash = digest.digest(bytes)
+            file.inputStream().buffered(65536).use { fis ->
+                val buffer = ByteArray(65536)
+                var read: Int
+                while (fis.read(buffer).also { read = it } != -1) {
+                    digest.update(buffer, 0, read)
+                }
+            }
+            val hash = digest.digest()
             hash.joinToString("") { "%02x".format(it) }
         } catch (e: Exception) {
             file.absolutePath.hashCode().toString()

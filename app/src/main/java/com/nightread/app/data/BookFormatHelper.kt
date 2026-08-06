@@ -8,23 +8,12 @@ object BookFormatHelper {
         "fb2", "fb3", "zip", "epub", "mobi", "azw", "azw3"
     )
 
-    // Document formats displayed ONLY in the Documents screen
-    val DOCUMENT_EXTENSIONS = setOf(
-        "md", "docx", "doc", "html", "htm"
-    )
-
     fun isEbook(filePath: String?): Boolean {
         if (filePath == null) return false
         val ext = File(filePath).extension.lowercase()
         // Special cases: fb2.zip or fb3.zip are ebooks
         if (filePath.lowercase().endsWith(".fb2.zip") || filePath.lowercase().endsWith(".fb3.zip")) return true
         return EBOOK_EXTENSIONS.contains(ext)
-    }
-
-    fun isDocument(filePath: String?): Boolean {
-        if (filePath == null) return false
-        val ext = File(filePath).extension.lowercase()
-        return DOCUMENT_EXTENSIONS.contains(ext)
     }
 
     fun isWebViewBook(filePath: String?): Boolean {
@@ -51,10 +40,10 @@ object BookFormatHelper {
         if (filePath.lowercase().endsWith(".fb2.zip") || filePath.lowercase().endsWith(".fb3.zip")) return true
         if (ext == "jpg" || ext == "jpeg" || ext == "png" || ext == "gif") return false
         // All supported formats are rendered via WebView
-        return EBOOK_EXTENSIONS.contains(ext) || DOCUMENT_EXTENSIONS.contains(ext)
+        return EBOOK_EXTENSIONS.contains(ext)
     }
 
     fun isSupported(filePath: String?): Boolean {
-        return isEbook(filePath) || isDocument(filePath)
+        return isEbook(filePath)
     }
 }

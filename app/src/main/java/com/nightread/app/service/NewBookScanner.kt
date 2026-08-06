@@ -246,7 +246,7 @@ class NewBookScanner(
                             ))
 
                             try {
-                                withTimeoutOrNull(10000) {
+                                withTimeoutOrNull(45000) {
                                     processFile(file, sha1ConcurrentMap, batchList) { added, skipped ->
                                         if (added > 0) addedCountAtomic.addAndGet(added)
                                         if (skipped > 0) skippedCountAtomic.addAndGet(skipped)
@@ -446,7 +446,7 @@ class NewBookScanner(
                             ))
 
                             try {
-                                withTimeoutOrNull(10000) {
+                                withTimeoutOrNull(45000) {
                                     processFile(file, sha1ConcurrentMap, batchList) { added, skipped ->
                                         if (added > 0) addedCountAtomic.addAndGet(added)
                                         if (skipped > 0) skippedCountAtomic.addAndGet(skipped)
@@ -525,7 +525,7 @@ class NewBookScanner(
 
     private fun queryMediaStoreBooks(context: Context): List<File> {
         val result = mutableListOf<File>()
-        val supportedExtensions = setOf("fb2", "epub", "zip", "fb3", "mobi", "azw", "azw3", "txt", "docx", "doc", "pdf", "md")
+        val supportedExtensions = setOf("fb2", "epub", "zip", "fb3", "mobi", "azw", "azw3")
         try {
             val uri = android.provider.MediaStore.Files.getContentUri("external")
             val projection = arrayOf(android.provider.MediaStore.Files.FileColumns.DATA)
@@ -581,7 +581,7 @@ class NewBookScanner(
                     return
                 }
 
-                val parsed = com.nightread.app.service.Fb3Parser.parseFb3(file, file.nameWithoutExtension.removeSuffix(".fb3"))
+                val parsed = com.nightread.app.service.Fb3Parser.parseFb3(file, file.nameWithoutExtension.removeSuffix(".fb3"), extractContent = false)
                 var coverPath: String? = null
                 if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
                     coverPath = com.nightread.app.service.NewCoverExtractor.saveCoverBytes(parsed.coverBytes, sha1, context)
@@ -685,13 +685,15 @@ class NewBookScanner(
                     while (entry != null) {
                         try {
                             val entryName = entry.name.lowercase()
-                            if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".fb3") || entryName.endsWith(".epub") || entryName.endsWith(".html") || entryName.endsWith(".htm"))) {
+                            if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".fb3") || entryName.endsWith(".epub"))) {
                                 val tempBytes = try {
                                     val buffer = java.io.ByteArrayOutputStream()
                                     val data = ByteArray(8192)
                                     var nRead: Int
-                                    while (zis.read(data, 0, data.size).also { nRead = it } != -1) {
+                                    var totalRead = 0
+                                    while (zis.read(data, 0, data.size).also { nRead = it } != -1 && totalRead < 3 * 1024 * 1024) {
                                         buffer.write(data, 0, nRead)
+                                        totalRead += nRead
                                     }
                                     buffer.toByteArray()
                                 } catch (e: Throwable) {
@@ -714,11 +716,10 @@ class NewBookScanner(
                                         onStatsUpdated(0, 1)
                                     } else {
                                         val rawText = decodeBytesToString(tempBytes)
-                                        val isHtml = entryName.endsWith(".html") || entryName.endsWith(".htm")
                                         val isFb3 = entryName.endsWith(".fb3")
-                                        val entryFallback = entryName.removeSuffix(".fb2").removeSuffix(".fb3").removeSuffix(".html").removeSuffix(".htm")
+                                        val entryFallback = entryName.removeSuffix(".fb2").removeSuffix(".fb3")
                                         val (metadata, coverPath) = if (isFb3) {
-                                            val parsedFb3 = com.nightread.app.service.Fb3Parser.parseBytes(tempBytes, entryFallback)
+                                            val parsedFb3 = com.nightread.app.service.Fb3Parser.parseBytes(tempBytes, entryFallback, extractContent = false)
                                             val covPath = if (parsedFb3.coverBytes != null && parsedFb3.coverBytes.isNotEmpty()) {
                                                 com.nightread.app.service.NewCoverExtractor.saveCoverBytes(parsedFb3.coverBytes, sha1, context)
                                             } else null
@@ -731,16 +732,6 @@ class NewBookScanner(
                                                 language = parsedFb3.language,
                                                 annotation = parsedFb3.annotation
                                             ) to covPath
-                                        } else if (isHtml) {
-                                            val parsedHtml = com.nightread.app.service.HtmlParser.parseString(rawText, entryFallback)
-                                            BookMetadata(
-                                                title = parsedHtml.title,
-                                                author = parsedHtml.author,
-                                                content = parsedHtml.content,
-                                                series = null,
-                                                seriesIndex = null,
-                                                language = "ru"
-                                            ) to null
                                         } else {
                                             val fb2Meta = Fb2Parser.parse(rawText, entryFallback)
                                             val covPath = NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
@@ -838,7 +829,9 @@ class NewBookScanner(
                             val needAuthorFix = existingBook.author == "Неизвестен"
                             val needAnnotFix = existingBook.annotation.isNullOrBlank()
                             if (needTitleFix || needAuthorFix || needAnnotFix) {
-                                val bytes = file.inputStream().buffered().use { it.readBytes() }
+                                val buffer = ByteArray(2 * 1024 * 1024)
+                                val len = file.inputStream().buffered().use { it.read(buffer) }
+                                val bytes = if (len == buffer.size) buffer else buffer.copyOf(len.coerceAtLeast(0))
                                 val parsed = com.nightread.app.service.MobiParser.parseBytes(bytes, file.nameWithoutExtension)
                                 val updatedBook = existingBook.copy(
                                     title = if (needTitleFix && parsed.title.isNotBlank()) parsed.title else existingBook.title,
@@ -861,7 +854,9 @@ class NewBookScanner(
                     return
                 }
 
-                val bytes = file.inputStream().buffered().use { it.readBytes() }
+                val buffer = ByteArray(2 * 1024 * 1024)
+                val len = file.inputStream().buffered().use { it.read(buffer) }
+                val bytes = if (len == buffer.size) buffer else buffer.copyOf(len.coerceAtLeast(0))
                 if (bytes.isEmpty()) return
                 val parsed = com.nightread.app.service.MobiParser.parseBytes(bytes, file.nameWithoutExtension)
                 var coverPath: String? = null
@@ -894,47 +889,6 @@ class NewBookScanner(
                 onStatsUpdated(1, 0)
             } catch (e: Throwable) {
                 Log.e(TAG, "Error handling mobi/azw file: ${file.absolutePath}", e)
-            }
-        } else if (ext in listOf("html", "htm", "md", "docx", "doc")) {
-            try {
-                if (!file.exists() || !file.canRead()) return
-                val sha1 = computeSha1ForFile(file)
-                if (sha1ToPathMap.containsKey(sha1)) {
-                    val existingPath = sha1ToPathMap[sha1]
-                    if (existingPath != file.absolutePath) {
-                        try {
-                            bookDao.updateFilePath(sha1, file.absolutePath)
-                            sha1ToPathMap[sha1] = file.absolutePath
-                        } catch (ex: Exception) {
-                            Log.e(TAG, "Failed to update file path in DB for SHA-1: $sha1", ex)
-                        }
-                    }
-                    onStatsUpdated(0, 1)
-                    return
-                }
-                val parsed = when (ext) {
-                    "md" -> com.nightread.app.service.MdParser.parse(file, file.nameWithoutExtension)
-                    "docx" -> com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension)
-                    "doc" -> com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension)
-                    else -> com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension)
-                }
-                val book = BookEntity(
-                    sha1 = sha1,
-                    title = parsed.title,
-                    author = parsed.author,
-                    coverGradientStart = getRandomGradientStartColor(),
-                    coverGradientEnd = getRandomGradientEndColor(),
-                    category = "Local",
-                    filePath = file.absolutePath,
-                    fileSize = file.length(),
-                    annotation = parsed.annotation,
-                    isNew = true
-                )
-                batchList.add(book)
-                sha1ToPathMap[sha1] = file.absolutePath
-                onStatsUpdated(1, 0)
-            } catch (e: Throwable) {
-                Log.e(TAG, "Error handling $ext file: ${file.absolutePath}", e)
             }
         }
     }

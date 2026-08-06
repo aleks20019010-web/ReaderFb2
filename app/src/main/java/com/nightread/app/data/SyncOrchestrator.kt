@@ -441,7 +441,6 @@ class SyncOrchestrator(
                                         val extLower = originalName.lowercase(java.util.Locale.ROOT)
                                         val isFb3 = extLower.endsWith(".fb3") || extLower.endsWith(".fb3.zip") || com.nightread.app.service.Fb3Parser.isFb3(tempFile)
                                         val isMobi = extLower.endsWith(".mobi") || extLower.endsWith(".azw") || extLower.endsWith(".azw3")
-                                        val isHtml = extLower.endsWith(".html") || extLower.endsWith(".htm") || extLower.endsWith(".md") || extLower.endsWith(".docx") || extLower.endsWith(".doc")
 
                                         if (isFb3) {
                                             val parsed = com.nightread.app.service.Fb3Parser.parseFb3(tempFile, originalName.substringBeforeLast(".").removeSuffix(".fb3"))
@@ -471,16 +470,6 @@ class SyncOrchestrator(
                                             } else {
                                                 Log.e(TAG, "Failed to get metadata for downloaded EPUB: $originalName")
                                             }
-                                        } else if (isHtml) {
-                                            val parsed = if (extLower.endsWith(".md")) com.nightread.app.service.MdParser.parse(tempFile, originalName.substringBeforeLast(".")) else if (extLower.endsWith(".docx")) com.nightread.app.service.DocxParser.parse(tempFile, originalName.substringBeforeLast(".")) else if (extLower.endsWith(".doc")) com.nightread.app.service.DocParser.parse(tempFile, originalName.substringBeforeLast(".")) else com.nightread.app.service.HtmlParser.parse(tempFile, originalName.substringBeforeLast("."))
-                                            sha1 = computeSha1(bytes)
-                                            titleText = parsed.title
-                                            authorText = parsed.author
-                                            seriesText = null
-                                            seriesIdx = null
-                                            langText = "Unknown"
-                                            truncatedAnnotation = null
-                                            processSuccess = true
                                         } else if (isMobi) {
                                             val parsed = com.nightread.app.service.MobiParser.parse(tempFile, originalName.substringBeforeLast("."))
                                             sha1 = computeSha1(bytes)

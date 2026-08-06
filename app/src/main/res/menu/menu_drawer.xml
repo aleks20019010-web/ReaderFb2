@@ -18,10 +18,6 @@
             android:icon="@drawable/ic_nav_audiobooks"
             android:title="@string/drawer_audiobooks" />
         <item
-            android:id="@+id/nav_documents"
-            android:icon="@drawable/ic_nav_documents"
-            android:title="Документы" />
-        <item
             android:id="@+id/nav_favorites"
             android:icon="@drawable/ic_nav_favorites"
             android:title="@string/drawer_favorites" />

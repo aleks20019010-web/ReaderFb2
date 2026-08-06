@@ -26,15 +26,6 @@ class BookRepository(
         }
     }
 
-    fun getFilteredDocuments(): Flow<List<BookEntity>> {
-        return bookDao.getAllBooks().map { books ->
-            books.filter { book ->
-                val path = book.filePath
-                path != null && BookFormatHelper.isDocument(path)
-            }
-        }
-    }
-
     fun searchBooks(query: String): Flow<List<BookEntity>> {
         val sqlQuery = "%$query%"
         return bookDao.searchBooks(sqlQuery)

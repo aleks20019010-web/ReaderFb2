@@ -35,10 +35,6 @@ object BookPreloader {
                         "fb3" -> Fb3Parser.parse(file, file.nameWithoutExtension).content
                         "epub" -> EpubParser.parse(file, file.nameWithoutExtension).content
                         "mobi", "azw", "azw3" -> MobiParser.parse(file, file.nameWithoutExtension).content
-                        "html", "htm" -> HtmlParser.parse(file, file.nameWithoutExtension).content
-                        "md" -> MdParser.parse(file, file.nameWithoutExtension).content
-                        "docx" -> DocxParser.parse(file, file.nameWithoutExtension).content
-                        "doc" -> DocParser.parse(file, file.nameWithoutExtension).content
                         else -> file.readText()
                     }
                     try { contentCacheFile.writeText(parsed) } catch (e: Exception) {}

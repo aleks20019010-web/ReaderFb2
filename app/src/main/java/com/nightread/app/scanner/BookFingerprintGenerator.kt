@@ -223,8 +223,10 @@ object BookFingerprintGenerator {
                                 title += text
                             }
                         } else if (!insideBinary && text.isNotBlank()) {
-                            // Собираем очищенный текст книги
-                            textBuilder.append(text).append(" ")
+                            // Собираем очищенный текст книги с лимитом для предотвращения OOM
+                            if (textBuilder.length < 15000) {
+                                textBuilder.append(text).append(" ")
+                            }
                         }
                     }
                     XmlPullParser.END_TAG -> {
@@ -243,7 +245,7 @@ object BookFingerprintGenerator {
                 }
                 eventType = parser.next()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             // Если возникла ошибка XML-парсинга, возвращаем то, что успели собрать
             Log.w(TAG, "FB2 XML parse warning: ${e.message}")
         }
@@ -267,8 +269,6 @@ object BookFingerprintGenerator {
             FileInputStream(file).use { fis ->
                 ZipInputStream(BufferedInputStream(fis, BUFFER_SIZE)).use { zis ->
                     var entry = zis.nextEntry
-                    val htmlEntries = mutableListOf<ByteArray>()
-
                     while (entry != null) {
                         if (!entry.isDirectory) {
                             val nameLower = entry.name.lowercase(Locale.ROOT)
@@ -278,10 +278,19 @@ object BookFingerprintGenerator {
                                 author = meta.first
                                 title = meta.second
                             } else if (nameLower.endsWith(".xhtml") || nameLower.endsWith(".html") || nameLower.endsWith(".htm")) {
-                                // Собираем текст из HTML/XHTML файлов EPUB
-                                val htmlText = stripHtmlTags(String(zis.readBytes(), Charsets.UTF_8))
-                                if (htmlText.isNotBlank()) {
-                                    textBuilder.append(htmlText).append(" ")
+                                if (textBuilder.length < 15000) {
+                                    val buffer = ByteArray(8192)
+                                    val out = java.io.ByteArrayOutputStream()
+                                    var readTotal = 0
+                                    var n = 0
+                                    while (readTotal < 30000 && zis.read(buffer, 0, buffer.size).also { n = it } != -1) {
+                                        out.write(buffer, 0, n)
+                                        readTotal += n
+                                    }
+                                    val htmlText = stripHtmlTags(String(out.toByteArray(), Charsets.UTF_8))
+                                    if (htmlText.isNotBlank()) {
+                                        textBuilder.append(htmlText).append(" ")
+                                    }
                                 }
                             }
                         }
@@ -289,7 +298,7 @@ object BookFingerprintGenerator {
                     }
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error parsing EPUB file: ${file.name}", e)
         }
 

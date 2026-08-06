@@ -41,20 +41,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allDocuments: StateFlow<List<BookEntity>> = repository.getFilteredDocuments()
-        .retry { cause ->
-            if (cause is CancellationException) false
-            else {
-                Log.e("BookViewModel", "Retrying allDocuments flow on exception", cause)
-                true
-            }
-        }
-        .catch { e ->
-            if (e is CancellationException) throw e
-            Log.e("BookViewModel", "Exception loading documents from database", e)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     init {
         removeDuplicateBooks()
     }
@@ -646,16 +632,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             coverPath = coverFile.absolutePath
                         } catch (e: Exception) { Log.e("BookScanner", "Cover error", e) }
                     }
-                } else if (ext in listOf("html", "htm", "md", "docx", "doc")) {
-                    val parsed = when (ext) {
-                        "md" -> com.nightread.app.service.MdParser.parse(localFile, fileName.substringBeforeLast("."))
-                        "docx" -> com.nightread.app.service.DocxParser.parse(localFile, fileName.substringBeforeLast("."))
-                        "doc" -> com.nightread.app.service.DocParser.parse(localFile, fileName.substringBeforeLast("."))
-                        else -> com.nightread.app.service.HtmlParser.parse(localFile, fileName.substringBeforeLast("."))
-                    }
-                    parsedTitle = parsed.title
-                    parsedAuthor = parsed.author
-                    parsedContent = parsed.content
                 } else {
                     withContext(Dispatchers.Main) {
                         onResult(false, "Формат $ext не поддерживается.")
@@ -1175,34 +1151,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             }
                             "mobi", "azw", "azw3" -> {
                                 val parsed = com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension)
-                                parsedTitle = parsed.title
-                                parsedAuthor = parsed.author
-                                parsedContent = parsed.content
-                                parsedAnnotation = parsed.annotation
-                            }
-                            "html", "htm" -> {
-                                val parsed = com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension)
-                                parsedTitle = parsed.title
-                                parsedAuthor = parsed.author
-                                parsedContent = parsed.content
-                                parsedAnnotation = parsed.annotation
-                            }
-                            "md" -> {
-                                val parsed = com.nightread.app.service.MdParser.parse(file, file.nameWithoutExtension)
-                                parsedTitle = parsed.title
-                                parsedAuthor = parsed.author
-                                parsedContent = parsed.content
-                                parsedAnnotation = parsed.annotation
-                            }
-                            "docx" -> {
-                                val parsed = com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension)
-                                parsedTitle = parsed.title
-                                parsedAuthor = parsed.author
-                                parsedContent = parsed.content
-                                parsedAnnotation = parsed.annotation
-                            }
-                            "doc" -> {
-                                val parsed = com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension)
                                 parsedTitle = parsed.title
                                 parsedAuthor = parsed.author
                                 parsedContent = parsed.content

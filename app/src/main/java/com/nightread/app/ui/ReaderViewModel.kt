@@ -296,15 +296,11 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                                             }
                                             parsed.content
                                         }
-                                        "html", "htm" -> com.nightread.app.service.HtmlParser.parse(file, file.nameWithoutExtension).content
-                                        "md" -> com.nightread.app.service.MdParser.parse(file, file.nameWithoutExtension).content
-                                        "docx" -> com.nightread.app.service.DocxParser.parse(file, file.nameWithoutExtension).content
-                                        "doc" -> com.nightread.app.service.DocParser.parse(file, file.nameWithoutExtension).content
                                         "jpg", "jpeg", "png", "gif" -> "Файл является изображением и не содержит читаемого текста."
                                         else -> decodeBytesToString(file.readBytes())
                                     }
                                     
-                                    if (ext in listOf("fb2", "fb3", "zip", "epub", "mobi", "azw", "azw3", "html", "htm", "md", "docx", "doc", "jpg", "jpeg", "png", "gif")) {
+                                    if (ext in listOf("fb2", "fb3", "zip", "epub", "mobi", "azw", "azw3", "jpg", "jpeg", "png", "gif")) {
                                         content = rawContent
                                     } else {
                                         content = TextCleaner.cleanText(rawContent) as String

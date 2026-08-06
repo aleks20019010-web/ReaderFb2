@@ -55,10 +55,10 @@ object Fb3Parser : BookParser {
         )
     }
 
-    fun parseFb3(file: File, defaultTitle: String): Fb3ParsedBook {
+    fun parseFb3(file: File, defaultTitle: String, extractContent: Boolean = true): Fb3ParsedBook {
         return try {
             FileInputStream(file).use { fis ->
-                parseStream(fis, defaultTitle)
+                parseStream(fis, defaultTitle, extractContent)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing FB3 file: ${file.absolutePath}", e)
@@ -66,10 +66,10 @@ object Fb3Parser : BookParser {
         }
     }
 
-    fun parseBytes(bytes: ByteArray, defaultTitle: String): Fb3ParsedBook {
+    fun parseBytes(bytes: ByteArray, defaultTitle: String, extractContent: Boolean = true): Fb3ParsedBook {
         return try {
             java.io.ByteArrayInputStream(bytes).use { bais ->
-                parseStream(bais, defaultTitle)
+                parseStream(bais, defaultTitle, extractContent)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing FB3 bytes", e)
@@ -77,7 +77,7 @@ object Fb3Parser : BookParser {
         }
     }
 
-    private fun parseStream(inputStream: InputStream, defaultTitle: String): Fb3ParsedBook {
+    private fun parseStream(inputStream: InputStream, defaultTitle: String, extractContent: Boolean): Fb3ParsedBook {
         var descriptionXml: String? = null
         val bodyXmls = mutableListOf<String>()
         val zipEntriesMap = mutableMapOf<String, ByteArray>()
@@ -93,7 +93,7 @@ object Fb3Parser : BookParser {
                     } else if (name.endsWith("description.xml") || name == "fb3/description.xml") {
                         val bytes = readEntryBytes(zis)
                         descriptionXml = String(bytes, Charsets.UTF_8)
-                    } else if (name.endsWith("body.xml") || (name.contains("body") && name.endsWith(".xml"))) {
+                    } else if (extractContent && (name.endsWith("body.xml") || (name.contains("body") && name.endsWith(".xml")))) {
                         val bytes = readEntryBytes(zis)
                         bodyXmls.add(String(bytes, Charsets.UTF_8))
                     } else if (name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png") || name.endsWith(".xml")) {

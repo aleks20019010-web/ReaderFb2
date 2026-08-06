@@ -313,7 +313,6 @@ class MainActivity : BaseActivity() {
         navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.nav_audiobooks -> openAudiobooksFragment()
-                R.id.nav_documents -> openDocumentsFragment()
                 R.id.nav_sync -> openSyncFragment()
                 R.id.nav_stats -> openStatsFragment()
                 R.id.nav_favorites -> openFavoritesFragment()
@@ -394,12 +393,6 @@ class MainActivity : BaseActivity() {
     fun openAudiobooksFragment() {
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, com.nightread.app.ui.AudiobooksFragment())
-            .commit()
-    }
-
-    fun openDocumentsFragment() {
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, com.nightread.app.ui.DocumentsFragment.newInstance())
             .commit()
     }
 
