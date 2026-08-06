@@ -326,6 +326,11 @@ class NewBookScanner(
         )
     )
 
+    private fun updateState(newState: ScannerState) {
+        state.value = newState
+        com.nightread.app.service.NewBookScanState.updateState(newState)
+    }
+
     private val dbMutex = Mutex()
     private val scanJob = AtomicReference<Job?>(null)
     private val ioDispatcher = Dispatchers.IO.limitedParallelism(4)
@@ -353,18 +358,18 @@ class NewBookScanner(
 
     suspend fun scanBooks(isBackground: Boolean = false): Job {
         if (!isScanningGlobally.compareAndSet(false, true)) {
-            state.value = ScannerState(isScanning = false, status = "Сканирование уже запущено")
+            updateState(ScannerState(isScanning = false, status = "Сканирование уже запущено"))
             return Job()
         }
 
         val job = CoroutineScope(ioDispatcher).launch {
             try {
-                state.value = ScannerState(isScanning = true, status = "Подготовка сканирования")
+                updateState(ScannerState(isScanning = true, status = "Подготовка сканирования"))
 
                 val books = getBooksFromMediaStore()
 
                 if (books.isEmpty()) {
-                    state.value = ScannerState(isScanning = false, status = "Книги не найдены")
+                    updateState(ScannerState(isScanning = false, status = "Книги не найдены"))
                     return@launch
                 }
 
@@ -377,11 +382,13 @@ class NewBookScanner(
                 }
 
                 if (booksToProcess.isEmpty()) {
-                    state.value = ScannerState(
-                        isScanning = false,
-                        status = "Новых книг не найдено",
-                        totalFiles = books.size,
-                        processedFiles = books.size
+                    updateState(
+                        ScannerState(
+                            isScanning = false,
+                            status = "Новых книг не найдено",
+                            totalFiles = books.size,
+                            processedFiles = books.size
+                        )
                     )
                     return@launch
                 }
@@ -392,19 +399,21 @@ class NewBookScanner(
                     updateCache(booksToProcess)
                 }
 
-                state.value = ScannerState(
-                    isScanning = false,
-                    status = "Сканирование завершено",
-                    totalFiles = books.size,
-                    processedFiles = books.size
+                updateState(
+                    ScannerState(
+                        isScanning = false,
+                        status = "Сканирование завершено",
+                        totalFiles = books.size,
+                        processedFiles = books.size
+                    )
                 )
 
             } catch (e: CancellationException) {
                 Log.d(TAG, "Scan cancelled")
-                state.value = ScannerState(isScanning = false, status = "Сканирование отменено")
+                updateState(ScannerState(isScanning = false, status = "Сканирование отменено"))
             } catch (e: Exception) {
                 Log.e(TAG, "Scanner error", e)
-                state.value = ScannerState(isScanning = false, status = "Ошибка: ${e.message}")
+                updateState(ScannerState(isScanning = false, status = "Ошибка: ${e.message}"))
             } finally {
                 isScanningGlobally.set(false)
                 scanJob.set(null)
@@ -491,7 +500,9 @@ class NewBookScanner(
             return getBooksFromFileSystem()
         }
 
-        return if (result.isEmpty()) getBooksFromFileSystem() else result
+        val fsBooks = getBooksFromFileSystem()
+        val combined = (result + fsBooks).distinctBy { it.uri.toString() }
+        return combined
     }
 
     // ===================== FALLBACK ДЛЯ СТАРЫХ ANDROID =====================
@@ -510,11 +521,19 @@ class NewBookScanner(
     }
 
     private fun getLegacyFolders(): List<File> {
+        val extStorage = Environment.getExternalStorageDirectory()
         return listOfNotNull(
             context.getExternalFilesDir(null),
             context.filesDir,
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+            extStorage,
+            File(extStorage, "Books"),
+            File(extStorage, "Book"),
+            File(extStorage, "Download"),
+            File(extStorage, "Downloads"),
+            File(extStorage, "Documents"),
+            File(extStorage, "Telegram")
         ).distinct()
     }
 
@@ -643,13 +662,15 @@ class NewBookScanner(
                     val index = processed.incrementAndGet()
                     val progress = (index.toFloat() / total * 100).toInt()
 
-                    state.value = ScannerState(
-                        isScanning = true,
-                        status = "Обработка ${book.name} ($index/$total)",
-                        totalFiles = total,
-                        processedFiles = index,
-                        addedBooks = added.get(),
-                        progress = progress
+                    updateState(
+                        ScannerState(
+                            isScanning = true,
+                            status = "Обработка ${book.name} ($index/$total)",
+                            totalFiles = total,
+                            processedFiles = index,
+                            addedBooks = added.get(),
+                            progress = progress
+                        )
                     )
 
                     try {
@@ -698,13 +719,15 @@ class NewBookScanner(
             added.addAndGet(saveList.size)
         }
 
-        state.value = ScannerState(
-            isScanning = false,
-            status = "Сканирование завершено",
-            totalFiles = total,
-            processedFiles = total,
-            addedBooks = added.get(),
-            progress = 100
+        updateState(
+            ScannerState(
+                isScanning = false,
+                status = "Сканирование завершено",
+                totalFiles = total,
+                processedFiles = total,
+                addedBooks = added.get(),
+                progress = 100
+            )
         )
     }
 

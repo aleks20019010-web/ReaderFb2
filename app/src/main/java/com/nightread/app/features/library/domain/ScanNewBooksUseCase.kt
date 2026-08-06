@@ -9,6 +9,6 @@ class ScanNewBooksUseCase(private val context: Context) {
     suspend operator fun invoke() {
         val database = AppDatabase.getDatabase(context)
         val scanner = NewBookScanner(context, database.bookDao())
-        scanner.checkForNewBooks()
+        scanner.checkForNewBooks().join()
     }
 }
