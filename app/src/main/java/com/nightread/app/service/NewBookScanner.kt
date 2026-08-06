@@ -21,6 +21,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import androidx.room.withTransaction
 import com.nightread.app.data.AppDatabase
 import java.io.File
@@ -34,6 +36,10 @@ class NewBookScanner(
     private val context: Context,
     private val bookDao: BookDao
 ) {
+    companion object {
+        val isScanningGlobally = java.util.concurrent.atomic.AtomicBoolean(false)
+    }
+
     val state = MutableStateFlow(ScannerState())
     private val TAG = "NewBookScanner"
     private val dbMutex = Mutex()
@@ -64,20 +70,26 @@ class NewBookScanner(
         this@NewBookScanner.isBgScan = isBackground
         Log.d(TAG, "scanBooks: Starting auto-scanning sequence. isBackground=$isBackground")
 
-        if ((context as? Context) == null) {
-            Log.e(TAG, "scanBooks: Context is null, cannot proceed.")
-            updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Критическая ошибка: Context is null"))
+        if (!isScanningGlobally.compareAndSet(false, true)) {
+            Log.d(TAG, "scanBooks: Scan already in progress, aborting.")
+            updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Сканирование уже запущено"))
             return@withContext
         }
-        if ((bookDao as? BookDao) == null) {
-            Log.e(TAG, "scanBooks: BookDao is null, cannot proceed.")
-            updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Критическая ошибка: BookDao is null"))
-            return@withContext
-        }
-
-        updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Сканирование запущено..."))
 
         try {
+            if ((context as? Context) == null) {
+                Log.e(TAG, "scanBooks: Context is null, cannot proceed.")
+                updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Критическая ошибка: Context is null"))
+                return@withContext
+            }
+            if ((bookDao as? BookDao) == null) {
+                Log.e(TAG, "scanBooks: BookDao is null, cannot proceed.")
+                updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Критическая ошибка: BookDao is null"))
+                return@withContext
+            }
+
+            updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Сканирование запущено..."))
+
             val booksCount = try {
                 bookDao.getBooksCount()
             } catch (e: Exception) {
@@ -220,8 +232,6 @@ class NewBookScanner(
 
             val totalToScan = filesToScan.size
             val maxConcurrency = 2
-            val semaphore = Semaphore(maxConcurrency)
-
             val addedCountAtomic = AtomicInteger(0)
             val skippedCountAtomic = AtomicInteger(0)
             val processedCountAtomic = AtomicInteger(0)
@@ -229,10 +239,14 @@ class NewBookScanner(
             val sha1ConcurrentMap = ConcurrentHashMap(sha1ToPathMap)
 
             supervisorScope {
-                val jobs = filesToScan.map { file ->
-                    async(Dispatchers.IO) {
-                        semaphore.withPermit {
-                            if (!kotlin.coroutines.coroutineContext.isActive) return@async
+                val channel = kotlinx.coroutines.channels.Channel<File>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+                filesToScan.forEach { channel.trySend(it) }
+                channel.close()
+
+                val workers: List<Job> = List(maxConcurrency) {
+                    launch(Dispatchers.IO) {
+                        for (file in channel) {
+                            if (!kotlin.coroutines.coroutineContext.isActive) break
 
                             val fileIndex = processedCountAtomic.incrementAndGet()
 
@@ -264,7 +278,7 @@ class NewBookScanner(
                         }
                     }
                 }
-                jobs.awaitAll()
+                workers.forEach { it.join() }
             }
 
             flushBatchToDb(batchList, forceAll = true)
@@ -286,6 +300,8 @@ class NewBookScanner(
         } catch (e: Throwable) {
             Log.e(TAG, "Critical error during scanBooks", e)
             updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Критическая ошибка сканирования: ${e.localizedMessage}"))
+        } finally {
+            isScanningGlobally.set(false)
         }
     }
 
@@ -293,9 +309,15 @@ class NewBookScanner(
         isBgScan = false
         Log.d(TAG, "checkForNewBooks: Starting incremental book scanning sequence.")
 
-        updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Быстрое сканирование..."))
+        if (!isScanningGlobally.compareAndSet(false, true)) {
+            Log.d(TAG, "checkForNewBooks: Scan already in progress, aborting.")
+            updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Сканирование уже запущено"))
+            return@withContext
+        }
 
         try {
+            updateLocalAndGlobalState(ScannerState(isScanning = true, status = "Быстрое сканирование..."))
+
             val booksCount = try {
                 bookDao.getBooksCount()
             } catch (e: Exception) {
@@ -420,8 +442,6 @@ class NewBookScanner(
 
             val totalToScan = filesToScan.size
             val maxConcurrency = 2
-            val semaphore = Semaphore(maxConcurrency)
-
             val addedCountAtomic = AtomicInteger(0)
             val skippedCountAtomic = AtomicInteger(0)
             val processedCountAtomic = AtomicInteger(0)
@@ -429,10 +449,14 @@ class NewBookScanner(
             val sha1ConcurrentMap = ConcurrentHashMap(sha1ToPathMap)
 
             supervisorScope {
-                val jobs = filesToScan.map { file ->
-                    async(Dispatchers.IO) {
-                        semaphore.withPermit {
-                            if (!kotlin.coroutines.coroutineContext.isActive) return@async
+                val channel = kotlinx.coroutines.channels.Channel<File>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+                filesToScan.forEach { channel.trySend(it) }
+                channel.close()
+
+                val workers: List<Job> = List(maxConcurrency) {
+                    launch(Dispatchers.IO) {
+                        for (file in channel) {
+                            if (!kotlin.coroutines.coroutineContext.isActive) break
 
                             val fileIndex = processedCountAtomic.incrementAndGet()
 
@@ -468,7 +492,7 @@ class NewBookScanner(
                         }
                     }
                 }
-                jobs.awaitAll()
+                workers.forEach { it.join() }
             }
 
             flushBatchToDb(batchList, forceAll = true)
@@ -495,6 +519,8 @@ class NewBookScanner(
         } catch (e: Throwable) {
             Log.e(TAG, "Critical error during checkForNewBooks", e)
             updateLocalAndGlobalState(ScannerState(isScanning = false, status = "Ошибка обновления: ${e.localizedMessage}"))
+        } finally {
+            isScanningGlobally.set(false)
         }
     }
 
