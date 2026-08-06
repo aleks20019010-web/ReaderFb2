@@ -1,8 +1,15 @@
 package com.nightread.app.data
 
+import android.content.Context
 import android.util.Log
+import com.nightread.app.data.epub.EpubCoverExtractor
+import com.nightread.app.data.epub.EpubPathResolver
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.InputStream
 import java.nio.charset.Charset
+import java.security.MessageDigest
+import java.util.UUID
 import java.util.zip.ZipInputStream
 
 data class EpubMetadata(
@@ -42,101 +49,21 @@ object EpubIdentifierHelper {
         }
     }
 
-    fun cleanZipPath(path: String): String {
-        var p = path.replace("\\", "/").replace("//", "/").trim().lowercase()
-        while (p.startsWith("./")) {
-            p = p.substring(2)
-        }
-        while (p.startsWith("/")) {
-            p = p.substring(1)
-        }
-        return p
-    }
+    fun cleanZipPath(path: String): String = EpubPathResolver.cleanZipPath(path)
 
-    private fun resolvePath(baseDir: String, relativePath: String): String {
-        val decoded = try { java.net.URLDecoder.decode(relativePath, "UTF-8") } catch (e: Exception) { relativePath }
-        val cleanRelative = cleanZipPath(decoded)
-        val cleanBase = cleanZipPath(baseDir)
-
-        if (cleanBase.isEmpty()) return cleanRelative
-        if (cleanRelative.startsWith("$cleanBase/")) return cleanRelative
-
-        val segments = mutableListOf<String>()
-        if (cleanBase.isNotEmpty()) {
-            segments.addAll(cleanBase.split("/"))
-        }
-        for (part in cleanRelative.split("/")) {
-            if (part == "..") {
-                if (segments.isNotEmpty()) segments.removeAt(segments.lastIndex)
-            } else if (part != "." && part.isNotEmpty()) {
-                segments.add(part)
-            }
-        }
-        return segments.joinToString("/")
-    }
-
-    fun cleanHtmlAndEntities(rawText: String?): String? {
-        if (rawText.isNullOrBlank()) return null
-        var text = rawText.trim()
-
-        // Unwrap CDATA if present
-        val cdataMatch = Regex("<!\\[CDATA\\[(.*?)\\]\\]>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(text)
-        if (cdataMatch != null) {
-            text = cdataMatch.groupValues[1]
-        }
-
-        // Convert break/paragraph tags to newlines
-        text = text.replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
-            .replace(Regex("</p\\s*>", RegexOption.IGNORE_CASE), "\n\n")
-            .replace(Regex("</div>", RegexOption.IGNORE_CASE), "\n")
-            .replace(Regex("<p[^>]*>", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("<div[^>]*>", RegexOption.IGNORE_CASE), "")
-
-        // Strip remaining XML/HTML tags
-        text = text.replace(Regex("<[^>]+>"), "")
-
-        // Unescape common HTML entities
-        text = text.replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&amp;", "&")
-            .replace("&quot;", "\"")
-            .replace("&#39;", "'")
-            .replace("&apos;", "'")
-            .replace("&nbsp;", " ")
-            .replace("&copy;", "©")
-            .replace("&mdash;", "—")
-            .replace("&ndash;", "–")
-            .replace("&laquo;", "«")
-            .replace("&raquo;", "»")
-
-        // Unescape numeric entities
-        text = text.replace(Regex("&#(\\d+);")) { match ->
-            try {
-                val code = match.groupValues[1].toInt()
-                code.toChar().toString()
-            } catch (e: Exception) {
-                " "
-            }
-        }
-
-        // Clean up whitespace and newlines
-        text = text.lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n\n")
-
-        return if (text.isBlank()) null else text
-    }
+    fun cleanHtmlAndEntities(rawText: String?): String? = EpubPathResolver.cleanHtmlAndEntities(rawText)
 
     fun computeFileSha1(file: File): String? {
         if (!file.exists() || !file.isFile) return null
         return try {
-            java.io.FileInputStream(file).use { fis ->
-                val digest = java.security.MessageDigest.getInstance("SHA-1")
+            file.inputStream().use { fis ->
+                val digest = MessageDigest.getInstance("SHA-1")
                 val buffer = ByteArray(8192)
                 var bytesRead: Int
                 while (fis.read(buffer).also { bytesRead = it } != -1) {
                     digest.update(buffer, 0, bytesRead)
                 }
-                val sha1Bytes = digest.digest()
-                sha1Bytes.joinToString("") { "%02x".format(it) }
+                digest.digest().joinToString("") { "%02x".format(it) }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to compute SHA-1 of local file: ${file.absolutePath}", e)
@@ -144,7 +71,7 @@ object EpubIdentifierHelper {
         }
     }
 
-    fun getEpubMetadata(createInputStream: () -> java.io.InputStream?): EpubMetadata? {
+    fun getEpubMetadata(createInputStream: () -> InputStream?): EpubMetadata? {
         return getEpubMetadataImpl(createInputStream)
     }
 
@@ -156,7 +83,7 @@ object EpubIdentifierHelper {
         return getEpubMetadataImpl({ file.inputStream() })
     }
 
-    private fun getEpubMetadataImpl(createInputStream: () -> java.io.InputStream?): EpubMetadata? {
+    private fun getEpubMetadataImpl(createInputStream: () -> InputStream?): EpubMetadata? {
         return try {
             var opfPath: String? = null
             var opfContent: String? = null
@@ -168,10 +95,9 @@ object EpubIdentifierHelper {
                 while (entry != null) {
                     val normalizedName = cleanZipPath(entry.name)
                     val ext = normalizedName.substringAfterLast(".", "").lowercase()
-                    // Only store opf, xml, container, and meta files to save memory
                     if (ext == "opf" || ext == "xml" || normalizedName.contains("meta-inf") ||
                         normalizedName.contains("annotation") || normalizedName.contains("description")) {
-                        val buffer = java.io.ByteArrayOutputStream()
+                        val buffer = ByteArrayOutputStream()
                         val data = ByteArray(8192)
                         var nRead: Int
                         var totalRead = 0
@@ -211,16 +137,12 @@ object EpubIdentifierHelper {
                     val titleText = cleanHtmlAndEntities(titleMatch?.groupValues?.get(1)) ?: "Unknown"
                     val authorText = cleanHtmlAndEntities(authorMatch?.groupValues?.get(1)) ?: "Unknown"
 
-                    // --- ANNOTATION / DESCRIPTION EXTRACTION ---
                     var descriptionText: String? = null
-
-                    // 1. Try <dc:description> tag with DOT_MATCHES_ALL
                     val descMatch = Regex("<(?:\\w+:)?description[^>]*>(.*?)</(?:\\w+:)?description>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(opfContent)
                     if (descMatch != null) {
                         descriptionText = cleanHtmlAndEntities(descMatch.groupValues[1])
                     }
 
-                    // 2. Try <meta name="description" content="..."/>
                     if (descriptionText.isNullOrBlank()) {
                         val metaDescMatches = Regex("<meta\\s+([^>]+)>", RegexOption.IGNORE_CASE).findAll(opfContent)
                         for (meta in metaDescMatches) {
@@ -236,26 +158,7 @@ object EpubIdentifierHelper {
                         }
                     }
 
-                    // 3. Try checking dedicated description/annotation file in zip
-                    if (descriptionText.isNullOrBlank()) {
-                        val descFileKey = zipFiles.keys.firstOrNull { key ->
-                            val name = key.lowercase()
-                            (name.contains("annotation") || name.contains("description") || name.contains("summary") || name.contains("about")) &&
-                                    (name.endsWith(".xhtml") || name.endsWith(".html") || name.endsWith(".htm") || name.endsWith(".txt"))
-                        }
-                        if (descFileKey != null) {
-                            val bytes = zipFiles[descFileKey]
-                            if (bytes != null && bytes.isNotEmpty()) {
-                                val strContent = String(bytes, Charsets.UTF_8)
-                                descriptionText = cleanHtmlAndEntities(strContent)
-                            }
-                        }
-                    }
-
-                    // --- COVER IMAGE IDENTIFICATION ---
                     var coverIdOrPath: String? = null
-
-                    // EPUB 2 <meta name="cover" content="..."/>
                     val metaMatches = Regex("<meta\\s+([^>]+)>", RegexOption.IGNORE_CASE).findAll(opfContent)
                     for (meta in metaMatches) {
                         val attrs = meta.groupValues[1]
@@ -269,9 +172,8 @@ object EpubIdentifierHelper {
                         }
                     }
 
-                    // Parse manifest items
-                    val manifestMap = mutableMapOf<String, String>() // id -> href
-                    val manifestMediaTypeMap = mutableMapOf<String, String>() // href -> media-type
+                    val manifestMap = mutableMapOf<String, String>()
+                    val manifestMediaTypeMap = mutableMapOf<String, String>()
                     var epub3CoverHref: String? = null
 
                     val itemMatches = Regex("<item\\s+([^>]+)>", RegexOption.IGNORE_CASE).findAll(opfContent)
@@ -294,7 +196,6 @@ object EpubIdentifierHelper {
                             manifestMediaTypeMap[href] = mediaType
                         }
 
-                        // EPUB 3 properties="cover-image"
                         if (properties.contains("cover-image", ignoreCase = true) && href.isNotEmpty()) {
                             epub3CoverHref = href
                         }
@@ -310,27 +211,6 @@ object EpubIdentifierHelper {
                         }
                     }
 
-                    // Check <guide> section
-                    if (rawCoverPath == null) {
-                        val guideMatch = Regex("<guide[^>]*>(.*?)</guide>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(opfContent)
-                        if (guideMatch != null) {
-                            val refMatches = Regex("<reference\\s+([^>]+)>", RegexOption.IGNORE_CASE).findAll(guideMatch.groupValues[1])
-                            for (ref in refMatches) {
-                                val attrs = ref.groupValues[1]
-                                val typeM = Regex("type\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
-                                val hrefM = Regex("href\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
-                                if (typeM != null && hrefM != null) {
-                                    val type = typeM.groupValues[1].lowercase()
-                                    if (type == "cover" || type.contains("cover")) {
-                                        rawCoverPath = hrefM.groupValues[1]
-                                        break
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Check manifest IDs with cover keywords
                     if (rawCoverPath == null) {
                         val coverKeys = listOf("cover", "cover-image", "coverimage", "cover_image", "title-page", "titlepage", "thumb", "thumbnail")
                         for (key in coverKeys) {
@@ -341,32 +221,12 @@ object EpubIdentifierHelper {
                         }
                     }
 
-                    // Check manifest hrefs with cover keywords
-                    if (rawCoverPath == null) {
-                        for ((id, href) in manifestMap) {
-                            val mediaType = manifestMediaTypeMap[href] ?: ""
-                            val lowerHref = href.lowercase()
-                            val lowerId = id.lowercase()
-                            if (mediaType.startsWith("image/", ignoreCase = true) ||
-                                lowerHref.endsWith(".jpg") || lowerHref.endsWith(".jpeg") ||
-                                lowerHref.endsWith(".png") || lowerHref.endsWith(".webp") || lowerHref.endsWith(".gif")) {
-                                if (lowerHref.contains("cover") || lowerId.contains("cover") ||
-                                    lowerHref.contains("front") || lowerId.contains("front") ||
-                                    lowerHref.contains("title") || lowerId.contains("title")) {
-                                    rawCoverPath = href
-                                    break
-                                }
-                            }
-                        }
-                    }
-
                     if (rawCoverPath != null) {
-                        coverPath = resolvePath(opfDir, rawCoverPath)
+                        coverPath = EpubPathResolver.resolvePath(opfDir, rawCoverPath)
                     }
 
-                    val identifier = idMatch?.groupValues?.get(1)?.trim() ?: java.util.UUID.randomUUID().toString()
+                    val identifier = idMatch?.groupValues?.get(1)?.trim() ?: UUID.randomUUID().toString()
 
-                    // Parse Spine to construct content
                     val spineMatch = Regex("<spine[^>]*>(.*?)</spine>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(opfContent)
                     val spine = spineMatch?.groupValues?.get(1) ?: ""
                     val itemrefMatches = Regex("<itemref\\s+([^>]+)>", RegexOption.IGNORE_CASE).findAll(spine)
@@ -383,7 +243,7 @@ object EpubIdentifierHelper {
                     for (idref in idrefs) {
                         val href = manifestMap[idref]
                         if (href != null) {
-                            val fullPath = resolvePath(opfDir, href)
+                            val fullPath = EpubPathResolver.resolvePath(opfDir, href)
                             var bytes = zipFiles[fullPath]
                             if (bytes == null) {
                                 bytes = zipFiles[cleanZipPath(href)]
@@ -410,36 +270,9 @@ object EpubIdentifierHelper {
                     }
 
                     if (contentBuilder.isEmpty()) {
-                        val htmlFiles = zipFiles.keys.filter { it.endsWith(".xhtml") || it.endsWith(".html") || it.endsWith(".htm") }.sorted()
-                        for (path in htmlFiles) {
-                            val bytes = zipFiles[path]
-                            if (bytes != null) {
-                                val xhtmlContent = try {
-                                    val strUtf8 = String(bytes, Charsets.UTF_8)
-                                    if (!strUtf8.contains("\uFFFD")) {
-                                        strUtf8
-                                    } else {
-                                        String(bytes, Charset.forName("windows-1251"))
-                                    }
-                                } catch (e: Exception) {
-                                    String(bytes, Charset.forName("windows-1251"))
-                                }
-                                val bodyMatch = Regex("<body[^>]*>(.*?)</body>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(xhtmlContent)
-                                if (bodyMatch != null) {
-                                    contentBuilder.append(bodyMatch.groupValues[1])
-                                } else {
-                                    contentBuilder.append(xhtmlContent.replace(Regex("<[^>]+>"), " "))
-                                }
-                                contentBuilder.append("\n\n")
-                            }
-                        }
-                    }
-
-                    if (contentBuilder.isEmpty()) {
                         contentBuilder.append("Книга успешно импортирована.")
                     }
 
-                    // Fallback description from content if still blank
                     if (descriptionText.isNullOrBlank() && contentBuilder.isNotBlank()) {
                         val excerpt = cleanHtmlAndEntities(contentBuilder.toString())
                         if (!excerpt.isNullOrBlank()) {
@@ -495,141 +328,19 @@ object EpubIdentifierHelper {
         }
     }
 
-    fun extractAndSaveEpubCover(inputStream: java.io.InputStream, coverPath: String?, sha1: String, context: android.content.Context): String? {
-        return extractAndSaveEpubCoverImpl({ inputStream }, coverPath, sha1, context)
+    fun extractAndSaveEpubCover(inputStream: InputStream, coverPath: String?, sha1: String, context: Context): String? {
+        return EpubCoverExtractor.extractAndSaveEpubCover({ inputStream }, coverPath, sha1, context)
     }
 
-    fun extractAndSaveEpubCover(bytes: ByteArray, coverPath: String?, sha1: String, context: android.content.Context): String? {
-        return extractAndSaveEpubCoverImpl({ bytes.inputStream() }, coverPath, sha1, context)
+    fun extractAndSaveEpubCover(bytes: ByteArray, coverPath: String?, sha1: String, context: Context): String? {
+        return EpubCoverExtractor.extractAndSaveEpubCover({ bytes.inputStream() }, coverPath, sha1, context)
     }
 
-    fun extractAndSaveEpubCover(createInputStream: () -> java.io.InputStream?, coverPath: String?, sha1: String, context: android.content.Context): String? {
-        return extractAndSaveEpubCoverImpl(createInputStream, coverPath, sha1, context)
+    fun extractAndSaveEpubCover(createInputStream: () -> InputStream?, coverPath: String?, sha1: String, context: Context): String? {
+        return EpubCoverExtractor.extractAndSaveEpubCover(createInputStream, coverPath, sha1, context)
     }
 
-    fun extractAndSaveEpubCover(file: File, coverPath: String?, sha1: String, context: android.content.Context): String? {
-        return extractAndSaveEpubCoverImpl({ file.inputStream() }, coverPath, sha1, context)
-    }
-
-    private fun extractAndSaveEpubCoverImpl(createInputStream: () -> java.io.InputStream?, coverPath: String?, sha1: String, context: android.content.Context): String? {
-        return try {
-            var coverBytes: ByteArray? = null
-            var targetPath = if (!coverPath.isNullOrEmpty()) cleanZipPath(coverPath!!) else null
-
-            // Pass 1: Resolve HTML target paths to image paths without loading all images
-            if (targetPath != null && (targetPath.endsWith(".xhtml") || targetPath.endsWith(".html") || targetPath.endsWith(".htm"))) {
-                ZipInputStream(createInputStream()!!.buffered()).use { zip ->
-                    var entry = zip.nextEntry
-                    while (entry != null) {
-                        val name = cleanZipPath(entry.name)
-                        if (!entry.isDirectory && (name == targetPath || name.endsWith("/$targetPath") || targetPath!!.endsWith("/$name"))) {
-                            val buffer = java.io.ByteArrayOutputStream()
-                            val data = ByteArray(8192)
-                            var nRead: Int
-                            var totalRead = 0
-                            while (zip.read(data, 0, data.size).also { nRead = it } != -1 && totalRead < 256 * 1024) {
-                                buffer.write(data, 0, nRead)
-                                totalRead += nRead
-                            }
-                            val htmlStr = buffer.toString("UTF-8")
-                            val imgMatch = Regex("<(?:img|image)[^>]+(?:src|href|xlink:href)\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(htmlStr)
-                                ?: Regex("url\\(['\"]?([^'\"]+)['\"]?\\)", RegexOption.IGNORE_CASE).find(htmlStr)
-                            if (imgMatch != null) {
-                                val imgSrc = imgMatch.groupValues[1]
-                                val htmlDir = if (name.contains("/")) name.substringBeforeLast("/") else ""
-                                targetPath = resolvePath(htmlDir, imgSrc)
-                            }
-                            break
-                        }
-                        entry = zip.nextEntry
-                    }
-                }
-            }
-
-            // Pass 2: Find the actual cover image
-            val validExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
-            var bestScore = -1
-            
-            ZipInputStream(createInputStream()!!.buffered()).use { zip ->
-                var entry = zip.nextEntry
-                while (entry != null) {
-                    if (!entry.isDirectory) {
-                        val name = cleanZipPath(entry.name)
-                        val ext = name.substringAfterLast(".", "").lowercase()
-                        
-                        if (ext in validExtensions) {
-                            var isTarget = false
-                            if (targetPath != null) {
-                                val targetFilename = targetPath!!.substringAfterLast("/")
-                                if (name == targetPath || name.endsWith("/$targetPath") || targetPath!!.endsWith("/$name") || name.substringAfterLast("/") == targetFilename) {
-                                    isTarget = true
-                                }
-                            }
-                            
-                            val lowerKey = name.lowercase()
-                            val filename = lowerKey.substringAfterLast("/")
-                            var score = 0
-                            
-                            if (filename.contains("cover")) score += 120
-                            else if (lowerKey.contains("cover")) score += 100
-                            
-                            if (filename.contains("front")) score += 90
-                            else if (lowerKey.contains("front")) score += 70
-                            
-                            if (filename.contains("jacket") || filename.contains("poster") || filename.contains("title") || filename.contains("wrapper")) score += 60
-                            if (lowerKey.contains("images/") || lowerKey.contains("media/") || lowerKey.contains("oebps/")) score += 15
-                            if (filename.contains("01") || filename.contains("page1") || filename.contains("001")) score += 20
-                            
-                            if (isTarget) score += 1000 // Guarantee it's picked if it's the target!
-
-                            if (score > bestScore) {
-                                val buffer = java.io.ByteArrayOutputStream()
-                                val data = ByteArray(8192)
-                                var nRead: Int
-                                var totalRead = 0
-                                while (zip.read(data, 0, data.size).also { nRead = it } != -1 && totalRead < 10 * 1024 * 1024) {
-                                    buffer.write(data, 0, nRead)
-                                    totalRead += nRead
-                                }
-                                val bytes = buffer.toByteArray()
-                                if (bytes.size > 300) {
-                                    if (bytes.size > 10000) score += 20
-                                    if (bytes.size > 30000) score += 20
-                                    
-                                    if (score > bestScore) {
-                                        coverBytes = bytes
-                                        bestScore = score
-                                    }
-                                    
-                                    // Optimization: if it's the exact target, we can just break!
-                                    if (isTarget) {
-                                        break
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    entry = zip.nextEntry
-                }
-            }
-
-            if (coverBytes != null && coverBytes!!.isNotEmpty()) {
-                val cacheDir = context.cacheDir
-                val coversDir = File(cacheDir, "covers")
-                if (!coversDir.exists()) {
-                    coversDir.mkdirs()
-                }
-                val sanitizedSha1 = sha1.replace("[^a-zA-Z0-9._-]".toRegex(), "_")
-                val coverFile = File(coversDir, "${sanitizedSha1}.jpg")
-                coverFile.writeBytes(coverBytes!!)
-                return coverFile.absolutePath
-            } else {
-                return null
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error extracting EPUB cover", e)
-            return null
-        }
+    fun extractAndSaveEpubCover(file: File, coverPath: String?, sha1: String, context: Context): String? {
+        return EpubCoverExtractor.extractAndSaveEpubCover({ file.inputStream() }, coverPath, sha1, context)
     }
 }
-

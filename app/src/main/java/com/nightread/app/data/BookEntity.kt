@@ -32,3 +32,12 @@ data class BookEntity(
     val isWantToRead: Boolean = false,
     val dateAdded: Long = System.currentTimeMillis()
 )
+
+fun getRandomGradientStartColor(): String {
+    return listOf("#1A1A2E", "#16213E", "#0F3460", "#3B0066").random()
+}
+
+fun getRandomGradientEndColor(): String {
+    return listOf("#E94560", "#00ADB5", "#FF2E63", "#FF9F43").random()
+}
+
