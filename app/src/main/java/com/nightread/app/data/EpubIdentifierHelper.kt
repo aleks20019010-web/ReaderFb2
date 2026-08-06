@@ -159,7 +159,15 @@ object EpubIdentifierHelper {
                     // Only store opf, xml, container, and meta files to save memory
                     if (ext == "opf" || ext == "xml" || normalizedName.contains("meta-inf") ||
                         normalizedName.contains("annotation") || normalizedName.contains("description")) {
-                        val content = zip.readBytes()
+                        val buffer = java.io.ByteArrayOutputStream()
+                        val data = ByteArray(8192)
+                        var nRead: Int
+                        var totalRead = 0
+                        while (zip.read(data, 0, data.size).also { nRead = it } != -1 && totalRead < 512 * 1024) {
+                            buffer.write(data, 0, nRead)
+                            totalRead += nRead
+                        }
+                        val content = buffer.toByteArray()
                         if (normalizedName == "meta-inf/container.xml") {
                             val strContent = content.toString(Charsets.UTF_8)
                             val match = Regex("<rootfile\\s+[^>]*full-path\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(strContent)
@@ -477,16 +485,99 @@ object EpubIdentifierHelper {
 
     fun extractAndSaveEpubCover(file: File, coverPath: String?, sha1: String, context: android.content.Context): String? {
         return try {
-            val zipEntriesMap = mutableMapOf<String, ByteArray>()
+            var coverBytes: ByteArray? = null
+            var targetPath = if (!coverPath.isNullOrEmpty()) cleanZipPath(coverPath!!) else null
+
+            // Pass 1: Resolve HTML target paths to image paths without loading all images
+            if (targetPath != null && (targetPath.endsWith(".xhtml") || targetPath.endsWith(".html") || targetPath.endsWith(".htm"))) {
+                ZipInputStream(file.inputStream().buffered()).use { zip ->
+                    var entry = zip.nextEntry
+                    while (entry != null) {
+                        val name = cleanZipPath(entry.name)
+                        if (!entry.isDirectory && (name == targetPath || name.endsWith("/$targetPath") || targetPath!!.endsWith("/$name"))) {
+                            val buffer = java.io.ByteArrayOutputStream()
+                            val data = ByteArray(8192)
+                            var nRead: Int
+                            var totalRead = 0
+                            while (zip.read(data, 0, data.size).also { nRead = it } != -1 && totalRead < 256 * 1024) {
+                                buffer.write(data, 0, nRead)
+                                totalRead += nRead
+                            }
+                            val htmlStr = buffer.toString("UTF-8")
+                            val imgMatch = Regex("<(?:img|image)[^>]+(?:src|href|xlink:href)\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(htmlStr)
+                                ?: Regex("url\\(['\"]?([^'\"]+)['\"]?\\)", RegexOption.IGNORE_CASE).find(htmlStr)
+                            if (imgMatch != null) {
+                                val imgSrc = imgMatch.groupValues[1]
+                                val htmlDir = if (name.contains("/")) name.substringBeforeLast("/") else ""
+                                targetPath = resolvePath(htmlDir, imgSrc)
+                            }
+                            break
+                        }
+                        entry = zip.nextEntry
+                    }
+                }
+            }
+
+            // Pass 2: Find the actual cover image
+            val validExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
+            var bestScore = -1
+            
             ZipInputStream(file.inputStream().buffered()).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
                     if (!entry.isDirectory) {
                         val name = cleanZipPath(entry.name)
                         val ext = name.substringAfterLast(".", "").lowercase()
-                        if (ext in setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "xhtml", "html", "htm") || name.contains("cover")) {
-                            if (entry.size < 10 * 1024 * 1024) {
-                                zipEntriesMap[name] = zip.readBytes()
+                        
+                        if (ext in validExtensions) {
+                            var isTarget = false
+                            if (targetPath != null) {
+                                val targetFilename = targetPath!!.substringAfterLast("/")
+                                if (name == targetPath || name.endsWith("/$targetPath") || targetPath!!.endsWith("/$name") || name.substringAfterLast("/") == targetFilename) {
+                                    isTarget = true
+                                }
+                            }
+                            
+                            val lowerKey = name.lowercase()
+                            val filename = lowerKey.substringAfterLast("/")
+                            var score = 0
+                            
+                            if (filename.contains("cover")) score += 120
+                            else if (lowerKey.contains("cover")) score += 100
+                            
+                            if (filename.contains("front")) score += 90
+                            else if (lowerKey.contains("front")) score += 70
+                            
+                            if (filename.contains("jacket") || filename.contains("poster") || filename.contains("title") || filename.contains("wrapper")) score += 60
+                            if (lowerKey.contains("images/") || lowerKey.contains("media/") || lowerKey.contains("oebps/")) score += 15
+                            if (filename.contains("01") || filename.contains("page1") || filename.contains("001")) score += 20
+                            
+                            if (isTarget) score += 1000 // Guarantee it's picked if it's the target!
+
+                            if (score > bestScore) {
+                                val buffer = java.io.ByteArrayOutputStream()
+                                val data = ByteArray(8192)
+                                var nRead: Int
+                                var totalRead = 0
+                                while (zip.read(data, 0, data.size).also { nRead = it } != -1 && totalRead < 10 * 1024 * 1024) {
+                                    buffer.write(data, 0, nRead)
+                                    totalRead += nRead
+                                }
+                                val bytes = buffer.toByteArray()
+                                if (bytes.size > 300) {
+                                    if (bytes.size > 10000) score += 20
+                                    if (bytes.size > 30000) score += 20
+                                    
+                                    if (score > bestScore) {
+                                        coverBytes = bytes
+                                        bestScore = score
+                                    }
+                                    
+                                    // Optimization: if it's the exact target, we can just break!
+                                    if (isTarget) {
+                                        break
+                                    }
+                                }
                             }
                         }
                     }
@@ -494,81 +585,7 @@ object EpubIdentifierHelper {
                 }
             }
 
-            var coverBytes: ByteArray? = null
-
-            if (!coverPath.isNullOrEmpty()) {
-                var targetPath = cleanZipPath(coverPath)
-
-                // If targetPath is an HTML/XHTML cover page, parse it to find the internal image tag
-                if (targetPath.endsWith(".xhtml") || targetPath.endsWith(".html") || targetPath.endsWith(".htm")) {
-                    val htmlBytes = zipEntriesMap[targetPath]
-                        ?: zipEntriesMap.entries.firstOrNull { it.key.endsWith("/$targetPath") || targetPath.endsWith("/${it.key}") }?.value
-                    if (htmlBytes != null) {
-                        val htmlStr = String(htmlBytes, Charsets.UTF_8)
-                        val imgMatch = Regex("<(?:img|image)[^>]+(?:src|href|xlink:href)\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(htmlStr)
-                            ?: Regex("url\\(['\"]?([^'\"]+)['\"]?\\)", RegexOption.IGNORE_CASE).find(htmlStr)
-                        if (imgMatch != null) {
-                            val imgSrc = imgMatch.groupValues[1]
-                            val htmlDir = if (targetPath.contains("/")) targetPath.substringBeforeLast("/") else ""
-                            targetPath = resolvePath(htmlDir, imgSrc)
-                        }
-                    }
-                }
-
-                coverBytes = zipEntriesMap[targetPath]
-
-                if (coverBytes == null) {
-                    coverBytes = zipEntriesMap.entries.firstOrNull {
-                        it.key == targetPath || it.key.endsWith("/$targetPath") || targetPath.endsWith("/${it.key}")
-                    }?.value
-                }
-
-                if (coverBytes == null) {
-                    val targetFilename = targetPath.substringAfterLast("/")
-                    coverBytes = zipEntriesMap.entries.firstOrNull {
-                        it.key.substringAfterLast("/") == targetFilename && it.value.size > 500
-                    }?.value
-                }
-            }
-
-            // Fallback Image Scanner if coverBytes is still null or empty
-            if (coverBytes == null || coverBytes.isEmpty()) {
-                class ImageCandidate(val key: String, val bytes: ByteArray, val score: Int)
-
-                val imageCandidates = mutableListOf<ImageCandidate>()
-                val validExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
-
-                for ((key, bytes) in zipEntriesMap) {
-                    val ext = key.substringAfterLast(".", "").lowercase()
-                    if (validExtensions.contains(ext) && bytes.size > 300) {
-                        var score = 0
-                        val lowerKey = key.lowercase()
-                        val filename = lowerKey.substringAfterLast("/")
-
-                        if (filename.contains("cover")) score += 120
-                        else if (lowerKey.contains("cover")) score += 100
-
-                        if (filename.contains("front")) score += 90
-                        else if (lowerKey.contains("front")) score += 70
-
-                        if (filename.contains("jacket") || filename.contains("poster") || filename.contains("title") || filename.contains("wrapper")) score += 60
-                        if (lowerKey.contains("images/") || lowerKey.contains("media/") || lowerKey.contains("oebps/")) score += 15
-                        if (filename.contains("01") || filename.contains("page1") || filename.contains("001")) score += 20
-
-                        if (bytes.size > 10000) score += 20
-                        if (bytes.size > 30000) score += 20
-
-                        imageCandidates.add(ImageCandidate(key, bytes, score))
-                    }
-                }
-
-                imageCandidates.sortWith(compareByDescending<ImageCandidate> { it.score }.thenByDescending { it.bytes.size })
-                if (imageCandidates.isNotEmpty()) {
-                    coverBytes = imageCandidates.first().bytes
-                }
-            }
-
-            if (coverBytes != null && coverBytes.isNotEmpty()) {
+            if (coverBytes != null && coverBytes!!.isNotEmpty()) {
                 val cacheDir = context.cacheDir
                 val coversDir = File(cacheDir, "covers")
                 if (!coversDir.exists()) {
@@ -576,14 +593,14 @@ object EpubIdentifierHelper {
                 }
                 val sanitizedSha1 = sha1.replace("[^a-zA-Z0-9._-]".toRegex(), "_")
                 val coverFile = File(coversDir, "${sanitizedSha1}.jpg")
-                coverFile.writeBytes(coverBytes)
-                coverFile.absolutePath
+                coverFile.writeBytes(coverBytes!!)
+                return coverFile.absolutePath
             } else {
-                null
+                return null
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error extracting EPUB cover: ${file.name}", e)
-            null
+            return null
         }
     }
 }

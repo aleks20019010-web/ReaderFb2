@@ -709,6 +709,7 @@ class NewBookScanner(
                 java.util.zip.ZipInputStream(file.inputStream().buffered()).use { zis ->
                     var entry = zis.nextEntry
                     while (entry != null) {
+                        if (!kotlin.coroutines.coroutineContext.isActive) return
                         try {
                             val entryName = entry.name.lowercase()
                             if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".fb3") || entryName.endsWith(".epub"))) {
@@ -718,6 +719,7 @@ class NewBookScanner(
                                     var nRead: Int
                                     var totalRead = 0
                                     while (zis.read(data, 0, data.size).also { nRead = it } != -1 && totalRead < 3 * 1024 * 1024) {
+                                        if (!kotlin.coroutines.coroutineContext.isActive) return
                                         buffer.write(data, 0, nRead)
                                         totalRead += nRead
                                     }
