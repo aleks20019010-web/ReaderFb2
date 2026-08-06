@@ -260,6 +260,9 @@ class NewBookScanner(
                             ))
 
                             try {
+                                if (fileIndex % 20 == 0) {
+                                    System.gc()
+                                }
                                 withTimeoutOrNull(45000) {
                                     processFile(file, sha1ConcurrentMap, batchList) { added, skipped ->
                                         if (added > 0) addedCountAtomic.addAndGet(added)
@@ -470,6 +473,9 @@ class NewBookScanner(
                             ))
 
                             try {
+                                if (fileIndex % 20 == 0) {
+                                    System.gc()
+                                }
                                 withTimeoutOrNull(45000) {
                                     processFile(file, sha1ConcurrentMap, batchList) { added, skipped ->
                                         if (added > 0) addedCountAtomic.addAndGet(added)
@@ -526,7 +532,7 @@ class NewBookScanner(
 
     private suspend fun flushBatchToDb(batchList: MutableList<BookEntity>, forceAll: Boolean = false) {
         val itemsToInsert = synchronized(batchList) {
-            if (forceAll || batchList.size >= 15) {
+            if (forceAll || batchList.size >= 10) {
                 val copy = ArrayList(batchList)
                 batchList.clear()
                 copy
@@ -563,6 +569,18 @@ class NewBookScanner(
                             val path = cursor.getString(dataIndex)
                             if (!path.isNullOrEmpty()) {
                                 val ext = path.substringAfterLast('.', "").lowercase()
+                                val fileName = path.substringAfterLast('/')
+                                val fileNameLower = fileName.lowercase()
+
+                                if (fileName.startsWith("._") || 
+                                    fileName.startsWith(".") || 
+                                    fileNameLower.contains("__macosx") || 
+                                    ext == "txt" || 
+                                    ext == "pdf"
+                                ) {
+                                    continue
+                                }
+
                                 if (supportedExtensions.contains(ext)) {
                                     val file = File(path)
                                     if (file.exists() && file.isFile && file.canRead()) {
@@ -588,13 +606,25 @@ class NewBookScanner(
         batchList: MutableList<BookEntity>,
         onStatsUpdated: (added: Int, skipped: Int) -> Unit
     ) {
+        val fileName = file.name
+        val fileNameLower = fileName.lowercase()
         val ext = file.extension.lowercase()
+
+        if (fileName.startsWith("._") || 
+            fileName.startsWith(".") || 
+            fileNameLower.contains("__macosx") || 
+            ext == "txt" || 
+            ext == "pdf"
+        ) {
+            return
+        }
+
         if (ext == "fb3" || file.name.endsWith(".fb3.zip", true)) {
             try {
                 if (!file.exists() || !file.canRead()) return
                 val sha1 = computeSha1ForFile(file)
-                if (sha1ToPathMap.containsKey(sha1)) {
-                    val existingPath = sha1ToPathMap[sha1]
+                val existingPath = sha1ToPathMap.putIfAbsent(sha1, file.absolutePath)
+                if (existingPath != null) {
                     if (existingPath != file.absolutePath) {
                         try {
                             bookDao.updateFilePath(sha1, file.absolutePath)
@@ -629,7 +659,6 @@ class NewBookScanner(
                     isNew = true
                 )
                 batchList.add(book)
-                sha1ToPathMap[sha1] = file.absolutePath
                 onStatsUpdated(1, 0)
             } catch (e: Throwable) {
                 Log.e(TAG, "Error handling fb3 file: ${file.absolutePath}", e)
@@ -639,12 +668,9 @@ class NewBookScanner(
                 if (!file.exists() || !file.canRead()) return
 
                 val sha1 = computeSha1ForFile(file)
-                Log.d(TAG, "[SCAN-SHA1] Calculated SHA-1: $sha1 for FB2 file: ${file.name}")
-
-                if (sha1ToPathMap.containsKey(sha1)) {
-                    val existingPath = sha1ToPathMap[sha1]
+                val existingPath = sha1ToPathMap.putIfAbsent(sha1, file.absolutePath)
+                if (existingPath != null) {
                     if (existingPath != file.absolutePath) {
-                        Log.d(TAG, "Book with SHA-1 $sha1 already exists but path changed. Updating path.")
                         try {
                             bookDao.updateFilePath(sha1, file.absolutePath)
                             sha1ToPathMap[sha1] = file.absolutePath
@@ -667,7 +693,6 @@ class NewBookScanner(
                         val rawText = decodeBytesToString(bytes)
                         NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
                     } else {
-                        // For large FB2 files, read only the first 2MB for cover block
                         val buffer = ByteArray(2 * 1024 * 1024)
                         val bytesRead = file.inputStream().buffered().use { it.read(buffer) }
                         if (bytesRead > 0) {
@@ -675,6 +700,9 @@ class NewBookScanner(
                             NewCoverExtractor.extractAndSaveCover(rawTextHeader, sha1, context)
                         } else null
                     }
+                } catch (e: OutOfMemoryError) {
+                    System.gc()
+                    null
                 } catch (e: Throwable) {
                     Log.w(TAG, "Failed to extract cover for FB2 file ${file.name}", e)
                     null
@@ -697,7 +725,6 @@ class NewBookScanner(
                     isNew = true
                 )
                 batchList.add(book)
-                sha1ToPathMap[sha1] = file.absolutePath
                 onStatsUpdated(1, 0)
             } catch (e: Throwable) {
                 Log.e(TAG, "Error handling fb2 file: ${file.absolutePath}", e)
@@ -712,7 +739,16 @@ class NewBookScanner(
                         if (!kotlin.coroutines.coroutineContext.isActive) return
                         try {
                             val entryName = entry.name.lowercase()
-                            if (!entry.isDirectory && (entryName.endsWith(".fb2") || entryName.endsWith(".fb3") || entryName.endsWith(".epub"))) {
+                            val entryFileName = entryName.substringAfterLast('/')
+                            
+                            if (!entry.isDirectory && 
+                                !entryName.contains("__macosx") && 
+                                !entryFileName.startsWith("._") && 
+                                !entryFileName.startsWith(".") &&
+                                !entryName.endsWith(".txt") &&
+                                !entryName.endsWith(".pdf") &&
+                                (entryName.endsWith(".fb2") || entryName.endsWith(".fb3") || entryName.endsWith(".epub") || entryName.endsWith(".mobi") || entryName.endsWith(".azw") || entryName.endsWith(".azw3"))
+                            ) {
                                 val tempBytes = try {
                                     val buffer = java.io.ByteArrayOutputStream()
                                     val data = ByteArray(8192)
@@ -730,9 +766,9 @@ class NewBookScanner(
 
                                 if (tempBytes.isNotEmpty()) {
                                     val sha1 = computeSha1(tempBytes)
+                                    val existingPath = sha1ToPathMap.putIfAbsent(sha1, file.absolutePath)
 
-                                    if (sha1ToPathMap.containsKey(sha1)) {
-                                        val existingPath = sha1ToPathMap[sha1]
+                                    if (existingPath != null) {
                                         if (existingPath != file.absolutePath) {
                                             try {
                                                 bookDao.updateFilePath(sha1, file.absolutePath)
@@ -743,9 +779,8 @@ class NewBookScanner(
                                         }
                                         onStatsUpdated(0, 1)
                                     } else {
-                                        val rawText = decodeBytesToString(tempBytes)
                                         val isFb3 = entryName.endsWith(".fb3")
-                                        val entryFallback = entryName.removeSuffix(".fb2").removeSuffix(".fb3")
+                                        val entryFallback = entryFileName.substringBeforeLast('.')
                                         val (metadata, coverPath) = if (isFb3) {
                                             val parsedFb3 = com.nightread.app.service.Fb3Parser.parseBytes(tempBytes, entryFallback, extractContent = false)
                                             val covPath = if (parsedFb3.coverBytes != null && parsedFb3.coverBytes.isNotEmpty()) {
@@ -761,8 +796,16 @@ class NewBookScanner(
                                                 annotation = parsedFb3.annotation
                                             ) to covPath
                                         } else {
-                                            val fb2Meta = Fb2Parser.parse(rawText, entryFallback)
-                                            val covPath = NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
+                                            val fb2Meta = tempBytes.inputStream().use { Fb2Parser.parse(it, entryFallback) }
+                                            val covPath = try {
+                                                val rawText = decodeBytesToString(tempBytes)
+                                                NewCoverExtractor.extractAndSaveCover(rawText, sha1, context)
+                                            } catch (e: OutOfMemoryError) {
+                                                System.gc()
+                                                null
+                                            } catch (e: Exception) {
+                                                null
+                                            }
                                             fb2Meta to covPath
                                         }
 
@@ -785,7 +828,6 @@ class NewBookScanner(
                                             isNew = true
                                         )
                                         batchList.add(book)
-                                        sha1ToPathMap[sha1] = file.absolutePath
                                         onStatsUpdated(1, 0)
                                     }
                                 }
@@ -807,9 +849,9 @@ class NewBookScanner(
                 if (metadata == null) return
 
                 val identifier = metadata.identifier
+                val existingPath = sha1ToPathMap.putIfAbsent(identifier, file.absolutePath)
 
-                if (sha1ToPathMap.containsKey(identifier)) {
-                    val existingPath = sha1ToPathMap[identifier]
+                if (existingPath != null) {
                     if (existingPath != file.absolutePath) {
                         try {
                             bookDao.updateFilePath(identifier, file.absolutePath)
@@ -839,7 +881,6 @@ class NewBookScanner(
                     isNew = true
                 )
                 batchList.add(book)
-                sha1ToPathMap[identifier] = file.absolutePath
                 onStatsUpdated(1, 0)
             } catch (e: Throwable) {
                 Log.e(TAG, "Error handling epub file: ${file.absolutePath}", e)
@@ -848,8 +889,9 @@ class NewBookScanner(
             try {
                 if (!file.exists() || !file.canRead()) return
                 val sha1 = computeSha1ForFile(file)
-                if (sha1ToPathMap.containsKey(sha1)) {
-                    val existingPath = sha1ToPathMap[sha1]
+                val existingPath = sha1ToPathMap.putIfAbsent(sha1, file.absolutePath)
+
+                if (existingPath != null) {
                     try {
                         val existingBook = bookDao.getBookBySha1(sha1)
                         if (existingBook != null) {
@@ -874,7 +916,6 @@ class NewBookScanner(
                         } else if (existingPath != file.absolutePath) {
                             bookDao.updateFilePath(sha1, file.absolutePath)
                         }
-                        sha1ToPathMap[sha1] = file.absolutePath
                     } catch (ex: Exception) {
                         Log.e(TAG, "Failed to update existing MOBI book in DB for SHA-1: $sha1", ex)
                     }
@@ -913,7 +954,6 @@ class NewBookScanner(
                     isNew = true
                 )
                 batchList.add(book)
-                sha1ToPathMap[sha1] = file.absolutePath
                 onStatsUpdated(1, 0)
             } catch (e: Throwable) {
                 Log.e(TAG, "Error handling mobi/azw file: ${file.absolutePath}", e)
@@ -944,6 +984,8 @@ class NewBookScanner(
                 if (file.isDirectory) {
                     val name = file.name.lowercase()
                     if (name.startsWith(".") || 
+                        name == "__macosx" ||
+                        name.contains("__macosx") ||
                         name == "android" || 
                         name == "data" || 
                         name == "obb" || 
@@ -976,8 +1018,20 @@ class NewBookScanner(
                     }
                     gatherFilesRecursive(file, list, depth + 1, visitedDirs)
                 } else {
+                    val fileName = file.name
+                    val fileNameLower = fileName.lowercase()
                     val ext = file.extension.lowercase()
-                    if (com.nightread.app.data.BookFormatHelper.isSupported(file.absolutePath) || ext == "zip") {
+
+                    if (fileName.startsWith("._") || 
+                        fileName.startsWith(".") || 
+                        fileNameLower.contains("__macosx") || 
+                        ext == "txt" || 
+                        ext == "pdf"
+                    ) {
+                        continue
+                    }
+
+                    if ((com.nightread.app.data.BookFormatHelper.isSupported(file.absolutePath) || ext == "zip") && ext != "txt" && ext != "pdf") {
                         if (file.length() > 0 && file.length() < 30 * 1024 * 1024) {
                             list.add(file)
                         } else {
