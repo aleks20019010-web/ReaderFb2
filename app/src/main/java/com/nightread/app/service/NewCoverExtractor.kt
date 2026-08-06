@@ -27,11 +27,37 @@ object NewCoverExtractor {
      * and saves it to internal files directory so it persists and is fast to load.
      */
     fun extractAndSaveCover(fb2Content: String, sha1: String, context: Context?): String? {
-        if (context == null) return null
+        if (context == null || fb2Content.isBlank()) return null
         try {
-            // Use fast non-regex substring search to prevent OutOfMemory and regex backtracking
+            // First try to find coverpage image ID reference in <coverpage> tag
+            var targetCoverId: String? = null
+            val coverpageStart = fb2Content.indexOf("<coverpage", ignoreCase = true)
+            if (coverpageStart != -1) {
+                val coverpageEnd = fb2Content.indexOf("</coverpage>", coverpageStart, ignoreCase = true)
+                if (coverpageEnd != -1) {
+                    val coverpageXml = fb2Content.substring(coverpageStart, coverpageEnd + "</coverpage>".length)
+                    val hrefIndex = coverpageXml.indexOf("href", ignoreCase = true)
+                    if (hrefIndex != -1) {
+                        val equalsIndex = coverpageXml.indexOf("=", hrefIndex)
+                        if (equalsIndex != -1) {
+                            val sub = coverpageXml.substring(equalsIndex + 1).trimStart()
+                            val quoteChar = sub.getOrNull(0)
+                            if (quoteChar == '"' || quoteChar == '\'') {
+                                val endQuote = sub.indexOf(quoteChar, 1)
+                                if (endQuote != -1) {
+                                    targetCoverId = sub.substring(1, endQuote).removePrefix("#").trim()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fast non-regex search for <binary> blocks
             var base64Data: String? = null
+            var fallbackFirstBinary: String? = null
             var searchStart = 0
+
             while (true) {
                 val start = fb2Content.indexOf("<binary", searchStart, ignoreCase = true)
                 if (start == -1) break
@@ -43,29 +69,39 @@ object NewCoverExtractor {
                 if (contentStart != -1) {
                     val content = block.substring(contentStart + 1, block.length - "</binary>".length).trim()
                     if (content.isNotEmpty()) {
-                        // Check if this block is the cover (has id containing "cover" or "thumb")
                         val header = block.substring(0, contentStart)
-                        val isCoverBlock = header.contains("cover", ignoreCase = true) ||
-                                           header.contains("thumb", ignoreCase = true) ||
-                                           header.contains("image", ignoreCase = true)
-                        if (isCoverBlock) {
+                        
+                        // Exact match with targetCoverId from coverpage
+                        if (!targetCoverId.isNullOrBlank() && header.contains(targetCoverId, ignoreCase = true)) {
                             base64Data = content
-                            break // Found the best cover block, stop searching!
-                        } else if (base64Data == null) {
-                            base64Data = content // Fallback to first binary block found
+                            break
+                        }
+                        
+                        // Check if header contains cover/thumb/front/image keywords
+                        val isCoverKeyword = header.contains("cover", ignoreCase = true) ||
+                                           header.contains("thumb", ignoreCase = true) ||
+                                           header.contains("front", ignoreCase = true) ||
+                                           header.contains("image", ignoreCase = true)
+                        
+                        if (isCoverKeyword && base64Data == null) {
+                            base64Data = content
+                        } else if (fallbackFirstBinary == null) {
+                            fallbackFirstBinary = content
                         }
                     }
                 }
                 searchStart = end + "</binary>".length
             }
 
-            if (base64Data.isNullOrBlank()) {
+            val finalBase64 = base64Data ?: fallbackFirstBinary
+
+            if (finalBase64.isNullOrBlank()) {
                 Log.d("NewCoverExtractor", "No binary cover data found for book SHA1: $sha1")
                 return null
             }
 
-            // Decode base64 directly (Base64.DEFAULT automatically handles whitespace and newlines)
-            val imageBytes = Base64.decode(base64Data, Base64.DEFAULT)
+            val cleanBase64 = finalBase64.replace("\\s".toRegex(), "")
+            val imageBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
             if (imageBytes.isEmpty()) {
                 Log.w("NewCoverExtractor", "Decoded image bytes are empty for book SHA1: $sha1")
                 return null

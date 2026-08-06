@@ -46,34 +46,8 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun removeDuplicateBooks() {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val books = repository.allBooks.first()
-                if (books.size <= 1) return@launch
-                val grouped = books.groupBy { 
-                    val normTitle = it.title.trim().lowercase()
-                    val normAuthor = (it.author ?: "неизвестен").trim().lowercase()
-                    "$normTitle|||$normAuthor"
-                }
-                val sha1sToDelete = mutableListOf<String>()
-                for ((_, list) in grouped) {
-                    if (list.size > 1) {
-                        val best = list.sortedWith(compareByDescending<BookEntity> { it.lastReadTime }
-                            .thenByDescending { it.currentProgressChar }
-                            .thenByDescending { it.filePath?.let { p -> File(p).exists() } == true }
-                        ).first()
-                        val duplicates = list.filter { it.sha1 != best.sha1 }
-                        sha1sToDelete.addAll(duplicates.map { it.sha1 })
-                    }
-                }
-                if (sha1sToDelete.isNotEmpty()) {
-                    repository.deleteBooksBySha1s(sha1sToDelete)
-                    Log.d("BookViewModel", "Automatically cleaned up ${sha1sToDelete.size} duplicate books from database")
-                }
-            } catch (e: Exception) {
-                Log.e("BookViewModel", "Error cleaning duplicate books", e)
-            }
-        }
+        // SHA1 uniqueness is enforced by Room Primary Key on sha1.
+        // We do not delete books based on title/author string matching to avoid losing distinct files.
     }
 
     val searchQuery = MutableStateFlow("")

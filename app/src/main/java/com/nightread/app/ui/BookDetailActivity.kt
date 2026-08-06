@@ -312,16 +312,17 @@ class BookDetailActivity : BaseActivity() {
 
     private fun shareBookFile() {
         val book = currentBook ?: return
-        val path = book.filePath
-        if (path.isNullOrEmpty()) {
-            CustomToast.show(this, "Файл книги не найден")
-            return
-        }
-        val file = File(path)
-        if (!file.exists()) {
-            CustomToast.show(this, "Файл книги не найден на устройстве")
-            return
-        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            val db = com.nightread.app.data.AppDatabase.getDatabase(this@BookDetailActivity)
+            val file = com.nightread.app.data.BookFileResolver.resolveBookFile(this@BookDetailActivity, book, db)
+            if (file == null || !file.exists()) {
+                withContext(Dispatchers.Main) {
+                    CustomToast.show(this@BookDetailActivity, "Файл книги не найден на устройстве")
+                }
+                return@launch
+            }
+
+            withContext(Dispatchers.Main) {
 
         try {
             val mimeType = when {
@@ -332,7 +333,7 @@ class BookDetailActivity : BaseActivity() {
                 else -> "*/*"
             }
             val uri: Uri = FileProvider.getUriForFile(
-                this,
+                this@BookDetailActivity,
                 "$packageName.fileprovider",
                 file
             )
@@ -346,7 +347,9 @@ class BookDetailActivity : BaseActivity() {
             startActivity(Intent.createChooser(intent, "Поделиться книгой"))
         } catch (e: Exception) {
             Log.e("BookDetailActivity", "Sharing failed", e)
-            CustomToast.show(this, "Не удалось поделиться файлом")
+            CustomToast.show(this@BookDetailActivity, "Не удалось поделиться файлом")
+        }
+            }
         }
     }
 

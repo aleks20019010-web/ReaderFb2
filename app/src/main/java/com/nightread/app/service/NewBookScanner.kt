@@ -31,7 +31,8 @@ data class BookSource(
     val name: String,
     val size: Long,
     val modified: Long,
-    val mimeType: String? = null
+    val mimeType: String? = null,
+    val realPath: String? = null
 )
 
 // ===================== ПРОЦЕССОРЫ ФОРМАТОВ =====================
@@ -53,15 +54,13 @@ class Fb2Processor : BookProcessor {
             } ?: return null
 
             val coverPath = try {
-                val headerBytes = withContext(Dispatchers.IO) {
+                val bytes = withContext(Dispatchers.IO) {
                     contentResolver.openInputStream(book.uri)?.use { input ->
-                        val buffer = ByteArray(64 * 1024)
-                        val read = input.read(buffer)
-                        if (read > 0) buffer.copyOf(read) else null
+                        input.readBytes()
                     }
                 }
-                if (headerBytes != null && headerBytes.isNotEmpty()) {
-                    val text = decodeBytesToString(headerBytes)
+                if (bytes != null && bytes.isNotEmpty()) {
+                    val text = decodeBytesToString(bytes)
                     NewCoverExtractor.extractAndSaveCover(text, sha1, context)
                 } else null
             } catch (e: Exception) {
@@ -75,7 +74,7 @@ class Fb2Processor : BookProcessor {
                 author = metadata.author,
                 annotation = metadata.annotation,
                 category = "Local",
-                filePath = book.uri.toString(),
+                filePath = resolveBookPath(book, context),
                 fileSize = book.size,
                 coverPath = coverPath,
                 series = metadata.series,
@@ -153,7 +152,7 @@ class Fb3Processor : BookProcessor {
                 author = result.author,
                 annotation = result.annotation,
                 category = "Local",
-                filePath = book.uri.toString(),
+                filePath = resolveBookPath(book, context),
                 fileSize = book.size,
                 coverPath = coverPath,
                 series = result.series,
@@ -212,7 +211,7 @@ class EpubProcessor : BookProcessor {
                 author = meta.author,
                 annotation = meta.description,
                 category = "Local",
-                filePath = book.uri.toString(),
+                filePath = resolveBookPath(book, context),
                 fileSize = book.size,
                 coverPath = savedCover,
                 language = "unknown",
@@ -266,7 +265,7 @@ class MobiProcessor : BookProcessor {
                 author = meta.author,
                 annotation = meta.annotation,
                 category = "Local",
-                filePath = book.uri.toString(),
+                filePath = resolveBookPath(book, context),
                 fileSize = book.size,
                 coverPath = null,
                 isNew = true,
@@ -307,10 +306,11 @@ class NewBookScanner(
 
     companion object {
         private const val TAG = "NewBookScanner"
-        private const val MAX_DEPTH = 7
+        private const val MAX_DEPTH = 10
         private const val MAX_FILE_SIZE = 50L * 1024 * 1024
+        private const val MAX_ZIP_FILE_SIZE = 500L * 1024 * 1024
         private const val BATCH_SIZE = 10
-        private const val MAX_BOOKS_FROM_ONE_ZIP = 200
+        private const val MAX_BOOKS_FROM_ONE_ZIP = 300
         private const val ZIP_MAX_ENTRY_SIZE = 20 * 1024 * 1024
         private const val CHANNEL_BUFFER_SIZE = 100
         private const val MAX_FB2_FOR_COVER = 10 * 1024 * 1024
@@ -425,14 +425,65 @@ class NewBookScanner(
     }
 
     suspend fun checkForNewBooks(): Job {
-        return scanBooks(isBackground = true)
+        if (!isScanningGlobally.compareAndSet(false, true)) {
+            updateState(ScannerState(isScanning = false, status = "Сканирование уже запущено"))
+            return Job()
+        }
+
+        val job = CoroutineScope(ioDispatcher).launch {
+            try {
+                updateState(ScannerState(isScanning = true, status = "Быстрая проверка новых книг..."))
+
+                val existingMap = bookDao.getSha1ToPathMap()
+                val existingPaths = existingMap.mapNotNull { it.filePath }.toSet()
+
+                val books = getBooksFromMediaStore()
+
+                val booksToProcess = books.filter { !existingPaths.contains(it.uri.toString()) }
+
+                if (booksToProcess.isEmpty()) {
+                    updateState(
+                        ScannerState(
+                            isScanning = false,
+                            status = "Новых книг не найдено",
+                            totalFiles = books.size,
+                            processedFiles = books.size
+                        )
+                    )
+                    return@launch
+                }
+
+                updateState(
+                    ScannerState(
+                        isScanning = true,
+                        status = "Найдено новых книг: ${booksToProcess.size}",
+                        totalFiles = booksToProcess.size,
+                        processedFiles = 0
+                    )
+                )
+
+                processBooks(booksToProcess)
+
+            } catch (e: CancellationException) {
+                updateState(ScannerState(isScanning = false, status = "Сканирование отменено"))
+            } catch (e: Exception) {
+                Log.e(TAG, "checkForNewBooks error", e)
+                updateState(ScannerState(isScanning = false, status = "Ошибка: ${e.message}"))
+            } finally {
+                isScanningGlobally.set(false)
+                scanJob.set(null)
+            }
+        }
+
+        scanJob.set(job)
+        return job
     }
 
     // ===================== РАБОТА С MEDIASTORE =====================
 
     private suspend fun getBooksFromMediaStore(): List<BookSource> {
         val result = mutableListOf<BookSource>()
-        val supportedExtensions = setOf("fb2", "fb3", "epub", "mobi", "azw", "azw3", "zip")
+        val supportedExtensions = setOf("fb2", "fb3", "epub", "mobi", "azw", "azw3", "zip", "fbz")
 
         try {
             val collectionUri = MediaStore.Files.getContentUri("external")
@@ -442,7 +493,8 @@ class NewBookScanner(
                 MediaStore.Files.FileColumns.SIZE,
                 MediaStore.Files.FileColumns.DATE_MODIFIED,
                 MediaStore.Files.FileColumns.MIME_TYPE,
-                MediaStore.Files.FileColumns.RELATIVE_PATH
+                MediaStore.Files.FileColumns.RELATIVE_PATH,
+                MediaStore.Files.FileColumns.DATA
             )
 
             val selection = "${MediaStore.Files.FileColumns.MIME_TYPE} IS NULL OR " +
@@ -461,6 +513,7 @@ class NewBookScanner(
                 val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
                 val modifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_MODIFIED)
                 val mimeColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE)
+                val dataColumn = cursor.getColumnIndex(MediaStore.Files.FileColumns.DATA)
 
                 while (cursor.moveToNext()) {
                     try {
@@ -470,13 +523,15 @@ class NewBookScanner(
                         if (!supportedExtensions.contains(ext)) continue
                         
                         val size = cursor.getLong(sizeColumn)
-                        if (size <= 0 || size > MAX_FILE_SIZE) continue
+                        val maxSize = if (ext == "zip" || ext == "fbz") MAX_ZIP_FILE_SIZE else MAX_FILE_SIZE
+                        if (size <= 0 || size > maxSize) continue
 
                         val id = cursor.getLong(idColumn)
                         val fileUri = ContentUris.withAppendedId(collectionUri, id)
 
                         val modified = cursor.getLong(modifiedColumn) * 1000
                         val mimeType = cursor.getString(mimeColumn)
+                        val dataPath = if (dataColumn != -1) cursor.getString(dataColumn) else null
 
                         result.add(
                             BookSource(
@@ -484,7 +539,8 @@ class NewBookScanner(
                                 name = name,
                                 size = size,
                                 modified = modified,
-                                mimeType = mimeType
+                                mimeType = mimeType,
+                                realPath = if (!dataPath.isNullOrBlank() && File(dataPath).exists()) dataPath else null
                             )
                         )
                     } catch (e: Exception) {
@@ -523,8 +579,6 @@ class NewBookScanner(
     private fun getLegacyFolders(): List<File> {
         val extStorage = Environment.getExternalStorageDirectory()
         return listOfNotNull(
-            context.getExternalFilesDir(null),
-            context.filesDir,
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
             extStorage,
@@ -533,7 +587,12 @@ class NewBookScanner(
             File(extStorage, "Download"),
             File(extStorage, "Downloads"),
             File(extStorage, "Documents"),
-            File(extStorage, "Telegram")
+            File(extStorage, "Telegram"),
+            File(extStorage, "FB2"),
+            File(extStorage, "Library"),
+            File(extStorage, "Android/media"),
+            context.getExternalFilesDir(null),
+            context.filesDir
         ).distinct()
     }
 
@@ -542,7 +601,7 @@ class NewBookScanner(
         if (!folder.exists() || !folder.canRead()) return
 
         val skipFolders = setOf(
-            "android", "data", "obb", "cache", "temp", "tmp",
+            "android/data", "obb", "cache", "temp", "tmp",
             "dcim", "pictures", "movies", "music",
             "notifications", "ringtones", "podcasts", ".thumbnails",
             "__macosx"
@@ -565,13 +624,16 @@ class NewBookScanner(
                         scanLegacyFolder(file, result, depth + 1)
                     }
                 } else {
-                    if (isBookFile(file) && file.length() > 0 && file.length() <= MAX_FILE_SIZE) {
+                    val ext = file.extension.lowercase()
+                    val maxSize = if (ext == "zip" || ext == "fbz" || file.name.lowercase().endsWith(".fb2.zip")) MAX_ZIP_FILE_SIZE else MAX_FILE_SIZE
+                    if (isBookFile(file) && file.length() > 0 && file.length() <= maxSize) {
                         result.add(
                             BookSource(
                                 uri = Uri.fromFile(file),
                                 name = file.name,
                                 size = file.length(),
-                                modified = file.lastModified()
+                                modified = file.lastModified(),
+                                realPath = file.absolutePath
                             )
                         )
                     }
@@ -586,7 +648,9 @@ class NewBookScanner(
 
     private fun isBookFile(file: File): Boolean {
         val ext = file.extension.lowercase()
-        return ext in setOf("fb2", "fb3", "epub", "mobi", "azw", "azw3", "zip")
+        val name = file.name.lowercase()
+        return ext in setOf("fb2", "fb3", "epub", "mobi", "azw", "azw3", "zip", "fbz") ||
+                name.endsWith(".fb2.zip") || name.endsWith(".fb3.zip")
     }
 
     // ===================== КЕШИРОВАНИЕ =====================
@@ -840,7 +904,7 @@ class NewBookScanner(
     ): BookEntity? {
         val sha1 = calculateSha1(bytes)
         val fileName = entryName.substringAfterLast("/").substringBeforeLast(".")
-        val uriString = book.uri.toString()
+        val uriString = resolveBookPath(book, context)
 
         return try {
             when {
@@ -1048,4 +1112,53 @@ class NewBookScanner(
     private fun getRandomGradientEndColor(): String {
         return listOf("#E94560", "#00ADB5", "#FF2E63", "#FF9F43").random()
     }
+}
+
+fun resolveBookPath(book: BookSource, context: Context): String {
+    if (!book.realPath.isNullOrBlank() && File(book.realPath).exists()) {
+        return File(book.realPath).absolutePath
+    }
+    if (book.uri.scheme == "file") {
+        val path = book.uri.path ?: book.uri.toString().removePrefix("file://")
+        if (File(path).exists()) return File(path).absolutePath
+    }
+    val uriPath = book.uri.path
+    if (!uriPath.isNullOrBlank() && File(uriPath).exists()) {
+        return File(uriPath).absolutePath
+    }
+    if (book.uri.scheme == "content") {
+        try {
+            context.contentResolver.query(book.uri, arrayOf(MediaStore.Files.FileColumns.DATA), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val dataIdx = cursor.getColumnIndex(MediaStore.Files.FileColumns.DATA)
+                    if (dataIdx != -1) {
+                        val path = cursor.getString(dataIdx)
+                        if (!path.isNullOrBlank() && File(path).exists()) {
+                            return File(path).absolutePath
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("NewBookScanner", "Error resolving DATA column for ${book.uri}", e)
+        }
+
+        try {
+            context.contentResolver.openInputStream(book.uri)?.use { input ->
+                val importedDir = File(context.filesDir, "imported").apply { mkdirs() }
+                val destFile = File(importedDir, "${book.name.hashCode()}_${book.name}")
+                if (!destFile.exists() || destFile.length() == 0L) {
+                    destFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                if (destFile.exists() && destFile.length() > 0) {
+                    return destFile.absolutePath
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("NewBookScanner", "Error copying stream for ${book.name}", e)
+        }
+    }
+    return book.realPath ?: book.uri.path ?: book.uri.toString()
 }

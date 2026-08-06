@@ -24,7 +24,12 @@ class GetBookContentUseCase(private val bookRepository: BookRepository) {
             val book = bookRepository.getBookBySha1(bookSha1)
                 ?: return@withContext BookContentResult.Error("Book not found")
 
-            val file = File(book.filePath)
+            val path = book.filePath
+            if (path.isNullOrEmpty()) {
+                return@withContext BookContentResult.Error("File path is null or empty")
+            }
+            val cleanPath = if (path.startsWith("file://")) path.removePrefix("file://") else path
+            val file = File(cleanPath)
             if (!file.exists()) {
                 return@withContext BookContentResult.Error("File does not exist: ${book.filePath}")
             }

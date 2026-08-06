@@ -751,8 +751,9 @@ class BookReaderActivity : BaseActivity() {
         }
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val file = java.io.File(book.filePath ?: "")
-            if (!file.exists()) {
+            val db = com.nightread.app.data.AppDatabase.getDatabase(this@BookReaderActivity)
+            val file = com.nightread.app.data.BookFileResolver.resolveBookFile(this@BookReaderActivity, book, db)
+            if (file == null || !file.exists()) {
                 withContext(Dispatchers.Main) {
                     splashOverlay?.visibility = View.GONE
                     com.nightread.app.ui.CustomToast.show(this@BookReaderActivity, "Файл книги не найден")
