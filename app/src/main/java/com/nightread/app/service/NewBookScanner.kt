@@ -292,14 +292,14 @@ class NewBookScanner(
         private const val MAX_FILE_SIZE = 50L * 1024 * 1024
         private const val MAX_ZIP_FILE_SIZE = 500L * 1024 * 1024
         private const val BATCH_SIZE = 10
-        private const val MAX_BOOKS_FROM_ONE_ZIP = 300
-        private const val ZIP_MAX_ENTRY_SIZE = 20 * 1024 * 1024
+        private const val MAX_BOOKS_FROM_ONE_ZIP = 50
+        private const val ZIP_MAX_ENTRY_SIZE = 8 * 1024 * 1024
         private const val CHANNEL_BUFFER_SIZE = 100
         private const val MAX_FB2_FOR_COVER = 10 * 1024 * 1024
+        const val SHA1_MAX_FILE_SIZE = 50L * 1024 * 1024
 
         val isScanningGlobally = AtomicBoolean(false)
     }
-
 
     val state = MutableStateFlow(
         ScannerState(
@@ -393,6 +393,10 @@ class NewBookScanner(
             } catch (e: CancellationException) {
                 Log.d(TAG, "Scan cancelled")
                 updateState(ScannerState(isScanning = false, status = "Сканирование отменено"))
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                Log.d(TAG, "Scan interrupted")
+                updateState(ScannerState(isScanning = false, status = "Сканирование прервано"))
             } catch (e: Exception) {
                 Log.e(TAG, "Scanner error", e)
                 updateState(ScannerState(isScanning = false, status = "Ошибка: ${e.message}"))
@@ -448,6 +452,9 @@ class NewBookScanner(
 
             } catch (e: CancellationException) {
                 updateState(ScannerState(isScanning = false, status = "Сканирование отменено"))
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                updateState(ScannerState(isScanning = false, status = "Сканирование прервано"))
             } catch (e: Exception) {
                 Log.e(TAG, "checkForNewBooks error", e)
                 updateState(ScannerState(isScanning = false, status = "Ошибка: ${e.message}"))
@@ -540,7 +547,7 @@ class NewBookScanner(
 
         val fsBooks = getBooksFromFileSystem()
         val combined = (result + fsBooks).distinctBy { source ->
-            source.realPath ?: (if (source.uri.scheme == "file") source.uri.path else source.uri.toString())
+            source.realPath ?: source.uri.toString()
         }
         return combined
     }
@@ -641,8 +648,10 @@ class NewBookScanner(
 
     private suspend fun filterCachedBooks(books: List<BookSource>): List<BookSource> {
         if (cacheDao == null) return books
+        if (books.isEmpty()) return books
 
         val cacheMap = cacheDao.getAll().associateBy { it.path }
+
         val result = books.filter { book ->
             val cached = cacheMap[book.uri.toString()]
             cached == null || 
@@ -663,7 +672,7 @@ class NewBookScanner(
                     path = book.uri.toString(),
                     lastModified = book.modified,
                     fileSize = book.size,
-                    sha1 = generateFastHash(book) // Сохраняем SHA1 для быстрого поиска
+                    sha1 = generateFastHash(book)
                 )
             }
             cacheDao.insertAll(entries)
@@ -819,19 +828,24 @@ class NewBookScanner(
     // ===================== РАБОТА С ZIP =====================
 
     private suspend fun parseZip(book: BookSource, batch: MutableList<BookEntity>) {
-        val maxEntries = 500
+        val maxEntries = 300
         var processedEntries = 0
 
         try {
-            // Читаем ZIP потоково, без загрузки всего файла в память
             contentResolver.openInputStream(book.uri)?.use { inputStream ->
                 ZipInputStream(inputStream.buffered(8192)).use { zip ->
                     var entry = zip.nextEntry
 
                     while (entry != null) {
-                        kotlinx.coroutines.yield()
+                        // Проверка отмены
+                        if (!currentCoroutineContext().isActive) {
+                            Log.d(TAG, "Scan cancelled during ZIP processing: ${book.name}")
+                            return
+                        }
 
+                        kotlinx.coroutines.yield()
                         processedEntries++
+                        
                         if (processedEntries > maxEntries) {
                             Log.w(TAG, "ZIP limit reached: ${book.name}")
                             break
@@ -876,6 +890,9 @@ class NewBookScanner(
                     }
                 }
             }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Log.d(TAG, "ZIP parsing interrupted: ${book.name}")
         } catch (e: Exception) {
             Log.e(TAG, "ZIP parsing error ${book.uri}", e)
         }
@@ -1013,24 +1030,42 @@ class NewBookScanner(
         dbMutex.withLock {
             val filteredBatch = mutableListOf<BookEntity>()
             try {
-                val allExisting = bookDao.getAllBooksSync()
+                // Асинхронный запрос для избежания блокировки
+                val allExisting = withContext(Dispatchers.IO) {
+                    bookDao.getAllBooksSync()
+                }
+                
                 val sha1Set = allExisting.map { it.sha1 }.toSet()
                 val titleAuthorMap = allExisting.associateBy { 
                     "${it.title.trim().lowercase()}_${(it.author ?: "").trim().lowercase()}" 
                 }
 
                 for (book in batch) {
+                    // Пропускаем книги с пустым названием
+                    if (book.title.isBlank()) {
+                        Log.w(TAG, "Skipping book with blank title: ${book.filePath}")
+                        continue
+                    }
+
                     val existingSha1 = sha1Set.contains(book.sha1)
                     val key = "${book.title.trim().lowercase()}_${(book.author ?: "").trim().lowercase()}"
                     val existingTitleAuthor = titleAuthorMap[key]
 
                     if (existingSha1) {
                         if (!book.filePath.isNullOrBlank()) {
-                            bookDao.updateFilePath(book.sha1, book.filePath)
+                            try {
+                                bookDao.updateFilePath(book.sha1, book.filePath)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to update path for ${book.title}", e)
+                            }
                         }
                     } else if (key.isNotBlank() && !key.startsWith("неизвестен") && existingTitleAuthor != null) {
                         if (!book.filePath.isNullOrBlank()) {
-                            bookDao.updateFilePath(existingTitleAuthor.sha1, book.filePath)
+                            try {
+                                bookDao.updateFilePath(existingTitleAuthor.sha1, book.filePath)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to update path for existing book ${book.title}", e)
+                            }
                         }
                     } else {
                         filteredBatch.add(book)
@@ -1042,8 +1077,11 @@ class NewBookScanner(
                         bookDao.insertBooks(filteredBatch)
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Throwable) {
                 Log.e(TAG, "Database saveBatch error", e)
+                // Пробуем по одному
                 for (book in filteredBatch) {
                     try {
                         bookDao.insertBooks(listOf(book))
@@ -1120,22 +1158,36 @@ class NewBookScanner(
     }
 }
 
-fun computeBookSha1(book: BookSource, context: Context): String {
-    return try {
-        if (!book.realPath.isNullOrBlank()) {
-            val file = File(book.realPath)
-            if (file.exists() && file.length() > 0) {
-                Sha1Helper.computeSha1FromContent(file) ?: Sha1Helper.computeSha1FileNio(file)
+// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
+
+suspend fun computeBookSha1(book: BookSource, context: Context): String {
+    return withContext(Dispatchers.IO) {
+        try {
+            if (!book.realPath.isNullOrBlank()) {
+                val file = File(book.realPath)
+                if (file.exists() && file.length() > 0) {
+                    if (file.length() < NewBookScanner.SHA1_MAX_FILE_SIZE) {
+                        Sha1Helper.computeSha1FromContent(file) 
+                            ?: Sha1Helper.computeSha1FileNio(file)
+                    } else {
+                        // Для больших файлов используем быстрый хеш
+                        generateFastHash(book)
+                    }
+                } else {
+                    context.contentResolver.openInputStream(book.uri)?.use { 
+                        Sha1Helper.computeSha1Stream(it) 
+                    }
+                }
             } else {
-                context.contentResolver.openInputStream(book.uri)?.use { Sha1Helper.computeSha1Stream(it) }
+                context.contentResolver.openInputStream(book.uri)?.use { 
+                    Sha1Helper.computeSha1Stream(it) 
+                }
             }
-        } else {
-            context.contentResolver.openInputStream(book.uri)?.use { Sha1Helper.computeSha1Stream(it) }
-        }
-    } catch (e: Throwable) {
-        Log.w("NewBookScanner", "Error computing SHA1 for ${book.name}, falling back to fast hash", e)
-        generateFastHash(book)
-    } ?: generateFastHash(book)
+        } catch (e: Throwable) {
+            Log.w("NewBookScanner", "Error computing SHA1 for ${book.name}", e)
+            generateFastHash(book)
+        } ?: generateFastHash(book)
+    }
 }
 
 fun generateFastHash(book: BookSource): String {
