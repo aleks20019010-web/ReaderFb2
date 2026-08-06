@@ -9,7 +9,8 @@ data class ScannerState(
     val totalFiles: Int = 0,
     val processedFiles: Int = 0,
     val addedBooks: Int = 0,
-    val skippedBooks: Int = 0
+    val skippedBooks: Int = 0,
+    val progress: Int = 0
 )
 
 typealias ScanState = ScannerState

@@ -1,6 +1,10 @@
 package com.nightread.app.service
 
+import android.util.Log
+
 object EpubToHtmlConverter {
+
+    private const val TAG = "EpubToHtmlConverter"
 
     fun convert(
         xhtmlContent: String,
@@ -16,323 +20,427 @@ object EpubToHtmlConverter {
         paddingLeft: Int,
         paddingRight: Int
     ): String {
-        // Dynamic Font Style mapping
-        val cssFontFamily = when (fontFamily) {
-            "EB Garamond" -> "'EB Garamond', serif"
-            "Literata" -> "'Literata', serif"
-            "Lora" -> "'Lora', serif"
-            "Roboto", "Sans Serif" -> "'Roboto', sans-serif"
-            "Serif", "Times New Roman" -> "serif"
-            "Monospace" -> "monospace"
-            else -> "sans-serif"
-        }
-
-        // Theme colors mapping
-        val (bgColor, textColor) = when (theme.lowercase()) {
-            "light", "beige" -> "#FFFBF0" to "#1A1A1A"
-            "sepia", "sepia_contrast" -> "#F4ECD8" to "#5C4033"
-            "dark", "contrast" -> "#121212" to "#E0E0E0"
-            "amoled" -> "#000000" to "#FFFFFF"
-            else -> "#FFFBF0" to "#1A1A1A"
-        }
-
-        // Margin/padding setup
-        val sideMarginPx = paddingLeft
-        val sideMargin = "${sideMarginPx}px"
-        val columnWidthCss = "calc(100vw - ${sideMarginPx * 2}px)"
-        val columnGapCss = "${sideMarginPx * 2}px"
-        val topMargin = "${paddingTop}px"
-        val bottomMargin = "${paddingBottom}px"
-        val fontWeightCss = fontWeight.toString()
-
-        // Inject IDs into paragraphs and headings to support chapter/bookmark navigation
-        var paragraphCounter = 0
-        val tagRegex = Regex("<(p|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>", RegexOption.IGNORE_CASE)
-        val modifiedContent = tagRegex.replace(xhtmlContent) { match ->
-            val tag = match.groupValues[1]
-            var attrs = match.groupValues[2]
-            
-            if (attrs.contains("id=", ignoreCase = true)) {
-                attrs = attrs.replace(Regex("id\\s*=\\s*['\"][^'\"]*['\"]", RegexOption.IGNORE_CASE), "")
+        return try {
+            // Dynamic Font Style mapping
+            val cssFontFamily = when (fontFamily) {
+                "EB Garamond" -> "'EB Garamond', serif"
+                "Literata" -> "'Literata', serif"
+                "Lora" -> "'Lora', serif"
+                "Roboto", "Sans Serif" -> "'Roboto', sans-serif"
+                "Serif", "Times New Roman" -> "serif"
+                "Monospace" -> "monospace"
+                else -> "sans-serif"
             }
-            
-            val replacement = "<$tag id=\"p_$paragraphCounter\"$attrs>"
-            paragraphCounter++
-            replacement
-        }
 
-        return """
-            <!DOCTYPE html>
-            <html lang="ru">
-            <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-                <style>
-                    :root {
-                        --bg-color: $bgColor;
-                        --text-color: $textColor;
-                        --top-margin: $topMargin;
-                        --bottom-margin: $bottomMargin;
-                        --side-margin: $sideMargin;
-                        --column-width: $columnWidthCss;
-                        --column-gap: $columnGapCss;
-                        --font-family: $cssFontFamily;
-                        --font-size: ${fontSize}px;
-                        --font-weight: $fontWeightCss;
-                        --line-spacing: $lineSpacing;
-                        --text-align: ${fontAlignment.lowercase()};
-                    }
-                    html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: var(--bg-color); overflow: hidden; }
-                    body {
-                        margin: 0; padding: 0;
-                        width: 100vw; height: 100vh;
-                        background-color: var(--bg-color); overflow: hidden;
-                        -webkit-user-select: none; user-select: none;
-                        -webkit-touch-callout: none;
-                    }
-                    #column-container {
-                        margin: 0;
-                        padding-top: var(--top-margin); padding-bottom: var(--bottom-margin);
-                        padding-left: var(--side-margin); padding-right: var(--side-margin);
-                        height: 100vh; box-sizing: border-box;
-                        -webkit-column-width: var(--column-width); -webkit-column-gap: var(--column-gap);
-                        column-width: var(--column-width); column-gap: var(--column-gap);
-                        -webkit-column-fill: auto; column-fill: auto;
-                        background-color: var(--bg-color); color: var(--text-color);
-                        font-family: var(--font-family); font-size: var(--font-size);
-                        font-weight: var(--font-weight); line-height: var(--line-spacing);
-                        text-align: var(--text-align);
-                        -webkit-hyphens: auto; -ms-hyphens: auto; hyphens: auto;
-                        orphans: 1; widows: 1;
-                    }
-                    #column-container * {
-                        max-width: 100% !important;
-                        box-sizing: border-box !important;
-                        word-wrap: break-word !important;
-                        overflow-wrap: break-word !important;
-                    }
-                    #column-container p,
-                    #column-container div,
-                    #column-container section,
-                    #column-container article,
-                    #column-container blockquote,
-                    #column-container h1,
-                    #column-container h2,
-                    #column-container h3,
-                    #column-container h4,
-                    #column-container h5,
-                    #column-container h6 {
-                        margin-left: 0 !important;
-                        margin-right: 0 !important;
-                        padding-left: 0 !important;
-                        padding-right: 0 !important;
-                        max-width: 100% !important;
-                        width: auto !important;
-                    }
-                    #column-container img,
-                    #column-container svg,
-                    #column-container image,
-                    #column-container table,
-                    #column-container iframe {
-                        max-width: 100% !important;
-                        height: auto !important;
-                        margin-left: auto !important;
-                        margin-right: auto !important;
-                        display: block !important;
-                    }
-                    p { margin-top: 0; margin-bottom: 0em; text-indent: 1.5em; text-align: justify; max-width: 100%; box-sizing: border-box; }
-                    h1, h2, h3, h4, h5, h6 { margin-top: 1em; margin-bottom: 0.5em; font-weight: bold; text-align: center; }
-                    img { max-width: 100%; height: auto; display: block; margin: 12px auto; }
-                    body.antiglare-active {
-                        font-weight: 800 !important;
-                        text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor !important;
-                    }
-                </style>
-                <script type="text/javascript">
-                    function applyAntiGlare(active, normalTextColor) {
-                        if (active) {
-                            document.body.classList.add('antiglare-active');
-                            var isDark = document.body.style.backgroundColor === 'rgb(0, 0, 0)' || document.body.style.backgroundColor === 'rgb(26, 26, 26)' || document.body.style.backgroundColor === '#000000' || document.body.style.backgroundColor === '#1A1A1A';
-                            document.body.style.color = isDark ? '#FFFFFF' : '#000000';
-                        } else {
-                            document.body.classList.remove('antiglare-active');
-                            document.body.style.color = normalTextColor;
-                        }
-                    }
+            // Theme colors mapping
+            val (bgColor, textColor) = when (theme.lowercase()) {
+                "light", "beige" -> "#FFFBF0" to "#1A1A1A"
+                "sepia", "sepia_contrast" -> "#F4ECD8" to "#5C4033"
+                "dark", "contrast" -> "#121212" to "#E0E0E0"
+                "amoled" -> "#000000" to "#FFFFFF"
+                else -> "#FFFBF0" to "#1A1A1A"
+            }
 
-                    function applyThemeChange(newBg, newText, duration) {
-                        var start = performance.now();
-                        var oldBg = getComputedStyle(document.body).backgroundColor || '#FFFBF0';
-                        var oldText = getComputedStyle(document.body).color || '#1A1A1A';
+            // Margin/padding setup
+            val sideMarginPx = paddingLeft
+            val sideMargin = "${sideMarginPx}px"
+            val columnWidthCss = "calc(100vw - ${sideMarginPx * 2}px)"
+            val columnGapCss = "${sideMarginPx * 2}px"
+            val topMargin = "${paddingTop}px"
+            val bottomMargin = "${paddingBottom}px"
+            val fontWeightCss = fontWeight.toString()
+
+            // Inject IDs into paragraphs and headings to support chapter/bookmark navigation
+            var paragraphCounter = 0
+            val tagRegex = Regex("<(p|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>", RegexOption.IGNORE_CASE)
+            val modifiedContent = tagRegex.replace(xhtmlContent) { match ->
+                val tag = match.groupValues[1]
+                var attrs = match.groupValues[2]
+                
+                if (attrs.contains("id=", ignoreCase = true)) {
+                    attrs = attrs.replace(Regex("id\\s*=\\s*['\"][^'\"]*['\"]", RegexOption.IGNORE_CASE), "")
+                }
+                
+                val replacement = "<$tag id=\"p_$paragraphCounter\"$attrs>"
+                paragraphCounter++
+                replacement
+            }
+
+            """
+                <!DOCTYPE html>
+                <html lang="ru">
+                <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                    <style>
+                        :root {
+                            --bg-color: $bgColor;
+                            --text-color: $textColor;
+                            --top-margin: $topMargin;
+                            --bottom-margin: $bottomMargin;
+                            --side-margin: $sideMargin;
+                            --column-width: $columnWidthCss;
+                            --column-gap: $columnGapCss;
+                            --font-family: $cssFontFamily;
+                            --font-size: ${fontSize}px;
+                            --font-weight: $fontWeightCss;
+                            --line-spacing: $lineSpacing;
+                            --text-align: ${fontAlignment.lowercase()};
+                        }
+                        html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: var(--bg-color); overflow: hidden; }
+                        body {
+                            margin: 0; padding: 0;
+                            width: 100vw; height: 100vh;
+                            background-color: var(--bg-color); overflow: hidden;
+                            -webkit-user-select: none; user-select: none;
+                            -webkit-touch-callout: none;
+                        }
+                        #column-container {
+                            margin: 0;
+                            padding-top: var(--top-margin); padding-bottom: var(--bottom-margin);
+                            padding-left: var(--side-margin); padding-right: var(--side-margin);
+                            height: 100vh; box-sizing: border-box;
+                            -webkit-column-width: var(--column-width); -webkit-column-gap: var(--column-gap);
+                            column-width: var(--column-width); column-gap: var(--column-gap);
+                            -webkit-column-fill: auto; column-fill: auto;
+                            background-color: var(--bg-color); color: var(--text-color);
+                            font-family: var(--font-family); font-size: var(--font-size);
+                            font-weight: var(--font-weight); line-height: var(--line-spacing);
+                            text-align: var(--text-align);
+                            -webkit-hyphens: auto; -ms-hyphens: auto; hyphens: auto;
+                            orphans: 1; widows: 1;
+                        }
+                        #column-container * {
+                            max-width: 100% !important;
+                            box-sizing: border-box !important;
+                            word-wrap: break-word !important;
+                            overflow-wrap: break-word !important;
+                        }
+                        #column-container p,
+                        #column-container div,
+                        #column-container section,
+                        #column-container article,
+                        #column-container blockquote,
+                        #column-container h1,
+                        #column-container h2,
+                        #column-container h3,
+                        #column-container h4,
+                        #column-container h5,
+                        #column-container h6 {
+                            margin-left: 0 !important;
+                            margin-right: 0 !important;
+                            padding-left: 0 !important;
+                            padding-right: 0 !important;
+                            max-width: 100% !important;
+                            width: auto !important;
+                        }
+                        #column-container img,
+                        #column-container svg,
+                        #column-container image,
+                        #column-container table,
+                        #column-container iframe {
+                            max-width: 100% !important;
+                            height: auto !important;
+                            margin-left: auto !important;
+                            margin-right: auto !important;
+                            display: block !important;
+                        }
+                        p { 
+                            margin-top: 0; 
+                            margin-bottom: 0.5em; 
+                            text-indent: 1.5em; 
+                            text-align: justify; 
+                            max-width: 100%; 
+                            box-sizing: border-box; 
+                        }
+                        h1, h2, h3, h4, h5, h6 { 
+                            margin-top: 1em; 
+                            margin-bottom: 0.5em; 
+                            font-weight: bold; 
+                            text-align: center;
+                            text-indent: 0 !important; 
+                        }
+                        h1 { font-size: 1.6em; }
+                        h2 { font-size: 1.3em; }
+                        h3 { font-size: 1.2em; }
                         
-                        document.body.style.transition = 'color ' + duration + 'ms ease-in-out';
-                        document.body.style.color = newText;
-                        
-                        var textElements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, span');
-                        for (var i = 0; i < textElements.length; i++) {
-                            textElements[i].style.transition = 'color ' + duration + 'ms ease-in-out';
-                            textElements[i].style.color = newText;
+                        /* EPUB Section & Structural Breaks */
+                        .fb2-section, section { 
+                            margin-bottom: 1.5em; 
+                        }
+                        .chapter-section {
+                            break-before: column;
+                            -webkit-column-break-before: always;
                         }
                         
-                        function step(now) {
-                            var elapsed = now - start;
-                            var progress = Math.min(elapsed / duration, 1.0);
-                            var easeProgress = Math.sin(progress * Math.PI / 2); // sine ease-out
-                            var radiusPercent = easeProgress * 150;
-                            
-                            var grad = 'radial-gradient(circle at center, ' + newBg + ' ' + radiusPercent + '%, ' + oldBg + ' ' + radiusPercent + '%)';
-                            document.body.style.background = grad;
-                            document.documentElement.style.background = grad;
-                            
-                            if (progress < 1.0) {
-                                requestAnimationFrame(step);
+                        /* Poetry */
+                        .poem { 
+                            margin: 1em 0 1em 1.5em;
+                            font-style: italic;
+                        }
+                        .stanza { 
+                            margin-bottom: 0.8em; 
+                        }
+                        .verse { 
+                            padding-left: 0.5em;
+                            text-indent: 0 !important;
+                        }
+                        .poem-title {
+                            font-weight: bold;
+                            text-align: center;
+                            margin: 0.5em 0;
+                            text-indent: 0 !important;
+                        }
+                        
+                        /* Epigraphs & Citations */
+                        .epigraph {
+                            margin: 1.5em 1em 1.5em 2em;
+                            font-style: italic;
+                            text-align: right;
+                        }
+                        .epigraph-title {
+                            font-weight: bold;
+                            text-align: right;
+                            margin-bottom: 0.5em;
+                            text-indent: 0 !important;
+                        }
+                        .cite, blockquote {
+                            margin: 1em 1.5em;
+                            padding-left: 1em;
+                            border-left: 3px solid var(--text-color);
+                            opacity: 0.85;
+                        }
+                        .annotation {
+                            margin: 1em 1.5em;
+                            font-style: italic;
+                            opacity: 0.9;
+                        }
+                        
+                        /* Footnotes */
+                        .footnote-ref, a.noteref, a.footnote-ref {
+                            font-size: 0.8em;
+                            vertical-align: super;
+                            text-decoration: none;
+                            color: var(--text-color);
+                            font-weight: bold;
+                            padding: 0 2px;
+                        }
+                        .footnote, aside[epub\\:type~="footnote"] {
+                            font-size: 0.85em;
+                            margin-top: 0.5em;
+                            padding: 0.5em 1em;
+                            border-top: 1px solid var(--text-color);
+                            opacity: 0.75;
+                        }
+                        
+                        /* Tables */
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin: 1em 0;
+                        }
+                        td, th {
+                            border: 1px solid var(--text-color);
+                            padding: 4px 8px;
+                            font-size: 0.9em;
+                        }
+
+                        strong { font-weight: bold; }
+                        em { font-style: italic; }
+                        img { max-width: 100%; height: auto; display: block; margin: 12px auto; }
+                        
+                        body.antiglare-active {
+                            font-weight: 800 !important;
+                            text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor !important;
+                        }
+                    </style>
+                    <script type="text/javascript">
+                        function applyAntiGlare(active, normalTextColor) {
+                            if (active) {
+                                document.body.classList.add('antiglare-active');
+                                var isDark = document.body.style.backgroundColor === 'rgb(0, 0, 0)' || document.body.style.backgroundColor === 'rgb(26, 26, 26)' || document.body.style.backgroundColor === '#000000' || document.body.style.backgroundColor === '#1A1A1A';
+                                document.body.style.color = isDark ? '#FFFFFF' : '#000000';
                             } else {
-                                document.body.style.background = newBg;
-                                document.body.style.backgroundColor = newBg;
-                                document.documentElement.style.background = newBg;
-                                document.documentElement.style.backgroundColor = newBg;
-                                
-                                document.body.style.transition = '';
-                                for (var i = 0; i < textElements.length; i++) {
-                                    textElements[i].style.transition = '';
-                                }
-                            }
-                        }
-                        requestAnimationFrame(step);
-                    }
-
-                    function applyFontChange(newFamily, newSize, newLineSpacing, newAlign, newWeight) {
-                        var elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
-                        var pageWidth = window.innerWidth || document.documentElement.clientWidth;
-                        var targetElement = null;
-                        for (var i = 0; i < elements.length; i++) {
-                            var rect = elements[i].getBoundingClientRect();
-                            if (rect.right > 5 && rect.left < pageWidth) {
-                                targetElement = elements[i];
-                                break;
+                                document.body.classList.remove('antiglare-active');
+                                document.body.style.color = normalTextColor;
                             }
                         }
 
-                        document.body.style.transition = 'font-size 0.5s ease-in-out, line-height 0.5s ease-in-out';
-                        
-                        var cssFontFamily = newFamily;
-                        if (newFamily === "EB Garamond") cssFontFamily = "'EB Garamond', serif";
-                        else if (newFamily === "Literata") cssFontFamily = "'Literata', serif";
-                        else if (newFamily === "Lora") cssFontFamily = "'Lora', serif";
-                        else if (newFamily === "Roboto" || newFamily === "Sans Serif") cssFontFamily = "'Roboto', sans-serif";
-                        else if (newFamily === "Serif" || newFamily === "Times New Roman") cssFontFamily = "serif";
-                        else if (newFamily === "Monospace") cssFontFamily = "monospace";
-                        
-                        document.body.style.fontFamily = cssFontFamily;
-                        document.body.style.fontSize = newSize + 'px';
-                        document.body.style.lineHeight = newLineSpacing;
-                        document.body.style.textAlign = newAlign.toLowerCase();
-                        document.body.style.fontWeight = newWeight > 0 ? 'bold' : 'normal';
-
-                        if (targetElement) {
-                            var startTime = performance.now();
-                            var duration = 500;
+                        function applyThemeChange(newBg, newText, duration) {
+                            var start = performance.now();
+                            var oldBg = getComputedStyle(document.body).backgroundColor || '#FFFBF0';
+                            var oldText = getComputedStyle(document.body).color || '#1A1A1A';
                             
-                            function lockScroll(now) {
-                                var elapsed = now - startTime;
-                                var rect = targetElement.getBoundingClientRect();
-                                var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft;
-                                var targetX = scrollLeft + rect.left;
-                                var pw = window.innerWidth || document.documentElement.clientWidth;
-                                if (pw > 0) {
-                                    var pageIndex = Math.floor(targetX / pw);
-                                    window.scrollTo(pageIndex * pw, 0);
-                                }
+                            document.body.style.transition = 'color ' + duration + 'ms ease-in-out';
+                            document.body.style.color = newText;
+                            
+                            var textElements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, span');
+                            for (var i = 0; i < textElements.length; i++) {
+                                textElements[i].style.transition = 'color ' + duration + 'ms ease-in-out';
+                                textElements[i].style.color = newText;
+                            }
+                            
+                            function step(now) {
+                                var elapsed = now - start;
+                                var progress = Math.min(elapsed / duration, 1.0);
+                                var easeProgress = Math.sin(progress * Math.PI / 2);
+                                var radiusPercent = easeProgress * 150;
                                 
-                                if (elapsed < duration) {
-                                    requestAnimationFrame(lockScroll);
+                                var grad = 'radial-gradient(circle at center, ' + newBg + ' ' + radiusPercent + '%, ' + oldBg + ' ' + radiusPercent + '%)';
+                                document.body.style.background = grad;
+                                document.documentElement.style.background = grad;
+                                
+                                if (progress < 1.0) {
+                                    requestAnimationFrame(step);
                                 } else {
+                                    document.body.style.background = newBg;
+                                    document.body.style.backgroundColor = newBg;
+                                    document.documentElement.style.background = newBg;
+                                    document.documentElement.style.backgroundColor = newBg;
+                                    
+                                    document.body.style.transition = '';
+                                    for (var i = 0; i < textElements.length; i++) {
+                                        textElements[i].style.transition = '';
+                                    }
+                                }
+                            }
+                            requestAnimationFrame(step);
+                        }
+
+                        function applyFontChange(newFamily, newSize, newLineSpacing, newAlign, newWeight) {
+                            var elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
+                            var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                            var targetElement = null;
+                            for (var i = 0; i < elements.length; i++) {
+                                var rect = elements[i].getBoundingClientRect();
+                                if (rect.right > 5 && rect.left < pageWidth) {
+                                    targetElement = elements[i];
+                                    break;
+                                }
+                            }
+
+                            document.body.style.transition = 'font-size 0.5s ease-in-out, line-height 0.5s ease-in-out';
+                            
+                            var cssFontFamily = newFamily;
+                            if (newFamily === "EB Garamond") cssFontFamily = "'EB Garamond', serif";
+                            else if (newFamily === "Literata") cssFontFamily = "'Literata', serif";
+                            else if (newFamily === "Lora") cssFontFamily = "'Lora', serif";
+                            else if (newFamily === "Roboto" || newFamily === "Sans Serif") cssFontFamily = "'Roboto', sans-serif";
+                            else if (newFamily === "Serif" || newFamily === "Times New Roman") cssFontFamily = "serif";
+                            else if (newFamily === "Monospace") cssFontFamily = "monospace";
+                            
+                            document.body.style.fontFamily = cssFontFamily;
+                            document.body.style.fontSize = newSize + 'px';
+                            document.body.style.lineHeight = newLineSpacing;
+                            document.body.style.textAlign = newAlign.toLowerCase();
+                            document.body.style.fontWeight = newWeight > 0 ? 'bold' : 'normal';
+
+                            if (targetElement) {
+                                var startTime = performance.now();
+                                var duration = 500;
+                                
+                                function lockScroll(now) {
+                                    var elapsed = now - startTime;
+                                    var rect = targetElement.getBoundingClientRect();
+                                    var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft;
+                                    var targetX = scrollLeft + rect.left;
+                                    var pw = window.innerWidth || document.documentElement.clientWidth;
+                                    if (pw > 0) {
+                                        var pageIndex = Math.floor(targetX / pw);
+                                        window.scrollTo(pageIndex * pw, 0);
+                                    }
+                                    
+                                    if (elapsed < duration) {
+                                        requestAnimationFrame(lockScroll);
+                                    } else {
+                                        calculatePages();
+                                        reportCurrentParagraph();
+                                        document.body.style.transition = '';
+                                    }
+                                }
+                                requestAnimationFrame(lockScroll);
+                            } else {
+                                setTimeout(function() {
                                     calculatePages();
                                     reportCurrentParagraph();
-                                    document.body.style.transition = '';
-                                }
-                            }
-                            requestAnimationFrame(lockScroll);
-                        } else {
-                            setTimeout(function() {
-                                calculatePages();
-                                reportCurrentParagraph();
-                            }, 500);
-                        }
-                    }
-
-                    function calculatePages() {
-                        var totalWidth = Math.max(
-                            document.body.scrollWidth || 0,
-                            document.documentElement.scrollWidth || 0,
-                            document.body.offsetWidth || 0
-                        );
-                        var pageWidth = window.innerWidth || document.documentElement.clientWidth;
-                        if (pageWidth > 0) {
-                            var pages = Math.max(1, Math.round(totalWidth / pageWidth));
-                            if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPagesCalculated) {
-                                AndroidInterface.onPagesCalculated(pages);
+                                }, 500);
                             }
                         }
-                    }
 
-                    function reportCurrentParagraph() {
-                        var elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
-                        var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft;
-                        var pageWidth = window.innerWidth || document.documentElement.clientWidth;
-                        
-                        for (var i = 0; i < elements.length; i++) {
-                            var rect = elements[i].getBoundingClientRect();
-                            if (rect.right > 5 && rect.left < pageWidth) {
-                                if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onParagraphVisible) {
-                                    AndroidInterface.onParagraphVisible(elements[i].id);
-                                }
-                                break;
-                            }
-                        }
-                    }
-
-                    function scrollToParagraph(pId) {
-                        var element = document.getElementById(pId);
-                        if (element) {
-                            var rect = element.getBoundingClientRect();
-                            var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft;
-                            var targetX = scrollLeft + rect.left;
+                        function calculatePages() {
+                            var totalWidth = Math.max(
+                                document.body.scrollWidth || 0,
+                                document.documentElement.scrollWidth || 0,
+                                document.body.offsetWidth || 0
+                            );
                             var pageWidth = window.innerWidth || document.documentElement.clientWidth;
                             if (pageWidth > 0) {
-                                var pageIndex = Math.floor(targetX / pageWidth);
-                                scrollToPage(pageIndex);
-                                if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPageRestored) {
-                                    AndroidInterface.onPageRestored(pageIndex);
+                                var pages = Math.max(1, Math.round(totalWidth / pageWidth));
+                                if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPagesCalculated) {
+                                    AndroidInterface.onPagesCalculated(pages);
                                 }
-                                return true;
                             }
                         }
-                        return false;
-                    }
 
-                    function scrollToPage(pageIndex) {
-                        var pageWidth = window.innerWidth || document.documentElement.clientWidth;
-                        if (pageWidth <= 0) return;
-                        var x = Math.round(pageIndex * pageWidth);
-                        window.scrollTo(x, 0);
-                        document.body.scrollLeft = x;
-                        document.documentElement.scrollLeft = x;
-                    }
+                        function reportCurrentParagraph() {
+                            var elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
+                            var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft;
+                            var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                            
+                            for (var i = 0; i < elements.length; i++) {
+                                var rect = elements[i].getBoundingClientRect();
+                                if (rect.right > 5 && rect.left < pageWidth) {
+                                    if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onParagraphVisible) {
+                                        AndroidInterface.onParagraphVisible(elements[i].id);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
 
-                    window.onload = function() { setTimeout(calculatePages, 200); };
-                    window.onresize = function() { setTimeout(calculatePages, 200); };
+                        function scrollToParagraph(pId) {
+                            var element = document.getElementById(pId);
+                            if (element) {
+                                var rect = element.getBoundingClientRect();
+                                var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft;
+                                var targetX = scrollLeft + rect.left;
+                                var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                                if (pageWidth > 0) {
+                                    var pageIndex = Math.floor(targetX / pageWidth);
+                                    scrollToPage(pageIndex);
+                                    if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPageRestored) {
+                                        AndroidInterface.onPageRestored(pageIndex);
+                                    }
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }
 
+                        function scrollToPage(pageIndex) {
+                            var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                            if (pageWidth <= 0) return;
+                            var x = Math.round(pageIndex * pageWidth);
+                            window.scrollTo(x, 0);
+                            document.body.scrollLeft = x;
+                            document.documentElement.scrollLeft = x;
+                        }
 
-
-
-                </script>
-            </head>
-            <body>
-                <div id="column-container">
-                    $modifiedContent
-                </div>
-            </body>
-            </html>
-        """.trimIndent()
+                        window.onload = function() { setTimeout(calculatePages, 200); };
+                        window.onresize = function() { setTimeout(calculatePages, 200); };
+                        window.onscroll = function() { reportCurrentParagraph(); };
+                    </script>
+                </head>
+                <body>
+                    <div id="column-container">
+                        $modifiedContent
+                    </div>
+                </body>
+                </html>
+            """.trimIndent()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error rendering EPUB HTML", e)
+            return "<html><body>Error rendering EPUB: ${e.message}</body></html>"
+        }
     }
 }
+

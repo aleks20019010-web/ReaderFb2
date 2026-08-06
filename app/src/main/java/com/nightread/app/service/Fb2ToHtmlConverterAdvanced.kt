@@ -1,11 +1,16 @@
 package com.nightread.app.service
 
+import android.util.Log
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
 import java.io.ByteArrayInputStream
+import java.util.ArrayDeque
 import javax.xml.parsers.SAXParserFactory
 
 object Fb2ToHtmlConverterAdvanced {
+
+    private const val TAG = "Fb2Converter"
+    private const val MAX_BINARY_SIZE_CHARS = 5_000_000 // Limit ~3.7MB binary (~5MB base64) to prevent OOM
 
     fun convert(
         fb2Xml: String,
@@ -162,7 +167,7 @@ object Fb2ToHtmlConverterAdvanced {
                         }
                         p {
                             margin-top: 0;
-                            margin-bottom: 0em;
+                            margin-bottom: 0.5em;
                             text-indent: 1.5em;
                             text-align: justify;
                             max-width: 100%;
@@ -175,6 +180,7 @@ object Fb2ToHtmlConverterAdvanced {
                             text-align: center;
                             page-break-after: avoid;
                             break-after: avoid;
+                            text-indent: 0 !important;
                         }
                         h1 { 
                             font-size: 1.6em; 
@@ -183,10 +189,88 @@ object Fb2ToHtmlConverterAdvanced {
                         }
                         h2 { font-size: 1.3em; }
                         h3 { font-size: 1.2em; }
+                        
+                        /* FB2 Structural & Chapter Breaks */
+                        .fb2-section { 
+                            margin-bottom: 1.5em; 
+                        }
                         .chapter-section {
                             break-before: column;
                             -webkit-column-break-before: always;
                         }
+                        
+                        /* Poetry */
+                        .poem { 
+                            margin: 1em 0 1em 1.5em;
+                            font-style: italic;
+                        }
+                        .stanza { 
+                            margin-bottom: 0.8em; 
+                        }
+                        .verse { 
+                            padding-left: 0.5em;
+                            text-indent: 0 !important;
+                        }
+                        .poem-title {
+                            font-weight: bold;
+                            text-align: center;
+                            margin: 0.5em 0;
+                            text-indent: 0 !important;
+                        }
+                        
+                        /* Epigraphs & Citations */
+                        .epigraph {
+                            margin: 1.5em 1em 1.5em 2em;
+                            font-style: italic;
+                            text-align: right;
+                        }
+                        .epigraph-title {
+                            font-weight: bold;
+                            text-align: right;
+                            margin-bottom: 0.5em;
+                            text-indent: 0 !important;
+                        }
+                        .cite {
+                            margin: 1em 1.5em;
+                            padding-left: 1em;
+                            border-left: 3px solid var(--text-color);
+                            opacity: 0.85;
+                        }
+                        .annotation {
+                            margin: 1em 1.5em;
+                            font-style: italic;
+                            opacity: 0.9;
+                        }
+                        
+                        /* Footnotes */
+                        .footnote-ref {
+                            font-size: 0.8em;
+                            vertical-align: super;
+                            text-decoration: none;
+                            color: var(--text-color);
+                            font-weight: bold;
+                            padding: 0 2px;
+                        }
+                        .footnote {
+                            font-size: 0.85em;
+                            margin-top: 0.5em;
+                            padding: 0.5em 1em;
+                            border-top: 1px solid var(--text-color);
+                            opacity: 0.75;
+                        }
+                        
+                        /* Tables */
+                        .fb2-table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin: 1em 0;
+                        }
+                        .fb2-table td, .fb2-table th {
+                            border: 1px solid var(--text-color);
+                            padding: 4px 8px;
+                            font-size: 0.9em;
+                        }
+                        
                         strong { font-weight: bold; }
                         em { font-style: italic; }
                         img {
@@ -376,7 +460,6 @@ object Fb2ToHtmlConverterAdvanced {
                             document.documentElement.scrollLeft = x;
                         }
 
-
                         window.onscroll = function() {
                             reportCurrentParagraph();
                         };
@@ -390,8 +473,6 @@ object Fb2ToHtmlConverterAdvanced {
                             setTimeout(calculatePages, 200);
                             setTimeout(reportCurrentParagraph, 300);
                         };
-
-
                     </script>
                 </head>
                 <body>
@@ -402,34 +483,66 @@ object Fb2ToHtmlConverterAdvanced {
                 </html>
             """.trimIndent()
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Error rendering FB2", e)
             return "<html><body>Error rendering FB2: ${e.message}</body></html>"
         }
     }
 
     private class Fb2SaxHandler : DefaultHandler() {
-        private val html = StringBuilder()
-        private val binaryMap = HashMap<String, String>()
+        private val html = StringBuilder(1024 * 1024)
+        private val binaryMap = mutableMapOf<String, String>()
         private val currentText = StringBuilder()
         private var paragraphCounter = 0
+        private var noteCounter = 0
+        private var sectionDepth = 0
         
         private var insideBody = false
         private var insideBinary = false
+        private var insidePoem = false
+        private var insideEpigraph = false
         private var currentBinaryId = ""
         private val currentBinaryContent = StringBuilder()
+        private val tagStack = ArrayDeque<String>()
 
-        private fun flushText() {
-            if (currentText.isEmpty()) return
-            val text = currentText.toString()
-            currentText.setLength(0)
-            
+        private fun escapeAndAppendText(text: String) {
             for (i in 0 until text.length) {
                 when (val c = text[i]) {
                     '<' -> html.append("&lt;")
                     '>' -> html.append("&gt;")
                     '&' -> html.append("&amp;")
-                    else -> html.append(c)
+                    '"' -> html.append("&quot;")
+                    '\'' -> html.append("&apos;")
+                    '\u00A0' -> html.append("&nbsp;")
+                    else -> {
+                        if (c.code < 32 && c != '\n' && c != '\r' && c != '\t') {
+                            continue
+                        }
+                        html.append(c)
+                    }
                 }
+            }
+        }
+
+        private fun flushText() {
+            if (currentText.isEmpty()) return
+            val text = currentText.toString()
+            currentText.setLength(0)
+            escapeAndAppendText(text)
+        }
+
+        private fun processAndStoreBinary() {
+            if (currentBinaryId.isEmpty()) return
+            val content = currentBinaryContent.toString().trim()
+            currentBinaryContent.setLength(0)
+
+            if (content.length > MAX_BINARY_SIZE_CHARS) {
+                Log.w(TAG, "Binary image '$currentBinaryId' too large (${content.length} chars), skipping")
+                return
+            }
+
+            val cleanBase64 = content.replace("\n", "").replace("\r", "").replace(" ", "")
+            if (cleanBase64.isNotEmpty()) {
+                binaryMap[currentBinaryId] = cleanBase64
             }
         }
 
@@ -462,30 +575,127 @@ object Fb2ToHtmlConverterAdvanced {
             flushText()
             
             when (element) {
+                "section" -> {
+                    sectionDepth++
+                    html.append("<section class='fb2-section chapter-section'>")
+                    tagStack.push("section")
+                }
                 "p" -> {
                     html.append("<p id=\"p_$paragraphCounter\">")
                     paragraphCounter++
+                    tagStack.push("p")
                 }
                 "title" -> {
-                    html.append("<h1 id=\"p_$paragraphCounter\">")
-                    paragraphCounter++
+                    val hTag = when {
+                        insidePoem -> "div class='poem-title'"
+                        insideEpigraph -> "div class='epigraph-title'"
+                        sectionDepth > 1 -> "h2 id=\"p_$paragraphCounter\""
+                        else -> "h1 id=\"p_$paragraphCounter\""
+                    }
+                    if (hTag.startsWith("h") || hTag.contains("id=")) paragraphCounter++
+                    html.append("<$hTag>")
+                    tagStack.push("title")
                 }
-                "section" -> html.append("<div class='chapter-section'>")
                 "subtitle" -> {
                     html.append("<h3 id=\"p_$paragraphCounter\">")
                     paragraphCounter++
+                    tagStack.push("subtitle")
                 }
-                "strong", "b" -> html.append("<strong>")
-                "emphasis", "i" -> html.append("<em>")
-                "empty-line" -> html.append("<br/>")
+                "poem" -> {
+                    insidePoem = true
+                    html.append("<div class='poem'>")
+                    tagStack.push("poem")
+                }
+                "stanza" -> {
+                    html.append("<div class='stanza'>")
+                    tagStack.push("stanza")
+                }
+                "v" -> {
+                    html.append("<div class='verse'>")
+                    tagStack.push("v")
+                }
+                "epigraph" -> {
+                    insideEpigraph = true
+                    html.append("<div class='epigraph'>")
+                    tagStack.push("epigraph")
+                }
+                "cite" -> {
+                    html.append("<blockquote class='cite'>")
+                    tagStack.push("cite")
+                }
+                "annotation" -> {
+                    html.append("<div class='annotation'>")
+                    tagStack.push("annotation")
+                }
+                "strong", "b" -> {
+                    html.append("<strong>")
+                    tagStack.push("strong")
+                }
+                "emphasis", "i" -> {
+                    html.append("<em>")
+                    tagStack.push("em")
+                }
+                "style" -> {
+                    html.append("<span class='style'>")
+                    tagStack.push("style")
+                }
+                "sub" -> {
+                    html.append("<sub>")
+                    tagStack.push("sub")
+                }
+                "sup" -> {
+                    html.append("<sup>")
+                    tagStack.push("sup")
+                }
+                "code" -> {
+                    html.append("<code>")
+                    tagStack.push("code")
+                }
+                "strikethrough" -> {
+                    html.append("<del>")
+                    tagStack.push("del")
+                }
+                "empty-line" -> {
+                    html.append("<br/>")
+                }
+                "a" -> {
+                    var href = attributes?.getValue("l:href") ?: attributes?.getValue("href") ?: ""
+                    val type = attributes?.getValue("type") ?: ""
+                    if (href.startsWith("#")) href = href.substring(1)
+                    if (type == "note" || href.isNotEmpty()) {
+                        html.append("<a href=\"#$href\" class=\"footnote-ref\">")
+                        tagStack.push("a")
+                    }
+                }
+                "note" -> {
+                    noteCounter++
+                    html.append("<div class='footnote' id='note_$noteCounter'>")
+                    tagStack.push("note")
+                }
                 "image", "img" -> {
                     var href = attributes?.getValue("l:href") ?: attributes?.getValue("href") ?: ""
                     if (href.startsWith("#")) {
                         href = href.substring(1)
                     }
                     if (href.isNotEmpty()) {
-                        html.append("<img src=\"IMAGE_ID:$href\" />")
+                        html.append("<img src=\"IMAGE_ID:$href\" alt=\"image\" />")
                     }
+                }
+                "table" -> {
+                    html.append("<table class='fb2-table'>")
+                    tagStack.push("table")
+                }
+                "tr" -> {
+                    html.append("<tr>")
+                    tagStack.push("tr")
+                }
+                "td" -> {
+                    html.append("<td>")
+                    tagStack.push("td")
+                }
+                "th" -> {
+                    html.append("<th>")
+                    tagStack.push("th")
                 }
             }
         }
@@ -500,9 +710,7 @@ object Fb2ToHtmlConverterAdvanced {
             }
             if (element == "binary") {
                 insideBinary = false
-                if (currentBinaryId.isNotEmpty()) {
-                    binaryMap[currentBinaryId] = currentBinaryContent.toString().trim()
-                }
+                processAndStoreBinary()
                 return
             }
             
@@ -511,17 +719,118 @@ object Fb2ToHtmlConverterAdvanced {
             flushText()
             
             when (element) {
-                "p" -> html.append("</p>")
-                "title" -> html.append("</h1>")
-                "section" -> html.append("</div>")
-                "subtitle" -> html.append("</h3>")
-                "strong", "b" -> html.append("</strong>")
-                "emphasis", "i" -> html.append("</em>")
+                "section" -> {
+                    if (sectionDepth > 0) sectionDepth--
+                    html.append("</section>")
+                    popTag("section")
+                }
+                "p" -> {
+                    html.append("</p>")
+                    popTag("p")
+                }
+                "title" -> {
+                    val hTag = when {
+                        insidePoem -> "div"
+                        insideEpigraph -> "div"
+                        sectionDepth > 1 -> "h2"
+                        else -> "h1"
+                    }
+                    html.append("</$hTag>")
+                    popTag("title")
+                }
+                "subtitle" -> {
+                    html.append("</h3>")
+                    popTag("subtitle")
+                }
+                "poem" -> {
+                    insidePoem = false
+                    html.append("</div>")
+                    popTag("poem")
+                }
+                "stanza" -> {
+                    html.append("</div>")
+                    popTag("stanza")
+                }
+                "v" -> {
+                    html.append("</div>")
+                    popTag("v")
+                }
+                "epigraph" -> {
+                    insideEpigraph = false
+                    html.append("</div>")
+                    popTag("epigraph")
+                }
+                "cite" -> {
+                    html.append("</blockquote>")
+                    popTag("cite")
+                }
+                "annotation" -> {
+                    html.append("</div>")
+                    popTag("annotation")
+                }
+                "strong", "b" -> {
+                    html.append("</strong>")
+                    popTag("strong")
+                }
+                "emphasis", "i" -> {
+                    html.append("</em>")
+                    popTag("em")
+                }
+                "style" -> {
+                    html.append("</span>")
+                    popTag("style")
+                }
+                "sub" -> {
+                    html.append("</sub>")
+                    popTag("sub")
+                }
+                "sup" -> {
+                    html.append("<sup>")
+                    popTag("sup")
+                }
+                "code" -> {
+                    html.append("</code>")
+                    popTag("code")
+                }
+                "strikethrough" -> {
+                    html.append("</del>")
+                    popTag("del")
+                }
+                "a" -> {
+                    html.append("</a>")
+                    popTag("a")
+                }
+                "note" -> {
+                    html.append("</div>")
+                    popTag("note")
+                }
+                "table" -> {
+                    html.append("</table>")
+                    popTag("table")
+                }
+                "tr" -> {
+                    html.append("</tr>")
+                    popTag("tr")
+                }
+                "td" -> {
+                    html.append("</td>")
+                    popTag("td")
+                }
+                "th" -> {
+                    html.append("</th>")
+                    popTag("th")
+                }
+            }
+        }
+
+        private fun popTag(expectedTag: String) {
+            if (tagStack.isNotEmpty()) {
+                tagStack.pop()
             }
         }
 
         override fun characters(ch: CharArray?, start: Int, length: Int) {
-            if (ch == null) return
+            if (ch == null || length <= 0) return
             if (insideBinary) {
                 currentBinaryContent.append(ch, start, length)
             } else if (insideBody) {
@@ -530,3 +839,4 @@ object Fb2ToHtmlConverterAdvanced {
         }
     }
 }
+

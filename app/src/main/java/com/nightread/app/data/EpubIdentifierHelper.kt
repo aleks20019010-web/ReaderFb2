@@ -144,14 +144,26 @@ object EpubIdentifierHelper {
         }
     }
 
+    fun getEpubMetadata(createInputStream: () -> java.io.InputStream?): EpubMetadata? {
+        return getEpubMetadataImpl(createInputStream)
+    }
+
+    fun getEpubMetadata(bytes: ByteArray): EpubMetadata? {
+        return getEpubMetadataImpl({ bytes.inputStream() })
+    }
+
     fun getEpubMetadata(file: File): EpubMetadata? {
+        return getEpubMetadataImpl({ file.inputStream() })
+    }
+
+    private fun getEpubMetadataImpl(createInputStream: () -> java.io.InputStream?): EpubMetadata? {
         return try {
             var opfPath: String? = null
             var opfContent: String? = null
             val zipFiles = mutableMapOf<String, ByteArray>()
             var coverPath: String? = null
 
-            ZipInputStream(file.inputStream().buffered()).use { zip ->
+            ZipInputStream(createInputStream()!!.buffered()).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
                     val normalizedName = cleanZipPath(entry.name)
@@ -352,7 +364,7 @@ object EpubIdentifierHelper {
                         coverPath = resolvePath(opfDir, rawCoverPath)
                     }
 
-                    val identifier = computeFileSha1(file) ?: idMatch?.groupValues?.get(1)?.trim() ?: java.util.UUID.randomUUID().toString()
+                    val identifier = idMatch?.groupValues?.get(1)?.trim() ?: java.util.UUID.randomUUID().toString()
 
                     // Parse Spine to construct content
                     val spineMatch = Regex("<spine[^>]*>(.*?)</spine>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(opfContent)
@@ -452,7 +464,7 @@ object EpubIdentifierHelper {
             }
             null
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting EPUB metadata: ${file.name}", e)
+            Log.e(TAG, "Error getting EPUB metadata", e)
             null
         }
     }
@@ -483,14 +495,30 @@ object EpubIdentifierHelper {
         }
     }
 
+    fun extractAndSaveEpubCover(inputStream: java.io.InputStream, coverPath: String?, sha1: String, context: android.content.Context): String? {
+        return extractAndSaveEpubCoverImpl({ inputStream }, coverPath, sha1, context)
+    }
+
+    fun extractAndSaveEpubCover(bytes: ByteArray, coverPath: String?, sha1: String, context: android.content.Context): String? {
+        return extractAndSaveEpubCoverImpl({ bytes.inputStream() }, coverPath, sha1, context)
+    }
+
+    fun extractAndSaveEpubCover(createInputStream: () -> java.io.InputStream?, coverPath: String?, sha1: String, context: android.content.Context): String? {
+        return extractAndSaveEpubCoverImpl(createInputStream, coverPath, sha1, context)
+    }
+
     fun extractAndSaveEpubCover(file: File, coverPath: String?, sha1: String, context: android.content.Context): String? {
+        return extractAndSaveEpubCoverImpl({ file.inputStream() }, coverPath, sha1, context)
+    }
+
+    private fun extractAndSaveEpubCoverImpl(createInputStream: () -> java.io.InputStream?, coverPath: String?, sha1: String, context: android.content.Context): String? {
         return try {
             var coverBytes: ByteArray? = null
             var targetPath = if (!coverPath.isNullOrEmpty()) cleanZipPath(coverPath!!) else null
 
             // Pass 1: Resolve HTML target paths to image paths without loading all images
             if (targetPath != null && (targetPath.endsWith(".xhtml") || targetPath.endsWith(".html") || targetPath.endsWith(".htm"))) {
-                ZipInputStream(file.inputStream().buffered()).use { zip ->
+                ZipInputStream(createInputStream()!!.buffered()).use { zip ->
                     var entry = zip.nextEntry
                     while (entry != null) {
                         val name = cleanZipPath(entry.name)
@@ -522,7 +550,7 @@ object EpubIdentifierHelper {
             val validExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
             var bestScore = -1
             
-            ZipInputStream(file.inputStream().buffered()).use { zip ->
+            ZipInputStream(createInputStream()!!.buffered()).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
                     if (!entry.isDirectory) {
@@ -599,7 +627,7 @@ object EpubIdentifierHelper {
                 return null
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error extracting EPUB cover: ${file.name}", e)
+            Log.e(TAG, "Error extracting EPUB cover", e)
             return null
         }
     }

@@ -55,6 +55,10 @@ object Fb3Parser : BookParser {
         )
     }
 
+    fun parseFb3(inputStream: InputStream, defaultTitle: String, extractContent: Boolean = true): Fb3ParsedBook {
+        return parseStream(inputStream, defaultTitle, extractContent)
+    }
+
     fun parseFb3(file: File, defaultTitle: String, extractContent: Boolean = true): Fb3ParsedBook {
         return try {
             FileInputStream(file).use { fis ->
