@@ -86,7 +86,7 @@ class SettingsActivity : BaseActivity() {
         val glassHeader = findViewById<View>(R.id.glassHeader)
         glassHeader.findViewById<TextView>(R.id.header_title).text = getString(R.string.drawer_settings)
         val btnLeft = glassHeader.findViewById<ImageButton>(R.id.header_btn_left)
-        btnLeft.setImageResource(android.R.drawable.ic_menu_sort_by_size)
+        btnLeft.setImageResource(R.drawable.ic_action_menu)
         btnLeft.setOnClickListener {
             val intent = Intent(this, com.nightread.app.MainActivity::class.java).apply {
                 putExtra("OPEN_DRAWER", true)

@@ -26,22 +26,69 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     val repository = BookRepository(database.bookDao(), database.noteDao())
     val syncManager = SyncManager(application)
 
-    // Observables from Database with robust error catching
+    // Observables from Database with robust error catching & auto-retry
     val allBooks: StateFlow<List<BookEntity>> = repository.allBooks
+        .retry { cause ->
+            if (cause is CancellationException) false
+            else {
+                Log.e("BookViewModel", "Retrying allBooks flow on exception", cause)
+                true
+            }
+        }
         .catch { e ->
             if (e is CancellationException) throw e
             Log.e("BookViewModel", "Exception loading books from database", e)
-            emit(emptyList())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allDocuments: StateFlow<List<BookEntity>> = repository.getFilteredDocuments()
+        .retry { cause ->
+            if (cause is CancellationException) false
+            else {
+                Log.e("BookViewModel", "Retrying allDocuments flow on exception", cause)
+                true
+            }
+        }
         .catch { e ->
             if (e is CancellationException) throw e
             Log.e("BookViewModel", "Exception loading documents from database", e)
-            emit(emptyList())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    init {
+        removeDuplicateBooks()
+    }
+
+    fun removeDuplicateBooks() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val books = repository.allBooks.first()
+                if (books.size <= 1) return@launch
+                val grouped = books.groupBy { 
+                    val normTitle = it.title.trim().lowercase()
+                    val normAuthor = (it.author ?: "неизвестен").trim().lowercase()
+                    "$normTitle|||$normAuthor"
+                }
+                val sha1sToDelete = mutableListOf<String>()
+                for ((_, list) in grouped) {
+                    if (list.size > 1) {
+                        val best = list.sortedWith(compareByDescending<BookEntity> { it.lastReadTime }
+                            .thenByDescending { it.currentProgressChar }
+                            .thenByDescending { it.filePath?.let { p -> File(p).exists() } == true }
+                        ).first()
+                        val duplicates = list.filter { it.sha1 != best.sha1 }
+                        sha1sToDelete.addAll(duplicates.map { it.sha1 })
+                    }
+                }
+                if (sha1sToDelete.isNotEmpty()) {
+                    repository.deleteBooksBySha1s(sha1sToDelete)
+                    Log.d("BookViewModel", "Automatically cleaned up ${sha1sToDelete.size} duplicate books from database")
+                }
+            } catch (e: Exception) {
+                Log.e("BookViewModel", "Error cleaning duplicate books", e)
+            }
+        }
+    }
 
     val searchQuery = MutableStateFlow("")
 
@@ -314,7 +361,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteSelectedBooks(booksList: List<BookEntity>, onComplete: (() -> Unit)? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(getApplication())
+            val sha1sToDelete = mutableListOf<String>()
+
             for (book in booksList) {
+                sha1sToDelete.add(book.sha1)
                 book.filePath?.let { path ->
                     try {
                         val file = File(path)
@@ -338,15 +388,19 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 } catch (e: Exception) {
                     Log.e("BookViewModel", "Error saving deleted book SHA1: ${book.sha1}", e)
                 }
-                try {
-                    repository.deleteBookBySha1(book.sha1)
-                } catch (e: Exception) {
-                    Log.e("BookViewModel", "Error deleting book from DB: ${book.sha1}", e)
-                }
                 if (selectedBook?.sha1 == book.sha1) {
                     selectedBook = null
                 }
             }
+
+            if (sha1sToDelete.isNotEmpty()) {
+                try {
+                    repository.deleteBooksBySha1s(sha1sToDelete)
+                } catch (e: Exception) {
+                    Log.e("BookViewModel", "Error batch deleting books from DB", e)
+                }
+            }
+
             withContext(Dispatchers.Main) {
                 onComplete?.invoke()
             }

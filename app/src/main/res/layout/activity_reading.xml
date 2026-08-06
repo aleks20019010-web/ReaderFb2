@@ -163,7 +163,7 @@
                 android:id="@+id/btnChaptersList"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:src="@drawable/ic_action_sort"
+                android:src="@drawable/ic_reader_toc"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 app:tint="#FFFFFF"
                 android:contentDescription="Оглавление (AI)"
@@ -173,7 +173,7 @@
                 android:id="@+id/btnSmartSearch"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:src="@android:drawable/ic_menu_search"
+                android:src="@drawable/ic_action_search"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 app:tint="#FFFFFF"
                 android:contentDescription="Умный поиск"
@@ -183,7 +183,7 @@
                 android:id="@+id/btnQA"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:src="@android:drawable/ic_menu_help"
+                android:src="@drawable/ic_action_help"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 app:tint="#FFFFFF"
                 android:contentDescription="Задать вопрос книге"
@@ -234,7 +234,7 @@
                 android:layout_marginTop="8dp"
                 android:text="Содержание главы"
                 android:visibility="gone"
-                app:icon="@android:drawable/ic_menu_info_details" />
+                app:icon="@drawable/ic_action_info" />
         </LinearLayout>
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton

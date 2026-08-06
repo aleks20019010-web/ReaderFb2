@@ -44,7 +44,7 @@ class NewBooksActivity : BaseActivity() {
         val glassHeader = findViewById<android.view.View>(R.id.glassHeader)
         glassHeader.findViewById<android.widget.TextView>(R.id.header_title).text = "Новые поступления"
         val btnLeft = glassHeader.findViewById<android.widget.ImageButton>(R.id.header_btn_left)
-        btnLeft.setImageResource(android.R.drawable.ic_menu_sort_by_size)
+        btnLeft.setImageResource(R.drawable.ic_action_menu)
         btnLeft.setOnClickListener {
             val intent = Intent(this, com.nightread.app.MainActivity::class.java).apply {
                 putExtra("OPEN_DRAWER", true)

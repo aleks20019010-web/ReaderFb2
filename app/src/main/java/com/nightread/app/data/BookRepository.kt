@@ -94,6 +94,12 @@ class BookRepository(
 
     suspend fun deleteBookBySha1(sha1: String) = bookDao.deleteBookBySha1(sha1)
 
+    suspend fun deleteBooksBySha1s(sha1s: List<String>) = withContext(Dispatchers.IO) {
+        if (sha1s.isNotEmpty()) {
+            bookDao.deleteBooksBySha1s(sha1s)
+        }
+    }
+
     suspend fun getBooksCount(): Int = withContext(Dispatchers.IO) {
         bookDao.getBooksCount()
     }

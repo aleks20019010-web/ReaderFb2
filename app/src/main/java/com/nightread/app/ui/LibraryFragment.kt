@@ -478,7 +478,7 @@ class LibraryFragment : Fragment() {
                     // Draw a centered trash bin icon inside the swipe background
                     val deleteIcon = ContextCompat.getDrawable(
                         itemView.context,
-                        android.R.drawable.ic_menu_delete
+                        R.drawable.ic_action_delete
                     )
                     if (deleteIcon != null) {
                         val intrinsicWidth = deleteIcon.intrinsicWidth

@@ -24,7 +24,7 @@
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
             android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_action_sort"
+            android:src="@drawable/ic_action_menu"
             android:contentDescription="Меню"
             app:tint="@color/icon_tint" />
 

@@ -38,7 +38,7 @@ class WantToReadFragment : Fragment() {
         val glassHeader = view.findViewById<View>(R.id.glassHeader)
         glassHeader.findViewById<TextView>(R.id.header_title).text = getString(R.string.drawer_want_to_read)
         val btnLeft = glassHeader.findViewById<ImageButton>(R.id.header_btn_left)
-        btnLeft.setImageResource(android.R.drawable.ic_menu_sort_by_size)
+        btnLeft.setImageResource(R.drawable.ic_action_menu)
         btnLeft.setOnClickListener {
             (activity as? MainActivity)?.openDrawer()
         }
