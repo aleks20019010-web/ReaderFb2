@@ -45,7 +45,7 @@ class Fb2Processor : BookProcessor {
     override suspend fun process(book: BookSource, context: Context): BookEntity? {
         return try {
             val contentResolver = context.contentResolver
-            val sha1 = generateFastHash(book)
+            val sha1 = computeBookSha1(book, context)
             
             val metadata = withContext(Dispatchers.Default) {
                 contentResolver.openInputStream(book.uri)?.use { input ->
@@ -54,16 +54,18 @@ class Fb2Processor : BookProcessor {
             } ?: return null
 
             val coverPath = try {
-                val bytes = withContext(Dispatchers.IO) {
+                val coverBytes = withContext(Dispatchers.IO) {
                     contentResolver.openInputStream(book.uri)?.use { input ->
-                        input.readBytes()
+                        val buffer = ByteArray(1024 * 1024)
+                        val read = input.read(buffer)
+                        if (read > 0) buffer.copyOf(read) else null
                     }
                 }
-                if (bytes != null && bytes.isNotEmpty()) {
-                    val text = decodeBytesToString(bytes)
+                if (coverBytes != null && coverBytes.isNotEmpty()) {
+                    val text = decodeBytesToString(coverBytes)
                     NewCoverExtractor.extractAndSaveCover(text, sha1, context)
                 } else null
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.w("Fb2Processor", "Cover error ${book.name}", e)
                 null
             }
@@ -84,17 +86,10 @@ class Fb2Processor : BookProcessor {
                 coverGradientStart = getRandomGradientStartColor(),
                 coverGradientEnd = getRandomGradientEndColor()
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("Fb2Processor", "Processing error ${book.name}", e)
             null
         }
-    }
-
-    private fun generateFastHash(book: BookSource): String {
-        val input = "${book.uri}_${book.size}_${book.modified}"
-        return MessageDigest.getInstance("SHA-1")
-            .digest(input.toByteArray())
-            .joinToString("") { "%02x".format(it) }
     }
 
     private fun decodeBytesToString(bytes: ByteArray): String {
@@ -134,7 +129,7 @@ class Fb3Processor : BookProcessor {
     override suspend fun process(book: BookSource, context: Context): BookEntity? {
         return try {
             val contentResolver = context.contentResolver
-            val sha1 = generateFastHash(book)
+            val sha1 = computeBookSha1(book, context)
             
             val result = withContext(Dispatchers.Default) {
                 contentResolver.openInputStream(book.uri)?.use { input ->
@@ -162,17 +157,10 @@ class Fb3Processor : BookProcessor {
                 coverGradientStart = getRandomGradientStartColor(),
                 coverGradientEnd = getRandomGradientEndColor()
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("Fb3Processor", "Processing error ${book.name}", e)
             null
         }
-    }
-
-    private fun generateFastHash(book: BookSource): String {
-        val input = "${book.uri}_${book.size}_${book.modified}"
-        return MessageDigest.getInstance("SHA-1")
-            .digest(input.toByteArray())
-            .joinToString("") { "%02x".format(it) }
     }
 
     private fun getRandomGradientStartColor(): String {
@@ -188,6 +176,7 @@ class EpubProcessor : BookProcessor {
     override suspend fun process(book: BookSource, context: Context): BookEntity? {
         return try {
             val contentResolver = context.contentResolver
+            val sha1 = computeBookSha1(book, context)
             
             val meta = withContext(Dispatchers.Default) {
                 EpubIdentifierHelper.getEpubMetadata { contentResolver.openInputStream(book.uri) }
@@ -197,16 +186,16 @@ class EpubProcessor : BookProcessor {
                 EpubIdentifierHelper.extractAndSaveEpubCover(
                     { contentResolver.openInputStream(book.uri) },
                     meta.coverPath,
-                    meta.identifier,
+                    sha1,
                     context
                 )
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.w("EpubProcessor", "Cover error ${book.name}", e)
                 null
             }
 
             BookEntity(
-                sha1 = meta.identifier,
+                sha1 = sha1,
                 title = meta.title,
                 author = meta.author,
                 annotation = meta.description,
@@ -219,7 +208,7 @@ class EpubProcessor : BookProcessor {
                 coverGradientStart = getRandomGradientStartColor(),
                 coverGradientEnd = getRandomGradientEndColor()
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("EpubProcessor", "Processing error ${book.name}", e)
             null
         }
@@ -238,7 +227,7 @@ class MobiProcessor : BookProcessor {
     override suspend fun process(book: BookSource, context: Context): BookEntity? {
         return try {
             val contentResolver = context.contentResolver
-            val sha1 = generateFastHash(book)
+            val sha1 = computeBookSha1(book, context)
             
             val bytes = withContext(Dispatchers.IO) {
                 contentResolver.openInputStream(book.uri)?.use { input ->
@@ -272,17 +261,10 @@ class MobiProcessor : BookProcessor {
                 coverGradientStart = getRandomGradientStartColor(),
                 coverGradientEnd = getRandomGradientEndColor()
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("MobiProcessor", "Processing error ${book.name}", e)
             null
         }
-    }
-
-    private fun generateFastHash(book: BookSource): String {
-        val input = "${book.uri}_${book.size}_${book.modified}"
-        return MessageDigest.getInstance("SHA-1")
-            .digest(input.toByteArray())
-            .joinToString("") { "%02x".format(it) }
     }
 
     private fun getRandomGradientStartColor(): String {
@@ -557,7 +539,9 @@ class NewBookScanner(
         }
 
         val fsBooks = getBooksFromFileSystem()
-        val combined = (result + fsBooks).distinctBy { it.uri.toString() }
+        val combined = (result + fsBooks).distinctBy { source ->
+            source.realPath ?: (if (source.uri.scheme == "file") source.uri.path else source.uri.toString())
+        }
         return combined
     }
 
@@ -1027,23 +1011,45 @@ class NewBookScanner(
         if (batch.isEmpty()) return
 
         dbMutex.withLock {
+            val filteredBatch = mutableListOf<BookEntity>()
             try {
-                AppDatabase.getDatabase(context).withTransaction {
-                    bookDao.insertBooks(batch)
+                val allExisting = bookDao.getAllBooksSync()
+                val sha1Set = allExisting.map { it.sha1 }.toSet()
+                val titleAuthorMap = allExisting.associateBy { 
+                    "${it.title.trim().lowercase()}_${(it.author ?: "").trim().lowercase()}" 
                 }
-            } catch (e: Exception) {
-                // Проверяем, это дубликат или другая ошибка
-                if (!e.message.orEmpty().contains("UNIQUE", ignoreCase = true)) {
-                    Log.e(TAG, "Database batch insert error", e)
+
+                for (book in batch) {
+                    val existingSha1 = sha1Set.contains(book.sha1)
+                    val key = "${book.title.trim().lowercase()}_${(book.author ?: "").trim().lowercase()}"
+                    val existingTitleAuthor = titleAuthorMap[key]
+
+                    if (existingSha1) {
+                        if (!book.filePath.isNullOrBlank()) {
+                            bookDao.updateFilePath(book.sha1, book.filePath)
+                        }
+                    } else if (key.isNotBlank() && !key.startsWith("неизвестен") && existingTitleAuthor != null) {
+                        if (!book.filePath.isNullOrBlank()) {
+                            bookDao.updateFilePath(existingTitleAuthor.sha1, book.filePath)
+                        }
+                    } else {
+                        filteredBatch.add(book)
+                    }
                 }
-                
-                // Пробуем по одному
-                batch.forEach { book ->
+
+                if (filteredBatch.isNotEmpty()) {
+                    AppDatabase.getDatabase(context).withTransaction {
+                        bookDao.insertBooks(filteredBatch)
+                    }
+                }
+            } catch (e: Throwable) {
+                Log.e(TAG, "Database saveBatch error", e)
+                for (book in filteredBatch) {
                     try {
                         bookDao.insertBooks(listOf(book))
-                    } catch (e: Exception) {
-                        if (!e.message.orEmpty().contains("UNIQUE", ignoreCase = true)) {
-                            Log.e(TAG, "Database insert error for ${book.title}", e)
+                    } catch (e2: Throwable) {
+                        if (!e2.message.orEmpty().contains("UNIQUE", ignoreCase = true)) {
+                            Log.e(TAG, "Database insert error for ${book.title}", e2)
                         }
                     }
                 }
@@ -1114,6 +1120,31 @@ class NewBookScanner(
     }
 }
 
+fun computeBookSha1(book: BookSource, context: Context): String {
+    return try {
+        if (!book.realPath.isNullOrBlank()) {
+            val file = File(book.realPath)
+            if (file.exists() && file.length() > 0) {
+                Sha1Helper.computeSha1FromContent(file) ?: Sha1Helper.computeSha1FileNio(file)
+            } else {
+                context.contentResolver.openInputStream(book.uri)?.use { Sha1Helper.computeSha1Stream(it) }
+            }
+        } else {
+            context.contentResolver.openInputStream(book.uri)?.use { Sha1Helper.computeSha1Stream(it) }
+        }
+    } catch (e: Throwable) {
+        Log.w("NewBookScanner", "Error computing SHA1 for ${book.name}, falling back to fast hash", e)
+        generateFastHash(book)
+    } ?: generateFastHash(book)
+}
+
+fun generateFastHash(book: BookSource): String {
+    val input = "${book.uri}_${book.size}_${book.modified}"
+    return MessageDigest.getInstance("SHA-1")
+        .digest(input.toByteArray())
+        .joinToString("") { "%02x".format(it) }
+}
+
 fun resolveBookPath(book: BookSource, context: Context): String {
     if (!book.realPath.isNullOrBlank() && File(book.realPath).exists()) {
         return File(book.realPath).absolutePath
@@ -1139,25 +1170,8 @@ fun resolveBookPath(book: BookSource, context: Context): String {
                     }
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.w("NewBookScanner", "Error resolving DATA column for ${book.uri}", e)
-        }
-
-        try {
-            context.contentResolver.openInputStream(book.uri)?.use { input ->
-                val importedDir = File(context.filesDir, "imported").apply { mkdirs() }
-                val destFile = File(importedDir, "${book.name.hashCode()}_${book.name}")
-                if (!destFile.exists() || destFile.length() == 0L) {
-                    destFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                }
-                if (destFile.exists() && destFile.length() > 0) {
-                    return destFile.absolutePath
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("NewBookScanner", "Error copying stream for ${book.name}", e)
         }
     }
     return book.realPath ?: book.uri.path ?: book.uri.toString()

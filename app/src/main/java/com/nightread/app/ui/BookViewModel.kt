@@ -46,8 +46,67 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun removeDuplicateBooks() {
-        // SHA1 uniqueness is enforced by Room Primary Key on sha1.
-        // We do not delete books based on title/author string matching to avoid losing distinct files.
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val db = database ?: return@launch
+                val dao = db.bookDao()
+                val allBooks = dao.getAllBooksSync()
+                if (allBooks.isEmpty()) return@launch
+
+                val booksToDelete = mutableSetOf<String>()
+
+                // 1. Group by SHA-1
+                val bySha1 = allBooks.groupBy { it.sha1 }
+                for ((_, group) in bySha1) {
+                    if (group.size > 1) {
+                        val sorted = group.sortedWith(
+                            compareByDescending<BookEntity> { it.currentProgressChar > 0 || it.currentPageIndex > 0 || it.lastReadTime > 0 }
+                                .thenByDescending { !it.filePath.isNullOrBlank() && java.io.File(it.filePath).exists() }
+                                .thenByDescending { it.isFavorite || it.isWantToRead }
+                                .thenByDescending { it.lastReadTime }
+                                .thenBy { it.dateAdded }
+                        )
+                        for (i in 1 until sorted.size) {
+                            booksToDelete.add(sorted[i].sha1)
+                        }
+                    }
+                }
+
+                // 2. Group remaining by Title + Author
+                val remaining = allBooks.filter { !booksToDelete.contains(it.sha1) }
+                val byTitleAuthor = remaining.groupBy { 
+                    "${it.title.trim().lowercase()}_${(it.author ?: "").trim().lowercase()}" 
+                }
+
+                for ((key, group) in byTitleAuthor) {
+                    if (key.isNotBlank() && !key.startsWith("неизвестен") && group.size > 1) {
+                        val sorted = group.sortedWith(
+                            compareByDescending<BookEntity> { it.currentProgressChar > 0 || it.currentPageIndex > 0 || it.lastReadTime > 0 }
+                                .thenByDescending { !it.filePath.isNullOrBlank() && java.io.File(it.filePath).exists() }
+                                .thenByDescending { it.isFavorite || it.isWantToRead }
+                                .thenByDescending { it.lastReadTime }
+                                .thenBy { it.dateAdded }
+                        )
+                        val winner = sorted[0]
+                        for (i in 1 until sorted.size) {
+                            val duplicate = sorted[i]
+                            booksToDelete.add(duplicate.sha1)
+                            if ((winner.filePath.isNullOrBlank() || !java.io.File(winner.filePath).exists()) &&
+                                !duplicate.filePath.isNullOrBlank() && java.io.File(duplicate.filePath).exists()) {
+                                dao.updateFilePath(winner.sha1, duplicate.filePath)
+                            }
+                        }
+                    }
+                }
+
+                if (booksToDelete.isNotEmpty()) {
+                    android.util.Log.d("BookViewModel", "Removing ${booksToDelete.size} duplicate books")
+                    dao.deleteBooksBySha1s(booksToDelete.toList())
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("BookViewModel", "Error in removeDuplicateBooks", e)
+            }
+        }
     }
 
     val searchQuery = MutableStateFlow("")
