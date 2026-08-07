@@ -42,12 +42,16 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.Hyphens
@@ -55,6 +59,7 @@ import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.TextUnit
 import com.nightread.app.utils.TypographyUtils
 import com.nightread.app.ui.BrightnessHelper
@@ -214,44 +219,9 @@ fun ReaderComposeScreen(
     
     val mappedFontWeight = FontWeight(fontWeightInt.coerceIn(100, 900))
 
-    var pages by remember { mutableStateOf<List<String>>(emptyList()) }
+    var pages by remember { mutableStateOf<List<AnnotatedString>>(emptyList()) }
     var isPreparingText by remember { mutableStateOf(true) }
-
-    LaunchedEffect(mainText, fontSize, lineSpacing) {
-        if (mainText.isEmpty()) {
-            pages = emptyList()
-            isPreparingText = false
-        } else {
-            isPreparingText = true
-            val computedPages = withContext(Dispatchers.Default) {
-                val formattedText = TypographyUtils.applyMicroTypography(mainText)
-                val charsPerPage = (1000 * (18f / fontSize) * (1.2f / lineSpacing)).toInt().coerceIn(400, 2200)
-                val chapterSections = formattedText.split('\u000C')
-                val chunks = mutableListOf<String>()
-
-                for (section in chapterSections) {
-                    val cleanSection = section.trim()
-                    if (cleanSection.isEmpty()) continue
-                    val words = cleanSection.split(Regex("(?<=\\s)"))
-                    val currentChunk = StringBuilder()
-
-                    for (word in words) {
-                        if (currentChunk.length + word.length > charsPerPage) {
-                            chunks.add(currentChunk.toString().trimEnd())
-                            currentChunk.clear()
-                        }
-                        currentChunk.append(word)
-                    }
-                    if (currentChunk.isNotEmpty()) {
-                        chunks.add(currentChunk.toString().trimEnd())
-                    }
-                }
-                if (chunks.isEmpty()) listOf(formattedText) else chunks
-            }
-            pages = computedPages
-            isPreparingText = false
-        }
-    }
+    val textMeasurer = rememberTextMeasurer()
 
     val pagerState = rememberPagerState(pageCount = { pages.size.coerceAtLeast(1) })
     val focusRequester = remember { FocusRequester() }
@@ -390,9 +360,8 @@ fun ReaderComposeScreen(
                             )
                         }
                 ) {
-                    // Main Text Content as HorizontalPager
-                    HorizontalPager(
-                        state = pagerState,
+                    // Main Text Content as HorizontalPager with dynamic text measuring
+                    BoxWithConstraints(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(
@@ -401,28 +370,54 @@ fun ReaderComposeScreen(
                                 start = 8.dp,
                                 end = 8.dp
                             )
-                    ) { page ->
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.TopStart
-                        ) {
-                            val pageText = pages.getOrElse(page) { "" }
-                            val pageAnnotatedString = parseFormattedTextToAnnotatedString(pageText, fontSize.sp)
-                            Text(
-                                text = pageAnnotatedString,
-                                color = textColor,
-                                fontSize = fontSize.sp,
-                                fontFamily = font,
-                                fontWeight = mappedFontWeight,
-                                textAlign = TextAlign.Justify,
-                                lineHeight = (fontSize * lineSpacing).sp,
-                                letterSpacing = 0.1.sp,
-                                style = LocalTextStyle.current.copy(
-                                    lineBreak = LineBreak.Paragraph,
-                                    hyphens = Hyphens.Auto
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                    ) {
+                        val density = LocalDensity.current
+                        val maxWidthPx = with(density) { constraints.maxWidth }
+                        val maxHeightPx = with(density) { constraints.maxHeight }
+
+                        LaunchedEffect(mainText, fontSize, lineSpacing, font, mappedFontWeight, maxWidthPx, maxHeightPx) {
+                            if (maxWidthPx > 0 && maxHeightPx > 0 && mainText.isNotEmpty()) {
+                                isPreparingText = true
+                                val computed = paginateTextWithMeasurer(
+                                    mainText = mainText,
+                                    fontSize = fontSize.sp,
+                                    font = font,
+                                    fontWeight = mappedFontWeight,
+                                    lineSpacing = lineSpacing,
+                                    textMeasurer = textMeasurer,
+                                    maxWidthPx = maxWidthPx,
+                                    maxHeightPx = maxHeightPx
+                                )
+                                pages = computed
+                                isPreparingText = false
+                            }
+                        }
+
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxSize()
+                        ) { page ->
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.TopStart
+                            ) {
+                                val pageAnnotatedString = pages.getOrElse(page) { AnnotatedString("") }
+                                Text(
+                                    text = pageAnnotatedString,
+                                    color = textColor,
+                                    fontSize = fontSize.sp,
+                                    fontFamily = font,
+                                    fontWeight = mappedFontWeight,
+                                    textAlign = TextAlign.Justify,
+                                    lineHeight = (fontSize * lineSpacing).sp,
+                                    letterSpacing = 0.1.sp,
+                                    style = LocalTextStyle.current.copy(
+                                        lineBreak = LineBreak.Paragraph,
+                                        hyphens = Hyphens.Auto
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         }
                     }
 
@@ -1061,4 +1056,65 @@ private fun AnnotatedString.Builder.applyTagStyle(
     if (style != null) {
         addStyle(style, start, end)
     }
+}
+
+suspend fun paginateTextWithMeasurer(
+    mainText: String,
+    fontSize: TextUnit,
+    font: FontFamily,
+    fontWeight: FontWeight,
+    lineSpacing: Float,
+    textMeasurer: TextMeasurer,
+    maxWidthPx: Int,
+    maxHeightPx: Int
+): List<AnnotatedString> = withContext(Dispatchers.Default) {
+    if (mainText.isBlank() || maxWidthPx <= 0 || maxHeightPx <= 0) return@withContext emptyList()
+
+    val formattedText = TypographyUtils.applyMicroTypography(mainText)
+    val textStyle = TextStyle(
+        fontSize = fontSize,
+        fontFamily = font,
+        fontWeight = fontWeight,
+        textAlign = TextAlign.Justify,
+        lineHeight = (fontSize.value * lineSpacing).sp,
+        letterSpacing = 0.1.sp,
+        lineBreak = LineBreak.Paragraph,
+        hyphens = Hyphens.Auto
+    )
+
+    val chapterSections = formattedText.split('\u000C')
+    val chunks = mutableListOf<AnnotatedString>()
+
+    for (section in chapterSections) {
+        val cleanSection = section.trim()
+        if (cleanSection.isEmpty()) continue
+        val sectionAnnotated = parseFormattedTextToAnnotatedString(cleanSection, fontSize)
+        val layoutResult = textMeasurer.measure(
+            text = sectionAnnotated,
+            style = textStyle,
+            constraints = Constraints(maxWidth = maxWidthPx)
+        )
+
+        val lineCount = layoutResult.lineCount
+        var currentLine = 0
+        while (currentLine < lineCount) {
+            val startLineTop = layoutResult.getLineTop(currentLine)
+            var endLine = currentLine
+            while (endLine + 1 < lineCount &&
+                (layoutResult.getLineBottom(endLine + 1) - startLineTop) <= maxHeightPx
+            ) {
+                endLine++
+            }
+            val startChar = layoutResult.getLineStart(currentLine)
+            val endChar = layoutResult.getLineEnd(endLine)
+            val pageAnnotated = sectionAnnotated.subSequence(
+                startChar.coerceIn(0, sectionAnnotated.length),
+                endChar.coerceIn(0, sectionAnnotated.length)
+            )
+            chunks.add(pageAnnotated)
+            currentLine = endLine + 1
+        }
+    }
+
+    if (chunks.isEmpty()) listOf(parseFormattedTextToAnnotatedString(formattedText, fontSize)) else chunks
 }
