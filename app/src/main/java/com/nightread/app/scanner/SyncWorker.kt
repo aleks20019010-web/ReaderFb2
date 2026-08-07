@@ -23,8 +23,9 @@ class SyncWorker(
         Log.d(TAG, "SyncWorker started background book scan and duplicate check.")
         try {
             val database = AppDatabase.getDatabase(applicationContext)
+            val bookDao = database.bookDao()
             val bookCacheDao = database.bookCacheDao()
-            val scanner = BookScanner(bookCacheDao)
+            val scanner = LibraryScanner(applicationContext, bookDao)
             val duplicateFinder = DuplicateFinder(bookCacheDao)
 
             // Определяем целевую директорию для сканирования из входных данных или директории приложения по умолчанию
@@ -38,8 +39,8 @@ class SyncWorker(
             Log.d(TAG, "Target scan directory: ${scanDir.absolutePath}")
 
             if (scanDir.exists() && scanDir.isDirectory) {
-                val scanResult = scanner.scanDirectory(scanDir)
-                Log.d(TAG, "Background scan finished: $scanResult")
+                scanner.scanBooks().join()
+                Log.d(TAG, "Background scan finished")
 
                 val duplicates = duplicateFinder.findDuplicates()
                 Log.d(TAG, "Found ${duplicates.size} duplicate groups.")

@@ -4,6 +4,7 @@ import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -65,6 +66,7 @@ fun ReaderComposeScreen(
     bookTitle: String = "Орден Архитекторов",
     authorAndChapter: String = "Олег Сапфир, Юрий Винокуров | Глава 11",
     mainText: String = sampleText,
+    isLoading: Boolean = false,
     onBackClick: () -> Unit = {}
 ) {
     var settings by remember { mutableStateOf(ReaderSettings()) }
@@ -76,6 +78,17 @@ fun ReaderComposeScreen(
     
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
+
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
 
     // Status bar and nav bar hiding
     LaunchedEffect(settings.isHideBars) {
@@ -172,35 +185,60 @@ fun ReaderComposeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Main Text Content as HorizontalPager
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onDoubleTap = {
-                                settings = settings.copy(isHideBars = !settings.isHideBars)
-                            }
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = textColor,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "Подготовка книги...",
+                            color = textColor.copy(alpha = alpha),
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = font
                         )
                     }
-                    .padding(
-                        top = if (settings.isHideBars) 16.dp else 80.dp, 
-                        bottom = if (settings.isHideBars) 16.dp else 80.dp,
-                        start = 16.dp, 
-                        end = 16.dp
-                    )
-            ) { page ->
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Text(
-                        text = pages[page],
-                        color = textColor,
-                        fontSize = settings.fontSize.sp,
-                        fontFamily = font,
-                        fontWeight = mappedFontWeight,
-                        textAlign = TextAlign.Justify,
-                        lineHeight = (settings.fontSize * settings.lineHeight).sp
-                    )
+                }
+            } else {
+                // Main Text Content as HorizontalPager
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onDoubleTap = {
+                                    settings = settings.copy(isHideBars = !settings.isHideBars)
+                                }
+                            )
+                        }
+                        .padding(
+                            top = if (settings.isHideBars) 16.dp else 80.dp, 
+                            bottom = if (settings.isHideBars) 16.dp else 80.dp,
+                            start = 16.dp, 
+                            end = 16.dp
+                        )
+                ) { page ->
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = pages[page],
+                            color = textColor,
+                            fontSize = settings.fontSize.sp,
+                            fontFamily = font,
+                            fontWeight = mappedFontWeight,
+                            textAlign = TextAlign.Justify,
+                            lineHeight = (settings.fontSize * settings.lineHeight).sp
+                        )
+                    }
                 }
             }
 
