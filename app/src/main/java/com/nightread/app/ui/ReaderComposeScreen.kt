@@ -38,6 +38,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -128,28 +130,38 @@ fun ReaderComposeScreen(
     val weightValue = (settings.fontWeight * 800).toInt() + 100
     val mappedFontWeight = FontWeight(weightValue.coerceIn(100, 900))
 
-    // Chunk text into pages with hyphenation
-    val pages = remember(mainText, settings.fontSize, settings.lineHeight, context) {
-        val hyphenated = HyphenatorHelper.hyphenate(mainText, context)
-        val words = hyphenated.split(Regex("(?<=\\s)"))
-        val chunks = mutableListOf<String>()
-        val currentChunk = StringBuilder()
-        // Approximation: a page holds fewer characters if font size is larger
-        // Base characters per page at fontSize 20f could be around 600
-        val charsPerPage = (600 * (20f / settings.fontSize) * (1.4f / settings.lineHeight)).toInt().coerceAtLeast(100)
-        
-        for (word in words) {
-            if (currentChunk.length + word.length > charsPerPage) {
-                chunks.add(currentChunk.toString().trimEnd())
-                currentChunk.clear()
+    var pages by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isProcessing by remember { mutableStateOf(true) }
+
+    LaunchedEffect(mainText, settings.fontSize, settings.lineHeight, context) {
+        if (mainText.isNotEmpty() && !isLoading) {
+            isProcessing = true
+            val computedPages = withContext(Dispatchers.Default) {
+                val hyphenated = HyphenatorHelper.hyphenate(mainText, context)
+                val words = hyphenated.split(Regex("(?<=\\s)"))
+                val chunks = mutableListOf<String>()
+                val currentChunk = StringBuilder()
+                val charsPerPage = (600 * (20f / settings.fontSize) * (1.4f / settings.lineHeight)).toInt().coerceAtLeast(100)
+                
+                for (word in words) {
+                    if (currentChunk.length + word.length > charsPerPage) {
+                        chunks.add(currentChunk.toString().trimEnd())
+                        currentChunk.clear()
+                    }
+                    currentChunk.append(word)
+                }
+                if (currentChunk.isNotEmpty()) chunks.add(currentChunk.toString().trimEnd())
+                if (chunks.isEmpty()) listOf(hyphenated) else chunks
             }
-            currentChunk.append(word)
+            pages = computedPages
+            isProcessing = false
+        } else if (mainText.isEmpty()) {
+            pages = emptyList()
+            isProcessing = false
         }
-        if (currentChunk.isNotEmpty()) chunks.add(currentChunk.toString().trimEnd())
-        if (chunks.isEmpty()) listOf(hyphenated) else chunks
     }
 
-    val pagerState = rememberPagerState(pageCount = { pages.size })
+    val pagerState = rememberPagerState(pageCount = { pages.size.coerceAtLeast(1) })
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -191,7 +203,7 @@ fun ReaderComposeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (isLoading) {
+            if (isLoading || isProcessing) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
