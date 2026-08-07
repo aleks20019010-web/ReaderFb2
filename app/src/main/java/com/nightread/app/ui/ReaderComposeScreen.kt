@@ -38,6 +38,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
+import com.nightread.app.data.SettingsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.font.FontWeight
@@ -76,12 +77,25 @@ fun ReaderComposeScreen(
     isLoading: Boolean = false,
     onBackClick: () -> Unit = {}
 ) {
-    var settings by remember { mutableStateOf(ReaderSettings()) }
-    var isSettingsOpen by remember { mutableStateOf(false) }
-    
     val context = LocalContext.current
     val view = LocalView.current
     val window = (context as? Activity)?.window
+
+    var settingsVersion by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        SettingsManager.settingsChanged.collect {
+            settingsVersion++
+        }
+    }
+
+    val fontSize = remember(settingsVersion, context) { SettingsManager.getFontSize(context) }
+    val lineSpacing = remember(settingsVersion, context) { SettingsManager.getLineSpacing(context) }
+    val fontFamilyStr = remember(settingsVersion, context) { SettingsManager.getFontFamily(context) }
+    val fontWeightInt = remember(settingsVersion, context) { SettingsManager.getFontWeightAsInt(context) }
+    val readingThemeStr = remember(settingsVersion, context) { SettingsManager.getReadingTheme(context) }
+
+    var isHideBars by remember { mutableStateOf(false) }
+    var isSettingsOpen by remember { mutableStateOf(false) }
     
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
@@ -98,11 +112,11 @@ fun ReaderComposeScreen(
     )
 
     // Status bar and nav bar hiding
-    LaunchedEffect(settings.isHideBars) {
+    LaunchedEffect(isHideBars) {
         if (window != null) {
             val insetsController = WindowCompat.getInsetsController(window, view)
-            WindowCompat.setDecorFitsSystemWindows(window, !settings.isHideBars)
-            if (settings.isHideBars) {
+            WindowCompat.setDecorFitsSystemWindows(window, !isHideBars)
+            if (isHideBars) {
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             } else {
@@ -111,29 +125,35 @@ fun ReaderComposeScreen(
         }
     }
 
-    val (bgColor, textColor) = when (settings.themeType) {
+    val themeType = when (readingThemeStr.lowercase()) {
+        "day", "light" -> ThemeType.DAY
+        "night", "dark", "amoled" -> ThemeType.NIGHT
+        "sepia" -> ThemeType.SEPIA
+        "contrast" -> ThemeType.SEPIA_CONTRAST
+        else -> ThemeType.SEPIA_CONTRAST
+    }
+
+    val (bgColor, textColor) = when (themeType) {
         ThemeType.DAY -> Color(0xFFEEF3E8) to Color(0xFF2A3A22)
         ThemeType.NIGHT -> Color(0xFF1A2216) to Color(0xFFD8E0D0)
         ThemeType.SEPIA -> Color(0xFFF8FAF0) to Color(0xFF5A6A4E)
         ThemeType.SEPIA_CONTRAST -> Color(0xFFF8FAF0) to Color(0xFF2A3A22)
     }
 
-    val font = when (settings.fontFamily) {
+    val font = when (fontFamilyStr) {
         "Default" -> FontFamily.Default
-        "Merriweather", "Serif" -> FontFamily.Serif
-        "Roboto", "SansSerif" -> FontFamily.SansSerif
+        "Merriweather", "Serif", "Georgia", "Times New Roman", "Lora", "EB Garamond", "Literata" -> FontFamily.Serif
+        "Roboto", "SansSerif", "OpenDyslexic" -> FontFamily.SansSerif
         "Monospace" -> FontFamily.Monospace
         else -> FontFamily.Default
     }
     
-    // Map slider 0..1 to FontWeight 100..900
-    val weightValue = (settings.fontWeight * 800).toInt() + 100
-    val mappedFontWeight = FontWeight(weightValue.coerceIn(100, 900))
+    val mappedFontWeight = FontWeight(fontWeightInt.coerceIn(100, 900))
 
     var pages by remember { mutableStateOf<List<String>>(emptyList()) }
     var isPreparingText by remember { mutableStateOf(true) }
 
-    LaunchedEffect(mainText, settings.fontSize, settings.lineHeight) {
+    LaunchedEffect(mainText, fontSize, lineSpacing) {
         if (mainText.isEmpty()) {
             pages = emptyList()
             isPreparingText = false
@@ -143,7 +163,7 @@ fun ReaderComposeScreen(
                 val words = mainText.split(Regex("(?<=\\s)"))
                 val chunks = mutableListOf<String>()
                 val currentChunk = StringBuilder()
-                val charsPerPage = (1400 * (20f / settings.fontSize) * (1.4f / settings.lineHeight)).toInt().coerceAtLeast(400)
+                val charsPerPage = (800 * (18f / fontSize) * (1.2f / lineSpacing)).toInt().coerceAtLeast(300).coerceAtMost(1500)
                 
                 for (word in words) {
                     if (currentChunk.length + word.length > charsPerPage) {
@@ -234,16 +254,9 @@ fun ReaderComposeScreen(
                     state = pagerState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onDoubleTap = {
-                                    settings = settings.copy(isHideBars = !settings.isHideBars)
-                                }
-                            )
-                        }
                         .padding(
-                            top = if (settings.isHideBars) (maxOf(statusBarHeight, 28.dp) + 16.dp) else maxOf(statusBarHeight + 56.dp, 80.dp),
-                            bottom = navBarHeight + 24.dp,
+                            top = if (isHideBars) (maxOf(statusBarHeight, 28.dp) + 12.dp) else maxOf(statusBarHeight + 56.dp, 72.dp),
+                            bottom = navBarHeight + 16.dp,
                             start = 16.dp,
                             end = 16.dp
                         )
@@ -251,17 +264,24 @@ fun ReaderComposeScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onDoubleTap = {
+                                        isHideBars = !isHideBars
+                                    }
+                                )
+                            }
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.Top
                     ) {
                         Text(
                             text = pages.getOrElse(page) { "" },
                             color = textColor,
-                            fontSize = settings.fontSize.sp,
+                            fontSize = fontSize.sp,
                             fontFamily = font,
                             fontWeight = mappedFontWeight,
                             textAlign = TextAlign.Justify,
-                            lineHeight = (settings.fontSize * settings.lineHeight).sp,
+                            lineHeight = (fontSize * lineSpacing).sp,
                             letterSpacing = 0.1.sp,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -271,13 +291,13 @@ fun ReaderComposeScreen(
 
             // Top Panel
             AnimatedVisibility(
-                visible = !settings.isHideBars,
+                visible = !isHideBars,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier.align(Alignment.TopCenter)
             ) {
                 TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF8FAF0)),
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = bgColor),
                     title = {
                         Column {
                             Text(
@@ -345,7 +365,7 @@ fun ReaderComposeScreen(
 
             // Bottom Panel
             AnimatedVisibility(
-                visible = !settings.isHideBars,
+                visible = !isHideBars,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier.align(Alignment.BottomCenter)
