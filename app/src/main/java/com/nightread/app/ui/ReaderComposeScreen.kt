@@ -19,6 +19,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -63,6 +67,7 @@ data class ReaderSettings(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderComposeScreen(
+    sha1: String = "",
     bookTitle: String = "Орден Архитекторов",
     authorAndChapter: String = "Олег Сапфир, Юрий Винокуров | Глава 11",
     mainText: String = sampleText,
@@ -123,9 +128,10 @@ fun ReaderComposeScreen(
     val weightValue = (settings.fontWeight * 800).toInt() + 100
     val mappedFontWeight = FontWeight(weightValue.coerceIn(100, 900))
 
-    // Chunk text into pages
-    val pages = remember(mainText, settings.fontSize, settings.lineHeight) {
-        val words = mainText.split(Regex("(?<=\\s)"))
+    // Chunk text into pages with hyphenation
+    val pages = remember(mainText, settings.fontSize, settings.lineHeight, context) {
+        val hyphenated = HyphenatorHelper.hyphenate(mainText, context)
+        val words = hyphenated.split(Regex("(?<=\\s)"))
         val chunks = mutableListOf<String>()
         val currentChunk = StringBuilder()
         // Approximation: a page holds fewer characters if font size is larger
@@ -140,7 +146,7 @@ fun ReaderComposeScreen(
             currentChunk.append(word)
         }
         if (currentChunk.isNotEmpty()) chunks.add(currentChunk.toString().trimEnd())
-        if (chunks.isEmpty()) listOf(mainText) else chunks
+        if (chunks.isEmpty()) listOf(hyphenated) else chunks
     }
 
     val pagerState = rememberPagerState(pageCount = { pages.size })
@@ -222,13 +228,17 @@ fun ReaderComposeScreen(
                             )
                         }
                         .padding(
-                            top = if (settings.isHideBars) 16.dp else 80.dp, 
-                            bottom = if (settings.isHideBars) 16.dp else 80.dp,
-                            start = 16.dp, 
-                            end = 16.dp
+                            top = if (settings.isHideBars) (WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 3.dp) else 80.dp,
+                            bottom = 16.dp,
+                            start = 8.dp,
+                            end = 8.dp
                         )
                 ) { page ->
-                    Column(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                    ) {
                         Text(
                             text = pages[page],
                             color = textColor,
@@ -236,7 +246,8 @@ fun ReaderComposeScreen(
                             fontFamily = font,
                             fontWeight = mappedFontWeight,
                             textAlign = TextAlign.Justify,
-                            lineHeight = (settings.fontSize * settings.lineHeight).sp
+                            lineHeight = (settings.fontSize * settings.lineHeight).sp,
+                            letterSpacing = 0.1.sp
                         )
                     }
                 }
@@ -276,7 +287,40 @@ fun ReaderComposeScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { isSettingsOpen = true }) {
+                        val activity = context as? androidx.fragment.app.FragmentActivity
+                        IconButton(onClick = {
+                            activity?.supportFragmentManager?.let { fm ->
+                                BookRagSearchBottomSheet.newInstance().show(fm, "BookRagSearch")
+                            }
+                        }) {
+                            Icon(Icons.Filled.Search, contentDescription = "Поиск", tint = textColor)
+                        }
+                        IconButton(onClick = {
+                            activity?.supportFragmentManager?.let { fm ->
+                                ChapterListBottomSheet.newInstance(sha1, mainText).show(fm, "ChapterList")
+                            }
+                        }) {
+                            Icon(Icons.Filled.List, contentDescription = "Оглавление", tint = textColor)
+                        }
+                        IconButton(onClick = {
+                            activity?.supportFragmentManager?.let { fm ->
+                                TtsControlBottomSheet.newInstance().show(fm, "TtsControl")
+                            }
+                        }) {
+                            Icon(Icons.Filled.VolumeUp, contentDescription = "Озвучка", tint = textColor)
+                        }
+                        IconButton(onClick = {
+                            activity?.supportFragmentManager?.let { fm ->
+                                BookmarksListBottomSheet.newInstance(sha1).show(fm, "BookmarksList")
+                            }
+                        }) {
+                            Icon(Icons.Filled.Bookmark, contentDescription = "Закладки", tint = textColor)
+                        }
+                        IconButton(onClick = {
+                            activity?.supportFragmentManager?.let { fm ->
+                                SettingsBottomSheet().show(fm, "SettingsBottomSheet")
+                            }
+                        }) {
                             Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = textColor)
                         }
                     },
@@ -304,23 +348,6 @@ fun ReaderComposeScreen(
                     )
                 }
             }
-        }
-    }
-
-    if (isSettingsOpen) {
-        ModalBottomSheet(
-            onDismissRequest = { 
-                isSettingsOpen = false 
-                focusRequester.requestFocus() // Regain focus for volume keys after closing sheet
-            },
-            sheetState = sheetState,
-            containerColor = Color(0xFFF8FAF0),
-            dragHandle = null
-        ) {
-            SettingsContent(
-                settings = settings,
-                onSettingsChange = { settings = it }
-            )
         }
     }
 }

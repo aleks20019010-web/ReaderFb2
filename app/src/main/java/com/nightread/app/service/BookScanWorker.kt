@@ -27,7 +27,7 @@ class BookScanWorker(
         val scanner = com.nightread.app.scanner.LibraryScanner(applicationContext, com.nightread.app.data.AppDatabase.getDatabase(applicationContext).bookDao())
 
         try {
-            scanner.scanBooks()
+            scanner.scanBooks().join()
             
             // Handle scan results
             val finalState = com.nightread.app.service.NewBookScanState.state.value

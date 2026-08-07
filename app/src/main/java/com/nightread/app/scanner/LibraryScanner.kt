@@ -195,6 +195,34 @@ class LibraryScanner(
         }
         
         val addedCount = processBooksInBatches(booksToProcess)
+
+        try {
+            val db = AppDatabase.getDatabase(context)
+            val allBooks = db.bookDao().getAllBooksSync()
+            val booksToDelete = mutableSetOf<String>()
+            val bySha1 = allBooks.groupBy { it.sha1 }
+            for ((_, group) in bySha1) {
+                if (group.size > 1) {
+                    for (i in 1 until group.size) {
+                        booksToDelete.add(group[i].sha1)
+                    }
+                }
+            }
+            val remaining = allBooks.filter { !booksToDelete.contains(it.sha1) }
+            val byTitleAuthor = remaining.groupBy { "${it.title.trim().lowercase()}_${(it.author ?: "").trim().lowercase()}" }
+            for ((key, group) in byTitleAuthor) {
+                if (key.isNotBlank() && !key.startsWith("неизвестен") && group.size > 1) {
+                    for (i in 1 until group.size) {
+                        booksToDelete.add(group[i].sha1)
+                    }
+                }
+            }
+            if (booksToDelete.isNotEmpty()) {
+                db.bookDao().deleteBooksBySha1s(booksToDelete.toList())
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error cleaning duplicates in performScan", e)
+        }
         
         val duration = (System.currentTimeMillis() - startTime) / 1000
         scanPrefs.saveLastScanCount(addedCount)

@@ -32,7 +32,7 @@ class BookReaderActivity : ComponentActivity() {
 
                                 val contentFile = File(cacheDir, "$sha1.content")
                                 if (contentFile.exists()) {
-                                    bookText = contentFile.readText()
+                                    bookText = cleanHtmlContent(contentFile.readText())
                                 } else if (!book.filePath.isNullOrEmpty()) {
                                     val f = File(book.filePath)
                                     if (f.exists()) {
@@ -67,6 +67,7 @@ class BookReaderActivity : ComponentActivity() {
             }
 
             ReaderComposeScreen(
+                sha1 = sha1,
                 bookTitle = bookTitle,
                 authorAndChapter = if (authorName.isNotEmpty()) authorName else "Чтение",
                 mainText = bookText,
@@ -90,4 +91,19 @@ class BookReaderActivity : ComponentActivity() {
     fun readNextTtsChunk() {}
     fun performSmartSearch(query: String) {}
     fun saveNoteForBook(word: String, note: String) {}
+
+    private fun cleanHtmlContent(html: String): String {
+        var text = html
+            .replace(Regex("</p>|<br\\s*/?>|</div\\s*>"), "\n\n")
+            .replace(Regex("<p[^>]*>|<div[^>]*>"), "")
+            .replace(Regex("<[^>]*>"), "")
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+        text = text.replace(Regex("\\n{3,}"), "\n\n")
+        return text.trim()
+    }
 }
