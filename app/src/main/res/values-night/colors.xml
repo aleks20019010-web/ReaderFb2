@@ -2,7 +2,7 @@
 <resources>
     <!-- Dark Cosmic Theme Palette (Night Mode) -->
     <color name="bg_main">#1A0D2A</color>
-    <color name="bg_card">#231735</color>
+    <color name="bg_card">#4D2A1A3E</color>
     <color name="bg_gradient_start">#1A0D2A</color>
     <color name="bg_gradient_end">#2A1A3E</color>
 
@@ -32,11 +32,11 @@
     <color name="divider">#3A2A4E</color>
 
     <!-- Glass Panel Colors (30%, 60%, 90% dark violet transparency) -->
-    <color name="bg_panel">#4D1A0D2A</color>
-    <color name="glass_bg_30">#4D1A0D2A</color>
-    <color name="glass_bg_60">#991A0D2A</color>
-    <color name="glass_bg_90">#E61A0D2A</color>
-    <color name="glass_stroke">#33FFFFFF</color>
+    <color name="bg_panel">#662A1A3E</color>
+    <color name="glass_bg_30">#4D2A1A3E</color>
+    <color name="glass_bg_60">#802A1A3E</color>
+    <color name="glass_bg_90">#CC2A1A3E</color>
+    <color name="glass_stroke">#4DFFFFFF</color>
 
     <color name="btn_bg">#9B59B6</color>
     <color name="btn_text">#FFFFFF</color>
@@ -48,7 +48,7 @@
     <color name="onPrimary">#FFFFFF</color>
     <color name="secondary">#7D3C98</color>
     <color name="onSecondary">#FFFFFF</color>
-    <color name="surface">#2A1A3E</color>
+    <color name="surface">#4D2A1A3E</color>
     <color name="onSurface">#E8D8F0</color>
     <color name="background">#1A0D2A</color>
     <color name="onBackground">#E8D8F0</color>

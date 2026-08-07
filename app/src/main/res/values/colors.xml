@@ -2,7 +2,7 @@
 <resources>
     <!-- Light Antagonist Theme Palette (Day Mode) -->
     <color name="bg_main">#F5F0EB</color>
-    <color name="bg_card">#E6FFFFFF</color>
+    <color name="bg_card">#4DFFFFFF</color>
     <color name="bg_gradient_start">#F9F5F0</color>
     <color name="bg_gradient_end">#EAE0D5</color>
 
@@ -32,11 +32,11 @@
     <color name="divider">#20000000</color>
 
     <!-- Glass Panel Colors (30%, 60%, 90% light beige/white transparency) -->
-    <color name="bg_panel">#4DF5F0EB</color>
-    <color name="glass_bg_30">#4DF5F0EB</color>
-    <color name="glass_bg_60">#99F5F0EB</color>
-    <color name="glass_bg_90">#E6F5F0EB</color>
-    <color name="glass_stroke">#33000000</color>
+    <color name="bg_panel">#66FFFFFF</color>
+    <color name="glass_bg_30">#4DFFFFFF</color>
+    <color name="glass_bg_60">#80FFFFFF</color>
+    <color name="glass_bg_90">#CCFFFFFF</color>
+    <color name="glass_stroke">#80FFFFFF</color>
 
     <color name="btn_bg">#D4AF37</color>
     <color name="btn_text">#1A1A1A</color>
@@ -48,7 +48,7 @@
     <color name="onPrimary">#1A1A1A</color>
     <color name="secondary">#B89628</color>
     <color name="onSecondary">#FFFFFF</color>
-    <color name="surface">#FFFFFF</color>
+    <color name="surface">#4DFFFFFF</color>
     <color name="onSurface">#1A1A1A</color>
     <color name="background">#F5F0EB</color>
     <color name="onBackground">#1A1A1A</color>

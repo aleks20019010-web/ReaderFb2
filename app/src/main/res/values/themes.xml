@@ -63,6 +63,8 @@
 
     <style name="Theme.NightRead" parent="Theme.MyApplication" />
 
+    <style name="Theme.MyApplication.NoActionBar" parent="Theme.MyApplication" />
+
     <style name="Theme.NightRead.Dialog" parent="Theme.Material3.DayNight.Dialog.Alert">
         <item name="android:windowBackground">@drawable/bg_glass_panel_60</item>
         <item name="colorSurface">@color/bg_card</item>

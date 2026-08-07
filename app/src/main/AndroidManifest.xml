@@ -2,26 +2,45 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Базовые разрешения -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    
+    <!-- Уведомления -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    
+    <!-- Foreground сервисы -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    
+    <!-- Автозапуск -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    
+    <!-- Доступ к файлам (современный подход) -->
+    <!-- Для Android 12 и ниже -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" 
+        android:maxSdkVersion="32" />
+    <!-- Для Android 13+ -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!-- Для точных будильников -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" 
+        tools:ignore="ExactAlarm" />
 
     <queries>
+        <!-- TTS сервисы -->
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
+        <!-- Популярные TTS движки -->
+        <package android:name="com.google.android.tts" />
+        <package android:name="com.samsung.android.tts" />
+        <package android:name="com.estsoft.ktts" />
     </queries>
 
     <application
@@ -33,9 +52,19 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:usesCleartextTraffic="true"
-        android:theme="@style/Theme.MyApplication">
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:requestLegacyExternalStorage="true"
+        android:theme="@style/Theme.MyApplication"
+        android:largeHeap="true"
+        tools:targetApi="31">
 
+        <!-- Meta-data для больших экранов -->
+        <meta-data
+            android:name="android.max_aspect"
+            android:value="2.4" />
+
+        <!-- Отключение WorkManager Initializer -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
@@ -47,39 +76,103 @@
                 tools:node="remove" />
         </provider>
 
+        <!-- Главная Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.MyApplication">
+            android:theme="@style/Theme.MyApplication"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:launchMode="singleTop">
+            
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Открытие файлов книг -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:mimeType="*/*" />
+                
+                <!-- Только конкретные mime-типы -->
+                <data android:mimeType="application/epub+zip" />
+                <data android:mimeType="application/x-fictionbook+xml" />
+                <data android:mimeType="text/plain" />
+                
+                <!-- Для файлов с расширениями -->
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:host="*" />
                 <data android:pathPattern=".*\\.fb2" />
                 <data android:pathPattern=".*\\.epub" />
                 <data android:pathPattern=".*\\.txt" />
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="content" />
-                <data android:scheme="file" />
-                <data android:mimeType="application/x-fictionbook+xml" />
-                <data android:mimeType="application/epub+zip" />
-                <data android:mimeType="text/plain" />
-                <data android:mimeType="application/octet-stream" />
+                <data android:pathPattern=".*\\.fb2.zip" />
             </intent-filter>
         </activity>
 
+        <!-- Activity для читалки с отдельной темой -->
+        <activity
+            android:name=".ui.BookReaderActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MyApplication.NoActionBar"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:screenOrientation="user"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- Остальные Activity с общей темой -->
+        <activity
+            android:name=".ui.BookDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.SettingsActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.AuthorBooksActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.YandexAuthActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MyApplication" />
+
+        <activity
+            android:name=".ui.SeriesBooksActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+            
+        <activity
+            android:name=".ui.FavoriteBooksActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.NewBooksActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.WantToReadArticle"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" tools:ignore="Instantiatable" />
+
+        <activity
+            android:name=".ui.WantToReadActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.ScanResultActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <!-- Сервисы -->
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"
@@ -97,55 +190,6 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
-        <activity
-            android:name="com.nightread.app.ui.BookDetailActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyApplication" />
-        <activity
-            android:name="com.nightread.app.ui.BookReaderActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyApplication" />
-
-        <activity
-            android:name="com.nightread.app.ui.SettingsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyApplication" />
-
-        <activity
-            android:name="com.nightread.app.ui.AuthorBooksActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyApplication" />
-
-        <activity
-            android:name="com.nightread.app.ui.YandexAuthActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyApplication" />
-
-        <activity
-            android:name="com.nightread.app.ui.SeriesBooksActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyApplication" />
-            
-        <activity
-            android:name="com.nightread.app.ui.FavoriteBooksActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyApplication" />
-
-        <activity
-            android:name="com.nightread.app.ui.NewBooksActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyApplication" />
-
-        <activity
-            android:name="com.nightread.app.ui.WantToReadActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyApplication" />
-
-        <activity
-            android:name="com.nightread.app.ui.ScanResultActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyApplication" />
-            
         <service 
             android:name=".service.AutoDiscoveryService"
             android:exported="false"
@@ -155,9 +199,8 @@
             android:name=".service.SyncService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
-            
 
-
+        <!-- Ресиверы -->
         <receiver
             android:name=".service.ThemeUpdateReceiver"
             android:exported="false" />
@@ -165,24 +208,25 @@
         <receiver
             android:name=".service.BootReceiver"
             android:enabled="true"
-            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 
-
-
+        <!-- FileProvider с динамическим authority -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.nightread.app.fileprovider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-</application>
+
+    </application>
 
 </manifest>
