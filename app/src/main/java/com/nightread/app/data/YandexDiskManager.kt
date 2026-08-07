@@ -72,14 +72,13 @@ object YandexDiskManager {
     }
 
     fun getSyncFolder(context: Context): String {
-        val prefs = context.getSharedPreferences("yandex_sync", Context.MODE_PRIVATE)
-        val raw = prefs.getString("sync_folder", "/Books") ?: "/Books"
-        return normalizePath(raw)
+        val syncPrefs = com.nightread.app.core.preferences.SyncPreferences(context)
+        return normalizePath(syncPrefs.syncFolder)
     }
 
     fun setSyncFolder(context: Context, folder: String) {
-        val prefs = context.getSharedPreferences("yandex_sync", Context.MODE_PRIVATE)
-        prefs.edit().putString("sync_folder", normalizePath(folder)).apply()
+        val syncPrefs = com.nightread.app.core.preferences.SyncPreferences(context)
+        syncPrefs.syncFolder = normalizePath(folder)
     }
 
     private const val TAG = "YandexDiskManager"

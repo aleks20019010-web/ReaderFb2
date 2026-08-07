@@ -21,6 +21,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.nightread.app.R
+import com.nightread.app.core.preferences.TtsPreferences
 import com.nightread.app.data.SettingsManager
 import com.nightread.app.service.TtsForegroundService
 
@@ -140,8 +141,8 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
         val savedPitch = SettingsManager.getTtsPitch(context)
         selectedVoiceName = SettingsManager.getTtsVoice(context)
 
-        val prefs = context.getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
-        val savedContinuous = prefs.getBoolean("tts_continuous", true)
+        val ttsPrefs = TtsPreferences(context)
+        val savedContinuous = ttsPrefs.isContinuousPlay
 
         // Speed mapping: progress 0..25 => 0.5x..3.0x
         val speedProgress = ((savedSpeed - 0.5f) * 10).toInt().coerceIn(0, 25)
@@ -160,7 +161,7 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
                 val speed = 0.5f + (progress * 0.1f)
                 updateSpeedText(speed)
                 SettingsManager.setTtsSpeed(requireContext(), speed)
-                prefs.edit().putFloat("tts_speed", speed).apply()
+                ttsPrefs.speechRate = speed
                 listener?.onTtsSpeedChanged(speed)
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -172,7 +173,7 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
                 val pitch = 0.5f + (progress * 0.1f)
                 updatePitchText(pitch)
                 SettingsManager.setTtsPitch(requireContext(), pitch)
-                prefs.edit().putFloat("tts_pitch", pitch).apply()
+                ttsPrefs.pitch = pitch
                 listener?.onTtsPitchChanged(pitch)
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -180,7 +181,7 @@ class TtsSettingsBottomSheet : BottomSheetDialogFragment() {
         })
 
         switchContinuous.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("tts_continuous", isChecked).apply()
+            ttsPrefs.isContinuousPlay = isChecked
         }
 
         btnPlayPause.setOnClickListener {

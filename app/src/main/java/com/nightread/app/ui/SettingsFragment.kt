@@ -90,6 +90,7 @@ class SettingsFragment : Fragment() {
             switchAutoTheme.setOnCheckedChangeListener { _, isChecked ->
                 SettingsManager.setAppAutoThemeEnabled(ctx, isChecked)
                 com.nightread.app.data.ThemeHelper.applyTheme(ctx)
+                activity?.recreate()
             }
         }
 

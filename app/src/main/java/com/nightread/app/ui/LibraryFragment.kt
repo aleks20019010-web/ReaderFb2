@@ -1180,6 +1180,7 @@ class LibraryFragment : Fragment() {
         val message = if (newNight) "Включена тёмная тема" else "Включена светлая тема"
         Toast.makeText(ctx, message, Toast.LENGTH_SHORT).show()
         updateThemeButtonState()
+        activity?.recreate()
     }
 
     private fun showThemePopupMenu() {
@@ -1197,17 +1198,20 @@ class LibraryFragment : Fragment() {
                     SettingsManager.setTheme(ctx, "light")
                     ThemeHelper.applyTheme(ctx)
                     Toast.makeText(ctx, "Включена светлая тема", Toast.LENGTH_SHORT).show()
+                    activity?.recreate()
                 }
                 2 -> {
                     SettingsManager.setAppAutoThemeEnabled(ctx, false)
                     SettingsManager.setTheme(ctx, "dark")
                     ThemeHelper.applyTheme(ctx)
                     Toast.makeText(ctx, "Включена тёмная тема", Toast.LENGTH_SHORT).show()
+                    activity?.recreate()
                 }
                 3 -> {
                     SettingsManager.setAppAutoThemeEnabled(ctx, true)
                     ThemeHelper.applyTheme(ctx)
                     Toast.makeText(ctx, "Включена автоматическая тема", Toast.LENGTH_SHORT).show()
+                    activity?.recreate()
                 }
             }
             updateThemeButtonState()

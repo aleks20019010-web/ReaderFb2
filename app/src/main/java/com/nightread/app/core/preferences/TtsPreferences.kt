@@ -1,21 +1,39 @@
 package com.nightread.app.core.preferences
 
+import android.content.Context
 import android.content.SharedPreferences
 
-class TtsPreferences(private val getPrefs: () -> SharedPreferences?) {
-
-    fun getTtsSpeed(): Float = getPrefs()?.getFloat("tts_speed", 1.0f) ?: 1.0f
-    fun setTtsSpeed(value: Float) {
-        getPrefs()?.edit()?.putFloat("tts_speed", value)?.apply()
+class TtsPreferences(private val context: Context) {
+    private val prefs: SharedPreferences by lazy {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    fun getTtsPitch(): Float = getPrefs()?.getFloat("tts_pitch", 1.0f) ?: 1.0f
-    fun setTtsPitch(value: Float) {
-        getPrefs()?.edit()?.putFloat("tts_pitch", value)?.apply()
-    }
+    var speechRate: Float
+        get() = prefs.getFloat(KEY_SPEECH_RATE, 1.0f)
+        set(value) = prefs.edit().putFloat(KEY_SPEECH_RATE, value).apply()
 
-    fun getTtsVoice(): String = getPrefs()?.getString("tts_voice_name", "") ?: ""
-    fun setTtsVoice(value: String) {
-        getPrefs()?.edit()?.putString("tts_voice_name", value)?.apply()
+    var pitch: Float
+        get() = prefs.getFloat(KEY_PITCH, 1.0f)
+        set(value) = prefs.edit().putFloat(KEY_PITCH, value).apply()
+
+    var voiceName: String?
+        get() = prefs.getString(KEY_VOICE_NAME, null)
+        set(value) = prefs.edit().putString(KEY_VOICE_NAME, value).apply()
+
+    var language: String
+        get() = prefs.getString(KEY_LANGUAGE, "ru") ?: "ru"
+        set(value) = prefs.edit().putString(KEY_LANGUAGE, value).apply()
+
+    var isContinuousPlay: Boolean
+        get() = prefs.getBoolean(KEY_CONTINUOUS, true)
+        set(value) = prefs.edit().putBoolean(KEY_CONTINUOUS, value).apply()
+
+    companion object {
+        private const val PREFS_NAME = "tts_prefs"
+        private const val KEY_SPEECH_RATE = "speech_rate"
+        private const val KEY_PITCH = "pitch"
+        private const val KEY_VOICE_NAME = "voice_name"
+        private const val KEY_LANGUAGE = "language"
+        private const val KEY_CONTINUOUS = "tts_continuous"
     }
 }

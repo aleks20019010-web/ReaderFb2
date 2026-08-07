@@ -6,13 +6,15 @@
         <item name="cardElevation">12dp</item>
     </style>
 
-    <!-- Button Style with push down effect -->
-    <style name="ButtonStyle" parent="Widget.Material3.Button.ElevatedButton">
-        <item name="cornerRadius">12dp</item>
-        <item name="android:elevation">4dp</item>
-        <item name="android:stateListAnimator">@animator/button_press_animator</item>
-        <item name="backgroundTint">@color/btn_bg</item>
-        <item name="android:textColor">@color/btn_text</item>
+    <!-- Button Style with Glassmorphism effect -->
+    <style name="ButtonStyle" parent="Widget.Material3.Button">
+        <item name="cornerRadius">16dp</item>
+        <item name="android:elevation">0dp</item>
+        <item name="backgroundTint">@color/glass_bg_60</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/glass_stroke</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="rippleColor">#33FFFFFF</item>
     </style>
 
     <!-- SeekBar Style for Purple Fog Theme -->
@@ -89,11 +91,12 @@
         <item name="android:background">@android:color/transparent</item>
     </style>
 
-    <!-- Style for header icon buttons without background -->
+    <!-- Style for glass header icon buttons -->
     <style name="HeaderIconButtonStyle" parent="Widget.Material3.Button.IconButton">
-        <item name="android:layout_width">48dp</item>
-        <item name="android:layout_height">48dp</item>
-        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:background">@drawable/bg_button_circle</item>
+        <item name="backgroundTint">@null</item>
         <item name="elevation">0dp</item>
         <item name="iconSize">20dp</item>
         <item name="iconTint">@color/icon_tint</item>

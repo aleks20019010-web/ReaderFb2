@@ -16,6 +16,7 @@ import android.speech.tts.UtteranceProgressListener
 import android.support.v4.media.session.MediaSessionCompat
 import androidx.core.app.NotificationCompat
 import com.nightread.app.R
+import com.nightread.app.core.preferences.TtsPreferences
 import com.nightread.app.ui.BookReaderActivity
 import java.util.Locale
 
@@ -114,8 +115,8 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                     
                     sendStatusBroadcast(isPlaying = true, isDone = false, start = 0, end = 0, paragraphId = utteranceId ?: "")
                     
-                    val prefs = getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
-                    val continuous = prefs.getBoolean("tts_continuous", true)
+                    val ttsPrefs = TtsPreferences(this@TtsForegroundService)
+                    val continuous = ttsPrefs.isContinuousPlay
                     if (continuous && pIndex >= 0) {
                         val nextIndex = pIndex + 1
                         if (nextIndex < TtsDataProvider.paragraphs.size) {
@@ -133,8 +134,8 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 }
 
                 override fun onDone(utteranceId: String?) {
-                    val prefs = getSharedPreferences("tts_prefs", Context.MODE_PRIVATE)
-                    val continuous = prefs.getBoolean("tts_continuous", true)
+                    val ttsPrefs = TtsPreferences(this@TtsForegroundService)
+                    val continuous = ttsPrefs.isContinuousPlay
                     
                     var isLast = false
                     if (utteranceId != null && utteranceId != "UTTERANCE_CUSTOM_TEXT") {

@@ -46,6 +46,8 @@ class LibraryScanner(
                 }
                 
                 var processed = 0
+                var added = 0
+                var skipped = 0
                 val total = newBooksToProcess.size
                 
                 for (cache in newBooksToProcess) {
@@ -63,19 +65,38 @@ class LibraryScanner(
                         if (processor != null) {
                             val entity = processor.process(bookSource, context)
                             if (entity != null) {
-                                bookDao.insertBook(entity)
+                                val rowId = bookDao.insertBook(entity)
+                                if (rowId > 0) added++ else skipped++
+                            } else {
+                                skipped++
                             }
+                        } else {
+                            skipped++
                         }
+                    } else {
+                        skipped++
                     }
                     processed++
                     NewBookScanState.updateState(ScannerState(
                         isScanning = true, 
                         status = "Обработка: $processed / $total",
-                        progress = if (total > 0) (processed * 100) / total else 100
+                        progress = if (total > 0) (processed * 100) / total else 100,
+                        totalFiles = total,
+                        processedFiles = processed,
+                        addedBooks = added,
+                        skippedBooks = skipped
                     ))
                 }
                 
-                NewBookScanState.updateState(ScannerState(isScanning = false, status = "Готово", progress = 100))
+                NewBookScanState.updateState(ScannerState(
+                    isScanning = false, 
+                    status = "Готово. Добавлено: $added", 
+                    progress = 100,
+                    totalFiles = total,
+                    processedFiles = processed,
+                    addedBooks = added,
+                    skippedBooks = skipped
+                ))
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Scan error", e)

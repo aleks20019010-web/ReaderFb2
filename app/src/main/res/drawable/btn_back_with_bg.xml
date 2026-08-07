@@ -2,22 +2,23 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="oval">
-            <solid android:color="#991A0D2A" />
-            <size android:width="48dp" android:height="48dp" />
+            <solid android:color="@color/glass_bg_60" />
+            <stroke android:width="1dp" android:color="@color/glass_stroke" />
+            <size android:width="44dp" android:height="44dp" />
         </shape>
     </item>
     <item
-        android:left="12dp"
-        android:top="12dp"
-        android:right="12dp"
-        android:bottom="12dp">
+        android:left="10dp"
+        android:top="10dp"
+        android:right="10dp"
+        android:bottom="10dp">
         <vector
             android:width="24dp"
             android:height="24dp"
             android:viewportWidth="24"
             android:viewportHeight="24">
             <path
-                android:fillColor="#FFFFFFFF"
+                android:fillColor="@color/icon_tint"
                 android:pathData="M20,11H7.83l5.59,-5.59L12,4l-8,8 8,8 1.41,-1.41L7.83,13H20v-2z"/>
         </vector>
     </item>
