@@ -93,17 +93,25 @@ class BookReaderActivity : ComponentActivity() {
     fun saveNoteForBook(word: String, note: String) {}
 
     private fun cleanHtmlContent(html: String): String {
-        var text = html
-            .replace(Regex("</p>|<br\\s*/?>|</div\\s*>"), "\n\n")
-            .replace(Regex("<p[^>]*>|<div[^>]*>"), "")
-            .replace(Regex("<[^>]*>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .replace("&apos;", "'")
-        text = text.replace(Regex("\\n{3,}"), "\n\n")
-        return text.trim()
+        return try {
+            val spanned = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_LEGACY)
+            } else {
+                @Suppress("DEPRECATION")
+                android.text.Html.fromHtml(html)
+            }
+            spanned.toString()
+                .replace(Regex("\\r?\\n\\s*\\r?\\n"), "\n\n")
+                .trim()
+        } catch (e: Exception) {
+            html.replace(Regex("<[^>]*>"), "")
+                .replace("&nbsp;", " ")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&apos;", "'")
+                .trim()
+        }
     }
 }

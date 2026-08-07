@@ -130,26 +130,34 @@ fun ReaderComposeScreen(
     val weightValue = (settings.fontWeight * 800).toInt() + 100
     val mappedFontWeight = FontWeight(weightValue.coerceIn(100, 900))
 
-    val appContext = context.applicationContext
-    val pages = remember(mainText, settings.fontSize, settings.lineHeight) {
+    var pages by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isPreparingText by remember { mutableStateOf(true) }
+
+    LaunchedEffect(mainText, settings.fontSize, settings.lineHeight, context) {
         if (mainText.isEmpty()) {
-            emptyList()
+            pages = emptyList()
+            isPreparingText = false
         } else {
-            val hyphenated = HyphenatorHelper.hyphenate(mainText, appContext)
-            val words = hyphenated.split(Regex("(?<=\\s)"))
-            val chunks = mutableListOf<String>()
-            val currentChunk = StringBuilder()
-            val charsPerPage = (600 * (20f / settings.fontSize) * (1.4f / settings.lineHeight)).toInt().coerceAtLeast(100)
-            
-            for (word in words) {
-                if (currentChunk.length + word.length > charsPerPage) {
-                    chunks.add(currentChunk.toString().trimEnd())
-                    currentChunk.clear()
+            isPreparingText = true
+            val computedPages = withContext(Dispatchers.Default) {
+                val hyphenated = HyphenatorHelper.hyphenate(mainText, context.applicationContext)
+                val words = hyphenated.split(Regex("(?<=\\s)"))
+                val chunks = mutableListOf<String>()
+                val currentChunk = StringBuilder()
+                val charsPerPage = (600 * (20f / settings.fontSize) * (1.4f / settings.lineHeight)).toInt().coerceAtLeast(100)
+                
+                for (word in words) {
+                    if (currentChunk.length + word.length > charsPerPage) {
+                        chunks.add(currentChunk.toString().trimEnd())
+                        currentChunk.clear()
+                    }
+                    currentChunk.append(word)
                 }
-                currentChunk.append(word)
+                if (currentChunk.isNotEmpty()) chunks.add(currentChunk.toString().trimEnd())
+                if (chunks.isEmpty()) listOf(hyphenated) else chunks
             }
-            if (currentChunk.isNotEmpty()) chunks.add(currentChunk.toString().trimEnd())
-            if (chunks.isEmpty()) listOf(hyphenated) else chunks
+            pages = computedPages
+            isPreparingText = false
         }
     }
 
@@ -195,7 +203,7 @@ fun ReaderComposeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (isLoading) {
+            if (isLoading || isPreparingText) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -210,7 +218,7 @@ fun ReaderComposeScreen(
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
-                            text = "Подготовка книги...",
+                            text = "Подготовка текста...",
                             color = textColor.copy(alpha = alpha),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
@@ -219,6 +227,9 @@ fun ReaderComposeScreen(
                     }
                 }
             } else {
+                val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                val navBarHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
                 // Main Text Content as HorizontalPager
                 HorizontalPager(
                     state = pagerState,
@@ -232,26 +243,28 @@ fun ReaderComposeScreen(
                             )
                         }
                         .padding(
-                            top = if (settings.isHideBars) (WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 3.dp) else 80.dp,
-                            bottom = 16.dp,
-                            start = 8.dp,
-                            end = 8.dp
+                            top = if (settings.isHideBars) (statusBarHeight + 12.dp) else 72.dp,
+                            bottom = navBarHeight + 24.dp,
+                            start = 16.dp,
+                            end = 16.dp
                         )
                 ) { page ->
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.Top
                     ) {
                         Text(
-                            text = pages[page],
+                            text = pages.getOrElse(page) { "" },
                             color = textColor,
                             fontSize = settings.fontSize.sp,
                             fontFamily = font,
                             fontWeight = mappedFontWeight,
                             textAlign = TextAlign.Justify,
                             lineHeight = (settings.fontSize * settings.lineHeight).sp,
-                            letterSpacing = 0.1.sp
+                            letterSpacing = 0.1.sp,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
