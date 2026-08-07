@@ -225,7 +225,7 @@ fun ReaderComposeScreen(
             isPreparingText = true
             val computedPages = withContext(Dispatchers.Default) {
                 val formattedText = TypographyUtils.applyMicroTypography(mainText)
-                val charsPerPage = (1950 * (18f / fontSize) * (1.2f / lineSpacing)).toInt().coerceIn(1000, 3500)
+                val charsPerPage = (1000 * (18f / fontSize) * (1.2f / lineSpacing)).toInt().coerceIn(400, 2200)
                 val chapterSections = formattedText.split('\u000C')
                 val chunks = mutableListOf<String>()
 
@@ -402,11 +402,9 @@ fun ReaderComposeScreen(
                                 end = 8.dp
                             )
                     ) { page ->
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.Top
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.TopStart
                         ) {
                             val pageText = pages.getOrElse(page) { "" }
                             val pageAnnotatedString = parseFormattedTextToAnnotatedString(pageText, fontSize.sp)
@@ -648,9 +646,28 @@ fun ReaderComposeScreen(
                                 colors = SliderDefaults.colors(
                                     thumbColor = textColor,
                                     activeTrackColor = textColor,
-                                    inactiveTrackColor = textColor.copy(alpha = 0.25f)
+                                    inactiveTrackColor = textColor.copy(alpha = 0.2f)
                                 ),
-                                modifier = Modifier.fillMaxWidth()
+                                thumb = {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(12.dp)
+                                            .background(textColor, CircleShape)
+                                    )
+                                },
+                                track = { sliderState ->
+                                    SliderDefaults.Track(
+                                        sliderState = sliderState,
+                                        colors = SliderDefaults.colors(
+                                            activeTrackColor = textColor,
+                                            inactiveTrackColor = textColor.copy(alpha = 0.2f)
+                                        ),
+                                        modifier = Modifier.height(4.dp)
+                                    )
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(24.dp)
                             )
                         }
                     }

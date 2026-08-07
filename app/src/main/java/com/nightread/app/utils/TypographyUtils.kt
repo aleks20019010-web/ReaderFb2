@@ -23,7 +23,10 @@ object TypographyUtils {
         // 4. Очистка повторных пробелов (сохраняя переносы строк)
         result = result.replace(Regex("""[ \t]{2,}"""), " ")
 
-        // 5. Обеспечиваем \u000C перед [CHAPTER] если его нет
+        // 5. Очистка двойных и повторных переносов строк (делаем стандартный интервал между абзацами)
+        result = result.replace(Regex("""(?<!\u000C)\n[ \t]*\n+"""), "\n")
+
+        // 6. Обеспечиваем \u000C перед [CHAPTER] если его нет
         result = result.replace(Regex("(?<!\u000C)\\[CHAPTER\\]"), "\u000C[CHAPTER]")
 
         return result

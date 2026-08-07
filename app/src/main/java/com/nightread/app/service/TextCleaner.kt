@@ -92,7 +92,7 @@ object TextCleaner {
 
         // Process empty-line
         result = result
-            .replace(Regex("<empty-line\\s*/?>", RegexOption.IGNORE_CASE), "\n\n")
+            .replace(Regex("<empty-line\\s*/?>", RegexOption.IGNORE_CASE), "\n")
             .replace(Regex("</empty-line>", RegexOption.IGNORE_CASE), "")
 
         // Convert title tags to CHAPTER tags for FB2 and other formats
@@ -212,7 +212,7 @@ object TextCleaner {
 
         // Process empty-line
         result = result
-            .replace(Regex("<empty-line\\s*/?>", RegexOption.IGNORE_CASE), "\n\n")
+            .replace(Regex("<empty-line\\s*/?>", RegexOption.IGNORE_CASE), "\n")
             .replace(Regex("</empty-line>", RegexOption.IGNORE_CASE), "")
 
         // Convert title tags to CHAPTER tags for FB2 and other formats
