@@ -378,7 +378,7 @@ fun ReaderComposeScreen(
                         LaunchedEffect(mainText, fontSize, lineSpacing, font, mappedFontWeight, maxWidthPx, maxHeightPx) {
                             if (maxWidthPx > 0 && maxHeightPx > 0 && mainText.isNotEmpty()) {
                                 isPreparingText = true
-                                val computed = paginateTextWithMeasurer(
+                                paginateTextWithMeasurerProgressively(
                                     mainText = mainText,
                                     fontSize = fontSize.sp,
                                     font = font,
@@ -386,9 +386,14 @@ fun ReaderComposeScreen(
                                     lineSpacing = lineSpacing,
                                     textMeasurer = textMeasurer,
                                     maxWidthPx = maxWidthPx,
-                                    maxHeightPx = maxHeightPx
+                                    maxHeightPx = maxHeightPx,
+                                    onPagesUpdated = { currentPages, isFirstChunk ->
+                                        pages = currentPages
+                                        if (isFirstChunk) {
+                                            isPreparingText = false
+                                        }
+                                    }
                                 )
-                                pages = computed
                                 isPreparingText = false
                             }
                         }
@@ -1058,7 +1063,7 @@ private fun AnnotatedString.Builder.applyTagStyle(
     }
 }
 
-suspend fun paginateTextWithMeasurer(
+suspend fun paginateTextWithMeasurerProgressively(
     mainText: String,
     fontSize: TextUnit,
     font: FontFamily,
@@ -1066,9 +1071,10 @@ suspend fun paginateTextWithMeasurer(
     lineSpacing: Float,
     textMeasurer: TextMeasurer,
     maxWidthPx: Int,
-    maxHeightPx: Int
-): List<AnnotatedString> = withContext(Dispatchers.Default) {
-    if (mainText.isBlank() || maxWidthPx <= 0 || maxHeightPx <= 0) return@withContext emptyList()
+    maxHeightPx: Int,
+    onPagesUpdated: (List<AnnotatedString>, Boolean) -> Unit
+) = withContext(Dispatchers.Default) {
+    if (mainText.isBlank() || maxWidthPx <= 0 || maxHeightPx <= 0) return@withContext
 
     val formattedText = TypographyUtils.applyMicroTypography(mainText)
     val textStyle = TextStyle(
@@ -1082,13 +1088,40 @@ suspend fun paginateTextWithMeasurer(
         hyphens = Hyphens.Auto
     )
 
-    val chapterSections = formattedText.split('\u000C')
-    val chunks = mutableListOf<AnnotatedString>()
+    val rawSections = formattedText.split('\u000C')
+    val processChunks = mutableListOf<String>()
 
-    for (section in chapterSections) {
-        val cleanSection = section.trim()
-        if (cleanSection.isEmpty()) continue
-        val sectionAnnotated = parseFormattedTextToAnnotatedString(cleanSection, fontSize)
+    for (sec in rawSections) {
+        val trimmed = sec.trim()
+        if (trimmed.isEmpty()) continue
+        if (trimmed.length <= 3500) {
+            processChunks.add(trimmed)
+        } else {
+            val paragraphs = trimmed.split('\n')
+            val sb = StringBuilder()
+            for (p in paragraphs) {
+                if (sb.length + p.length > 3000 && sb.isNotEmpty()) {
+                    processChunks.add(sb.toString().trimEnd())
+                    sb.clear()
+                }
+                if (sb.isNotEmpty()) sb.append("\n")
+                sb.append(p)
+            }
+            if (sb.isNotEmpty()) {
+                processChunks.add(sb.toString().trimEnd())
+            }
+        }
+    }
+
+    if (processChunks.isEmpty()) return@withContext
+
+    val accumulatedPages = mutableListOf<AnnotatedString>()
+    var isFirstChunk = true
+
+    for (chunkText in processChunks) {
+        val sectionAnnotated = parseFormattedTextToAnnotatedString(chunkText, fontSize)
+        if (sectionAnnotated.isEmpty()) continue
+
         val layoutResult = textMeasurer.measure(
             text = sectionAnnotated,
             style = textStyle,
@@ -1111,10 +1144,14 @@ suspend fun paginateTextWithMeasurer(
                 startChar.coerceIn(0, sectionAnnotated.length),
                 endChar.coerceIn(0, sectionAnnotated.length)
             )
-            chunks.add(pageAnnotated)
+            if (pageAnnotated.isNotEmpty()) {
+                accumulatedPages.add(pageAnnotated)
+            }
             currentLine = endLine + 1
         }
-    }
 
-    if (chunks.isEmpty()) listOf(parseFormattedTextToAnnotatedString(formattedText, fontSize)) else chunks
+        onPagesUpdated(accumulatedPages.toList(), isFirstChunk)
+        isFirstChunk = false
+        kotlinx.coroutines.yield()
+    }
 }
