@@ -421,11 +421,18 @@ class NewBookScanner(
                 updateState(ScannerState(isScanning = true, status = "Быстрая проверка новых книг..."))
 
                 val existingMap = bookDao.getSha1ToPathMap()
-                val existingPaths = existingMap.mapNotNull { it.filePath }.toSet()
+                val existingPaths = existingMap.mapNotNull { it.filePath }.filter { it.isNotBlank() }.toSet()
 
                 val books = getBooksFromMediaStore()
 
-                val booksToProcess = books.filter { !existingPaths.contains(it.uri.toString()) }
+                val booksToProcess = books.filter { book ->
+                    val resolvedPath = resolveBookPath(book, context)
+                    val uriStr = book.uri.toString()
+                    val realP = book.realPath
+                    !existingPaths.contains(resolvedPath) &&
+                    !existingPaths.contains(uriStr) &&
+                    (realP.isNullOrBlank() || !existingPaths.contains(realP))
+                }
 
                 if (booksToProcess.isEmpty()) {
                     updateState(

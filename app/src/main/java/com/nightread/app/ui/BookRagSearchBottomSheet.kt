@@ -2,45 +2,55 @@ package com.nightread.app.ui
 
 import android.content.Context
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
-import android.widget.EditText
-import android.widget.ImageView
-import android.widget.ProgressBar
 import android.widget.TextView
-import androidx.lifecycle.ViewModelProvider
+import androidx.core.widget.doAfterTextChanged
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.nightread.app.R
-import com.nightread.app.data.BookRagEngine
 import com.nightread.app.data.RagSearchResult
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import com.nightread.app.databinding.DialogBookRagSearchBinding
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
+/**
+ * BottomSheet для RAG поиска по тексту книги.
+ * Использует Flow + collectLatest для эффективного поиска с автоматической отменой.
+ */
 class BookRagSearchBottomSheet : BottomSheetDialogFragment() {
 
-    private var onResultSelectedListener: ((offset: Int, pageIndex: Int) -> Unit)? = null
-    private lateinit var viewModel: ReaderViewModel
-    private var searchJob: Job? = null
-
-    private lateinit var etQuery: EditText
-    private lateinit var btnClear: ImageView
-    private lateinit var btnClose: ImageView
-    private lateinit var tvResultCounter: TextView
-    private lateinit var pbSearching: ProgressBar
-    private lateinit var rvResults: RecyclerView
-    private lateinit var layoutEmptyState: LinearLayoutManager
+    private var _binding: DialogBookRagSearchBinding? = null
+    private val binding get() = _binding!!
+    
+    private val viewModel: ReaderViewModel by activityViewModels()
     private lateinit var adapter: RagResultsAdapter
+    
+    private val searchQuery = MutableStateFlow("")
+    private var onResultSelectedListener: ((Int, Int) -> Unit)? = null
+
+    companion object {
+        private const val TAG = "BookRagSearchBottomSheet"
+        private const val MIN_QUERY_LENGTH = 2
+        private const val MAX_QUERY_LENGTH = 200
+        private const val SEARCH_DEBOUNCE_MS = 300L
+
+        fun newInstance() = BookRagSearchBottomSheet()
+    }
 
     override fun getTheme(): Int = R.style.DarkPurpleBottomSheetDialog
 
@@ -48,50 +58,40 @@ class BookRagSearchBottomSheet : BottomSheetDialogFragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.dialog_book_rag_search, container, false)
+    ): View {
+        _binding = DialogBookRagSearchBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        
+        setupRecyclerView()
+        setupListeners()
+        setupSearchFlow()
+        focusInput()
+    }
 
-        viewModel = ViewModelProvider(requireActivity()).get(ReaderViewModel::class.java)
-
-        etQuery = view.findViewById(R.id.etRagSearchQuery)
-        btnClear = view.findViewById(R.id.btnClearRagQuery)
-        btnClose = view.findViewById(R.id.btnCloseRagSearch)
-        tvResultCounter = view.findViewById(R.id.tvRagResultCounter)
-        pbSearching = view.findViewById(R.id.pbRagSearching)
-        rvResults = view.findViewById(R.id.rvRagResults)
-
-        val emptyView = view.findViewById<View>(R.id.layoutRagEmptyState)
-
-        rvResults.layoutManager = LinearLayoutManager(requireContext())
+    private fun setupRecyclerView() {
         adapter = RagResultsAdapter { result ->
             onResultSelectedListener?.invoke(result.startCharOffset, result.pageIndex)
             dismiss()
         }
-        rvResults.adapter = adapter
-
-        btnClose.setOnClickListener {
-            dismiss()
+        binding.rvRagResults.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = this@BookRagSearchBottomSheet.adapter
         }
+    }
 
-        btnClear.setOnClickListener {
-            etQuery.setText("")
+    private fun setupListeners() {
+        binding.btnCloseRagSearch.setOnClickListener { dismiss() }
+        
+        binding.btnClearRagQuery.setOnClickListener {
+            binding.etRagSearchQuery.setText("")
+            binding.etRagSearchQuery.requestFocus()
         }
-
-        etQuery.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                val text = s?.toString() ?: ""
-                btnClear.visibility = if (text.isNotEmpty()) View.VISIBLE else View.GONE
-                performRagSearch(text, emptyView)
-            }
-            override fun afterTextChanged(s: Editable?) {}
-        })
-
-        etQuery.setOnEditorActionListener { _, actionId, _ ->
+        
+        binding.etRagSearchQuery.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 hideKeyboard()
                 true
@@ -100,101 +100,115 @@ class BookRagSearchBottomSheet : BottomSheetDialogFragment() {
             }
         }
 
-        etQuery.post {
-            etQuery.requestFocus()
+        // Современный способ обработки текста
+        binding.etRagSearchQuery.doAfterTextChanged { editable ->
+            val text = editable?.toString() ?: ""
+            binding.btnClearRagQuery.visibility = if (text.isNotEmpty()) View.VISIBLE else View.GONE
+            searchQuery.value = text
+        }
+    }
+
+    @OptIn(FlowPreview::class)
+    private fun setupSearchFlow() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                searchQuery
+                    .debounce(SEARCH_DEBOUNCE_MS)
+                    .distinctUntilChanged()
+                    .collectLatest { query ->
+                        val trimmed = query.trim().take(MAX_QUERY_LENGTH)
+                        
+                        // Обрабатываем короткий запрос
+                        if (trimmed.length < MIN_QUERY_LENGTH) {
+                            showInitialState()
+                            return@collectLatest
+                        }
+                        
+                        // Показываем загрузку
+                        showLoadingState()
+                        
+                        // Выполняем поиск
+                        val results = viewModel.searchRag(trimmed)
+                        
+                        // Отображаем результаты
+                        displayResults(results)
+                    }
+            }
+        }
+    }
+
+    private fun focusInput() {
+        binding.etRagSearchQuery.post {
+            binding.etRagSearchQuery.requestFocus()
             val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-            imm?.showSoftInput(etQuery, InputMethodManager.SHOW_IMPLICIT)
+            imm?.showSoftInput(binding.etRagSearchQuery, InputMethodManager.SHOW_IMPLICIT)
         }
     }
 
-    fun setOnResultSelectedListener(listener: (offset: Int, pageIndex: Int) -> Unit) {
-        onResultSelectedListener = listener
+    private fun showInitialState() {
+        binding.pbRagSearching.visibility = View.GONE
+        binding.tvRagResultCounter.text = getString(R.string.rag_search_hint)
+        adapter.submitList(emptyList())
+        binding.rvRagResults.visibility = View.VISIBLE
+        binding.layoutRagEmptyState.visibility = View.GONE
     }
 
-    private fun performRagSearch(query: String, emptyView: View) {
-        searchJob?.cancel()
+    private fun showLoadingState() {
+        binding.pbRagSearching.visibility = View.VISIBLE
+        binding.tvRagResultCounter.text = getString(R.string.rag_searching)
+        binding.rvRagResults.visibility = View.VISIBLE
+        binding.layoutRagEmptyState.visibility = View.GONE
+    }
 
-        val trimmed = query.trim()
-        if (trimmed.length < 2) {
-            pbSearching.visibility = View.GONE
-            tvResultCounter.text = "Введите запрос для RAG поиска"
+    private fun displayResults(results: List<RagSearchResult>) {
+        binding.pbRagSearching.visibility = View.GONE
+        
+        if (results.isEmpty()) {
+            binding.tvRagResultCounter.text = getString(R.string.rag_no_results)
             adapter.submitList(emptyList())
-            emptyView.visibility = View.GONE
-            rvResults.visibility = View.VISIBLE
-            return
-        }
-
-        pbSearching.visibility = View.VISIBLE
-        tvResultCounter.text = "Поиск фрагментов RAG..."
-
-        searchJob = lifecycleScope.launch {
-            delay(150) // Debounce typing
-
-            val book = viewModel.bookState.value
-            val sha1 = book?.sha1 ?: "current_book"
-            val fullText = viewModel.getContentText()
-
-            val results = withContext(Dispatchers.Default) {
-                BookRagEngine.search(
-                    sha1 = sha1,
-                    fullText = fullText,
-                    query = trimmed,
-                    pageResolver = { offset -> viewModel.getPageForOffset(offset) }
-                )
-            }
-
-            if (!isAdded) return@launch
-
-            pbSearching.visibility = View.GONE
-
-            if (results.isEmpty()) {
-                tvResultCounter.text = "Фрагменты не найдены"
-                adapter.submitList(emptyList())
-                emptyView.visibility = View.VISIBLE
-                rvResults.visibility = View.GONE
-            } else {
-                tvResultCounter.text = "Найдено ${results.size} фрагментов (RAG)"
-                adapter.submitList(results)
-                emptyView.visibility = View.GONE
-                rvResults.visibility = View.VISIBLE
-            }
+            binding.layoutRagEmptyState.visibility = View.VISIBLE
+            binding.rvRagResults.visibility = View.GONE
+        } else {
+            binding.tvRagResultCounter.text = getString(R.string.rag_results_count, results.size)
+            adapter.submitList(results)
+            binding.layoutRagEmptyState.visibility = View.GONE
+            binding.rvRagResults.visibility = View.VISIBLE
         }
     }
 
     private fun hideKeyboard() {
         val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-        imm?.hideSoftInputFromWindow(etQuery.windowToken, 0)
+        imm?.hideSoftInputFromWindow(binding.etRagSearchQuery.windowToken, 0)
     }
 
-    companion object {
-        fun newInstance(): BookRagSearchBottomSheet {
-            return BookRagSearchBottomSheet()
-        }
+    fun setOnResultSelectedListener(listener: (Int, Int) -> Unit) {
+        onResultSelectedListener = listener
+    }
+
+    override fun onDestroyView() {
+        _binding = null
+        super.onDestroyView()
     }
 }
 
+/**
+ * Адаптер для отображения результатов RAG поиска с использованием ListAdapter и DiffUtil.
+ */
 class RagResultsAdapter(
     private val onItemClick: (RagSearchResult) -> Unit
-) : RecyclerView.Adapter<RagResultsAdapter.ViewHolder>() {
-
-    private var items: List<RagSearchResult> = emptyList()
-
-    fun submitList(newList: List<RagSearchResult>) {
-        items = newList
-        notifyDataSetChanged()
-    }
+) : ListAdapter<RagSearchResult, RagResultsAdapter.ViewHolder>(
+    DiffCallback
+) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_rag_search_result, parent, false)
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_rag_search_result, parent, false)
         return ViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val item = items[position]
-        holder.bind(item, onItemClick)
+        holder.bind(getItem(position), onItemClick)
     }
-
-    override fun getItemCount(): Int = items.size
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvPageBadge: TextView = itemView.findViewById(R.id.tvRagPageBadge)
@@ -202,13 +216,23 @@ class RagResultsAdapter(
         private val tvSnippetText: TextView = itemView.findViewById(R.id.tvRagSnippetText)
 
         fun bind(item: RagSearchResult, onItemClick: (RagSearchResult) -> Unit) {
-            tvPageBadge.text = "Стр. ${item.pageIndex + 1}"
-            tvScoreInfo.text = "Coвпадений: ${item.matchCount}"
+            tvPageBadge.text = itemView.context.getString(R.string.rag_page, item.pageIndex + 1)
+            tvScoreInfo.text = itemView.context.getString(R.string.rag_matches, item.matchCount)
             tvSnippetText.text = item.snippet
 
             itemView.setOnClickListener {
                 onItemClick(item)
             }
+        }
+    }
+
+    private object DiffCallback : DiffUtil.ItemCallback<RagSearchResult>() {
+        override fun areItemsTheSame(oldItem: RagSearchResult, newItem: RagSearchResult): Boolean {
+            return oldItem.startCharOffset == newItem.startCharOffset
+        }
+
+        override fun areContentsTheSame(oldItem: RagSearchResult, newItem: RagSearchResult): Boolean {
+            return oldItem == newItem
         }
     }
 }

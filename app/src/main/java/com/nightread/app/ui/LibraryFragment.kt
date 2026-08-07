@@ -660,9 +660,9 @@ class LibraryFragment : Fragment() {
 
         // Swipe refresh layout manual scan trigger
         swipeRefresh.setOnRefreshListener {
+            swipeRefresh.isRefreshing = false
             if (viewModel.scanState.value.isScanning) {
                 CustomToast.show(requireContext(), "Сканирование уже выполняется", android.widget.Toast.LENGTH_SHORT)
-                swipeRefresh.isRefreshing = false
             } else {
                 isSwipeRescanInProgress = true
                 checkPermissionsAndScan()
@@ -724,14 +724,14 @@ class LibraryFragment : Fragment() {
         }
         
         if (::swipeRefresh.isInitialized) {
-            swipeRefresh.isRefreshing = active
+            swipeRefresh.isRefreshing = false
         }
         
         if (active) {
             wasScanning = true
             isScanCompletionDismissed = false
             layoutScanProgress.visibility = View.VISIBLE
-            progressBarSpinner.visibility = View.VISIBLE
+            progressBarSpinner.visibility = View.GONE
             context?.getSharedPreferences("library_prefs", Context.MODE_PRIVATE)?.edit()
                 ?.putBoolean("no_books_banner_dismissed", false)
                 ?.apply()

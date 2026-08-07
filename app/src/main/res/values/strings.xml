@@ -57,6 +57,25 @@
     <string name="drawer_sync">Синхронизация</string>
     <string name="drawer_settings">Настройки</string>
 
+    <!-- Sync Service Strings -->
+    <string name="sync_title">Синхронизация с Яндекс Диском</string>
+    <string name="sync_starting">Запуск фоновой синхронизации...</string>
+    <string name="sync_progress">Синхронизация (%1$d%%)</string>
+    <string name="sync_channel_name">Синхронизация</string>
+    <string name="sync_channel_description">Уведомления о статусе фоновой синхронизации с облаком</string>
+
+    <!-- RAG Search Strings -->
+    <string name="rag_search_hint">Введите запрос для RAG поиска</string>
+    <string name="rag_searching">Поиск фрагментов RAG...</string>
+    <string name="rag_no_results">Ничего не найдено</string>
+    <string name="rag_results_count">Найдено фрагментов: %1$d</string>
+    <string name="rag_page">Стр. %1$d</string>
+    <string name="rag_matches">Совпадений: %1$d</string>
+
+    <!-- Bookmark Strings -->
+    <string name="bookmark_page_date">Страница %1$d • %2$s</string>
+    <string name="bookmark_empty_snippet">(Пустая страница)</string>
+
     <!-- Language Settings -->
     <string name="settings_section_language">ЯЗЫК ИНТЕРФЕЙСА / INTERFACE LANGUAGE</string>
     <string name="settings_language_title">Язык приложения / App Language</string>

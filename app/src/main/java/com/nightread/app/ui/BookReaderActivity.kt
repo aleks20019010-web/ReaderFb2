@@ -298,7 +298,7 @@ class BookReaderActivity : BaseActivity() {
         btnSearch.visibility = View.VISIBLE
         btnSearch.setOnClickListener {
             val sheet = BookRagSearchBottomSheet.newInstance()
-            sheet.setOnResultSelectedListener { offset, pageIndex ->
+            sheet.setOnResultSelectedListener { offset: Int, pageIndex: Int ->
                 if (offset >= 0) {
                     navigateToOffset(offset)
                 } else if (pageIndex >= 0) {

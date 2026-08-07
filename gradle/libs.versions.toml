@@ -46,6 +46,7 @@ fragment = "1.8.5"
 work = "2.9.1"
 swiperefreshlayout = "1.1.0"
 palette = "1.0.0"
+mockitoKotlin = "5.4.0"
 
 [libraries]
 yandex-authsdk = { group = "com.yandex.android", name = "authsdk", version.ref = "yandexAuth" }
@@ -104,6 +105,7 @@ firebase-ai = { group = "com.google.firebase", name = "firebase-ai" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-appcheck-recaptcha = { group = "com.google.firebase", name = "firebase-appcheck-recaptcha" }
 androidx-palette-ktx = { group = "androidx.palette", name = "palette-ktx", version.ref = "palette" }
+mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version.ref = "mockitoKotlin" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

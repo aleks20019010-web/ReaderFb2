@@ -17,13 +17,83 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.debounce
 
-class ReaderViewModel(application: Application) : AndroidViewModel(application) {
-    private val bookDao = AppDatabase.getDatabase(application).bookDao()
-    private val noteDao = AppDatabase.getDatabase(application).noteDao()
-    private val repository = com.nightread.app.data.BookRepository(bookDao, noteDao)
-    private val syncManager = SyncManager(application)
-    private val sharedPrefs = application.getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE)
+class ReaderViewModel @JvmOverloads constructor(
+    application: Application = Application()
+) : AndroidViewModel(application) {
     private val appContext = application
+    private val bookDao by lazy { AppDatabase.getDatabase(appContext).bookDao() }
+    private val noteDao by lazy { AppDatabase.getDatabase(appContext).noteDao() }
+    private val repository by lazy { com.nightread.app.data.BookRepository(bookDao, noteDao) }
+    private val syncManager by lazy { SyncManager(appContext) }
+    private val sharedPrefs by lazy { appContext.getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE) }
+
+    // RAG Search State
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
+
+    private val _searchResults = MutableStateFlow<List<com.nightread.app.data.RagSearchResult>>(emptyList())
+    val searchResults: StateFlow<List<com.nightread.app.data.RagSearchResult>> = _searchResults.asStateFlow()
+
+    private val _searchError = MutableStateFlow<String?>(null)
+    val searchError: StateFlow<String?> = _searchError.asStateFlow()
+
+    private val searchCache = mutableMapOf<String, List<com.nightread.app.data.RagSearchResult>>()
+
+    suspend fun searchRag(query: String): List<com.nightread.app.data.RagSearchResult> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) {
+            _searchError.value = "Запрос не может быть пустым"
+            _searchResults.value = emptyList()
+            _isSearching.value = false
+            return emptyList()
+        }
+
+        // Return cached result if available
+        searchCache[trimmed]?.let { cached ->
+            _searchResults.value = cached
+            _searchError.value = null
+            _isSearching.value = false
+            return cached
+        }
+
+        _isSearching.value = true
+        _searchError.value = null
+
+        return try {
+            val book = _bookState.value
+            val sha1 = book?.sha1 ?: "current_book"
+            val fullText = getContentText()
+
+            val results = withContext(Dispatchers.Default) {
+                com.nightread.app.data.BookRagEngine.search(
+                    sha1 = sha1,
+                    fullText = fullText,
+                    query = trimmed,
+                    pageResolver = { offset -> getPageForOffset(offset) }
+                )
+            }
+
+            searchCache[trimmed] = results
+            _searchResults.value = results
+            results
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            _isSearching.value = false
+            throw e
+        } catch (e: Exception) {
+            _searchError.value = e.message ?: "Ошибка поиска"
+            _searchResults.value = emptyList()
+            emptyList()
+        } finally {
+            _isSearching.value = false
+        }
+    }
+
+    fun clearSearch() {
+        _searchResults.value = emptyList()
+        _searchError.value = null
+        _isSearching.value = false
+        searchCache.clear()
+    }
 
     private val _bookState = MutableStateFlow<BookEntity?>(null)
     val bookState: StateFlow<BookEntity?> = _bookState.asStateFlow()
@@ -138,12 +208,12 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             lastReadTime = System.currentTimeMillis()
         )
 
-        sharedPrefs.edit()
-            .putInt("book_char_offset_${book.sha1}", offset)
-            .apply()
+        sharedPrefs?.edit()
+            ?.putInt("book_char_offset_${book.sha1}", offset)
+            ?.apply()
 
         viewModelScope.launch(Dispatchers.IO) {
-            bookDao.updateProgressAndPage(
+            bookDao?.updateProgressAndPage(
                 book.sha1,
                 offset,
                 _currentPage.value,
@@ -182,10 +252,10 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         val weightInt = SettingsManager.getFontWeightAsInt(context)
         val newFontWeight = weightInt
         
-        val newFontAlignment = sharedPrefs.getString("saved_font_alignment", "justify") ?: "justify"
-        val newPageMargins = sharedPrefs.getBoolean("saved_page_margins", true)
-        val newScrollDirection = SettingsManager.getPageAnimation(context)
-        val newTwoPagesLandscape = sharedPrefs.getBoolean("saved_two_pages_landscape", false)
+        val newFontAlignment = sharedPrefs?.getString("saved_font_alignment", "justify") ?: "justify"
+        val newPageMargins = sharedPrefs?.getBoolean("saved_page_margins", true) ?: true
+        val newScrollDirection = try { SettingsManager.getPageAnimation(context) } catch (e: Throwable) { "Горизонтально" }
+        val newTwoPagesLandscape = sharedPrefs?.getBoolean("saved_two_pages_landscape", false) ?: false
         
         var changed = false
         if (_fontSizeState.value != newFontSize) changed = true
@@ -224,8 +294,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                 val isWebView = com.nightread.app.data.BookFormatHelper.isWebViewBook(book.filePath)
 
                 // Retrieve latest saved position from SharedPreferences, SafeProgressManager & Room
-                val spPage = sharedPrefs.getInt("book_page_${book.sha1}", -1)
-                val spOffset = sharedPrefs.getInt("book_char_offset_${book.sha1}", -1)
+                val spPage = sharedPrefs?.getInt("book_page_${book.sha1}", -1) ?: -1
+                val spOffset = sharedPrefs?.getInt("book_char_offset_${book.sha1}", -1) ?: -1
                 val safeRecord = com.nightread.app.data.SafeProgressManager.getInstance(appContext).loadProgressRecord(book.sha1)
 
                 val effectivePage = if (spPage >= 0) spPage else maxOf(safeRecord.pageIndex, book.currentPageIndex).coerceAtLeast(0)
@@ -440,23 +510,23 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun setFontAlignment(alignment: String) {
         _fontAlignmentState.value = alignment
-        sharedPrefs.edit().putString("saved_font_alignment", alignment).apply()
+        sharedPrefs?.edit()?.putString("saved_font_alignment", alignment)?.apply()
         repaginate()
     }
 
     fun setPageMargins(enabled: Boolean) {
         _pageMarginsState.value = enabled
-        sharedPrefs.edit().putBoolean("saved_page_margins", enabled).apply()
+        sharedPrefs?.edit()?.putBoolean("saved_page_margins", enabled)?.apply()
         repaginate()
     }
 
     fun setScrollDirection(direction: String) {
-        SettingsManager.setPageAnimation(appContext, direction)
+        try { SettingsManager.setPageAnimation(appContext, direction) } catch (e: Throwable) {}
     }
 
     fun setTwoPagesLandscape(enabled: Boolean) {
         _twoPagesLandscapeState.value = enabled
-        sharedPrefs.edit().putBoolean("saved_two_pages_landscape", enabled).apply()
+        sharedPrefs?.edit()?.putBoolean("saved_two_pages_landscape", enabled)?.apply()
     }
 
     fun setTheme(theme: String) {
@@ -792,16 +862,16 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             lastReadTime = System.currentTimeMillis()
         )
 
-        sharedPrefs.edit()
-            .putInt("book_page_${book.sha1}", _currentPage.value)
-            .putInt("book_char_offset_${book.sha1}", pIndex)
-            .commit()
+        sharedPrefs?.edit()
+            ?.putInt("book_page_${book.sha1}", _currentPage.value)
+            ?.putInt("book_char_offset_${book.sha1}", pIndex)
+            ?.commit()
             
         saveProgress()
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                bookDao.updateProgressAndPage(
+                bookDao?.updateProgressAndPage(
                     book.sha1,
                     pIndex,
                     _currentPage.value,
@@ -817,9 +887,9 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         _currentPage.value = pageIndex
         val book = _bookState.value ?: return
         
-        sharedPrefs.edit()
-            .putInt("book_page_${book.sha1}", pageIndex)
-            .commit()
+        sharedPrefs?.edit()
+            ?.putInt("book_page_${book.sha1}", pageIndex)
+            ?.commit()
 
         _bookState.value = book.copy(
             currentPageIndex = pageIndex,
@@ -828,7 +898,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                bookDao.updateProgressAndPage(
+                bookDao?.updateProgressAndPage(
                     book.sha1,
                     book.currentProgressChar,
                     pageIndex,
@@ -845,13 +915,15 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         
         val isWebViewBook = com.nightread.app.data.BookFormatHelper.isWebViewBook(book.filePath)
 
-        com.nightread.app.data.SettingsManager.setLastReadBookSha1(appContext, book.sha1)
-        com.nightread.app.data.SafeProgressManager.getInstance(appContext).saveLastOpenedBookIdSync(book.sha1)
-        com.nightread.app.data.SafeProgressManager.getInstance(appContext).saveProgressSync(
-            book.sha1,
-            pageIdx,
-            if (isWebViewBook) BookCache.totalParagraphCount else _pagesState.value.size
-        )
+        try { com.nightread.app.data.SettingsManager.setLastReadBookSha1(appContext, book.sha1) } catch (e: Throwable) {}
+        try { com.nightread.app.data.SafeProgressManager.getInstance(appContext).saveLastOpenedBookIdSync(book.sha1) } catch (e: Throwable) {}
+        try {
+            com.nightread.app.data.SafeProgressManager.getInstance(appContext).saveProgressSync(
+                book.sha1,
+                pageIdx,
+                if (isWebViewBook) BookCache.totalParagraphCount else _pagesState.value.size
+            )
+        } catch (e: Throwable) {}
 
         val totalChars = if (isWebViewBook) BookCache.totalParagraphCount else book.totalCharacters
         val charOffset = if (isWebViewBook) {
@@ -864,10 +936,10 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
 
-        sharedPrefs.edit()
-            .putInt("book_page_${book.sha1}", pageIdx)
-            .putInt("book_char_offset_${book.sha1}", charOffset)
-            .commit()
+        sharedPrefs?.edit()
+            ?.putInt("book_page_${book.sha1}", pageIdx)
+            ?.putInt("book_char_offset_${book.sha1}", charOffset)
+            ?.commit()
 
         _bookState.value = book.copy(
             currentPageIndex = pageIdx,
