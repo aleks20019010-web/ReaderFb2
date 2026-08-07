@@ -130,34 +130,26 @@ fun ReaderComposeScreen(
     val weightValue = (settings.fontWeight * 800).toInt() + 100
     val mappedFontWeight = FontWeight(weightValue.coerceIn(100, 900))
 
-    var pages by remember { mutableStateOf<List<String>>(emptyList()) }
-    var isProcessing by remember { mutableStateOf(true) }
-
-    LaunchedEffect(mainText, settings.fontSize, settings.lineHeight, context) {
-        if (mainText.isNotEmpty() && !isLoading) {
-            isProcessing = true
-            val computedPages = withContext(Dispatchers.Default) {
-                val hyphenated = HyphenatorHelper.hyphenate(mainText, context)
-                val words = hyphenated.split(Regex("(?<=\\s)"))
-                val chunks = mutableListOf<String>()
-                val currentChunk = StringBuilder()
-                val charsPerPage = (600 * (20f / settings.fontSize) * (1.4f / settings.lineHeight)).toInt().coerceAtLeast(100)
-                
-                for (word in words) {
-                    if (currentChunk.length + word.length > charsPerPage) {
-                        chunks.add(currentChunk.toString().trimEnd())
-                        currentChunk.clear()
-                    }
-                    currentChunk.append(word)
+    val appContext = context.applicationContext
+    val pages = remember(mainText, settings.fontSize, settings.lineHeight) {
+        if (mainText.isEmpty()) {
+            emptyList()
+        } else {
+            val hyphenated = HyphenatorHelper.hyphenate(mainText, appContext)
+            val words = hyphenated.split(Regex("(?<=\\s)"))
+            val chunks = mutableListOf<String>()
+            val currentChunk = StringBuilder()
+            val charsPerPage = (600 * (20f / settings.fontSize) * (1.4f / settings.lineHeight)).toInt().coerceAtLeast(100)
+            
+            for (word in words) {
+                if (currentChunk.length + word.length > charsPerPage) {
+                    chunks.add(currentChunk.toString().trimEnd())
+                    currentChunk.clear()
                 }
-                if (currentChunk.isNotEmpty()) chunks.add(currentChunk.toString().trimEnd())
-                if (chunks.isEmpty()) listOf(hyphenated) else chunks
+                currentChunk.append(word)
             }
-            pages = computedPages
-            isProcessing = false
-        } else if (mainText.isEmpty()) {
-            pages = emptyList()
-            isProcessing = false
+            if (currentChunk.isNotEmpty()) chunks.add(currentChunk.toString().trimEnd())
+            if (chunks.isEmpty()) listOf(hyphenated) else chunks
         }
     }
 
@@ -203,7 +195,7 @@ fun ReaderComposeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (isLoading || isProcessing) {
+            if (isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
