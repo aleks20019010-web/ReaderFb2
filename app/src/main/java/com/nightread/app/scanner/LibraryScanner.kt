@@ -406,10 +406,12 @@ class LibraryScanner(
             
             val batchResults = processBookBatch(batch)
             
-            batchResults.forEach { result ->
-                when (result) {
-                    is ProcessResult.Success -> addedCount++
-                    else -> {}
+            batchResults.zip(batch).forEach { (result, file) ->
+                if (result is ProcessResult.Success) {
+                    addedCount++
+                    try {
+                        com.nightread.app.data.BookPreloader.preload(context, result.entity.sha1, file.absolutePath)
+                    } catch (e: Exception) {}
                 }
             }
             
