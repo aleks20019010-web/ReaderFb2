@@ -237,17 +237,25 @@ class LibraryScanner(
             scanDirectory(rootDir, bookFiles)
         }
         
+        val uniqueFiles = bookFiles.distinctBy { 
+            try { 
+                it.canonicalFile.absolutePath 
+            } catch (e: Exception) { 
+                it.absolutePath 
+            } 
+        }
+
         progressManager.forceUpdate {
             it.copy(
                 phase = ScanPhase.SCANNING_FILES,
                 phaseProgress = 100,
                 overallProgress = 15,
-                booksFound = bookFiles.size,
+                booksFound = uniqueFiles.size,
                 memoryUsed = memoryMonitor.getMemoryStatus()
             )
         }
         
-        return bookFiles
+        return uniqueFiles
     }
     
     /**
@@ -318,9 +326,17 @@ class LibraryScanner(
         val existingPaths = getExistingPaths(bookFiles)
         val cachedPaths = getCachedPaths(bookFiles)
         
+        val db = AppDatabase.getDatabase(context)
+        val allBooks = try { db.bookDao().getAllBooksSync() } catch (e: Exception) { emptyList() }
+        val canonicalExistingPaths = allBooks.mapNotNull { it.filePath?.let { p -> try { File(p).canonicalPath } catch (e: Exception) { p } } }.toSet()
+
         return bookFiles.filter { file ->
             val path = file.absolutePath
-            !existingPaths.contains(path) && !cachedPaths.contains(path)
+            val canonicalPath = try { file.canonicalFile.absolutePath } catch (e: Exception) { path }
+            !existingPaths.contains(path) && 
+            !canonicalExistingPaths.contains(canonicalPath) && 
+            !cachedPaths.contains(path) && 
+            !cachedPaths.contains(canonicalPath)
         }
     }
     
@@ -431,8 +447,6 @@ class LibraryScanner(
                 delay(500)
                 System.gc()
             }
-            
-            delay(50)
         }
         
         return addedCount

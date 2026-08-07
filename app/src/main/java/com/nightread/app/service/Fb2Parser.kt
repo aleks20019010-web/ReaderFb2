@@ -78,7 +78,7 @@ object Fb2Parser : BookParser {
     // Фабрика XmlPullParser
     private val parserFactory by lazy {
         XmlPullParserFactory.newInstance().apply {
-            isNamespaceAware = true
+            isNamespaceAware = false
         }
     }
 
@@ -227,34 +227,34 @@ object Fb2Parser : BookParser {
      * Читает аннотацию через XmlPullParser с ограничением размера.
      */
     private fun readAnnotationWithXmlParser(parser: XmlPullParser): String? {
-        val builder = StringBuilder()
-        var size = 0
+        val annotationText = StringBuilder()
         var depth = 1
 
         try {
             var eventType = parser.next()
             while (eventType != XmlPullParser.END_DOCUMENT && depth > 0) {
+                val tagName = parser.name?.lowercase() ?: ""
                 when (eventType) {
-                    XmlPullParser.START_TAG -> depth++
+                    XmlPullParser.START_TAG -> {
+                        depth++
+                    }
                     XmlPullParser.TEXT -> {
-                        val text = parser.text?.trim() ?: ""
-                        if (text.isNotEmpty() && size < MAX_ANNOTATION_SIZE) {
-                            val remaining = MAX_ANNOTATION_SIZE - size
-                            val chunk = if (text.length > remaining) text.substring(0, remaining) else text
-                            if (builder.isNotEmpty()) {
-                                builder.append(' ')
-                            }
-                            builder.append(chunk)
-                            size += chunk.length + 1
+                        val txt = parser.text
+                        if (txt != null) {
+                            annotationText.append(txt)
                         }
                     }
                     XmlPullParser.END_TAG -> {
                         depth--
-                        if (parser.name == "annotation" && depth == 0) {
+                        if (tagName == "p" || tagName == "v") {
+                            annotationText.append("\n")
+                        }
+                        if ((tagName == "annotation" || tagName == "description") && depth <= 0) {
                             break
                         }
                     }
                 }
+                if (depth <= 0) break
                 eventType = parser.next()
             }
         } catch (e: Exception) {
@@ -262,8 +262,9 @@ object Fb2Parser : BookParser {
             return null
         }
 
-        return builder.toString()
-            .replace(Regex("\\s+"), " ")
+        return annotationText.toString()
+            .replace(Regex("[ \\t\\x0B\\f\\r]+"), " ")
+            .replace(Regex("\\n\\s*\\n"), "\n\n")
             .trim()
             .takeIf { it.isNotEmpty() }
     }

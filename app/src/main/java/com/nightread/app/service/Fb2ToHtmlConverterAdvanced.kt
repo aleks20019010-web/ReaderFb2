@@ -32,7 +32,12 @@ object Fb2ToHtmlConverterAdvanced {
             val saxParser = factory.newSAXParser()
             val handler = Fb2SaxHandler()
             
-            val inputStream = ByteArrayInputStream(fb2Xml.toByteArray(Charsets.UTF_8))
+            val trimmedXml = fb2Xml.let { xml ->
+                val firstLt = xml.indexOf('<')
+                if (firstLt > 0) xml.substring(firstLt) else xml
+            }
+
+            val inputStream = ByteArrayInputStream(trimmedXml.toByteArray(Charsets.UTF_8))
             saxParser.parse(inputStream, handler)
 
             // Dynamic Font Style mapping
@@ -486,8 +491,29 @@ object Fb2ToHtmlConverterAdvanced {
                 </html>
             """.trimIndent()
         } catch (e: Exception) {
-            Log.e(TAG, "Error rendering FB2", e)
-            return "<html><body>Error rendering FB2: ${e.message}</body></html>"
+            Log.e(TAG, "Error rendering FB2 via SAX, trying fallback", e)
+            return try {
+                val cleaned = fb2Xml.replace(Regex("<binary[^>]*>.*?</binary>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
+                EpubToHtmlConverter.convert(
+                    xhtmlContent = cleaned,
+                    theme = theme,
+                    fontSize = fontSize,
+                    lineSpacing = lineSpacing,
+                    fontFamily = fontFamily,
+                    fontWeight = fontWeight,
+                    fontAlignment = fontAlignment,
+                    pageMargins = pageMargins,
+                    paddingTop = paddingTop,
+                    paddingBottom = paddingBottom,
+                    paddingLeft = paddingLeft,
+                    paddingRight = paddingRight,
+                    paragraphIndent = paragraphIndent
+                )
+            } catch (e2: Exception) {
+                Log.e(TAG, "Fallback rendering also failed", e2)
+                val safeText = fb2Xml.take(20000).replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>")
+                "<html><body><div id=\"column-container\"><p>$safeText</p></div></body></html>"
+            }
         }
     }
 

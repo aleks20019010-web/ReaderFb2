@@ -57,12 +57,7 @@ class Fb2Processor : BookProcessor {
                 Fb2Parser.parse(decodedText, book.name.substringBeforeLast('.'))
             }
             
-            val coverPath = try {
-                NewCoverExtractor.extractAndSaveCover(decodedText, sha1, context)
-            } catch (e: Exception) {
-                Log.w("Fb2Processor", "Cover error ${book.name}", e)
-                null
-            }
+            val coverPath: String? = null // Optimized for speed; covers loaded lazily on demand
             
             BookEntity(
                 sha1 = sha1,
@@ -122,9 +117,7 @@ class Fb3Processor : BookProcessor {
                 }
             } ?: return null
             
-            val coverPath = if (result.coverBytes != null && result.coverBytes.isNotEmpty()) {
-                NewCoverExtractor.saveCoverBytes(result.coverBytes, sha1, context)
-            } else null
+            val coverPath: String? = null
             
             BookEntity(
                 sha1 = sha1,
@@ -159,17 +152,7 @@ class EpubProcessor : BookProcessor {
                 EpubIdentifierHelper.getEpubMetadata { contentResolver.openInputStream(book.uri) }
             } ?: return null
             
-            val savedCover = try {
-                EpubIdentifierHelper.extractAndSaveEpubCover(
-                    { contentResolver.openInputStream(book.uri) },
-                    meta.coverPath,
-                    sha1,
-                    context
-                )
-            } catch (e: Throwable) {
-                Log.w("EpubProcessor", "Cover error ${book.name}", e)
-                null
-            }
+            val savedCover: String? = null
             
             BookEntity(
                 sha1 = sha1,
@@ -217,14 +200,7 @@ class MobiProcessor : BookProcessor {
                 MobiParser.parseBytes(bytes, book.name.substringBeforeLast('.'))
             }
             
-            val coverPath = try {
-                if (meta.coverBytes != null && meta.coverBytes.isNotEmpty()) {
-                    NewCoverExtractor.saveCoverBytes(meta.coverBytes, sha1, context)
-                } else null
-            } catch (e: Exception) {
-                Log.w("MobiProcessor", "Cover error ${book.name}", e)
-                null
-            }
+            val coverPath: String? = null
             
             BookEntity(
                 sha1 = sha1,
