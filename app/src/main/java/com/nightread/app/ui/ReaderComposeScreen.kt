@@ -14,7 +14,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -38,12 +40,18 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
+import android.content.Intent
+import android.os.Build
+import com.nightread.app.service.TtsForegroundService
 import com.nightread.app.data.SettingsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.Hyphens
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import com.nightread.app.utils.TypographyUtils
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -160,7 +168,8 @@ fun ReaderComposeScreen(
         } else {
             isPreparingText = true
             val computedPages = withContext(Dispatchers.Default) {
-                val words = mainText.split(Regex("(?<=\\s)"))
+                val formattedText = TypographyUtils.applyMicroTypography(mainText)
+                val words = formattedText.split(Regex("(?<=\\s)"))
                 val chunks = mutableListOf<String>()
                 val currentChunk = StringBuilder()
                 val charsPerPage = (800 * (18f / fontSize) * (1.2f / lineSpacing)).toInt().coerceAtLeast(300).coerceAtMost(1500)
@@ -173,7 +182,7 @@ fun ReaderComposeScreen(
                     currentChunk.append(word)
                 }
                 if (currentChunk.isNotEmpty()) chunks.add(currentChunk.toString().trimEnd())
-                if (chunks.isEmpty()) listOf(mainText) else chunks
+                if (chunks.isEmpty()) listOf(formattedText) else chunks
             }
             pages = computedPages
             isPreparingText = false
@@ -283,54 +292,127 @@ fun ReaderComposeScreen(
                             textAlign = TextAlign.Justify,
                             lineHeight = (fontSize * lineSpacing).sp,
                             letterSpacing = 0.1.sp,
+                            style = LocalTextStyle.current.copy(
+                                lineBreak = LineBreak.Paragraph,
+                                hyphens = Hyphens.Auto
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
             }
 
-            // Top Panel
+            val glassBgColor = bgColor.copy(alpha = if (themeType == ThemeType.NIGHT || themeType == ThemeType.SEPIA_CONTRAST) 0.85f else 0.90f)
+            val glassBorder = BorderStroke(1.dp, textColor.copy(alpha = 0.18f))
+
+            // Top Panel (Glassmorphism)
             AnimatedVisibility(
                 visible = !isHideBars,
                 enter = fadeIn(),
                 exit = fadeOut(),
-                modifier = Modifier.align(Alignment.TopCenter)
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = bgColor),
-                    title = {
-                        Column {
-                            Text(
-                                text = bookTitle,
-                                color = textColor,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = authorAndChapter,
-                                color = textColor.copy(alpha = 0.7f),
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = textColor)
-                        }
-                    },
-                    actions = {
-                        val activity = context as? androidx.fragment.app.FragmentActivity
-                        IconButton(onClick = {
-                            activity?.supportFragmentManager?.let { fm ->
-                                BookRagSearchBottomSheet.newInstance().show(fm, "BookRagSearch")
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    color = glassBgColor,
+                    border = glassBorder,
+                    shadowElevation = 8.dp
+                ) {
+                    TopAppBar(
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                        title = {
+                            Column {
+                                Text(
+                                    text = bookTitle,
+                                    color = textColor,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = authorAndChapter,
+                                    color = textColor.copy(alpha = 0.7f),
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
-                        }) {
-                            Icon(Icons.Filled.Search, contentDescription = "Поиск", tint = textColor)
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onBackClick) {
+                                Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = textColor)
+                            }
+                        },
+                        actions = {
+                            val activity = context as? androidx.fragment.app.FragmentActivity
+                            IconButton(onClick = {
+                                activity?.supportFragmentManager?.let { fm ->
+                                    BookRagSearchBottomSheet.newInstance().show(fm, "BookRagSearch")
+                                }
+                            }) {
+                                Icon(Icons.Filled.Search, contentDescription = "Поиск", tint = textColor)
+                            }
+                            IconButton(onClick = {
+                                activity?.supportFragmentManager?.let { fm ->
+                                    ChapterListBottomSheet.newInstance(sha1, mainText).show(fm, "ChapterList")
+                                }
+                            }) {
+                                Icon(Icons.Filled.List, contentDescription = "Оглавление", tint = textColor)
+                            }
+                            IconButton(onClick = {
+                                openTtsSettingsSheet(activity, mainText, bookTitle)
+                            }) {
+                                Icon(Icons.Filled.VolumeUp, contentDescription = "Озвучка", tint = textColor)
+                            }
+                            IconButton(onClick = {
+                                activity?.supportFragmentManager?.let { fm ->
+                                    BookmarksListBottomSheet.newInstance(sha1).show(fm, "BookmarksList")
+                                }
+                            }) {
+                                Icon(Icons.Filled.Bookmark, contentDescription = "Закладки", tint = textColor)
+                            }
+                            IconButton(onClick = {
+                                activity?.supportFragmentManager?.let { fm ->
+                                    SettingsBottomSheet().show(fm, "SettingsBottomSheet")
+                                }
+                            }) {
+                                Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = textColor)
+                            }
                         }
+                    )
+                }
+            }
+
+            // Bottom Panel (Glassmorphism)
+            AnimatedVisibility(
+                visible = !isHideBars,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = glassBgColor,
+                    border = glassBorder,
+                    shadowElevation = 8.dp
+                ) {
+                    val activity = context as? androidx.fragment.app.FragmentActivity
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         IconButton(onClick = {
                             activity?.supportFragmentManager?.let { fm ->
                                 ChapterListBottomSheet.newInstance(sha1, mainText).show(fm, "ChapterList")
@@ -338,20 +420,37 @@ fun ReaderComposeScreen(
                         }) {
                             Icon(Icons.Filled.List, contentDescription = "Оглавление", tint = textColor)
                         }
-                        IconButton(onClick = {
-                            activity?.supportFragmentManager?.let { fm ->
-                                TtsControlBottomSheet.newInstance().show(fm, "TtsControl")
-                            }
-                        }) {
-                            Icon(Icons.Filled.VolumeUp, contentDescription = "Озвучка", tint = textColor)
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                        ) {
+                            Text(
+                                text = "${pagerState.currentPage + 1} из ${pagerState.pageCount}",
+                                color = textColor,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val progress = if (pagerState.pageCount > 0) {
+                                (pagerState.currentPage + 1).toFloat() / pagerState.pageCount
+                            } else 0f
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth(0.8f)
+                                    .height(4.dp),
+                                color = textColor,
+                                trackColor = textColor.copy(alpha = 0.2f)
+                            )
                         }
+
                         IconButton(onClick = {
-                            activity?.supportFragmentManager?.let { fm ->
-                                BookmarksListBottomSheet.newInstance(sha1).show(fm, "BookmarksList")
-                            }
+                            openTtsSettingsSheet(activity, mainText, bookTitle)
                         }) {
-                            Icon(Icons.Filled.Bookmark, contentDescription = "Закладки", tint = textColor)
+                            Icon(Icons.Filled.VolumeUp, contentDescription = "TTS Озвучка", tint = textColor)
                         }
+
                         IconButton(onClick = {
                             activity?.supportFragmentManager?.let { fm ->
                                 SettingsBottomSheet().show(fm, "SettingsBottomSheet")
@@ -359,29 +458,7 @@ fun ReaderComposeScreen(
                         }) {
                             Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = textColor)
                         }
-                    },
-                )
-            }
-
-            // Bottom Panel
-            AnimatedVisibility(
-                visible = !isHideBars,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier.align(Alignment.BottomCenter)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.Transparent)
-                        .padding(horizontal = 16.dp, vertical = 24.dp)
-                ) {
-                    Text(
-                        text = "${pagerState.currentPage + 1} из ${pagerState.pageCount}",
-                        color = textColor,
-                        fontSize = 14.sp,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    }
                 }
             }
         }
@@ -586,6 +663,72 @@ fun SettingsStepper(
                 Text("+", color = Color(0xFF2A3A22), fontSize = 24.sp)
             }
         }
+    }
+}
+
+private fun openTtsSettingsSheet(
+    activity: androidx.fragment.app.FragmentActivity?,
+    mainText: String,
+    bookTitle: String
+) {
+    activity?.supportFragmentManager?.let { fm ->
+        val sheet = TtsSettingsBottomSheet.newInstance(mainText, bookTitle)
+        sheet.setTtsListener(object : TtsSettingsBottomSheet.TtsSettingsListener {
+            override fun onTtsStartRequested(speed: Float, pitch: Float, voiceName: String?, continuous: Boolean) {
+                val intent = Intent(activity, TtsForegroundService::class.java).apply {
+                    action = TtsForegroundService.ACTION_START
+                    putExtra(TtsForegroundService.EXTRA_TEXT, mainText)
+                    putExtra(TtsForegroundService.EXTRA_BOOK_TITLE, bookTitle)
+                    putExtra(TtsForegroundService.EXTRA_SPEED, speed)
+                    putExtra(TtsForegroundService.EXTRA_PITCH, pitch)
+                    putExtra(TtsForegroundService.EXTRA_VOICE, voiceName)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    activity.startForegroundService(intent)
+                } else {
+                    activity.startService(intent)
+                }
+            }
+
+            override fun onTtsPauseRequested() {
+                val intent = Intent(activity, TtsForegroundService::class.java).apply {
+                    action = TtsForegroundService.ACTION_PAUSE
+                }
+                activity.startService(intent)
+            }
+
+            override fun onTtsStopRequested() {
+                val intent = Intent(activity, TtsForegroundService::class.java).apply {
+                    action = TtsForegroundService.ACTION_STOP
+                }
+                activity.startService(intent)
+            }
+
+            override fun onTtsSpeedChanged(speed: Float) {
+                val intent = Intent(activity, TtsForegroundService::class.java).apply {
+                    action = TtsForegroundService.ACTION_SET_SPEED
+                    putExtra(TtsForegroundService.EXTRA_SPEED, speed)
+                }
+                activity.startService(intent)
+            }
+
+            override fun onTtsPitchChanged(pitch: Float) {
+                val intent = Intent(activity, TtsForegroundService::class.java).apply {
+                    action = TtsForegroundService.ACTION_SET_PITCH
+                    putExtra(TtsForegroundService.EXTRA_PITCH, pitch)
+                }
+                activity.startService(intent)
+            }
+
+            override fun onTtsVoiceChanged(voiceName: String) {
+                val intent = Intent(activity, TtsForegroundService::class.java).apply {
+                    action = TtsForegroundService.ACTION_SET_VOICE
+                    putExtra(TtsForegroundService.EXTRA_VOICE, voiceName)
+                }
+                activity.startService(intent)
+            }
+        })
+        sheet.show(fm, "TtsSettings")
     }
 }
 

@@ -1,18 +1,35 @@
 package com.nightread.app.ui
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
+import androidx.lifecycle.lifecycleScope
 import com.nightread.app.data.AppDatabase
+import com.nightread.app.data.NoteManager
+import com.nightread.app.data.SettingsManager
+import com.nightread.app.data.DictionaryDownloader
+import android.content.Intent
+import android.os.Build
+import com.nightread.app.service.TtsForegroundService
+import com.nightread.app.tts.AppTtsManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
 class BookReaderActivity : FragmentActivity() {
+
+    private var openedBookTitle: String = ""
+    private var openedBookSha1: String = ""
+    private var openedBookText: String = ""
+    private var ttsManager: AppTtsManager? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
+        openedBookSha1 = sha1
 
         setContent {
             var bookTitle by remember { mutableStateOf("Загрузка книги...") }
@@ -29,6 +46,7 @@ class BookReaderActivity : FragmentActivity() {
                             if (book != null) {
                                 bookTitle = book.title ?: "Без названия"
                                 authorName = book.author ?: ""
+                                openedBookTitle = bookTitle
 
                                 val contentFile = File(cacheDir, "$sha1.content")
                                 if (contentFile.exists()) {
@@ -57,6 +75,7 @@ class BookReaderActivity : FragmentActivity() {
                                         bookText = "Файл книги не найден на диске"
                                     }
                                 }
+                                openedBookText = bookText
                             } else {
                                 bookTitle = "Книга не найдена"
                                 bookText = "Информация о книге отсутствует в базе данных"
@@ -86,20 +105,158 @@ class BookReaderActivity : FragmentActivity() {
         }
     }
 
-    fun navigateToParagraph(paragraphIndex: Int) {}
-    fun loadPage(pageIndex: Int) {}
-    fun navigateToOffset(offset: Int) {}
-    fun fetchAndShowFreeDictionary(word: String) {}
-    fun onReaderAutoThemeSettingChanged() {}
-    fun onAutoBrightnessSettingChanged(enabled: Boolean) {}
-    fun getOpenedBookTitle(): String = ""
-    fun pauseTts() {}
-    fun startOrResumeTts() {}
-    fun stopTts() {}
-    fun readPreviousTtsChunk() {}
-    fun readNextTtsChunk() {}
-    fun performSmartSearch(query: String) {}
-    fun saveNoteForBook(word: String, note: String) {}
+    fun navigateToParagraph(paragraphIndex: Int) {
+        Toast.makeText(this, "Переход к абзацу ${paragraphIndex + 1}", Toast.LENGTH_SHORT).show()
+    }
+
+    fun loadPage(pageIndex: Int) {
+        Toast.makeText(this, "Переход к странице ${pageIndex + 1}", Toast.LENGTH_SHORT).show()
+    }
+
+    fun navigateToOffset(offset: Int) {
+        Toast.makeText(this, "Переход к позиции $offset", Toast.LENGTH_SHORT).show()
+    }
+
+    fun fetchAndShowFreeDictionary(word: String) {
+        if (word.isBlank()) return
+        lifecycleScope.launch(Dispatchers.IO) {
+            val dictFile = DictionaryDownloader.getDictionaryFile(this@BookReaderActivity)
+            var translation: String? = null
+            if (dictFile.exists()) {
+                try {
+                    val db = android.database.sqlite.SQLiteDatabase.openDatabase(
+                        dictFile.path,
+                        null,
+                        android.database.sqlite.SQLiteDatabase.OPEN_READONLY
+                    )
+                    val cursor = db.rawQuery("SELECT translation FROM dict WHERE LOWER(word) = ? LIMIT 1", arrayOf(word.lowercase().trim()))
+                    if (cursor.moveToFirst()) {
+                        translation = cursor.getString(0)
+                    }
+                    cursor.close()
+                    db.close()
+                } catch (e: Exception) {
+                    // ignore
+                }
+            }
+            withContext(Dispatchers.Main) {
+                val message = if (!translation.isNullOrBlank()) {
+                    "$word: $translation"
+                } else {
+                    "Слово '$word' не найдено в локальном словаре."
+                }
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(this@BookReaderActivity)
+                    .setTitle("Словарь: $word")
+                    .setMessage(message)
+                    .setPositiveButton("ОК", null)
+                    .show()
+            }
+        }
+    }
+
+    fun onReaderAutoThemeSettingChanged() {
+        SettingsManager.setAutoThemeEnabled(this, true)
+    }
+
+    fun onAutoBrightnessSettingChanged(enabled: Boolean) {
+        SettingsManager.setAutoBrightnessEnabled(this, enabled)
+        if (enabled) {
+            window.attributes = window.attributes.apply {
+                screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            }
+        }
+    }
+
+    fun getOpenedBookTitle(): String = openedBookTitle
+
+    fun pauseTts() {
+        try {
+            val intent = Intent(this, TtsForegroundService::class.java).apply {
+                action = TtsForegroundService.ACTION_PAUSE
+            }
+            startService(intent)
+        } catch (e: Exception) {
+            ttsManager?.pause()
+        }
+        Toast.makeText(this, "Озвучивание приостановлено", Toast.LENGTH_SHORT).show()
+    }
+
+    fun startOrResumeTts() {
+        try {
+            val intent = Intent(this, TtsForegroundService::class.java).apply {
+                action = TtsForegroundService.ACTION_START
+                putExtra(TtsForegroundService.EXTRA_TEXT, openedBookText)
+                putExtra(TtsForegroundService.EXTRA_BOOK_TITLE, openedBookTitle)
+                putExtra(TtsForegroundService.EXTRA_SPEED, SettingsManager.getTtsSpeed(this@BookReaderActivity))
+                putExtra(TtsForegroundService.EXTRA_PITCH, SettingsManager.getTtsPitch(this@BookReaderActivity))
+                putExtra(TtsForegroundService.EXTRA_VOICE, SettingsManager.getTtsVoice(this@BookReaderActivity))
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (e: Exception) {
+            if (ttsManager == null) {
+                ttsManager = AppTtsManager(applicationContext)
+            }
+            if (openedBookText.isNotEmpty()) {
+                ttsManager?.speak(openedBookText.take(2000))
+            }
+        }
+        Toast.makeText(this, "Озвучивание запущено", Toast.LENGTH_SHORT).show()
+    }
+
+    fun stopTts() {
+        try {
+            val intent = Intent(this, TtsForegroundService::class.java).apply {
+                action = TtsForegroundService.ACTION_STOP
+            }
+            startService(intent)
+        } catch (e: Exception) {
+            ttsManager?.stop()
+        }
+        Toast.makeText(this, "Озвучивание остановлено", Toast.LENGTH_SHORT).show()
+    }
+
+    fun readPreviousTtsChunk() {
+        startOrResumeTts()
+    }
+
+    fun readNextTtsChunk() {
+        startOrResumeTts()
+    }
+
+    fun performSmartSearch(query: String) {
+        if (query.isBlank() || openedBookText.isBlank()) return
+        val matches = openedBookText.windowed(query.length, 1).count { it.equals(query, ignoreCase = true) }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Поиск: '$query'")
+            .setMessage(if (matches > 0) "Найдено совпадений: $matches" else "Совпадений не найдено")
+            .setPositiveButton("ОК", null)
+            .show()
+    }
+
+    fun saveNoteForBook(word: String, note: String) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                NoteManager(this@BookReaderActivity).addNote(
+                    bookId = openedBookSha1.ifEmpty { "default_book" },
+                    bookTitle = openedBookTitle.ifEmpty { "Книга" },
+                    selectedText = word,
+                    noteText = note,
+                    charOffset = 0
+                )
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@BookReaderActivity, "Заметка сохранена", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@BookReaderActivity, "Ошибка сохранения заметки", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     private fun cleanHtmlContent(html: String): String {
         return try {
