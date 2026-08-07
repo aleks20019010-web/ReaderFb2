@@ -1,7 +1,7 @@
 package com.nightread.app.ui
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import com.nightread.app.data.AppDatabase
@@ -9,7 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-class BookReaderActivity : ComponentActivity() {
+class BookReaderActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
@@ -110,7 +110,9 @@ class BookReaderActivity : ComponentActivity() {
                 android.text.Html.fromHtml(html)
             }
             spanned.toString()
-                .replace(Regex("\\r?\\n\\s*\\r?\\n"), "\n\n")
+                .replace(Regex("[ \t]+\\n"), "\n")
+                .replace(Regex("\\n[ \t]+"), "\n")
+                .replace(Regex("\\n{3,}"), "\n\n")
                 .trim()
         } catch (e: Exception) {
             html.replace(Regex("<[^>]*>"), "")
@@ -120,6 +122,7 @@ class BookReaderActivity : ComponentActivity() {
                 .replace("&gt;", ">")
                 .replace("&quot;", "\"")
                 .replace("&apos;", "'")
+                .replace(Regex("\\n{3,}"), "\n\n")
                 .trim()
         }
     }

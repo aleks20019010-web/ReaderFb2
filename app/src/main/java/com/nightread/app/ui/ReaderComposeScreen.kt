@@ -133,18 +133,17 @@ fun ReaderComposeScreen(
     var pages by remember { mutableStateOf<List<String>>(emptyList()) }
     var isPreparingText by remember { mutableStateOf(true) }
 
-    LaunchedEffect(mainText, settings.fontSize, settings.lineHeight, context) {
+    LaunchedEffect(mainText, settings.fontSize, settings.lineHeight) {
         if (mainText.isEmpty()) {
             pages = emptyList()
             isPreparingText = false
         } else {
             isPreparingText = true
             val computedPages = withContext(Dispatchers.Default) {
-                val hyphenated = HyphenatorHelper.hyphenate(mainText, context.applicationContext)
-                val words = hyphenated.split(Regex("(?<=\\s)"))
+                val words = mainText.split(Regex("(?<=\\s)"))
                 val chunks = mutableListOf<String>()
                 val currentChunk = StringBuilder()
-                val charsPerPage = (600 * (20f / settings.fontSize) * (1.4f / settings.lineHeight)).toInt().coerceAtLeast(100)
+                val charsPerPage = (1400 * (20f / settings.fontSize) * (1.4f / settings.lineHeight)).toInt().coerceAtLeast(400)
                 
                 for (word in words) {
                     if (currentChunk.length + word.length > charsPerPage) {
@@ -154,7 +153,7 @@ fun ReaderComposeScreen(
                     currentChunk.append(word)
                 }
                 if (currentChunk.isNotEmpty()) chunks.add(currentChunk.toString().trimEnd())
-                if (chunks.isEmpty()) listOf(hyphenated) else chunks
+                if (chunks.isEmpty()) listOf(mainText) else chunks
             }
             pages = computedPages
             isPreparingText = false
@@ -243,7 +242,7 @@ fun ReaderComposeScreen(
                             )
                         }
                         .padding(
-                            top = if (settings.isHideBars) (statusBarHeight + 12.dp) else 72.dp,
+                            top = if (settings.isHideBars) (maxOf(statusBarHeight, 28.dp) + 16.dp) else maxOf(statusBarHeight + 56.dp, 80.dp),
                             bottom = navBarHeight + 24.dp,
                             start = 16.dp,
                             end = 16.dp
