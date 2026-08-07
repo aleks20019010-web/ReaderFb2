@@ -253,10 +253,28 @@ class BookReaderFragment : Fragment() {
         lifecycleScope.launch {
             val html = withContext(Dispatchers.IO) {
                 var cachedContent = if (cacheFile.exists()) cacheFile.readText() else ""
-                if (cachedContent.isNotBlank() && cachedContent.length > 50) {
+                if (cachedContent.isNotBlank() && cachedContent.length > 100 && !cachedContent.contains("Error rendering") && !cachedContent.contains("not well-formed")) {
                     cachedContent
                 } else {
-                    val contentStr = viewModel.getContentText()
+                    var contentStr = viewModel.getContentText()
+                    if (contentStr.isBlank()) {
+                        contentStr = try {
+                            val ext = file.extension.lowercase()
+                            if (ext == "zip" || file.name.endsWith(".fb2.zip", true) || file.name.endsWith(".fb3.zip", true)) {
+                                readZipFileContent(file)
+                            } else if (ext == "fb3") {
+                                com.nightread.app.service.Fb3Parser.parse(file, file.nameWithoutExtension).content
+                            } else if (ext == "epub") {
+                                com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
+                            } else if (ext in listOf("mobi", "azw", "azw3")) {
+                                com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension).content
+                            } else {
+                                file.readText(Charsets.UTF_8)
+                            }
+                        } catch (e: Exception) {
+                            ""
+                        }
+                    }
                     val theme = SettingsManager.getReadingTheme(context)
                     val fontSize = SettingsManager.getFontSize(context)
                     val lineSpacing = SettingsManager.getLineSpacing(context)
@@ -325,7 +343,11 @@ class BookReaderFragment : Fragment() {
                             paragraphIndent = paragraphIndent
                         )
                     }
-                    try { cacheFile.writeText(converted) } catch (e: Exception) { e.printStackTrace() }
+                    if (converted.isNotBlank() && !converted.contains("Error rendering")) {
+                        try { cacheFile.writeText(converted) } catch (e: Exception) { e.printStackTrace() }
+                    } else {
+                        cacheFile.delete()
+                    }
                     converted
                 }
             }
@@ -669,5 +691,48 @@ class BookReaderFragment : Fragment() {
         val cur = _currentPage.value
         val total = _totalPages.value
         act?.updateProgressFromFragment(cur, total)
+    }
+
+    private fun readZipFileContent(file: java.io.File): String {
+        if (com.nightread.app.service.Fb3Parser.isFb3(file)) {
+            val parsed = com.nightread.app.service.Fb3Parser.parseFb3(file, file.nameWithoutExtension)
+            if (parsed.content.isNotBlank()) return parsed.content
+        }
+        try {
+            java.io.FileInputStream(file).use { fis ->
+                java.util.zip.ZipInputStream(fis).use { zis ->
+                    var entry = zis.nextEntry
+                    var fallbackBytes: ByteArray? = null
+                    while (entry != null) {
+                        val entryName = entry.name.lowercase()
+                        if (!entry.isDirectory && !entryName.startsWith("__macosx") && !entryName.contains(".ds_store")) {
+                            if (entryName.endsWith(".fb3")) {
+                                val bytes = zis.readBytes()
+                                return com.nightread.app.service.Fb3Parser.parseBytes(bytes, entryName.removeSuffix(".fb3")).content
+                            } else if (entryName.endsWith(".fb2") || entryName.endsWith(".xml") || entryName.endsWith(".html") || entryName.endsWith(".htm") || entryName.endsWith(".txt")) {
+                                val bytes = zis.readBytes()
+                                val headerStr = if (bytes.size > 2048) String(bytes, 0, 2048, java.nio.charset.StandardCharsets.ISO_8859_1) else String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+                                val match = """encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(headerStr)
+                                val charset = if (match != null) {
+                                    try { java.nio.charset.Charset.forName(match.groupValues[1].trim()) } catch (e: Exception) { java.nio.charset.StandardCharsets.UTF_8 }
+                                } else { java.nio.charset.StandardCharsets.UTF_8 }
+                                val decoded = String(bytes, charset)
+                                if (decoded.isNotBlank()) return decoded
+                            } else if (fallbackBytes == null) {
+                                fallbackBytes = zis.readBytes()
+                            }
+                        }
+                        entry = zis.nextEntry
+                    }
+                    fallbackBytes?.let {
+                        val decoded = String(it, java.nio.charset.StandardCharsets.UTF_8)
+                        if (decoded.isNotBlank()) return decoded
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookReaderFragment", "Error reading zip file ${file.name}", e)
+        }
+        return ""
     }
 }

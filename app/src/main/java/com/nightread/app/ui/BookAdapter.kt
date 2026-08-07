@@ -287,29 +287,37 @@ class BookAdapter(
     }
 
     private fun flushBufferImmediately(newBooksList: List<BookEntity>) {
-        val diffCallback = object : DiffUtil.Callback() {
-            override fun getOldListSize() = books.size
-            override fun getNewListSize() = newBooksList.size
-            
-            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                return books[oldItemPosition].sha1 == newBooksList[newItemPosition].sha1
+        try {
+            val oldList = books
+            val diffCallback = object : DiffUtil.Callback() {
+                override fun getOldListSize() = oldList.size
+                override fun getNewListSize() = newBooksList.size
+                
+                override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                    val old = oldList.getOrNull(oldItemPosition) ?: return false
+                    val new = newBooksList.getOrNull(newItemPosition) ?: return false
+                    return old.sha1 == new.sha1
+                }
+                
+                override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                    val old = oldList.getOrNull(oldItemPosition) ?: return false
+                    val new = newBooksList.getOrNull(newItemPosition) ?: return false
+                    return old.title == new.title &&
+                           old.currentProgressChar == new.currentProgressChar &&
+                           old.currentPageIndex == new.currentPageIndex &&
+                           old.totalCharacters == new.totalCharacters &&
+                           old.coverPath == new.coverPath
+                }
             }
             
-            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-                val old = books[oldItemPosition]
-                val new = newBooksList[newItemPosition]
-                return old.title == new.title &&
-                       old.currentProgressChar == new.currentProgressChar &&
-                       old.currentPageIndex == new.currentPageIndex &&
-                       old.totalCharacters == new.totalCharacters &&
-                       old.coverPath == new.coverPath
-            }
+            val diffResult = DiffUtil.calculateDiff(diffCallback)
+            this.books = newBooksList
+            diffResult.dispatchUpdatesTo(this)
+            lastFlushTime = System.currentTimeMillis()
+        } catch (e: Exception) {
+            this.books = newBooksList
+            notifyDataSetChanged()
         }
-        
-        val diffResult = DiffUtil.calculateDiff(diffCallback)
-        this.books = newBooksList
-        diffResult.dispatchUpdatesTo(this)
-        lastFlushTime = System.currentTimeMillis()
     }
 
     fun getBookAt(position: Int): BookEntity {

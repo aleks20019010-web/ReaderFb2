@@ -978,21 +978,35 @@ class ReaderViewModel @JvmOverloads constructor(
             val parsed = com.nightread.app.service.Fb3Parser.parseFb3(file, file.nameWithoutExtension)
             if (parsed.content.isNotBlank()) return parsed.content
         }
-        java.io.FileInputStream(file).use { fis ->
-            java.util.zip.ZipInputStream(fis).use { zis ->
-                var entry = zis.nextEntry
-                while (entry != null) {
-                    val entryName = entry.name.lowercase()
-                    if (!entry.isDirectory && entryName.endsWith(".fb3")) {
-                        val bytes = zis.readBytes()
-                        return com.nightread.app.service.Fb3Parser.parseBytes(bytes, entryName.removeSuffix(".fb3")).content
-                    } else if (!entry.isDirectory && entryName.endsWith(".fb2")) {
-                        val bytes = zis.readBytes()
-                        return decodeBytesToString(bytes)
+        try {
+            java.io.FileInputStream(file).use { fis ->
+                java.util.zip.ZipInputStream(fis).use { zis ->
+                    var entry = zis.nextEntry
+                    var fallbackBytes: ByteArray? = null
+                    while (entry != null) {
+                        val entryName = entry.name.lowercase()
+                        if (!entry.isDirectory && !entryName.startsWith("__macosx") && !entryName.contains(".ds_store")) {
+                            if (entryName.endsWith(".fb3")) {
+                                val bytes = zis.readBytes()
+                                return com.nightread.app.service.Fb3Parser.parseBytes(bytes, entryName.removeSuffix(".fb3")).content
+                            } else if (entryName.endsWith(".fb2") || entryName.endsWith(".xml") || entryName.endsWith(".html") || entryName.endsWith(".htm") || entryName.endsWith(".txt")) {
+                                val bytes = zis.readBytes()
+                                val decoded = decodeBytesToString(bytes)
+                                if (decoded.isNotBlank()) return decoded
+                            } else if (fallbackBytes == null) {
+                                fallbackBytes = zis.readBytes()
+                            }
+                        }
+                        entry = zis.nextEntry
                     }
-                    entry = zis.nextEntry
+                    fallbackBytes?.let {
+                        val decoded = decodeBytesToString(it)
+                        if (decoded.isNotBlank()) return decoded
+                    }
                 }
             }
+        } catch (e: Exception) {
+            android.util.Log.e("ReaderViewModel", "Error reading zip file ${file.name}", e)
         }
         return ""
     }
