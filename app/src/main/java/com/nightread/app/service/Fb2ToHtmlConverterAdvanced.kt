@@ -24,7 +24,8 @@ object Fb2ToHtmlConverterAdvanced {
         paddingTop: Int,
         paddingBottom: Int,
         paddingLeft: Int,
-        paddingRight: Int
+        paddingRight: Int,
+        paragraphIndent: Int = 12
     ): String {
         try {
             val factory = SAXParserFactory.newInstance()
@@ -55,12 +56,13 @@ object Fb2ToHtmlConverterAdvanced {
             }
 
             // Margin/padding setup
-            val sideMarginPx = paddingLeft
+            val sideMarginPx = if (pageMargins) paddingLeft else 0
             val sideMargin = "${sideMarginPx}px"
             val columnWidthCss = "calc(100vw - ${sideMarginPx * 2}px)"
             val columnGapCss = "${sideMarginPx * 2}px"
             val topMargin = "${paddingTop}px"
             val bottomMargin = "${paddingBottom}px"
+            val paragraphIndentCss = "${paragraphIndent}px"
             val fontWeightCss = fontWeight.toString()
 
             val htmlContent = handler.getHtml()
@@ -84,6 +86,7 @@ object Fb2ToHtmlConverterAdvanced {
                             --font-weight: $fontWeightCss;
                             --line-spacing: $lineSpacing;
                             --text-align: ${fontAlignment.lowercase()};
+                            --paragraph-indent: $paragraphIndentCss;
                         }
                         html {
                             margin: 0;
@@ -168,7 +171,7 @@ object Fb2ToHtmlConverterAdvanced {
                         p {
                             margin-top: 0;
                             margin-bottom: 0.2em;
-                            text-indent: 1.5em;
+                            text-indent: var(--paragraph-indent);
                             text-align: justify;
                             max-width: 100%;
                             box-sizing: border-box;

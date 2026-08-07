@@ -18,7 +18,8 @@ object EpubToHtmlConverter {
         paddingTop: Int,
         paddingBottom: Int,
         paddingLeft: Int,
-        paddingRight: Int
+        paddingRight: Int,
+        paragraphIndent: Int = 12
     ): String {
         return try {
             // Dynamic Font Style mapping

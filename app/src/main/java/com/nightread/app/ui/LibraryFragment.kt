@@ -716,6 +716,34 @@ class LibraryFragment : Fragment() {
         }
     }
 
+    private fun showScanProgressWithFadeIn() {
+        if (layoutScanProgress.visibility != View.VISIBLE) {
+            layoutScanProgress.alpha = 0f
+            layoutScanProgress.visibility = View.VISIBLE
+            layoutScanProgress.animate()
+                .alpha(1f)
+                .setDuration(300)
+                .setListener(null)
+                .start()
+        } else {
+            layoutScanProgress.alpha = 1f
+        }
+    }
+
+    private fun showNewBooksBannerWithFadeIn() {
+        if (layoutNewBooksBanner.visibility != View.VISIBLE) {
+            layoutNewBooksBanner.alpha = 0f
+            layoutNewBooksBanner.visibility = View.VISIBLE
+            layoutNewBooksBanner.animate()
+                .alpha(1f)
+                .setDuration(300)
+                .setListener(null)
+                .start()
+        } else {
+            layoutNewBooksBanner.alpha = 1f
+        }
+    }
+
     private fun updateScanUI(state: com.nightread.app.service.ScanState) {
         val active = state.isScanning
         
@@ -730,7 +758,7 @@ class LibraryFragment : Fragment() {
         if (active) {
             wasScanning = true
             isScanCompletionDismissed = false
-            layoutScanProgress.visibility = View.VISIBLE
+            showScanProgressWithFadeIn()
             progressBarSpinner.visibility = View.GONE
             context?.getSharedPreferences("library_prefs", Context.MODE_PRIVATE)?.edit()
                 ?.putBoolean("no_books_banner_dismissed", false)
@@ -758,7 +786,7 @@ class LibraryFragment : Fragment() {
                             val unseenBooks = newBooks.filter { it.sha1 !in shownSha1s }
                             
                             if (unseenBooks.isNotEmpty()) {
-                                layoutNewBooksBanner.visibility = View.VISIBLE
+                                showNewBooksBannerWithFadeIn()
                                 tvNewBooksCount.text = "Найдено новых книг: ${newBooks.size}"
                                 hideBannerHandler.removeCallbacks(hideBannerRunnable)
                                 hideBannerHandler.postDelayed(hideBannerRunnable, 2000)
@@ -786,7 +814,7 @@ class LibraryFragment : Fragment() {
             if (active) {
                 scanDismissJob?.cancel()
                 scanDismissJob = null
-                layoutScanProgress.visibility = View.VISIBLE
+                showScanProgressWithFadeIn()
                 if (isSwipeRescanInProgress) {
                     tvScanStatus.text = "Обновление: ${state.status}"
                 } else {
@@ -794,7 +822,7 @@ class LibraryFragment : Fragment() {
                 }
             } else {
                 if (!isScanCompletionDismissed) {
-                    layoutScanProgress.visibility = View.VISIBLE
+                    showScanProgressWithFadeIn()
                     if (isSwipeRescanInProgress) {
                         tvScanStatus.text = "Обновление: ${state.status}"
                     } else {

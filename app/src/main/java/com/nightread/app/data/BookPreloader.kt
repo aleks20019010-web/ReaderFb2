@@ -42,6 +42,7 @@ object BookPreloader {
                 }
 
                 if (!cacheHtmlFile.exists()) {
+                    val paragraphIndent = SettingsManager.getParagraphIndent(appContext)
                     val converted = if (file.extension.lowercase() == "fb2" || file.name.endsWith(".fb2.zip", true) || file.name.endsWith(".zip", true)) {
                         Fb2ToHtmlConverterAdvanced.convert(
                             fb2Xml = rawContent,
@@ -55,7 +56,8 @@ object BookPreloader {
                             paddingTop = 15,
                             paddingBottom = 16,
                             paddingLeft = 8,
-                            paddingRight = 8
+                            paddingRight = 8,
+                            paragraphIndent = paragraphIndent
                         )
                     } else {
                         EpubToHtmlConverter.convert(
@@ -70,7 +72,8 @@ object BookPreloader {
                             paddingTop = 15,
                             paddingBottom = 16,
                             paddingLeft = 8,
-                            paddingRight = 8
+                            paddingRight = 8,
+                            paragraphIndent = paragraphIndent
                         )
                     }
                     try { cacheHtmlFile.writeText(converted) } catch (e: Exception) {}

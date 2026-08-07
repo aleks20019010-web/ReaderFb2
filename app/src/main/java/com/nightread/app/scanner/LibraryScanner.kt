@@ -1,6 +1,7 @@
 package com.nightread.app.scanner
 
 import android.content.Context
+import android.net.Uri
 import android.os.Environment
 import android.util.Log
 import com.nightread.app.data.AppDatabase
@@ -8,312 +9,150 @@ import com.nightread.app.data.BookCache
 import com.nightread.app.data.BookDao
 import com.nightread.app.data.BookEntity
 import com.nightread.app.scanner.processors.*
-import com.nightread.app.service.NewBookScanState
-import com.nightread.app.service.ScannerState
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.min
-
-// ==================== CONSTANTS ====================
-
-private const val TAG = "LibraryScanner"
-private const val BATCH_SIZE = 25
-private const val MAX_ZIP_SIZE_MB = 25
-private const val TIMEOUT_PER_BOOK_MS = 30_000L
-private const val MAX_FILES_TO_SCAN = 10000
-private const val MEMORY_LOW_THRESHOLD = 0.15f
-
-// Прогресс-константы
-private const val PROGRESS_INIT = 0
-private const val PROGRESS_SCANNING_START = 5
-private const val PROGRESS_SCANNING_END = 15
-private const val PROGRESS_ANALYZING_START = 20
-private const val PROGRESS_ANALYZING_END = 25
-private const val PROGRESS_PROCESSING_START = 30
-private const val PROGRESS_PROCESSING_END = 95
-private const val PROGRESS_FINALIZING = 100
-
-// ==================== SCAN PHASE & PROGRESS ====================
-
-enum class ScanPhase {
-    INITIALIZING,
-    SCANNING_FILES,
-    ANALYZING_CACHE,
-    PROCESSING_BOOKS,
-    COMPLETED,
-    CANCELLED,
-    ERROR
-}
-
-data class BookScanProgress(
-    val phase: ScanPhase = ScanPhase.INITIALIZING,
-    val phaseProgress: Int = 0,
-    val overallProgress: Int = 0,
-    val booksFound: Int = 0,
-    val booksProcessed: Int = 0,
-    val booksAdded: Int = 0,
-    val booksSkipped: Int = 0,
-    val currentFile: String = "",
-    val eta: String = "Вычисляется...",
-    val speed: String = "Вычисляется...",
-    val memoryUsed: String = ""
-) {
-    fun toScannerState(): ScannerState {
-        return ScannerState(
-            isScanning = phase != ScanPhase.COMPLETED && phase != ScanPhase.CANCELLED && phase != ScanPhase.ERROR,
-            status = when (phase) {
-                ScanPhase.INITIALIZING -> "Инициализация..."
-                ScanPhase.SCANNING_FILES -> "Поиск файлов: $booksFound"
-                ScanPhase.ANALYZING_CACHE -> "Анализ кэша..."
-                ScanPhase.PROCESSING_BOOKS -> "Обработка: $booksProcessed / $booksFound"
-                ScanPhase.COMPLETED -> "Готово. Добавлено: $booksAdded"
-                ScanPhase.CANCELLED -> "Сканирование отменено"
-                ScanPhase.ERROR -> currentFile
-            },
-            totalFiles = booksFound,
-            processedFiles = booksProcessed,
-            addedBooks = booksAdded,
-            skippedBooks = booksSkipped,
-            progress = overallProgress
-        )
-    }
-}
-
-// ==================== SEALED RESULT ====================
-
-sealed interface ProcessResult {
-    val entity: BookEntity?
-    
-    data class Success(override val entity: BookEntity) : ProcessResult
-    data object Skipped : ProcessResult {
-        override val entity: BookEntity? = null
-    }
-    data class Error(override val entity: BookEntity? = null, val exception: Exception? = null) : ProcessResult
-}
-
-// ==================== PROGRESS MANAGER (FIXED) ====================
-
-class ProgressManager(
-    private val updateIntervalMs: Long = 500L
-) {
-    private val _progress = MutableStateFlow(BookScanProgress())
-    val progress: StateFlow<BookScanProgress> = _progress.asStateFlow()
-    
-    private var lastUpdate = 0L
-    private val mutex = Mutex()
-    
-    suspend fun update(block: suspend (BookScanProgress) -> BookScanProgress) {
-        mutex.withLock {
-            val current = _progress.value
-            val newProgress = block(current)
-            val now = System.currentTimeMillis()
-            
-            val timePassed = now - lastUpdate
-            val phaseChanged = newProgress.phase != current.phase
-            val importantFieldsChanged = newProgress.booksAdded != current.booksAdded ||
-                    newProgress.booksProcessed != current.booksProcessed
-            
-            if (timePassed >= updateIntervalMs || phaseChanged || importantFieldsChanged) {
-                _progress.value = newProgress
-                lastUpdate = now
-                NewBookScanState.updateState(newProgress.toScannerState())
-            }
-        }
-    }
-    
-    suspend fun forceUpdate(block: suspend (BookScanProgress) -> BookScanProgress) {
-        mutex.withLock {
-            val newProgress = block(_progress.value)
-            _progress.value = newProgress
-            NewBookScanState.updateState(newProgress.toScannerState())
-            lastUpdate = System.currentTimeMillis()
-        }
-    }
-}
-
-// ==================== ETA CALCULATOR (FIXED) ====================
-
-class EtaCalculator {
-    private var startTime = 0L
-    private var lastProgress = 0
-    private var lastTime = 0L
-    private var emaSpeed = 0.0
-    private val smoothingFactor = 0.3
-    
-    fun calculate(processed: Int, total: Int): String {
-        if (processed <= 0 || total <= 0) return "Вычисляется..."
-        
-        val now = System.currentTimeMillis()
-        
-        if (lastProgress == 0) {
-            startTime = now
-            lastProgress = processed
-            lastTime = now
-            return "Вычисляется..."
-        }
-        
-        val timeDiff = (now - lastTime) / 1000.0
-        if (timeDiff < 1.0) return "Вычисляется..."
-        
-        val instantSpeed = (processed - lastProgress) / timeDiff
-        
-        if (instantSpeed > 0) {
-            if (emaSpeed == 0.0) {
-                emaSpeed = instantSpeed
-            } else {
-                emaSpeed = smoothingFactor * instantSpeed + (1 - smoothingFactor) * emaSpeed
-            }
-        }
-        
-        val remaining = total - processed
-        val etaSeconds = if (emaSpeed > 0) (remaining / emaSpeed).toLong() else 0L
-        
-        lastProgress = processed
-        lastTime = now
-        
-        return when {
-            etaSeconds <= 0 -> "Вычисляется..."
-            etaSeconds < 60 -> "~${etaSeconds} сек"
-            etaSeconds < 3600 -> "~${etaSeconds / 60} мин"
-            else -> {
-                val hours = etaSeconds / 3600
-                val minutes = (etaSeconds % 3600) / 60
-                "~${hours}ч ${minutes}м"
-            }
-        }
-    }
-    
-    fun getSpeed(): String {
-        return if (emaSpeed > 0) {
-            val booksPerMin = emaSpeed * 60
-            "${String.format("%.1f", booksPerMin)} книг/мин"
-        } else {
-            "Вычисляется..."
-        }
-    }
-    
-    fun reset() {
-        startTime = 0L
-        lastProgress = 0
-        lastTime = 0L
-        emaSpeed = 0.0
-    }
-}
-
-// ==================== MEMORY MONITOR (FIXED) ====================
-
-class MemoryMonitor {
-    fun getMemoryStatus(): String {
-        val runtime = Runtime.getRuntime()
-        val maxMemory = runtime.maxMemory()
-        val usedMemory = runtime.totalMemory() - runtime.freeMemory()
-        val freeMemory = runtime.freeMemory()
-        
-        val maxMB = maxMemory / (1024 * 1024)
-        val usedMB = usedMemory / (1024 * 1024)
-        val freeMB = freeMemory / (1024 * 1024)
-        
-        return "$usedMB MB / $maxMB MB (свободно $freeMB MB)"
-    }
-    
-    fun isMemoryLow(): Boolean {
-        val runtime = Runtime.getRuntime()
-        val freeMemory = runtime.freeMemory()
-        val maxMemory = runtime.maxMemory()
-        return freeMemory < maxMemory * MEMORY_LOW_THRESHOLD
-    }
-    
-    fun getFreeMemoryMB(): Long {
-        return Runtime.getRuntime().freeMemory() / (1024 * 1024)
-    }
-}
-
-// ==================== MAIN SCANNER (FIXED) ====================
 
 class LibraryScanner(
     private val context: Context,
-    private val bookDao: BookDao,
-    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val bookDao: BookDao
 ) {
-    constructor(context: Context, bookDao: BookDao) : this(
-        context = context,
-        bookDao = bookDao,
-        coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    )
-
+    companion object {
+        private const val TAG = "LibraryScanner"
+        private const val BATCH_SIZE = 25
+        private const val MAX_ZIP_SIZE_MB = 25
+        private const val TIMEOUT_PER_BOOK_MS = 30_000L
+        private const val MAX_FILES_TO_SCAN = 10000
+        private const val SCAN_COOLDOWN_MS = 5000L
+        private const val CACHE_CLEANUP_INTERVAL = 7 * 24 * 60 * 60 * 1000L // 7 дней
+        
+        @Volatile
+        private var INSTANCE: LibraryScanner? = null
+        
+        fun getInstance(context: Context, bookDao: BookDao): LibraryScanner {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: LibraryScanner(context.applicationContext, bookDao).also {
+                    INSTANCE = it
+                }
+            }
+        }
+    }
+    
+    // Процессоры
     private val fb2Processor = Fb2Processor()
     private val epubProcessor = EpubProcessor()
     private val fb3Processor = Fb3Processor()
     private val mobiProcessor = MobiProcessor()
     private val zipProcessor = ZipProcessor()
     
+    // Состояние
+    private val _isScanning = AtomicBoolean(false)
+    val isScanning: Boolean get() = _isScanning.get()
+    
     private var scanJob: Job? = null
-    private val isCancelled = AtomicBoolean(false)
+    private var lastScanTime = 0L
+    
+    // Компоненты
     private val progressManager = ProgressManager()
     private val etaCalculator = EtaCalculator()
     private val memoryMonitor = MemoryMonitor()
+    private val scanPrefs = ScannerPreferences(context)
     
-    val progress: StateFlow<BookScanProgress> = progressManager.progress
+    // Flow для прогресса
+    val progress: StateFlow<ScanProgress> = progressManager.progress
     
-    suspend fun scanBooks(): Job {
-        scanJob?.cancel()
-        scanJob = coroutineScope.launch(dispatcher + SupervisorJob()) {
+    // Корутин скоуп
+    private val scannerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val dbMutex = Mutex()
+    
+    // Исключаемые папки
+    private val excludePaths = setOf(
+        "Android", "data", "obb", "cache", "system",
+        "proc", "sys", "root", ".thumbnails",
+        "dcim", "pictures", "movies", "music",
+        "notifications", "ringtones", "podcasts"
+    )
+    
+    suspend fun checkForNewBooks(): Job {
+        return scanBooks(force = false)
+    }
+    
+    /**
+     * Запуск сканирования с проверкой дубликатов
+     */
+    suspend fun scanBooks(force: Boolean = false): Job {
+        if (_isScanning.get()) {
+            Log.d(TAG, "Scan already in progress")
+            return scanJob ?: Job()
+        }
+        
+        if (!force) {
+            val now = System.currentTimeMillis()
+            if (now - lastScanTime < SCAN_COOLDOWN_MS) {
+                Log.d(TAG, "Recent scan, skipping")
+                return Job()
+            }
+            
+            val currentHash = scanPrefs.calculateMediaStoreHash()
+            if (!scanPrefs.isLibraryChanged(currentHash)) {
+                Log.d(TAG, "Library unchanged, skipping scan")
+                return Job()
+            }
+            scanPrefs.saveLibraryHash(currentHash)
+        }
+        
+        _isScanning.set(true)
+        etaCalculator.reset()
+        
+        scanJob = scannerScope.launch {
             try {
-                isCancelled.set(false)
-                etaCalculator.reset()
                 performScan()
+                lastScanTime = System.currentTimeMillis()
             } catch (e: CancellationException) {
                 Log.d(TAG, "Scan cancelled")
                 progressManager.forceUpdate {
-                    it.copy(phase = ScanPhase.CANCELLED, overallProgress = PROGRESS_FINALIZING)
+                    it.copy(phase = ScanPhase.CANCELLED, overallProgress = 100)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Scan error", e)
                 progressManager.forceUpdate {
                     it.copy(
                         phase = ScanPhase.ERROR,
-                        overallProgress = PROGRESS_FINALIZING,
+                        overallProgress = 100,
                         currentFile = "Ошибка: ${e.message}"
                     )
                 }
+            } finally {
+                _isScanning.set(false)
+                scanJob = null
+                cleanupCache()
             }
         }
+        
         return scanJob!!
     }
-
-    suspend fun checkForNewBooks(): Job {
-        return scanBooks()
-    }
     
-    fun cancelScanning() {
-        isCancelled.set(true)
-        scanJob?.cancel()
-        scanJob = null
-    }
-    
+    /**
+     * Основной процесс сканирования
+     */
     private suspend fun performScan() {
-        progressManager.forceUpdate {
-            it.copy(phase = ScanPhase.INITIALIZING, phaseProgress = 0, overallProgress = PROGRESS_INIT)
-        }
-        
         val startTime = System.currentTimeMillis()
         
-        val bookFiles = scanFilesWithProgress()
+        progressManager.forceUpdate {
+            it.copy(phase = ScanPhase.INITIALIZING, overallProgress = 0)
+        }
         
-        if (isCancelled.get()) throw CancellationException()
+        val bookFiles = scanFilesWithProgress()
         
         if (bookFiles.isEmpty()) {
             progressManager.forceUpdate {
                 it.copy(
                     phase = ScanPhase.COMPLETED,
-                    overallProgress = PROGRESS_FINALIZING,
+                    overallProgress = 100,
                     booksFound = 0,
                     booksAdded = 0
                 )
@@ -324,97 +163,85 @@ class LibraryScanner(
         progressManager.forceUpdate {
             it.copy(
                 phase = ScanPhase.ANALYZING_CACHE,
-                phaseProgress = 0,
-                overallProgress = PROGRESS_ANALYZING_START,
+                overallProgress = 20,
                 booksFound = bookFiles.size
             )
         }
         
         val booksToProcess = analyzeCache(bookFiles)
         
-        if (isCancelled.get()) throw CancellationException()
-        
         if (booksToProcess.isEmpty()) {
             progressManager.forceUpdate {
                 it.copy(
                     phase = ScanPhase.COMPLETED,
-                    overallProgress = PROGRESS_FINALIZING,
+                    overallProgress = 100,
                     booksFound = bookFiles.size,
                     booksAdded = 0,
                     booksSkipped = bookFiles.size
                 )
             }
+            scanPrefs.saveLastScanCount(0)
             return
         }
         
-        processBooksInBatches(booksToProcess)
+        progressManager.forceUpdate {
+            it.copy(
+                phase = ScanPhase.PROCESSING_BOOKS,
+                overallProgress = 30,
+                booksFound = booksToProcess.size,
+                booksProcessed = 0,
+                booksAdded = 0
+            )
+        }
         
-        if (isCancelled.get()) throw CancellationException()
+        val addedCount = processBooksInBatches(booksToProcess)
         
-        val finalProgress = progressManager.progress.value
+        val duration = (System.currentTimeMillis() - startTime) / 1000
+        scanPrefs.saveLastScanCount(addedCount)
+        scanPrefs.saveLastScanDuration(duration)
+        
         progressManager.forceUpdate {
             it.copy(
                 phase = ScanPhase.COMPLETED,
-                overallProgress = PROGRESS_FINALIZING,
+                overallProgress = 100,
                 phaseProgress = 100,
-                booksAdded = finalProgress.booksAdded,
-                booksSkipped = finalProgress.booksSkipped,
-                eta = "Завершено",
+                booksAdded = addedCount,
+                eta = "Завершено за ${duration}с",
                 speed = "Готово"
             )
         }
         
-        val duration = (System.currentTimeMillis() - startTime) / 1000
-        Log.d(TAG, "Scan completed in ${duration}s. Added: ${finalProgress.booksAdded}")
+        Log.d(TAG, "Scan completed in ${duration}s. Added: $addedCount")
     }
-
-    private suspend fun scanFilesWithProgress(
-        rootDirs: List<File> = getDefaultScanDirectories()
-    ): List<File> {
+    
+    /**
+     * Сканирование файлов с прогрессом
+     */
+    private suspend fun scanFilesWithProgress(): List<File> {
         val bookFiles = mutableListOf<File>()
-        var count = 0
         
-        val excludePaths = setOf(
-            "Android", "data", "obb", "cache", "system", 
-            "proc", "sys", "root", ".thumbnails"
-        )
-        
-        fun scanDirectory(directory: File) {
-            if (isCancelled.get()) throw CancellationException()
-            
-            val files = directory.listFiles() ?: return
-            
-            for (file in files) {
-                if (isCancelled.get()) throw CancellationException()
-                
-                if (file.isDirectory) {
-                    val dirName = file.name
-                    if (excludePaths.contains(dirName)) continue
-                    if (dirName.startsWith(".")) continue
-                    
-                    scanDirectory(file)
-                } else if (file.isFile && isBookFile(file)) {
-                    bookFiles.add(file)
-                    count++
-                    
-                    if (count >= MAX_FILES_TO_SCAN) {
-                        return
-                    }
-                }
-            }
+        progressManager.forceUpdate {
+            it.copy(phase = ScanPhase.SCANNING_FILES, overallProgress = 5)
         }
         
-        for (rootDir in rootDirs) {
-            if (rootDir.exists() && rootDir.canRead()) {
-                scanDirectory(rootDir)
+        val rootDirs = getDefaultScanDirectories()
+        
+        for ((index, rootDir) in rootDirs.withIndex()) {
+            if (!rootDir.exists() || !rootDir.canRead()) continue
+            
+            val progress = 5 + ((index.toFloat() / rootDirs.size) * 10).toInt()
+            progressManager.update {
+                it.copy(phaseProgress = progress, currentFile = "Сканирование: ${rootDir.name}")
             }
+            
+            scanDirectory(rootDir, bookFiles)
         }
         
         progressManager.forceUpdate {
             it.copy(
                 phase = ScanPhase.SCANNING_FILES,
                 phaseProgress = 100,
-                overallProgress = PROGRESS_SCANNING_END,
+                overallProgress = 15,
                 booksFound = bookFiles.size,
                 memoryUsed = memoryMonitor.getMemoryStatus()
             )
@@ -422,7 +249,32 @@ class LibraryScanner(
         
         return bookFiles
     }
-
+    
+    /**
+     * Рекурсивное сканирование директории
+     */
+    private fun scanDirectory(directory: File, result: MutableList<File>) {
+        if (!directory.exists() || !directory.isDirectory) return
+        if (result.size >= MAX_FILES_TO_SCAN) return
+        
+        val files = directory.listFiles() ?: return
+        
+        for (file in files) {
+            if (result.size >= MAX_FILES_TO_SCAN) return
+            
+            if (file.isDirectory) {
+                val dirName = file.name.lowercase()
+                if (excludePaths.contains(dirName) || dirName.startsWith(".")) continue
+                scanDirectory(file, result)
+            } else if (file.isFile && isBookFile(file)) {
+                result.add(file)
+            }
+        }
+    }
+    
+    /**
+     * Проверка, является ли файл книгой
+     */
     private fun isBookFile(file: File): Boolean {
         val name = file.name.lowercase()
         return name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".fbz") ||
@@ -430,7 +282,10 @@ class LibraryScanner(
                 name.endsWith(".mobi") || name.endsWith(".azw") || name.endsWith(".azw3") ||
                 name.endsWith(".zip")
     }
-
+    
+    /**
+     * Получение директорий для сканирования
+     */
     private fun getDefaultScanDirectories(): List<File> {
         val dirs = mutableListOf<File>()
         val externalStorage = Environment.getExternalStorageDirectory()
@@ -439,7 +294,7 @@ class LibraryScanner(
             "Books", "books", "Книги", "книги",
             "Download", "Downloads", "Загрузки",
             "Documents", "Документы",
-            "Ebooks", "eBooks"
+            "Ebooks", "eBooks", "Library", "library"
         )
         
         for (dirName in bookDirs) {
@@ -455,11 +310,25 @@ class LibraryScanner(
         
         return dirs
     }
-
-    private suspend fun analyzeCache(bookFiles: List<File>): List<BookCache> {
-        if (bookFiles.isEmpty()) return emptyList()
+    
+    /**
+     * Анализ кеша и отбор книг для обработки
+     */
+    private suspend fun analyzeCache(bookFiles: List<File>): List<File> {
+        val existingPaths = getExistingPaths(bookFiles)
+        val cachedPaths = getCachedPaths(bookFiles)
         
-        val existingPaths = withContext(Dispatchers.IO) {
+        return bookFiles.filter { file ->
+            val path = file.absolutePath
+            !existingPaths.contains(path) && !cachedPaths.contains(path)
+        }
+    }
+    
+    /**
+     * Получение существующих путей из БД
+     */
+    private suspend fun getExistingPaths(bookFiles: List<File>): Set<String> {
+        return withContext(Dispatchers.IO) {
             try {
                 val db = AppDatabase.getDatabase(context)
                 val batchSize = 100
@@ -477,8 +346,13 @@ class LibraryScanner(
                 emptySet()
             }
         }
-        
-        val cachedPaths = withContext(Dispatchers.IO) {
+    }
+    
+    /**
+     * Получение закешированных путей
+     */
+    private suspend fun getCachedPaths(bookFiles: List<File>): Set<String> {
+        return withContext(Dispatchers.IO) {
             try {
                 val db = AppDatabase.getDatabase(context)
                 val batchSize = 100
@@ -496,71 +370,56 @@ class LibraryScanner(
                 emptySet()
             }
         }
-        
-        return bookFiles
-            .filter { file ->
-                val path = file.absolutePath
-                !existingPaths.contains(path) && !cachedPaths.contains(path)
-            }
-            .map { file ->
-                BookCache(
-                    path = file.absolutePath,
-                    fingerprint = file.absolutePath + "_" + file.length() + "_" + file.lastModified(),
-                    textHash = null,
-                    author = "",
-                    title = file.nameWithoutExtension,
-                    fileSize = file.length(),
-                    lastScanned = System.currentTimeMillis(),
-                    format = file.extension.lowercase()
-                )
-            }
     }
-
-    private suspend fun processBooksInBatches(books: List<BookCache>) {
+    
+    /**
+     * Обработка книг пакетами
+     */
+    private suspend fun processBooksInBatches(books: List<File>): Int {
         val totalBooks = books.size
         var processedCount = 0
         var addedCount = 0
-        var skippedCount = 0
         
-        val sortedBooks = books.sortedBy { it.fileSize }
+        val sortedBooks = books.sortedBy { it.length() }
         
         sortedBooks.chunked(BATCH_SIZE).forEachIndexed { _, batch ->
-            if (isCancelled.get()) throw CancellationException()
+            if (!_isScanning.get()) {
+                Log.d(TAG, "Scan cancelled")
+                throw CancellationException()
+            }
             
             val batchResults = processBookBatch(batch)
             
             batchResults.forEach { result ->
                 when (result) {
                     is ProcessResult.Success -> addedCount++
-                    is ProcessResult.Skipped, is ProcessResult.Error -> skippedCount++
+                    else -> {}
                 }
             }
-            
-            processedCount += batch.size
             
             val entities = batchResults.mapNotNull { it.entity }
             if (entities.isNotEmpty()) {
                 try {
                     bookDao.insertBooks(entities)
+                    updateCache(entities, batch)
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to insert books", e)
                 }
             }
             
-            val progressRange = PROGRESS_PROCESSING_END - PROGRESS_PROCESSING_START
-            val overallProgress = PROGRESS_PROCESSING_START + 
-                ((processedCount.toFloat() / totalBooks) * progressRange).toInt()
+            processedCount += batch.size
+            
+            val progress = 30 + ((processedCount.toFloat() / totalBooks) * 65).toInt()
             
             progressManager.update { current ->
                 current.copy(
                     phase = ScanPhase.PROCESSING_BOOKS,
                     phaseProgress = ((processedCount.toFloat() / totalBooks) * 100).toInt(),
-                    overallProgress = overallProgress,
+                    overallProgress = progress,
                     booksFound = totalBooks,
                     booksProcessed = processedCount,
                     booksAdded = addedCount,
-                    booksSkipped = skippedCount,
-                    currentFile = batch.lastOrNull()?.title ?: "",
+                    currentFile = batch.lastOrNull()?.name ?: "",
                     eta = etaCalculator.calculate(processedCount, totalBooks),
                     speed = etaCalculator.getSpeed(),
                     memoryUsed = memoryMonitor.getMemoryStatus()
@@ -568,59 +427,68 @@ class LibraryScanner(
             }
             
             if (memoryMonitor.isMemoryLow()) {
-                Log.w(TAG, "Memory low (${memoryMonitor.getFreeMemoryMB()} MB free), pausing...")
+                Log.w(TAG, "Memory low, pausing...")
                 delay(500)
+                System.gc()
             }
             
             delay(50)
         }
+        
+        return addedCount
     }
     
-    private suspend fun processBookBatch(batch: List<BookCache>): List<ProcessResult> {
+    /**
+     * Обработка одного батча книг
+     */
+    private suspend fun processBookBatch(batch: List<File>): List<ProcessResult> {
         return withContext(Dispatchers.IO) {
-            batch.map { cache ->
-                if (isCancelled.get()) return@map ProcessResult.Error(null, null)
+            batch.map { file ->
+                if (!_isScanning.get()) {
+                    return@map ProcessResult.Error(null, null)
+                }
                 
                 try {
                     val result = withTimeoutOrNull(TIMEOUT_PER_BOOK_MS) {
-                        processBookWithCache(cache)
+                        processBook(file)
                     }
                     
                     result ?: run {
-                        Log.w(TAG, "Timeout processing: ${cache.title}")
+                        Log.w(TAG, "Timeout processing: ${file.name}")
                         ProcessResult.Error(null, null)
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error processing ${cache.title}", e)
+                    Log.e(TAG, "Error processing ${file.name}", e)
                     ProcessResult.Error(null, e)
                 }
             }
         }
     }
     
-    private suspend fun processBookWithCache(cache: BookCache): ProcessResult {
-        val file = File(cache.path)
-        
+    /**
+     * Обработка одной книги
+     */
+    private suspend fun processBook(file: File): ProcessResult {
         if (!file.exists() || !file.canRead()) {
             return ProcessResult.Skipped
         }
         
-        if (cache.title.lowercase().endsWith(".zip") || cache.path.lowercase().endsWith(".zip")) {
+        if (file.name.lowercase().endsWith(".zip")) {
             val sizeMB = file.length() / (1024 * 1024)
             if (sizeMB > MAX_ZIP_SIZE_MB) {
-                Log.w(TAG, "Skipping large ZIP: ${cache.title} ($sizeMB MB)")
+                Log.w(TAG, "Skipping large ZIP: ${file.name} ($sizeMB MB)")
                 return ProcessResult.Skipped
             }
         }
         
-        val processor = getProcessorForFile(cache.path) ?: return ProcessResult.Skipped
+        val processor = getProcessorForFile(file) ?: return ProcessResult.Skipped
         
         val bookSource = BookSource(
-            uri = android.net.Uri.fromFile(file),
+            uri = Uri.fromFile(file),
             name = file.name,
-            size = cache.fileSize,
-            modified = cache.lastScanned,
-            realPath = cache.path
+            size = file.length(),
+            modified = file.lastModified(),
+            realPath = file.absolutePath
         )
         
         val entity = processor.process(bookSource, context)
@@ -631,15 +499,106 @@ class LibraryScanner(
         }
     }
     
-    private fun getProcessorForFile(path: String): BookProcessor? {
-        val lower = path.lowercase()
+    /**
+     * Получение процессора для файла
+     */
+    private fun getProcessorForFile(file: File): BookProcessor? {
+        val name = file.name.lowercase()
         return when {
-            lower.endsWith(".fb2") || lower.endsWith(".fb2.zip") || lower.endsWith(".fbz") -> fb2Processor
-            lower.endsWith(".epub") -> epubProcessor
-            lower.endsWith(".fb3") || lower.endsWith(".fb3.zip") -> fb3Processor
-            lower.endsWith(".mobi") || lower.endsWith(".azw") || lower.endsWith(".azw3") -> mobiProcessor
-            lower.endsWith(".zip") -> zipProcessor
+            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".fbz") -> fb2Processor
+            name.endsWith(".epub") -> epubProcessor
+            name.endsWith(".fb3") || name.endsWith(".fb3.zip") -> fb3Processor
+            name.endsWith(".mobi") || name.endsWith(".azw") || name.endsWith(".azw3") -> mobiProcessor
+            name.endsWith(".zip") -> zipProcessor
             else -> null
         }
+    }
+    
+    /**
+     * Обновление кеша после обработки
+     */
+    private suspend fun updateCache(entities: List<BookEntity>, files: List<File>) {
+        try {
+            val cacheList = entities.zip(files).map { (entity, file) ->
+                BookCache(
+                    path = file.absolutePath,
+                    fingerprint = entity.sha1,
+                    textHash = null,
+                    author = entity.author ?: "Неизвестен",
+                    title = entity.title,
+                    fileSize = file.length(),
+                    lastScanned = System.currentTimeMillis(),
+                    format = file.extension.lowercase()
+                )
+            }
+            
+            val db = AppDatabase.getDatabase(context)
+            db.bookCacheDao().insertAll(cacheList)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update cache", e)
+        }
+    }
+    
+    /**
+     * Отмена сканирования
+     */
+    fun cancelScanning() {
+        _isScanning.set(false)
+        scanJob?.cancel()
+        scanJob = null
+        Log.d(TAG, "Scan cancelled")
+    }
+    
+    /**
+     * Очистка старого кеша
+     */
+    private suspend fun cleanupCache() {
+        try {
+            val db = AppDatabase.getDatabase(context)
+            val oldCache = db.bookCacheDao().getAll().filter {
+                System.currentTimeMillis() - it.lastScanned > CACHE_CLEANUP_INTERVAL
+            }
+            
+            if (oldCache.isNotEmpty()) {
+                val paths = oldCache.map { it.path }
+                db.bookCacheDao().deleteByPaths(paths)
+                Log.d(TAG, "Cleaned ${paths.size} old cache entries")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Cache cleanup failed", e)
+        }
+    }
+    
+    /**
+     * Получение состояния сканирования
+     */
+    fun getState(): ScannerState {
+        return progress.value.toScannerState()
+    }
+    
+    /**
+     * Проверка, нужно ли сканирование
+     */
+    suspend fun needsScan(): Boolean {
+        if (_isScanning.get()) return false
+        
+        val now = System.currentTimeMillis()
+        if (now - lastScanTime < SCAN_COOLDOWN_MS) return false
+        
+        val currentHash = scanPrefs.calculateMediaStoreHash()
+        return scanPrefs.isLibraryChanged(currentHash)
+    }
+    
+    /**
+     * Результат обработки
+     */
+    sealed interface ProcessResult {
+        val entity: BookEntity?
+        
+        data class Success(override val entity: BookEntity) : ProcessResult
+        data object Skipped : ProcessResult {
+            override val entity: BookEntity? = null
+        }
+        data class Error(override val entity: BookEntity? = null, val exception: Exception? = null) : ProcessResult
     }
 }

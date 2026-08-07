@@ -152,8 +152,9 @@ class BookReaderFragment : Fragment() {
                 val savedProgress = viewModel.bookState.value?.currentProgressChar ?: 0
                 wv.evaluateJavascript("savedParagraphId = 'p_$savedProgress';", null)
                 updatePreferences()
-                val cutoutPx = (activity as? BookReaderActivity)?.systemCutoutTop ?: 0
-                updateTopMargin(cutoutPx)
+                val act = activity as? BookReaderActivity
+                val topInset = act?.systemTopInset ?: act?.systemCutoutTop ?: 0
+                updateTopMargin(topInset)
             }
         }
 
@@ -263,12 +264,16 @@ class BookReaderFragment : Fragment() {
                     val fontWeight = SettingsManager.getFontWeightAsInt(context)
 
                     val density = resources.displayMetrics.density
-                    val leftRightMarginDp = 8
+                    val pageMargins = viewModel.pageMarginsState.value
+                    val sideMarginDp = if (pageMargins) 8 else 0
+                    val paragraphIndent = SettingsManager.getParagraphIndent(context)
                     val bottomMarginDp = 16
 
-                    val cutoutPx = (activity as? BookReaderActivity)?.systemCutoutTop ?: 0
-                    val cutoutDp = (cutoutPx / density).toInt()
-                    val topMarginDp = cutoutDp + 3
+                    val act = activity as? BookReaderActivity
+                    val topInset = act?.systemTopInset ?: act?.systemCutoutTop ?: 0
+                    val effectiveTopPx = if (topInset > 0) topInset else (36 * density).toInt()
+                    val cutoutDp = (effectiveTopPx / density).toInt()
+                    val topMarginDp = cutoutDp + 4
 
                     val converted = if (file.extension.lowercase() == "fb2" || file.name.endsWith(".fb2.zip", true) || file.name.endsWith(".zip", true)) {
                         Fb2ToHtmlConverterAdvanced.convert(
@@ -279,11 +284,12 @@ class BookReaderFragment : Fragment() {
                             fontFamily = fontFamily,
                             fontWeight = fontWeight,
                             fontAlignment = "JUSTIFY",
-                            pageMargins = true,
+                            pageMargins = pageMargins,
                             paddingTop = topMarginDp,
                             paddingBottom = bottomMarginDp,
-                            paddingLeft = leftRightMarginDp,
-                            paddingRight = leftRightMarginDp
+                            paddingLeft = sideMarginDp,
+                            paddingRight = sideMarginDp,
+                            paragraphIndent = paragraphIndent
                         )
                     } else if (file.extension.lowercase() in listOf("epub", "fb3", "mobi", "azw", "azw3", "html", "htm", "md", "docx", "doc") || file.name.endsWith(".fb3.zip", true)) {
                         EpubToHtmlConverter.convert(
@@ -294,11 +300,12 @@ class BookReaderFragment : Fragment() {
                             fontFamily = fontFamily,
                             fontWeight = fontWeight,
                             fontAlignment = "JUSTIFY",
-                            pageMargins = true,
+                            pageMargins = pageMargins,
                             paddingTop = topMarginDp,
                             paddingBottom = bottomMarginDp,
-                            paddingLeft = leftRightMarginDp,
-                            paddingRight = leftRightMarginDp
+                            paddingLeft = sideMarginDp,
+                            paddingRight = sideMarginDp,
+                            paragraphIndent = paragraphIndent
                         )
                     } else {
                         val cleanHtml = contentStr.replace("\n", "<br/>")
@@ -310,11 +317,12 @@ class BookReaderFragment : Fragment() {
                             fontFamily = fontFamily,
                             fontWeight = fontWeight,
                             fontAlignment = "JUSTIFY",
-                            pageMargins = true,
+                            pageMargins = pageMargins,
                             paddingTop = topMarginDp,
                             paddingBottom = bottomMarginDp,
-                            paddingLeft = leftRightMarginDp,
-                            paddingRight = leftRightMarginDp
+                            paddingLeft = sideMarginDp,
+                            paddingRight = sideMarginDp,
+                            paragraphIndent = paragraphIndent
                         )
                     }
                     try { cacheFile.writeText(converted) } catch (e: Exception) { e.printStackTrace() }
@@ -463,7 +471,7 @@ class BookReaderFragment : Fragment() {
                     }
                 }
 
-                function updateStyles(bgColor, textColor, fontFamily, fontSize, fontWeight, lineSpacing) {
+                function updateStyles(bgColor, textColor, fontFamily, fontSize, fontWeight, lineSpacing, paragraphIndent, sideMargin) {
                     saveCurrentParagraph();
                     document.documentElement.style.setProperty('--bg-color', bgColor);
                     document.documentElement.style.setProperty('--text-color', textColor);
@@ -471,6 +479,12 @@ class BookReaderFragment : Fragment() {
                     document.documentElement.style.setProperty('--font-size', fontSize + 'px');
                     document.documentElement.style.setProperty('--font-weight', fontWeight);
                     document.documentElement.style.setProperty('--line-spacing', lineSpacing);
+                    document.documentElement.style.setProperty('--paragraph-indent', paragraphIndent + 'px');
+                    document.documentElement.style.setProperty('--side-margin', sideMargin + 'px');
+                    var colWidth = window.innerWidth - (sideMargin * 2);
+                    var colGap = sideMargin * 2;
+                    document.documentElement.style.setProperty('--column-width', colWidth + 'px');
+                    document.documentElement.style.setProperty('--column-gap', colGap + 'px');
                     
                     clearTimeout(resizeTimer);
                     resizeTimer = setTimeout(function() {
@@ -605,9 +619,10 @@ class BookReaderFragment : Fragment() {
     fun updateTopMargin(cutoutPx: Int) {
         if (isAdded && webView != null) {
             val density = resources.displayMetrics.density
-            val cutoutDp = (cutoutPx / density).toInt()
-            val topMarginDp = cutoutDp + 3
-            val js = "document.documentElement.style.setProperty(--top-margin, '${topMarginDp}px'); calculatePages();"
+            val effectivePx = if (cutoutPx > 0) cutoutPx else (36 * density).toInt()
+            val cutoutDp = (effectivePx / density).toInt()
+            val topMarginDp = cutoutDp + 4
+            val js = "document.documentElement.style.setProperty('--top-margin', '${topMarginDp}px'); if (typeof calculatePages === 'function') { calculatePages(); }"
             webView?.evaluateJavascript(js, null)
         }
     }
@@ -640,7 +655,11 @@ class BookReaderFragment : Fragment() {
 
             val fontWeightCss = fontWeight.toString()
 
-            val js = "updateStyles('$bgColor', '$textColor', \"${cssFontFamily}\", $fontSize, '$fontWeightCss', $lineSpacing);"
+            val paragraphIndent = SettingsManager.getParagraphIndent(context)
+            val pageMargins = viewModel.pageMarginsState.value
+            val sideMargin = if (pageMargins) 8 else 0
+
+            val js = "updateStyles('$bgColor', '$textColor', \"${cssFontFamily}\", $fontSize, '$fontWeightCss', $lineSpacing, $paragraphIndent, $sideMargin);"
             webView?.evaluateJavascript(js, null)
         }
     }

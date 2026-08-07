@@ -148,7 +148,7 @@ class BookReaderActivity : BaseActivity() {
     private var lastPageAnimationIdx: Int = 0
     private var lastPage: Int = -1
     private var lastBookmarkCheckedPageIdx: Int = -1
-    private var systemTopInset: Int = 0
+    var systemTopInset: Int = 0
     var systemCutoutTop: Int = 0
     private var systemBottomInset: Int = 0
     private var cachedMaxTopInset: Int = 0
@@ -399,7 +399,7 @@ class BookReaderActivity : BaseActivity() {
             
             systemTopInset = topInset
             systemCutoutTop = displayCutout.top
-            bookReaderFragment?.updateTopMargin(systemCutoutTop)
+            bookReaderFragment?.updateTopMargin(topInset)
             systemBottomInset = navBarInsets.bottom
             
             // 1. Top toolbar handles status bar height and cutout

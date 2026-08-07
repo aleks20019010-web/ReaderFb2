@@ -435,6 +435,7 @@ class BookDetailActivity : BaseActivity() {
                                         paddingTop = 15,
                                         paddingBottom = 16,
                                         paddingLeft = 8,
+                                         paragraphIndent = com.nightread.app.data.SettingsManager.getParagraphIndent(this@BookDetailActivity),
                                         paddingRight = 8
                                     )
                                 } else {
@@ -450,6 +451,7 @@ class BookDetailActivity : BaseActivity() {
                                         paddingTop = 15,
                                         paddingBottom = 16,
                                         paddingLeft = 8,
+                                         paragraphIndent = com.nightread.app.data.SettingsManager.getParagraphIndent(this@BookDetailActivity),
                                         paddingRight = 8
                                     )
                                 }
