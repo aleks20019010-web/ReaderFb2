@@ -748,6 +748,11 @@ class BookReaderActivity : BaseActivity() {
             splashOverlay?.visibility = View.GONE
         } else {
             splashOverlay?.visibility = View.VISIBLE
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                if (!isFinishing && splashOverlay?.visibility == View.VISIBLE) {
+                    hideReaderSplash()
+                }
+            }, 2500)
         }
 
         lifecycleScope.launch(Dispatchers.IO) {

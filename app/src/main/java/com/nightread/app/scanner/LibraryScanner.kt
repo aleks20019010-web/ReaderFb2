@@ -456,26 +456,28 @@ class LibraryScanner(
      * Обработка одного батча книг
      */
     private suspend fun processBookBatch(batch: List<File>): List<ProcessResult> {
-        return withContext(Dispatchers.IO) {
+        return coroutineScope {
             batch.map { file ->
-                if (!_isScanning.get()) {
-                    return@map ProcessResult.Error(null, null)
-                }
-                
-                try {
-                    val result = withTimeoutOrNull(TIMEOUT_PER_BOOK_MS) {
-                        processBook(file)
+                async(Dispatchers.IO) {
+                    if (!_isScanning.get()) {
+                        return@async ProcessResult.Error(null, null)
                     }
                     
-                    result ?: run {
-                        Log.w(TAG, "Timeout processing: ${file.name}")
-                        ProcessResult.Error(null, null)
+                    try {
+                        val result = withTimeoutOrNull(TIMEOUT_PER_BOOK_MS) {
+                            processBook(file)
+                        }
+                        
+                        result ?: run {
+                            Log.w(TAG, "Timeout processing: ${file.name}")
+                            ProcessResult.Error(null, null)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing ${file.name}", e)
+                        ProcessResult.Error(null, e)
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error processing ${file.name}", e)
-                    ProcessResult.Error(null, e)
                 }
-            }
+            }.awaitAll()
         }
     }
     

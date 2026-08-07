@@ -269,7 +269,7 @@ class BookReaderFragment : Fragment() {
                             } else if (ext in listOf("mobi", "azw", "azw3")) {
                                 com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension).content
                             } else {
-                                file.readText(Charsets.UTF_8)
+                                decodeBytesToString(file.readBytes())
                             }
                         } catch (e: Exception) {
                             ""
@@ -734,5 +734,32 @@ class BookReaderFragment : Fragment() {
             android.util.Log.e("BookReaderFragment", "Error reading zip file ${file.name}", e)
         }
         return ""
+    }
+
+    private fun decodeBytesToString(bytes: ByteArray): String {
+        try {
+            val headerSize = if (bytes.size > 1024) 1024 else bytes.size
+            val header = String(bytes, 0, headerSize, java.nio.charset.StandardCharsets.ISO_8859_1)
+            val match = """encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(header)
+            if (match != null) {
+                val encName = match.groupValues[1].trim()
+                try {
+                    return String(bytes, java.nio.charset.Charset.forName(encName))
+                } catch (e: Exception) {}
+            }
+        } catch (e: Exception) {}
+
+        try {
+            val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+            utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
+            return charBuffer.toString()
+        } catch (e: Exception) {
+            try {
+                return String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
+            } catch (e2: Exception) {
+                return String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+            }
+        }
     }
 }
