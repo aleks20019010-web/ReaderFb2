@@ -8,6 +8,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,6 +26,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,31 +36,42 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.style.Hyphens
+import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
+import com.nightread.app.utils.TypographyUtils
+import com.nightread.app.ui.BrightnessHelper
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import android.content.Intent
 import android.os.Build
 import com.nightread.app.service.TtsForegroundService
 import com.nightread.app.data.SettingsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.Hyphens
-import androidx.compose.ui.text.style.LineBreak
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import com.nightread.app.utils.TypographyUtils
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 enum class ThemeType(val displayName: String) {
     DAY("День"),
@@ -103,10 +117,52 @@ fun ReaderComposeScreen(
     val readingThemeStr = remember(settingsVersion, context) { SettingsManager.getReadingTheme(context) }
 
     var isHideBars by remember { mutableStateOf(false) }
+    var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
     var isSettingsOpen by remember { mutableStateOf(false) }
     
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
+
+    // Brightness and Warmth (amber filter) states
+    val initialBrightness = remember(context) {
+        val b = SettingsManager.getBrightness(context)
+        if (b < 0) {
+            (context as? Activity)?.let { BrightnessHelper.getBrightness(it) } ?: 0.5f
+        } else b
+    }
+    var currentBrightness by remember { mutableFloatStateOf(initialBrightness) }
+
+    val initialWarmth = remember(context) {
+        SettingsManager.getAmberFilterIntensity(context)
+    }
+    var currentWarmth by remember { mutableIntStateOf(initialWarmth) }
+
+    var gestureIndicatorText by remember { mutableStateOf<String?>(null) }
+    var gestureIndicatorIcon by remember { mutableStateOf<ImageVector?>(null) }
+    var showGestureIndicatorTime by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(showGestureIndicatorTime) {
+        if (showGestureIndicatorTime > 0L) {
+            delay(1500L)
+            gestureIndicatorText = null
+        }
+    }
+
+    // Auto-hide top and bottom bars after 3 seconds of inactivity when visible
+    LaunchedEffect(isHideBars, lastInteractionTime) {
+        if (!isHideBars) {
+            delay(3000L)
+            isHideBars = true
+        }
+    }
+
+    // Apply brightness on launch
+    LaunchedEffect(currentBrightness) {
+        (context as? Activity)?.let {
+            BrightnessHelper.setBrightness(it, currentBrightness)
+        }
+    }
 
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val alpha by infiniteTransition.animateFloat(
@@ -142,10 +198,10 @@ fun ReaderComposeScreen(
     }
 
     val (bgColor, textColor) = when (themeType) {
-        ThemeType.DAY -> Color(0xFFEEF3E8) to Color(0xFF2A3A22)
+        ThemeType.DAY -> Color(0xFFEEF3E8) to Color(0xFF000000)
         ThemeType.NIGHT -> Color(0xFF1A2216) to Color(0xFFD8E0D0)
-        ThemeType.SEPIA -> Color(0xFFF8FAF0) to Color(0xFF5A6A4E)
-        ThemeType.SEPIA_CONTRAST -> Color(0xFFF8FAF0) to Color(0xFF2A3A22)
+        ThemeType.SEPIA -> Color(0xFFF8FAF0) to Color(0xFF000000)
+        ThemeType.SEPIA_CONTRAST -> Color(0xFFF8FAF0) to Color(0xFF000000)
     }
 
     val font = when (fontFamilyStr) {
@@ -169,19 +225,27 @@ fun ReaderComposeScreen(
             isPreparingText = true
             val computedPages = withContext(Dispatchers.Default) {
                 val formattedText = TypographyUtils.applyMicroTypography(mainText)
-                val words = formattedText.split(Regex("(?<=\\s)"))
+                val charsPerPage = (1950 * (18f / fontSize) * (1.2f / lineSpacing)).toInt().coerceIn(1000, 3500)
+                val chapterSections = formattedText.split('\u000C')
                 val chunks = mutableListOf<String>()
-                val currentChunk = StringBuilder()
-                val charsPerPage = (800 * (18f / fontSize) * (1.2f / lineSpacing)).toInt().coerceAtLeast(300).coerceAtMost(1500)
-                
-                for (word in words) {
-                    if (currentChunk.length + word.length > charsPerPage) {
-                        chunks.add(currentChunk.toString().trimEnd())
-                        currentChunk.clear()
+
+                for (section in chapterSections) {
+                    val cleanSection = section.trim()
+                    if (cleanSection.isEmpty()) continue
+                    val words = cleanSection.split(Regex("(?<=\\s)"))
+                    val currentChunk = StringBuilder()
+
+                    for (word in words) {
+                        if (currentChunk.length + word.length > charsPerPage) {
+                            chunks.add(currentChunk.toString().trimEnd())
+                            currentChunk.clear()
+                        }
+                        currentChunk.append(word)
                     }
-                    currentChunk.append(word)
+                    if (currentChunk.isNotEmpty()) {
+                        chunks.add(currentChunk.toString().trimEnd())
+                    }
                 }
-                if (currentChunk.isNotEmpty()) chunks.add(currentChunk.toString().trimEnd())
                 if (chunks.isEmpty()) listOf(formattedText) else chunks
             }
             pages = computedPages
@@ -256,48 +320,158 @@ fun ReaderComposeScreen(
                 }
             } else {
                 val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                val cutoutTop = WindowInsets.displayCutout.asPaddingValues().calculateTopPadding()
+                val cameraCutoutHeight = maxOf(statusBarHeight, cutoutTop)
                 val navBarHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-                // Main Text Content as HorizontalPager
-                HorizontalPager(
-                    state = pagerState,
+                // Container for gestures and reader content
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(
-                            top = if (isHideBars) (maxOf(statusBarHeight, 28.dp) + 12.dp) else maxOf(statusBarHeight + 56.dp, 72.dp),
-                            bottom = navBarHeight + 16.dp,
-                            start = 16.dp,
-                            end = 16.dp
-                        )
-                ) { page ->
-                    Column(
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onDoubleTap = {
+                                    isHideBars = !isHideBars
+                                    lastInteractionTime = System.currentTimeMillis()
+                                },
+                                onTap = { offset ->
+                                    val screenWidth = size.width
+                                    if (offset.x < screenWidth * 0.25f) {
+                                        coroutineScope.launch {
+                                            if (pagerState.currentPage > 0) {
+                                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                            }
+                                        }
+                                    } else if (offset.x > screenWidth * 0.75f) {
+                                        coroutineScope.launch {
+                                            if (pagerState.currentPage < pagerState.pageCount - 1) {
+                                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                            }
+                                        }
+                                    } else {
+                                        isHideBars = !isHideBars
+                                        lastInteractionTime = System.currentTimeMillis()
+                                    }
+                                }
+                            )
+                        }
+                        .pointerInput(Unit) {
+                            var startX = 0f
+                            detectVerticalDragGestures(
+                                onDragStart = { offset ->
+                                    startX = offset.x
+                                    lastInteractionTime = System.currentTimeMillis()
+                                },
+                                onVerticalDrag = { change, dragAmount ->
+                                    if (abs(dragAmount) > 1.5f) {
+                                        change.consume()
+                                        lastInteractionTime = System.currentTimeMillis()
+                                        val screenWidth = size.width
+                                        val activity = context as? Activity
+                                        if (startX < screenWidth / 2f) {
+                                            currentBrightness = (currentBrightness - dragAmount / 600f).coerceIn(0.02f, 1f)
+                                            if (activity != null) {
+                                                BrightnessHelper.setBrightness(activity, currentBrightness)
+                                            }
+                                            SettingsManager.setBrightness(context, currentBrightness)
+                                            gestureIndicatorText = "Яркость: ${(currentBrightness * 100).toInt()}%"
+                                            gestureIndicatorIcon = Icons.Filled.WbSunny
+                                            showGestureIndicatorTime = System.currentTimeMillis()
+                                        } else {
+                                            currentWarmth = (currentWarmth - dragAmount / 5f).toInt().coerceIn(0, 100)
+                                            SettingsManager.setAmberFilterIntensity(context, currentWarmth)
+                                            SettingsManager.setAmberFilterEnabled(context, currentWarmth > 0)
+                                            gestureIndicatorText = "Теплота: $currentWarmth%"
+                                            gestureIndicatorIcon = Icons.Filled.Thermostat
+                                            showGestureIndicatorTime = System.currentTimeMillis()
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                ) {
+                    // Main Text Content as HorizontalPager
+                    HorizontalPager(
+                        state = pagerState,
                         modifier = Modifier
                             .fillMaxSize()
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onDoubleTap = {
-                                        isHideBars = !isHideBars
-                                    }
+                            .padding(
+                                top = if (isHideBars) (cameraCutoutHeight + 3.dp) else (cameraCutoutHeight + 64.dp + 3.dp),
+                                bottom = if (isHideBars) (navBarHeight + 16.dp) else (navBarHeight + 72.dp + 16.dp),
+                                start = 8.dp,
+                                end = 8.dp
+                            )
+                    ) { page ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.Top
+                        ) {
+                            val pageText = pages.getOrElse(page) { "" }
+                            val pageAnnotatedString = parseFormattedTextToAnnotatedString(pageText, fontSize.sp)
+                            Text(
+                                text = pageAnnotatedString,
+                                color = textColor,
+                                fontSize = fontSize.sp,
+                                fontFamily = font,
+                                fontWeight = mappedFontWeight,
+                                textAlign = TextAlign.Justify,
+                                lineHeight = (fontSize * lineSpacing).sp,
+                                letterSpacing = 0.1.sp,
+                                style = LocalTextStyle.current.copy(
+                                    lineBreak = LineBreak.Paragraph,
+                                    hyphens = Hyphens.Auto
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    // Warmth (Amber filter) overlay
+                    if (currentWarmth > 0) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFFFF8000).copy(alpha = (currentWarmth / 100f) * 0.35f))
+                        )
+                    }
+
+                    // Gesture Indicator Toast Overlay
+                    AnimatedVisibility(
+                        visible = gestureIndicatorText != null,
+                        enter = fadeIn(animationSpec = tween(150)),
+                        exit = fadeOut(animationSpec = tween(150)),
+                        modifier = Modifier.align(Alignment.Center)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.Black.copy(alpha = 0.78f),
+                            contentColor = Color.White,
+                            shadowElevation = 8.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                gestureIndicatorIcon?.let { icon ->
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFFC107),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                }
+                                Text(
+                                    text = gestureIndicatorText ?: "",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.Top
-                    ) {
-                        Text(
-                            text = pages.getOrElse(page) { "" },
-                            color = textColor,
-                            fontSize = fontSize.sp,
-                            fontFamily = font,
-                            fontWeight = mappedFontWeight,
-                            textAlign = TextAlign.Justify,
-                            lineHeight = (fontSize * lineSpacing).sp,
-                            letterSpacing = 0.1.sp,
-                            style = LocalTextStyle.current.copy(
-                                lineBreak = LineBreak.Paragraph,
-                                hyphens = Hyphens.Auto
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        }
                     }
                 }
             }
@@ -359,7 +533,22 @@ fun ReaderComposeScreen(
                             }
                             IconButton(onClick = {
                                 activity?.supportFragmentManager?.let { fm ->
-                                    ChapterListBottomSheet.newInstance(sha1, mainText).show(fm, "ChapterList")
+                                    val sheet = ChapterListBottomSheet.newInstance(sha1, mainText)
+                                    sheet.setOnChapterClickListener { offset ->
+                                        var accumulated = 0
+                                        var targetPage = 0
+                                        for (i in pages.indices) {
+                                            accumulated += pages[i].length
+                                            if (accumulated >= offset) {
+                                                targetPage = i
+                                                break
+                                            }
+                                        }
+                                        coroutineScope.launch {
+                                            pagerState.scrollToPage(targetPage)
+                                        }
+                                    }
+                                    sheet.show(fm, "ChapterList")
                                 }
                             }) {
                                 Icon(Icons.Filled.List, contentDescription = "Оглавление", tint = textColor)
@@ -367,7 +556,7 @@ fun ReaderComposeScreen(
                             IconButton(onClick = {
                                 openTtsSettingsSheet(activity, mainText, bookTitle)
                             }) {
-                                Icon(Icons.Filled.VolumeUp, contentDescription = "Озвучка", tint = textColor)
+                                Icon(Icons.Filled.VolumeUp, contentDescription = "TTS Озвучка", tint = textColor)
                             }
                             IconButton(onClick = {
                                 activity?.supportFragmentManager?.let { fm ->
@@ -405,58 +594,64 @@ fun ReaderComposeScreen(
                     border = glassBorder,
                     shadowElevation = 8.dp
                 ) {
-                    val activity = context as? androidx.fragment.app.FragmentActivity
-                    Row(
+                    var isDraggingSlider by remember { mutableStateOf(false) }
+                    var sliderPageValue by remember { mutableStateOf(0f) }
+
+                    val totalPages = pagerState.pageCount
+                    val maxPage = (totalPages - 1).coerceAtLeast(0)
+                    val currentPage = pagerState.currentPage
+                    val displayPage = if (isDraggingSlider) (sliderPageValue.toInt() + 1).coerceIn(1, totalPages) else (currentPage + 1)
+                    val percentage = if (totalPages > 0) ((displayPage.toFloat() / totalPages.toFloat()) * 100).toInt() else 0
+
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        IconButton(onClick = {
-                            activity?.supportFragmentManager?.let { fm ->
-                                ChapterListBottomSheet.newInstance(sha1, mainText).show(fm, "ChapterList")
-                            }
-                        }) {
-                            Icon(Icons.Filled.List, contentDescription = "Оглавление", tint = textColor)
-                        }
-
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "${pagerState.currentPage + 1} из ${pagerState.pageCount}",
+                                text = "Страница $displayPage из $totalPages",
                                 color = textColor,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            val progress = if (pagerState.pageCount > 0) {
-                                (pagerState.currentPage + 1).toFloat() / pagerState.pageCount
-                            } else 0f
-                            LinearProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier
-                                    .fillMaxWidth(0.8f)
-                                    .height(4.dp),
-                                color = textColor,
-                                trackColor = textColor.copy(alpha = 0.2f)
+                            Text(
+                                text = "$percentage%",
+                                color = textColor.copy(alpha = 0.8f),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
 
-                        IconButton(onClick = {
-                            openTtsSettingsSheet(activity, mainText, bookTitle)
-                        }) {
-                            Icon(Icons.Filled.VolumeUp, contentDescription = "TTS Озвучка", tint = textColor)
-                        }
-
-                        IconButton(onClick = {
-                            activity?.supportFragmentManager?.let { fm ->
-                                SettingsBottomSheet().show(fm, "SettingsBottomSheet")
-                            }
-                        }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = textColor)
+                        if (maxPage > 0) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            val currentSliderVal = if (isDraggingSlider) sliderPageValue else currentPage.toFloat()
+                            Slider(
+                                value = currentSliderVal.coerceIn(0f, maxPage.toFloat()),
+                                onValueChange = { newValue ->
+                                    isDraggingSlider = true
+                                    sliderPageValue = newValue
+                                },
+                                onValueChangeFinished = {
+                                    val targetPage = sliderPageValue.toInt().coerceIn(0, maxPage)
+                                    coroutineScope.launch {
+                                        pagerState.scrollToPage(targetPage)
+                                    }
+                                    isDraggingSlider = false
+                                },
+                                valueRange = 0f..maxPage.toFloat(),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = textColor,
+                                    activeTrackColor = textColor,
+                                    inactiveTrackColor = textColor.copy(alpha = 0.25f)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
@@ -675,57 +870,81 @@ private fun openTtsSettingsSheet(
         val sheet = TtsSettingsBottomSheet.newInstance(mainText, bookTitle)
         sheet.setTtsListener(object : TtsSettingsBottomSheet.TtsSettingsListener {
             override fun onTtsStartRequested(speed: Float, pitch: Float, voiceName: String?, continuous: Boolean) {
-                val intent = Intent(activity, TtsForegroundService::class.java).apply {
-                    action = TtsForegroundService.ACTION_START
-                    putExtra(TtsForegroundService.EXTRA_TEXT, mainText)
-                    putExtra(TtsForegroundService.EXTRA_BOOK_TITLE, bookTitle)
-                    putExtra(TtsForegroundService.EXTRA_SPEED, speed)
-                    putExtra(TtsForegroundService.EXTRA_PITCH, pitch)
-                    putExtra(TtsForegroundService.EXTRA_VOICE, voiceName)
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    activity.startForegroundService(intent)
-                } else {
-                    activity.startService(intent)
+                try {
+                    val intent = Intent(activity, TtsForegroundService::class.java).apply {
+                        action = TtsForegroundService.ACTION_START
+                        putExtra(TtsForegroundService.EXTRA_TEXT, mainText)
+                        putExtra(TtsForegroundService.EXTRA_BOOK_TITLE, bookTitle)
+                        putExtra(TtsForegroundService.EXTRA_SPEED, speed)
+                        putExtra(TtsForegroundService.EXTRA_PITCH, pitch)
+                        putExtra(TtsForegroundService.EXTRA_VOICE, voiceName)
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        activity.startForegroundService(intent)
+                    } else {
+                        activity.startService(intent)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("ReaderComposeScreen", "Error starting TTS service", e)
                 }
             }
 
             override fun onTtsPauseRequested() {
-                val intent = Intent(activity, TtsForegroundService::class.java).apply {
-                    action = TtsForegroundService.ACTION_PAUSE
+                try {
+                    val intent = Intent(activity, TtsForegroundService::class.java).apply {
+                        action = TtsForegroundService.ACTION_PAUSE
+                    }
+                    activity.startService(intent)
+                } catch (e: Exception) {
+                    android.util.Log.e("ReaderComposeScreen", "Error pausing TTS service", e)
                 }
-                activity.startService(intent)
             }
 
             override fun onTtsStopRequested() {
-                val intent = Intent(activity, TtsForegroundService::class.java).apply {
-                    action = TtsForegroundService.ACTION_STOP
+                try {
+                    val intent = Intent(activity, TtsForegroundService::class.java).apply {
+                        action = TtsForegroundService.ACTION_STOP
+                    }
+                    activity.startService(intent)
+                } catch (e: Exception) {
+                    android.util.Log.e("ReaderComposeScreen", "Error stopping TTS service", e)
                 }
-                activity.startService(intent)
             }
 
             override fun onTtsSpeedChanged(speed: Float) {
-                val intent = Intent(activity, TtsForegroundService::class.java).apply {
-                    action = TtsForegroundService.ACTION_SET_SPEED
-                    putExtra(TtsForegroundService.EXTRA_SPEED, speed)
+                try {
+                    val intent = Intent(activity, TtsForegroundService::class.java).apply {
+                        action = TtsForegroundService.ACTION_SET_SPEED
+                        putExtra(TtsForegroundService.EXTRA_SPEED, speed)
+                    }
+                    activity.startService(intent)
+                } catch (e: Exception) {
+                    android.util.Log.e("ReaderComposeScreen", "Error set speed TTS service", e)
                 }
-                activity.startService(intent)
             }
 
             override fun onTtsPitchChanged(pitch: Float) {
-                val intent = Intent(activity, TtsForegroundService::class.java).apply {
-                    action = TtsForegroundService.ACTION_SET_PITCH
-                    putExtra(TtsForegroundService.EXTRA_PITCH, pitch)
+                try {
+                    val intent = Intent(activity, TtsForegroundService::class.java).apply {
+                        action = TtsForegroundService.ACTION_SET_PITCH
+                        putExtra(TtsForegroundService.EXTRA_PITCH, pitch)
+                    }
+                    activity.startService(intent)
+                } catch (e: Exception) {
+                    android.util.Log.e("ReaderComposeScreen", "Error set pitch TTS service", e)
                 }
-                activity.startService(intent)
             }
 
             override fun onTtsVoiceChanged(voiceName: String) {
-                val intent = Intent(activity, TtsForegroundService::class.java).apply {
-                    action = TtsForegroundService.ACTION_SET_VOICE
-                    putExtra(TtsForegroundService.EXTRA_VOICE, voiceName)
+                try {
+                    val intent = Intent(activity, TtsForegroundService::class.java).apply {
+                        action = TtsForegroundService.ACTION_SET_VOICE
+                        putExtra(TtsForegroundService.EXTRA_VOICE, voiceName)
+                    }
+                    activity.startService(intent)
+                } catch (e: Exception) {
+                    android.util.Log.e("ReaderComposeScreen", "Error set voice TTS service", e)
                 }
-                activity.startService(intent)
             }
         })
         sheet.show(fm, "TtsSettings")
@@ -746,3 +965,83 @@ val sampleText = """
 
 Такс... А теперь посмотрим, куда это меня занесло. Я и раньше обследовал все по карте, но как показывает опыт, то карты очень и очень...
 """.trimIndent()
+
+private data class OpenTagInfo(val tagName: String, val startIndex: Int)
+
+fun parseFormattedTextToAnnotatedString(
+    text: String,
+    baseFontSize: TextUnit
+): AnnotatedString {
+    return buildAnnotatedString {
+        val tagRegex = Regex("""</?(strong|b|emphasis|i|em|strikethrough|s|strike|del|sup|sub|code|CHAPTER|title|h1|h2)[^>]*>""", RegexOption.IGNORE_CASE)
+        val openTags = mutableListOf<OpenTagInfo>()
+        var currentIndex = 0
+
+        val matches = tagRegex.findAll(text)
+        for (match in matches) {
+            if (match.range.first > currentIndex) {
+                append(text.substring(currentIndex, match.range.first))
+            }
+
+            val fullTag = match.value
+            val isClosing = fullTag.startsWith("</")
+            val rawTagName = match.groupValues[1].lowercase()
+
+            val tagName = when (rawTagName) {
+                "b" -> "strong"
+                "i", "em" -> "emphasis"
+                "s", "strike", "del" -> "strikethrough"
+                "title", "h1", "h2" -> "chapter"
+                else -> rawTagName
+            }
+
+            if (!isClosing) {
+                openTags.add(OpenTagInfo(tagName, length))
+            } else {
+                val openTagIndex = openTags.indexOfLast { it.tagName == tagName }
+                if (openTagIndex != -1) {
+                    val openTag = openTags.removeAt(openTagIndex)
+                    val start = openTag.startIndex
+                    val end = length
+                    if (end > start) {
+                        applyTagStyle(tagName, start, end, baseFontSize)
+                    }
+                }
+            }
+            currentIndex = match.range.last + 1
+        }
+
+        if (currentIndex < text.length) {
+            append(text.substring(currentIndex))
+        }
+
+        for (openTag in openTags) {
+            val start = openTag.startIndex
+            val end = length
+            if (end > start) {
+                applyTagStyle(openTag.tagName, start, end, baseFontSize)
+            }
+        }
+    }
+}
+
+private fun AnnotatedString.Builder.applyTagStyle(
+    tagName: String,
+    start: Int,
+    end: Int,
+    baseFontSize: TextUnit
+) {
+    val style = when (tagName) {
+        "strong" -> SpanStyle(fontWeight = FontWeight.Bold)
+        "emphasis" -> SpanStyle(fontStyle = FontStyle.Italic)
+        "strikethrough" -> SpanStyle(textDecoration = TextDecoration.LineThrough)
+        "sup" -> SpanStyle(baselineShift = BaselineShift.Superscript, fontSize = baseFontSize * 0.75f)
+        "sub" -> SpanStyle(baselineShift = BaselineShift.Subscript, fontSize = baseFontSize * 0.75f)
+        "code" -> SpanStyle(fontFamily = FontFamily.Monospace, background = Color(0x22888888))
+        "chapter" -> SpanStyle(fontWeight = FontWeight.Bold, fontSize = baseFontSize * 1.5f)
+        else -> null
+    }
+    if (style != null) {
+        addStyle(style, start, end)
+    }
+}

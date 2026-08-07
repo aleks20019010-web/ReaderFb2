@@ -90,6 +90,11 @@ object TextCleaner {
     ): String {
         var result = text
 
+        // Process empty-line
+        result = result
+            .replace(Regex("<empty-line\\s*/?>", RegexOption.IGNORE_CASE), "\n\n")
+            .replace(Regex("</empty-line>", RegexOption.IGNORE_CASE), "")
+
         // Convert title tags to CHAPTER tags for FB2 and other formats
         result = result
             .replace(Regex("<title[^>]*>", RegexOption.IGNORE_CASE), "\n\u000C[CHAPTER]")
@@ -105,8 +110,20 @@ object TextCleaner {
             .replace(Regex("</v>", RegexOption.IGNORE_CASE), "\n")
             .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
 
-        // 10. Удаляем HTML-теги
-        result = result.replace(HTML_TAG_REGEX, "")
+        // Normalize tag aliases
+        result = result
+            .replace(Regex("<b(?=\\s|>)", RegexOption.IGNORE_CASE), "<strong")
+            .replace(Regex("</b(?=\\s|>)", RegexOption.IGNORE_CASE), "</strong")
+            .replace(Regex("<i(?=\\s|>)", RegexOption.IGNORE_CASE), "<emphasis")
+            .replace(Regex("</i(?=\\s|>)", RegexOption.IGNORE_CASE), "</emphasis")
+            .replace(Regex("<em(?=\\s|>)", RegexOption.IGNORE_CASE), "<emphasis")
+            .replace(Regex("</em(?=\\s|>)", RegexOption.IGNORE_CASE), "</emphasis")
+            .replace(Regex("<(s|strike|del)(?=\\s|>)", RegexOption.IGNORE_CASE), "<strikethrough")
+            .replace(Regex("</(s|strike|del)(?=\\s|>)", RegexOption.IGNORE_CASE), "</strikethrough")
+
+        // 10. Удаляем только невостребованные HTML-теги, сохраняя whitelist: strong, emphasis, strikethrough, sup, sub, code
+        val UNSUPPORTED_HTML_REGEX = Regex("</?(?!(strong|emphasis|strikethrough|sup|sub|code)\\b)[a-zA-Z1-9]+[^>]*>", RegexOption.IGNORE_CASE)
+        result = result.replace(UNSUPPORTED_HTML_REGEX, "")
 
         // 6. Заменяем HTML-сущности
         result = result.replace(ENTITY_REGEX) { match ->
@@ -193,6 +210,11 @@ object TextCleaner {
             }
         }
 
+        // Process empty-line
+        result = result
+            .replace(Regex("<empty-line\\s*/?>", RegexOption.IGNORE_CASE), "\n\n")
+            .replace(Regex("</empty-line>", RegexOption.IGNORE_CASE), "")
+
         // Convert title tags to CHAPTER tags for FB2 and other formats
         result = result
             .replace(Regex("<title[^>]*>", RegexOption.IGNORE_CASE), "\n\u000C[CHAPTER]")
@@ -208,8 +230,20 @@ object TextCleaner {
             .replace(Regex("</v>", RegexOption.IGNORE_CASE), "\n")
             .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
 
-        // 10. Удаляем HTML
-        doReplace("HTML tags", HTML_TAG_REGEX, "", isRemoval = true)
+        // Normalize tag aliases
+        result = result
+            .replace(Regex("<b(?=\\s|>)", RegexOption.IGNORE_CASE), "<strong")
+            .replace(Regex("</b(?=\\s|>)", RegexOption.IGNORE_CASE), "</strong")
+            .replace(Regex("<i(?=\\s|>)", RegexOption.IGNORE_CASE), "<emphasis")
+            .replace(Regex("</i(?=\\s|>)", RegexOption.IGNORE_CASE), "</emphasis")
+            .replace(Regex("<em(?=\\s|>)", RegexOption.IGNORE_CASE), "<emphasis")
+            .replace(Regex("</em(?=\\s|>)", RegexOption.IGNORE_CASE), "</emphasis")
+            .replace(Regex("<(s|strike|del)(?=\\s|>)", RegexOption.IGNORE_CASE), "<strikethrough")
+            .replace(Regex("</(s|strike|del)(?=\\s|>)", RegexOption.IGNORE_CASE), "</strikethrough")
+
+        // 10. Удаляем невостребованные HTML
+        val UNSUPPORTED_HTML_REGEX = Regex("</?(?!(strong|emphasis|strikethrough|sup|sub|code)\\b)[a-zA-Z1-9]+[^>]*>", RegexOption.IGNORE_CASE)
+        doReplace("HTML tags", UNSUPPORTED_HTML_REGEX, "", isRemoval = true)
 
         // 6. HTML сущности
         var entityCount = 0

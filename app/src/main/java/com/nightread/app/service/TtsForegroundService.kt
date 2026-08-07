@@ -70,11 +70,47 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         isServiceRunning = true
         createNotificationChannel()
 
-        mediaSession = MediaSessionCompat(this, "NightReadTtsSession").apply {
-            isActive = true
+        try {
+            startForegroundServiceSafe(false)
+        } catch (e: Exception) {
+            Log.e("TtsForegroundService", "Error calling startForeground in onCreate", e)
         }
 
-        tts = TextToSpeech(applicationContext, this)
+        try {
+            mediaSession = MediaSessionCompat(this, "NightReadTtsSession").apply {
+                isActive = true
+            }
+        } catch (e: Exception) {
+            Log.e("TtsForegroundService", "Error initializing MediaSessionCompat", e)
+        }
+
+        try {
+            tts = TextToSpeech(applicationContext, this)
+        } catch (e: Exception) {
+            Log.e("TtsForegroundService", "Error initializing TextToSpeech", e)
+        }
+    }
+
+    private fun startForegroundServiceSafe(isPlaying: Boolean) {
+        val notification = buildNotification(isPlaying)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.e("TtsForegroundService", "Failed startForeground with media type, trying fallback", e)
+            try {
+                startForeground(NOTIFICATION_ID, notification)
+            } catch (e2: Exception) {
+                Log.e("TtsForegroundService", "Failed startForeground fallback", e2)
+            }
+        }
     }
 
     override fun onInit(status: Int) {
@@ -131,6 +167,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
 
                 override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
                     super.onRangeStart(utteranceId, start, end, frame)
+                    sendStatusBroadcast(isPlaying = true, isDone = false, start = start, end = end, paragraphId = utteranceId ?: "")
                 }
 
                 override fun onDone(utteranceId: String?) {
@@ -195,19 +232,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 tts?.setPitch(speechPitch)
                 applySelectedVoice()
 
-                try {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                        startForeground(
-                            NOTIFICATION_ID,
-                            buildNotification(true),
-                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                        )
-                    } else {
-                        startForeground(NOTIFICATION_ID, buildNotification(true))
-                    }
-                } catch (e: Exception) {
-                    Log.e("TtsForegroundService", "Error starting foreground in TTS service", e)
-                }
+                startForegroundServiceSafe(true)
 
                 if (isTtsInitialized) {
                     speakCurrentText()

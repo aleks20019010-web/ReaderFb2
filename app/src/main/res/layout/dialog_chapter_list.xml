@@ -12,7 +12,7 @@
         android:textSize="18sp"
         android:textStyle="bold"
         android:textColor="#E8D8F0"
-        android:text="Оглавление (AI)"
+        android:text="Оглавление"
         android:layout_marginBottom="12dp" />
 
     <ProgressBar
