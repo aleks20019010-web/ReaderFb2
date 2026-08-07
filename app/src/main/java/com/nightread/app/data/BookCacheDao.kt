@@ -38,6 +38,9 @@ interface BookCacheDao {
     @Query("SELECT * FROM book_cache WHERE fingerprint IN (SELECT fingerprint FROM book_cache GROUP BY fingerprint HAVING COUNT(*) > 1)")
     suspend fun getDuplicateEntries(): List<BookCache>
 
+    @Query("SELECT * FROM book_cache WHERE path IN (:paths)")
+    suspend fun getByPaths(paths: List<String>): List<BookCache>
+
     @Query("DELETE FROM book_cache")
     suspend fun deleteAll()
 }

@@ -129,4 +129,7 @@ interface BookDao {
 
     @Query("SELECT * FROM books ORDER BY dateAdded DESC LIMIT 30")
     suspend fun getRecentlyAddedBooks(): List<BookEntity>
+
+    @Query("SELECT * FROM books WHERE filePath IN (:paths)")
+    suspend fun getBooksByPaths(paths: List<String>): List<BookEntity>
 }
