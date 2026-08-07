@@ -26,7 +26,7 @@ class MainApplication : Application(), ImageLoaderFactory, androidx.work.Configu
             .setMinimumLoggingLevel(android.util.Log.INFO)
             .build()
     
-    var bookScanner: com.nightread.app.service.NewBookScanner? = null
+    var bookScanner: com.nightread.app.scanner.LibraryScanner? = null
 
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)

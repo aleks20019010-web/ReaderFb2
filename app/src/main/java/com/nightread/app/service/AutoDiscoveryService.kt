@@ -91,10 +91,10 @@ class AutoDiscoveryService : Service() {
                 // Small delay to make sure file is fully written
                 kotlinx.coroutines.delay(2000)
                 val bookDao = AppDatabase.getDatabase(this@AutoDiscoveryService).bookDao()
-                val scanner = NewBookScanner(this@AutoDiscoveryService, bookDao)
+                val scanner = com.nightread.app.scanner.LibraryScanner(this@AutoDiscoveryService, bookDao)
                 
                 val initialCount = bookDao.getSha1ToPathMap().size
-                scanner.scanBooks(isBackground = true).join()
+                scanner.scanBooks().join()
                 val newCount = bookDao.getSha1ToPathMap().size
                 
                 val added = newCount - initialCount

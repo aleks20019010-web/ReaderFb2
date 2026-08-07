@@ -45,7 +45,7 @@ class AppCrashTest {
         try {
             val context = RuntimeEnvironment.getApplication()
             val db = com.nightread.app.data.AppDatabase.getDatabase(context)
-            val scanner = com.nightread.app.service.NewBookScanner(context, db.bookDao())
+            val scanner = com.nightread.app.scanner.LibraryScanner(context, db.bookDao())
             kotlinx.coroutines.runBlocking {
                 scanner.scanBooks()
             }

@@ -24,13 +24,13 @@ class BookScanWorker(
             currentFileName = "Подготовка к поиску файлов..."
         )
 
-        val scanner = NewBookScanner(applicationContext, com.nightread.app.data.AppDatabase.getDatabase(applicationContext).bookDao())
+        val scanner = com.nightread.app.scanner.LibraryScanner(applicationContext, com.nightread.app.data.AppDatabase.getDatabase(applicationContext).bookDao())
 
         try {
-            scanner.scan()
+            scanner.scanBooks()
             
             // Handle scan results
-            val finalState = scanner.state.value
+            val finalState = com.nightread.app.service.NewBookScanState.state.value
             val finishMsg = "Scan finished. Added ${finalState.addedBooks} books, skipped ${finalState.skippedBooks} duplicates."
             
             NewBookScanState.updateState(finalState.copy(isScanning = false, status = finishMsg))

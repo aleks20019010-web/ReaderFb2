@@ -167,7 +167,7 @@ object Fb2ToHtmlConverterAdvanced {
                         }
                         p {
                             margin-top: 0;
-                            margin-bottom: 0.5em;
+                            margin-bottom: 0.2em;
                             text-indent: 1.5em;
                             text-align: justify;
                             max-width: 100%;

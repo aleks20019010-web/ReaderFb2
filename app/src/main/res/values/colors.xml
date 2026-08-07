@@ -1,64 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Light Antagonist Theme Palette (Day Mode) -->
-    <color name="bg_main">#F5F0EB</color>
-    <color name="bg_card">#4DFFFFFF</color>
-    <color name="bg_gradient_start">#F9F5F0</color>
-    <color name="bg_gradient_end">#EAE0D5</color>
-
+    <!-- Light Theme (Day Mode) -->
+    <color name="bg_main">#F5F7FA</color>
+    <color name="bg_gradient_start">#E8EEF2</color>
+    <color name="bg_gradient_end">#F8FAFC</color>
+    
+    <color name="bg_card">#B3FFFFFF</color>
+    <color name="glass_card_stroke">#14000000</color>
+    
     <color name="text_primary">#1A1A1A</color>
     <color name="text_secondary">#5C5C5C</color>
     <color name="text_sync_primary">#1A1A1A</color>
     <color name="text_sync_secondary">#5C5C5C</color>
-    <color name="sync_header">#D4AF37</color>
+    <color name="sync_header">#2C3E50</color>
     <color name="text_title">#1A1A1A</color>
     <color name="text_author">#5C5C5C</color>
 
     <!-- Reading Themes Colors -->
-    <color name="reading_day_bg">#FDFBF7</color>
+    <color name="reading_day_bg">#FFFFFF</color>
     <color name="reading_day_text">#1A1A1A</color>
-    <color name="reading_night_bg">#121212</color>
-    <color name="reading_night_text">#E0E0E0</color>
-    <color name="reading_sepia_bg">#F5F0E8</color>
+    <color name="reading_night_bg">#1A1A1A</color>
+    <color name="reading_night_text">#FFFFFF</color>
+    <color name="reading_sepia_bg">#F5F2EB</color>
     <color name="reading_sepia_text">#2C2C2C</color>
     <color name="reading_sepia_contrast_bg">#F5E6C8</color>
     <color name="reading_sepia_contrast_text">#1A1A1A</color>
 
-    <!-- Accent: Soft Golden / Warm Sun -->
-    <color name="accent">#D4AF37</color>
-    <color name="accent_hover">#B89628</color>
-
+    <!-- Accent: Rich Gray / Dark Blue -->
+    <color name="accent">#2C3E50</color>
+    <color name="accent_hover">#1A252F</color>
     <color name="shadow">#20000000</color>
     <color name="divider">#20000000</color>
 
-    <!-- Glass Panel Colors (30%, 60%, 90% light beige/white transparency) -->
-    <color name="bg_panel">#66FFFFFF</color>
-    <color name="glass_bg_30">#4DFFFFFF</color>
-    <color name="glass_bg_60">#80FFFFFF</color>
-    <color name="glass_bg_90">#CCFFFFFF</color>
-    <color name="glass_stroke">#80FFFFFF</color>
+    <!-- Glass Panel Colors (Light: 70-80% opacity) -->
+    <color name="bg_panel">#B3FFFFFF</color>
+    <color name="glass_bg_30">#80FFFFFF</color>
+    <color name="glass_bg_60">#B3FFFFFF</color>
+    <color name="glass_bg_90">#E6FFFFFF</color>
+    <color name="glass_stroke">#99FFFFFF</color>
 
-    <color name="btn_bg">#D4AF37</color>
-    <color name="btn_text">#1A1A1A</color>
+    <color name="btn_bg">#2C3E50</color>
+    <color name="btn_text">#FFFFFF</color>
     <color name="icon_tint">#1A1A1A</color>
-    <color name="accent_light">#F5E6C8</color>
+    <color name="accent_light">#E8EEF2</color>
 
     <!-- Material 3 Light Theme Colors mapping -->
-    <color name="primary">#D4AF37</color>
-    <color name="onPrimary">#1A1A1A</color>
-    <color name="secondary">#B89628</color>
+    <color name="primary">#2C3E50</color>
+    <color name="onPrimary">#FFFFFF</color>
+    <color name="secondary">#1A252F</color>
     <color name="onSecondary">#FFFFFF</color>
-    <color name="surface">#4DFFFFFF</color>
+    <color name="surface">#B3FFFFFF</color>
     <color name="onSurface">#1A1A1A</color>
-    <color name="background">#F5F0EB</color>
+    <color name="background">#F5F7FA</color>
     <color name="onBackground">#1A1A1A</color>
 
     <!-- Legacy / compatibility colors -->
-    <color name="purple_200">#D4AF37</color>
-    <color name="purple_500">#D4AF37</color>
-    <color name="purple_700">#B89628</color>
-    <color name="teal_200">#D4AF37</color>
-    <color name="teal_700">#B89628</color>
+    <color name="purple_200">#2C3E50</color>
+    <color name="purple_500">#2C3E50</color>
+    <color name="purple_700">#1A252F</color>
+    <color name="teal_200">#2C3E50</color>
+    <color name="teal_700">#1A252F</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

@@ -19,10 +19,10 @@ class AutoDiscoveryWorker(
         Log.d("AutoDiscoveryWorker", "Starting auto-discovery scan")
         try {
             val bookDao = AppDatabase.getDatabase(context).bookDao()
-            val scanner = NewBookScanner(context, bookDao)
+            val scanner = com.nightread.app.scanner.LibraryScanner(context, bookDao)
             
             val initialCount = bookDao.getSha1ToPathMap().size
-            scanner.scanBooks(isBackground = true).join()
+            scanner.scanBooks().join()
             val newCount = bookDao.getSha1ToPathMap().size
             
             val added = newCount - initialCount

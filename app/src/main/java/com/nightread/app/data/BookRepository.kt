@@ -134,7 +134,7 @@ class BookRepository(
     suspend fun deleteNoteById(id: Int) = noteDao.deleteNoteById(id)
 
     suspend fun checkForNewBooks(context: android.content.Context) {
-        val scanner = com.nightread.app.service.NewBookScanner(context, bookDao)
+        val scanner = com.nightread.app.scanner.LibraryScanner(context, bookDao)
         scanner.checkForNewBooks()
     }
 }
