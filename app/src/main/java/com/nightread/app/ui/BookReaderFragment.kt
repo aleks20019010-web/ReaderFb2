@@ -251,8 +251,9 @@ class BookReaderFragment : Fragment() {
 
         lifecycleScope.launch {
             val html = withContext(Dispatchers.IO) {
-                if (cacheFile.exists()) {
-                    cacheFile.readText()
+                var cachedContent = if (cacheFile.exists()) cacheFile.readText() else ""
+                if (cachedContent.isNotBlank() && cachedContent.length > 50) {
+                    cachedContent
                 } else {
                     val contentStr = viewModel.getContentText()
                     val theme = SettingsManager.getReadingTheme(context)
@@ -351,10 +352,13 @@ class BookReaderFragment : Fragment() {
                         document.documentElement.style.setProperty('--column-gap', colGap + 'px');
                         
                         setTimeout(function() {
+                            var container = document.getElementById('column-container');
+                            var containerWidth = container ? container.scrollWidth : 0;
                             var totalWidth = Math.max(
                                 document.body.scrollWidth || 0,
                                 document.documentElement.scrollWidth || 0,
-                                document.body.offsetWidth || 0
+                                document.body.offsetWidth || 0,
+                                containerWidth
                             );
                             totalPages = Math.max(1, Math.round(totalWidth / pageWidth));
                             if (typeof AndroidInterface !== 'undefined' && AndroidInterface.onPagesCalculated) {

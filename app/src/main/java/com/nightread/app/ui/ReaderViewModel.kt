@@ -328,8 +328,12 @@ class ReaderViewModel @JvmOverloads constructor(
                     } else {
                         try {
                             val contentCacheFile = java.io.File(appContext.cacheDir, "$bookSha1.content")
+                            var cachedText = ""
                             if (contentCacheFile.exists()) {
-                                content = contentCacheFile.readText()
+                                cachedText = contentCacheFile.readText()
+                            }
+                            if (cachedText.isNotBlank() && cachedText.length > 50) {
+                                content = cachedText
                             } else {
                                 val file = java.io.File(restoredBook.filePath ?: "")
                                 if (file.exists()) {

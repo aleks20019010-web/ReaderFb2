@@ -291,7 +291,7 @@ class NewBookScanner(
         private const val MAX_DEPTH = 10
         private const val MAX_FILE_SIZE = 50L * 1024 * 1024
         private const val MAX_ZIP_FILE_SIZE = 500L * 1024 * 1024
-        private const val BATCH_SIZE = 10
+        private const val BATCH_SIZE = 5
         private const val MAX_BOOKS_FROM_ONE_ZIP = 50
         private const val ZIP_MAX_ENTRY_SIZE = 8 * 1024 * 1024
         private const val CHANNEL_BUFFER_SIZE = 100
@@ -712,9 +712,7 @@ class NewBookScanner(
             channel.close()
         }
 
-        val workersCount = Runtime.getRuntime()
-            .availableProcessors()
-            .coerceIn(2, 4)
+        val workersCount = 1
 
         Log.d(TAG, "Using $workersCount worker threads")
 
@@ -758,6 +756,9 @@ class NewBookScanner(
                                 added.addAndGet(saveList.size)
                             }
                         }
+                        
+                        System.gc()
+                        kotlinx.coroutines.delay(20)
 
                     } catch (e: CancellationException) {
                         throw e
