@@ -32,6 +32,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.focusable
@@ -442,7 +443,7 @@ fun ReaderComposeScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) { page ->
                                 Box(
-                                    modifier = Modifier.fillMaxSize(),
+                                    modifier = Modifier.fillMaxSize().clipToBounds(),
                                     contentAlignment = Alignment.TopStart
                                 ) {
                                     val pageAnnotatedString = pages.getOrElse(page) { AnnotatedString("") }
@@ -1128,8 +1129,6 @@ suspend fun paginateTextWithMeasurerProgressively(
         platformStyle = PlatformTextStyle(includeFontPadding = false)
     )
 
-    val usableMaxHeightPx = maxHeightPx - 8
-
     val rawSections = formattedText.split('\u000C')
     val chapterSections = mutableListOf<String>()
 
@@ -1173,6 +1172,11 @@ suspend fun paginateTextWithMeasurerProgressively(
         )
 
         val lineCount = layoutResult.lineCount
+        if (lineCount == 0) continue
+
+        val sampleLineHeight = (layoutResult.getLineBottom(0) - layoutResult.getLineTop(0))
+        val usableMaxHeightPx = maxHeightPx - (sampleLineHeight * 0.6f).toInt().coerceAtLeast(24)
+
         var currentLine = 0
         while (currentLine < lineCount) {
             val startLineTop = layoutResult.getLineTop(currentLine)
@@ -1182,23 +1186,36 @@ suspend fun paginateTextWithMeasurerProgressively(
             ) {
                 endLine++
             }
-            val startChar = layoutResult.getLineStart(currentLine)
-            val endChar = layoutResult.getLineEnd(endLine)
-            val rawPageSlice = sectionAnnotated.subSequence(
-                startChar.coerceIn(0, sectionAnnotated.length),
-                endChar.coerceIn(0, sectionAnnotated.length)
-            )
+            val startChar = layoutResult.getLineStart(currentLine).coerceIn(0, sectionAnnotated.length)
+            val endChar = layoutResult.getLineEnd(endLine).coerceIn(0, sectionAnnotated.length)
+
+            val rawPageSlice = sectionAnnotated.subSequence(startChar, endChar)
+
+            val charBefore = sectionAnnotated.text.getOrNull(endChar - 1)
+            val charAfter = sectionAnnotated.text.getOrNull(endChar)
+            val isWordSplit = charBefore != null && charAfter != null &&
+                    charBefore.isLetter() && charAfter.isLetter()
 
             val isEndOfParagraph = (endChar >= sectionAnnotated.length) ||
                     (sectionAnnotated.text.getOrNull(endChar - 1) == '\n') ||
                     (sectionAnnotated.text.getOrNull(endChar) == '\n')
 
-            val pageAnnotated = if (isEndOfParagraph) {
-                rawPageSlice.trimTrailingWhitespace()
-            } else {
-                buildAnnotatedString {
-                    append(rawPageSlice.trimTrailingWhitespace())
-                    append("\n")
+            val pageAnnotated = buildAnnotatedString {
+                append(rawPageSlice.trimTrailingWhitespace())
+
+                if (isWordSplit) {
+                    append("-")
+                }
+
+                if (!isEndOfParagraph && endChar < sectionAnnotated.length) {
+                    val remainingText = sectionAnnotated.text.substring(endChar)
+                    val nextWord = remainingText.trimStart().takeWhile { !it.isWhitespace() }
+                    if (nextWord.isNotEmpty()) {
+                        append(" ")
+                        pushStyle(SpanStyle(color = Color.Transparent))
+                        append(nextWord)
+                        pop()
+                    }
                 }
             }
 
