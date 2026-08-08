@@ -265,7 +265,7 @@ fun ReaderComposeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (isLoading || isPreparingText) {
+            if (isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -280,7 +280,7 @@ fun ReaderComposeScreen(
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
-                            text = "Подготовка текста...",
+                            text = "Загрузка книги...",
                             color = textColor.copy(alpha = alpha),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
@@ -398,10 +398,34 @@ fun ReaderComposeScreen(
                             }
                         }
 
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier.fillMaxSize()
-                        ) { page ->
+                        if (isPreparingText && pages.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = textColor,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                    Text(
+                                        text = "Подготовка текста...",
+                                        color = textColor.copy(alpha = alpha),
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = font
+                                    )
+                                }
+                            }
+                        } else {
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier.fillMaxSize()
+                            ) { page ->
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.TopStart
@@ -424,6 +448,7 @@ fun ReaderComposeScreen(
                                 )
                             }
                         }
+                    }
                     }
 
                     // Warmth (Amber filter) overlay
