@@ -43,7 +43,8 @@ data class ReadingProgressEntity(
     @PrimaryKey val bookId: String,
     val pageIndex: Int,
     val totalPages: Int = 0,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val textOffset: Int = 0
 )
 
 /**
@@ -75,7 +76,8 @@ data class ReadingProgressRecord(
     val pageIndex: Int,
     val totalPages: Int = 0,
     val timestamp: Long = System.currentTimeMillis(),
-    val sourceName: String = "Unknown"
+    val sourceName: String = "Unknown",
+    val textOffset: Int = 0
 )
 
 /**
@@ -143,7 +145,7 @@ class SafeProgressManager private constructor(context: Context) {
      * Сохранение прогресса при КАЖДОМ перелистывании страницы.
      * Записывает во все уровни (Память -> SP -> Room -> File Checkpoint).
      */
-    fun saveProgress(bookId: String, pageIndex: Int, totalPages: Int = 0) {
+    fun saveProgress(bookId: String, pageIndex: Int, totalPages: Int = 0, textOffset: Int = 0) {
         if (bookId.isBlank()) return
 
         val now = System.currentTimeMillis()
@@ -152,7 +154,8 @@ class SafeProgressManager private constructor(context: Context) {
             pageIndex = pageIndex,
             totalPages = totalPages,
             timestamp = now,
-            sourceName = "Memory"
+            sourceName = "Memory",
+            textOffset = textOffset
         )
 
         // 1. Уровень 1: Память
@@ -181,7 +184,7 @@ class SafeProgressManager private constructor(context: Context) {
     /**
      * Синхронное сохранение (при закрытии приложения/Activity onPause/onDestroy)
      */
-    fun saveProgressSync(bookId: String, pageIndex: Int, totalPages: Int = 0) {
+    fun saveProgressSync(bookId: String, pageIndex: Int, totalPages: Int = 0, textOffset: Int = 0) {
         if (bookId.isBlank()) return
 
         val now = System.currentTimeMillis()
@@ -190,7 +193,8 @@ class SafeProgressManager private constructor(context: Context) {
             pageIndex = pageIndex,
             totalPages = totalPages,
             timestamp = now,
-            sourceName = "Memory"
+            sourceName = "Memory",
+            textOffset = textOffset
         )
 
         // 1. Память
@@ -212,7 +216,8 @@ class SafeProgressManager private constructor(context: Context) {
                     bookId = bookId,
                     pageIndex = pageIndex,
                     totalPages = totalPages,
-                    timestamp = now
+                    timestamp = now,
+                    textOffset = textOffset
                 )
             )
         } catch (e: Exception) {
@@ -239,7 +244,7 @@ class SafeProgressManager private constructor(context: Context) {
      * Получить полную запись прогресса чтения.
      */
     suspend fun loadProgressRecord(bookId: String): ReadingProgressRecord {
-        if (bookId.isBlank()) return ReadingProgressRecord(bookId, 0, 0, 0L, "Default")
+        if (bookId.isBlank()) return ReadingProgressRecord(bookId, 0, 0, 0L, "Default", 0)
 
         val candidates = mutableListOf<ReadingProgressRecord>()
 
@@ -258,7 +263,8 @@ class SafeProgressManager private constructor(context: Context) {
                             pageIndex = entity.pageIndex,
                             totalPages = entity.totalPages,
                             timestamp = entity.timestamp,
-                            sourceName = "RoomDB"
+                            sourceName = "RoomDB",
+                            textOffset = entity.textOffset
                         )
                     )
                 }
@@ -278,14 +284,14 @@ class SafeProgressManager private constructor(context: Context) {
         }
 
         if (candidates.isEmpty()) {
-            return ReadingProgressRecord(bookId = bookId, pageIndex = 0, totalPages = 0, timestamp = 0L, sourceName = "Fallback0")
+            return ReadingProgressRecord(bookId = bookId, pageIndex = 0, totalPages = 0, timestamp = 0L, sourceName = "Fallback0", textOffset = 0)
         }
 
         // 1. Проверяем в порядке приоритета: Memory -> RoomDB -> SharedPreferences -> CheckpointFile
         // 2. Берем наиболее свежий timestamp, если данные отличаются
         val bestRecord = candidates.maxByOrNull { it.timestamp } ?: candidates.first()
 
-        Log.d(TAG, "Восстановлен прогресс для '$bookId': страница ${bestRecord.pageIndex} из источника [${bestRecord.sourceName}] (timestamp=${bestRecord.timestamp})")
+        Log.d(TAG, "Восстановлен прогресс для '$bookId': страница ${bestRecord.pageIndex}, offset ${bestRecord.textOffset} из источника [${bestRecord.sourceName}] (timestamp=${bestRecord.timestamp})")
 
         // Обновляем память свежайшей записью
         memoryCache[bookId] = bestRecord
@@ -302,6 +308,7 @@ class SafeProgressManager private constructor(context: Context) {
             .putInt("page_${record.bookId}", record.pageIndex)
             .putInt("total_${record.bookId}", record.totalPages)
             .putLong("time_${record.bookId}", record.timestamp)
+            .putInt("offset_${record.bookId}", record.textOffset)
             .apply()
     }
 
@@ -310,6 +317,7 @@ class SafeProgressManager private constructor(context: Context) {
             .putInt("page_${record.bookId}", record.pageIndex)
             .putInt("total_${record.bookId}", record.totalPages)
             .putLong("time_${record.bookId}", record.timestamp)
+            .putInt("offset_${record.bookId}", record.textOffset)
             .commit()
     }
 
@@ -318,12 +326,14 @@ class SafeProgressManager private constructor(context: Context) {
         if (page < 0) return null
         val total = prefs.getInt("total_$bookId", 0)
         val time = prefs.getLong("time_$bookId", 0L)
+        val offset = prefs.getInt("offset_$bookId", 0)
         return ReadingProgressRecord(
             bookId = bookId,
             pageIndex = page,
             totalPages = total,
             timestamp = time,
-            sourceName = "SharedPreferences"
+            sourceName = "SharedPreferences",
+            textOffset = offset
         )
     }
 
@@ -334,7 +344,8 @@ class SafeProgressManager private constructor(context: Context) {
                     bookId = record.bookId,
                     pageIndex = record.pageIndex,
                     totalPages = record.totalPages,
-                    timestamp = record.timestamp
+                    timestamp = record.timestamp,
+                    textOffset = record.textOffset
                 )
             )
         } catch (e: Exception) {
@@ -357,6 +368,7 @@ class SafeProgressManager private constructor(context: Context) {
                     put("pageIndex", record.pageIndex)
                     put("totalPages", record.totalPages)
                     put("timestamp", record.timestamp)
+                    put("textOffset", record.textOffset)
                 }
                 fos.write(json.toString().toByteArray(Charsets.UTF_8))
                 atomicFile.finishWrite(fos)
@@ -382,7 +394,8 @@ class SafeProgressManager private constructor(context: Context) {
                 pageIndex = json.optInt("pageIndex", 0),
                 totalPages = json.optInt("totalPages", 0),
                 timestamp = json.optLong("timestamp", 0L),
-                sourceName = "CheckpointFile"
+                sourceName = "CheckpointFile",
+                textOffset = json.optInt("textOffset", 0)
             )
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка чтения контрольного файла для $bookId: ${e.message}")

@@ -221,11 +221,64 @@ fun ReaderComposeScreen(
     
     val mappedFontWeight = FontWeight(fontWeightInt.coerceIn(100, 900))
 
-    var pages by remember { mutableStateOf<List<AnnotatedString>>(emptyList()) }
+    var readerPages by remember { mutableStateOf<List<com.nightread.app.ui.customlayout.ReaderPage>>(emptyList()) }
+    val pageStartOffsets = remember(readerPages) { readerPages.map { it.startOffset } }
+    var isRestoringProgress by remember { mutableStateOf(true) }
+    var savedTextOffset by remember { mutableIntStateOf(0) }
     var isPreparingText by remember { mutableStateOf(true) }
     val textMeasurer = rememberTextMeasurer()
 
-    val pagerState = rememberPagerState(pageCount = { pages.size.coerceAtLeast(1) })
+    val pagerState = rememberPagerState(pageCount = { readerPages.size.coerceAtLeast(1) })
+
+    LaunchedEffect(sha1) {
+        if (sha1.isNotEmpty()) {
+            val record = com.nightread.app.data.SafeProgressManager.getInstance(context).loadProgressRecord(sha1)
+            savedTextOffset = record.textOffset
+            isRestoringProgress = true
+        }
+    }
+
+    LaunchedEffect(pagerState.currentPage) {
+        if (!isRestoringProgress && pageStartOffsets.isNotEmpty() && sha1.isNotEmpty()) {
+            val currentOffset = pageStartOffsets.getOrElse(pagerState.currentPage) { 0 }
+            com.nightread.app.data.SafeProgressManager.getInstance(context).saveProgress(
+                bookId = sha1,
+                pageIndex = pagerState.currentPage,
+                totalPages = readerPages.size,
+                textOffset = currentOffset
+            )
+        }
+    }
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE || event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+                if (sha1.isNotEmpty() && pageStartOffsets.isNotEmpty()) {
+                    val currentOffset = pageStartOffsets.getOrElse(pagerState.currentPage) { 0 }
+                    com.nightread.app.data.SafeProgressManager.getInstance(context).saveProgressSync(
+                        bookId = sha1,
+                        pageIndex = pagerState.currentPage,
+                        totalPages = readerPages.size,
+                        textOffset = currentOffset
+                    )
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            if (sha1.isNotEmpty() && pageStartOffsets.isNotEmpty()) {
+                val currentOffset = pageStartOffsets.getOrElse(pagerState.currentPage) { 0 }
+                com.nightread.app.data.SafeProgressManager.getInstance(context).saveProgressSync(
+                    bookId = sha1,
+                    pageIndex = pagerState.currentPage,
+                    totalPages = readerPages.size,
+                    textOffset = currentOffset
+                )
+            }
+        }
+    }
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -394,7 +447,7 @@ fun ReaderComposeScreen(
                         LaunchedEffect(mainText, fontSize, lineSpacing, font, mappedFontWeight, maxWidthPx, maxHeightPx) {
                             if (maxWidthPx > 0 && maxHeightPx > 0 && mainText.isNotEmpty()) {
                                 isPreparingText = true
-                                paginateTextWithMeasurerProgressively(
+                                com.nightread.app.ui.customlayout.PaginationEngine.paginate(
                                     mainText = mainText,
                                     fontSize = fontSize.sp,
                                     font = font,
@@ -404,18 +457,32 @@ fun ReaderComposeScreen(
                                     maxWidthPx = maxWidthPx,
                                     maxHeightPx = maxHeightPx,
                                     density = density,
-                                    onPagesUpdated = { currentPages, isFirstChunk ->
-                                        pages = currentPages
+                                    onPagesUpdated = { updatedPages, isFirstChunk ->
+                                        readerPages = updatedPages
+                                        val currentOffsets = updatedPages.map { it.startOffset }
+                                        if (isRestoringProgress && currentOffsets.isNotEmpty()) {
+                                            val targetPage = findPageForOffset(currentOffsets, savedTextOffset)
+                                            coroutineScope.launch {
+                                                pagerState.scrollToPage(targetPage)
+                                                isRestoringProgress = false
+                                            }
+                                        }
                                         if (isFirstChunk) {
                                             isPreparingText = false
                                         }
                                     }
                                 )
                                 isPreparingText = false
+                                val currentOffsets = readerPages.map { it.startOffset }
+                                if (isRestoringProgress && currentOffsets.isNotEmpty()) {
+                                    val targetPage = findPageForOffset(currentOffsets, savedTextOffset)
+                                    pagerState.scrollToPage(targetPage)
+                                    isRestoringProgress = false
+                                }
                             }
                         }
 
-                        if (isPreparingText && pages.isEmpty()) {
+                        if (isPreparingText && readerPages.isEmpty()) {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
@@ -447,12 +514,15 @@ fun ReaderComposeScreen(
                                     modifier = Modifier.fillMaxSize().clipToBounds(),
                                     contentAlignment = Alignment.TopStart
                                 ) {
-                                    val pageAnnotatedString = pages.getOrElse(page) { AnnotatedString("") }
+                                    val readerPage = readerPages.getOrElse(page) { com.nightread.app.ui.customlayout.ReaderPage(AnnotatedString(""), 0, 0) }
                                     Text(
-                                        text = pageAnnotatedString,
+                                        text = readerPage.text,
                                         color = textColor,
                                         style = readerTextStyle,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(max = with(density) { maxHeightPx.toDp() })
+                                            .clipToBounds()
                                     )
                                 }
                             }
@@ -566,15 +636,7 @@ fun ReaderComposeScreen(
                                 activity?.supportFragmentManager?.let { fm ->
                                     val sheet = ChapterListBottomSheet.newInstance(sha1, mainText)
                                     sheet.setOnChapterClickListener { offset ->
-                                        var accumulated = 0
-                                        var targetPage = 0
-                                        for (i in pages.indices) {
-                                            accumulated += pages[i].length
-                                            if (accumulated >= offset) {
-                                                targetPage = i
-                                                break
-                                            }
-                                        }
+                                        val targetPage = findPageForOffset(pageStartOffsets, offset)
                                         coroutineScope.launch {
                                             pagerState.scrollToPage(targetPage)
                                         }
@@ -1104,137 +1166,17 @@ fun AnnotatedString.trimTrailingWhitespace(): AnnotatedString {
     return if (end == length) this else subSequence(0, end)
 }
 
-suspend fun paginateTextWithMeasurerProgressively(
-    mainText: String,
-    fontSize: TextUnit,
-    font: FontFamily,
-    fontWeight: FontWeight,
-    lineSpacing: Float,
-    textMeasurer: TextMeasurer,
-    maxWidthPx: Int,
-    maxHeightPx: Int,
-    density: androidx.compose.ui.unit.Density,
-    onPagesUpdated: (List<AnnotatedString>, Boolean) -> Unit
-) = withContext(Dispatchers.Default) {
-    if (mainText.isBlank() || maxWidthPx <= 0 || maxHeightPx <= 0) return@withContext
-
-    val formattedText = TypographyUtils.applyMicroTypography(mainText)
-    val textStyle = TextStyle(
-        fontSize = fontSize,
-        fontFamily = font,
-        fontWeight = fontWeight,
-        textAlign = TextAlign.Justify,
-        lineHeight = (fontSize.value * lineSpacing).sp,
-        letterSpacing = 0.1.sp,
-        lineBreak = LineBreak.Paragraph,
-        hyphens = Hyphens.Auto,
-        platformStyle = PlatformTextStyle(includeFontPadding = false)
-    )
-
-    val safeMaxHeightPx = (maxHeightPx - with(density) { 2.dp.toPx() }).toInt().coerceAtLeast(1)
-
-    val rawSections = formattedText.split('\u000C')
-    val chapterSections = mutableListOf<String>()
-
-    for (sec in rawSections) {
-        val trimmed = sec.trim()
-        if (trimmed.isEmpty()) continue
-        
-        if (trimmed.length > 100000) {
-            val paragraphs = trimmed.split('\n')
-            val sb = StringBuilder()
-            for (p in paragraphs) {
-                if (sb.length + p.length > 80000 && sb.isNotEmpty()) {
-                    chapterSections.add(sb.toString().trimEnd())
-                    sb.clear()
-                }
-                if (sb.isNotEmpty()) sb.append("\n")
-                sb.append(p)
-            }
-            if (sb.isNotEmpty()) {
-                chapterSections.add(sb.toString().trimEnd())
-            }
+fun findPageForOffset(offsets: List<Int>, targetOffset: Int): Int {
+    if (offsets.isEmpty()) return 0
+    var bestPage = 0
+    for (i in offsets.indices) {
+        if (offsets[i] <= targetOffset) {
+            bestPage = i
         } else {
-            chapterSections.add(trimmed)
+            break
         }
     }
-
-    if (chapterSections.isEmpty()) return@withContext
-
-    val accumulatedPages = mutableListOf<AnnotatedString>()
-    var isFirstPage = true
-
-    for (cleanSection in chapterSections) {
-        val sectionAnnotated = parseFormattedTextToAnnotatedString(cleanSection, fontSize)
-        if (sectionAnnotated.isEmpty()) continue
-
-        val layoutResult = textMeasurer.measure(
-            text = sectionAnnotated,
-            style = textStyle,
-            constraints = Constraints(maxWidth = maxWidthPx)
-        )
-
-        val lineCount = layoutResult.lineCount
-        if (lineCount == 0) continue
-
-        var currentLine = 0
-        while (currentLine < lineCount) {
-            val pageTop = layoutResult.getLineTop(currentLine)
-            var candidateEndLine = currentLine
-            while (candidateEndLine + 1 < lineCount &&
-                (layoutResult.getLineBottom(candidateEndLine + 1) - pageTop) <= safeMaxHeightPx
-            ) {
-                candidateEndLine++
-            }
-
-            var validEndLine = candidateEndLine
-            var finalPageAnnotated: AnnotatedString? = null
-
-            while (validEndLine >= currentLine) {
-                val startChar = layoutResult.getLineStart(currentLine).coerceIn(0, sectionAnnotated.length)
-                val endChar = layoutResult.getLineEnd(validEndLine).coerceIn(startChar, sectionAnnotated.length)
-
-                val pageSlice = sectionAnnotated.subSequence(startChar, endChar)
-                val candidatePage = pageSlice.trimTrailingWhitespace()
-
-                if (candidatePage.isEmpty()) {
-                    validEndLine--
-                    continue
-                }
-
-                val pageBottom = layoutResult.getLineBottom(validEndLine)
-                val pageHeight = pageBottom - pageTop
-
-                if (pageHeight <= safeMaxHeightPx || validEndLine == currentLine) {
-                    finalPageAnnotated = candidatePage
-                    break
-                }
-                validEndLine--
-            }
-
-            if (finalPageAnnotated != null && finalPageAnnotated.isNotEmpty()) {
-                accumulatedPages.add(finalPageAnnotated)
-                if (isFirstPage) {
-                    onPagesUpdated(accumulatedPages.toList(), true)
-                    isFirstPage = false
-                    kotlinx.coroutines.yield()
-                } else if (accumulatedPages.size % 10 == 0) {
-                    onPagesUpdated(accumulatedPages.toList(), false)
-                    kotlinx.coroutines.yield()
-                }
-                val nextLine = validEndLine + 1
-                if (nextLine > currentLine) {
-                    currentLine = nextLine
-                } else {
-                    currentLine++
-                }
-            } else {
-                currentLine++
-            }
-        }
-    }
-
-    if (accumulatedPages.isNotEmpty()) {
-        onPagesUpdated(accumulatedPages.toList(), false)
-    }
+    return bestPage.coerceIn(0, (offsets.size - 1).coerceAtLeast(0))
 }
+
+

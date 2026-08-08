@@ -100,6 +100,14 @@ object DatabaseMigrations {
             """.trimIndent())
         }
     }
+
+    private val MIGRATION_15_16 = object : Migration(15, 16) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            try {
+                database.execSQL("ALTER TABLE reading_progress ADD COLUMN textOffset INTEGER DEFAULT 0")
+            } catch (e: Exception) {}
+        }
+    }
     
     fun getAllMigrations(): Array<Migration> {
         return arrayOf(
@@ -110,7 +118,8 @@ object DatabaseMigrations {
             MIGRATION_5_6,
             MIGRATION_6_7,
             MIGRATION_7_8,
-            MIGRATION_8_9
+            MIGRATION_8_9,
+            MIGRATION_15_16
         )
     }
 }
