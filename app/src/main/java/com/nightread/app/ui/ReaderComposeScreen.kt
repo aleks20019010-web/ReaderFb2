@@ -1174,15 +1174,12 @@ suspend fun paginateTextWithMeasurerProgressively(
         val lineCount = layoutResult.lineCount
         if (lineCount == 0) continue
 
-        val sampleLineHeight = (layoutResult.getLineBottom(0) - layoutResult.getLineTop(0))
-        val usableMaxHeightPx = maxHeightPx - (sampleLineHeight * 0.6f).toInt().coerceAtLeast(24)
-
         var currentLine = 0
         while (currentLine < lineCount) {
             val startLineTop = layoutResult.getLineTop(currentLine)
             var endLine = currentLine
             while (endLine + 1 < lineCount &&
-                (layoutResult.getLineBottom(endLine + 1) - startLineTop) <= usableMaxHeightPx
+                (layoutResult.getLineBottom(endLine + 1) - startLineTop) <= maxHeightPx
             ) {
                 endLine++
             }
@@ -1194,29 +1191,16 @@ suspend fun paginateTextWithMeasurerProgressively(
             val charBefore = sectionAnnotated.text.getOrNull(endChar - 1)
             val charAfter = sectionAnnotated.text.getOrNull(endChar)
             val isWordSplit = charBefore != null && charAfter != null &&
-                    charBefore.isLetter() && charAfter.isLetter()
+                    charBefore.isLetter() && charAfter.isLetter() &&
+                    charBefore != '-'
 
-            val isEndOfParagraph = (endChar >= sectionAnnotated.length) ||
-                    (sectionAnnotated.text.getOrNull(endChar - 1) == '\n') ||
-                    (sectionAnnotated.text.getOrNull(endChar) == '\n')
-
-            val pageAnnotated = buildAnnotatedString {
-                append(rawPageSlice.trimTrailingWhitespace())
-
-                if (isWordSplit) {
+            val pageAnnotated = if (isWordSplit) {
+                buildAnnotatedString {
+                    append(rawPageSlice.trimTrailingWhitespace())
                     append("-")
                 }
-
-                if (!isEndOfParagraph && endChar < sectionAnnotated.length) {
-                    val remainingText = sectionAnnotated.text.substring(endChar)
-                    val nextWord = remainingText.trimStart().takeWhile { !it.isWhitespace() }
-                    if (nextWord.isNotEmpty()) {
-                        append(" ")
-                        pushStyle(SpanStyle(color = Color.Transparent))
-                        append(nextWord)
-                        pop()
-                    }
-                }
+            } else {
+                rawPageSlice.trimTrailingWhitespace()
             }
 
             if (pageAnnotated.isNotEmpty()) {
