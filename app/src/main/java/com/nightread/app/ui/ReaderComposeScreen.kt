@@ -1131,6 +1131,8 @@ suspend fun paginateTextWithMeasurerProgressively(
         platformStyle = PlatformTextStyle(includeFontPadding = false)
     )
 
+    val safeMaxHeightPx = (maxHeightPx - with(density) { 2.dp.toPx() }).toInt().coerceAtLeast(1)
+
     val rawSections = formattedText.split('\u000C')
     val chapterSections = mutableListOf<String>()
 
@@ -1138,7 +1140,6 @@ suspend fun paginateTextWithMeasurerProgressively(
         val trimmed = sec.trim()
         if (trimmed.isEmpty()) continue
         
-        // If a section is exceptionally huge (>100k chars), safely split on paragraph boundaries
         if (trimmed.length > 100000) {
             val paragraphs = trimmed.split('\n')
             val sb = StringBuilder()
@@ -1173,47 +1174,42 @@ suspend fun paginateTextWithMeasurerProgressively(
             constraints = Constraints(maxWidth = maxWidthPx)
         )
 
-        val safeMaxHeightPx = (maxHeightPx - with(density) { 2.dp.toPx() }).toInt().coerceAtLeast(1)
-
         val lineCount = layoutResult.lineCount
         if (lineCount == 0) continue
 
         var currentLine = 0
         while (currentLine < lineCount) {
-            val startLineTop = layoutResult.getLineTop(currentLine)
-            var endLine = currentLine
-            while (endLine + 1 < lineCount &&
-                (layoutResult.getLineBottom(endLine + 1) - startLineTop) <= safeMaxHeightPx
+            val pageTop = layoutResult.getLineTop(currentLine)
+            var candidateEndLine = currentLine
+            while (candidateEndLine + 1 < lineCount &&
+                (layoutResult.getLineBottom(candidateEndLine + 1) - pageTop) <= safeMaxHeightPx
             ) {
-                endLine++
+                candidateEndLine++
             }
 
-            var validEndLine = endLine
+            var validEndLine = candidateEndLine
             var finalPageAnnotated: AnnotatedString? = null
 
             while (validEndLine >= currentLine) {
                 val startChar = layoutResult.getLineStart(currentLine).coerceIn(0, sectionAnnotated.length)
-                val endChar = layoutResult.getLineEnd(validEndLine).coerceIn(0, sectionAnnotated.length)
+                val endChar = layoutResult.getLineEnd(validEndLine).coerceIn(startChar, sectionAnnotated.length)
 
-                val rawPageSlice = sectionAnnotated.subSequence(startChar, endChar)
-                val candidateAnnotated = rawPageSlice.trimTrailingWhitespace()
+                val pageSlice = sectionAnnotated.subSequence(startChar, endChar)
+                val candidatePage = pageSlice.trimTrailingWhitespace()
 
-                if (candidateAnnotated.isEmpty()) {
-                    if (validEndLine == currentLine) break
+                if (candidatePage.isEmpty()) {
                     validEndLine--
                     continue
                 }
 
-                val pageTop = layoutResult.getLineTop(currentLine)
                 val pageBottom = layoutResult.getLineBottom(validEndLine)
                 val pageHeight = pageBottom - pageTop
 
                 if (pageHeight <= safeMaxHeightPx || validEndLine == currentLine) {
-                    finalPageAnnotated = candidateAnnotated
+                    finalPageAnnotated = candidatePage
                     break
-                } else {
-                    validEndLine--
                 }
+                validEndLine--
             }
 
             if (finalPageAnnotated != null && finalPageAnnotated.isNotEmpty()) {
@@ -1226,7 +1222,12 @@ suspend fun paginateTextWithMeasurerProgressively(
                     onPagesUpdated(accumulatedPages.toList(), false)
                     kotlinx.coroutines.yield()
                 }
-                currentLine = validEndLine + 1
+                val nextLine = validEndLine + 1
+                if (nextLine > currentLine) {
+                    currentLine = nextLine
+                } else {
+                    currentLine++
+                }
             } else {
                 currentLine++
             }
