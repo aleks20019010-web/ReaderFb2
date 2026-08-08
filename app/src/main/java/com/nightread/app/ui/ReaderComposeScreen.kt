@@ -1204,13 +1204,11 @@ suspend fun paginateTextWithMeasurerProgressively(
                     continue
                 }
 
-                val measuredHeight = textMeasurer.measure(
-                    text = candidateAnnotated,
-                    style = textStyle,
-                    constraints = Constraints(maxWidth = maxWidthPx)
-                ).size.height
+                val pageTop = layoutResult.getLineTop(currentLine)
+                val pageBottom = layoutResult.getLineBottom(validEndLine)
+                val pageHeight = pageBottom - pageTop
 
-                if (measuredHeight <= safeMaxHeightPx || validEndLine == currentLine) {
+                if (pageHeight <= safeMaxHeightPx || validEndLine == currentLine) {
                     finalPageAnnotated = candidateAnnotated
                     break
                 } else {
@@ -1218,21 +1216,20 @@ suspend fun paginateTextWithMeasurerProgressively(
                 }
             }
 
-            finalPageAnnotated?.let { page ->
-                if (page.isNotEmpty()) {
-                    accumulatedPages.add(page)
-                    if (isFirstPage) {
-                        onPagesUpdated(accumulatedPages.toList(), true)
-                        isFirstPage = false
-                        kotlinx.coroutines.yield()
-                    } else if (accumulatedPages.size % 10 == 0) {
-                        onPagesUpdated(accumulatedPages.toList(), false)
-                        kotlinx.coroutines.yield()
-                    }
+            if (finalPageAnnotated != null && finalPageAnnotated.isNotEmpty()) {
+                accumulatedPages.add(finalPageAnnotated)
+                if (isFirstPage) {
+                    onPagesUpdated(accumulatedPages.toList(), true)
+                    isFirstPage = false
+                    kotlinx.coroutines.yield()
+                } else if (accumulatedPages.size % 10 == 0) {
+                    onPagesUpdated(accumulatedPages.toList(), false)
+                    kotlinx.coroutines.yield()
                 }
+                currentLine = validEndLine + 1
+            } else {
+                currentLine++
             }
-
-            currentLine = validEndLine + 1
         }
     }
 
