@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -375,6 +376,20 @@ fun ReaderComposeScreen(
                         val maxWidthPx = with(density) { constraints.maxWidth }
                         val maxHeightPx = with(density) { constraints.maxHeight }
 
+                        val readerTextStyle = remember(fontSize, font, mappedFontWeight, lineSpacing) {
+                            TextStyle(
+                                fontSize = fontSize.sp,
+                                fontFamily = font,
+                                fontWeight = mappedFontWeight,
+                                textAlign = TextAlign.Justify,
+                                lineHeight = (fontSize * lineSpacing).sp,
+                                letterSpacing = 0.1.sp,
+                                lineBreak = LineBreak.Paragraph,
+                                hyphens = Hyphens.Auto,
+                                platformStyle = PlatformTextStyle(includeFontPadding = false)
+                            )
+                        }
+
                         LaunchedEffect(mainText, fontSize, lineSpacing, font, mappedFontWeight, maxWidthPx, maxHeightPx) {
                             if (maxWidthPx > 0 && maxHeightPx > 0 && mainText.isNotEmpty()) {
                                 isPreparingText = true
@@ -426,29 +441,20 @@ fun ReaderComposeScreen(
                                 state = pagerState,
                                 modifier = Modifier.fillMaxSize()
                             ) { page ->
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.TopStart
-                            ) {
-                                val pageAnnotatedString = pages.getOrElse(page) { AnnotatedString("") }
-                                Text(
-                                    text = pageAnnotatedString,
-                                    color = textColor,
-                                    fontSize = fontSize.sp,
-                                    fontFamily = font,
-                                    fontWeight = mappedFontWeight,
-                                    textAlign = TextAlign.Justify,
-                                    lineHeight = (fontSize * lineSpacing).sp,
-                                    letterSpacing = 0.1.sp,
-                                    style = LocalTextStyle.current.copy(
-                                        lineBreak = LineBreak.Paragraph,
-                                        hyphens = Hyphens.Auto
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.TopStart
+                                ) {
+                                    val pageAnnotatedString = pages.getOrElse(page) { AnnotatedString("") }
+                                    Text(
+                                        text = pageAnnotatedString,
+                                        color = textColor,
+                                        style = readerTextStyle,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
                             }
                         }
-                    }
                     }
 
                     // Warmth (Amber filter) overlay
@@ -1088,6 +1094,14 @@ private fun AnnotatedString.Builder.applyTagStyle(
     }
 }
 
+fun AnnotatedString.trimTrailingWhitespace(): AnnotatedString {
+    var end = length
+    while (end > 0 && text[end - 1].isWhitespace()) {
+        end--
+    }
+    return if (end == length) this else subSequence(0, end)
+}
+
 suspend fun paginateTextWithMeasurerProgressively(
     mainText: String,
     fontSize: TextUnit,
@@ -1110,41 +1124,46 @@ suspend fun paginateTextWithMeasurerProgressively(
         lineHeight = (fontSize.value * lineSpacing).sp,
         letterSpacing = 0.1.sp,
         lineBreak = LineBreak.Paragraph,
-        hyphens = Hyphens.Auto
+        hyphens = Hyphens.Auto,
+        platformStyle = PlatformTextStyle(includeFontPadding = false)
     )
 
+    val usableMaxHeightPx = maxHeightPx - 8
+
     val rawSections = formattedText.split('\u000C')
-    val processChunks = mutableListOf<String>()
+    val chapterSections = mutableListOf<String>()
 
     for (sec in rawSections) {
         val trimmed = sec.trim()
         if (trimmed.isEmpty()) continue
-        if (trimmed.length <= 3500) {
-            processChunks.add(trimmed)
-        } else {
+        
+        // If a section is exceptionally huge (>100k chars), safely split on paragraph boundaries
+        if (trimmed.length > 100000) {
             val paragraphs = trimmed.split('\n')
             val sb = StringBuilder()
             for (p in paragraphs) {
-                if (sb.length + p.length > 3000 && sb.isNotEmpty()) {
-                    processChunks.add(sb.toString().trimEnd())
+                if (sb.length + p.length > 80000 && sb.isNotEmpty()) {
+                    chapterSections.add(sb.toString().trimEnd())
                     sb.clear()
                 }
                 if (sb.isNotEmpty()) sb.append("\n")
                 sb.append(p)
             }
             if (sb.isNotEmpty()) {
-                processChunks.add(sb.toString().trimEnd())
+                chapterSections.add(sb.toString().trimEnd())
             }
+        } else {
+            chapterSections.add(trimmed)
         }
     }
 
-    if (processChunks.isEmpty()) return@withContext
+    if (chapterSections.isEmpty()) return@withContext
 
     val accumulatedPages = mutableListOf<AnnotatedString>()
-    var isFirstChunk = true
+    var isFirstPage = true
 
-    for (chunkText in processChunks) {
-        val sectionAnnotated = parseFormattedTextToAnnotatedString(chunkText, fontSize)
+    for (cleanSection in chapterSections) {
+        val sectionAnnotated = parseFormattedTextToAnnotatedString(cleanSection, fontSize)
         if (sectionAnnotated.isEmpty()) continue
 
         val layoutResult = textMeasurer.measure(
@@ -1159,24 +1178,47 @@ suspend fun paginateTextWithMeasurerProgressively(
             val startLineTop = layoutResult.getLineTop(currentLine)
             var endLine = currentLine
             while (endLine + 1 < lineCount &&
-                (layoutResult.getLineBottom(endLine + 1) - startLineTop) <= maxHeightPx
+                (layoutResult.getLineBottom(endLine + 1) - startLineTop) <= usableMaxHeightPx
             ) {
                 endLine++
             }
             val startChar = layoutResult.getLineStart(currentLine)
             val endChar = layoutResult.getLineEnd(endLine)
-            val pageAnnotated = sectionAnnotated.subSequence(
+            val rawPageSlice = sectionAnnotated.subSequence(
                 startChar.coerceIn(0, sectionAnnotated.length),
                 endChar.coerceIn(0, sectionAnnotated.length)
             )
+
+            val isEndOfParagraph = (endChar >= sectionAnnotated.length) ||
+                    (sectionAnnotated.text.getOrNull(endChar - 1) == '\n') ||
+                    (sectionAnnotated.text.getOrNull(endChar) == '\n')
+
+            val pageAnnotated = if (isEndOfParagraph) {
+                rawPageSlice.trimTrailingWhitespace()
+            } else {
+                buildAnnotatedString {
+                    append(rawPageSlice.trimTrailingWhitespace())
+                    append("\n")
+                }
+            }
+
             if (pageAnnotated.isNotEmpty()) {
                 accumulatedPages.add(pageAnnotated)
             }
             currentLine = endLine + 1
-        }
 
-        onPagesUpdated(accumulatedPages.toList(), isFirstChunk)
-        isFirstChunk = false
-        kotlinx.coroutines.yield()
+            if (isFirstPage) {
+                onPagesUpdated(accumulatedPages.toList(), true)
+                isFirstPage = false
+                kotlinx.coroutines.yield()
+            } else if (accumulatedPages.size % 10 == 0) {
+                onPagesUpdated(accumulatedPages.toList(), false)
+                kotlinx.coroutines.yield()
+            }
+        }
+    }
+
+    if (accumulatedPages.isNotEmpty()) {
+        onPagesUpdated(accumulatedPages.toList(), false)
     }
 }

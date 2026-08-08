@@ -26,8 +26,14 @@ object TypographyUtils {
         // 5. Очистка двойных и повторных переносов строк (делаем стандартный интервал между абзацами)
         result = result.replace(Regex("""(?<!\u000C)\n[ \t]*\n+"""), "\n")
 
-        // 6. Обеспечиваем \u000C перед [CHAPTER] если его нет
-        result = result.replace(Regex("(?<!\u000C)\\[CHAPTER\\]"), "\u000C[CHAPTER]")
+        // 6. Преобразование [CHAPTER] в <CHAPTER>
+        result = result.replace("[CHAPTER]", "<CHAPTER>").replace("[/CHAPTER]", "</CHAPTER>")
+
+        // 7. Обеспечиваем \u000C перед маркерами глав, чтобы каждая новая глава начиналась с новой страницы
+        result = result.replace(
+            Regex("(?<!\u000C)(?i)(<CHAPTER>|<title[^>]*>|(?<=\n|^)(?:Глава|Chapter|ГЛАВА|CHAPTER|Часть|Part)\\b)"),
+            "\u000C$1"
+        )
 
         return result
     }
