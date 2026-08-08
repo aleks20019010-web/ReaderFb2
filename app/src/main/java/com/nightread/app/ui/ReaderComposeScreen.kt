@@ -221,6 +221,7 @@ fun ReaderComposeScreen(
     
     val mappedFontWeight = FontWeight(fontWeightInt.coerceIn(100, 900))
 
+    var readerDocument by remember { mutableStateOf<com.nightread.app.ui.customlayout.ReaderDocument?>(null) }
     var readerPages by remember { mutableStateOf<List<com.nightread.app.ui.customlayout.ReaderPage>>(emptyList()) }
     val pageStartOffsets = remember(readerPages) { readerPages.map { it.startOffset } }
     var isRestoringProgress by remember { mutableStateOf(true) }
@@ -444,19 +445,38 @@ fun ReaderComposeScreen(
                             )
                         }
 
-                        LaunchedEffect(mainText, fontSize, lineSpacing, font, mappedFontWeight, maxWidthPx, maxHeightPx) {
-                            if (maxWidthPx > 0 && maxHeightPx > 0 && mainText.isNotEmpty()) {
-                                isPreparingText = true
-                                com.nightread.app.ui.customlayout.PaginationEngine.paginate(
+                        LaunchedEffect(mainText, sha1) {
+                            if (mainText.isNotEmpty()) {
+                                readerDocument = com.nightread.app.ui.customlayout.ReaderLayoutEngine.parseDocument(
+                                    bookId = sha1.ifEmpty { "default" },
                                     mainText = mainText,
+                                    baseFontSize = fontSize.sp
+                                )
+                            }
+                        }
+
+                        LaunchedEffect(readerDocument, fontSize, lineSpacing, font, mappedFontWeight, maxWidthPx, maxHeightPx) {
+                            val doc = readerDocument
+                            if (maxWidthPx > 0 && maxHeightPx > 0 && doc != null) {
+                                isPreparingText = true
+                                val config = com.nightread.app.ui.customlayout.ReaderConfiguration(
                                     fontSize = fontSize.sp,
-                                    font = font,
+                                    fontFamily = font,
                                     fontWeight = mappedFontWeight,
                                     lineSpacing = lineSpacing,
-                                    textMeasurer = textMeasurer,
                                     maxWidthPx = maxWidthPx,
-                                    maxHeightPx = maxHeightPx,
-                                    density = density,
+                                    maxHeightPx = maxHeightPx
+                                )
+                                val viewport = com.nightread.app.ui.customlayout.ReaderViewport(
+                                    widthPx = maxWidthPx,
+                                    heightPx = maxHeightPx,
+                                    density = density
+                                )
+                                com.nightread.app.ui.customlayout.ReaderLayoutEngine.paginate(
+                                    document = doc,
+                                    config = config,
+                                    viewport = viewport,
+                                    textMeasurer = textMeasurer,
                                     onPagesUpdated = { updatedPages, isFirstChunk ->
                                         readerPages = updatedPages
                                         val currentOffsets = updatedPages.map { it.startOffset }
@@ -514,7 +534,7 @@ fun ReaderComposeScreen(
                                     modifier = Modifier.fillMaxSize().clipToBounds(),
                                     contentAlignment = Alignment.TopStart
                                 ) {
-                                    val readerPage = readerPages.getOrElse(page) { com.nightread.app.ui.customlayout.ReaderPage(AnnotatedString(""), 0, 0) }
+                                    val readerPage = readerPages.getOrElse(page) { com.nightread.app.ui.customlayout.ReaderPage(0, AnnotatedString(""), 0, 0) }
                                     Text(
                                         text = readerPage.text,
                                         color = textColor,
