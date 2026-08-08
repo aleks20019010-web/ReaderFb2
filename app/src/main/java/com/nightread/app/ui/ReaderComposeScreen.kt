@@ -403,6 +403,7 @@ fun ReaderComposeScreen(
                                     textMeasurer = textMeasurer,
                                     maxWidthPx = maxWidthPx,
                                     maxHeightPx = maxHeightPx,
+                                    density = density,
                                     onPagesUpdated = { currentPages, isFirstChunk ->
                                         pages = currentPages
                                         if (isFirstChunk) {
@@ -1112,6 +1113,7 @@ suspend fun paginateTextWithMeasurerProgressively(
     textMeasurer: TextMeasurer,
     maxWidthPx: Int,
     maxHeightPx: Int,
+    density: androidx.compose.ui.unit.Density,
     onPagesUpdated: (List<AnnotatedString>, Boolean) -> Unit
 ) = withContext(Dispatchers.Default) {
     if (mainText.isBlank() || maxWidthPx <= 0 || maxHeightPx <= 0) return@withContext
@@ -1171,6 +1173,8 @@ suspend fun paginateTextWithMeasurerProgressively(
             constraints = Constraints(maxWidth = maxWidthPx)
         )
 
+        val safeMaxHeightPx = (maxHeightPx - with(density) { 2.dp.toPx() }).toInt().coerceAtLeast(1)
+
         val lineCount = layoutResult.lineCount
         if (lineCount == 0) continue
 
@@ -1179,43 +1183,56 @@ suspend fun paginateTextWithMeasurerProgressively(
             val startLineTop = layoutResult.getLineTop(currentLine)
             var endLine = currentLine
             while (endLine + 1 < lineCount &&
-                (layoutResult.getLineBottom(endLine + 1) - startLineTop) <= maxHeightPx
+                (layoutResult.getLineBottom(endLine + 1) - startLineTop) <= safeMaxHeightPx
             ) {
                 endLine++
             }
-            val startChar = layoutResult.getLineStart(currentLine).coerceIn(0, sectionAnnotated.length)
-            val endChar = layoutResult.getLineEnd(endLine).coerceIn(0, sectionAnnotated.length)
 
-            val rawPageSlice = sectionAnnotated.subSequence(startChar, endChar)
+            var validEndLine = endLine
+            var finalPageAnnotated: AnnotatedString? = null
 
-            val charBefore = sectionAnnotated.text.getOrNull(endChar - 1)
-            val charAfter = sectionAnnotated.text.getOrNull(endChar)
-            val isWordSplit = charBefore != null && charAfter != null &&
-                    charBefore.isLetter() && charAfter.isLetter() &&
-                    charBefore != '-'
+            while (validEndLine >= currentLine) {
+                val startChar = layoutResult.getLineStart(currentLine).coerceIn(0, sectionAnnotated.length)
+                val endChar = layoutResult.getLineEnd(validEndLine).coerceIn(0, sectionAnnotated.length)
 
-            val pageAnnotated = if (isWordSplit) {
-                buildAnnotatedString {
-                    append(rawPageSlice.trimTrailingWhitespace())
-                    append("-")
+                val rawPageSlice = sectionAnnotated.subSequence(startChar, endChar)
+                val candidateAnnotated = rawPageSlice.trimTrailingWhitespace()
+
+                if (candidateAnnotated.isEmpty()) {
+                    if (validEndLine == currentLine) break
+                    validEndLine--
+                    continue
                 }
-            } else {
-                rawPageSlice.trimTrailingWhitespace()
+
+                val measuredHeight = textMeasurer.measure(
+                    text = candidateAnnotated,
+                    style = textStyle,
+                    constraints = Constraints(maxWidth = maxWidthPx)
+                ).size.height
+
+                if (measuredHeight <= safeMaxHeightPx || validEndLine == currentLine) {
+                    finalPageAnnotated = candidateAnnotated
+                    break
+                } else {
+                    validEndLine--
+                }
             }
 
-            if (pageAnnotated.isNotEmpty()) {
-                accumulatedPages.add(pageAnnotated)
+            finalPageAnnotated?.let { page ->
+                if (page.isNotEmpty()) {
+                    accumulatedPages.add(page)
+                    if (isFirstPage) {
+                        onPagesUpdated(accumulatedPages.toList(), true)
+                        isFirstPage = false
+                        kotlinx.coroutines.yield()
+                    } else if (accumulatedPages.size % 10 == 0) {
+                        onPagesUpdated(accumulatedPages.toList(), false)
+                        kotlinx.coroutines.yield()
+                    }
+                }
             }
-            currentLine = endLine + 1
 
-            if (isFirstPage) {
-                onPagesUpdated(accumulatedPages.toList(), true)
-                isFirstPage = false
-                kotlinx.coroutines.yield()
-            } else if (accumulatedPages.size % 10 == 0) {
-                onPagesUpdated(accumulatedPages.toList(), false)
-                kotlinx.coroutines.yield()
-            }
+            currentLine = validEndLine + 1
         }
     }
 
