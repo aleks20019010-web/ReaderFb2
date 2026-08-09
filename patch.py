@@ -1,46 +1,30 @@
 import re
 
-with open('app/src/main/java/com/nightread/app/ui/ReaderViewModel.kt', 'r') as f:
+with open("app/src/test/java/com/nightread/app/ReaderLifecycleRestoreTest.kt", "r") as f:
     content = f.read()
 
-old_code = r"""                    if (isWebView && content.isNotEmpty()) {
-                        val tagRegex = Regex("<(p|title|subtitle|h1|h2|h3|h4|h5|h6)(\\s+[^>]*|\\s*)>", RegexOption.IGNORE_CASE)
-                        paragraphOffsets = tagRegex.findAll(content).map { it.range.first }.toList()
-                        totalParagraphCount = paragraphOffsets.size.coerceAtLeast(1)
-                    } else {"""
+# Add a helper function
+helper = """
+    private suspend fun waitForPages(pager: ReaderPager) {
+        var attempts = 0
+        while (pager.pages.value.isEmpty() && attempts < 50) {
+            delay(100)
+            org.robolectric.shadows.ShadowLooper.idleMainLooper()
+            attempts++
+        }
+    }
+"""
 
-new_code = r"""                    if (isWebView && content.isNotEmpty()) {
-                        val offsets = mutableListOf<Int>()
-                        var i = 0
-                        val len = content.length
-                        while (i < len) {
-                            val nextTagStart = content.indexOf('<', i)
-                            if (nextTagStart == -1) break
-                            i = nextTagStart + 1
-                            if (i < len && content[i] != '/') {
-                                var endNameIdx = i
-                                while (endNameIdx < len && content[endNameIdx] != ' ' && content[endNameIdx] != '>' && content[endNameIdx] != '\t' && content[endNameIdx] != '\n' && content[endNameIdx] != '\r') {
-                                    endNameIdx++
-                                }
-                                if (endNameIdx > i && (endNameIdx - i) <= 8) {
-                                    val tagName = content.substring(i, endNameIdx).lowercase()
-                                    if (tagName == "p" || tagName == "title" || tagName == "subtitle" || 
-                                        tagName == "h1" || tagName == "h2" || tagName == "h3" || 
-                                        tagName == "h4" || tagName == "h5" || tagName == "h6") {
-                                        offsets.add(nextTagStart)
-                                    }
-                                }
-                            }
-                        }
-                        paragraphOffsets = offsets
-                        totalParagraphCount = paragraphOffsets.size.coerceAtLeast(1)
-                    } else {"""
+content = content.replace("private fun findPageForOffset", helper + "\n    private fun findPageForOffset")
 
-if old_code in content:
-    content = content.replace(old_code, new_code)
-    with open('app/src/main/java/com/nightread/app/ui/ReaderViewModel.kt', 'w') as f:
-        f.write(content)
-    print("Patched ReaderViewModel.kt")
-else:
-    print("old_code not found in ReaderViewModel.kt")
+# Replace loops and delays
+content = re.sub(r'var attempts.*?\n.*?while.*?\{.*?\n.*?\n.*?\n.*?\}', 'waitForPages(pager)', content)
+content = re.sub(r'var attempts2 = 0.*?attempts2\+\+ \}', 'waitForPages(pager)', content)
+content = content.replace("waitForPages(pager)", "waitForPages(pager)") # normalize
+content = content.replace("val pages2 = pager2.pages.value", "waitForPages(pager2)\n        val pages2 = pager2.pages.value")
+content = content.replace("val pages3 = pager3.pages.value", "waitForPages(pager3)\n        val pages3 = pager3.pages.value")
+content = content.replace("val pages4 = pager4.pages.value", "waitForPages(pager4)\n        val pages4 = pager4.pages.value")
+content = content.replace("val pages5 = pager5.pages.value", "waitForPages(pager5)\n        val pages5 = pager5.pages.value")
 
+with open("app/src/test/java/com/nightread/app/ReaderLifecycleRestoreTest.kt", "w") as f:
+    f.write(content)

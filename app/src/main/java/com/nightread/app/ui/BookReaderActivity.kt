@@ -16,6 +16,7 @@ import com.nightread.app.service.TtsForegroundService
 import com.nightread.app.tts.AppTtsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -132,9 +133,13 @@ class BookReaderActivity : FragmentActivity() {
         Toast.makeText(this, "Переход к странице ${pageIndex + 1}", Toast.LENGTH_SHORT).show()
     }
 
+
+    val navigationEvents = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+    
     fun navigateToOffset(offset: Int) {
-        Toast.makeText(this, "Переход к позиции $offset", Toast.LENGTH_SHORT).show()
+        navigationEvents.tryEmit(offset)
     }
+
 
     fun fetchAndShowFreeDictionary(word: String) {
         if (word.isBlank()) return

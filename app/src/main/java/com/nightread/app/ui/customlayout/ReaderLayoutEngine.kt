@@ -5,6 +5,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.LineBreak
+import kotlinx.coroutines.CoroutineScope
 import androidx.compose.ui.text.style.Hyphens
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -27,76 +28,154 @@ object ReaderLayoutEngine {
     suspend fun parseDocument(bookId: String, mainText: String, baseFontSize: androidx.compose.ui.unit.TextUnit): ReaderDocument = withContext(Dispatchers.Default) {
         val paragraphs = mutableListOf<ReaderParagraph>()
         val chapters = mutableListOf<ReaderChapter>()
-        val lines = mainText.split('\n')
+        
         var currentGlobalOffset = 0
-
-        val chapterIndices = mutableListOf<Int>()
-        chapterIndices.add(0)
-
-        for ((index, line) in lines.withIndex()) {
-            val trimmed = line.trim()
-            if (trimmed.startsWith("<h1") || trimmed.startsWith("<title") || trimmed.startsWith("[CHAPTER]") ||
-                (trimmed.startsWith("<h1>") && trimmed.endsWith("</h1>")) ||
-                (trimmed.length < 80 && (trimmed.startsWith("Глава") || trimmed.startsWith("Chapter") || trimmed.matches(Regex("^[0-9IVXLCDM]+\\..*"))))) {
-                if (index > 0 && !chapterIndices.contains(index)) {
-                    chapterIndices.add(index)
+        var chapterStartOffset = 0
+        var currentChapterParas = mutableListOf<ReaderParagraph>()
+        var currentChapterTitle = "Начало книги"
+        var chapterIndex = 0
+        
+        val length = mainText.length
+        
+        fun stripTags(input: String): String {
+            val sb = StringBuilder()
+            var inTag = false
+            var i = 0
+            while (i < input.length) {
+                val c = input[i]
+                if (c == '<') {
+                    inTag = true
+                    i++
+                } else if (c == '>') {
+                    if (inTag) inTag = false
+                    else sb.append(c)
+                    i++
+                } else if (input.startsWith("[CHAPTER]", i)) {
+                    i += "[CHAPTER]".length
+                } else if (input.startsWith("[/CHAPTER]", i)) {
+                    i += "[/CHAPTER]".length
+                } else {
+                    if (!inTag) sb.append(c)
+                    i++
                 }
             }
+            return sb.toString()
         }
-        chapterIndices.add(lines.size)
-
-        for (paraIdx in lines.indices) {
-            val line = lines[paraIdx]
+        
+        while (currentGlobalOffset <= length) {
+            val nextNewline = mainText.indexOf('\n', currentGlobalOffset)
+            val isLastLine = nextNewline == -1
+            val lineEnd = if (isLastLine) length else nextNewline
+            
             val lineStart = currentGlobalOffset
-            val lineEnd = lineStart + line.length
-            val inlines = parseInlines(line, lineStart, lineEnd, baseFontSize)
-            paragraphs.add(
+            val lineLength = lineEnd - lineStart
+            val line = mainText.substring(lineStart, lineEnd)
+            
+            currentGlobalOffset = lineEnd + 1
+            
+            var isBlank = true
+            for (i in 0 until lineLength) {
+                if (!line[i].isWhitespace()) {
+                    isBlank = false
+                    break
+                }
+            }
+            if (isBlank) continue
+            
+            val trimmed = line.trim()
+            
+            var isChapterTitle = false
+            if (trimmed.startsWith("<h1") || trimmed.startsWith("<title") || trimmed.startsWith("[CHAPTER]")) {
+                isChapterTitle = true
+            } else if (trimmed.startsWith("<h1>") && trimmed.endsWith("</h1>")) {
+                isChapterTitle = true
+            } else if (trimmed.length < 80) {
+                if (trimmed.startsWith("Глава") || trimmed.startsWith("Chapter")) {
+                    isChapterTitle = true
+                } else {
+                    val dotIdx = trimmed.indexOf('.')
+                    if (dotIdx > 0) {
+                        var isRomanOrNum = true
+                        for (i in 0 until dotIdx) {
+                            val c = trimmed[i]
+                            if (!(c in '0'..'9' || c == 'I' || c == 'V' || c == 'X' || c == 'L' || c == 'C' || c == 'D' || c == 'M')) {
+                                isRomanOrNum = false
+                                break
+                            }
+                        }
+                        if (isRomanOrNum) isChapterTitle = true
+                    }
+                }
+            }
+            
+            if (isChapterTitle && currentChapterParas.isNotEmpty()) {
+                val endOffset = lineStart
+                val chunks = buildChunksForChapter(chapterIndex, currentChapterParas, chapterStartOffset, endOffset)
+                chapters.add(
+                    ReaderChapter(
+                        chapterIndex = chapterIndex,
+                        title = currentChapterTitle,
+                        startOffset = chapterStartOffset,
+                        endOffset = endOffset,
+                        paragraphs = currentChapterParas,
+                        chunks = chunks
+                    )
+                )
+                paragraphs.addAll(currentChapterParas)
+                chapterIndex++
+                currentChapterParas = mutableListOf()
+                chapterStartOffset = lineStart
+                currentChapterTitle = stripTags(line).trim().take(60)
+                if (currentChapterTitle.isBlank()) currentChapterTitle = "Глава ${chapterIndex + 1}"
+            }
+            
+            val inlines = if (isChapterTitle) {
+                val cleanLine = stripTags(line)
+                listOf(
+                    ReaderInline.Styled(
+                        content = cleanLine,
+                        style = androidx.compose.ui.text.SpanStyle(
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            fontSize = baseFontSize * 1.5f
+                        ),
+                        globalStartOffset = lineStart,
+                        globalEndOffset = lineStart + cleanLine.length
+                    )
+                )
+            } else {
+                parseInlines(line, lineStart, lineEnd, baseFontSize)
+            }
+            
+            val actualLine = if (isChapterTitle) stripTags(line) else line
+            currentChapterParas.add(
                 ReaderParagraph(
-                    rawText = line,
+                    rawText = actualLine,
                     inlines = inlines,
                     globalStartOffset = lineStart,
-                    globalEndOffset = lineEnd
+                    globalEndOffset = lineStart + actualLine.length
                 )
             )
-            currentGlobalOffset = lineEnd + 1
+            
+            if (isChapterTitle && currentChapterParas.size == 1) {
+                currentChapterTitle = actualLine.trim().take(60)
+                if (currentChapterTitle.isBlank()) currentChapterTitle = "Глава ${chapterIndex + 1}"
+            }
         }
-
-        for (i in 0 until chapterIndices.size - 1) {
-            val startLine = chapterIndices[i]
-            val endLine = chapterIndices[i + 1].coerceAtMost(paragraphs.size)
-            if (startLine >= endLine) continue
-            val chapterParagraphs = paragraphs.subList(startLine, endLine)
-            val startOffset = chapterParagraphs.first().globalStartOffset
-            val endOffset = chapterParagraphs.last().globalEndOffset
-            val titleCandidate = chapterParagraphs.firstOrNull { it.rawText.isNotBlank() }?.rawText ?: "Глава ${i + 1}"
-            val cleanTitle = titleCandidate.replace(Regex("<.*?>"), "").take(60)
-
-            val chunks = buildChunksForChapter(i, chapterParagraphs)
-
+        
+        val finalEndOffset = mainText.length
+        if (currentChapterParas.isNotEmpty() || chapters.isEmpty()) {
+            val chunks = buildChunksForChapter(chapterIndex, currentChapterParas, chapterStartOffset, finalEndOffset)
             chapters.add(
                 ReaderChapter(
-                    chapterIndex = i,
-                    title = if (cleanTitle.isNotBlank()) cleanTitle else "Глава ${i + 1}",
-                    startOffset = startOffset,
-                    endOffset = endOffset,
-                    paragraphs = chapterParagraphs,
+                    chapterIndex = chapterIndex,
+                    title = currentChapterTitle,
+                    startOffset = chapterStartOffset,
+                    endOffset = finalEndOffset,
+                    paragraphs = currentChapterParas,
                     chunks = chunks
                 )
             )
-        }
-
-        if (chapters.isEmpty()) {
-            val fallbackChunks = buildChunksForChapter(0, paragraphs)
-            chapters.add(
-                ReaderChapter(
-                    chapterIndex = 0,
-                    title = "Начало книги",
-                    startOffset = 0,
-                    endOffset = mainText.length,
-                    paragraphs = paragraphs,
-                    chunks = fallbackChunks
-                )
-            )
+            paragraphs.addAll(currentChapterParas)
         }
 
         ReaderDocument(
@@ -107,19 +186,25 @@ object ReaderLayoutEngine {
         )
     }
 
-    private fun buildChunksForChapter(chapterIndex: Int, paragraphs: List<ReaderParagraph>): List<ReaderChunk> {
+    private fun buildChunksForChapter(chapterIndex: Int, paragraphs: List<ReaderParagraph>, chapterStartOffset: Int, chapterEndOffset: Int): List<ReaderChunk> {
         val chunks = mutableListOf<ReaderChunk>()
-        if (paragraphs.isEmpty()) return chunks
+        if (paragraphs.isEmpty()) {
+            chunks.add(ReaderChunk(0, chapterIndex, chapterStartOffset, chapterEndOffset, emptyList()))
+            return chunks
+        }
 
         var currentChunkParas = mutableListOf<ReaderParagraph>()
         var currentChars = 0
-        var chunkStart = paragraphs.first().globalStartOffset
+        var chunkStart = chapterStartOffset
 
-        for (para in paragraphs) {
+        for (i in paragraphs.indices) {
+            val para = paragraphs[i]
             currentChunkParas.add(para)
             currentChars += para.rawText.length
-            if (currentChars >= TARGET_CHUNK_CHAR_COUNT) {
-                val chunkEnd = para.globalEndOffset
+            
+            val isLastPara = i == paragraphs.size - 1
+            if (currentChars >= TARGET_CHUNK_CHAR_COUNT || isLastPara) {
+                val chunkEnd = if (isLastPara) chapterEndOffset else paragraphs[i + 1].globalStartOffset
                 chunks.add(
                     ReaderChunk(
                         chunkIndex = chunks.size,
@@ -131,23 +216,9 @@ object ReaderLayoutEngine {
                 )
                 currentChunkParas.clear()
                 currentChars = 0
-                chunkStart = chunkEnd + 1
+                chunkStart = chunkEnd
             }
         }
-
-        if (currentChunkParas.isNotEmpty()) {
-            val chunkEnd = currentChunkParas.last().globalEndOffset
-            chunks.add(
-                ReaderChunk(
-                    chunkIndex = chunks.size,
-                    chapterIndex = chapterIndex,
-                    startOffset = chunkStart,
-                    endOffset = chunkEnd,
-                    paragraphs = currentChunkParas.toList()
-                )
-            )
-        }
-
         return chunks
     }
 
@@ -155,10 +226,15 @@ object ReaderLayoutEngine {
 
     private fun parseInlines(text: String, lineStart: Int, lineEnd: Int, baseFontSize: androidx.compose.ui.unit.TextUnit): List<ReaderInline> {
         val regex = Regex("<(/?)(b|i|em|s|strike|del|sup|sub|code|title|h1|h2)>", RegexOption.IGNORE_CASE)
-        val matches = regex.findAll(text)
+        val matches = regex.findAll(text).toList()
+        
+        if (matches.isEmpty()) {
+            return listOf(ReaderInline.Text(text, lineStart, lineEnd))
+        }
+
         val inlines = mutableListOf<ReaderInline>()
         var currentIndex = 0
-        val openTags = mutableListOf<TagInfo>()
+        val activeStyles = mutableListOf<String>()
 
         for (match in matches) {
             val matchRange = match.range
@@ -166,13 +242,13 @@ object ReaderLayoutEngine {
                 val sub = text.substring(currentIndex, matchRange.first)
                 val sOffset = lineStart + currentIndex
                 val eOffset = lineStart + matchRange.first
-                inlines.add(
-                    ReaderInline.Text(
-                        content = sub,
-                        globalStartOffset = sOffset.coerceAtMost(lineEnd),
-                        globalEndOffset = eOffset.coerceAtMost(lineEnd)
-                    )
-                )
+                
+                if (activeStyles.isNotEmpty()) {
+                    val combinedStyle = getCombinedStyle(activeStyles, baseFontSize)
+                    inlines.add(ReaderInline.Styled(sub, combinedStyle, sOffset, eOffset))
+                } else {
+                    inlines.add(ReaderInline.Text(sub, sOffset, eOffset))
+                }
             }
 
             val fullTag = match.value
@@ -187,34 +263,9 @@ object ReaderLayoutEngine {
             }
 
             if (!isClosing) {
-                openTags.add(TagInfo(tagName, matchRange.last + 1))
+                activeStyles.add(tagName)
             } else {
-                val idx = openTags.indexOfLast { it.tagName == tagName }
-                if (idx != -1) {
-                    val openTag = openTags.removeAt(idx)
-                    val content = text.substring(openTag.localStartIndex, matchRange.first)
-                    val spanStyle = getSpanStyle(tagName, baseFontSize)
-                    val sOffset = lineStart + openTag.localStartIndex
-                    val eOffset = lineStart + matchRange.first
-                    if (spanStyle != null) {
-                        inlines.add(
-                            ReaderInline.Styled(
-                                content = content,
-                                style = spanStyle,
-                                globalStartOffset = sOffset.coerceAtMost(lineEnd),
-                                globalEndOffset = eOffset.coerceAtMost(lineEnd)
-                            )
-                        )
-                    } else {
-                        inlines.add(
-                            ReaderInline.Text(
-                                content = content,
-                                globalStartOffset = sOffset.coerceAtMost(lineEnd),
-                                globalEndOffset = eOffset.coerceAtMost(lineEnd)
-                            )
-                        )
-                    }
-                }
+                activeStyles.remove(tagName)
             }
             currentIndex = matchRange.last + 1
         }
@@ -223,37 +274,55 @@ object ReaderLayoutEngine {
             val sub = text.substring(currentIndex)
             val sOffset = lineStart + currentIndex
             val eOffset = lineStart + text.length
-            inlines.add(
-                ReaderInline.Text(
-                    content = sub,
-                    globalStartOffset = sOffset.coerceAtMost(lineEnd),
-                    globalEndOffset = eOffset.coerceAtMost(lineEnd)
-                )
-            )
+            if (activeStyles.isNotEmpty()) {
+                val combinedStyle = getCombinedStyle(activeStyles, baseFontSize)
+                inlines.add(ReaderInline.Styled(sub, combinedStyle, sOffset, eOffset))
+            } else {
+                inlines.add(ReaderInline.Text(sub, sOffset, eOffset))
+            }
         }
 
         return inlines
     }
 
-    private fun getSpanStyle(tagName: String, baseFontSize: androidx.compose.ui.unit.TextUnit): androidx.compose.ui.text.SpanStyle? {
-        return when (tagName) {
-            "strong" -> androidx.compose.ui.text.SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            "emphasis" -> androidx.compose.ui.text.SpanStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
-            "strikethrough" -> androidx.compose.ui.text.SpanStyle(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough)
-            "sup" -> androidx.compose.ui.text.SpanStyle(baselineShift = androidx.compose.ui.text.style.BaselineShift.Superscript, fontSize = baseFontSize * 0.75f)
-            "sub" -> androidx.compose.ui.text.SpanStyle(baselineShift = androidx.compose.ui.text.style.BaselineShift.Subscript, fontSize = baseFontSize * 0.75f)
-            "code" -> androidx.compose.ui.text.SpanStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, background = androidx.compose.ui.graphics.Color(0x22888888))
-            "chapter" -> androidx.compose.ui.text.SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = baseFontSize * 1.5f)
-            else -> null
+    private fun getCombinedStyle(tagNames: List<String>, baseFontSize: androidx.compose.ui.unit.TextUnit): androidx.compose.ui.text.SpanStyle {
+        var weight: androidx.compose.ui.text.font.FontWeight? = null
+        var style: androidx.compose.ui.text.font.FontStyle? = null
+        var decoration: androidx.compose.ui.text.style.TextDecoration? = null
+        var baseline: androidx.compose.ui.text.style.BaselineShift? = null
+        var size = androidx.compose.ui.unit.TextUnit.Unspecified
+        var bg = androidx.compose.ui.graphics.Color.Unspecified
+        var fontFam: androidx.compose.ui.text.font.FontFamily? = null
+
+        for (tagName in tagNames) {
+            when (tagName) {
+                "strong" -> weight = androidx.compose.ui.text.font.FontWeight.Bold
+                "emphasis" -> style = androidx.compose.ui.text.font.FontStyle.Italic
+                "strikethrough" -> decoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                "sup" -> { baseline = androidx.compose.ui.text.style.BaselineShift.Superscript; size = baseFontSize * 0.75f }
+                "sub" -> { baseline = androidx.compose.ui.text.style.BaselineShift.Subscript; size = baseFontSize * 0.75f }
+                "code" -> { fontFam = androidx.compose.ui.text.font.FontFamily.Monospace; bg = androidx.compose.ui.graphics.Color(0x22888888) }
+                "chapter" -> { weight = androidx.compose.ui.text.font.FontWeight.Bold; size = baseFontSize * 1.5f }
+            }
         }
+
+        return androidx.compose.ui.text.SpanStyle(
+            fontWeight = weight,
+            fontStyle = style,
+            textDecoration = decoration,
+            baselineShift = baseline,
+            fontSize = size,
+            background = bg,
+            fontFamily = fontFam
+        )
     }
 
-    private data class AnnotatedMappingResult(
+    data class AnnotatedMappingResult(
         val annotatedString: AnnotatedString,
         val map: SourceDisplayMap
     )
 
-    private fun buildAnnotatedStringForChunk(chunk: ReaderChunk, baseFontSize: androidx.compose.ui.unit.TextUnit): AnnotatedMappingResult {
+    fun buildAnnotatedStringForChunk(chunk: ReaderChunk, baseFontSize: androidx.compose.ui.unit.TextUnit): AnnotatedMappingResult {
         val displayToSourceList = mutableListOf<Int>()
         val sourceToDisplayStartMap = mutableMapOf<Int, Int>()
         val sourceToDisplayEndMap = mutableMapOf<Int, Int>()
@@ -321,136 +390,25 @@ object ReaderLayoutEngine {
         return AnnotatedMappingResult(annotated, map)
     }
 
-    suspend fun paginate(
+    fun createPager(
         context: Context,
         document: ReaderDocument,
         config: ReaderConfiguration,
         viewport: ReaderViewport,
         textMeasurer: TextMeasurer,
-        initialTargetOffset: Int = 0,
-        onPagesUpdated: (List<ReaderPage>, Boolean) -> Unit
-    ): List<ReaderPage> = withContext(Dispatchers.Default) {
-        if (document.chapters.isEmpty() || config.maxWidthPx <= 0 || config.maxHeightPx <= 0) return@withContext emptyList()
-
+        scope: CoroutineScope,
+        initialTargetOffset: Int = 0
+    ): ReaderPager {
+        ReaderMetrics.startSession()
         val layoutKey = buildLayoutKey(document.bookId, config)
-        val textStyle = TextStyle(
-            fontSize = config.fontSize,
-            fontFamily = config.fontFamily,
-            fontWeight = config.fontWeight,
-            textAlign = TextAlign.Justify,
-            lineHeight = (config.fontSize.value * config.lineSpacing).sp,
-            letterSpacing = 0.1.sp,
-            lineBreak = LineBreak.Paragraph,
-            hyphens = Hyphens.Auto,
-            platformStyle = PlatformTextStyle(includeFontPadding = false)
-        )
-
-        val safeMaxHeightPx = config.maxHeightPx
-        val maxWidthPx = config.maxWidthPx
-        val chapters = document.chapters
-
-        var initialChapterIdx = 0
-        var initialChunkIdx = 0
-        outer@ for ((chIdx, ch) in chapters.withIndex()) {
-            if (initialTargetOffset in ch.startOffset..ch.endOffset) {
-                initialChapterIdx = chIdx
-                for ((chunkIdx, chunk) in ch.chunks.withIndex()) {
-                    if (initialTargetOffset in chunk.startOffset..chunk.endOffset) {
-                        initialChunkIdx = chunkIdx
-                        break@outer
-                    }
-                }
-                break
-            }
-        }
-
-        val pageIndexBuilder = ReaderPageIndexBuilder()
-
-        // Priority 0: Paginate initial chunk immediately for lightning-fast first display
-        val initialChapter = chapters[initialChapterIdx]
-        val initialChunk = initialChapter.chunks.getOrElse(initialChunkIdx) { initialChapter.chunks.first() }
-
-        val initialPages = paginateChunk(
-            context = context,
-            bookId = document.bookId,
-            layoutKey = layoutKey,
-            chapterIndex = initialChapterIdx,
-            chunk = initialChunk,
-            textMeasurer = textMeasurer,
-            textStyle = textStyle,
-            maxWidthPx = maxWidthPx,
-            safeMaxHeightPx = safeMaxHeightPx
-        )
-
-        pageIndexBuilder.addPagesForChunk(initialChapterIdx, initialChunk.chunkIndex, initialPages)
-        var currentSnapshot = pageIndexBuilder.buildSnapshot()
-        onPagesUpdated(currentSnapshot.allEntries().map { it.toReaderPage() }, true)
-        yield()
-
-        // Background priority pagination queue
-        val taskQueue = PriorityQueue<PaginationTask>()
-        val processedChunks = mutableSetOf<Pair<Int, Int>>()
-        processedChunks.add(initialChapterIdx to initialChunk.chunkIndex)
-
-        // Queue initial chapter remaining chunks (NEARBY)
-        for (chunk in initialChapter.chunks) {
-            if (chunk.chunkIndex != initialChunk.chunkIndex) {
-                taskQueue.add(PaginationTask(initialChapterIdx, chunk.chunkIndex, PaginationPriority.NEARBY, initialTargetOffset))
-            }
-        }
-
-        // Queue other chapters (BACKGROUND)
-        for ((chIdx, ch) in chapters.withIndex()) {
-            if (chIdx != initialChapterIdx) {
-                for (chunk in ch.chunks) {
-                    taskQueue.add(PaginationTask(chIdx, chunk.chunkIndex, PaginationPriority.BACKGROUND, ch.startOffset))
-                }
-            }
-        }
-
-        while (taskQueue.isNotEmpty()) {
-            currentCoroutineContext().ensureActive()
-            val task = taskQueue.poll() ?: break
-            val key = task.chapterIndex to task.chunkIndex
-            if (processedChunks.contains(key)) continue
-            processedChunks.add(key)
-
-            val chapter = chapters[task.chapterIndex]
-            val chunk = chapter.chunks.getOrNull(task.chunkIndex) ?: continue
-
-            val cachedPages = PaginationDiskCache.getChapterChunkPages(context, document.bookId, layoutKey, task.chapterIndex, task.chunkIndex) // or use existing DiskCache
-            val chunkPages = if (cachedPages != null) {
-                cachedPages
-            } else {
-                paginateChunk(
-                    context = context,
-                    bookId = document.bookId,
-                    layoutKey = layoutKey,
-                    chapterIndex = task.chapterIndex,
-                    chunk = chunk,
-                    textMeasurer = textMeasurer,
-                    textStyle = textStyle,
-                    maxWidthPx = maxWidthPx,
-                    safeMaxHeightPx = safeMaxHeightPx
-                )
-            }
-
-            pageIndexBuilder.addPagesForChunk(task.chapterIndex, task.chunkIndex, chunkPages)
-            currentSnapshot = pageIndexBuilder.buildSnapshot()
-            onPagesUpdated(currentSnapshot.allEntries().map { it.toReaderPage() }, false)
-            yield()
-        }
-
-        val finalPages = currentSnapshot.allEntries().map { it.toReaderPage() }
-        validatePagination(finalPages, safeMaxHeightPx)
-        finalPages
+        return ReaderPager(document, config, viewport, textMeasurer, context, layoutKey, scope, initialTargetOffset)
     }
 
     private fun buildLayoutKey(bookId: String, config: ReaderConfiguration): String {
         return "${bookId}_${config.fontFamily.hashCode()}_${config.fontSize.value}_${config.fontWeight.weight}_${config.lineSpacing}_${config.maxWidthPx}_${config.maxHeightPx}"
     }
 
-    private suspend fun paginateChunk(
+    suspend fun paginateChunkPublic(
         context: Context,
         bookId: String,
         layoutKey: String,
@@ -525,33 +483,27 @@ object ReaderLayoutEngine {
             }
 
             val pageLines = lines.subList(pageStartLineIdx, pageEndLineIdx)
-            val startOffset = pageLines.first().startOffset
-            val endOffset = pageLines.last().endOffset
+            val startSource = if (pageStartLineIdx == 0) chunk.startOffset else pageLines.first().startOffset
+            val endSource = if (pageEndLineIdx == lines.size) chunk.endOffset else lines[pageEndLineIdx].startOffset
 
-            val startAnnotated = if (startOffset in map.sourceToDisplayStart.indices && map.sourceToDisplayStart[startOffset] != -1) {
-                map.sourceToDisplayStart[startOffset]
-            } else {
-                0
-            }
-            val endAnnotated = if (endOffset in map.sourceToDisplayEnd.indices && map.sourceToDisplayEnd[endOffset] != -1) {
-                map.sourceToDisplayEnd[endOffset]
-            } else {
-                annotated.length
-            }
+            val startAnnotated = layoutResult.getLineStart(pageStartLineIdx)
+            val endAnnotated = layoutResult.getLineEnd(pageEndLineIdx - 1, visibleEnd = true)
 
             val slice = if (startAnnotated < endAnnotated && endAnnotated <= annotated.length) {
                 annotated.subSequence(startAnnotated, endAnnotated).trimTrailingWhitespace()
             } else {
-                annotated
+                androidx.compose.ui.text.AnnotatedString("")
             }
 
-            if (slice.isNotEmpty() || startOffset < endOffset) {
+            if (slice.isNotEmpty() || startSource < endSource) {
                 chunkPages.add(
                     ReaderPage(
                         pageIndex = localPageIndex++,
                         text = slice,
-                        startOffset = startOffset,
-                        endOffset = endOffset
+                        startOffset = startSource,
+                        endOffset = endSource,
+                        startDisplayOffset = startAnnotated,
+                        endDisplayOffset = endAnnotated
                     )
                 )
             }
@@ -562,7 +514,7 @@ object ReaderLayoutEngine {
         return chunkPages
     }
 
-    private fun AnnotatedString.trimTrailingWhitespace(): AnnotatedString {
+    fun AnnotatedString.trimTrailingWhitespace(): AnnotatedString {
         var end = length
         while (end > 0 && text[end - 1].isWhitespace()) {
             end--

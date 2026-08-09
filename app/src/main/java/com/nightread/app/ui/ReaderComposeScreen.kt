@@ -4,6 +4,8 @@ import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,8 +24,27 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
+
+import com.nightread.app.data.BookmarkDatabase
+import com.nightread.app.data.BookmarkEntity
+import com.nightread.app.data.BookmarkRepository
+import com.nightread.app.ui.customlayout.ReaderSearchEngine
+import com.nightread.app.ui.customlayout.ReaderSearchResult
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Divider
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.WbSunny
@@ -77,6 +98,11 @@ import com.nightread.app.data.SettingsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.testTag
+import kotlinx.coroutines.flow.debounce
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
@@ -84,11 +110,11 @@ enum class ThemeType(val displayName: String) {
     DAY("День"),
     NIGHT("Ночь"),
     SEPIA("Сепия"),
-    SEPIA_CONTRAST("Сепия контраст")
+    HIGH_CONTRAST("Высокая контрастность")
 }
 
 data class ReaderSettings(
-    val themeType: ThemeType = ThemeType.SEPIA_CONTRAST,
+    val themeType: ThemeType = ThemeType.SEPIA,
     val fontFamily: String = "Serif",
     val fontSize: Float = 20f,
     val fontWeight: Float = 0.5f,
@@ -122,11 +148,50 @@ fun ReaderComposeScreen(
     val fontFamilyStr = remember(settingsVersion, context) { SettingsManager.getFontFamily(context) }
     val fontWeightInt = remember(settingsVersion, context) { SettingsManager.getFontWeightAsInt(context) }
     val readingThemeStr = remember(settingsVersion, context) { SettingsManager.getReadingTheme(context) }
+    val isAutoThemeEnabled = remember(settingsVersion, context) { SettingsManager.isReaderAutoThemeEnabled(context) }
+    val isAmberEnabled = remember(settingsVersion, context) { SettingsManager.isAmberFilterEnabled(context) }
+    val isExtraDimEnabled = remember(settingsVersion, context) { SettingsManager.isExtraDimEnabled(context) }
+    val extraDimIntensity = remember(settingsVersion, context) { SettingsManager.getExtraDimIntensity(context) }
+    val isHapticEnabled = remember(settingsVersion, context) { SettingsManager.isHapticFeedbackEnabled(context) }
+    val isSleepTimerEnabled = remember(settingsVersion, context) { SettingsManager.isSleepTimerEnabled(context) }
+    val sleepTimerDuration = remember(settingsVersion, context) { SettingsManager.getSleepTimerDuration(context) }
+    var sleepTimerRemaining by remember { mutableLongStateOf(0L) }
 
     var isHideBars by remember { mutableStateOf(false) }
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
+
     var isSettingsOpen by remember { mutableStateOf(false) }
+    
+    // --- Bookmarks & Search State ---
+    val bookmarkDb = remember(context) { BookmarkDatabase.getDatabase(context) }
+    val bookmarkRepo = remember(bookmarkDb) { BookmarkRepository(bookmarkDb.bookmarkDao()) }
+    val bookmarks by bookmarkRepo.getBookmarksForBook(sha1).collectAsState(initial = emptyList())
+
+    
+    val searchEngine = remember(mainText) { ReaderSearchEngine(mainText) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<ReaderSearchResult>>(emptyList()) }
+    var currentSearchIndex by remember { mutableIntStateOf(-1) }
+    var isSearchMode by remember { mutableStateOf(false) }
+    var searchJob by remember { mutableStateOf<Job?>(null) }
+    
+
+    var pendingTargetOffset by remember { mutableStateOf<Int?>(null) }
+    var showTocSheet by remember { mutableStateOf(false) }
+    
+    // --------------------------------
+    
+    val fragmentActivity = context as? androidx.fragment.app.FragmentActivity
+    LaunchedEffect(fragmentActivity) {
+        if (fragmentActivity is BookReaderActivity) {
+            fragmentActivity.navigationEvents.collect { offset ->
+                pendingTargetOffset = offset
+            }
+        }
+    }
+
+
     
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
@@ -182,11 +247,17 @@ fun ReaderComposeScreen(
         label = "alpha"
     )
 
+    // Set edge-to-edge layout ONCE so the window size never changes
+    LaunchedEffect(Unit) {
+        if (window != null) {
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+        }
+    }
+
     // Status bar and nav bar hiding
     LaunchedEffect(isHideBars) {
         if (window != null) {
             val insetsController = WindowCompat.getInsetsController(window, view)
-            WindowCompat.setDecorFitsSystemWindows(window, !isHideBars)
             if (isHideBars) {
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -196,19 +267,23 @@ fun ReaderComposeScreen(
         }
     }
 
-    val themeType = when (readingThemeStr.lowercase()) {
-        "day", "light" -> ThemeType.DAY
-        "night", "dark", "amoled" -> ThemeType.NIGHT
-        "sepia" -> ThemeType.SEPIA
-        "contrast" -> ThemeType.SEPIA_CONTRAST
-        else -> ThemeType.SEPIA_CONTRAST
+    val themeType = if (isAutoThemeEnabled) {
+        if (com.nightread.app.data.ThemeHelper.isNightTime()) ThemeType.NIGHT else ThemeType.DAY
+    } else {
+        when (readingThemeStr.lowercase()) {
+            "day", "light" -> ThemeType.DAY
+            "night", "dark", "amoled" -> ThemeType.NIGHT
+            "sepia" -> ThemeType.SEPIA
+            "contrast", "sepia_contrast" -> ThemeType.HIGH_CONTRAST
+            else -> ThemeType.SEPIA
+        }
     }
 
     val (bgColor, textColor) = when (themeType) {
-        ThemeType.DAY -> Color(0xFFEEF3E8) to Color(0xFF000000)
-        ThemeType.NIGHT -> Color(0xFF1A2216) to Color(0xFFD8E0D0)
-        ThemeType.SEPIA -> Color(0xFFF8FAF0) to Color(0xFF000000)
-        ThemeType.SEPIA_CONTRAST -> Color(0xFFF8FAF0) to Color(0xFF000000)
+        ThemeType.DAY -> Color(0xFFFBF9F1) to Color(0xFF1B1B1B)
+        ThemeType.NIGHT -> Color(0xFF0F140D) to Color(0xFFC4C9BC)
+        ThemeType.SEPIA -> Color(0xFFF4ECD8) to Color(0xFF3B2F1F)
+        ThemeType.HIGH_CONTRAST -> Color(0xFFFFFFFF) to Color(0xFF000000)
     }
 
     val font = when (fontFamilyStr) {
@@ -231,52 +306,95 @@ fun ReaderComposeScreen(
 
     val pagerState = rememberPagerState(pageCount = { readerPages.size.coerceAtLeast(1) })
 
-    LaunchedEffect(sha1) {
-        if (sha1.isNotEmpty()) {
-            val record = com.nightread.app.data.SafeProgressManager.getInstance(context).loadProgressRecord(sha1)
-            savedTextOffset = record.textOffset
-            isRestoringProgress = true
+    // Haptic feedback on page turn
+    LaunchedEffect(pagerState.currentPage) {
+        if (isHapticEnabled && !isRestoringProgress) {
+            view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
         }
     }
 
-    LaunchedEffect(pagerState.currentPage) {
-        if (!isRestoringProgress && pageStartOffsets.isNotEmpty() && sha1.isNotEmpty()) {
-            val currentOffset = pageStartOffsets.getOrElse(pagerState.currentPage) { 0 }
-            com.nightread.app.data.SafeProgressManager.getInstance(context).saveProgress(
-                bookId = sha1,
-                pageIndex = pagerState.currentPage,
-                totalPages = readerPages.size,
-                textOffset = currentOffset
+    // Sleep Timer logic
+    LaunchedEffect(isSleepTimerEnabled, sleepTimerDuration) {
+        if (isSleepTimerEnabled) {
+            sleepTimerRemaining = sleepTimerDuration * 60 * 1000L
+            while (sleepTimerRemaining > 0) {
+                delay(10000L) // Check every 10 seconds to be efficient
+                sleepTimerRemaining -= 10000L
+            }
+            if (isSleepTimerEnabled) { // Double check if still enabled
+                onBackClick()
+            }
+        }
+    }
+    
+    val currentChapter = remember(pagerState.currentPage, readerPages, readerDocument) {
+        val currentOffset = readerPages.getOrNull(pagerState.currentPage)?.startOffset ?: 0
+        readerDocument?.chapters?.find { it.startOffset <= currentOffset && it.endOffset > currentOffset }
+    }
+    
+    val database = remember { com.nightread.app.data.DatabaseProvider.getInstance(context) }
+    val progressRepository = remember { com.nightread.app.data.RoomReadingProgressRepository(database.bookDao()) }
+
+    LaunchedEffect(sha1) {
+        if (sha1.isNotEmpty()) {
+            val progress = progressRepository.getProgress(sha1)
+            savedTextOffset = progress?.sourceOffset ?: 0
+            isRestoringProgress = true
+            android.util.Log.d("ReadingProgress", "RESTORE bookId=$sha1 offset=$savedTextOffset")
+        }
+    }
+
+    LaunchedEffect(pagerState.currentPage, readerPages) {
+        if (!isRestoringProgress && readerPages.isNotEmpty() && sha1.isNotEmpty()) {
+            val currentOffset = readerPages.getOrNull(pagerState.currentPage)?.startOffset ?: 0
+            delay(500) // Debounce 500ms
+            
+            android.util.Log.d("ReadingProgress", "SAVE (debounce) bookId=$sha1 offset=$currentOffset")
+            progressRepository.saveProgress(
+                com.nightread.app.data.ReadingProgress(
+                    bookId = sha1,
+                    sourceOffset = currentOffset,
+                    updatedAt = System.currentTimeMillis()
+                )
             )
         }
     }
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, readerPages, pagerState.currentPage) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE || event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
-                if (sha1.isNotEmpty() && pageStartOffsets.isNotEmpty()) {
-                    val currentOffset = pageStartOffsets.getOrElse(pagerState.currentPage) { 0 }
-                    com.nightread.app.data.SafeProgressManager.getInstance(context).saveProgressSync(
-                        bookId = sha1,
-                        pageIndex = pagerState.currentPage,
-                        totalPages = readerPages.size,
-                        textOffset = currentOffset
-                    )
+                if (sha1.isNotEmpty() && readerPages.isNotEmpty()) {
+                    val currentOffset = readerPages.getOrNull(pagerState.currentPage)?.startOffset ?: 0
+                    android.util.Log.d("ReadingProgress", "SAVE (lifecycle) bookId=$sha1 offset=$currentOffset")
+                    
+                    kotlinx.coroutines.runBlocking {
+                        progressRepository.saveProgress(
+                            com.nightread.app.data.ReadingProgress(
+                                bookId = sha1,
+                                sourceOffset = currentOffset,
+                                updatedAt = System.currentTimeMillis()
+                            )
+                        )
+                    }
                 }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            if (sha1.isNotEmpty() && pageStartOffsets.isNotEmpty()) {
-                val currentOffset = pageStartOffsets.getOrElse(pagerState.currentPage) { 0 }
-                com.nightread.app.data.SafeProgressManager.getInstance(context).saveProgressSync(
-                    bookId = sha1,
-                    pageIndex = pagerState.currentPage,
-                    totalPages = readerPages.size,
-                    textOffset = currentOffset
-                )
+            if (sha1.isNotEmpty() && readerPages.isNotEmpty()) {
+                val currentOffset = readerPages.getOrNull(pagerState.currentPage)?.startOffset ?: 0
+                android.util.Log.d("ReadingProgress", "SAVE (dispose) bookId=$sha1 offset=$currentOffset")
+                kotlinx.coroutines.runBlocking {
+                    progressRepository.saveProgress(
+                        com.nightread.app.data.ReadingProgress(
+                            bookId = sha1,
+                            sourceOffset = currentOffset,
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
             }
         }
     }
@@ -367,10 +485,8 @@ fun ReaderComposeScreen(
                     }
                 }
             } else {
-                val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
                 val cutoutTop = WindowInsets.displayCutout.asPaddingValues().calculateTopPadding()
-                val cameraCutoutHeight = maxOf(statusBarHeight, cutoutTop)
-                val navBarHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                val cutoutBottom = WindowInsets.displayCutout.asPaddingValues().calculateBottomPadding()
 
                 // Container for reader content
                 Box(
@@ -382,8 +498,8 @@ fun ReaderComposeScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(
-                                top = if (isHideBars) (cameraCutoutHeight + 3.dp) else (cameraCutoutHeight + 64.dp + 3.dp),
-                                bottom = if (isHideBars) (navBarHeight + 16.dp) else (navBarHeight + 72.dp + 16.dp),
+                                top = cutoutTop + 16.dp,
+                                bottom = cutoutBottom + 16.dp,
                                 start = 8.dp,
                                 end = 8.dp
                             )
@@ -391,6 +507,47 @@ fun ReaderComposeScreen(
                         val density = LocalDensity.current
                         val maxWidthPx = with(density) { constraints.maxWidth }
                         val maxHeightPx = with(density) { constraints.maxHeight }
+                        
+                        val currentReadingOffset = remember(pagerState.currentPage, readerPages, savedTextOffset) {
+                            if (readerPages.isNotEmpty() && pagerState.currentPage < readerPages.size) {
+                                readerPages[pagerState.currentPage].startOffset
+                            } else {
+                                savedTextOffset
+                            }
+                        }
+                        
+                        val latestOffset = rememberUpdatedState(currentReadingOffset)
+
+                        val debouncedConfig by produceState<com.nightread.app.ui.customlayout.ReaderConfiguration?>(
+                            initialValue = null, 
+                            fontSize, lineSpacing, font, mappedFontWeight, maxWidthPx, maxHeightPx
+                        ) {
+                            snapshotFlow {
+                                if (maxWidthPx <= 0 || maxHeightPx <= 0) null
+                                else com.nightread.app.ui.customlayout.ReaderConfiguration(
+                                    fontSize = fontSize.sp,
+                                    fontFamily = font,
+                                    fontWeight = mappedFontWeight,
+                                    lineSpacing = lineSpacing,
+                                    maxWidthPx = maxWidthPx,
+                                    maxHeightPx = maxHeightPx
+                                )
+                            }.debounce(if (value == null) 0L else 400L)
+                             .collect { value = it }
+                        }
+
+                        var oldWidthPx by remember { mutableIntStateOf(0) }
+                        var oldHeightPx by remember { mutableIntStateOf(0) }
+                        
+                        LaunchedEffect(maxWidthPx, maxHeightPx, isHideBars) {
+                            if (oldWidthPx != 0 && oldHeightPx != 0 && (oldWidthPx != maxWidthPx || oldHeightPx != maxHeightPx)) {
+                                android.util.Log.e("ReaderViewport", "ERROR: Viewport changed! This will cause repagination.\nold viewport:\nwidth=$oldWidthPx\nheight=$oldHeightPx\n\nnew viewport:\nwidth=$maxWidthPx\nheight=$maxHeightPx\nisHideBars=$isHideBars")
+                            } else {
+                                android.util.Log.d("ReaderViewport", "viewport stable\nwidth=$maxWidthPx\nheight=$maxHeightPx\nisHideBars=$isHideBars")
+                            }
+                            oldWidthPx = maxWidthPx
+                            oldHeightPx = maxHeightPx
+                        }
 
                         val readerTextStyle = remember(fontSize, font, mappedFontWeight, lineSpacing) {
                             TextStyle(
@@ -416,51 +573,67 @@ fun ReaderComposeScreen(
                             }
                         }
 
-                        LaunchedEffect(readerDocument, fontSize, lineSpacing, font, mappedFontWeight, maxWidthPx, maxHeightPx) {
+                        LaunchedEffect(readerDocument, debouncedConfig) {
                             val doc = readerDocument
-                            if (maxWidthPx > 0 && maxHeightPx > 0 && doc != null) {
+                            val config = debouncedConfig
+                            if (doc != null && config != null) {
                                 isPreparingText = true
-                                val config = com.nightread.app.ui.customlayout.ReaderConfiguration(
-                                    fontSize = fontSize.sp,
-                                    fontFamily = font,
-                                    fontWeight = mappedFontWeight,
-                                    lineSpacing = lineSpacing,
-                                    maxWidthPx = maxWidthPx,
-                                    maxHeightPx = maxHeightPx
-                                )
+                                val targetOffset = latestOffset.value
+                                
                                 val viewport = com.nightread.app.ui.customlayout.ReaderViewport(
-                                    widthPx = maxWidthPx,
-                                    heightPx = maxHeightPx,
+                                    widthPx = config.maxWidthPx,
+                                    heightPx = config.maxHeightPx,
                                     density = density
                                 )
-                                com.nightread.app.ui.customlayout.ReaderLayoutEngine.paginate(
+
+                                val pager = com.nightread.app.ui.customlayout.ReaderLayoutEngine.createPager(
                                     context = context,
                                     document = doc,
                                     config = config,
                                     viewport = viewport,
                                     textMeasurer = textMeasurer,
-                                    initialTargetOffset = savedTextOffset,
-                                    onPagesUpdated = { updatedPages, isFirstChunk ->
-                                        readerPages = updatedPages
-                                        val currentOffsets = updatedPages.map { it.startOffset }
-                                        if (isRestoringProgress && currentOffsets.isNotEmpty()) {
-                                            val targetPage = findPageForOffset(currentOffsets, savedTextOffset)
-                                            coroutineScope.launch {
-                                                pagerState.scrollToPage(targetPage)
-                                                isRestoringProgress = false
-                                            }
-                                        }
-                                        if (isFirstChunk) {
-                                            isPreparingText = false
+                                    scope = this,
+                                    initialTargetOffset = targetOffset
+                                )
+                                
+                                launch {
+                                    snapshotFlow { pendingTargetOffset }.collectLatest { target ->
+                                        if (target != null) {
+                                            pager.goToOffset(target)
                                         }
                                     }
-                                )
-                                isPreparingText = false
-                                val currentOffsets = readerPages.map { it.startOffset }
-                                if (isRestoringProgress && currentOffsets.isNotEmpty()) {
-                                    val targetPage = findPageForOffset(currentOffsets, savedTextOffset)
-                                    pagerState.scrollToPage(targetPage)
-                                    isRestoringProgress = false
+                                }
+
+                                launch {
+                                    snapshotFlow { pagerState.currentPage }.collectLatest { currentPage ->
+                                        if (readerPages.isNotEmpty() && currentPage < readerPages.size) {
+                                            pager.notifyPageChanged(readerPages[currentPage].startOffset)
+                                        }
+                                    }
+                                }
+
+                                pager.pages.collect { updatedPages ->
+                                    if (updatedPages.isNotEmpty()) {
+                                        val oldPages = readerPages
+                                        readerPages = updatedPages
+                                        
+                                        if (oldPages.isEmpty() || isRestoringProgress) {
+                                            val targetPage = findPageForOffset(updatedPages.map { it.startOffset }, targetOffset)
+                                            pagerState.scrollToPage(targetPage)
+                                            isRestoringProgress = false
+                                        }
+                                        
+                                        if (pendingTargetOffset != null && updatedPages.isNotEmpty()) {
+                                            val target = pendingTargetOffset!!
+                                            val targetPage = findPageForOffset(updatedPages.map { it.startOffset }, target)
+                                            if (targetPage != -1) {
+                                                pagerState.scrollToPage(targetPage)
+                                                pendingTargetOffset = null
+                                            }
+                                        }
+                                        
+                                        isPreparingText = false
+                                    }
                                 }
                             }
                         }
@@ -491,7 +664,10 @@ fun ReaderComposeScreen(
                         } else {
                             HorizontalPager(
                                 state = pagerState,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .testTag("reader_pager"),
+                                key = { page -> if (page < readerPages.size) readerPages[page].startOffset else page }
                             ) { page ->
                                 Box(
                                     modifier = Modifier
@@ -508,13 +684,17 @@ fun ReaderComposeScreen(
                                                     if (offset.x < screenWidth * 0.25f) {
                                                         coroutineScope.launch {
                                                             if (pagerState.currentPage > 0) {
+                                                                val start = System.currentTimeMillis()
                                                                 pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                                                com.nightread.app.ui.customlayout.ReaderMetrics.logPageTurn(false, System.currentTimeMillis() - start)
                                                             }
                                                         }
                                                     } else if (offset.x > screenWidth * 0.75f) {
                                                         coroutineScope.launch {
                                                             if (pagerState.currentPage < pagerState.pageCount - 1) {
+                                                                val start = System.currentTimeMillis()
                                                                 pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                                                com.nightread.app.ui.customlayout.ReaderMetrics.logPageTurn(true, System.currentTimeMillis() - start)
                                                             }
                                                         }
                                                     } else {
@@ -576,11 +756,20 @@ fun ReaderComposeScreen(
                     }
 
                     // Warmth (Amber filter) overlay
-                    if (currentWarmth > 0) {
+                    if (isAmberEnabled && currentWarmth > 0) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(Color(0xFFFF8000).copy(alpha = (currentWarmth / 100f) * 0.35f))
+                        )
+                    }
+
+                    // Extra Dim overlay
+                    if (isExtraDimEnabled && extraDimIntensity > 0) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = (extraDimIntensity / 100f) * 0.6f))
                         )
                     }
 
@@ -623,12 +812,12 @@ fun ReaderComposeScreen(
                 }
             }
 
-            val glassBgColor = bgColor.copy(alpha = if (themeType == ThemeType.NIGHT || themeType == ThemeType.SEPIA_CONTRAST) 0.85f else 0.90f)
+            val glassBgColor = bgColor.copy(alpha = if (themeType == ThemeType.NIGHT || themeType == ThemeType.HIGH_CONTRAST) 0.85f else 0.90f)
             val glassBorder = BorderStroke(1.dp, textColor.copy(alpha = 0.18f))
 
             // Top Panel (Glassmorphism)
             AnimatedVisibility(
-                visible = !isHideBars,
+                visible = !isHideBars && !isSearchMode,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier
@@ -670,42 +859,43 @@ fun ReaderComposeScreen(
                             }
                         },
                         actions = {
-                            val activity = context as? androidx.fragment.app.FragmentActivity
+                            val fragmentActivity = context as? androidx.fragment.app.FragmentActivity
+                            val currentOffset = if (readerPages.isNotEmpty() && pagerState.currentPage < readerPages.size) readerPages[pagerState.currentPage].startOffset else 0
+                            val isBookmarked = bookmarks.any { it.charOffset == currentOffset }
+                            
                             IconButton(onClick = {
-                                activity?.supportFragmentManager?.let { fm ->
-                                    BookRagSearchBottomSheet.newInstance().show(fm, "BookRagSearch")
+                                coroutineScope.launch {
+                                    if (isBookmarked) {
+                                        bookmarkRepo.deleteBookmarkAtOffset(sha1, currentOffset)
+                                    } else {
+                                        bookmarkRepo.insertBookmark(BookmarkEntity(bookSha1 = sha1, bookTitle = bookTitle, charOffset = currentOffset, pageIndex = pagerState.currentPage, snippet = "Закладка на позиции $currentOffset", timestamp = System.currentTimeMillis()))
+                                    }
                                 }
+                            }) {
+                                Icon(if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, contentDescription = "Закладка", tint = textColor)
+                            }
+
+                            IconButton(onClick = {
+                                isSearchMode = true
+                                isHideBars = true
                             }) {
                                 Icon(Icons.Filled.Search, contentDescription = "Поиск", tint = textColor)
                             }
-                            IconButton(onClick = {
-                                activity?.supportFragmentManager?.let { fm ->
-                                    val sheet = ChapterListBottomSheet.newInstance(sha1, mainText)
-                                    sheet.setOnChapterClickListener { offset ->
-                                        val targetPage = findPageForOffset(pageStartOffsets, offset)
-                                        coroutineScope.launch {
-                                            pagerState.scrollToPage(targetPage)
-                                        }
-                                    }
-                                    sheet.show(fm, "ChapterList")
-                                }
-                            }) {
-                                Icon(Icons.Filled.List, contentDescription = "Оглавление", tint = textColor)
+
+                            IconButton(onClick = { showTocSheet = true }) {
+                                Icon(Icons.Filled.Menu, contentDescription = "Оглавление", tint = textColor)
                             }
+                            
                             IconButton(onClick = {
-                                openTtsSettingsSheet(activity, mainText, bookTitle)
-                            }) {
-                                Icon(Icons.Filled.VolumeUp, contentDescription = "TTS Озвучка", tint = textColor)
-                            }
-                            IconButton(onClick = {
-                                activity?.supportFragmentManager?.let { fm ->
+                                fragmentActivity?.supportFragmentManager?.let { fm ->
                                     BookmarksListBottomSheet.newInstance(sha1).show(fm, "BookmarksList")
                                 }
                             }) {
-                                Icon(Icons.Filled.Bookmark, contentDescription = "Закладки", tint = textColor)
+                                Icon(Icons.Filled.List, contentDescription = "Список закладок", tint = textColor)
                             }
+                            
                             IconButton(onClick = {
-                                activity?.supportFragmentManager?.let { fm ->
+                                fragmentActivity?.supportFragmentManager?.let { fm ->
                                     SettingsBottomSheet().show(fm, "SettingsBottomSheet")
                                 }
                             }) {
@@ -718,7 +908,7 @@ fun ReaderComposeScreen(
 
             // Bottom Panel (Glassmorphism)
             AnimatedVisibility(
-                visible = !isHideBars,
+                visible = !isHideBars && !isSearchMode,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier
@@ -738,78 +928,234 @@ fun ReaderComposeScreen(
 
                     val totalPages = pagerState.pageCount
                     val maxPage = (totalPages - 1).coerceAtLeast(0)
-                    val currentPage = pagerState.currentPage
-                    val displayPage = if (isDraggingSlider) (sliderPageValue.toInt() + 1).coerceIn(1, totalPages) else (currentPage + 1)
-                    val percentage = if (totalPages > 0) ((displayPage.toFloat() / totalPages.toFloat()) * 100).toInt() else 0
+                    val currentOffset = if (readerPages.isNotEmpty() && pagerState.currentPage < readerPages.size) readerPages[pagerState.currentPage].startOffset else 0
+                    val totalChars = mainText.length.coerceAtLeast(1)
+                    val currentPercent = (currentOffset.toFloat() / totalChars) * 100f
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    Column {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Страница $displayPage из $totalPages",
-                                color = textColor,
+                                text = "Прогресс",
+                                color = textColor.copy(alpha = 0.8f),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
-                                text = "$percentage%",
+                                text = String.format("%.1f%%", currentPercent),
                                 color = textColor.copy(alpha = 0.8f),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        val currentSliderVal = if (isDraggingSlider) sliderPageValue else currentPercent
+                        androidx.compose.material3.Slider(
+                            value = currentSliderVal.coerceIn(0f, 100f),
+                            onValueChange = { newValue ->
+                                isDraggingSlider = true
+                                sliderPageValue = newValue
+                            },
+                            onValueChangeFinished = {
+                                val targetOffset = ((sliderPageValue / 100f) * totalChars).toInt().coerceIn(0, totalChars)
+                                pendingTargetOffset = targetOffset
+                                isDraggingSlider = false
+                            },
+                            valueRange = 0f..100f,
+                            colors = androidx.compose.material3.SliderDefaults.colors(
+                                thumbColor = textColor,
+                                activeTrackColor = textColor,
+                                inactiveTrackColor = textColor.copy(alpha = 0.2f)
+                            ),
+                            thumb = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .background(textColor, CircleShape)
+                                )
+                            },
+                            track = { sliderState ->
+                                androidx.compose.material3.SliderDefaults.Track(
+                                    sliderState = sliderState,
+                                    colors = androidx.compose.material3.SliderDefaults.colors(
+                                        activeTrackColor = textColor,
+                                        inactiveTrackColor = textColor.copy(alpha = 0.2f)
+                                    ),
+                                    modifier = Modifier.height(4.dp)
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(24.dp)
+                                .padding(horizontal = 16.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+            }
 
-                        if (maxPage > 0) {
-                            Spacer(modifier = Modifier.height(2.dp))
-                            val currentSliderVal = if (isDraggingSlider) sliderPageValue else currentPage.toFloat()
-                            Slider(
-                                value = currentSliderVal.coerceIn(0f, maxPage.toFloat()),
-                                onValueChange = { newValue ->
-                                    isDraggingSlider = true
-                                    sliderPageValue = newValue
-                                },
-                                onValueChangeFinished = {
-                                    val targetPage = sliderPageValue.toInt().coerceIn(0, maxPage)
-                                    coroutineScope.launch {
-                                        pagerState.scrollToPage(targetPage)
+            // Search UI Overlay
+            AnimatedVisibility(
+                visible = isSearchMode,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    color = glassBgColor,
+                    border = glassBorder,
+                    shadowElevation = 8.dp
+                ) {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                        ) {
+                            TextField(
+                                value = searchQuery,
+                                onValueChange = { query ->
+                                    searchQuery = query
+                                    if (query.isNotEmpty()) {
+                                        coroutineScope.launch {
+                                            searchResults = searchEngine.search(query)
+                                            if (searchResults.isNotEmpty()) {
+                                                // Find the first result after current offset
+                                                val currentOffset = readerPages.getOrNull(pagerState.currentPage)?.startOffset ?: 0
+                                                var nearestIndex = 0
+                                                for (i in searchResults.indices) {
+                                                    if (searchResults[i].sourceStartOffset >= currentOffset) {
+                                                        nearestIndex = i
+                                                        break
+                                                    }
+                                                }
+                                                currentSearchIndex = nearestIndex
+                                                pendingTargetOffset = searchResults[currentSearchIndex].sourceStartOffset
+                                            } else {
+                                                currentSearchIndex = -1
+                                            }
+                                        }
+                                    } else {
+                                        searchResults = emptyList()
+                                        currentSearchIndex = -1
                                     }
-                                    isDraggingSlider = false
                                 },
-                                valueRange = 0f..maxPage.toFloat(),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = textColor,
-                                    activeTrackColor = textColor,
-                                    inactiveTrackColor = textColor.copy(alpha = 0.2f)
+                                modifier = Modifier.weight(1f),
+                                placeholder = { Text("Поиск...", color = textColor.copy(alpha = 0.5f)) },
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedTextColor = textColor,
+                                    unfocusedTextColor = textColor,
+                                    cursorColor = textColor,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent
                                 ),
-                                thumb = {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(12.dp)
-                                            .background(textColor, CircleShape)
-                                    )
-                                },
-                                track = { sliderState ->
-                                    SliderDefaults.Track(
-                                        sliderState = sliderState,
-                                        colors = SliderDefaults.colors(
-                                            activeTrackColor = textColor,
-                                            inactiveTrackColor = textColor.copy(alpha = 0.2f)
-                                        ),
-                                        modifier = Modifier.height(4.dp)
-                                    )
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(24.dp)
+                                singleLine = true
                             )
+                            
+                            IconButton(onClick = {
+                                isSearchMode = false
+                                searchQuery = ""
+                                searchResults = emptyList()
+                                currentSearchIndex = -1
+                                isHideBars = false
+                            }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Закрыть", tint = textColor)
+                            }
+                        }
+                        
+                        if (searchResults.isNotEmpty()) {
+                            androidx.compose.material3.Divider(color = textColor.copy(alpha = 0.1f))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                Text("${currentSearchIndex + 1} из ${searchResults.size}", color = textColor)
+                                Row {
+                                    IconButton(onClick = {
+                                        if (currentSearchIndex > 0) {
+                                            currentSearchIndex--
+                                            pendingTargetOffset = searchResults[currentSearchIndex].sourceStartOffset
+                                        }
+                                    }) {
+                                        Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Предыдущий", tint = textColor)
+                                    }
+                                    IconButton(onClick = {
+                                        if (currentSearchIndex < searchResults.size - 1) {
+                                            currentSearchIndex++
+                                            pendingTargetOffset = searchResults[currentSearchIndex].sourceStartOffset
+                                        }
+                                    }) {
+                                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Следующий", tint = textColor)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Table of Contents Bottom Sheet ---
+        if (showTocSheet && readerDocument != null) {
+            ModalBottomSheet(
+                onDismissRequest = { showTocSheet = false },
+                sheetState = sheetState,
+                containerColor = bgColor, // Using bgColor since it's available in broader scope
+                contentColor = textColor,
+                tonalElevation = 8.dp,
+                dragHandle = { BottomSheetDefaults.DragHandle(color = textColor.copy(alpha = 0.3f)) }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.8f)
+                        .padding(bottom = 16.dp)
+                ) {
+                    Text(
+                        text = "Оглавление",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(16.dp),
+                        color = textColor
+                    )
+                    
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 32.dp)
+                    ) {
+                        items(readerDocument!!.chapters) { chapter ->
+                            val isCurrent = chapter == currentChapter
+                            ListItem(
+                                headlineContent = { 
+                                    Text(
+                                        text = chapter.title,
+                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isCurrent) MaterialTheme.colorScheme.primary else textColor
+                                    )
+                                },
+                                supportingContent = {
+                                    Text(
+                                        text = "Глава ${chapter.chapterIndex + 1}",
+                                        fontSize = 12.sp,
+                                        color = textColor.copy(alpha = 0.6f)
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    pendingTargetOffset = chapter.startOffset
+                                    showTocSheet = false
+                                    isHideBars = true
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
+                            HorizontalDivider(color = textColor.copy(alpha = 0.05f))
                         }
                     }
                 }

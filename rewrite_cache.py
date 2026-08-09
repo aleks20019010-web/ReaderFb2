@@ -1,4 +1,9 @@
-package com.nightread.app.ui
+import re
+with open("app/src/main/java/com/nightread/app/ui/PaginationDiskCache.kt", "r") as f:
+    content = f.read()
+
+# We will completely replace the file, so just generate the new content.
+new_content = """package com.nightread.app.ui
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
@@ -78,7 +83,7 @@ object PaginationDiskCache {
                 
                 for (b in bounds) {
                     val slice = if (b.startDisp < b.endDisp && b.endDisp <= annotated.length) {
-                        with(com.nightread.app.ui.customlayout.ReaderLayoutEngine) { annotated.subSequence(b.startDisp, b.endDisp).trimTrailingWhitespace() }
+                        com.nightread.app.ui.customlayout.ReaderLayoutEngine.trimTrailingWhitespace(annotated.subSequence(b.startDisp, b.endDisp))
                     } else {
                         androidx.compose.ui.text.AnnotatedString("")
                     }
@@ -180,3 +185,7 @@ object PaginationDiskCache {
         }
     }
 }
+"""
+
+with open("app/src/main/java/com/nightread/app/ui/PaginationDiskCache.kt", "w") as f:
+    f.write(new_content)
