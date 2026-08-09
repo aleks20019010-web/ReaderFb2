@@ -352,7 +352,6 @@ class LibraryScanner(
      */
     private suspend fun analyzeCache(bookFiles: List<File>): List<File> {
         val existingPaths = getExistingPaths(bookFiles)
-        val cachedPaths = getCachedPaths(bookFiles)
         
         val db = AppDatabase.getDatabase(context)
         val allBooks = try { db.bookDao().getAllBooksSync() } catch (e: Exception) { emptyList() }
@@ -362,9 +361,7 @@ class LibraryScanner(
             val path = file.absolutePath
             val canonicalPath = try { file.canonicalFile.absolutePath } catch (e: Exception) { path }
             !existingPaths.contains(path) && 
-            !canonicalExistingPaths.contains(canonicalPath) && 
-            !cachedPaths.contains(path) && 
-            !cachedPaths.contains(canonicalPath)
+            !canonicalExistingPaths.contains(canonicalPath)
         }
     }
     

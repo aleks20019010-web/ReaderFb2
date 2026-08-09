@@ -2,9 +2,11 @@ package com.nightread.app.scanner
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.security.MessageDigest
 
 class ScannerPreferences(private val context: Context) {
@@ -104,9 +106,21 @@ class ScannerPreferences(private val context: Context) {
                         .joinToString("") { "%02x".format(it) }
                 } ?: ""
             } catch (e: Exception) {
-                // Fallback: hash by file count
-                val files = context.filesDir.listFiles() ?: emptyArray()
-                val input = files.joinToString("|") { "${it.name}_${it.length()}_${it.lastModified()}" }
+                // Fallback: hash external storage book files
+                val externalStorage = Environment.getExternalStorageDirectory()
+                val bookDirs = listOf("Books", "books", "Книги", "книги", "Download", "Downloads", "Загрузки", "Documents", "Документы")
+                val sb = StringBuilder()
+                for (dirName in bookDirs) {
+                    val dir = File(externalStorage, dirName)
+                    if (dir.exists() && dir.isDirectory) {
+                        dir.listFiles()?.forEach { file ->
+                            if (file.isFile) {
+                                sb.append(file.absolutePath).append("_").append(file.length()).append("_").append(file.lastModified()).append("|")
+                            }
+                        }
+                    }
+                }
+                val input = if (sb.isNotEmpty()) sb.toString() else System.currentTimeMillis().toString()
                 MessageDigest.getInstance("SHA-1")
                     .digest(input.toByteArray())
                     .joinToString("") { "%02x".format(it) }
