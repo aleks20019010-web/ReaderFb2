@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color as AndroidColor
 import android.util.Log
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -13,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.viewinterop.AndroidView
 
-@SuppressLint("SetJavaScriptEnabled")
+@SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
 @Composable
 fun ReaderWebViewComponent(
     modifier: Modifier = Modifier,
@@ -24,6 +25,7 @@ fun ReaderWebViewComponent(
     lineHeight: Float,
     themeColor: Color,
     bgColor: Color,
+    currentPage: Int = 0,
     targetOffset: Int = 0,
     onPositionChanged: (Int, Int, Int) -> Unit,
     onWordSelected: (String) -> Unit,
@@ -40,6 +42,10 @@ fun ReaderWebViewComponent(
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
                 setBackgroundColor(AndroidColor.TRANSPARENT)
+                isVerticalScrollBarEnabled = false
+                isHorizontalScrollBarEnabled = false
+                overScrollMode = View.OVER_SCROLL_NEVER
+                setOnTouchListener { _, _ -> true } // Disable direct free-scroll; gestures handled by Compose pager/swipes
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
@@ -62,11 +68,12 @@ fun ReaderWebViewComponent(
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
-                        Log.d("WEBVIEW_ENGINE", "WebView page finished loading. Scrolling to targetOffset: $targetOffset")
+                        Log.d("WEBVIEW_ENGINE", "WebView page finished loading. Scrolling to currentPage: $currentPage, targetOffset: $targetOffset")
                         if (targetOffset > 0) {
                             view?.evaluateJavascript("window.scrollToOffset($targetOffset);", null)
+                        } else {
+                            view?.evaluateJavascript("window.scrollToPage($currentPage);", null)
                         }
-                        view?.evaluateJavascript("window.ReaderBridge.reportPosition($targetOffset, 0, 1);", null)
                     }
                 }
 
@@ -75,18 +82,18 @@ fun ReaderWebViewComponent(
             }
         },
         update = { view ->
-            // Update HTML or configuration if needed
             val width = view.width
             val height = view.height
-            Log.d("WEBVIEW_ENGINE", "WebView update: width=$width, height=$height, targetOffset=$targetOffset, fontSize=$fontSize")
+            Log.d("WEBVIEW_ENGINE", "WebView update: width=$width, height=$height, currentPage=$currentPage, targetOffset=$targetOffset")
             
-            // Re-load data if content or styling changed significantly
             view.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
-            if (targetOffset > 0) {
-                view.postDelayed({
+            view.postDelayed({
+                if (targetOffset > 0) {
                     view.evaluateJavascript("window.scrollToOffset($targetOffset);", null)
-                }, 150)
-            }
+                } else {
+                    view.evaluateJavascript("window.scrollToPage($currentPage);", null)
+                }
+            }, 100)
         }
     )
 }

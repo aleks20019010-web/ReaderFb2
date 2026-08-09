@@ -684,22 +684,91 @@ fun ReaderComposeScreen(
                                     )
                                 }
 
-                                com.nightread.app.ui.customlayout.ReaderWebViewComponent(
-                                    modifier = Modifier.fillMaxSize().testTag("reader_webview"),
-                                    htmlContent = htmlContent,
-                                    fontFamily = "Serif",
-                                    fontSize = fontSize,
-                                    fontWeight = mappedFontWeight.weight.toFloat(),
-                                    lineHeight = lineSpacing,
-                                    themeColor = textColor,
-                                    bgColor = Color.Transparent,
-                                    targetOffset = pendingTargetOffset ?: savedTextOffset,
-                                    onPositionChanged = { offset, page, total ->
-                                        savedTextOffset = offset
-                                    },
-                                    onWordSelected = { word -> },
-                                    onNoteClicked = { noteId -> }
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clipToBounds()
+                                        .pointerInput(pagerState.currentPage) {
+                                            detectTapGestures(
+                                                onDoubleTap = {
+                                                    isHideBars = !isHideBars
+                                                    lastInteractionTime = System.currentTimeMillis()
+                                                },
+                                                onTap = { offset ->
+                                                    val screenWidth = size.width
+                                                    if (offset.x < screenWidth * 0.25f) {
+                                                        coroutineScope.launch {
+                                                            if (pagerState.currentPage > 0) {
+                                                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                                            }
+                                                        }
+                                                    } else if (offset.x > screenWidth * 0.75f) {
+                                                        coroutineScope.launch {
+                                                            if (pagerState.currentPage < pagerState.pageCount - 1) {
+                                                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                                            }
+                                                        }
+                                                    } else {
+                                                        isHideBars = !isHideBars
+                                                        lastInteractionTime = System.currentTimeMillis()
+                                                    }
+                                                }
+                                            )
+                                        }
+                                        .pointerInput(pagerState.currentPage) {
+                                            var startX = 0f
+                                            detectVerticalDragGestures(
+                                                onDragStart = { offset ->
+                                                    startX = offset.x
+                                                    lastInteractionTime = System.currentTimeMillis()
+                                                },
+                                                onVerticalDrag = { change, dragAmount ->
+                                                    if (abs(dragAmount) > 1.5f) {
+                                                        change.consume()
+                                                        lastInteractionTime = System.currentTimeMillis()
+                                                        val screenWidth = size.width
+                                                        val activity = context as? Activity
+                                                        if (startX < screenWidth / 2f) {
+                                                            currentBrightness = (currentBrightness - dragAmount / 600f).coerceIn(0.02f, 1f)
+                                                            if (activity != null) {
+                                                                BrightnessHelper.setBrightness(activity, currentBrightness)
+                                                            }
+                                                            SettingsManager.setBrightness(context, currentBrightness)
+                                                            gestureIndicatorText = "Яркость: ${(currentBrightness * 100).toInt()}%"
+                                                            gestureIndicatorIcon = Icons.Filled.WbSunny
+                                                            showGestureIndicatorTime = System.currentTimeMillis()
+                                                        } else {
+                                                            currentWarmth = (currentWarmth - dragAmount / 5f).toInt().coerceIn(0, 100)
+                                                            SettingsManager.setAmberFilterIntensity(context, currentWarmth)
+                                                            SettingsManager.setAmberFilterEnabled(context, currentWarmth > 0)
+                                                            gestureIndicatorText = "Теплота: $currentWarmth%"
+                                                            gestureIndicatorIcon = Icons.Filled.Thermostat
+                                                            showGestureIndicatorTime = System.currentTimeMillis()
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                        },
+                                    contentAlignment = Alignment.TopStart
+                                ) {
+                                    com.nightread.app.ui.customlayout.ReaderWebViewComponent(
+                                        modifier = Modifier.fillMaxSize().testTag("reader_webview"),
+                                        htmlContent = htmlContent,
+                                        fontFamily = "Serif",
+                                        fontSize = fontSize,
+                                        fontWeight = mappedFontWeight.weight.toFloat(),
+                                        lineHeight = lineSpacing,
+                                        themeColor = textColor,
+                                        bgColor = Color.Transparent,
+                                        currentPage = pagerState.currentPage,
+                                        targetOffset = pendingTargetOffset ?: savedTextOffset,
+                                        onPositionChanged = { offset, page, total ->
+                                            savedTextOffset = offset
+                                        },
+                                        onWordSelected = { word -> },
+                                        onNoteClicked = { noteId -> }
+                                    )
+                                }
                             } else {
                                 HorizontalPager(
                                     state = pagerState,

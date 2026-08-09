@@ -34,8 +34,7 @@ object ReaderWebViewPaginator {
                         padding: 0;
                         width: ${viewportWidth}px;
                         height: ${viewportHeight}px;
-                        overflow-x: auto;
-                        overflow-y: hidden;
+                        overflow: hidden;
                         -webkit-text-size-adjust: 100%;
                         background-color: $bgColorHex;
                         color: $textColorHex;
@@ -46,18 +45,19 @@ object ReaderWebViewPaginator {
                         font-weight: $fontWeight;
                         line-height: $lineHeight;
                         box-sizing: border-box;
-                        padding: 24px 20px;
-                        column-width: ${viewportWidth - 40}px;
-                        column-gap: 40px;
+                        padding: 20px 24px;
+                        column-width: ${viewportWidth}px;
+                        column-gap: 0px;
                         column-fill: auto;
                         height: ${viewportHeight}px;
                     }
                     p {
-                        margin: 0 0 1.2em 0;
+                        margin: 0 0 1em 0;
                         text-align: justify;
-                        text-justify: inter-word;
                         hyphens: auto;
                         -webkit-hyphens: auto;
+                        word-break: normal;
+                        overflow-wrap: break-word;
                     }
                     p:last-child {
                         margin-bottom: 0;
@@ -77,32 +77,29 @@ object ReaderWebViewPaginator {
                     h1, h2, h3, h4, h5, h6 {
                         break-inside: avoid;
                         page-break-inside: avoid;
-                        margin: 1.5em 0 0.8em 0;
+                        margin: 1em 0 0.5em 0;
                         font-weight: bold;
                         text-align: center;
                     }
-                    h1 { font-size: 1.5em; }
-                    h2 { font-size: 1.3em; }
-                    h3 { font-size: 1.1em; }
                     blockquote {
-                        margin: 1.2em 0;
-                        padding-left: 1.2em;
+                        margin: 1em 0;
+                        padding-left: 1em;
                         border-left: 3px solid #888;
                         font-style: italic;
                     }
                     ul, ol {
-                        margin: 0 0 1.2em 1.5em;
+                        margin: 0 0 1em 1.5em;
                         padding: 0;
                     }
                     li {
-                        margin-bottom: 0.4em;
+                        margin-bottom: 0.3em;
                     }
                     img {
                         max-width: 100%;
                         max-height: ${viewportHeight / 2}px;
                         height: auto;
                         display: block;
-                        margin: 1.2em auto;
+                        margin: 1em auto;
                         object-fit: contain;
                         break-inside: avoid;
                         page-break-inside: avoid;
@@ -110,6 +107,16 @@ object ReaderWebViewPaginator {
                     sup {
                         font-size: 0.75em;
                         vertical-align: super;
+                    }
+                    sub {
+                        font-size: 0.75em;
+                        vertical-align: sub;
+                    }
+                    code {
+                        font-family: monospace;
+                        background-color: rgba(128,128,128,0.2);
+                        padding: 2px 4px;
+                        border-radius: 3px;
                     }
                     .note {
                         color: #007AFF;
@@ -123,17 +130,34 @@ object ReaderWebViewPaginator {
                     $processedHtml
                 </div>
                 <script>
+                    function runDiagnostics() {
+                        var vw = window.innerWidth;
+                        var vh = window.innerHeight;
+                        var sw = document.documentElement.scrollWidth;
+                        var sh = document.documentElement.scrollHeight;
+                        var cw = document.documentElement.clientWidth;
+                        var ch = document.documentElement.clientHeight;
+                        var sx = window.pageXOffset || document.documentElement.scrollLeft;
+                        var sy = window.pageYOffset || document.documentElement.scrollTop;
+                        var totalPages = Math.max(1, Math.round(sw / vw));
+                        var pageIndex = Math.round(sx / vw);
+                        var verticalOverflow = sh > ch + 2;
+                        var horizontalOverflow = sw > vw * totalPages + 2;
+                        var aligned = Math.abs(sx % vw) < 2;
+                        
+                        console.log("[WEBVIEW_DIAGNOSTIC] vw=" + vw + ", vh=" + vh + ", sw=" + sw + ", sh=" + sh + ", cw=" + cw + ", ch=" + ch + ", sx=" + sx + ", sy=" + sy + ", totalPages=" + totalPages + ", pageIndex=" + pageIndex + ", verticalOverflow=" + verticalOverflow + ", horizontalOverflow=" + horizontalOverflow + ", aligned=" + aligned);
+                    }
+
                     function reportCurrentPosition() {
                         try {
                             if (window.ReaderBridge) {
-                                var scrollX = window.pageXOffset || document.documentElement.scrollLeft;
-                                var pageWidth = window.innerWidth || document.documentElement.clientWidth;
-                                var pageIndex = Math.round(scrollX / pageWidth);
+                                var sx = window.pageXOffset || document.documentElement.scrollLeft;
+                                var vw = window.innerWidth;
+                                var pageIndex = Math.round(sx / vw);
                                 var totalWidth = document.documentElement.scrollWidth;
-                                var totalPages = Math.max(1, Math.round(totalWidth / pageWidth));
+                                var totalPages = Math.max(1, Math.round(totalWidth / vw));
                                 
-                                // Find element at left edge of current page
-                                var targetX = scrollX + 10;
+                                var targetX = sx + 10;
                                 var element = document.elementFromPoint(targetX, 50);
                                 var offset = 0;
                                 while (element && element !== document.body && element !== document.documentElement) {
@@ -143,6 +167,7 @@ object ReaderWebViewPaginator {
                                     }
                                     element = element.parentElement;
                                 }
+                                runDiagnostics();
                                 window.ReaderBridge.reportPosition(offset, pageIndex, totalPages);
                             }
                         } catch (e) {
@@ -150,19 +175,16 @@ object ReaderWebViewPaginator {
                         }
                     }
 
-                    window.addEventListener('scroll', function() {
-                        clearTimeout(window._scrollTimer);
-                        window._scrollTimer = setTimeout(reportCurrentPosition, 100);
-                    }, {passive: true});
+                    window.scrollToPage = function(pageIndex) {
+                        var vw = window.innerWidth;
+                        window.scrollTo({left: pageIndex * vw, behavior: 'instant'});
+                        reportCurrentPosition();
+                    };
 
-                    window.addEventListener('resize', reportCurrentPosition);
-                    
-                    // Expose jump function to Kotlin
                     window.scrollToOffset = function(targetOffset) {
-                        var el = document.querySelector('[data-offset]');
+                        var allEls = document.querySelectorAll('[data-offset]');
                         var bestEl = null;
                         var minDiff = Infinity;
-                        var allEls = document.querySelectorAll('[data-offset]');
                         for (var i = 0; i < allEls.length; i++) {
                             var off = parseInt(allEls[i].getAttribute('data-offset')) || 0;
                             var diff = Math.abs(off - targetOffset);
@@ -173,11 +195,19 @@ object ReaderWebViewPaginator {
                         }
                         if (bestEl) {
                             var rect = bestEl.getBoundingClientRect();
-                            var scrollX = window.pageXOffset || document.documentElement.scrollLeft;
-                            var targetScrollX = scrollX + rect.left - 20;
-                            window.scrollTo({left: targetScrollX, behavior: 'instant'});
+                            var sx = window.pageXOffset || document.documentElement.scrollLeft;
+                            var vw = window.innerWidth;
+                            var absoluteLeft = sx + rect.left;
+                            var targetPage = Math.floor(absoluteLeft / vw);
+                            window.scrollTo({left: targetPage * vw, behavior: 'instant'});
+                            reportCurrentPosition();
                         }
                     };
+
+                    window.addEventListener('load', function() {
+                        runDiagnostics();
+                        reportCurrentPosition();
+                    });
                 </script>
             </body>
             </html>
