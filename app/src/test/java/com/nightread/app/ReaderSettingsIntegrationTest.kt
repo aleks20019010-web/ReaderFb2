@@ -102,9 +102,9 @@ class ReaderSettingsIntegrationTest {
         
         composeTestRule.waitForIdle()
         
-        // Verify we are still on the same page (0)
-        // (If it had repaginated from scratch without preservation, it would also be on page 0,
-        // so this test is mostly for smoke testing the theme change flow).
-        composeTestRule.onNodeWithTag("reader_pager").assertExists()
+        // Verify we are still on the reader screen (pager or webview)
+        composeTestRule.onNode(
+            hasTestTag("reader_pager") or hasTestTag("reader_webview")
+        ).assertExists()
     }
 }
