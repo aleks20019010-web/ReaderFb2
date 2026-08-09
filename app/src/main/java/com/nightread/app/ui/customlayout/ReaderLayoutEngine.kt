@@ -12,7 +12,6 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.sp
 import android.util.Log
 import com.nightread.app.ui.PaginationDiskCache
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -21,13 +20,6 @@ import kotlinx.coroutines.yield
 
 object ReaderLayoutEngine {
 
-    enum class PaginationPriority {
-        CURRENT,
-        NEARBY,
-        BACKWARD,
-        BACKGROUND
-    }
-
     suspend fun parseDocument(bookId: String, mainText: String, baseFontSize: androidx.compose.ui.unit.TextUnit): ReaderDocument = withContext(Dispatchers.Default) {
         val paragraphs = mutableListOf<ReaderParagraph>()
         val chapters = mutableListOf<ReaderChapter>()
@@ -35,11 +27,11 @@ object ReaderLayoutEngine {
         var currentGlobalOffset = 0
 
         val chapterIndices = mutableListOf<Int>()
-        chapterIndices.add(0) // First chapter always starts at 0
+        chapterIndices.add(0)
 
         for ((index, line) in lines.withIndex()) {
             val trimmed = line.trim()
-            if (trimmed.startsWith("<h1") || trimmed.startsWith("<title") || trimmed.startsWith("[CHAPTER]") || 
+            if (trimmed.startsWith("<h1") || trimmed.startsWith("<title") || trimmed.startsWith("[CHAPTER]") ||
                 (trimmed.startsWith("<h1>") && trimmed.endsWith("</h1>")) ||
                 (trimmed.length < 80 && (trimmed.startsWith("Глава") || trimmed.startsWith("Chapter") || trimmed.matches(Regex("^[0-9IVXLCDM]+\\..*"))))) {
                 if (index > 0 && !chapterIndices.contains(index)) {
@@ -65,7 +57,6 @@ object ReaderLayoutEngine {
             currentGlobalOffset = lineEnd + 1
         }
 
-        // Build chapters from chapterIndices
         for (i in 0 until chapterIndices.size - 1) {
             val startLine = chapterIndices[i]
             val endLine = chapterIndices[i + 1].coerceAtMost(paragraphs.size)
@@ -209,13 +200,13 @@ object ReaderLayoutEngine {
         val sourceOffsets: IntArray
     )
 
-    private fun buildAnnotatedStringForDocument(document: ReaderDocument, baseFontSize: androidx.compose.ui.unit.TextUnit): AnnotatedMappingResult {
+    private fun buildAnnotatedStringForChapter(chapter: ReaderChapter, baseFontSize: androidx.compose.ui.unit.TextUnit): AnnotatedMappingResult {
         val sourceOffsetList = mutableListOf<Int>()
         val annotated = androidx.compose.ui.text.buildAnnotatedString {
-            for ((index, paragraph) in document.paragraphs.withIndex()) {
+            for ((index, paragraph) in chapter.paragraphs.withIndex()) {
                 if (index > 0) {
                     append("\n")
-                    val newlineOffset = (paragraph.globalStartOffset - 1).coerceIn(0, document.rawMainText.length)
+                    val newlineOffset = (paragraph.globalStartOffset - 1).coerceAtLeast(chapter.startOffset)
                     sourceOffsetList.add(newlineOffset)
                 }
                 for (inline in paragraph.inlines) {
@@ -225,7 +216,7 @@ object ReaderLayoutEngine {
                             append(content)
                             val startOffset = inline.globalStartOffset
                             for (i in content.indices) {
-                                sourceOffsetList.add((startOffset + i).coerceIn(0, document.rawMainText.length))
+                                sourceOffsetList.add(startOffset + i)
                             }
                         }
                         is ReaderInline.Styled -> {
@@ -235,7 +226,7 @@ object ReaderLayoutEngine {
                             addStyle(inline.style, startAnnotatedIndex, length)
                             val startOffset = inline.globalStartOffset
                             for (i in content.indices) {
-                                sourceOffsetList.add((startOffset + i).coerceIn(0, document.rawMainText.length))
+                                sourceOffsetList.add(startOffset + i)
                             }
                         }
                     }
@@ -258,7 +249,7 @@ object ReaderLayoutEngine {
         initialTargetOffset: Int = 0,
         onPagesUpdated: (List<ReaderPage>, Boolean) -> Unit
     ): List<ReaderPage> = withContext(Dispatchers.Default) {
-        if (document.paragraphs.isEmpty() || config.maxWidthPx <= 0 || config.maxHeightPx <= 0) return@withContext emptyList()
+        if (document.chapters.isEmpty() || config.maxWidthPx <= 0 || config.maxHeightPx <= 0) return@withContext emptyList()
 
         val layoutKey = "${config.fontFamily.hashCode()}_${config.fontSize.value}_${config.fontWeight.weight}_${config.lineSpacing}_${config.maxWidthPx}_${config.maxHeightPx}"
         val textStyle = TextStyle(
@@ -275,17 +266,8 @@ object ReaderLayoutEngine {
 
         val safeMaxHeightPx = config.maxHeightPx
         val maxWidthPx = config.maxWidthPx
-
-        val mappingResult = buildAnnotatedStringForDocument(document, config.fontSize)
-        val docAnnotated = mappingResult.annotatedString
-        val offsetMapping = mappingResult.sourceOffsets
-        val docLength = docAnnotated.length
-        if (docLength == 0) return@withContext emptyList()
-
         val chapters = document.chapters
-        val chapterPagesMap = mutableMapOf<Int, List<ReaderPage>>()
-        
-        // Find chapter containing initialTargetOffset
+
         var initialChapterIdx = 0
         for ((idx, ch) in chapters.withIndex()) {
             if (initialTargetOffset in ch.startOffset..ch.endOffset) {
@@ -294,16 +276,15 @@ object ReaderLayoutEngine {
             }
         }
 
-        // 1. Paginate initial chapter first (Priority 1)
+        val chapterPagesMap = mutableMapOf<Int, List<ReaderPage>>()
+
+        // Priority 0: Paginate initial chapter immediately
         val initialChapter = chapters[initialChapterIdx]
         val initialPages = paginateChapter(
             context = context,
             bookId = document.bookId,
             layoutKey = layoutKey,
             chapter = initialChapter,
-            docAnnotated = docAnnotated,
-            offsetMapping = offsetMapping,
-            rawMainText = document.rawMainText,
             textMeasurer = textMeasurer,
             textStyle = textStyle,
             maxWidthPx = maxWidthPx,
@@ -311,15 +292,12 @@ object ReaderLayoutEngine {
         )
         chapterPagesMap[initialChapterIdx] = initialPages
 
-        // Combine and emit immediately
         var allPages = assembleAllPages(chapters, chapterPagesMap)
         onPagesUpdated(allPages, true)
 
-        // 2. Background pagination for remaining chapters in priority order
+        // Priority background pagination for remaining chapters
         val priorityQueue = mutableListOf<Int>()
-        // Priority 1: chapters ahead
         for (i in (initialChapterIdx + 1) until chapters.size) priorityQueue.add(i)
-        // Priority 2: chapters behind
         for (i in (initialChapterIdx - 1) downTo 0) priorityQueue.add(i)
 
         for (chIdx in priorityQueue) {
@@ -332,9 +310,6 @@ object ReaderLayoutEngine {
                 bookId = document.bookId,
                 layoutKey = layoutKey,
                 chapter = chapter,
-                docAnnotated = docAnnotated,
-                offsetMapping = offsetMapping,
-                rawMainText = document.rawMainText,
                 textMeasurer = textMeasurer,
                 textStyle = textStyle,
                 maxWidthPx = maxWidthPx,
@@ -346,6 +321,7 @@ object ReaderLayoutEngine {
             yield()
         }
 
+        validatePagination(allPages, safeMaxHeightPx)
         allPages
     }
 
@@ -354,26 +330,25 @@ object ReaderLayoutEngine {
         bookId: String,
         layoutKey: String,
         chapter: ReaderChapter,
-        docAnnotated: AnnotatedString,
-        offsetMapping: IntArray,
-        rawMainText: String,
         textMeasurer: TextMeasurer,
         textStyle: TextStyle,
         maxWidthPx: Int,
         safeMaxHeightPx: Int
     ): List<ReaderPage> {
-        // Check cache first
         val cachedOffsets = PaginationDiskCache.getChapterOffsets(context, bookId, layoutKey, chapter.chapterIndex)
+        val mappingResult = buildAnnotatedStringForChapter(chapter, textStyle.fontSize)
+        val annotated = mappingResult.annotatedString
+        val offsetMapping = mappingResult.sourceOffsets
+
         if (cachedOffsets != null && cachedOffsets.isNotEmpty()) {
             val pages = mutableListOf<ReaderPage>()
             for ((pIdx, pair) in cachedOffsets.withIndex()) {
                 val start = pair.first
                 val end = pair.second
-                // Find annotated indices corresponding to start and end
-                val annotatedStartIndex = findAnnotatedIndexForOffset(offsetMapping, start, docAnnotated.length)
-                val annotatedEndIndex = findAnnotatedIndexForOffset(offsetMapping, end, docAnnotated.length)
-                if (annotatedStartIndex < annotatedEndIndex && annotatedEndIndex <= docAnnotated.length) {
-                    val slice = docAnnotated.subSequence(annotatedStartIndex, annotatedEndIndex).trimTrailingWhitespace()
+                val startAnnotated = findAnnotatedIndexForOffset(offsetMapping, start, annotated.length)
+                val endAnnotated = findAnnotatedIndexForOffset(offsetMapping, end, annotated.length, roundUp = true)
+                if (startAnnotated < endAnnotated && endAnnotated <= annotated.length) {
+                    val slice = annotated.subSequence(startAnnotated, endAnnotated).trimTrailingWhitespace()
                     if (slice.isNotEmpty()) {
                         pages.add(
                             ReaderPage(
@@ -386,82 +361,95 @@ object ReaderLayoutEngine {
                     }
                 }
             }
-            if (pages.isNotEmpty()) {
-                return pages
-            }
+            if (pages.isNotEmpty()) return pages
         }
 
-        // Find annotated start and end indices for chapter
-        val chapterStartAnnotated = findAnnotatedIndexForOffset(offsetMapping, chapter.startOffset, docAnnotated.length)
-        val chapterEndAnnotated = findAnnotatedIndexForOffset(offsetMapping, chapter.endOffset, docAnnotated.length, roundUp = true)
+        if (annotated.isEmpty()) return emptyList()
 
-        val chapterPages = mutableListOf<ReaderPage>()
-        var startIndex = chapterStartAnnotated.coerceIn(0, docAnnotated.length)
-        val endIndex = chapterEndAnnotated.coerceIn(startIndex, docAnnotated.length)
-        var localPageIndex = 0
+        val layoutResult = textMeasurer.measure(
+            text = annotated,
+            style = textStyle,
+            constraints = Constraints(maxWidth = maxWidthPx)
+        )
 
-        val computedPairs = mutableListOf<Pair<Int, Int>>()
+        val lines = mutableListOf<LayoutLine>()
+        for (i in 0 until layoutResult.lineCount) {
+            val lineStartChar = layoutResult.getLineStart(i)
+            val lineEndChar = layoutResult.getLineEnd(i, visibleEnd = true)
+            val top = layoutResult.getLineTop(i)
+            val bottom = layoutResult.getLineBottom(i)
+            val height = bottom - top
 
-        while (startIndex < endIndex) {
-            currentCoroutineContext().ensureActive()
-            while (startIndex < endIndex && docAnnotated[startIndex].isWhitespace() && docAnnotated[startIndex] != '\n') {
-                startIndex++
-            }
-            if (startIndex >= endIndex) break
-
-            val fittingEnd = findLargestFittingEnd(
-                annotatedDoc = docAnnotated,
-                start = startIndex,
-                endLimit = endIndex,
-                textMeasurer = textMeasurer,
-                textStyle = textStyle,
-                maxWidth = maxWidthPx,
-                maxHeight = safeMaxHeightPx
-            )
-
-            val refinedEnd = refineEndIndex(
-                annotatedDoc = docAnnotated,
-                start = startIndex,
-                endLimit = endIndex,
-                initialBest = fittingEnd,
-                textMeasurer = textMeasurer,
-                textStyle = textStyle,
-                maxWidth = maxWidthPx,
-                maxHeight = safeMaxHeightPx
-            )
-
-            val rawSlice = docAnnotated.subSequence(startIndex, refinedEnd)
-            val candidateText = rawSlice.trimTrailingWhitespace()
-            val displayEnd = startIndex + candidateText.length
-            val consumedEnd = refinedEnd
-
-            if (candidateText.isEmpty()) {
-                startIndex = (startIndex + 1).coerceAtMost(endIndex)
-                continue
-            }
-
-            val startMainOffset = if (startIndex < offsetMapping.size) offsetMapping[startIndex] else chapter.startOffset
-            val endMainOffset = if (displayEnd < offsetMapping.size) {
-                offsetMapping[displayEnd]
-            } else if (displayEnd - 1 < offsetMapping.size) {
-                offsetMapping[displayEnd - 1] + 1
+            val startSource = if (lineStartChar < offsetMapping.size) offsetMapping[lineStartChar] else chapter.startOffset
+            val endSource = if (lineEndChar > 0 && lineEndChar - 1 < offsetMapping.size) {
+                offsetMapping[lineEndChar - 1] + 1
             } else {
                 chapter.endOffset
             }
 
-            val page = ReaderPage(
-                pageIndex = localPageIndex++,
-                text = candidateText,
-                startOffset = startMainOffset,
-                endOffset = endMainOffset.coerceAtMost(rawMainText.length)
+            lines.add(
+                LayoutLine(
+                    startOffset = startSource,
+                    endOffset = endSource.coerceAtMost(chapter.endOffset),
+                    top = top,
+                    bottom = bottom,
+                    height = height
+                )
             )
-            chapterPages.add(page)
-            computedPairs.add(startMainOffset to endMainOffset.coerceAtMost(rawMainText.length))
-
-            startIndex = consumedEnd.coerceAtLeast(startIndex + 1)
         }
 
-        // Save to cache
+        if (lines.isEmpty()) return emptyList()
+
+        val chapterPages = mutableListOf<ReaderPage>()
+        val computedPairs = mutableListOf<Pair<Int, Int>>()
+        var pageStartLineIdx = 0
+        var localPageIndex = 0
+
+        while (pageStartLineIdx < lines.size) {
+            val pageTop = lines[pageStartLineIdx].top
+            var pageEndLineIdx = pageStartLineIdx
+
+            while (pageEndLineIdx < lines.size) {
+                val candidateLine = lines[pageEndLineIdx]
+                val pageHeight = candidateLine.bottom - pageTop
+                if (pageHeight <= safeMaxHeightPx || pageEndLineIdx == pageStartLineIdx) {
+                    pageEndLineIdx++
+                } else {
+                    break
+                }
+            }
+
+            val pageLines = lines.subList(pageStartLineIdx, pageEndLineIdx)
+            val startOffset = pageLines.first().startOffset
+            val endOffset = pageLines.last().endOffset
+
+            val startAnnotated = findAnnotatedIndexForOffset(offsetMapping, startOffset, annotated.length)
+            val endAnnotated = findAnnotatedIndexForOffset(offsetMapping, endOffset, annotated.length, roundUp = true)
+
+            val slice = if (startAnnotated < endAnnotated && endAnnotated <= annotated.length) {
+                annotated.subSequence(startAnnotated, endAnnotated).trimTrailingWhitespace()
+            } else {
+                annotated.subSequence(
+                    findAnnotatedIndexForOffset(offsetMapping, startOffset, annotated.length),
+                    annotated.length
+                )
+            }
+
+            if (slice.isNotEmpty()) {
+                chapterPages.add(
+                    ReaderPage(
+                        pageIndex = localPageIndex++,
+                        text = slice,
+                        startOffset = startOffset,
+                        endOffset = endOffset
+                    )
+                )
+                computedPairs.add(startOffset to endOffset)
+            }
+
+            pageStartLineIdx = pageEndLineIdx
+        }
+
         if (computedPairs.isNotEmpty()) {
             PaginationDiskCache.saveChapterOffsets(context, bookId, layoutKey, chapter.chapterIndex, computedPairs)
         }
@@ -497,89 +485,24 @@ object ReaderLayoutEngine {
         return if (roundUp) (best + 1).coerceAtMost(maxAnnotatedLength) else best.coerceAtMost(maxAnnotatedLength)
     }
 
-    private fun findLargestFittingEnd(
-        annotatedDoc: AnnotatedString,
-        start: Int,
-        endLimit: Int,
-        textMeasurer: TextMeasurer,
-        textStyle: TextStyle,
-        maxWidth: Int,
-        maxHeight: Int
-    ): Int {
-        var low = (start + 1).coerceAtMost(endLimit)
-        var high = endLimit
-        var best = low
-
-        while (low <= high) {
-            val mid = (low + high) ushr 1
-            val slice = annotatedDoc.subSequence(start, mid).trimTrailingWhitespace()
-            if (slice.isEmpty()) {
-                low = mid + 1
-                continue
-            }
-            val layout = textMeasurer.measure(
-                text = slice,
-                style = textStyle,
-                constraints = Constraints(maxWidth = maxWidth)
-            )
-            val fits = layout.size.height <= maxHeight && !layout.didOverflowHeight
-            if (fits) {
-                best = mid
-                low = mid + 1
-            } else {
-                high = mid - 1
-            }
-        }
-        return best
-    }
-
-    private fun refineEndIndex(
-        annotatedDoc: AnnotatedString,
-        start: Int,
-        endLimit: Int,
-        initialBest: Int,
-        textMeasurer: TextMeasurer,
-        textStyle: TextStyle,
-        maxWidth: Int,
-        maxHeight: Int
-    ): Int {
-        var target = initialBest.coerceAtMost(endLimit)
-        for (i in target downTo (start + 1)) {
-            val char = annotatedDoc[i - 1]
-            if (char == ' ' || char == '\n' || char == '-' || char == '\t' || char == '.' || char == ',' || char == ';') {
-                val slice = annotatedDoc.subSequence(start, i).trimTrailingWhitespace()
-                if (slice.isNotEmpty()) {
-                    val layout = textMeasurer.measure(
-                        text = slice,
-                        style = textStyle,
-                        constraints = Constraints(maxWidth = maxWidth)
-                    )
-                    if (layout.size.height <= maxHeight && !layout.didOverflowHeight) {
-                        target = i
-                        break
-                    }
-                }
-            }
-        }
-        val finalSlice = annotatedDoc.subSequence(start, target).trimTrailingWhitespace()
-        if (finalSlice.isNotEmpty()) {
-            val layout = textMeasurer.measure(
-                text = finalSlice,
-                style = textStyle,
-                constraints = Constraints(maxWidth = maxWidth)
-            )
-            if (layout.size.height <= maxHeight && !layout.didOverflowHeight) {
-                return target
-            }
-        }
-        return initialBest.coerceAtMost(endLimit)
-    }
-
     private fun AnnotatedString.trimTrailingWhitespace(): AnnotatedString {
         var end = length
         while (end > 0 && text[end - 1].isWhitespace()) {
             end--
         }
         return if (end == length) this else subSequence(0, end)
+    }
+
+    fun validatePagination(pages: List<ReaderPage>, maxHeightPx: Int) {
+        for (i in pages.indices) {
+            val page = pages[i]
+            if (i > 0) {
+                val prev = pages[i - 1]
+                if (prev.endOffset > page.startOffset) {
+                    Log.w("ReaderValidation", "OVERLAP between page ${prev.pageIndex} (ends ${prev.endOffset}) and page ${page.pageIndex} (starts ${page.startOffset})")
+                }
+            }
+        }
+        Log.d("ReaderValidation", "Pagination validation completed for ${pages.size} pages.")
     }
 }
