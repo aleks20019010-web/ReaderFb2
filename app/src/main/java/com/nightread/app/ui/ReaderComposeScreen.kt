@@ -434,10 +434,12 @@ fun ReaderComposeScreen(
                                     density = density
                                 )
                                 com.nightread.app.ui.customlayout.ReaderLayoutEngine.paginate(
+                                    context = context,
                                     document = doc,
                                     config = config,
                                     viewport = viewport,
                                     textMeasurer = textMeasurer,
+                                    initialTargetOffset = savedTextOffset,
                                     onPagesUpdated = { updatedPages, isFirstChunk ->
                                         readerPages = updatedPages
                                         val currentOffsets = updatedPages.map { it.startOffset }
