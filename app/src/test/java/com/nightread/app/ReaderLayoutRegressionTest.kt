@@ -361,6 +361,51 @@ class ReaderLayoutRegressionTest {
         // Actually, let's just make it simpler:
         assertEquals("Epsilon 0.5 check", 1, pages.size) 
     }
+
+    @Test
+    fun test16_FixedBodyLinesCount() = runWithMeasurer { measurer ->
+        // Generate a long text with 150+ lines of plain body text
+        val sb = StringBuilder()
+        for (i in 1..150) {
+            sb.append("Line number $i of plain body text for pagination testing.\n")
+        }
+        val text = sb.toString()
+        val style = createStyle(16f)
+        val chunk = createChunk(text)
+
+        val safeMaxHeight = 400
+        val pages = runBlocking {
+            ReaderLayoutEngine.paginateChunkPublic(
+                context, "b1", "k1", 0, chunk, measurer, style, 800, safeMaxHeight
+            )
+        }
+
+        assertTrue("Should have multiple pages", pages.size > 2)
+
+        // Measure layout to get individual line heights and verify line counts per page
+        val layout = measurer.measure(
+            text = AnnotatedString(text),
+            style = style,
+            constraints = Constraints(maxWidth = 800)
+        )
+
+        val standardLineHeight = if (layout.lineCount > 0) layout.getLineBottom(0) - layout.getLineTop(0) else 24f
+        val expectedLinesPerPage = kotlin.math.floor(safeMaxHeight / standardLineHeight).toInt().coerceAtLeast(1)
+
+        println("test16: totalLines=${layout.lineCount}, standardLineHeight=$standardLineHeight, expectedLinesPerPage=$expectedLinesPerPage, totalPages=${pages.size}")
+
+        // Check all pages except the last one (which may be partial)
+        for (i in 0 until pages.size - 1) {
+            val page = pages[i]
+            val pageLayout = measurer.measure(
+                text = page.text,
+                style = style,
+                constraints = Constraints(maxWidth = 800)
+            )
+            assertEquals("Full page $i should have exactly linesPerPage lines", expectedLinesPerPage, pageLayout.lineCount)
+        }
+    }
+
     private fun createStyle(fontSize: Float) = TextStyle(
         fontSize = fontSize.sp,
         lineHeight = (fontSize * 1.4f).sp,

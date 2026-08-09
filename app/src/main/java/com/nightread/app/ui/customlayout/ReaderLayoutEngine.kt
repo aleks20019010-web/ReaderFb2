@@ -481,9 +481,13 @@ object ReaderLayoutEngine {
 
         val standardBodyLineHeight = lines.firstOrNull()?.height ?: 24f
         val linesPerPage = if (standardBodyLineHeight > 0f) {
-            kotlin.math.round(safeMaxHeightPx / standardBodyLineHeight).toInt().coerceAtLeast(1)
+            kotlin.math.floor(safeMaxHeightPx / standardBodyLineHeight).toInt().coerceAtLeast(1)
         } else {
             18
+        }
+
+        if (DEBUG_PAGINATION) {
+            Log.d(TAG, "PAGINATION METRICS: standardBodyLineHeight=$standardBodyLineHeight, safeMaxHeightPx=$safeMaxHeightPx, calculated linesPerPage=$linesPerPage, totalLines=${lines.size}")
         }
 
         val chunkPages = mutableListOf<ReaderPage>()
@@ -494,10 +498,7 @@ object ReaderLayoutEngine {
             val pageStartLine = lines[pageStartLineIdx]
             var pageEndLineIdx = pageStartLineIdx
             var linesOnPage = 0
-
-            if (DEBUG_PAGINATION) {
-                Log.d(TAG, "  Page $localPageIndex start: lineIdx=$pageStartLineIdx, top=${pageStartLine.top}")
-            }
+            var completionReason = "Unknown"
 
             while (pageEndLineIdx < lines.size) {
                 val candidateLine = lines[pageEndLineIdx]
@@ -505,20 +506,31 @@ object ReaderLayoutEngine {
                 val lineUnits = if (lineWeight > 1.3f) kotlin.math.round(lineWeight).toInt() else 1
 
                 val totalCandidateUnits = linesOnPage + lineUnits
-                val candidateHeightSum = candidateLine.bottom - pageStartLine.top
-                val heightFits = candidateHeightSum <= safeMaxHeightPx + 0.5f
 
-                if ((totalCandidateUnits <= linesPerPage && heightFits) || pageEndLineIdx == pageStartLineIdx) {
-                    if (candidateLine.height > safeMaxHeightPx + 0.5f && pageEndLineIdx == pageStartLineIdx) {
-                        Log.w(TAG, "    Oversized line $pageEndLineIdx (height ${candidateLine.height} > $safeMaxHeightPx). Clipping occurs.")
-                        pageEndLineIdx++
-                        break
-                    }
-                    linesOnPage += lineUnits
-                    pageEndLineIdx++
-                } else {
+                if (totalCandidateUnits > linesPerPage && pageEndLineIdx > pageStartLineIdx) {
+                    completionReason = "Reached linesPerPage ($linesPerPage)"
                     break
                 }
+
+                if (pageEndLineIdx == pageStartLineIdx && candidateLine.height > safeMaxHeightPx + 0.5f) {
+                    Log.w(TAG, "    Oversized line $pageEndLineIdx (height ${candidateLine.height} > $safeMaxHeightPx). Clipping occurs.")
+                    linesOnPage += lineUnits
+                    pageEndLineIdx++
+                    completionReason = "Oversized single line"
+                    break
+                }
+
+                linesOnPage += lineUnits
+                pageEndLineIdx++
+
+                if (linesOnPage >= linesPerPage) {
+                    completionReason = "Reached linesPerPage ($linesPerPage)"
+                    break
+                }
+            }
+
+            if (pageEndLineIdx >= lines.size && completionReason == "Unknown") {
+                completionReason = "End of text lines"
             }
 
             val pageLines = lines.subList(pageStartLineIdx, pageEndLineIdx)
@@ -534,10 +546,17 @@ object ReaderLayoutEngine {
                 androidx.compose.ui.text.AnnotatedString("")
             }
 
-            // Add page regardless of content to preserve previous.endOffset == next.startOffset invariant
             if (DEBUG_PAGINATION) {
-                Log.d(TAG, "  Created Page $localPageIndex: lines $pageStartLineIdx..${pageEndLineIdx-1}, offsets $startSource..$endSource, charCount=${slice.length}")
+                Log.d(TAG, "  Page $localPageIndex Summary:")
+                Log.d(TAG, "    - startOffset=$startSource, endOffset=$endSource")
+                Log.d(TAG, "    - visualLinesCount=${pageLines.size} (units=$linesOnPage), linesPerPage=$linesPerPage")
+                Log.d(TAG, "    - standardBodyLineHeight=$standardBodyLineHeight, safeMaxHeightPx=$safeMaxHeightPx")
+                Log.d(TAG, "    - lastAllowedLineIndex=${pageEndLineIdx - 1}, completionReason=$completionReason")
+                for (pl in pageLines) {
+                    Log.d(TAG, "      Line ${pl.index}: height=${pl.height}, top=${pl.top}, bottom=${pl.bottom}")
+                }
             }
+
             chunkPages.add(
                 ReaderPage(
                     pageIndex = localPageIndex++,
