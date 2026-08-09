@@ -17,8 +17,12 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import java.util.PriorityQueue
 
 object ReaderLayoutEngine {
+    private const val TAG = "ReaderLayoutEngine"
+    private const val DEBUG_PAGINATION = true
+    private const val TARGET_CHUNK_CHAR_COUNT = 4000
 
     suspend fun parseDocument(bookId: String, mainText: String, baseFontSize: androidx.compose.ui.unit.TextUnit): ReaderDocument = withContext(Dispatchers.Default) {
         val paragraphs = mutableListOf<ReaderParagraph>()
@@ -67,25 +71,30 @@ object ReaderLayoutEngine {
             val titleCandidate = chapterParagraphs.firstOrNull { it.rawText.isNotBlank() }?.rawText ?: "Глава ${i + 1}"
             val cleanTitle = titleCandidate.replace(Regex("<.*?>"), "").take(60)
 
+            val chunks = buildChunksForChapter(i, chapterParagraphs)
+
             chapters.add(
                 ReaderChapter(
                     chapterIndex = i,
                     title = if (cleanTitle.isNotBlank()) cleanTitle else "Глава ${i + 1}",
                     startOffset = startOffset,
                     endOffset = endOffset,
-                    paragraphs = chapterParagraphs
+                    paragraphs = chapterParagraphs,
+                    chunks = chunks
                 )
             )
         }
 
         if (chapters.isEmpty()) {
+            val fallbackChunks = buildChunksForChapter(0, paragraphs)
             chapters.add(
                 ReaderChapter(
                     chapterIndex = 0,
                     title = "Начало книги",
                     startOffset = 0,
                     endOffset = mainText.length,
-                    paragraphs = paragraphs
+                    paragraphs = paragraphs,
+                    chunks = fallbackChunks
                 )
             )
         }
@@ -96,6 +105,50 @@ object ReaderLayoutEngine {
             paragraphs = paragraphs,
             chapters = chapters
         )
+    }
+
+    private fun buildChunksForChapter(chapterIndex: Int, paragraphs: List<ReaderParagraph>): List<ReaderChunk> {
+        val chunks = mutableListOf<ReaderChunk>()
+        if (paragraphs.isEmpty()) return chunks
+
+        var currentChunkParas = mutableListOf<ReaderParagraph>()
+        var currentChars = 0
+        var chunkStart = paragraphs.first().globalStartOffset
+
+        for (para in paragraphs) {
+            currentChunkParas.add(para)
+            currentChars += para.rawText.length
+            if (currentChars >= TARGET_CHUNK_CHAR_COUNT) {
+                val chunkEnd = para.globalEndOffset
+                chunks.add(
+                    ReaderChunk(
+                        chunkIndex = chunks.size,
+                        chapterIndex = chapterIndex,
+                        startOffset = chunkStart,
+                        endOffset = chunkEnd,
+                        paragraphs = currentChunkParas.toList()
+                    )
+                )
+                currentChunkParas.clear()
+                currentChars = 0
+                chunkStart = chunkEnd + 1
+            }
+        }
+
+        if (currentChunkParas.isNotEmpty()) {
+            val chunkEnd = currentChunkParas.last().globalEndOffset
+            chunks.add(
+                ReaderChunk(
+                    chunkIndex = chunks.size,
+                    chapterIndex = chapterIndex,
+                    startOffset = chunkStart,
+                    endOffset = chunkEnd,
+                    paragraphs = currentChunkParas.toList()
+                )
+            )
+        }
+
+        return chunks
     }
 
     private data class TagInfo(val tagName: String, val localStartIndex: Int)
@@ -197,26 +250,37 @@ object ReaderLayoutEngine {
 
     private data class AnnotatedMappingResult(
         val annotatedString: AnnotatedString,
-        val sourceOffsets: IntArray
+        val map: SourceDisplayMap
     )
 
-    private fun buildAnnotatedStringForChapter(chapter: ReaderChapter, baseFontSize: androidx.compose.ui.unit.TextUnit): AnnotatedMappingResult {
-        val sourceOffsetList = mutableListOf<Int>()
+    private fun buildAnnotatedStringForChunk(chunk: ReaderChunk, baseFontSize: androidx.compose.ui.unit.TextUnit): AnnotatedMappingResult {
+        val displayToSourceList = mutableListOf<Int>()
+        val sourceToDisplayStartMap = mutableMapOf<Int, Int>()
+        val sourceToDisplayEndMap = mutableMapOf<Int, Int>()
+
         val annotated = androidx.compose.ui.text.buildAnnotatedString {
-            for ((index, paragraph) in chapter.paragraphs.withIndex()) {
+            for ((index, paragraph) in chunk.paragraphs.withIndex()) {
                 if (index > 0) {
                     append("\n")
-                    val newlineOffset = (paragraph.globalStartOffset - 1).coerceAtLeast(chapter.startOffset)
-                    sourceOffsetList.add(newlineOffset)
+                    val newlineOffset = (paragraph.globalStartOffset - 1).coerceAtLeast(chunk.startOffset)
+                    val displayIdx = length - 1
+                    displayToSourceList.add(newlineOffset)
+                    sourceToDisplayStartMap.putIfAbsent(newlineOffset, displayIdx)
+                    sourceToDisplayEndMap[newlineOffset] = displayIdx + 1
                 }
                 for (inline in paragraph.inlines) {
                     when (inline) {
                         is ReaderInline.Text -> {
                             val content = inline.content
+                            val startAnnotatedIndex = length
                             append(content)
                             val startOffset = inline.globalStartOffset
                             for (i in content.indices) {
-                                sourceOffsetList.add(startOffset + i)
+                                val displayIdx = startAnnotatedIndex + i
+                                val sourceOffset = startOffset + i
+                                displayToSourceList.add(sourceOffset)
+                                sourceToDisplayStartMap.putIfAbsent(sourceOffset, displayIdx)
+                                sourceToDisplayEndMap[sourceOffset] = displayIdx + 1
                             }
                         }
                         is ReaderInline.Styled -> {
@@ -226,18 +290,35 @@ object ReaderLayoutEngine {
                             addStyle(inline.style, startAnnotatedIndex, length)
                             val startOffset = inline.globalStartOffset
                             for (i in content.indices) {
-                                sourceOffsetList.add(startOffset + i)
+                                val displayIdx = startAnnotatedIndex + i
+                                val sourceOffset = startOffset + i
+                                displayToSourceList.add(sourceOffset)
+                                sourceToDisplayStartMap.putIfAbsent(sourceOffset, displayIdx)
+                                sourceToDisplayEndMap[sourceOffset] = displayIdx + 1
                             }
                         }
                     }
                 }
             }
         }
-        val sourceOffsets = sourceOffsetList.toIntArray()
-        require(sourceOffsets.size == annotated.length) {
-            "Offset mapping size (${sourceOffsets.size}) must match annotatedString length (${annotated.length})"
+
+        val displayToSourceArr = displayToSourceList.toIntArray()
+        val maxSource = (displayToSourceArr.maxOrNull() ?: chunk.endOffset) + 1
+        val s2dStart = IntArray(maxSource) { -1 }
+        val s2dEnd = IntArray(maxSource) { -1 }
+        for ((k, v) in sourceToDisplayStartMap) {
+            if (k in s2dStart.indices) s2dStart[k] = v
         }
-        return AnnotatedMappingResult(annotated, sourceOffsets)
+        for ((k, v) in sourceToDisplayEndMap) {
+            if (k in s2dEnd.indices) s2dEnd[k] = v
+        }
+
+        val map = SourceDisplayMap(
+            displayToSource = displayToSourceArr,
+            sourceToDisplayStart = s2dStart,
+            sourceToDisplayEnd = s2dEnd
+        )
+        return AnnotatedMappingResult(annotated, map)
     }
 
     suspend fun paginate(
@@ -251,7 +332,7 @@ object ReaderLayoutEngine {
     ): List<ReaderPage> = withContext(Dispatchers.Default) {
         if (document.chapters.isEmpty() || config.maxWidthPx <= 0 || config.maxHeightPx <= 0) return@withContext emptyList()
 
-        val layoutKey = "${config.fontFamily.hashCode()}_${config.fontSize.value}_${config.fontWeight.weight}_${config.lineSpacing}_${config.maxWidthPx}_${config.maxHeightPx}"
+        val layoutKey = buildLayoutKey(document.bookId, config)
         val textStyle = TextStyle(
             fontSize = config.fontSize,
             fontFamily = config.fontFamily,
@@ -269,100 +350,120 @@ object ReaderLayoutEngine {
         val chapters = document.chapters
 
         var initialChapterIdx = 0
-        for ((idx, ch) in chapters.withIndex()) {
+        var initialChunkIdx = 0
+        outer@ for ((chIdx, ch) in chapters.withIndex()) {
             if (initialTargetOffset in ch.startOffset..ch.endOffset) {
-                initialChapterIdx = idx
+                initialChapterIdx = chIdx
+                for ((chunkIdx, chunk) in ch.chunks.withIndex()) {
+                    if (initialTargetOffset in chunk.startOffset..chunk.endOffset) {
+                        initialChunkIdx = chunkIdx
+                        break@outer
+                    }
+                }
                 break
             }
         }
 
-        val chapterPagesMap = mutableMapOf<Int, List<ReaderPage>>()
+        val pageIndexBuilder = ReaderPageIndexBuilder()
 
-        // Priority 0: Paginate initial chapter immediately
+        // Priority 0: Paginate initial chunk immediately for lightning-fast first display
         val initialChapter = chapters[initialChapterIdx]
-        val initialPages = paginateChapter(
+        val initialChunk = initialChapter.chunks.getOrElse(initialChunkIdx) { initialChapter.chunks.first() }
+
+        val initialPages = paginateChunk(
             context = context,
             bookId = document.bookId,
             layoutKey = layoutKey,
-            chapter = initialChapter,
+            chapterIndex = initialChapterIdx,
+            chunk = initialChunk,
             textMeasurer = textMeasurer,
             textStyle = textStyle,
             maxWidthPx = maxWidthPx,
             safeMaxHeightPx = safeMaxHeightPx
         )
-        chapterPagesMap[initialChapterIdx] = initialPages
 
-        var allPages = assembleAllPages(chapters, chapterPagesMap)
-        onPagesUpdated(allPages, true)
+        pageIndexBuilder.addPagesForChunk(initialChapterIdx, initialChunk.chunkIndex, initialPages)
+        var currentSnapshot = pageIndexBuilder.buildSnapshot()
+        onPagesUpdated(currentSnapshot.allEntries().map { it.toReaderPage() }, true)
+        yield()
 
-        // Priority background pagination for remaining chapters
-        val priorityQueue = mutableListOf<Int>()
-        for (i in (initialChapterIdx + 1) until chapters.size) priorityQueue.add(i)
-        for (i in (initialChapterIdx - 1) downTo 0) priorityQueue.add(i)
+        // Background priority pagination queue
+        val taskQueue = PriorityQueue<PaginationTask>()
+        val processedChunks = mutableSetOf<Pair<Int, Int>>()
+        processedChunks.add(initialChapterIdx to initialChunk.chunkIndex)
 
-        for (chIdx in priorityQueue) {
+        // Queue initial chapter remaining chunks (NEARBY)
+        for (chunk in initialChapter.chunks) {
+            if (chunk.chunkIndex != initialChunk.chunkIndex) {
+                taskQueue.add(PaginationTask(initialChapterIdx, chunk.chunkIndex, PaginationPriority.NEARBY, initialTargetOffset))
+            }
+        }
+
+        // Queue other chapters (BACKGROUND)
+        for ((chIdx, ch) in chapters.withIndex()) {
+            if (chIdx != initialChapterIdx) {
+                for (chunk in ch.chunks) {
+                    taskQueue.add(PaginationTask(chIdx, chunk.chunkIndex, PaginationPriority.BACKGROUND, ch.startOffset))
+                }
+            }
+        }
+
+        while (taskQueue.isNotEmpty()) {
             currentCoroutineContext().ensureActive()
-            if (chapterPagesMap.containsKey(chIdx)) continue
+            val task = taskQueue.poll() ?: break
+            val key = task.chapterIndex to task.chunkIndex
+            if (processedChunks.contains(key)) continue
+            processedChunks.add(key)
 
-            val chapter = chapters[chIdx]
-            val pages = paginateChapter(
-                context = context,
-                bookId = document.bookId,
-                layoutKey = layoutKey,
-                chapter = chapter,
-                textMeasurer = textMeasurer,
-                textStyle = textStyle,
-                maxWidthPx = maxWidthPx,
-                safeMaxHeightPx = safeMaxHeightPx
-            )
-            chapterPagesMap[chIdx] = pages
-            allPages = assembleAllPages(chapters, chapterPagesMap)
-            onPagesUpdated(allPages, false)
+            val chapter = chapters[task.chapterIndex]
+            val chunk = chapter.chunks.getOrNull(task.chunkIndex) ?: continue
+
+            val cachedPages = PaginationDiskCache.getChapterChunkPages(context, document.bookId, layoutKey, task.chapterIndex, task.chunkIndex) // or use existing DiskCache
+            val chunkPages = if (cachedPages != null) {
+                cachedPages
+            } else {
+                paginateChunk(
+                    context = context,
+                    bookId = document.bookId,
+                    layoutKey = layoutKey,
+                    chapterIndex = task.chapterIndex,
+                    chunk = chunk,
+                    textMeasurer = textMeasurer,
+                    textStyle = textStyle,
+                    maxWidthPx = maxWidthPx,
+                    safeMaxHeightPx = safeMaxHeightPx
+                )
+            }
+
+            pageIndexBuilder.addPagesForChunk(task.chapterIndex, task.chunkIndex, chunkPages)
+            currentSnapshot = pageIndexBuilder.buildSnapshot()
+            onPagesUpdated(currentSnapshot.allEntries().map { it.toReaderPage() }, false)
             yield()
         }
 
-        validatePagination(allPages, safeMaxHeightPx)
-        allPages
+        val finalPages = currentSnapshot.allEntries().map { it.toReaderPage() }
+        validatePagination(finalPages, safeMaxHeightPx)
+        finalPages
     }
 
-    private suspend fun paginateChapter(
+    private fun buildLayoutKey(bookId: String, config: ReaderConfiguration): String {
+        return "${bookId}_${config.fontFamily.hashCode()}_${config.fontSize.value}_${config.fontWeight.weight}_${config.lineSpacing}_${config.maxWidthPx}_${config.maxHeightPx}"
+    }
+
+    private suspend fun paginateChunk(
         context: Context,
         bookId: String,
         layoutKey: String,
-        chapter: ReaderChapter,
+        chapterIndex: Int,
+        chunk: ReaderChunk,
         textMeasurer: TextMeasurer,
         textStyle: TextStyle,
         maxWidthPx: Int,
         safeMaxHeightPx: Int
     ): List<ReaderPage> {
-        val cachedOffsets = PaginationDiskCache.getChapterOffsets(context, bookId, layoutKey, chapter.chapterIndex)
-        val mappingResult = buildAnnotatedStringForChapter(chapter, textStyle.fontSize)
+        val mappingResult = buildAnnotatedStringForChunk(chunk, textStyle.fontSize)
         val annotated = mappingResult.annotatedString
-        val offsetMapping = mappingResult.sourceOffsets
-
-        if (cachedOffsets != null && cachedOffsets.isNotEmpty()) {
-            val pages = mutableListOf<ReaderPage>()
-            for ((pIdx, pair) in cachedOffsets.withIndex()) {
-                val start = pair.first
-                val end = pair.second
-                val startAnnotated = findAnnotatedIndexForOffset(offsetMapping, start, annotated.length)
-                val endAnnotated = findAnnotatedIndexForOffset(offsetMapping, end, annotated.length, roundUp = true)
-                if (startAnnotated < endAnnotated && endAnnotated <= annotated.length) {
-                    val slice = annotated.subSequence(startAnnotated, endAnnotated).trimTrailingWhitespace()
-                    if (slice.isNotEmpty()) {
-                        pages.add(
-                            ReaderPage(
-                                pageIndex = pages.size,
-                                text = slice,
-                                startOffset = start,
-                                endOffset = end
-                            )
-                        )
-                    }
-                }
-            }
-            if (pages.isNotEmpty()) return pages
-        }
+        val map = mappingResult.map
 
         if (annotated.isEmpty()) return emptyList()
 
@@ -380,17 +481,17 @@ object ReaderLayoutEngine {
             val bottom = layoutResult.getLineBottom(i)
             val height = bottom - top
 
-            val startSource = if (lineStartChar < offsetMapping.size) offsetMapping[lineStartChar] else chapter.startOffset
-            val endSource = if (lineEndChar > 0 && lineEndChar - 1 < offsetMapping.size) {
-                offsetMapping[lineEndChar - 1] + 1
+            val startSource = if (lineStartChar in map.displayToSource.indices) map.displayToSource[lineStartChar] else chunk.startOffset
+            val endSource = if (lineEndChar > 0 && (lineEndChar - 1) in map.displayToSource.indices) {
+                map.displayToSource[lineEndChar - 1] + 1
             } else {
-                chapter.endOffset
+                chunk.endOffset
             }
 
             lines.add(
                 LayoutLine(
-                    startOffset = startSource,
-                    endOffset = endSource.coerceAtMost(chapter.endOffset),
+                    startOffset = startSource.coerceAtMost(chunk.endOffset),
+                    endOffset = endSource.coerceAtMost(chunk.endOffset),
                     top = top,
                     bottom = bottom,
                     height = height
@@ -400,8 +501,7 @@ object ReaderLayoutEngine {
 
         if (lines.isEmpty()) return emptyList()
 
-        val chapterPages = mutableListOf<ReaderPage>()
-        val computedPairs = mutableListOf<Pair<Int, Int>>()
+        val chunkPages = mutableListOf<ReaderPage>()
         var pageStartLineIdx = 0
         var localPageIndex = 0
 
@@ -413,6 +513,11 @@ object ReaderLayoutEngine {
                 val candidateLine = lines[pageEndLineIdx]
                 val pageHeight = candidateLine.bottom - pageTop
                 if (pageHeight <= safeMaxHeightPx || pageEndLineIdx == pageStartLineIdx) {
+                    if (candidateLine.height > safeMaxHeightPx && pageEndLineIdx == pageStartLineIdx) {
+                        Log.w(TAG, "OVERSIZED_LINE: line height ${candidateLine.height} exceeds maxHeightPx $safeMaxHeightPx")
+                        pageEndLineIdx++
+                        break
+                    }
                     pageEndLineIdx++
                 } else {
                     break
@@ -423,20 +528,25 @@ object ReaderLayoutEngine {
             val startOffset = pageLines.first().startOffset
             val endOffset = pageLines.last().endOffset
 
-            val startAnnotated = findAnnotatedIndexForOffset(offsetMapping, startOffset, annotated.length)
-            val endAnnotated = findAnnotatedIndexForOffset(offsetMapping, endOffset, annotated.length, roundUp = true)
+            val startAnnotated = if (startOffset in map.sourceToDisplayStart.indices && map.sourceToDisplayStart[startOffset] != -1) {
+                map.sourceToDisplayStart[startOffset]
+            } else {
+                0
+            }
+            val endAnnotated = if (endOffset in map.sourceToDisplayEnd.indices && map.sourceToDisplayEnd[endOffset] != -1) {
+                map.sourceToDisplayEnd[endOffset]
+            } else {
+                annotated.length
+            }
 
             val slice = if (startAnnotated < endAnnotated && endAnnotated <= annotated.length) {
                 annotated.subSequence(startAnnotated, endAnnotated).trimTrailingWhitespace()
             } else {
-                annotated.subSequence(
-                    findAnnotatedIndexForOffset(offsetMapping, startOffset, annotated.length),
-                    annotated.length
-                )
+                annotated
             }
 
-            if (slice.isNotEmpty()) {
-                chapterPages.add(
+            if (slice.isNotEmpty() || startOffset < endOffset) {
+                chunkPages.add(
                     ReaderPage(
                         pageIndex = localPageIndex++,
                         text = slice,
@@ -444,45 +554,12 @@ object ReaderLayoutEngine {
                         endOffset = endOffset
                     )
                 )
-                computedPairs.add(startOffset to endOffset)
             }
 
             pageStartLineIdx = pageEndLineIdx
         }
 
-        if (computedPairs.isNotEmpty()) {
-            PaginationDiskCache.saveChapterOffsets(context, bookId, layoutKey, chapter.chapterIndex, computedPairs)
-        }
-
-        return chapterPages
-    }
-
-    private fun assembleAllPages(chapters: List<ReaderChapter>, chapterPagesMap: Map<Int, List<ReaderPage>>): List<ReaderPage> {
-        val result = mutableListOf<ReaderPage>()
-        var globalPageIndex = 0
-        for (i in chapters.indices) {
-            val pages = chapterPagesMap[i] ?: continue
-            for (p in pages) {
-                result.add(p.copy(pageIndex = globalPageIndex++))
-            }
-        }
-        return result
-    }
-
-    private fun findAnnotatedIndexForOffset(offsetMapping: IntArray, targetOffset: Int, maxAnnotatedLength: Int, roundUp: Boolean = false): Int {
-        var low = 0
-        var high = offsetMapping.size - 1
-        var best = 0
-        while (low <= high) {
-            val mid = (low + high) ushr 1
-            if (offsetMapping[mid] <= targetOffset) {
-                best = mid
-                low = mid + 1
-            } else {
-                high = mid - 1
-            }
-        }
-        return if (roundUp) (best + 1).coerceAtMost(maxAnnotatedLength) else best.coerceAtMost(maxAnnotatedLength)
+        return chunkPages
     }
 
     private fun AnnotatedString.trimTrailingWhitespace(): AnnotatedString {
@@ -493,16 +570,103 @@ object ReaderLayoutEngine {
         return if (end == length) this else subSequence(0, end)
     }
 
-    fun validatePagination(pages: List<ReaderPage>, maxHeightPx: Int) {
+    class ReaderPageIndexBuilder {
+        private val entries = mutableListOf<PageIndexEntry>()
+
+        fun addPagesForChunk(chapterIndex: Int, chunkIndex: Int, pages: List<ReaderPage>) {
+            // Remove existing for same chapter/chunk if re-paginating
+            entries.removeAll { it.chapterIndex == chapterIndex && it.chunkIndex == chunkIndex }
+            for (p in pages) {
+                entries.add(
+                    PageIndexEntry(
+                        pageIndex = 0, // will reassign globally
+                        chapterIndex = chapterIndex,
+                        chunkIndex = chunkIndex,
+                        startOffset = p.startOffset,
+                        endOffset = p.endOffset,
+                        text = p.text
+                    )
+                )
+            }
+            entries.sortBy { it.startOffset }
+        }
+
+        fun buildSnapshot(): ReaderPageIndex {
+            val normalized = entries.mapIndexed { idx, entry ->
+                entry.copy(pageIndex = idx)
+            }
+            return ReaderPageIndex(normalized)
+        }
+    }
+
+    data class PageIndexEntry(
+        val pageIndex: Int,
+        val chapterIndex: Int,
+        val chunkIndex: Int,
+        val startOffset: Int,
+        val endOffset: Int,
+        val text: AnnotatedString
+    ) {
+        fun toReaderPage(): ReaderPage = ReaderPage(
+            pageIndex = pageIndex,
+            text = text,
+            startOffset = startOffset,
+            endOffset = endOffset
+        )
+    }
+
+    class ReaderPageIndex(private val entries: List<PageIndexEntry>) {
+        fun getPage(index: Int): PageIndexEntry? = entries.getOrNull(index)
+
+        fun findPageByOffset(offset: Int): Int {
+            if (entries.isEmpty()) return 0
+            var low = 0
+            var high = entries.size - 1
+            var best = 0
+            while (low <= high) {
+                val mid = (low + high) ushr 1
+                val entry = entries[mid]
+                if (offset >= entry.startOffset) {
+                    best = mid
+                    low = mid + 1
+                } else {
+                    high = mid - 1
+                }
+            }
+            return best
+        }
+
+        fun pageCount(): Int = entries.size
+
+        fun allEntries(): List<PageIndexEntry> = entries
+    }
+
+    fun validatePagination(pages: List<ReaderPage>, maxHeightPx: Int): PaginationValidationResult {
+        val errors = mutableListOf<String>()
+        val warnings = mutableListOf<String>()
+
         for (i in pages.indices) {
             val page = pages[i]
+            if (page.pageIndex != i) {
+                errors.add("Page index mismatch at position $i: expected $i, got ${page.pageIndex}")
+            }
+            if (page.startOffset < 0 || page.endOffset < page.startOffset) {
+                errors.add("Invalid page range on page ${page.pageIndex}: start=${page.startOffset}, end=${page.endOffset}")
+            }
             if (i > 0) {
                 val prev = pages[i - 1]
                 if (prev.endOffset > page.startOffset) {
-                    Log.w("ReaderValidation", "OVERLAP between page ${prev.pageIndex} (ends ${prev.endOffset}) and page ${page.pageIndex} (starts ${page.startOffset})")
+                    errors.add("OVERLAP between page ${prev.pageIndex} (ends ${prev.endOffset}) and page ${page.pageIndex} (starts ${page.startOffset})")
+                } else if (prev.endOffset < page.startOffset) {
+                    warnings.add("GAP between page ${prev.pageIndex} (ends ${prev.endOffset}) and page ${page.pageIndex} (starts ${page.startOffset})")
                 }
             }
         }
-        Log.d("ReaderValidation", "Pagination validation completed for ${pages.size} pages.")
+
+        val isValid = errors.isEmpty()
+        if (DEBUG_PAGINATION) {
+            Log.d(TAG, "Pagination validation: isValid=$isValid, errors=${errors.size}, warnings=${warnings.size}")
+        }
+        return PaginationValidationResult(isValid, errors, warnings)
     }
 }

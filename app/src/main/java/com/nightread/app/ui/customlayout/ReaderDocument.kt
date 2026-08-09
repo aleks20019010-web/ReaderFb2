@@ -5,7 +5,8 @@ data class ReaderChapter(
     val title: String,
     val startOffset: Int,
     val endOffset: Int,
-    val paragraphs: List<ReaderParagraph>
+    val paragraphs: List<ReaderParagraph>,
+    val chunks: List<ReaderChunk>
 )
 
 data class ReaderDocument(
