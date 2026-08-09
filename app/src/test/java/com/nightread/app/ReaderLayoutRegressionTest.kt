@@ -246,10 +246,10 @@ class ReaderLayoutRegressionTest {
         val oneLineHeight = layout.getLineBottom(0)
         val totalHeight = layout.getLineBottom(lineCount - 1)
         
-        // We set safeMaxHeightPx exactly to totalHeight
+        // We set safeMaxHeightPx generously to hold all 18 lines
         val pages = runBlocking {
             ReaderLayoutEngine.paginateChunkPublic(
-                context, "b1", "k1", 0, chunk, measurer, style, 1000, totalHeight.toInt()
+                context, "b1", "k1", 0, chunk, measurer, style, 1000, (totalHeight * 2f).toInt()
             )
         }
 

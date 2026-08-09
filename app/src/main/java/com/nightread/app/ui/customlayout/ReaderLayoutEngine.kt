@@ -366,6 +366,19 @@ object ReaderLayoutEngine {
                                 sourceToDisplayEndMap[sourceOffset] = displayIdx + 1
                             }
                         }
+                        is ReaderInline.Image -> {
+                            val placeholder = "[IMAGE: ${inline.alt ?: inline.src}]\n"
+                            val startAnnotatedIndex = length
+                            append(placeholder)
+                            val startOffset = inline.globalStartOffset
+                            for (i in placeholder.indices) {
+                                val displayIdx = startAnnotatedIndex + i
+                                val sourceOffset = startOffset + (i % (inline.globalEndOffset - inline.globalStartOffset).coerceAtLeast(1))
+                                displayToSourceList.add(sourceOffset)
+                                sourceToDisplayStartMap.putIfAbsent(sourceOffset, displayIdx)
+                                sourceToDisplayEndMap[sourceOffset] = displayIdx + 1
+                            }
+                        }
                     }
                 }
             }
@@ -466,41 +479,44 @@ object ReaderLayoutEngine {
 
         if (lines.isEmpty()) return emptyList()
 
+        val standardBodyLineHeight = lines.firstOrNull()?.height ?: 24f
+        val linesPerPage = if (standardBodyLineHeight > 0f) {
+            kotlin.math.round(safeMaxHeightPx / standardBodyLineHeight).toInt().coerceAtLeast(1)
+        } else {
+            18
+        }
+
         val chunkPages = mutableListOf<ReaderPage>()
         var pageStartLineIdx = 0
         var localPageIndex = 0
 
         while (pageStartLineIdx < lines.size) {
-            val pageTop = lines[pageStartLineIdx].top
+            val pageStartLine = lines[pageStartLineIdx]
             var pageEndLineIdx = pageStartLineIdx
+            var linesOnPage = 0
 
             if (DEBUG_PAGINATION) {
-                Log.d(TAG, "  Page $localPageIndex start: lineIdx=$pageStartLineIdx, top=$pageTop")
+                Log.d(TAG, "  Page $localPageIndex start: lineIdx=$pageStartLineIdx, top=${pageStartLine.top}")
             }
 
             while (pageEndLineIdx < lines.size) {
                 val candidateLine = lines[pageEndLineIdx]
-                val pageHeight = candidateLine.bottom - pageTop
-                
-                // Deterministic fits check with epsilon to handle float precision issues
-                val fits = pageHeight <= safeMaxHeightPx + 0.5f
-                
-                if (fits || pageEndLineIdx == pageStartLineIdx) {
-                    // Even if it doesn't fit, if it's the only line, we must take it (clipping fallback)
+                val lineWeight = if (standardBodyLineHeight > 0f) (candidateLine.height / standardBodyLineHeight) else 1f
+                val lineUnits = if (lineWeight > 1.3f) kotlin.math.round(lineWeight).toInt() else 1
+
+                val totalCandidateUnits = linesOnPage + lineUnits
+                val candidateHeightSum = candidateLine.bottom - pageStartLine.top
+                val heightFits = candidateHeightSum <= safeMaxHeightPx + 0.5f
+
+                if ((totalCandidateUnits <= linesPerPage && heightFits) || pageEndLineIdx == pageStartLineIdx) {
                     if (candidateLine.height > safeMaxHeightPx + 0.5f && pageEndLineIdx == pageStartLineIdx) {
                         Log.w(TAG, "    Oversized line $pageEndLineIdx (height ${candidateLine.height} > $safeMaxHeightPx). Clipping occurs.")
                         pageEndLineIdx++
                         break
                     }
-                    
-                    if (DEBUG_PAGINATION) {
-                        Log.v(TAG, "    Line $pageEndLineIdx fits: bottom=${candidateLine.bottom}, relBottom=$pageHeight")
-                    }
+                    linesOnPage += lineUnits
                     pageEndLineIdx++
                 } else {
-                    if (DEBUG_PAGINATION) {
-                        Log.d(TAG, "    Line $pageEndLineIdx EXCEEDS height: bottom=${candidateLine.bottom}, relBottom=$pageHeight > $safeMaxHeightPx")
-                    }
                     break
                 }
             }
