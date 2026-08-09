@@ -106,6 +106,8 @@ configurations.all {
 }
 
 dependencies {
+  implementation("org.pytorch:pytorch_android_lite:2.1.0")
+  implementation("org.pytorch:pytorch_android_torchvision_lite:2.1.0")
   coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
   implementation("androidx.media:media:1.6.0")
 

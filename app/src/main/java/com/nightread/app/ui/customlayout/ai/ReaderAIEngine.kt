@@ -42,9 +42,39 @@ object ReaderAIEngine {
         }
     }
 
-    fun isReady(): Boolean = isInitialized
+    fun isReady(): Boolean = isInitialized && (model?.isReady() == true)
 
     fun getInitTimeMs(): Long = lastInitTimeMs
+
+    fun getDiagnosticsInfo(): Map<String, Any> {
+        val m = model
+        return mapOf(
+            "model_name" to ReaderAIModel.MODEL_NAME,
+            "executorch_version" to ReaderAIModel.EXECUTORCH_VERSION,
+            "backend" to ReaderAIModel.BACKEND,
+            "quantization" to ReaderAIModel.QUANTIZATION_TYPE,
+            "parameters" to ReaderAIModel.PARAM_COUNT,
+            "is_real_inference" to (m?.isTestInferenceSuccess() ?: false),
+            "model_size_mb" to (m?.getModelFileSizeMb() ?: 0f),
+            "sha256" to (m?.getModelSha256() ?: "N/A"),
+            "init_time_ms" to lastInitTimeMs,
+            "test_inference_time_ms" to (m?.getTestInferenceTimeMs() ?: 0L)
+        )
+    }
+
+    fun getDiagnosticsSummary(): String {
+        val info = getDiagnosticsInfo()
+        return """
+            Model: ${info["model_name"]}
+            Size: ${info["model_size_mb"]} MB
+            ExecuTorch: ${info["executorch_version"]}
+            Backend: ${info["backend"]}
+            Quantization: ${info["quantization"]}
+            SHA256: ${info["sha256"]}
+            Inference: ${if (info["is_real_inference"] == true) "REAL EXECUTORCH" else "FALLBACK"}
+            Test Inference Time: ${info["test_inference_time_ms"]} ms
+        """.trimIndent()
+    }
 
     fun findPageForOffset(pages: List<ReaderAIPageLayout>, targetOffset: Int): Int {
         if (pages.isEmpty()) return 0

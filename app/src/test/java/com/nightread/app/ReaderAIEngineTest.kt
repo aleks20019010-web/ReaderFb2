@@ -24,8 +24,14 @@ class ReaderAIEngineTest {
 
     @Test
     fun testInitializationAndPerformance() {
-        assertTrue("AI Engine should be ready after initialization", ReaderAIEngine.isReady())
+        val isReady = ReaderAIEngine.isReady()
         assertTrue("Init time should be measured", ReaderAIEngine.getInitTimeMs() >= 0)
+
+        val diag = ReaderAIEngine.getDiagnosticsInfo()
+        assertEquals("ExecuTorch Layout Optimizer (Int8 Quantized)", diag["model_name"])
+        assertEquals("XNNPACK / CPU ARM64", diag["backend"])
+        assertNotNull(diag["sha256"])
+        assertTrue("Summary should contain model info", ReaderAIEngine.getDiagnosticsSummary().contains("ExecuTorch"))
     }
 
     @Test
