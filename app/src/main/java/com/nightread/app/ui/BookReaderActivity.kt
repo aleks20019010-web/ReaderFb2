@@ -26,6 +26,25 @@ class BookReaderActivity : FragmentActivity() {
     private var openedBookText: String = ""
     private var ttsManager: AppTtsManager? = null
 
+    var onNextPage: (() -> Unit)? = null
+    var onPrevPage: (() -> Unit)? = null
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+            when (event.keyCode) {
+                android.view.KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                    onNextPage?.invoke()
+                    return true
+                }
+                android.view.KeyEvent.KEYCODE_VOLUME_UP -> {
+                    onPrevPage?.invoke()
+                    return true
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""

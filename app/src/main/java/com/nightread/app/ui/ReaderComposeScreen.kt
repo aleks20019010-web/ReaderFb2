@@ -280,6 +280,28 @@ fun ReaderComposeScreen(
             }
         }
     }
+
+    val activity = context as? BookReaderActivity
+    DisposableEffect(pagerState) {
+        activity?.onNextPage = {
+            coroutineScope.launch {
+                if (pagerState.currentPage < pagerState.pageCount - 1) {
+                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                }
+            }
+        }
+        activity?.onPrevPage = {
+            coroutineScope.launch {
+                if (pagerState.currentPage > 0) {
+                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                }
+            }
+        }
+        onDispose {
+            activity?.onNextPage = null
+            activity?.onPrevPage = null
+        }
+    }
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -350,71 +372,10 @@ fun ReaderComposeScreen(
                 val cameraCutoutHeight = maxOf(statusBarHeight, cutoutTop)
                 val navBarHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-                // Container for gestures and reader content
+                // Container for reader content
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onDoubleTap = {
-                                    isHideBars = !isHideBars
-                                    lastInteractionTime = System.currentTimeMillis()
-                                },
-                                onTap = { offset ->
-                                    val screenWidth = size.width
-                                    if (offset.x < screenWidth * 0.25f) {
-                                        coroutineScope.launch {
-                                            if (pagerState.currentPage > 0) {
-                                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                                            }
-                                        }
-                                    } else if (offset.x > screenWidth * 0.75f) {
-                                        coroutineScope.launch {
-                                            if (pagerState.currentPage < pagerState.pageCount - 1) {
-                                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                            }
-                                        }
-                                    } else {
-                                        isHideBars = !isHideBars
-                                        lastInteractionTime = System.currentTimeMillis()
-                                    }
-                                }
-                            )
-                        }
-                        .pointerInput(Unit) {
-                            var startX = 0f
-                            detectVerticalDragGestures(
-                                onDragStart = { offset ->
-                                    startX = offset.x
-                                    lastInteractionTime = System.currentTimeMillis()
-                                },
-                                onVerticalDrag = { change, dragAmount ->
-                                    if (abs(dragAmount) > 1.5f) {
-                                        change.consume()
-                                        lastInteractionTime = System.currentTimeMillis()
-                                        val screenWidth = size.width
-                                        val activity = context as? Activity
-                                        if (startX < screenWidth / 2f) {
-                                            currentBrightness = (currentBrightness - dragAmount / 600f).coerceIn(0.02f, 1f)
-                                            if (activity != null) {
-                                                BrightnessHelper.setBrightness(activity, currentBrightness)
-                                            }
-                                            SettingsManager.setBrightness(context, currentBrightness)
-                                            gestureIndicatorText = "Яркость: ${(currentBrightness * 100).toInt()}%"
-                                            gestureIndicatorIcon = Icons.Filled.WbSunny
-                                            showGestureIndicatorTime = System.currentTimeMillis()
-                                        } else {
-                                            currentWarmth = (currentWarmth - dragAmount / 5f).toInt().coerceIn(0, 100)
-                                            SettingsManager.setAmberFilterIntensity(context, currentWarmth)
-                                            SettingsManager.setAmberFilterEnabled(context, currentWarmth > 0)
-                                            gestureIndicatorText = "Теплота: $currentWarmth%"
-                                            gestureIndicatorIcon = Icons.Filled.Thermostat
-                                            showGestureIndicatorTime = System.currentTimeMillis()
-                                        }
-                                    }
-                                }
-                            )
-                        }
                 ) {
                     // Main Text Content as HorizontalPager with dynamic text measuring
                     BoxWithConstraints(
@@ -531,7 +492,70 @@ fun ReaderComposeScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) { page ->
                                 Box(
-                                    modifier = Modifier.fillMaxSize().clipToBounds(),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clipToBounds()
+                                        .pointerInput(page) {
+                                            detectTapGestures(
+                                                onDoubleTap = {
+                                                    isHideBars = !isHideBars
+                                                    lastInteractionTime = System.currentTimeMillis()
+                                                },
+                                                onTap = { offset ->
+                                                    val screenWidth = size.width
+                                                    if (offset.x < screenWidth * 0.25f) {
+                                                        coroutineScope.launch {
+                                                            if (pagerState.currentPage > 0) {
+                                                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                                            }
+                                                        }
+                                                    } else if (offset.x > screenWidth * 0.75f) {
+                                                        coroutineScope.launch {
+                                                            if (pagerState.currentPage < pagerState.pageCount - 1) {
+                                                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                                            }
+                                                        }
+                                                    } else {
+                                                        isHideBars = !isHideBars
+                                                        lastInteractionTime = System.currentTimeMillis()
+                                                    }
+                                                }
+                                            )
+                                        }
+                                        .pointerInput(page) {
+                                            var startX = 0f
+                                            detectVerticalDragGestures(
+                                                onDragStart = { offset ->
+                                                    startX = offset.x
+                                                    lastInteractionTime = System.currentTimeMillis()
+                                                },
+                                                onVerticalDrag = { change, dragAmount ->
+                                                    if (abs(dragAmount) > 1.5f) {
+                                                        change.consume()
+                                                        lastInteractionTime = System.currentTimeMillis()
+                                                        val screenWidth = size.width
+                                                        val activity = context as? Activity
+                                                        if (startX < screenWidth / 2f) {
+                                                            currentBrightness = (currentBrightness - dragAmount / 600f).coerceIn(0.02f, 1f)
+                                                            if (activity != null) {
+                                                                BrightnessHelper.setBrightness(activity, currentBrightness)
+                                                            }
+                                                            SettingsManager.setBrightness(context, currentBrightness)
+                                                            gestureIndicatorText = "Яркость: ${(currentBrightness * 100).toInt()}%"
+                                                            gestureIndicatorIcon = Icons.Filled.WbSunny
+                                                            showGestureIndicatorTime = System.currentTimeMillis()
+                                                        } else {
+                                                            currentWarmth = (currentWarmth - dragAmount / 5f).toInt().coerceIn(0, 100)
+                                                            SettingsManager.setAmberFilterIntensity(context, currentWarmth)
+                                                            SettingsManager.setAmberFilterEnabled(context, currentWarmth > 0)
+                                                            gestureIndicatorText = "Теплота: $currentWarmth%"
+                                                            gestureIndicatorIcon = Icons.Filled.Thermostat
+                                                            showGestureIndicatorTime = System.currentTimeMillis()
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                        },
                                     contentAlignment = Alignment.TopStart
                                 ) {
                                     val readerPage = readerPages.getOrElse(page) { com.nightread.app.ui.customlayout.ReaderPage(0, AnnotatedString(""), 0, 0) }
