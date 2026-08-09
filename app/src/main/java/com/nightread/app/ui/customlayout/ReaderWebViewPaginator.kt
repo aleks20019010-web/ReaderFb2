@@ -29,30 +29,45 @@ object ReaderWebViewPaginator {
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
                 <style>
-                    html, body {
+                    * {
+                        box-sizing: border-box;
+                        margin: 0;
+                        padding: 0;
+                        margin-block-start: 0;
+                        margin-block-end: 0;
+                    }
+                    html {
                         margin: 0;
                         padding: 0;
                         width: ${viewportWidth}px;
                         height: ${viewportHeight}px;
                         overflow: hidden;
-                        -webkit-text-size-adjust: 100%;
                         background-color: $bgColorHex;
                         color: $textColorHex;
+                        -webkit-text-size-adjust: 100%;
                     }
                     body {
+                        margin: 0;
+                        padding: 20px 24px 32px 24px;
+                        width: ${viewportWidth}px;
+                        height: ${viewportHeight}px;
+                        overflow: hidden;
                         font-family: '$fontFamily', serif;
                         font-size: ${fontSize}px;
                         font-weight: $fontWeight;
                         line-height: $lineHeight;
-                        box-sizing: border-box;
-                        padding: 20px 24px;
-                        column-width: ${viewportWidth}px;
-                        column-gap: 0px;
+                        column-width: ${viewportWidth - 48}px;
+                        column-gap: 48px;
                         column-fill: auto;
-                        height: ${viewportHeight}px;
+                        -webkit-column-width: ${viewportWidth - 48}px;
+                        -webkit-column-gap: 48px;
+                        -webkit-column-fill: auto;
+                        background-color: $bgColorHex;
+                        color: $textColorHex;
                     }
                     p {
-                        margin: 0 0 1em 0;
+                        margin-top: 0;
+                        margin-bottom: 0.3em;
                         text-align: justify;
                         hyphens: auto;
                         -webkit-hyphens: auto;
@@ -71,38 +86,41 @@ object ReaderWebViewPaginator {
                     u {
                         text-decoration: underline;
                     }
-                    s, del {
+                    s, del, strike {
                         text-decoration: line-through;
                     }
                     h1, h2, h3, h4, h5, h6 {
                         break-inside: avoid;
                         page-break-inside: avoid;
-                        margin: 1em 0 0.5em 0;
+                        -webkit-column-break-inside: avoid;
+                        margin-top: 0.8em;
+                        margin-bottom: 0.4em;
                         font-weight: bold;
                         text-align: center;
                     }
                     blockquote {
-                        margin: 1em 0;
-                        padding-left: 1em;
+                        margin: 0.6em 0;
+                        padding-left: 0.8em;
                         border-left: 3px solid #888;
                         font-style: italic;
                     }
                     ul, ol {
-                        margin: 0 0 1em 1.5em;
+                        margin: 0 0 0.6em 1.2em;
                         padding: 0;
                     }
                     li {
-                        margin-bottom: 0.3em;
+                        margin-bottom: 0.2em;
                     }
                     img {
                         max-width: 100%;
-                        max-height: ${viewportHeight / 2}px;
+                        max-height: calc(${viewportHeight}px - 80px);
                         height: auto;
                         display: block;
-                        margin: 1em auto;
+                        margin: 0.5em auto;
                         object-fit: contain;
                         break-inside: avoid;
                         page-break-inside: avoid;
+                        -webkit-column-break-inside: avoid;
                     }
                     sup {
                         font-size: 0.75em;
