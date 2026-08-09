@@ -409,13 +409,13 @@ object ReaderLayoutEngine {
     }
 
     suspend fun paginateChunkPublic(
-        context: Context,
+        context: android.content.Context,
         bookId: String,
         layoutKey: String,
         chapterIndex: Int,
         chunk: ReaderChunk,
-        textMeasurer: TextMeasurer,
-        textStyle: TextStyle,
+        textMeasurer: androidx.compose.ui.text.TextMeasurer,
+        textStyle: androidx.compose.ui.text.TextStyle,
         maxWidthPx: Int,
         safeMaxHeightPx: Int
     ): List<ReaderPage> {
@@ -428,13 +428,17 @@ object ReaderLayoutEngine {
         val layoutResult = textMeasurer.measure(
             text = annotated,
             style = textStyle,
-            constraints = Constraints(maxWidth = maxWidthPx)
+            constraints = androidx.compose.ui.unit.Constraints(maxWidth = maxWidthPx)
         )
+
+        if (DEBUG_PAGINATION) {
+            Log.d(TAG, "Paginating chapter $chapterIndex, chunk ${chunk.chunkIndex}. maxWidth=$maxWidthPx, maxHeight=$safeMaxHeightPx, lineCount=${layoutResult.lineCount}, textLength=${annotated.length}")
+        }
 
         val lines = mutableListOf<LayoutLine>()
         for (i in 0 until layoutResult.lineCount) {
             val lineStartChar = layoutResult.getLineStart(i)
-            val lineEndChar = layoutResult.getLineEnd(i, visibleEnd = true)
+            val lineEndChar = layoutResult.getLineEnd(i, visibleEnd = false)
             val top = layoutResult.getLineTop(i)
             val bottom = layoutResult.getLineBottom(i)
             val height = bottom - top
@@ -442,12 +446,15 @@ object ReaderLayoutEngine {
             val startSource = if (lineStartChar in map.displayToSource.indices) map.displayToSource[lineStartChar] else chunk.startOffset
             val endSource = if (lineEndChar > 0 && (lineEndChar - 1) in map.displayToSource.indices) {
                 map.displayToSource[lineEndChar - 1] + 1
+            } else if (lineEndChar == 0) {
+                startSource
             } else {
                 chunk.endOffset
             }
 
             lines.add(
                 LayoutLine(
+                    index = i,
                     startOffset = startSource.coerceAtMost(chunk.endOffset),
                     endOffset = endSource.coerceAtMost(chunk.endOffset),
                     top = top,
@@ -467,46 +474,64 @@ object ReaderLayoutEngine {
             val pageTop = lines[pageStartLineIdx].top
             var pageEndLineIdx = pageStartLineIdx
 
+            if (DEBUG_PAGINATION) {
+                Log.d(TAG, "  Page $localPageIndex start: lineIdx=$pageStartLineIdx, top=$pageTop")
+            }
+
             while (pageEndLineIdx < lines.size) {
                 val candidateLine = lines[pageEndLineIdx]
                 val pageHeight = candidateLine.bottom - pageTop
-                if (pageHeight <= safeMaxHeightPx || pageEndLineIdx == pageStartLineIdx) {
-                    if (candidateLine.height > safeMaxHeightPx && pageEndLineIdx == pageStartLineIdx) {
-                        Log.w(TAG, "OVERSIZED_LINE: line height ${candidateLine.height} exceeds maxHeightPx $safeMaxHeightPx")
+                
+                // Deterministic fits check with epsilon to handle float precision issues
+                val fits = pageHeight <= safeMaxHeightPx + 0.5f
+                
+                if (fits || pageEndLineIdx == pageStartLineIdx) {
+                    // Even if it doesn't fit, if it's the only line, we must take it (clipping fallback)
+                    if (candidateLine.height > safeMaxHeightPx + 0.5f && pageEndLineIdx == pageStartLineIdx) {
+                        Log.w(TAG, "    Oversized line $pageEndLineIdx (height ${candidateLine.height} > $safeMaxHeightPx). Clipping occurs.")
                         pageEndLineIdx++
                         break
                     }
+                    
+                    if (DEBUG_PAGINATION) {
+                        Log.v(TAG, "    Line $pageEndLineIdx fits: bottom=${candidateLine.bottom}, relBottom=$pageHeight")
+                    }
                     pageEndLineIdx++
                 } else {
+                    if (DEBUG_PAGINATION) {
+                        Log.d(TAG, "    Line $pageEndLineIdx EXCEEDS height: bottom=${candidateLine.bottom}, relBottom=$pageHeight > $safeMaxHeightPx")
+                    }
                     break
                 }
             }
 
             val pageLines = lines.subList(pageStartLineIdx, pageEndLineIdx)
-            val startSource = if (pageStartLineIdx == 0) chunk.startOffset else pageLines.first().startOffset
+            val startSource = pageLines.first().startOffset
             val endSource = if (pageEndLineIdx == lines.size) chunk.endOffset else lines[pageEndLineIdx].startOffset
 
             val startAnnotated = layoutResult.getLineStart(pageStartLineIdx)
-            val endAnnotated = layoutResult.getLineEnd(pageEndLineIdx - 1, visibleEnd = true)
+            val endAnnotated = layoutResult.getLineEnd(pageEndLineIdx - 1, visibleEnd = false)
 
             val slice = if (startAnnotated < endAnnotated && endAnnotated <= annotated.length) {
-                annotated.subSequence(startAnnotated, endAnnotated).trimTrailingWhitespace()
+                annotated.subSequence(startAnnotated, endAnnotated)
             } else {
                 androidx.compose.ui.text.AnnotatedString("")
             }
 
-            if (slice.isNotEmpty() || startSource < endSource) {
-                chunkPages.add(
-                    ReaderPage(
-                        pageIndex = localPageIndex++,
-                        text = slice,
-                        startOffset = startSource,
-                        endOffset = endSource,
-                        startDisplayOffset = startAnnotated,
-                        endDisplayOffset = endAnnotated
-                    )
-                )
+            // Add page regardless of content to preserve previous.endOffset == next.startOffset invariant
+            if (DEBUG_PAGINATION) {
+                Log.d(TAG, "  Created Page $localPageIndex: lines $pageStartLineIdx..${pageEndLineIdx-1}, offsets $startSource..$endSource, charCount=${slice.length}")
             }
+            chunkPages.add(
+                ReaderPage(
+                    pageIndex = localPageIndex++,
+                    text = slice,
+                    startOffset = startSource,
+                    endOffset = endSource,
+                    startDisplayOffset = startAnnotated,
+                    endDisplayOffset = endAnnotated
+                )
+            )
 
             pageStartLineIdx = pageEndLineIdx
         }

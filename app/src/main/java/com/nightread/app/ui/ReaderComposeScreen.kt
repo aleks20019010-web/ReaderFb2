@@ -153,6 +153,8 @@ fun ReaderComposeScreen(
     val isExtraDimEnabled = remember(settingsVersion, context) { SettingsManager.isExtraDimEnabled(context) }
     val extraDimIntensity = remember(settingsVersion, context) { SettingsManager.getExtraDimIntensity(context) }
     val isHapticEnabled = remember(settingsVersion, context) { SettingsManager.isHapticFeedbackEnabled(context) }
+    val isSilentModeEnabled = remember(settingsVersion, context) { SettingsManager.isSilentModeEnabled(context) }
+    val isHyphenationEnabled = remember(settingsVersion, context) { SettingsManager.isHyphenationEnabled(context) }
     val isSleepTimerEnabled = remember(settingsVersion, context) { SettingsManager.isSleepTimerEnabled(context) }
     val sleepTimerDuration = remember(settingsVersion, context) { SettingsManager.getSleepTimerDuration(context) }
     var sleepTimerRemaining by remember { mutableLongStateOf(0L) }
@@ -308,7 +310,7 @@ fun ReaderComposeScreen(
 
     // Haptic feedback on page turn
     LaunchedEffect(pagerState.currentPage) {
-        if (isHapticEnabled && !isRestoringProgress) {
+        if (isHapticEnabled && !isSilentModeEnabled && !isRestoringProgress) {
             view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
         }
     }
@@ -549,7 +551,7 @@ fun ReaderComposeScreen(
                             oldHeightPx = maxHeightPx
                         }
 
-                        val readerTextStyle = remember(fontSize, font, mappedFontWeight, lineSpacing) {
+                        val readerTextStyle = remember(fontSize, font, mappedFontWeight, lineSpacing, isHyphenationEnabled) {
                             TextStyle(
                                 fontSize = fontSize.sp,
                                 fontFamily = font,
@@ -558,7 +560,7 @@ fun ReaderComposeScreen(
                                 lineHeight = (fontSize * lineSpacing).sp,
                                 letterSpacing = 0.1.sp,
                                 lineBreak = LineBreak.Paragraph,
-                                hyphens = Hyphens.Auto,
+                                hyphens = if (isHyphenationEnabled) Hyphens.Auto else Hyphens.None,
                                 platformStyle = PlatformTextStyle(includeFontPadding = false)
                             )
                         }
