@@ -437,6 +437,12 @@ object ReaderWebViewPaginator {
                 continue
             }
 
+            if (isChapterHeaderLine(processedLine)) {
+                val cleanTitle = processedLine.replace(Regex("<[^>]*>"), "").trim()
+                sb.append("<h1 class=\"chapter-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanTitle)}</h1>\n")
+                continue
+            }
+
             if (processedLine.contains("[CITE]")) {
                 processedLine = processedLine
                     .replace("[CITE]", "<blockquote data-offset=\"$lineStartOffset\">")
@@ -476,5 +482,35 @@ object ReaderWebViewPaginator {
         // We want to keep tags like <b>, <i>, <img>, etc. but escape raw < or > that are not part of tags if any.
         // For simplicity and robustness with book text containing emojis and unicode:
         return text
+    }
+
+    private fun isChapterHeaderLine(line: String): Boolean {
+        val trimmed = line.replace(Regex("<[^>]*>"), "")
+            .replace("[CHAPTER]", "")
+            .replace("[/CHAPTER]", "")
+            .trim()
+        if (trimmed.isEmpty() || trimmed.length > 80) return false
+
+        // 1. Exact standalone title words
+        if (Regex("^(?i)(?:глава|chapter|часть|part|эпилог|epilogue|пролог|prologue|аннотация|annotation)[:.]?$").matches(trimmed)) {
+            return true
+        }
+
+        // 2. Chapter keyword followed by numbers or Roman numerals (e.g. "Глава 1", "Глава 1. Возвращение в Академию", "Часть II: Начало")
+        if (Regex("^(?i)(?:глава|chapter|часть|part|книга|book|раздел)\\s*(?:[0-9]+|[ivxldcm]+)\\b.*").matches(trimmed)) {
+            return true
+        }
+
+        // 3. Chapter keyword followed by ordinal words (e.g. "Глава первая", "Часть вторая")
+        if (Regex("^(?i)(?:глава|chapter|часть|part|книга|book|раздел)\\s+(?:первая|вторая|третья|четвертая|пятая|шестая|седьмая|восьмая|девятая|десятая|первый|второй|третий|четвертый|пятый|1-я|2-я|3-я|one|two|three|four|five|first|second|third)\\b.*").matches(trimmed)) {
+            return true
+        }
+
+        // 4. Chapter keyword immediately followed by punctuation delimiter (e.g. "Глава: ...", "Глава - ...")
+        if (Regex("""^(?i)(?:глава|chapter|часть|part|книга|book|раздел)\s*[:.\-—].*""").matches(trimmed)) {
+            return true
+        }
+
+        return false
     }
 }
