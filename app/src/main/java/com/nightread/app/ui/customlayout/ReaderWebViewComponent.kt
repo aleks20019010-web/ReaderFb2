@@ -90,6 +90,8 @@ fun ReaderWebViewComponent(
                         if (targetOffset != null) {
                             view?.evaluateJavascript("window.scrollToOffset($targetOffset);", null)
                             onTargetOffsetHandled()
+                        } else if (lastReportedOffset > 0) {
+                            view?.evaluateJavascript("window.scrollToOffset($lastReportedOffset);", null)
                         } else {
                             view?.evaluateJavascript("window.scrollToPage($currentPage);", null)
                         }
@@ -178,10 +180,6 @@ fun ReaderWebViewComponent(
                 lastLoadedHtml = htmlContent
                 Log.d("WEBVIEW_ENGINE", "WebView content changed, reloading HTML.")
                 view.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
-                if (targetOffset != null) {
-                    view.evaluateJavascript("window.scrollToOffset($targetOffset);", null)
-                    onTargetOffsetHandled()
-                }
             } else if (targetOffset != null) {
                 Log.d("WEBVIEW_ENGINE", "WebView scrolling to targetOffset: $targetOffset")
                 view.evaluateJavascript("window.scrollToOffset($targetOffset);", null)

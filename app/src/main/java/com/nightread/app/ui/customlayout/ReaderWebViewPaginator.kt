@@ -268,27 +268,37 @@ object ReaderWebViewPaginator {
                     };
 
                     window.scrollToOffset = function(targetOffset) {
-                        var allEls = document.querySelectorAll('[data-offset]');
-                        var bestEl = null;
-                        var minDiff = Infinity;
-                        for (var i = 0; i < allEls.length; i++) {
-                            var off = parseInt(allEls[i].getAttribute('data-offset')) || 0;
-                            var diff = Math.abs(off - targetOffset);
-                            if (diff < minDiff) {
-                                minDiff = diff;
-                                bestEl = allEls[i];
+                        if (targetOffset === null || targetOffset === undefined) return;
+                        function doScroll(retries) {
+                            var allEls = document.querySelectorAll('[data-offset]');
+                            var bestEl = null;
+                            var minDiff = Infinity;
+                            for (var i = 0; i < allEls.length; i++) {
+                                var off = parseInt(allEls[i].getAttribute('data-offset')) || 0;
+                                var diff = Math.abs(off - targetOffset);
+                                if (diff < minDiff) {
+                                    minDiff = diff;
+                                    bestEl = allEls[i];
+                                }
+                            }
+                            if (bestEl) {
+                                var rect = bestEl.getBoundingClientRect();
+                                var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
+                                var vw = getPageWidth();
+                                if (vw > 0) {
+                                    var absoluteLeft = sx + rect.left;
+                                    var targetPage = Math.floor((absoluteLeft + 5) / vw);
+                                    var target = targetPage * vw;
+                                    scrollToTarget(target);
+                                    reportCurrentPosition();
+                                } else if (retries > 0) {
+                                    setTimeout(function() { doScroll(retries - 1); }, 50);
+                                }
+                            } else if (retries > 0) {
+                                setTimeout(function() { doScroll(retries - 1); }, 50);
                             }
                         }
-                        if (bestEl) {
-                            var rect = bestEl.getBoundingClientRect();
-                            var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                            var vw = getPageWidth();
-                            var absoluteLeft = sx + rect.left;
-                            var targetPage = Math.floor(absoluteLeft / vw);
-                            var target = targetPage * vw;
-                            scrollToTarget(target);
-                            reportCurrentPosition();
-                        }
+                        setTimeout(function() { doScroll(3); }, 30);
                     };
 
                     window.nextPage = function() {

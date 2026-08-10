@@ -305,6 +305,12 @@ fun ReaderComposeScreen(
     val pageStartOffsets = remember(readerPages) { readerPages.map { it.startOffset } }
     var isRestoringProgress by remember { mutableStateOf(true) }
     var savedTextOffset by remember { mutableIntStateOf(0) }
+    
+    LaunchedEffect(settingsVersion) {
+        if (settingsVersion > 0 && savedTextOffset > 0) {
+            pendingTargetOffset = savedTextOffset
+        }
+    }
     var isPreparingText by remember { mutableStateOf(true) }
     val textMeasurer = rememberTextMeasurer()
 
