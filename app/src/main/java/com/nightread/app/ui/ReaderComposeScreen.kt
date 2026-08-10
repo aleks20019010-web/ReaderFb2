@@ -59,6 +59,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -644,8 +645,8 @@ fun ReaderComposeScreen(
                                 }
                             }
                         } else {
-                            val textColorHex = String.format("#%06X", (0xFFFFFF and textColor.hashCode()))
-                            val bgColorHex = String.format("#%06X", (0xFFFFFF and bgColor.hashCode()))
+                            val textColorHex = String.format("#%06X", (0xFFFFFF and textColor.toArgb()))
+                            val bgColorHex = String.format("#%06X", (0xFFFFFF and bgColor.toArgb()))
                             val densityVal = density.density
                             val widthDp = (maxWidthPx / densityVal).toInt()
                             val heightDp = (maxHeightPx / densityVal).toInt()
@@ -653,8 +654,8 @@ fun ReaderComposeScreen(
                             val displayCutoutTop = WindowInsets.displayCutout.asPaddingValues().calculateTopPadding()
                             val topPaddingDp = maxOf(statusBarsTop, displayCutoutTop) + 3.dp
                             val topPaddingPx = with(density) { topPaddingDp.toPx().toInt() }
-                            val leftPaddingPx = with(density) { 8.dp.toPx().toInt() }
-                            val rightPaddingPx = with(density) { 8.dp.toPx().toInt() }
+                            val leftPaddingPx = with(density) { 20.dp.toPx().toInt() }
+                            val rightPaddingPx = with(density) { 20.dp.toPx().toInt() }
                             val bottomPaddingPx = with(density) { 20.dp.toPx().toInt() }
 
                             val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation, topPaddingPx) {

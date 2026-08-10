@@ -29,7 +29,7 @@ object ReaderWebViewPaginator {
         // 2. Build controlled CSS and HTML wrapper
         return """
             <!DOCTYPE html>
-            <html>
+            <html lang="ru">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -79,10 +79,13 @@ object ReaderWebViewPaginator {
                         margin-bottom: 0;
                         text-indent: 1.25em;
                         text-align: justify;
+                        text-justify: inter-word;
                         hyphens: auto;
                         -webkit-hyphens: auto;
-                        word-break: break-word;
-                        overflow-wrap: anywhere;
+                        -moz-hyphens: auto;
+                        -ms-hyphens: auto;
+                        word-break: normal;
+                        overflow-wrap: break-word;
                     }
                     p:last-child {
                         margin-bottom: 0;
