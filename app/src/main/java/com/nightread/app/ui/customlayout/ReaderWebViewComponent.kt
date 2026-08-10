@@ -147,7 +147,7 @@ fun ReaderWebViewComponent(
                                     } else {
                                         onToggleBars()
                                     }
-                                } else if (Math.abs(deltaX) > 30 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                                } else if (Math.abs(deltaX) > 15 && Math.abs(deltaX) > Math.abs(deltaY)) {
                                     // Swipe gesture detected!
                                     if (deltaX > 0) {
                                         this.evaluateJavascript("window.prevPage();", null)

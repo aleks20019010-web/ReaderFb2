@@ -15,9 +15,13 @@ object ReaderWebViewPaginator {
         bgColorHex: String,
         viewportWidth: Int,
         viewportHeight: Int,
-        pageAnimation: String = "slide"
+        pageAnimation: String = "slide",
+        topPadding: Int = 0,
+        bottomPadding: Int = 20,
+        leftPadding: Int = 8,
+        rightPadding: Int = 8
     ): String {
-        Log.d(TAG, "Sanitizing and wrapping HTML: length=${rawText.length}, font=$fontFamily, size=$fontSize, w=$viewportWidth, h=$viewportHeight, anim=$pageAnimation")
+        Log.d(TAG, "Sanitizing and wrapping HTML: length=${rawText.length}, font=$fontFamily, size=$fontSize, w=$viewportWidth, h=$viewportHeight, anim=$pageAnimation, padding=t:$topPadding, b:$bottomPadding, l:$leftPadding, r:$rightPadding")
 
         // 1. Convert custom markers ([CHAPTER], [CITE], [SUP], [NOTE], etc.) and clean unsafe tags while preserving safe ones
         val processedHtml = processBookMarkupToHtml(rawText)
@@ -49,18 +53,18 @@ object ReaderWebViewPaginator {
                     }
                     body {
                         margin: 0;
-                        padding: 20px 16px;
+                        padding: ${topPadding}px ${rightPadding}px ${bottomPadding}px ${leftPadding}px;
                         height: 100vh;
                         overflow: hidden;
                         font-family: '$fontFamily', serif;
                         font-size: ${fontSize}px;
                         font-weight: $fontWeight;
                         line-height: $lineHeight;
-                        column-width: calc(100vw - 32px);
-                        column-gap: 32px;
+                        column-width: calc(100vw - ${leftPadding + rightPadding}px);
+                        column-gap: ${leftPadding + rightPadding}px;
                         column-fill: auto;
-                        -webkit-column-width: calc(100vw - 32px);
-                        -webkit-column-gap: 32px;
+                        -webkit-column-width: calc(100vw - ${leftPadding + rightPadding}px);
+                        -webkit-column-gap: ${leftPadding + rightPadding}px;
                         -webkit-column-fill: auto;
                         box-sizing: border-box;
                         background-color: $bgColorHex;
@@ -206,14 +210,23 @@ object ReaderWebViewPaginator {
                         }
                     }
 
+                    function scrollToTarget(target) {
+                        try {
+                            window.scrollTo({
+                                left: target,
+                                top: 0,
+                                behavior: '${if (pageAnimation == "none") "auto" else "smooth"}'
+                            });
+                        } catch (e) {}
+                        document.body.scrollLeft = target;
+                        document.documentElement.scrollLeft = target;
+                        window.scroll(target, 0);
+                    }
+
                     window.scrollToPage = function(pageIndex) {
                         var vw = getPageWidth();
                         var target = pageIndex * vw;
-                        window.scrollTo({
-                            left: target,
-                            top: 0,
-                            behavior: '${if (pageAnimation == "none") "auto" else "smooth"}'
-                        });
+                        scrollToTarget(target);
                         reportCurrentPosition();
                     };
 
@@ -236,11 +249,7 @@ object ReaderWebViewPaginator {
                             var absoluteLeft = sx + rect.left;
                             var targetPage = Math.floor(absoluteLeft / vw);
                             var target = targetPage * vw;
-                            window.scrollTo({
-                                left: target,
-                                top: 0,
-                                behavior: '${if (pageAnimation == "none") "auto" else "smooth"}'
-                            });
+                            scrollToTarget(target);
                             reportCurrentPosition();
                         }
                     };
@@ -253,11 +262,7 @@ object ReaderWebViewPaginator {
                         var currentPage = Math.round(sx / vw);
                         var targetPage = Math.min(totalPages - 1, currentPage + 1);
                         var target = targetPage * vw;
-                        window.scrollTo({
-                            left: target,
-                            top: 0,
-                            behavior: '${if (pageAnimation == "none") "auto" else "smooth"}'
-                        });
+                        scrollToTarget(target);
                         setTimeout(reportCurrentPosition, 300);
                     };
 
@@ -267,11 +272,7 @@ object ReaderWebViewPaginator {
                         var currentPage = Math.round(sx / vw);
                         var targetPage = Math.max(0, currentPage - 1);
                         var target = targetPage * vw;
-                        window.scrollTo({
-                            left: target,
-                            top: 0,
-                            behavior: '${if (pageAnimation == "none") "auto" else "smooth"}'
-                        });
+                        scrollToTarget(target);
                         setTimeout(reportCurrentPosition, 300);
                     };
 

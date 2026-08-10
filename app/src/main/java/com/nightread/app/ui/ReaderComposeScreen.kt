@@ -663,7 +663,15 @@ fun ReaderComposeScreen(
                             val densityVal = density.density
                             val widthDp = (maxWidthPx / densityVal).toInt()
                             val heightDp = (maxHeightPx / densityVal).toInt()
-                            val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation) {
+                            val statusBarsTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                            val displayCutoutTop = WindowInsets.displayCutout.asPaddingValues().calculateTopPadding()
+                            val topPaddingDp = maxOf(statusBarsTop, displayCutoutTop) + 3.dp
+                            val topPaddingPx = with(density) { topPaddingDp.toPx().toInt() }
+                            val leftPaddingPx = with(density) { 8.dp.toPx().toInt() }
+                            val rightPaddingPx = with(density) { 8.dp.toPx().toInt() }
+                            val bottomPaddingPx = with(density) { 20.dp.toPx().toInt() }
+
+                            val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation, topPaddingPx) {
                                 com.nightread.app.ui.customlayout.ReaderWebViewEngine.prepareHtmlForBook(
                                     context = context,
                                     bookId = sha1.ifEmpty { "default" },
@@ -676,7 +684,11 @@ fun ReaderComposeScreen(
                                     bgColorHex = bgColorHex,
                                     viewportWidth = widthDp,
                                     viewportHeight = heightDp,
-                                    pageAnimation = pageAnimation
+                                    pageAnimation = pageAnimation,
+                                    topPadding = topPaddingPx,
+                                    bottomPadding = bottomPaddingPx,
+                                    leftPadding = leftPaddingPx,
+                                    rightPadding = rightPaddingPx
                                 )
                             }
 
