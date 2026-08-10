@@ -53,25 +53,28 @@ object ReaderWebViewPaginator {
                     }
                     body {
                         margin: 0;
-                        padding: ${topPadding}px ${rightPadding}px ${bottomPadding}px ${leftPadding}px;
+                        padding: ${topPadding}px 0 ${bottomPadding}px 0;
                         height: 100vh;
                         overflow: hidden;
                         font-family: '$fontFamily', serif;
                         font-size: ${fontSize}px;
                         font-weight: $fontWeight;
                         line-height: $lineHeight;
-                        column-width: calc(100vw - ${leftPadding + rightPadding}px);
-                        column-gap: ${leftPadding + rightPadding}px;
+                        column-width: 100vw;
+                        column-gap: 0px;
                         column-fill: auto;
-                        -webkit-column-width: calc(100vw - ${leftPadding + rightPadding}px);
-                        -webkit-column-gap: ${leftPadding + rightPadding}px;
+                        -webkit-column-width: 100vw;
+                        -webkit-column-gap: 0px;
                         -webkit-column-fill: auto;
                         box-sizing: border-box;
                         background-color: $bgColorHex;
                         color: $textColorHex;
                         scroll-behavior: ${if (pageAnimation == "none") "auto" else "smooth"};
                     }
-                    p {
+                    p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol {
+                        padding-left: ${leftPadding}px;
+                        padding-right: ${rightPadding}px;
+                        box-sizing: border-box;
                         margin-top: 0;
                         margin-bottom: 0;
                         text-indent: 1.25em;

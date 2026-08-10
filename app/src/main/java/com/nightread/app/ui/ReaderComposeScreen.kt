@@ -404,20 +404,12 @@ fun ReaderComposeScreen(
     }
 
     val activity = context as? BookReaderActivity
-    DisposableEffect(pagerState) {
+    DisposableEffect(webViewRef) {
         activity?.onNextPage = {
-            coroutineScope.launch {
-                if (pagerState.currentPage < pagerState.pageCount - 1) {
-                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                }
-            }
+            webViewRef?.evaluateJavascript("window.nextPage();", null)
         }
         activity?.onPrevPage = {
-            coroutineScope.launch {
-                if (pagerState.currentPage > 0) {
-                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                }
-            }
+            webViewRef?.evaluateJavascript("window.prevPage();", null)
         }
         onDispose {
             activity?.onNextPage = null
