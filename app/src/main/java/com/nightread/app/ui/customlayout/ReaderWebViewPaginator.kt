@@ -127,16 +127,11 @@ object ReaderWebViewPaginator {
                         padding-left: 0 !important;
                         padding-right: 0 !important;
                     }
-                    h1, h2, .chapter-title, .prologue-title {
+                    h1, h2, .chapter-title, .prologue-title, .annotation-title {
                         break-before: page !important;
                         break-before: column !important;
                         page-break-before: always !important;
                         -webkit-column-break-before: always !important;
-                    }
-                    .annotation-title {
-                        break-before: avoid;
-                        page-break-before: avoid;
-                        -webkit-column-break-before: auto;
                     }
                     .page-break {
                         break-before: page;
@@ -348,9 +343,6 @@ object ReaderWebViewPaginator {
             // Check for explicit form feed page break marker
             if (processedLine.contains("\u000C")) {
                 processedLine = processedLine.replace("\u000C", "")
-                if (sb.isNotEmpty() && !sb.endsWith("<div class=\"page-break\"></div>\n")) {
-                    sb.append("<div class=\"page-break\"></div>\n")
-                }
                 if (processedLine.isBlank()) continue
             }
 
@@ -365,7 +357,6 @@ object ReaderWebViewPaginator {
                     if (processedLine.isNotBlank()) {
                         sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
                     }
-                    sb.append("<div class=\"page-break\"></div>\n")
                     continue
                 } else {
                     if (processedLine.isNotBlank()) {
@@ -379,7 +370,6 @@ object ReaderWebViewPaginator {
                 if (processedLine.isNotBlank()) {
                     sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
                 }
-                sb.append("<div class=\"page-break\"></div>\n")
                 continue
             } else if (inAnnotation) {
                 sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
@@ -397,7 +387,6 @@ object ReaderWebViewPaginator {
                     if (processedLine.isNotBlank()) {
                         sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
                     }
-                    sb.append("<div class=\"page-break\"></div>\n")
                     continue
                 } else {
                     if (processedLine.isNotBlank()) {
@@ -411,7 +400,6 @@ object ReaderWebViewPaginator {
                 if (processedLine.isNotBlank()) {
                     sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
                 }
-                sb.append("<div class=\"page-break\"></div>\n")
                 continue
             } else if (inPrologue) {
                 sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
@@ -424,9 +412,6 @@ object ReaderWebViewPaginator {
                     processedLine.startsWith("<h2", ignoreCase = true)
 
             if (containsChapterTag) {
-                if (sb.isNotEmpty() && !sb.endsWith("<div class=\"page-break\"></div>\n")) {
-                    sb.append("<div class=\"page-break\"></div>\n")
-                }
                 val cleanChapterContent = processedLine
                     .replace("[CHAPTER]", "")
                     .replace("[/CHAPTER]", "")
@@ -438,32 +423,17 @@ object ReaderWebViewPaginator {
                 continue
             }
 
-            // 4. Standalone headings / line matches
+            // 4. Standalone exact headings
             val lower = processedLine.lowercase()
             if (lower == "аннотация" || lower == "аннотация:" || lower == "annotation") {
-                if (sb.isNotEmpty() && !sb.endsWith("<div class=\"page-break\"></div>\n")) {
-                    sb.append("<div class=\"page-break\"></div>\n")
-                }
                 sb.append("<h1 class=\"annotation-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</h1>\n")
                 inAnnotation = true
                 continue
             }
 
             if (lower == "пролог" || lower == "пролог." || lower == "prologue") {
-                if (sb.isNotEmpty() && !sb.endsWith("<div class=\"page-break\"></div>\n")) {
-                    sb.append("<div class=\"page-break\"></div>\n")
-                }
                 sb.append("<h1 class=\"prologue-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</h1>\n")
                 inPrologue = true
-                continue
-            }
-
-            if (isChapterHeaderLine(processedLine)) {
-                if (sb.isNotEmpty() && !sb.endsWith("<div class=\"page-break\"></div>\n")) {
-                    sb.append("<div class=\"page-break\"></div>\n")
-                }
-                val cleanTitle = processedLine.replace(Regex("<[^>]*>"), "").trim()
-                sb.append("<h1 class=\"chapter-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanTitle)}</h1>\n")
                 continue
             }
 
@@ -500,16 +470,6 @@ object ReaderWebViewPaginator {
         }
 
         return sb.toString()
-    }
-
-    private fun isChapterHeaderLine(line: String): Boolean {
-        val trimmed = line.replace(Regex("<[^>]*>"), "")
-            .replace("[CHAPTER]", "")
-            .replace("[/CHAPTER]", "")
-            .trim()
-        if (trimmed.isEmpty() || trimmed.length > 100) return false
-        val regex = Regex("^(глава|chapter|часть|part|эпилог|epilogue|пролог|prologue|книга|book|разде?л)\\b.*", RegexOption.IGNORE_CASE)
-        return regex.matches(trimmed)
     }
 
     private fun escapeHtmlPreservingTags(text: String): String {

@@ -99,9 +99,9 @@ object TextCleaner {
         result = result
             .replace(Regex("<annotation[^>]*>", RegexOption.IGNORE_CASE), "\n[ANNOTATION]")
             .replace(Regex("</annotation>", RegexOption.IGNORE_CASE), "[/ANNOTATION]\n")
-            .replace(Regex("<prologue[^>]*>", RegexOption.IGNORE_CASE), "\n\u000C[PROLOGUE]")
+            .replace(Regex("<prologue[^>]*>", RegexOption.IGNORE_CASE), "\n[PROLOGUE]")
             .replace(Regex("</prologue>", RegexOption.IGNORE_CASE), "[/PROLOGUE]\n")
-            .replace(Regex("<title[^>]*>", RegexOption.IGNORE_CASE), "\n\u000C[CHAPTER]")
+            .replace(Regex("<title[^>]*>", RegexOption.IGNORE_CASE), "\n[CHAPTER]")
             .replace(Regex("</title>", RegexOption.IGNORE_CASE), "[/CHAPTER]\n")
 
         // Replace common block/paragraph tags (and Cyrillic equivalent <р> / </р>) with newlines to keep paragraph breaks
