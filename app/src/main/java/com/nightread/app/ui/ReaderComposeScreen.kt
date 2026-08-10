@@ -285,7 +285,7 @@ fun ReaderComposeScreen(
 
     val (bgColor, textColor) = when (themeType) {
         ThemeType.DAY -> Color(0xFFFBF9F1) to Color(0xFF1B1B1B)
-        ThemeType.NIGHT -> Color(0xFF0F140D) to Color(0xFFC4C9BC)
+        ThemeType.NIGHT -> Color.Black to Color(0xFFE5E5E5)
         ThemeType.SEPIA -> Color(0xFFF4ECD8) to Color(0xFF3B2F1F)
         ThemeType.HIGH_CONTRAST -> Color(0xFFFFFFFF) to Color(0xFF000000)
     }
@@ -660,13 +660,12 @@ fun ReaderComposeScreen(
                             val widthDp = (maxWidthPx / densityVal).toInt()
                             val heightDp = (maxHeightPx / densityVal).toInt()
                             val displayCutoutTop = WindowInsets.displayCutout.asPaddingValues().calculateTopPadding()
-                            val topPaddingDp = displayCutoutTop + 3.dp
-                            val topPaddingPx = with(density) { topPaddingDp.toPx().toInt() }
-                            val leftPaddingPx = with(density) { 8.dp.toPx().toInt() }
-                            val rightPaddingPx = with(density) { 8.dp.toPx().toInt() }
-                            val bottomPaddingPx = with(density) { 20.dp.toPx().toInt() }
+                            val topPaddingDpVal = (displayCutoutTop + 3.dp).value.toInt()
+                            val leftPaddingDpVal = 8
+                            val rightPaddingDpVal = 8
+                            val bottomPaddingDpVal = 20
 
-                            val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation, topPaddingPx, leftPaddingPx, rightPaddingPx, bottomPaddingPx, isHyphenationEnabled) {
+                            val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation, topPaddingDpVal, leftPaddingDpVal, rightPaddingDpVal, bottomPaddingDpVal, isHyphenationEnabled) {
                                 com.nightread.app.ui.customlayout.ReaderWebViewEngine.prepareHtmlForBook(
                                     context = context,
                                     bookId = sha1.ifEmpty { "default" },
@@ -680,10 +679,10 @@ fun ReaderComposeScreen(
                                     viewportWidth = widthDp,
                                     viewportHeight = heightDp,
                                     pageAnimation = pageAnimation,
-                                    topPadding = topPaddingPx,
-                                    bottomPadding = bottomPaddingPx,
-                                    leftPadding = leftPaddingPx,
-                                    rightPadding = rightPaddingPx,
+                                    topPaddingDp = topPaddingDpVal,
+                                    bottomPaddingDp = bottomPaddingDpVal,
+                                    leftPaddingDp = leftPaddingDpVal,
+                                    rightPaddingDp = rightPaddingDpVal,
                                     isHyphenationEnabled = isHyphenationEnabled
                                 )
                             }

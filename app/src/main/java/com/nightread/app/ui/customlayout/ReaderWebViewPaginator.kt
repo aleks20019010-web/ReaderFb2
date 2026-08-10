@@ -16,13 +16,13 @@ object ReaderWebViewPaginator {
         viewportWidth: Int,
         viewportHeight: Int,
         pageAnimation: String = "slide",
-        topPadding: Int = 0,
-        bottomPadding: Int = 20,
-        leftPadding: Int = 8,
-        rightPadding: Int = 8,
+        topPaddingDp: Int = 0,
+        bottomPaddingDp: Int = 20,
+        leftPaddingDp: Int = 8,
+        rightPaddingDp: Int = 8,
         isHyphenationEnabled: Boolean = true
     ): String {
-        Log.d(TAG, "Sanitizing and wrapping HTML: length=${rawText.length}, font=$fontFamily, size=$fontSize, w=$viewportWidth, h=$viewportHeight, anim=$pageAnimation, hyphens=$isHyphenationEnabled, padding=t:$topPadding, b:$bottomPadding, l:$leftPadding, r:$rightPadding")
+        Log.d(TAG, "Sanitizing and wrapping HTML: length=${rawText.length}, font=$fontFamily, size=$fontSize, w=$viewportWidth, h=$viewportHeight, anim=$pageAnimation, hyphens=$isHyphenationEnabled, paddingDp=t:$topPaddingDp, b:$bottomPaddingDp, l:$leftPaddingDp, r:$rightPaddingDp")
 
         // 1. Convert custom markers ([CHAPTER], [CITE], [SUP], [NOTE], etc.) and clean unsafe tags while preserving safe ones
         val processedHtml = processBookMarkupToHtml(rawText)
@@ -54,7 +54,7 @@ object ReaderWebViewPaginator {
                     }
                     body {
                         margin: 0;
-                        padding: ${topPadding}px 0 ${bottomPadding}px 0;
+                        padding: ${topPaddingDp}px 0 ${bottomPaddingDp}px 0;
                         height: 100vh;
                         overflow: hidden;
                         font-family: '$fontFamily', serif;
@@ -74,8 +74,8 @@ object ReaderWebViewPaginator {
                         -webkit-locale: "ru";
                     }
                     p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, div {
-                        padding-left: ${leftPadding}px;
-                        padding-right: ${rightPadding}px;
+                        padding-left: ${leftPaddingDp}px;
+                        padding-right: ${rightPaddingDp}px;
                         box-sizing: border-box;
                         margin-top: 0;
                         margin-bottom: 0;
@@ -114,21 +114,24 @@ object ReaderWebViewPaginator {
                         -webkit-column-break-before: auto !important;
                     }
                     h1, h2, h3, h4, h5, h6, .chapter-title, .prologue-title, .annotation-title {
-                        break-inside: avoid;
-                        page-break-inside: avoid;
-                        -webkit-column-break-inside: avoid;
-                        margin-top: 0.8em;
-                        margin-bottom: 0.8em;
-                        font-size: 1.4em;
-                        font-weight: bold;
-                        text-align: center;
+                        break-inside: avoid !important;
+                        page-break-inside: avoid !important;
+                        -webkit-column-break-inside: avoid !important;
+                        margin-top: 1.2em !important;
+                        margin-bottom: 1.2em !important;
+                        font-size: 1.6em !important;
+                        font-weight: bold !important;
+                        text-align: center !important;
                         text-indent: 0 !important;
+                        display: block !important;
+                        padding-left: 0 !important;
+                        padding-right: 0 !important;
                     }
                     h1, h2, .chapter-title, .prologue-title {
-                        break-before: page;
-                        break-before: column;
-                        page-break-before: always;
-                        -webkit-column-break-before: always;
+                        break-before: page !important;
+                        break-before: column !important;
+                        page-break-before: always !important;
+                        -webkit-column-break-before: always !important;
                     }
                     .annotation-title {
                         break-before: avoid;
@@ -415,31 +418,52 @@ object ReaderWebViewPaginator {
                 continue
             }
 
-            // 3. Handle CHAPTER tags
-            if (processedLine.contains("[CHAPTER]")) {
-                processedLine = processedLine
-                    .replace("[CHAPTER]", "<h1 class=\"chapter-title\" data-offset=\"$lineStartOffset\">")
-                    .replace("[/CHAPTER]", "</h1>")
-                sb.append(processedLine).append("\n")
+            // 3. Handle CHAPTER tags / <CHAPTER> / <title> / <h1> / <h2>
+            val containsChapterTag = processedLine.contains("[CHAPTER]") || processedLine.contains("<CHAPTER>") ||
+                    processedLine.startsWith("<title", ignoreCase = true) || processedLine.startsWith("<h1", ignoreCase = true) ||
+                    processedLine.startsWith("<h2", ignoreCase = true)
+
+            if (containsChapterTag) {
+                if (sb.isNotEmpty() && !sb.endsWith("<div class=\"page-break\"></div>\n")) {
+                    sb.append("<div class=\"page-break\"></div>\n")
+                }
+                val cleanChapterContent = processedLine
+                    .replace("[CHAPTER]", "")
+                    .replace("[/CHAPTER]", "")
+                    .replace("<CHAPTER>", "")
+                    .replace("</CHAPTER>", "")
+                    .replace(Regex("<[^>]*>"), "")
+                    .trim()
+                sb.append("<h1 class=\"chapter-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanChapterContent)}</h1>\n")
                 continue
             }
 
             // 4. Standalone headings / line matches
             val lower = processedLine.lowercase()
             if (lower == "аннотация" || lower == "аннотация:" || lower == "annotation") {
+                if (sb.isNotEmpty() && !sb.endsWith("<div class=\"page-break\"></div>\n")) {
+                    sb.append("<div class=\"page-break\"></div>\n")
+                }
                 sb.append("<h1 class=\"annotation-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</h1>\n")
                 inAnnotation = true
                 continue
             }
 
             if (lower == "пролог" || lower == "пролог." || lower == "prologue") {
+                if (sb.isNotEmpty() && !sb.endsWith("<div class=\"page-break\"></div>\n")) {
+                    sb.append("<div class=\"page-break\"></div>\n")
+                }
                 sb.append("<h1 class=\"prologue-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</h1>\n")
                 inPrologue = true
                 continue
             }
 
             if (isChapterHeaderLine(processedLine)) {
-                sb.append("<h1 class=\"chapter-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</h1>\n")
+                if (sb.isNotEmpty() && !sb.endsWith("<div class=\"page-break\"></div>\n")) {
+                    sb.append("<div class=\"page-break\"></div>\n")
+                }
+                val cleanTitle = processedLine.replace(Regex("<[^>]*>"), "").trim()
+                sb.append("<h1 class=\"chapter-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanTitle)}</h1>\n")
                 continue
             }
 
@@ -479,9 +503,12 @@ object ReaderWebViewPaginator {
     }
 
     private fun isChapterHeaderLine(line: String): Boolean {
-        val trimmed = line.trim()
-        if (trimmed.length > 80) return false
-        val regex = Regex("^(глава|chapter|часть|part)\\b.*", RegexOption.IGNORE_CASE)
+        val trimmed = line.replace(Regex("<[^>]*>"), "")
+            .replace("[CHAPTER]", "")
+            .replace("[/CHAPTER]", "")
+            .trim()
+        if (trimmed.isEmpty() || trimmed.length > 100) return false
+        val regex = Regex("^(глава|chapter|часть|part|эпилог|epilogue|пролог|prologue|книга|book|разде?л)\\b.*", RegexOption.IGNORE_CASE)
         return regex.matches(trimmed)
     }
 

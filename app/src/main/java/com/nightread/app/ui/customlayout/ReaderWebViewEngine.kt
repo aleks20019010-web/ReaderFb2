@@ -27,10 +27,10 @@ object ReaderWebViewEngine {
         viewportWidth: Int,
         viewportHeight: Int,
         pageAnimation: String = "slide",
-        topPadding: Int = 0,
-        bottomPadding: Int = 20,
-        leftPadding: Int = 8,
-        rightPadding: Int = 8,
+        topPaddingDp: Int = 0,
+        bottomPaddingDp: Int = 20,
+        leftPaddingDp: Int = 8,
+        rightPaddingDp: Int = 8,
         isHyphenationEnabled: Boolean = true
     ): String {
         Log.d(TAG, "Preparing HTML for book: id=$bookId, length=${mainText.length}, viewport=${viewportWidth}x$viewportHeight, anim=$pageAnimation, hyphens=$isHyphenationEnabled")
@@ -45,10 +45,10 @@ object ReaderWebViewEngine {
             viewportWidth = viewportWidth,
             viewportHeight = viewportHeight,
             pageAnimation = pageAnimation,
-            topPadding = topPadding,
-            bottomPadding = bottomPadding,
-            leftPadding = leftPadding,
-            rightPadding = rightPadding,
+            topPaddingDp = topPaddingDp,
+            bottomPaddingDp = bottomPaddingDp,
+            leftPaddingDp = leftPaddingDp,
+            rightPaddingDp = rightPaddingDp,
             isHyphenationEnabled = isHyphenationEnabled
         )
     }
