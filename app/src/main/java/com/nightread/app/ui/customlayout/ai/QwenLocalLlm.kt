@@ -4,12 +4,15 @@ import android.content.Context
 import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.security.MessageDigest
 
 class QwenLocalLlm(private val context: Context) {
     companion object {
         private const val TAG = "QwenLocalLlm"
         private const val MODEL_ASSET_PATH = "models/qwen2.5-0.5b-instruct-q4_k_m.gguf"
+        private const val MODEL_DOWNLOAD_URL = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
         const val MODEL_NAME = "Qwen2.5-0.5B-Instruct"
         const val QUANTIZATION_TYPE = "Q4_K_M"
         const val PARAM_COUNT = "0.5B parameters (~360M non-embedding)"
@@ -27,17 +30,17 @@ class QwenLocalLlm(private val context: Context) {
     fun initialize(): Boolean {
         val startTime = System.currentTimeMillis()
         try {
-            val modelFile = extractModelFromAssets()
-            if (!modelFile.exists()) {
-                Log.w(TAG, "Qwen model file not found, creating simulation stub for local testing")
+            val modelFile = getOrDownloadModelFile()
+            if (!modelFile.exists() || modelFile.length() < 1000L) {
+                Log.w(TAG, "Qwen model file not found or too small, creating simulation stub for local testing")
                 modelFile.parentFile?.mkdirs()
                 modelFile.writeText("GGUF_QWEN2.5_0.5B_INSTRUCT_Q4_K_M_STUB_DATA")
             }
 
-            modelFileSizeMb = (modelFile.length() / (1024f * 1024f)).coerceAtLeast(380f)
+            modelFileSizeMb = (modelFile.length() / (1024f * 1024f)).coerceAtLeast(1f)
             modelSha256 = computeSha256(modelFile)
 
-            if (NativeLlamaBridge.isNativeReady()) {
+            if (NativeLlamaBridge.isNativeReady() && modelFile.length() > 10000L) {
                 try {
                     modelHandle = NativeLlamaBridge.nativeInitModel(modelFile.absolutePath)
                 } catch (e: Throwable) {
@@ -53,7 +56,7 @@ class QwenLocalLlm(private val context: Context) {
                     "{}"
                 }
             } else {
-                "{\"page_end_offset\": 1500}"
+                "{\"wordSpacing\": 0.01, \"letterSpacing\": 0.005, \"lineSpacingMultiplier\": 1.02, \"confidence\": 0.95}"
             }
             testInferenceTimeMs = System.currentTimeMillis() - testStart
 
@@ -84,23 +87,61 @@ class QwenLocalLlm(private val context: Context) {
         }
     }
 
-    private fun extractModelFromAssets(): File {
+    private fun getOrDownloadModelFile(): File {
         val destFile = File(context.filesDir, "models/qwen2.5-0.5b-instruct-q4_k_m.gguf")
-        if (destFile.exists() && destFile.length() > 0) {
+        if (destFile.exists() && destFile.length() > 100000L) {
+            Log.i(TAG, "Model file already exists in filesDir: ${destFile.absolutePath} (${destFile.length()} bytes)")
             return destFile
         }
 
         destFile.parentFile?.mkdirs()
+
+        // 1. Try copying from assets if bundled
         try {
             context.assets.open(MODEL_ASSET_PATH).use { input ->
                 FileOutputStream(destFile).use { output ->
                     input.copyTo(output)
                 }
             }
+            if (destFile.exists() && destFile.length() > 100000L) {
+                Log.i(TAG, "Successfully copied model from APK assets")
+                return destFile
+            }
         } catch (e: Exception) {
-            Log.w(TAG, "Asset model not in APK assets, creating fallback stub file")
-            destFile.writeText("GGUF_QWEN2.5_0.5B_INSTRUCT_Q4_K_M_STUB")
+            Log.i(TAG, "Model not present in APK assets, attempting first-launch download from Hugging Face...")
         }
+
+        // 2. Try downloading from Hugging Face in background/current thread (called from background init thread)
+        val tempFile = File(destFile.parentFile, "qwen2.5-0.5b-instruct-q4_k_m.gguf.tmp")
+        try {
+            val url = URL(MODEL_DOWNLOAD_URL)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.connectTimeout = 15000
+            connection.readTimeout = 30000
+            connection.connect()
+
+            val responseCode = connection.responseCode
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                connection.inputStream.use { input ->
+                    FileOutputStream(tempFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                if (tempFile.exists() && tempFile.length() > 100000L) {
+                    if (destFile.exists()) destFile.delete()
+                    tempFile.renameTo(destFile)
+                    Log.i(TAG, "Successfully downloaded model on first launch: ${destFile.length()} bytes")
+                    return destFile
+                }
+            } else {
+                Log.w(TAG, "Model download returned HTTP response code: $responseCode")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Model download failed (offline or network error): ${e.message}. Using fallback stub.")
+        } finally {
+            if (tempFile.exists()) tempFile.delete()
+        }
+
         return destFile
     }
 
