@@ -75,8 +75,8 @@ object ReaderWebViewPaginator {
                         text-align: justify;
                         hyphens: auto;
                         -webkit-hyphens: auto;
-                        word-break: normal;
-                        overflow-wrap: break-word;
+                        word-break: break-word;
+                        overflow-wrap: anywhere;
                     }
                     p:last-child {
                         margin-bottom: 0;

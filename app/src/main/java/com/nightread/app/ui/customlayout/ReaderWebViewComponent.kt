@@ -51,7 +51,14 @@ fun ReaderWebViewComponent(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
-                setBackgroundColor(AndroidColor.TRANSPARENT)
+                setBackgroundColor(
+                    AndroidColor.argb(
+                        (bgColor.alpha * 255).toInt(),
+                        (bgColor.red * 255).toInt(),
+                        (bgColor.green * 255).toInt(),
+                        (bgColor.blue * 255).toInt()
+                    )
+                )
                 isVerticalScrollBarEnabled = false
                 isHorizontalScrollBarEnabled = false
                 overScrollMode = View.OVER_SCROLL_NEVER
