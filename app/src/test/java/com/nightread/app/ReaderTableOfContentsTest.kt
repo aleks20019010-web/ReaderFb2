@@ -72,8 +72,7 @@ class ReaderTableOfContentsTest {
     fun testTOC_EmptyBook() = runReaderTest { measurer, context ->
         val text = ""
         val doc = ReaderLayoutEngine.parseDocument("empty", text, 16.sp)
-        assertFalse(doc.chapters.isEmpty())
-        assertEquals("Начало книги", doc.chapters[0].title)
+        assertTrue(doc.chapters.isEmpty())
     }
 
     @Test

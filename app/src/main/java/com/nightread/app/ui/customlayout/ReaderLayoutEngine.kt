@@ -26,6 +26,14 @@ object ReaderLayoutEngine {
     private const val TARGET_CHUNK_CHAR_COUNT = 4000
 
     suspend fun parseDocument(bookId: String, mainText: String, baseFontSize: androidx.compose.ui.unit.TextUnit): ReaderDocument = withContext(Dispatchers.Default) {
+        if (mainText.isEmpty()) {
+            return@withContext ReaderDocument(
+                bookId = bookId,
+                rawMainText = "",
+                paragraphs = emptyList(),
+                chapters = emptyList()
+            )
+        }
         val paragraphs = mutableListOf<ReaderParagraph>()
         val chapters = mutableListOf<ReaderChapter>()
         

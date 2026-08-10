@@ -70,7 +70,7 @@ class ReaderWebViewEngineTest {
         assertTrue("Image max-height must be constrained to viewportHeight - safety margin", html.contains("max-height: calc(1000px - 80px);"))
 
         // Verify normalized paragraph margin to eliminate excess space
-        assertTrue("Paragraph bottom margin must be normalized (0.3em)", html.contains("margin-bottom: 0.3em;"))
+        assertTrue("Paragraph bottom margin must be normalized (0)", html.contains("margin-bottom: 0;"))
 
         // Verify diagnostic script checks scrollHeight <= clientHeight
         assertTrue("Diagnostic script must check vertical overflow (sh > ch + 2)", html.contains("verticalOverflow = sh > ch + 2"))

@@ -39,8 +39,8 @@ object ReaderWebViewPaginator {
                     html {
                         margin: 0;
                         padding: 0;
-                        width: ${viewportWidth}px;
-                        height: ${viewportHeight}px;
+                        width: 100vw;
+                        height: 100vh;
                         overflow: hidden;
                         background-color: $bgColorHex;
                         color: $textColorHex;
@@ -49,17 +49,17 @@ object ReaderWebViewPaginator {
                     body {
                         margin: 0;
                         padding: 20px 24px 32px 24px;
-                        width: ${viewportWidth}px;
-                        height: ${viewportHeight}px;
+                        width: 100vw;
+                        height: 100vh;
                         overflow: hidden;
                         font-family: '$fontFamily', serif;
                         font-size: ${fontSize}px;
                         font-weight: $fontWeight;
                         line-height: $lineHeight;
-                        column-width: ${viewportWidth - 48}px;
+                        column-width: calc(100vw - 48px);
                         column-gap: 48px;
                         column-fill: auto;
-                        -webkit-column-width: ${viewportWidth - 48}px;
+                        -webkit-column-width: calc(100vw - 48px);
                         -webkit-column-gap: 48px;
                         -webkit-column-fill: auto;
                         background-color: $bgColorHex;
@@ -67,7 +67,7 @@ object ReaderWebViewPaginator {
                     }
                     p {
                         margin-top: 0;
-                        margin-bottom: 0.3em;
+                        margin-bottom: 1.0em;
                         text-align: justify;
                         hyphens: auto;
                         -webkit-hyphens: auto;
@@ -113,7 +113,7 @@ object ReaderWebViewPaginator {
                     }
                     img {
                         max-width: 100%;
-                        max-height: calc(${viewportHeight}px - 80px);
+                        max-height: calc(100vh - 80px);
                         height: auto;
                         display: block;
                         margin: 0.5em auto;
@@ -222,9 +222,25 @@ object ReaderWebViewPaginator {
                         }
                     };
 
+                    window.nextPage = function() {
+                        var vw = window.innerWidth;
+                        var sx = window.pageXOffset || document.documentElement.scrollLeft;
+                        var maxScroll = document.documentElement.scrollWidth - vw;
+                        var target = Math.min(maxScroll, Math.round((sx + vw) / vw) * vw);
+                        window.scrollTo({left: target, behavior: 'smooth'});
+                        setTimeout(reportCurrentPosition, 350);
+                    };
+
+                    window.prevPage = function() {
+                        var vw = window.innerWidth;
+                        var sx = window.pageXOffset || document.documentElement.scrollLeft;
+                        var target = Math.max(0, Math.round((sx - vw) / vw) * vw);
+                        window.scrollTo({left: target, behavior: 'smooth'});
+                        setTimeout(reportCurrentPosition, 350);
+                    };
+
                     window.addEventListener('load', function() {
                         runDiagnostics();
-                        reportCurrentPosition();
                     });
                 </script>
             </body>
