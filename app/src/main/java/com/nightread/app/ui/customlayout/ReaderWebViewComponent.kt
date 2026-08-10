@@ -34,7 +34,8 @@ fun ReaderWebViewComponent(
     onNextPage: () -> Unit = {},
     onPreviousPage: () -> Unit = {},
     onToggleBars: () -> Unit = {},
-    onVerticalScroll: (Float, Float) -> Unit = { _, _ -> }
+    onVerticalScroll: (Float, Float) -> Unit = { _, _ -> },
+    onWebViewCreated: (WebView) -> Unit = {}
 ) {
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var lastLoadedHtml by remember { mutableStateOf("") }
@@ -131,17 +132,21 @@ fun ReaderWebViewComponent(
                                     val screenWidth = width
                                     if (upX < screenWidth * 0.3f) {
                                         this.evaluateJavascript("window.prevPage();", null)
+                                        onPreviousPage()
                                     } else if (upX > screenWidth * 0.7f) {
                                         this.evaluateJavascript("window.nextPage();", null)
+                                        onNextPage()
                                     } else {
                                         onToggleBars()
                                     }
-                                } else if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                                } else if (Math.abs(deltaX) > 30 && Math.abs(deltaX) > Math.abs(deltaY)) {
                                     // Swipe gesture detected!
                                     if (deltaX > 0) {
                                         this.evaluateJavascript("window.prevPage();", null)
+                                        onPreviousPage()
                                     } else {
                                         this.evaluateJavascript("window.nextPage();", null)
+                                        onNextPage()
                                     }
                                 }
                             }
@@ -156,6 +161,7 @@ fun ReaderWebViewComponent(
                 lastLoadedHtml = htmlContent
                 loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
                 webViewRef = this
+                onWebViewCreated(this)
             }
         },
         update = { view ->

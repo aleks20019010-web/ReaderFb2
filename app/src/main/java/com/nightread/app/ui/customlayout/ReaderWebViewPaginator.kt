@@ -225,19 +225,19 @@ object ReaderWebViewPaginator {
 
                     window.nextPage = function() {
                         var vw = window.innerWidth;
-                        var sx = window.pageXOffset || document.documentElement.scrollLeft;
+                        var sx = window.pageXOffset || document.documentElement.scrollLeft || window.scrollX || 0;
                         var maxScroll = document.documentElement.scrollWidth - vw;
-                        var target = Math.min(maxScroll, Math.round((sx + vw) / vw) * vw);
+                        var target = Math.min(maxScroll, sx + vw);
                         window.scrollTo({left: target, behavior: 'instant'});
-                        reportCurrentPosition();
+                        setTimeout(reportCurrentPosition, 50);
                     };
 
                     window.prevPage = function() {
                         var vw = window.innerWidth;
-                        var sx = window.pageXOffset || document.documentElement.scrollLeft;
-                        var target = Math.max(0, Math.round((sx - vw) / vw) * vw);
+                        var sx = window.pageXOffset || document.documentElement.scrollLeft || window.scrollX || 0;
+                        var target = Math.max(0, sx - vw);
                         window.scrollTo({left: target, behavior: 'instant'});
-                        reportCurrentPosition();
+                        setTimeout(reportCurrentPosition, 50);
                     };
 
                     window.addEventListener('load', function() {

@@ -307,6 +307,7 @@ fun ReaderComposeScreen(
     val textMeasurer = rememberTextMeasurer()
 
     val pagerState = rememberPagerState(pageCount = { readerPages.size.coerceAtLeast(1) })
+    var webViewRef by remember { mutableStateOf<android.webkit.WebView?>(null) }
 
     // Haptic feedback on page turn
     LaunchedEffect(pagerState.currentPage) {
@@ -438,6 +439,7 @@ fun ReaderComposeScreen(
                 if (event.type == KeyEventType.KeyDown) {
                     when (event.nativeKeyEvent.keyCode) {
                         android.view.KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                            webViewRef?.evaluateJavascript("window.nextPage();", null)
                             coroutineScope.launch {
                                 if (pagerState.currentPage < pagerState.pageCount - 1) {
                                     pagerState.animateScrollToPage(pagerState.currentPage + 1)
@@ -446,6 +448,7 @@ fun ReaderComposeScreen(
                             true
                         }
                         android.view.KeyEvent.KEYCODE_VOLUME_UP -> {
+                            webViewRef?.evaluateJavascript("window.prevPage();", null)
                             coroutineScope.launch {
                                 if (pagerState.currentPage > 0) {
                                     pagerState.animateScrollToPage(pagerState.currentPage - 1)
