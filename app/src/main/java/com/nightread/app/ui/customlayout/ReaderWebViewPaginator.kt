@@ -19,9 +19,10 @@ object ReaderWebViewPaginator {
         topPadding: Int = 0,
         bottomPadding: Int = 20,
         leftPadding: Int = 8,
-        rightPadding: Int = 8
+        rightPadding: Int = 8,
+        isHyphenationEnabled: Boolean = true
     ): String {
-        Log.d(TAG, "Sanitizing and wrapping HTML: length=${rawText.length}, font=$fontFamily, size=$fontSize, w=$viewportWidth, h=$viewportHeight, anim=$pageAnimation, padding=t:$topPadding, b:$bottomPadding, l:$leftPadding, r:$rightPadding")
+        Log.d(TAG, "Sanitizing and wrapping HTML: length=${rawText.length}, font=$fontFamily, size=$fontSize, w=$viewportWidth, h=$viewportHeight, anim=$pageAnimation, hyphens=$isHyphenationEnabled, padding=t:$topPadding, b:$bottomPadding, l:$leftPadding, r:$rightPadding")
 
         // 1. Convert custom markers ([CHAPTER], [CITE], [SUP], [NOTE], etc.) and clean unsafe tags while preserving safe ones
         val processedHtml = processBookMarkupToHtml(rawText)
@@ -78,13 +79,13 @@ object ReaderWebViewPaginator {
                         box-sizing: border-box;
                         margin-top: 0;
                         margin-bottom: 0;
-                        text-indent: 1.25em;
+                        text-indent: 0.8em;
                         text-align: justify;
                         text-justify: inter-word;
-                        hyphens: auto;
-                        -webkit-hyphens: auto;
-                        -moz-hyphens: auto;
-                        -ms-hyphens: auto;
+                        hyphens: ${if (isHyphenationEnabled) "auto" else "none"};
+                        -webkit-hyphens: ${if (isHyphenationEnabled) "auto" else "none"};
+                        -moz-hyphens: ${if (isHyphenationEnabled) "auto" else "none"};
+                        -ms-hyphens: ${if (isHyphenationEnabled) "auto" else "none"};
                         word-break: normal;
                         overflow-wrap: break-word;
                     }

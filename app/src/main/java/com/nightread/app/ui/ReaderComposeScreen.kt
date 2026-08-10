@@ -654,11 +654,11 @@ fun ReaderComposeScreen(
                             val displayCutoutTop = WindowInsets.displayCutout.asPaddingValues().calculateTopPadding()
                             val topPaddingDp = maxOf(statusBarsTop, displayCutoutTop) + 3.dp
                             val topPaddingPx = with(density) { topPaddingDp.toPx().toInt() }
-                            val leftPaddingPx = with(density) { 12.dp.toPx().toInt() }
-                            val rightPaddingPx = with(density) { 12.dp.toPx().toInt() }
+                            val leftPaddingPx = with(density) { 6.dp.toPx().toInt() }
+                            val rightPaddingPx = with(density) { 6.dp.toPx().toInt() }
                             val bottomPaddingPx = with(density) { 16.dp.toPx().toInt() }
 
-                            val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation, topPaddingPx, leftPaddingPx, rightPaddingPx, bottomPaddingPx) {
+                            val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation, topPaddingPx, leftPaddingPx, rightPaddingPx, bottomPaddingPx, isHyphenationEnabled) {
                                 com.nightread.app.ui.customlayout.ReaderWebViewEngine.prepareHtmlForBook(
                                     context = context,
                                     bookId = sha1.ifEmpty { "default" },
@@ -675,7 +675,8 @@ fun ReaderComposeScreen(
                                     topPadding = topPaddingPx,
                                     bottomPadding = bottomPaddingPx,
                                     leftPadding = leftPaddingPx,
-                                    rightPadding = rightPaddingPx
+                                    rightPadding = rightPaddingPx,
+                                    isHyphenationEnabled = isHyphenationEnabled
                                 )
                             }
 
@@ -695,7 +696,7 @@ fun ReaderComposeScreen(
                                     themeColor = textColor,
                                     bgColor = Color.Transparent,
                                     currentPage = pagerState.currentPage,
-                                    targetOffset = pendingTargetOffset ?: if (isRestoringProgress) savedTextOffset else 0,
+                                    targetOffset = pendingTargetOffset ?: savedTextOffset,
                                     onTargetOffsetHandled = {
                                         pendingTargetOffset = null
                                         isRestoringProgress = false
