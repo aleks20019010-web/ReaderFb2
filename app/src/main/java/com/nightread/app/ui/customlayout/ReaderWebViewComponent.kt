@@ -27,7 +27,7 @@ fun ReaderWebViewComponent(
     themeColor: Color,
     bgColor: Color,
     currentPage: Int = 0,
-    targetOffset: Int = 0,
+    targetOffset: Int? = null,
     onTargetOffsetHandled: () -> Unit = {},
     onPositionChanged: (Int, Int, Int) -> Unit,
     onWordSelected: (String) -> Unit,
@@ -87,8 +87,9 @@ fun ReaderWebViewComponent(
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
                         Log.d("WEBVIEW_ENGINE", "WebView page finished loading. Scrolling to currentPage: $currentPage, targetOffset: $targetOffset")
-                        if (targetOffset > 0) {
+                        if (targetOffset != null) {
                             view?.evaluateJavascript("window.scrollToOffset($targetOffset);", null)
+                            onTargetOffsetHandled()
                         } else {
                             view?.evaluateJavascript("window.scrollToPage($currentPage);", null)
                         }
@@ -177,11 +178,11 @@ fun ReaderWebViewComponent(
                 lastLoadedHtml = htmlContent
                 Log.d("WEBVIEW_ENGINE", "WebView content changed, reloading HTML.")
                 view.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
-                if (targetOffset > 0) {
+                if (targetOffset != null) {
                     view.evaluateJavascript("window.scrollToOffset($targetOffset);", null)
                     onTargetOffsetHandled()
                 }
-            } else if (targetOffset > 0) {
+            } else if (targetOffset != null) {
                 Log.d("WEBVIEW_ENGINE", "WebView scrolling to targetOffset: $targetOffset")
                 view.evaluateJavascript("window.scrollToOffset($targetOffset);", null)
                 onTargetOffsetHandled()

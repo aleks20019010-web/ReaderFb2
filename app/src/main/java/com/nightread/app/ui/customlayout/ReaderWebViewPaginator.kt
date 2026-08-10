@@ -73,7 +73,7 @@ object ReaderWebViewPaginator {
                         scroll-behavior: ${if (pageAnimation == "none") "auto" else "smooth"};
                         -webkit-locale: "ru";
                     }
-                    p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol {
+                    p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, div {
                         padding-left: ${leftPadding}px;
                         padding-right: ${rightPadding}px;
                         box-sizing: border-box;
@@ -104,14 +104,45 @@ object ReaderWebViewPaginator {
                     s, del, strike {
                         text-decoration: line-through;
                     }
-                    h1, h2, h3, h4, h5, h6 {
+                    body > *:first-child,
+                    body > h1:first-child,
+                    body > .chapter-title:first-child,
+                    body > .prologue-title:first-child,
+                    body > .annotation-title:first-child {
+                        break-before: avoid !important;
+                        page-break-before: avoid !important;
+                        -webkit-column-break-before: auto !important;
+                    }
+                    h1, h2, h3, h4, h5, h6, .chapter-title, .prologue-title, .annotation-title {
                         break-inside: avoid;
                         page-break-inside: avoid;
                         -webkit-column-break-inside: avoid;
                         margin-top: 0.8em;
-                        margin-bottom: 0.4em;
+                        margin-bottom: 0.8em;
+                        font-size: 1.4em;
                         font-weight: bold;
                         text-align: center;
+                        text-indent: 0 !important;
+                    }
+                    h1, h2, .chapter-title, .prologue-title {
+                        break-before: page;
+                        break-before: column;
+                        page-break-before: always;
+                        -webkit-column-break-before: always;
+                    }
+                    .annotation-title {
+                        break-before: avoid;
+                        page-break-before: avoid;
+                        -webkit-column-break-before: auto;
+                    }
+                    .page-break {
+                        break-before: page;
+                        break-before: column;
+                        page-break-before: always;
+                        -webkit-column-break-before: always;
+                        height: 0;
+                        margin: 0;
+                        padding: 0;
                     }
                     blockquote {
                         margin: 0.6em 0;
@@ -298,6 +329,9 @@ object ReaderWebViewPaginator {
         var currentOffset = 0
         val lines = raw.split('\n')
         
+        var inAnnotation = false
+        var inPrologue = false
+
         for (line in lines) {
             val lineStartOffset = currentOffset
             currentOffset += line.length + 1 // +1 for newline
@@ -306,14 +340,110 @@ object ReaderWebViewPaginator {
                 continue
             }
 
-            var processedLine = line
+            var processedLine = line.trim()
 
-            // Replace custom chapter tag
+            // Check for explicit form feed page break marker
+            if (processedLine.contains("\u000C")) {
+                processedLine = processedLine.replace("\u000C", "")
+                if (sb.isNotEmpty() && !sb.endsWith("<div class=\"page-break\"></div>\n")) {
+                    sb.append("<div class=\"page-break\"></div>\n")
+                }
+                if (processedLine.isBlank()) continue
+            }
+
+            // 1. Handle ANNOTATION tags
+            if (processedLine.contains("[ANNOTATION]")) {
+                inAnnotation = true
+                processedLine = processedLine.replace("[ANNOTATION]", "")
+                sb.append("<h1 class=\"annotation-title\" data-offset=\"$lineStartOffset\">Аннотация</h1>\n")
+                if (processedLine.contains("[/ANNOTATION]")) {
+                    processedLine = processedLine.replace("[/ANNOTATION]", "")
+                    inAnnotation = false
+                    if (processedLine.isNotBlank()) {
+                        sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
+                    }
+                    sb.append("<div class=\"page-break\"></div>\n")
+                    continue
+                } else {
+                    if (processedLine.isNotBlank()) {
+                        sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
+                    }
+                    continue
+                }
+            } else if (processedLine.contains("[/ANNOTATION]")) {
+                inAnnotation = false
+                processedLine = processedLine.replace("[/ANNOTATION]", "")
+                if (processedLine.isNotBlank()) {
+                    sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
+                }
+                sb.append("<div class=\"page-break\"></div>\n")
+                continue
+            } else if (inAnnotation) {
+                sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
+                continue
+            }
+
+            // 2. Handle PROLOGUE tags
+            if (processedLine.contains("[PROLOGUE]")) {
+                inPrologue = true
+                processedLine = processedLine.replace("[PROLOGUE]", "")
+                sb.append("<h1 class=\"prologue-title\" data-offset=\"$lineStartOffset\">Пролог</h1>\n")
+                if (processedLine.contains("[/PROLOGUE]")) {
+                    processedLine = processedLine.replace("[/PROLOGUE]", "")
+                    inPrologue = false
+                    if (processedLine.isNotBlank()) {
+                        sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
+                    }
+                    sb.append("<div class=\"page-break\"></div>\n")
+                    continue
+                } else {
+                    if (processedLine.isNotBlank()) {
+                        sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
+                    }
+                    continue
+                }
+            } else if (processedLine.contains("[/PROLOGUE]")) {
+                inPrologue = false
+                processedLine = processedLine.replace("[/PROLOGUE]", "")
+                if (processedLine.isNotBlank()) {
+                    sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
+                }
+                sb.append("<div class=\"page-break\"></div>\n")
+                continue
+            } else if (inPrologue) {
+                sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
+                continue
+            }
+
+            // 3. Handle CHAPTER tags
             if (processedLine.contains("[CHAPTER]")) {
                 processedLine = processedLine
-                    .replace("[CHAPTER]", "<h1 data-offset=\"$lineStartOffset\">")
+                    .replace("[CHAPTER]", "<h1 class=\"chapter-title\" data-offset=\"$lineStartOffset\">")
                     .replace("[/CHAPTER]", "</h1>")
-            } else if (processedLine.contains("[CITE]")) {
+                sb.append(processedLine).append("\n")
+                continue
+            }
+
+            // 4. Standalone headings / line matches
+            val lower = processedLine.lowercase()
+            if (lower == "аннотация" || lower == "аннотация:" || lower == "annotation") {
+                sb.append("<h1 class=\"annotation-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</h1>\n")
+                inAnnotation = true
+                continue
+            }
+
+            if (lower == "пролог" || lower == "пролог." || lower == "prologue") {
+                sb.append("<h1 class=\"prologue-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</h1>\n")
+                inPrologue = true
+                continue
+            }
+
+            if (isChapterHeaderLine(processedLine)) {
+                sb.append("<h1 class=\"chapter-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</h1>\n")
+                continue
+            }
+
+            if (processedLine.contains("[CITE]")) {
                 processedLine = processedLine
                     .replace("[CITE]", "<blockquote data-offset=\"$lineStartOffset\">")
                     .replace("[/CITE]", "</blockquote>")
@@ -323,8 +453,7 @@ object ReaderWebViewPaginator {
                     .replace("[/SUP]", "</sup>")
             } else {
                 // Check if it's already an HTML block or regular paragraph
-                if (!processedLine.trim().startsWith("<")) {
-                    // Escape basic HTML special chars if needed, but preserve emojis and unicode
+                if (!processedLine.startsWith("<")) {
                     val escaped = escapeHtmlPreservingTags(processedLine)
                     processedLine = "<p data-offset=\"$lineStartOffset\">$escaped</p>"
                 } else {
@@ -347,6 +476,13 @@ object ReaderWebViewPaginator {
         }
 
         return sb.toString()
+    }
+
+    private fun isChapterHeaderLine(line: String): Boolean {
+        val trimmed = line.trim()
+        if (trimmed.length > 80) return false
+        val regex = Regex("^(глава|chapter|часть|part)\\b.*", RegexOption.IGNORE_CASE)
+        return regex.matches(trimmed)
     }
 
     private fun escapeHtmlPreservingTags(text: String): String {

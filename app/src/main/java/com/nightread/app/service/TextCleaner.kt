@@ -95,8 +95,12 @@ object TextCleaner {
             .replace(Regex("<empty-line\\s*/?>", RegexOption.IGNORE_CASE), "\n")
             .replace(Regex("</empty-line>", RegexOption.IGNORE_CASE), "")
 
-        // Convert title tags to CHAPTER tags for FB2 and other formats
+        // Convert title, annotation and prologue tags to custom tags for FB2 and other formats
         result = result
+            .replace(Regex("<annotation[^>]*>", RegexOption.IGNORE_CASE), "\n[ANNOTATION]")
+            .replace(Regex("</annotation>", RegexOption.IGNORE_CASE), "[/ANNOTATION]\n")
+            .replace(Regex("<prologue[^>]*>", RegexOption.IGNORE_CASE), "\n\u000C[PROLOGUE]")
+            .replace(Regex("</prologue>", RegexOption.IGNORE_CASE), "[/PROLOGUE]\n")
             .replace(Regex("<title[^>]*>", RegexOption.IGNORE_CASE), "\n\u000C[CHAPTER]")
             .replace(Regex("</title>", RegexOption.IGNORE_CASE), "[/CHAPTER]\n")
 
@@ -215,8 +219,12 @@ object TextCleaner {
             .replace(Regex("<empty-line\\s*/?>", RegexOption.IGNORE_CASE), "\n")
             .replace(Regex("</empty-line>", RegexOption.IGNORE_CASE), "")
 
-        // Convert title tags to CHAPTER tags for FB2 and other formats
+        // Convert title, annotation and prologue tags to custom tags for FB2 and other formats
         result = result
+            .replace(Regex("<annotation[^>]*>", RegexOption.IGNORE_CASE), "\n[ANNOTATION]")
+            .replace(Regex("</annotation>", RegexOption.IGNORE_CASE), "[/ANNOTATION]\n")
+            .replace(Regex("<prologue[^>]*>", RegexOption.IGNORE_CASE), "\n\u000C[PROLOGUE]")
+            .replace(Regex("</prologue>", RegexOption.IGNORE_CASE), "[/PROLOGUE]\n")
             .replace(Regex("<title[^>]*>", RegexOption.IGNORE_CASE), "\n\u000C[CHAPTER]")
             .replace(Regex("</title>", RegexOption.IGNORE_CASE), "[/CHAPTER]\n")
 

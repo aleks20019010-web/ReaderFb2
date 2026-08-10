@@ -95,6 +95,10 @@ class BookReaderActivity : FragmentActivity() {
                                         bookText = "Файл книги не найден на диске"
                                     }
                                 }
+                                val dbAnnot = book.annotation
+                                if (!dbAnnot.isNullOrBlank() && !bookText.contains("[ANNOTATION]") && !bookText.take(300).contains("Аннотация", ignoreCase = true)) {
+                                    bookText = "[ANNOTATION]\n$dbAnnot\n[/ANNOTATION]\n\n$bookText"
+                                }
                                 openedBookText = bookText
                             } else {
                                 bookTitle = "Книга не найдена"

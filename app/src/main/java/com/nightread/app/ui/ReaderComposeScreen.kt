@@ -343,22 +343,33 @@ fun ReaderComposeScreen(
     LaunchedEffect(sha1) {
         if (sha1.isNotEmpty()) {
             val progress = progressRepository.getProgress(sha1)
-            savedTextOffset = progress?.sourceOffset ?: 0
+            val restoredOffset = progress?.sourceOffset ?: 0
+            savedTextOffset = restoredOffset
+            if (restoredOffset > 0) {
+                pendingTargetOffset = restoredOffset
+            }
             isRestoringProgress = true
-            android.util.Log.d("ReadingProgress", "RESTORE bookId=$sha1 offset=$savedTextOffset")
+            android.util.Log.d("ReadingProgress", "RESTORE bookId=$sha1 offset=$restoredOffset")
         }
     }
 
-    LaunchedEffect(pagerState.currentPage, readerPages) {
-        if (!isRestoringProgress && readerPages.isNotEmpty() && sha1.isNotEmpty()) {
-            val currentOffset = readerPages.getOrNull(pagerState.currentPage)?.startOffset ?: 0
+    val currentReadingOffset = remember(pagerState.currentPage, readerPages, savedTextOffset) {
+        if (readerPages.isNotEmpty() && pagerState.currentPage < readerPages.size) {
+            readerPages[pagerState.currentPage].startOffset
+        } else {
+            savedTextOffset
+        }
+    }
+
+    LaunchedEffect(currentReadingOffset, sha1) {
+        if (!isRestoringProgress && sha1.isNotEmpty()) {
             delay(500) // Debounce 500ms
             
-            android.util.Log.d("ReadingProgress", "SAVE (debounce) bookId=$sha1 offset=$currentOffset")
+            android.util.Log.d("ReadingProgress", "SAVE (debounce) bookId=$sha1 offset=$currentReadingOffset")
             progressRepository.saveProgress(
                 com.nightread.app.data.ReadingProgress(
                     bookId = sha1,
-                    sourceOffset = currentOffset,
+                    sourceOffset = currentReadingOffset,
                     updatedAt = System.currentTimeMillis()
                 )
             )
@@ -366,18 +377,17 @@ fun ReaderComposeScreen(
     }
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, readerPages, pagerState.currentPage) {
+    DisposableEffect(lifecycleOwner, currentReadingOffset) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE || event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
-                if (sha1.isNotEmpty() && readerPages.isNotEmpty()) {
-                    val currentOffset = readerPages.getOrNull(pagerState.currentPage)?.startOffset ?: 0
-                    android.util.Log.d("ReadingProgress", "SAVE (lifecycle) bookId=$sha1 offset=$currentOffset")
+                if (sha1.isNotEmpty()) {
+                    android.util.Log.d("ReadingProgress", "SAVE (lifecycle) bookId=$sha1 offset=$currentReadingOffset")
                     
                     kotlinx.coroutines.runBlocking {
                         progressRepository.saveProgress(
                             com.nightread.app.data.ReadingProgress(
                                 bookId = sha1,
-                                sourceOffset = currentOffset,
+                                sourceOffset = currentReadingOffset,
                                 updatedAt = System.currentTimeMillis()
                             )
                         )
@@ -388,14 +398,13 @@ fun ReaderComposeScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            if (sha1.isNotEmpty() && readerPages.isNotEmpty()) {
-                val currentOffset = readerPages.getOrNull(pagerState.currentPage)?.startOffset ?: 0
-                android.util.Log.d("ReadingProgress", "SAVE (dispose) bookId=$sha1 offset=$currentOffset")
+            if (sha1.isNotEmpty()) {
+                android.util.Log.d("ReadingProgress", "SAVE (dispose) bookId=$sha1 offset=$currentReadingOffset")
                 kotlinx.coroutines.runBlocking {
                     progressRepository.saveProgress(
                         com.nightread.app.data.ReadingProgress(
                             bookId = sha1,
-                            sourceOffset = currentOffset,
+                            sourceOffset = currentReadingOffset,
                             updatedAt = System.currentTimeMillis()
                         )
                     )
@@ -651,11 +660,11 @@ fun ReaderComposeScreen(
                             val widthDp = (maxWidthPx / densityVal).toInt()
                             val heightDp = (maxHeightPx / densityVal).toInt()
                             val displayCutoutTop = WindowInsets.displayCutout.asPaddingValues().calculateTopPadding()
-                            val topPaddingDp = if (displayCutoutTop > 0.dp) maxOf(displayCutoutTop + 2.dp, 10.dp) else 10.dp
+                            val topPaddingDp = displayCutoutTop + 3.dp
                             val topPaddingPx = with(density) { topPaddingDp.toPx().toInt() }
-                            val leftPaddingPx = with(density) { 12.dp.toPx().toInt() }
-                            val rightPaddingPx = with(density) { 12.dp.toPx().toInt() }
-                            val bottomPaddingPx = with(density) { 16.dp.toPx().toInt() }
+                            val leftPaddingPx = with(density) { 8.dp.toPx().toInt() }
+                            val rightPaddingPx = with(density) { 8.dp.toPx().toInt() }
+                            val bottomPaddingPx = with(density) { 20.dp.toPx().toInt() }
 
                             val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation, topPaddingPx, leftPaddingPx, rightPaddingPx, bottomPaddingPx, isHyphenationEnabled) {
                                 com.nightread.app.ui.customlayout.ReaderWebViewEngine.prepareHtmlForBook(
@@ -695,7 +704,7 @@ fun ReaderComposeScreen(
                                     themeColor = textColor,
                                     bgColor = Color.Transparent,
                                     currentPage = pagerState.currentPage,
-                                    targetOffset = pendingTargetOffset ?: savedTextOffset,
+                                    targetOffset = pendingTargetOffset,
                                     onTargetOffsetHandled = {
                                         pendingTargetOffset = null
                                         isRestoringProgress = false
@@ -916,9 +925,14 @@ fun ReaderComposeScreen(
 
                     val totalPages = pagerState.pageCount
                     val maxPage = (totalPages - 1).coerceAtLeast(0)
-                    val currentOffset = if (readerPages.isNotEmpty() && pagerState.currentPage < readerPages.size) readerPages[pagerState.currentPage].startOffset else 0
+                    val currentOffset = if (readerPages.isNotEmpty() && pagerState.currentPage < readerPages.size) {
+                        readerPages[pagerState.currentPage].startOffset
+                    } else {
+                        savedTextOffset
+                    }
                     val totalChars = mainText.length.coerceAtLeast(1)
-                    val currentPercent = (currentOffset.toFloat() / totalChars) * 100f
+                    val currentPercent = (currentOffset.toFloat() / totalChars * 100f).coerceIn(0f, 100f)
+                    val currentSliderVal = if (isDraggingSlider) sliderPageValue else currentPercent
 
                     Column {
                         Row(
@@ -932,14 +946,13 @@ fun ReaderComposeScreen(
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
-                                text = String.format("%.1f%%", currentPercent),
+                                text = String.format(java.util.Locale.US, "%.1f%%", currentSliderVal),
                                 color = textColor.copy(alpha = 0.8f),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
                         Spacer(modifier = Modifier.height(2.dp))
-                        val currentSliderVal = if (isDraggingSlider) sliderPageValue else currentPercent
                         androidx.compose.material3.Slider(
                             value = currentSliderVal.coerceIn(0f, 100f),
                             onValueChange = { newValue ->
