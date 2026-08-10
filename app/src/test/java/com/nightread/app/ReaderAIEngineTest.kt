@@ -28,10 +28,10 @@ class ReaderAIEngineTest {
         assertTrue("Init time should be measured", ReaderAIEngine.getInitTimeMs() >= 0)
 
         val diag = ReaderAIEngine.getDiagnosticsInfo()
-        assertEquals("ExecuTorch Layout Optimizer (Int8 Quantized)", diag["model_name"])
-        assertEquals("XNNPACK / CPU ARM64", diag["backend"])
+        assertEquals("Qwen2.5-0.5B-Instruct", diag["model_name"])
+        assertEquals("llama.cpp + Android NDK", diag["backend"])
         assertNotNull(diag["sha256"])
-        assertTrue("Summary should contain model info", ReaderAIEngine.getDiagnosticsSummary().contains("ExecuTorch"))
+        assertTrue("Summary should contain model info", ReaderAIEngine.getDiagnosticsSummary().contains("Qwen2.5"))
     }
 
     @Test
