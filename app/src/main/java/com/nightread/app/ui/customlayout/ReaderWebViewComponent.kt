@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color as AndroidColor
 import android.util.Log
-import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -87,69 +86,73 @@ fun ReaderWebViewComponent(
                     }
                 }
 
-                val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
-                    private val SWIPE_THRESHOLD = 80
-                    private val SWIPE_VELOCITY_THRESHOLD = 80
-
-                    override fun onFling(
-                        e1: MotionEvent?,
-                        e2: MotionEvent,
-                        velocityX: Float,
-                        velocityY: Float
-                    ): Boolean {
-                        if (e1 == null) return false
-                        val diffX = e2.x - e1.x
-                        val diffY = e2.y - e1.y
-                        if (Math.abs(diffX) > Math.abs(diffY)) {
-                            if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
-                                if (diffX > 0) {
-                                    this@apply.evaluateJavascript("window.prevPage();", null)
-                                } else {
-                                    this@apply.evaluateJavascript("window.nextPage();", null)
-                                }
-                                return true
-                            }
-                        }
-                        return false
-                    }
-
-                    override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                        val screenWidth = width
-                        if (e.x < screenWidth * 0.25f) {
-                            this@apply.evaluateJavascript("window.prevPage();", null)
-                        } else if (e.x > screenWidth * 0.75f) {
-                            this@apply.evaluateJavascript("window.nextPage();", null)
-                        } else {
-                            onToggleBars()
-                        }
-                        return true
-                    }
-
-                    override fun onDoubleTap(e: MotionEvent): Boolean {
-                        onToggleBars()
-                        return true
-                    }
-
-                    override fun onScroll(
-                        e1: MotionEvent?,
-                        e2: MotionEvent,
-                        distanceX: Float,
-                        distanceY: Float
-                    ): Boolean {
-                        if (e1 == null) return false
-                        val diffX = e2.x - e1.x
-                        val diffY = e2.y - e1.y
-                        if (Math.abs(diffY) > Math.abs(diffX)) {
-                            onVerticalScroll(e1.x, -distanceY)
-                            return true
-                        }
-                        return false
-                    }
-                })
+                var downX = 0f
+                var downY = 0f
+                var lastY = 0f
+                var downTime = 0L
+                var isDragging = false
 
                 setOnTouchListener { _, event ->
-                    gestureDetector.onTouchEvent(event)
-                    true // Consume all touch events to block native free horizontal scrolling
+                    when (event.action) {
+                        MotionEvent.ACTION_DOWN -> {
+                            downX = event.x
+                            downY = event.y
+                            lastY = event.y
+                            downTime = System.currentTimeMillis()
+                            isDragging = false
+                        }
+                        MotionEvent.ACTION_MOVE -> {
+                            val currentX = event.x
+                            val currentY = event.y
+                            val deltaX = currentX - downX
+                            val deltaY = currentY - downY
+                            
+                            if (isDragging) {
+                                val stepY = currentY - lastY
+                                onVerticalScroll(downX, stepY)
+                                lastY = currentY
+                            } else if (Math.abs(deltaY) > 20 && Math.abs(deltaY) > Math.abs(deltaX) * 1.2f) {
+                                isDragging = true
+                                lastY = currentY
+                            }
+                        }
+                        MotionEvent.ACTION_UP -> {
+                            val upX = event.x
+                            val upY = event.y
+                            val deltaX = upX - downX
+                            val deltaY = upY - downY
+                            val duration = System.currentTimeMillis() - downTime
+
+                            if (isDragging) {
+                                // Handled via ACTION_MOVE
+                            } else {
+                                if (duration < 300 && Math.abs(deltaX) < 25 && Math.abs(deltaY) < 25) {
+                                    // Single tap detected!
+                                    val screenWidth = width
+                                    if (upX < screenWidth * 0.25f) {
+                                        this.evaluateJavascript("window.prevPage();", null)
+                                    } else if (upX > screenWidth * 0.75f) {
+                                        this.evaluateJavascript("window.nextPage();", null)
+                                    } else {
+                                        onToggleBars()
+                                    }
+                                } else if (duration < 600 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2f) {
+                                    // Swipe gesture detected!
+                                    if (Math.abs(deltaX) > 60) {
+                                        if (deltaX > 0) {
+                                            this.evaluateJavascript("window.prevPage();", null)
+                                        } else {
+                                            this.evaluateJavascript("window.nextPage();", null)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        MotionEvent.ACTION_CANCEL -> {
+                            isDragging = false
+                        }
+                    }
+                    true // Consume all touch events to handle navigation ourselves cleanly
                 }
 
                 lastLoadedHtml = htmlContent

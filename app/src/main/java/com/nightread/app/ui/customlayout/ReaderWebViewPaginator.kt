@@ -48,7 +48,7 @@ object ReaderWebViewPaginator {
                     }
                     body {
                         margin: 0;
-                        padding: 20px 24px 32px 24px;
+                        padding: 12px 12px 12px 12px;
                         width: 100vw;
                         height: 100vh;
                         overflow: hidden;
@@ -56,18 +56,19 @@ object ReaderWebViewPaginator {
                         font-size: ${fontSize}px;
                         font-weight: $fontWeight;
                         line-height: $lineHeight;
-                        column-width: calc(100vw - 48px);
-                        column-gap: 48px;
+                        column-width: calc(100vw - 24px);
+                        column-gap: 24px;
                         column-fill: auto;
-                        -webkit-column-width: calc(100vw - 48px);
-                        -webkit-column-gap: 48px;
+                        -webkit-column-width: calc(100vw - 24px);
+                        -webkit-column-gap: 24px;
                         -webkit-column-fill: auto;
                         background-color: $bgColorHex;
                         color: $textColorHex;
                     }
                     p {
                         margin-top: 0;
-                        margin-bottom: 1.0em;
+                        margin-bottom: 0;
+                        text-indent: 1.25em;
                         text-align: justify;
                         hyphens: auto;
                         -webkit-hyphens: auto;

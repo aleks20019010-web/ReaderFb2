@@ -64,10 +64,10 @@ class ReaderWebViewEngineTest {
 
         // Verify viewport bounds and safety padding
         assertTrue("HTML must set overflow: hidden for viewport boundary containment", html.contains("overflow: hidden;"))
-        assertTrue("HTML must set bottom padding for glyph descender safety", html.contains("padding: 20px 24px 32px 24px;"))
+        assertTrue("HTML must set bottom padding for glyph descender safety", html.contains("padding: 12px 12px 12px 12px;"))
         
         // Verify image max height calculation to avoid vertical overflow
-        assertTrue("Image max-height must be constrained to viewportHeight - safety margin", html.contains("max-height: calc(1000px - 80px);"))
+        assertTrue("Image max-height must be constrained to viewportHeight - safety margin", html.contains("max-height: calc(100vh - 80px);"))
 
         // Verify normalized paragraph margin to eliminate excess space
         assertTrue("Paragraph bottom margin must be normalized (0)", html.contains("margin-bottom: 0;"))
