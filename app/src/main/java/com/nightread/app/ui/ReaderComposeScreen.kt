@@ -650,12 +650,11 @@ fun ReaderComposeScreen(
                             val densityVal = density.density
                             val widthDp = (maxWidthPx / densityVal).toInt()
                             val heightDp = (maxHeightPx / densityVal).toInt()
-                            val statusBarsTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
                             val displayCutoutTop = WindowInsets.displayCutout.asPaddingValues().calculateTopPadding()
-                            val topPaddingDp = maxOf(statusBarsTop, displayCutoutTop) + 3.dp
+                            val topPaddingDp = if (displayCutoutTop > 0.dp) maxOf(displayCutoutTop + 2.dp, 10.dp) else 10.dp
                             val topPaddingPx = with(density) { topPaddingDp.toPx().toInt() }
-                            val leftPaddingPx = with(density) { 6.dp.toPx().toInt() }
-                            val rightPaddingPx = with(density) { 6.dp.toPx().toInt() }
+                            val leftPaddingPx = with(density) { 12.dp.toPx().toInt() }
+                            val rightPaddingPx = with(density) { 12.dp.toPx().toInt() }
                             val bottomPaddingPx = with(density) { 16.dp.toPx().toInt() }
 
                             val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation, topPaddingPx, leftPaddingPx, rightPaddingPx, bottomPaddingPx, isHyphenationEnabled) {
