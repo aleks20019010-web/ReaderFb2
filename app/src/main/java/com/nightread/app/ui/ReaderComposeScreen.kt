@@ -654,11 +654,11 @@ fun ReaderComposeScreen(
                             val displayCutoutTop = WindowInsets.displayCutout.asPaddingValues().calculateTopPadding()
                             val topPaddingDp = maxOf(statusBarsTop, displayCutoutTop) + 3.dp
                             val topPaddingPx = with(density) { topPaddingDp.toPx().toInt() }
-                            val leftPaddingPx = with(density) { 20.dp.toPx().toInt() }
-                            val rightPaddingPx = with(density) { 20.dp.toPx().toInt() }
-                            val bottomPaddingPx = with(density) { 20.dp.toPx().toInt() }
+                            val leftPaddingPx = with(density) { 12.dp.toPx().toInt() }
+                            val rightPaddingPx = with(density) { 12.dp.toPx().toInt() }
+                            val bottomPaddingPx = with(density) { 16.dp.toPx().toInt() }
 
-                            val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation, topPaddingPx) {
+                            val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation, topPaddingPx, leftPaddingPx, rightPaddingPx, bottomPaddingPx) {
                                 com.nightread.app.ui.customlayout.ReaderWebViewEngine.prepareHtmlForBook(
                                     context = context,
                                     bookId = sha1.ifEmpty { "default" },

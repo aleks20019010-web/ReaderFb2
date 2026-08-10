@@ -70,6 +70,7 @@ object ReaderWebViewPaginator {
                         background-color: $bgColorHex;
                         color: $textColorHex;
                         scroll-behavior: ${if (pageAnimation == "none") "auto" else "smooth"};
+                        -webkit-locale: "ru";
                     }
                     p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol {
                         padding-left: ${leftPadding}px;

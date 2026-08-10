@@ -487,7 +487,10 @@ object SettingsManager {
 
     fun setReadingTheme(context: Context, theme: String) {
         cachedReadingTheme = theme
-        val editor = getPrefs(context).edit().putString(KEY_READING_THEME, theme)
+        cachedReaderAutoTheme = false
+        val editor = getPrefs(context).edit()
+            .putString(KEY_READING_THEME, theme)
+            .putBoolean(KEY_READER_AUTO_THEME, false)
         
         if (isNightTheme(theme)) {
             cachedUserPreferredNightTheme = theme
