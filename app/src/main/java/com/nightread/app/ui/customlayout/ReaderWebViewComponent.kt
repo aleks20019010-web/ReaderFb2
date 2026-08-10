@@ -126,24 +126,22 @@ fun ReaderWebViewComponent(
                             if (isDragging) {
                                 // Handled via ACTION_MOVE
                             } else {
-                                if (duration < 300 && Math.abs(deltaX) < 25 && Math.abs(deltaY) < 25) {
+                                if (duration < 400 && Math.abs(deltaX) < 35 && Math.abs(deltaY) < 35) {
                                     // Single tap detected!
                                     val screenWidth = width
-                                    if (upX < screenWidth * 0.25f) {
+                                    if (upX < screenWidth * 0.3f) {
                                         this.evaluateJavascript("window.prevPage();", null)
-                                    } else if (upX > screenWidth * 0.75f) {
+                                    } else if (upX > screenWidth * 0.7f) {
                                         this.evaluateJavascript("window.nextPage();", null)
                                     } else {
                                         onToggleBars()
                                     }
-                                } else if (duration < 600 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2f) {
+                                } else if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY)) {
                                     // Swipe gesture detected!
-                                    if (Math.abs(deltaX) > 60) {
-                                        if (deltaX > 0) {
-                                            this.evaluateJavascript("window.prevPage();", null)
-                                        } else {
-                                            this.evaluateJavascript("window.nextPage();", null)
-                                        }
+                                    if (deltaX > 0) {
+                                        this.evaluateJavascript("window.prevPage();", null)
+                                    } else {
+                                        this.evaluateJavascript("window.nextPage();", null)
                                     }
                                 }
                             }

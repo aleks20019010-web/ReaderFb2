@@ -48,7 +48,7 @@ object ReaderWebViewPaginator {
                     }
                     body {
                         margin: 0;
-                        padding: 12px 12px 12px 12px;
+                        padding: 12px 8px 12px 8px;
                         width: 100vw;
                         height: 100vh;
                         overflow: hidden;
@@ -56,11 +56,11 @@ object ReaderWebViewPaginator {
                         font-size: ${fontSize}px;
                         font-weight: $fontWeight;
                         line-height: $lineHeight;
-                        column-width: calc(100vw - 24px);
-                        column-gap: 24px;
+                        column-width: calc(100vw - 16px);
+                        column-gap: 16px;
                         column-fill: auto;
-                        -webkit-column-width: calc(100vw - 24px);
-                        -webkit-column-gap: 24px;
+                        -webkit-column-width: calc(100vw - 16px);
+                        -webkit-column-gap: 16px;
                         -webkit-column-fill: auto;
                         background-color: $bgColorHex;
                         color: $textColorHex;
@@ -228,16 +228,16 @@ object ReaderWebViewPaginator {
                         var sx = window.pageXOffset || document.documentElement.scrollLeft;
                         var maxScroll = document.documentElement.scrollWidth - vw;
                         var target = Math.min(maxScroll, Math.round((sx + vw) / vw) * vw);
-                        window.scrollTo({left: target, behavior: 'smooth'});
-                        setTimeout(reportCurrentPosition, 350);
+                        window.scrollTo({left: target, behavior: 'instant'});
+                        reportCurrentPosition();
                     };
 
                     window.prevPage = function() {
                         var vw = window.innerWidth;
                         var sx = window.pageXOffset || document.documentElement.scrollLeft;
                         var target = Math.max(0, Math.round((sx - vw) / vw) * vw);
-                        window.scrollTo({left: target, behavior: 'smooth'});
-                        setTimeout(reportCurrentPosition, 350);
+                        window.scrollTo({left: target, behavior: 'instant'});
+                        reportCurrentPosition();
                     };
 
                     window.addEventListener('load', function() {
