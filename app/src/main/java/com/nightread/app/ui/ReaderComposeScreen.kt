@@ -440,20 +440,10 @@ fun ReaderComposeScreen(
                     when (event.nativeKeyEvent.keyCode) {
                         android.view.KeyEvent.KEYCODE_VOLUME_DOWN -> {
                             webViewRef?.evaluateJavascript("window.nextPage();", null)
-                            coroutineScope.launch {
-                                if (pagerState.currentPage < pagerState.pageCount - 1) {
-                                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                }
-                            }
                             true
                         }
                         android.view.KeyEvent.KEYCODE_VOLUME_UP -> {
                             webViewRef?.evaluateJavascript("window.prevPage();", null)
-                            coroutineScope.launch {
-                                if (pagerState.currentPage > 0) {
-                                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                                }
-                            }
                             true
                         }
                         else -> false
@@ -704,33 +694,20 @@ fun ReaderComposeScreen(
                                     themeColor = textColor,
                                     bgColor = Color.Transparent,
                                     currentPage = pagerState.currentPage,
-                                    targetOffset = pendingTargetOffset ?: savedTextOffset,
+                                    targetOffset = pendingTargetOffset ?: if (isRestoringProgress) savedTextOffset else 0,
+                                    onTargetOffsetHandled = {
+                                        pendingTargetOffset = null
+                                        isRestoringProgress = false
+                                    },
                                     onPositionChanged = { offset, page, total ->
                                         savedTextOffset = offset
-                                        if (readerPages.isNotEmpty()) {
-                                            val targetPage = findPageForOffset(readerPages.map { it.startOffset }, offset)
-                                            if (targetPage in readerPages.indices && targetPage != pagerState.currentPage) {
-                                                coroutineScope.launch {
-                                                    pagerState.scrollToPage(targetPage)
-                                                }
-                                            }
-                                        }
                                     },
                                     onWordSelected = { word -> },
                                     onNoteClicked = { noteId -> },
-                                    onNextPage = {
-                                        coroutineScope.launch {
-                                            if (pagerState.currentPage < pagerState.pageCount - 1) {
-                                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                            }
-                                        }
-                                    },
-                                    onPreviousPage = {
-                                        coroutineScope.launch {
-                                            if (pagerState.currentPage > 0) {
-                                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                                            }
-                                        }
+                                    onNextPage = {},
+                                    onPreviousPage = {},
+                                    onWebViewCreated = { webView ->
+                                        webViewRef = webView
                                     },
                                     onToggleBars = {
                                         isHideBars = !isHideBars

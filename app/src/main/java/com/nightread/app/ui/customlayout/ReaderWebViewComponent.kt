@@ -28,6 +28,7 @@ fun ReaderWebViewComponent(
     bgColor: Color,
     currentPage: Int = 0,
     targetOffset: Int = 0,
+    onTargetOffsetHandled: () -> Unit = {},
     onPositionChanged: (Int, Int, Int) -> Unit,
     onWordSelected: (String) -> Unit,
     onNoteClicked: (String) -> Unit,
@@ -169,19 +170,14 @@ fun ReaderWebViewComponent(
                 lastLoadedHtml = htmlContent
                 Log.d("WEBVIEW_ENGINE", "WebView content changed, reloading HTML.")
                 view.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
-            } else {
-                val shouldScroll = (targetOffset > 0 && targetOffset != lastReportedOffset) ||
-                                   (targetOffset <= 0 && currentPage != lastReportedPage)
-                if (shouldScroll) {
-                    Log.d("WEBVIEW_ENGINE", "WebView scrolling to page: $currentPage, offset: $targetOffset (lastReportedOffset=$lastReportedOffset, lastReportedPage=$lastReportedPage)")
-                    if (targetOffset > 0) {
-                        view.evaluateJavascript("window.scrollToOffset($targetOffset);", null)
-                    } else {
-                        view.evaluateJavascript("window.scrollToPage($currentPage);", null)
-                    }
-                } else {
-                    Log.d("WEBVIEW_ENGINE", "WebView scroll skipped: offset=$targetOffset, page=$currentPage already matches last reported")
+                if (targetOffset > 0) {
+                    view.evaluateJavascript("window.scrollToOffset($targetOffset);", null)
+                    onTargetOffsetHandled()
                 }
+            } else if (targetOffset > 0) {
+                Log.d("WEBVIEW_ENGINE", "WebView scrolling to targetOffset: $targetOffset")
+                view.evaluateJavascript("window.scrollToOffset($targetOffset);", null)
+                onTargetOffsetHandled()
             }
         }
     )
