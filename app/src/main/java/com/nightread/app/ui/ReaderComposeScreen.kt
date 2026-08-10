@@ -485,12 +485,6 @@ fun ReaderComposeScreen(
                     BoxWithConstraints(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(
-                                top = cutoutTop + 16.dp,
-                                bottom = cutoutBottom + 16.dp,
-                                start = 8.dp,
-                                end = 8.dp
-                            )
                     ) {
                         val density = LocalDensity.current
                         val maxWidthPx = with(density) { constraints.maxWidth }
