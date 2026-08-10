@@ -158,6 +158,7 @@ fun ReaderComposeScreen(
     val isHyphenationEnabled = remember(settingsVersion, context) { SettingsManager.isHyphenationEnabled(context) }
     val isSleepTimerEnabled = remember(settingsVersion, context) { SettingsManager.isSleepTimerEnabled(context) }
     val sleepTimerDuration = remember(settingsVersion, context) { SettingsManager.getSleepTimerDuration(context) }
+    val pageAnimation = remember(settingsVersion, context) { SettingsManager.getPageAnimation(context) }
     var sleepTimerRemaining by remember { mutableLongStateOf(0L) }
 
     var isHideBars by remember { mutableStateOf(false) }
@@ -662,7 +663,7 @@ fun ReaderComposeScreen(
                             val densityVal = density.density
                             val widthDp = (maxWidthPx / densityVal).toInt()
                             val heightDp = (maxHeightPx / densityVal).toInt()
-                            val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex) {
+                            val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation) {
                                 com.nightread.app.ui.customlayout.ReaderWebViewEngine.prepareHtmlForBook(
                                     context = context,
                                     bookId = sha1.ifEmpty { "default" },
@@ -674,7 +675,8 @@ fun ReaderComposeScreen(
                                     textColorHex = textColorHex,
                                     bgColorHex = bgColorHex,
                                     viewportWidth = widthDp,
-                                    viewportHeight = heightDp
+                                    viewportHeight = heightDp,
+                                    pageAnimation = pageAnimation
                                 )
                             }
 

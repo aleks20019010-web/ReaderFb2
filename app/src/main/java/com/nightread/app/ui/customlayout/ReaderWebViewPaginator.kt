@@ -14,9 +14,10 @@ object ReaderWebViewPaginator {
         textColorHex: String,
         bgColorHex: String,
         viewportWidth: Int,
-        viewportHeight: Int
+        viewportHeight: Int,
+        pageAnimation: String = "slide"
     ): String {
-        Log.d(TAG, "Sanitizing and wrapping HTML: length=${rawText.length}, font=$fontFamily, size=$fontSize, w=$viewportWidth, h=$viewportHeight")
+        Log.d(TAG, "Sanitizing and wrapping HTML: length=${rawText.length}, font=$fontFamily, size=$fontSize, w=$viewportWidth, h=$viewportHeight, anim=$pageAnimation")
 
         // 1. Convert custom markers ([CHAPTER], [CITE], [SUP], [NOTE], etc.) and clean unsafe tags while preserving safe ones
         val processedHtml = processBookMarkupToHtml(rawText)
@@ -48,7 +49,7 @@ object ReaderWebViewPaginator {
                     }
                     body {
                         margin: 0;
-                        padding: 12px 8px 12px 8px;
+                        padding: 20px 16px;
                         width: 100vw;
                         height: 100vh;
                         overflow: hidden;
@@ -56,14 +57,16 @@ object ReaderWebViewPaginator {
                         font-size: ${fontSize}px;
                         font-weight: $fontWeight;
                         line-height: $lineHeight;
-                        column-width: calc(100vw - 16px);
-                        column-gap: 16px;
+                        column-width: 100vw;
+                        column-gap: 0px;
                         column-fill: auto;
-                        -webkit-column-width: calc(100vw - 16px);
-                        -webkit-column-gap: 16px;
+                        -webkit-column-width: 100vw;
+                        -webkit-column-gap: 0px;
                         -webkit-column-fill: auto;
+                        box-sizing: border-box;
                         background-color: $bgColorHex;
                         color: $textColorHex;
+                        scroll-behavior: ${if (pageAnimation == "none") "auto" else "smooth"};
                     }
                     p {
                         margin-top: 0;
@@ -149,20 +152,31 @@ object ReaderWebViewPaginator {
                     $processedHtml
                 </div>
                 <script>
+                    function getPageWidth() {
+                        if (window.visualViewport && window.visualViewport.width) {
+                            return window.visualViewport.width;
+                        }
+                        var rect = document.documentElement.getBoundingClientRect();
+                        if (rect && rect.width) {
+                            return rect.width;
+                        }
+                        return window.innerWidth;
+                    }
+
                     function runDiagnostics() {
-                        var vw = window.innerWidth;
+                        var vw = getPageWidth();
                         var vh = window.innerHeight;
                         var sw = document.documentElement.scrollWidth;
                         var sh = document.documentElement.scrollHeight;
                         var cw = document.documentElement.clientWidth;
                         var ch = document.documentElement.clientHeight;
-                        var sx = window.pageXOffset || document.documentElement.scrollLeft;
-                        var sy = window.pageYOffset || document.documentElement.scrollTop;
+                        var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
+                        var sy = window.pageYOffset || document.documentElement.scrollTop || 0;
                         var totalPages = Math.max(1, Math.round(sw / vw));
                         var pageIndex = Math.round(sx / vw);
                         var verticalOverflow = sh > ch + 2;
                         var horizontalOverflow = sw > vw * totalPages + 2;
-                        var aligned = Math.abs(sx % vw) < 2;
+                        var aligned = Math.abs(sx - pageIndex * vw) < 2;
                         
                         console.log("[WEBVIEW_DIAGNOSTIC] vw=" + vw + ", vh=" + vh + ", sw=" + sw + ", sh=" + sh + ", cw=" + cw + ", ch=" + ch + ", sx=" + sx + ", sy=" + sy + ", totalPages=" + totalPages + ", pageIndex=" + pageIndex + ", verticalOverflow=" + verticalOverflow + ", horizontalOverflow=" + horizontalOverflow + ", aligned=" + aligned);
                     }
@@ -171,13 +185,12 @@ object ReaderWebViewPaginator {
                         try {
                             if (window.ReaderBridge) {
                                 var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                                var vw = window.innerWidth;
+                                var vw = getPageWidth();
                                 var pageIndex = Math.round(sx / vw);
                                 var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
                                 var totalPages = Math.max(1, Math.round(totalWidth / vw));
                                 
-                                var targetX = sx + 10;
-                                var element = document.elementFromPoint(targetX, 50);
+                                var element = document.elementFromPoint(16, 50);
                                 var offset = 0;
                                 while (element && element !== document.body && element !== document.documentElement) {
                                     if (element.hasAttribute && element.hasAttribute('data-offset')) {
@@ -195,11 +208,13 @@ object ReaderWebViewPaginator {
                     }
 
                     window.scrollToPage = function(pageIndex) {
-                        var vw = window.innerWidth;
+                        var vw = getPageWidth();
                         var target = pageIndex * vw;
-                        document.body.scrollLeft = target;
-                        document.documentElement.scrollLeft = target;
-                        window.scrollTo(target, 0);
+                        window.scrollTo({
+                            left: target,
+                            top: 0,
+                            behavior: '${if (pageAnimation == "none") "auto" else "smooth"}'
+                        });
                         reportCurrentPosition();
                     };
 
@@ -218,36 +233,47 @@ object ReaderWebViewPaginator {
                         if (bestEl) {
                             var rect = bestEl.getBoundingClientRect();
                             var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                            var vw = window.innerWidth;
+                            var vw = getPageWidth();
                             var absoluteLeft = sx + rect.left;
                             var targetPage = Math.floor(absoluteLeft / vw);
                             var target = targetPage * vw;
-                            document.body.scrollLeft = target;
-                            document.documentElement.scrollLeft = target;
-                            window.scrollTo(target, 0);
+                            window.scrollTo({
+                                left: target,
+                                top: 0,
+                                behavior: '${if (pageAnimation == "none") "auto" else "smooth"}'
+                            });
                             reportCurrentPosition();
                         }
                     };
 
                     window.nextPage = function() {
-                        var vw = window.innerWidth;
+                        var vw = getPageWidth();
                         var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                        var maxScroll = Math.max(0, Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - vw);
-                        var target = Math.min(maxScroll, sx + vw);
-                        document.body.scrollLeft = target;
-                        document.documentElement.scrollLeft = target;
-                        window.scrollTo(target, 0);
-                        setTimeout(reportCurrentPosition, 50);
+                        var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
+                        var totalPages = Math.max(1, Math.round(totalWidth / vw));
+                        var currentPage = Math.round(sx / vw);
+                        var targetPage = Math.min(totalPages - 1, currentPage + 1);
+                        var target = targetPage * vw;
+                        window.scrollTo({
+                            left: target,
+                            top: 0,
+                            behavior: '${if (pageAnimation == "none") "auto" else "smooth"}'
+                        });
+                        setTimeout(reportCurrentPosition, 300);
                     };
 
                     window.prevPage = function() {
-                        var vw = window.innerWidth;
+                        var vw = getPageWidth();
                         var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                        var target = Math.max(0, sx - vw);
-                        document.body.scrollLeft = target;
-                        document.documentElement.scrollLeft = target;
-                        window.scrollTo(target, 0);
-                        setTimeout(reportCurrentPosition, 50);
+                        var currentPage = Math.round(sx / vw);
+                        var targetPage = Math.max(0, currentPage - 1);
+                        var target = targetPage * vw;
+                        window.scrollTo({
+                            left: target,
+                            top: 0,
+                            behavior: '${if (pageAnimation == "none") "auto" else "smooth"}'
+                        });
+                        setTimeout(reportCurrentPosition, 300);
                     };
 
                     window.addEventListener('load', function() {

@@ -25,9 +25,10 @@ object ReaderWebViewEngine {
         textColorHex: String,
         bgColorHex: String,
         viewportWidth: Int,
-        viewportHeight: Int
+        viewportHeight: Int,
+        pageAnimation: String = "slide"
     ): String {
-        Log.d(TAG, "Preparing HTML for book: id=$bookId, length=${mainText.length}, viewport=${viewportWidth}x$viewportHeight")
+        Log.d(TAG, "Preparing HTML for book: id=$bookId, length=${mainText.length}, viewport=${viewportWidth}x$viewportHeight, anim=$pageAnimation")
         return ReaderWebViewPaginator.sanitizeAndWrapHtml(
             rawText = mainText,
             fontFamily = fontFamily,
@@ -37,7 +38,8 @@ object ReaderWebViewEngine {
             textColorHex = textColorHex,
             bgColorHex = bgColorHex,
             viewportWidth = viewportWidth,
-            viewportHeight = viewportHeight
+            viewportHeight = viewportHeight,
+            pageAnimation = pageAnimation
         )
     }
 
