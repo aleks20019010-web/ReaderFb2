@@ -170,10 +170,10 @@ object ReaderWebViewPaginator {
                     function reportCurrentPosition() {
                         try {
                             if (window.ReaderBridge) {
-                                var sx = window.pageXOffset || document.documentElement.scrollLeft;
+                                var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
                                 var vw = window.innerWidth;
                                 var pageIndex = Math.round(sx / vw);
-                                var totalWidth = document.documentElement.scrollWidth;
+                                var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
                                 var totalPages = Math.max(1, Math.round(totalWidth / vw));
                                 
                                 var targetX = sx + 10;
@@ -196,7 +196,10 @@ object ReaderWebViewPaginator {
 
                     window.scrollToPage = function(pageIndex) {
                         var vw = window.innerWidth;
-                        window.scrollTo({left: pageIndex * vw, behavior: 'instant'});
+                        var target = pageIndex * vw;
+                        document.body.scrollLeft = target;
+                        document.documentElement.scrollLeft = target;
+                        window.scrollTo(target, 0);
                         reportCurrentPosition();
                     };
 
@@ -214,29 +217,36 @@ object ReaderWebViewPaginator {
                         }
                         if (bestEl) {
                             var rect = bestEl.getBoundingClientRect();
-                            var sx = window.pageXOffset || document.documentElement.scrollLeft;
+                            var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
                             var vw = window.innerWidth;
                             var absoluteLeft = sx + rect.left;
                             var targetPage = Math.floor(absoluteLeft / vw);
-                            window.scrollTo({left: targetPage * vw, behavior: 'instant'});
+                            var target = targetPage * vw;
+                            document.body.scrollLeft = target;
+                            document.documentElement.scrollLeft = target;
+                            window.scrollTo(target, 0);
                             reportCurrentPosition();
                         }
                     };
 
                     window.nextPage = function() {
                         var vw = window.innerWidth;
-                        var sx = window.pageXOffset || document.documentElement.scrollLeft || window.scrollX || 0;
-                        var maxScroll = document.documentElement.scrollWidth - vw;
+                        var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
+                        var maxScroll = Math.max(0, Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - vw);
                         var target = Math.min(maxScroll, sx + vw);
-                        window.scrollTo({left: target, behavior: 'instant'});
+                        document.body.scrollLeft = target;
+                        document.documentElement.scrollLeft = target;
+                        window.scrollTo(target, 0);
                         setTimeout(reportCurrentPosition, 50);
                     };
 
                     window.prevPage = function() {
                         var vw = window.innerWidth;
-                        var sx = window.pageXOffset || document.documentElement.scrollLeft || window.scrollX || 0;
+                        var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
                         var target = Math.max(0, sx - vw);
-                        window.scrollTo({left: target, behavior: 'instant'});
+                        document.body.scrollLeft = target;
+                        document.documentElement.scrollLeft = target;
+                        window.scrollTo(target, 0);
                         setTimeout(reportCurrentPosition, 50);
                     };
 
