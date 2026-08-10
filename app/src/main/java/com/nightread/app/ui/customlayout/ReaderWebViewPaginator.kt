@@ -50,18 +50,17 @@ object ReaderWebViewPaginator {
                     body {
                         margin: 0;
                         padding: 20px 16px;
-                        width: 100vw;
                         height: 100vh;
                         overflow: hidden;
                         font-family: '$fontFamily', serif;
                         font-size: ${fontSize}px;
                         font-weight: $fontWeight;
                         line-height: $lineHeight;
-                        column-width: 100vw;
-                        column-gap: 0px;
+                        column-width: calc(100vw - 32px);
+                        column-gap: 32px;
                         column-fill: auto;
-                        -webkit-column-width: 100vw;
-                        -webkit-column-gap: 0px;
+                        -webkit-column-width: calc(100vw - 32px);
+                        -webkit-column-gap: 32px;
                         -webkit-column-fill: auto;
                         box-sizing: border-box;
                         background-color: $bgColorHex;
