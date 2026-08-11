@@ -495,6 +495,16 @@ class BookAdapter(
             onToggleSelection: (BookEntity) -> Unit
         ) {
             android.util.Log.d("BookAdapter", "Binding book in ViewHolder: title='${book.title}', author='${book.author}', sha1='${book.sha1}', coverPath='${book.coverPath}'")
+            if (DaliThemeHelper.isDaliActive(itemView.context)) {
+                val card = itemView as? com.google.android.material.card.MaterialCardView
+                if (card != null) {
+                    DaliThemeHelper.styleBookCard(card, true)
+                }
+                val coverCard = cvBookCover as? com.google.android.material.card.MaterialCardView
+                if (coverCard != null) {
+                    DaliThemeHelper.styleBookCard(coverCard, true)
+                }
+            }
             ivCover.transitionName = "cover_${book.sha1}"
             tvBookTitle.text = book.title
 
