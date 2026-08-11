@@ -79,8 +79,9 @@ class AudiobookPlaybackService : Service() {
     private var lastSavedPos = 0
     private val progressRunnable = object : Runnable {
         override fun run() {
-            mediaPlayer?.let { player ->
-                if (player.isPlaying) {
+            val player = mediaPlayer
+            if (player != null && isPlayingAudiobook) {
+                try {
                     val pos = player.currentPosition
                     val dur = player.duration
                     sendProgressBroadcast(
@@ -89,13 +90,15 @@ class AudiobookPlaybackService : Service() {
                         duration = dur
                     )
                     
-                    if (Math.abs(pos - lastSavedPos) >= 5000) {
+                    if (Math.abs(pos - lastSavedPos) >= 3000) {
                         lastSavedPos = pos
                         saveProgress(pos, dur)
                         updateNotification(true)
                     }
-                    handler.postDelayed(this, 1000)
+                } catch (e: Exception) {
+                    Log.e("AudiobookPlaybackService", "Error in progressRunnable", e)
                 }
+                handler.postDelayed(this, 1000)
             }
         }
     }
@@ -135,44 +138,63 @@ class AudiobookPlaybackService : Service() {
 
         when (action) {
             ACTION_PLAY -> {
-                val filePath = intent.getStringExtra(EXTRA_FILE_PATH)
+                val filePath = intent.getStringExtra(EXTRA_FILE_PATH) ?: currentFilePath
                 val newTitle = intent.getStringExtra(EXTRA_TITLE) ?: title
                 val newAuthor = intent.getStringExtra(EXTRA_AUTHOR) ?: author
                 val seekPos = intent.getIntExtra(EXTRA_SEEK_POSITION, -1)
-                val sha1 = intent.getStringExtra(EXTRA_SHA1)
+                val sha1 = intent.getStringExtra(EXTRA_SHA1) ?: currentSha1
 
                 title = newTitle
                 author = newAuthor
-
-                if (filePath != null && filePath != currentFilePath) {
-                    currentFilePath = filePath
+                if (!sha1.isNullOrEmpty()) {
                     currentSha1 = sha1
-                    serviceScope.launch {
-                        val db = AppDatabase.getDatabase(this@AudiobookPlaybackService)
-                        val book = if (!sha1.isNullOrEmpty()) {
-                            db.bookDao().getBookBySha1(sha1)
-                        } else {
-                            db.bookDao().getAllBooksSync().find { it.filePath == filePath }
+                }
+
+                if (filePath != null) {
+                    val isNewPath = (filePath != currentFilePath)
+                    currentFilePath = filePath
+
+                    if (isNewPath || mediaPlayer == null) {
+                        serviceScope.launch {
+                            val db = AppDatabase.getDatabase(this@AudiobookPlaybackService)
+                            val book = if (!currentSha1.isNullOrEmpty()) {
+                                db.bookDao().getBookBySha1(currentSha1!!)
+                            } else {
+                                db.bookDao().getAllBooksSync().find { it.filePath == filePath }
+                            }
+                            
+                            val savedPos = book?.currentProgressChar ?: 0
+                            if (currentSha1.isNullOrEmpty()) {
+                                currentSha1 = book?.sha1
+                            }
+                            
+                            coverBitmap = loadCoverBitmap(book?.coverPath)
+                            
+                            withContext(Dispatchers.Main) {
+                                val startPos = if (seekPos >= 0) seekPos else savedPos
+                                initAndPlay(filePath, startPos)
+                            }
                         }
-                        
-                        val savedPos = book?.currentProgressChar ?: 0
-                        currentSha1 = book?.sha1
-                        
-                        coverBitmap = loadCoverBitmap(book?.coverPath)
-                        
-                        withContext(Dispatchers.Main) {
-                            val startPos = if (seekPos >= 0) seekPos else savedPos
-                            initAndPlay(filePath, startPos)
+                    } else {
+                        mediaPlayer?.let { player ->
+                            try {
+                                if (seekPos >= 0) player.seekTo(seekPos)
+                                player.start()
+                                isPlayingAudiobook = true
+                                updateMetadata()
+                                safeStartForeground()
+                                startProgressTracker()
+                                sendProgressBroadcast(
+                                    isPlaying = true,
+                                    position = player.currentPosition,
+                                    duration = player.duration
+                                )
+                            } catch (e: Exception) {
+                                Log.e("AudiobookPlaybackService", "Error resuming playback", e)
+                                initAndPlay(filePath, if (seekPos >= 0) seekPos else 0)
+                            }
                         }
                     }
-                } else if (mediaPlayer != null) {
-                    val targetPos = if (seekPos >= 0) seekPos else mediaPlayer?.currentPosition ?: 0
-                    if (seekPos >= 0) mediaPlayer?.seekTo(seekPos)
-                    mediaPlayer?.start()
-                    isPlayingAudiobook = true
-                    updateMetadata()
-                    safeStartForeground()
-                    startProgressTracker()
                 }
             }
             ACTION_PAUSE -> {
@@ -181,11 +203,11 @@ class AudiobookPlaybackService : Service() {
             ACTION_SEEK -> {
                 val seekPos = intent.getIntExtra(EXTRA_SEEK_POSITION, 0)
                 mediaPlayer?.seekTo(seekPos)
-                val curPos = mediaPlayer?.currentPosition ?: 0
+                val curPos = mediaPlayer?.currentPosition ?: seekPos
                 val dur = mediaPlayer?.duration ?: 0
                 saveProgress(curPos, dur)
                 sendProgressBroadcast(
-                    isPlaying = mediaPlayer?.isPlaying == true,
+                    isPlaying = isPlayingAudiobook,
                     position = curPos,
                     duration = dur
                 )
@@ -203,6 +225,11 @@ class AudiobookPlaybackService : Service() {
                     val target = (player.currentPosition + 30000).coerceAtMost(player.duration)
                     player.seekTo(target)
                     saveProgress(target, player.duration)
+                    sendProgressBroadcast(
+                        isPlaying = isPlayingAudiobook,
+                        position = target,
+                        duration = player.duration
+                    )
                 }
             }
             ACTION_SKIP_BACKWARD -> {
@@ -210,6 +237,11 @@ class AudiobookPlaybackService : Service() {
                     val target = (player.currentPosition - 15000).coerceAtLeast(0)
                     player.seekTo(target)
                     saveProgress(target, player.duration)
+                    sendProgressBroadcast(
+                        isPlaying = isPlayingAudiobook,
+                        position = target,
+                        duration = player.duration
+                    )
                 }
             }
             ACTION_STOP -> {
@@ -247,23 +279,42 @@ class AudiobookPlaybackService : Service() {
     }
 
     private fun initAndPlay(filePath: String, seekPos: Int) {
-        mediaPlayer?.release()
+        try {
+            mediaPlayer?.release()
+        } catch (e: Exception) {}
+
         mediaPlayer = MediaPlayer().apply {
             setDataSource(filePath)
             setOnPreparedListener { mp ->
-                if (seekPos > 0) mp.seekTo(seekPos)
+                if (seekPos > 0 && seekPos < mp.duration) {
+                    mp.seekTo(seekPos)
+                }
                 setPlaybackSpeed(speed)
                 mp.start()
                 isPlayingAudiobook = true
                 updateMetadata()
                 safeStartForeground()
                 startProgressTracker()
+                sendProgressBroadcast(
+                    isPlaying = true,
+                    position = mp.currentPosition,
+                    duration = mp.duration
+                )
             }
             setOnCompletionListener {
                 isPlayingAudiobook = false
                 stopProgressTracker()
                 updateNotification(false)
-                sendProgressBroadcast(isPlaying = false, position = duration, duration = duration)
+                val dur = try { duration } catch (e: Exception) { 0 }
+                sendProgressBroadcast(isPlaying = false, position = dur, duration = dur)
+            }
+            setOnErrorListener { mp, what, extra ->
+                Log.e("AudiobookPlaybackService", "MediaPlayer error: what=$what, extra=$extra")
+                isPlayingAudiobook = false
+                stopProgressTracker()
+                updateNotification(false)
+                sendProgressBroadcast(isPlaying = false, position = 0, duration = 0)
+                true
             }
             prepareAsync()
         }

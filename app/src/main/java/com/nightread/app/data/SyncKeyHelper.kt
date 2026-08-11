@@ -20,15 +20,14 @@ object SyncKeyHelper {
 
     /**
      * Возвращает ключ синхронизации для файла.
-     * Для FB2 / FB2.ZIP — используется SHA-1.
-     * Для остальных файлов — имя файла в нижнем регистре.
+     * Если передана заведомо корректная строка SHA-1, возвращается она.
+     * В противном случае возвращается имя файла в нижнем регистре.
      */
     fun getSyncKey(fileNameOrPath: String, sha1: String?): String {
-        val fileName = File(fileNameOrPath).name
-        return if (isFb2OrFb2Zip(fileName)) {
-            sha1 ?: ""
-        } else {
-            fileName.lowercase(Locale.ROOT)
+        if (!sha1.isNullOrBlank()) {
+            return sha1
         }
+        val fileName = File(fileNameOrPath).name
+        return fileName.lowercase(Locale.ROOT)
     }
 }

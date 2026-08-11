@@ -22,6 +22,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
@@ -47,7 +48,16 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.WbSunny
@@ -126,6 +136,64 @@ data class ReaderSettings(
     val isHideBars: Boolean = false
 )
 
+@Composable
+fun Volumetric3DIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    iconRes: Int? = null,
+    vectorIcon: ImageVector? = null,
+    contentDescription: String? = null,
+    buttonSize: Dp = 38.dp,
+    iconSize: Dp = 24.dp,
+    bgGradient: List<Color>? = null,
+    badgeColor: Color = Color(0x30FFFFFF),
+    borderColor: Color = Color(0x40FFFFFF),
+    tint: Color = Color.Unspecified
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.size(buttonSize),
+        shape = CircleShape,
+        color = badgeColor,
+        border = BorderStroke(1.dp, borderColor),
+        shadowElevation = 6.dp,
+        tonalElevation = 2.dp
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (bgGradient != null) {
+                        Modifier.background(Brush.verticalGradient(bgGradient))
+                    } else {
+                        Modifier.background(
+                            Brush.verticalGradient(
+                                listOf(Color(0x35FFFFFF), Color(0x10000000))
+                            )
+                        )
+                    }
+                )
+        ) {
+            if (iconRes != null) {
+                Icon(
+                    painter = painterResource(id = iconRes),
+                    contentDescription = contentDescription,
+                    tint = tint,
+                    modifier = Modifier.size(iconSize)
+                )
+            } else if (vectorIcon != null) {
+                Icon(
+                    imageVector = vectorIcon,
+                    contentDescription = contentDescription,
+                    tint = if (tint == Color.Unspecified) MaterialTheme.colorScheme.onSurface else tint,
+                    modifier = Modifier.size(iconSize)
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderComposeScreen(
@@ -199,6 +267,31 @@ fun ReaderComposeScreen(
 
     var pendingTargetOffset by remember { mutableStateOf<Int?>(null) }
     var showTocSheet by remember { mutableStateOf(false) }
+
+    var isTtsActive by remember { mutableStateOf(TtsForegroundService.isServiceRunning) }
+    var isTtsSpeaking by remember { mutableStateOf(false) }
+
+    DisposableEffect(context) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                if (intent?.action == TtsForegroundService.BROADCAST_TTS_STATUS) {
+                    isTtsSpeaking = intent.getBooleanExtra(TtsForegroundService.EXTRA_IS_SPEAKING, false)
+                    isTtsActive = TtsForegroundService.isServiceRunning || isTtsSpeaking
+                }
+            }
+        }
+        val filter = android.content.IntentFilter(TtsForegroundService.BROADCAST_TTS_STATUS)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
+        onDispose {
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (e: Exception) {}
+        }
+    }
     
     // --------------------------------
     
@@ -808,7 +901,33 @@ fun ReaderComposeScreen(
                                             }
                                         }
                                     },
-                                    onWordSelected = { word -> },
+                                    onWordSelected = { selectedText ->
+                                        if (selectedText.isNotBlank()) {
+                                            fragmentActivity?.supportFragmentManager?.let { fm ->
+                                                val sheet = SelectionBottomSheet.newInstance(selectedText)
+                                                sheet.setTtsListener { textToSpeak ->
+                                                    try {
+                                                        val intent = Intent(context, TtsForegroundService::class.java).apply {
+                                                            action = TtsForegroundService.ACTION_START
+                                                            putExtra(TtsForegroundService.EXTRA_TEXT, textToSpeak)
+                                                            putExtra(TtsForegroundService.EXTRA_BOOK_TITLE, bookTitle)
+                                                            putExtra(TtsForegroundService.EXTRA_SPEED, SettingsManager.getTtsSpeed(context))
+                                                            putExtra(TtsForegroundService.EXTRA_PITCH, SettingsManager.getTtsPitch(context))
+                                                            putExtra(TtsForegroundService.EXTRA_VOICE, SettingsManager.getTtsVoice(context))
+                                                        }
+                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                                            context.startForegroundService(intent)
+                                                        } else {
+                                                            context.startService(intent)
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        android.util.Log.e("ReaderComposeScreen", "Error starting TTS for selected text", e)
+                                                    }
+                                                }
+                                                sheet.show(fm, "SelectionBottomSheet")
+                                            }
+                                        }
+                                    },
                                     onNoteClicked = { noteId -> },
                                     onNextPage = {},
                                     onPreviousPage = {},
@@ -947,52 +1066,94 @@ fun ReaderComposeScreen(
                             }
                         },
                         navigationIcon = {
-                            IconButton(onClick = onBackClick) {
-                                Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = textColor)
-                            }
+                            Volumetric3DIconButton(
+                                onClick = onBackClick,
+                                iconRes = com.nightread.app.R.drawable.ic_reader_back,
+                                contentDescription = "Назад",
+                                buttonSize = 40.dp,
+                                iconSize = 26.dp,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
                         },
                         actions = {
                             val fragmentActivity = context as? androidx.fragment.app.FragmentActivity
                             val currentOffset = if (readerPages.isNotEmpty() && pagerState.currentPage < readerPages.size) readerPages[pagerState.currentPage].startOffset else 0
                             val isBookmarked = bookmarks.any { it.charOffset == currentOffset }
                             
-                            IconButton(onClick = {
-                                coroutineScope.launch {
-                                    if (isBookmarked) {
-                                        bookmarkRepo.deleteBookmarkAtOffset(sha1, currentOffset)
-                                    } else {
-                                        bookmarkRepo.insertBookmark(BookmarkEntity(bookSha1 = sha1, bookTitle = bookTitle, charOffset = currentOffset, pageIndex = pagerState.currentPage, snippet = "Закладка на позиции $currentOffset", timestamp = System.currentTimeMillis()))
-                                    }
-                                }
-                            }) {
-                                Icon(if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, contentDescription = "Закладка", tint = textColor)
-                            }
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(end = 4.dp)
+                            ) {
+                                Volumetric3DIconButton(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            if (isBookmarked) {
+                                                bookmarkRepo.deleteBookmarkAtOffset(sha1, currentOffset)
+                                            } else {
+                                                bookmarkRepo.insertBookmark(BookmarkEntity(bookSha1 = sha1, bookTitle = bookTitle, charOffset = currentOffset, pageIndex = pagerState.currentPage, snippet = "Закладка на позиции $currentOffset", timestamp = System.currentTimeMillis()))
+                                            }
+                                        }
+                                    },
+                                    iconRes = if (isBookmarked) com.nightread.app.R.drawable.ic_reader_bookmark_filled else com.nightread.app.R.drawable.ic_reader_bookmark,
+                                    contentDescription = "Закладка",
+                                    buttonSize = 38.dp,
+                                    iconSize = 24.dp
+                                )
 
-                            IconButton(onClick = {
-                                isSearchMode = true
-                                isHideBars = true
-                            }) {
-                                Icon(Icons.Filled.Search, contentDescription = "Поиск", tint = textColor)
-                            }
+                                Volumetric3DIconButton(
+                                    onClick = {
+                                        isSearchMode = true
+                                        isHideBars = true
+                                    },
+                                    iconRes = com.nightread.app.R.drawable.ic_reader_search,
+                                    contentDescription = "Поиск",
+                                    buttonSize = 38.dp,
+                                    iconSize = 24.dp
+                                )
 
-                            IconButton(onClick = { showTocSheet = true }) {
-                                Icon(Icons.Filled.Menu, contentDescription = "Оглавление", tint = textColor)
-                            }
-                            
-                            IconButton(onClick = {
-                                fragmentActivity?.supportFragmentManager?.let { fm ->
-                                    BookmarksListBottomSheet.newInstance(sha1).show(fm, "BookmarksList")
-                                }
-                            }) {
-                                Icon(Icons.Filled.List, contentDescription = "Список закладок", tint = textColor)
-                            }
-                            
-                            IconButton(onClick = {
-                                fragmentActivity?.supportFragmentManager?.let { fm ->
-                                    SettingsBottomSheet().show(fm, "SettingsBottomSheet")
-                                }
-                            }) {
-                                Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = textColor)
+                                Volumetric3DIconButton(
+                                    onClick = { showTocSheet = true },
+                                    iconRes = com.nightread.app.R.drawable.ic_reader_toc,
+                                    contentDescription = "Оглавление",
+                                    buttonSize = 38.dp,
+                                    iconSize = 24.dp
+                                )
+
+                                Volumetric3DIconButton(
+                                    onClick = {
+                                        fragmentActivity?.supportFragmentManager?.let { fm ->
+                                            BookmarksListBottomSheet.newInstance(sha1).show(fm, "BookmarksList")
+                                        }
+                                    },
+                                    iconRes = com.nightread.app.R.drawable.ic_reader_bookmarks_list,
+                                    contentDescription = "Список закладок",
+                                    buttonSize = 38.dp,
+                                    iconSize = 24.dp
+                                )
+
+                                Volumetric3DIconButton(
+                                    onClick = {
+                                        openTtsSettingsSheet(fragmentActivity, mainText, bookTitle)
+                                    },
+                                    iconRes = com.nightread.app.R.drawable.ic_reader_tts,
+                                    contentDescription = "Озвучка TTS",
+                                    buttonSize = 38.dp,
+                                    iconSize = 24.dp,
+                                    modifier = Modifier.testTag("btn_tts")
+                                )
+
+                                Volumetric3DIconButton(
+                                    onClick = {
+                                        fragmentActivity?.supportFragmentManager?.let { fm ->
+                                            SettingsBottomSheet().show(fm, "SettingsBottomSheet")
+                                        }
+                                    },
+                                    iconRes = com.nightread.app.R.drawable.ic_reader_settings,
+                                    contentDescription = "Настройки",
+                                    buttonSize = 38.dp,
+                                    iconSize = 24.dp
+                                )
                             }
                         }
                     )
@@ -1085,7 +1246,165 @@ fun ReaderComposeScreen(
                                 .height(24.dp)
                                 .padding(horizontal = 16.dp)
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
+                        HorizontalDivider(color = textColor.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 16.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                onClick = { openTtsSettingsSheet(fragmentActivity, mainText, bookTitle) },
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0x35FFFFFF),
+                                border = BorderStroke(1.dp, Color(0x40FFFFFF)),
+                                shadowElevation = 6.dp
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .background(
+                                            Brush.verticalGradient(
+                                                listOf(Color(0x35FFFFFF), Color(0x10000000))
+                                            )
+                                        )
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = com.nightread.app.R.drawable.ic_reader_tts),
+                                        contentDescription = null,
+                                        tint = Color.Unspecified,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Озвучка (TTS)",
+                                        color = textColor,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            Volumetric3DIconButton(
+                                onClick = {
+                                    val act = context as? BookReaderActivity
+                                    if (isTtsSpeaking) {
+                                        act?.pauseTts()
+                                    } else {
+                                        act?.startOrResumeTts()
+                                    }
+                                },
+                                vectorIcon = if (isTtsSpeaking) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                contentDescription = "Воспроизведение TTS",
+                                tint = textColor,
+                                buttonSize = 42.dp,
+                                iconSize = 24.dp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+            }
+
+            // Floating Active TTS Player Controller
+            AnimatedVisibility(
+                visible = isTtsActive,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(
+                        bottom = if (!isHideBars && !isSearchMode) 150.dp else 24.dp,
+                        start = 16.dp,
+                        end = 16.dp
+                    )
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = glassBgColor,
+                    border = glassBorder,
+                    shadowElevation = 10.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Volumetric3DIconButton(
+                            onClick = { (context as? BookReaderActivity)?.readPreviousTtsChunk() },
+                            vectorIcon = Icons.Filled.SkipPrevious,
+                            contentDescription = "Предыдущий",
+                            tint = textColor,
+                            buttonSize = 42.dp,
+                            iconSize = 24.dp
+                        )
+
+                        Surface(
+                            onClick = {
+                                val act = context as? BookReaderActivity
+                                if (isTtsSpeaking) {
+                                    act?.pauseTts()
+                                    isTtsSpeaking = false
+                                } else {
+                                    act?.startOrResumeTts()
+                                    isTtsSpeaking = true
+                                }
+                            },
+                            shape = CircleShape,
+                            shadowElevation = 10.dp,
+                            border = BorderStroke(1.5.dp, Color(0xFFFFD54F))
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(Color(0xFFFF8F00), Color(0xFFFF3D00))
+                                        )
+                                    )
+                            ) {
+                                Icon(
+                                    imageVector = if (isTtsSpeaking) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                    contentDescription = if (isTtsSpeaking) "Пауза" else "Старт",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(30.dp)
+                                )
+                            }
+                        }
+
+                        Volumetric3DIconButton(
+                            onClick = { (context as? BookReaderActivity)?.readNextTtsChunk() },
+                            vectorIcon = Icons.Filled.SkipNext,
+                            contentDescription = "Следующий",
+                            tint = textColor,
+                            buttonSize = 42.dp,
+                            iconSize = 24.dp
+                        )
+
+                        Volumetric3DIconButton(
+                            onClick = {
+                                (context as? BookReaderActivity)?.stopTts()
+                                isTtsActive = false
+                                isTtsSpeaking = false
+                            },
+                            vectorIcon = Icons.Filled.Stop,
+                            contentDescription = "Остановить",
+                            tint = Color(0xFFFF5252),
+                            buttonSize = 42.dp,
+                            iconSize = 24.dp
+                        )
+
+                        Volumetric3DIconButton(
+                            onClick = { openTtsSettingsSheet(fragmentActivity, mainText, bookTitle) },
+                            iconRes = com.nightread.app.R.drawable.ic_reader_settings,
+                            contentDescription = "Панель TTS",
+                            buttonSize = 42.dp,
+                            iconSize = 24.dp
+                        )
                     }
                 }
             }
@@ -1154,15 +1473,20 @@ fun ReaderComposeScreen(
                                 singleLine = true
                             )
                             
-                            IconButton(onClick = {
-                                isSearchMode = false
-                                searchQuery = ""
-                                searchResults = emptyList()
-                                currentSearchIndex = -1
-                                isHideBars = false
-                            }) {
-                                Icon(Icons.Filled.Close, contentDescription = "Закрыть", tint = textColor)
-                            }
+                            Volumetric3DIconButton(
+                                onClick = {
+                                    isSearchMode = false
+                                    searchQuery = ""
+                                    searchResults = emptyList()
+                                    currentSearchIndex = -1
+                                    isHideBars = false
+                                },
+                                vectorIcon = Icons.Filled.Close,
+                                contentDescription = "Закрыть",
+                                tint = textColor,
+                                buttonSize = 36.dp,
+                                iconSize = 20.dp
+                            )
                         }
                         
                         if (searchResults.isNotEmpty()) {
@@ -1173,23 +1497,35 @@ fun ReaderComposeScreen(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
                             ) {
                                 Text("${currentSearchIndex + 1} из ${searchResults.size}", color = textColor)
-                                Row {
-                                    IconButton(onClick = {
-                                        if (currentSearchIndex > 0) {
-                                            currentSearchIndex--
-                                            pendingTargetOffset = searchResults[currentSearchIndex].sourceStartOffset
-                                        }
-                                    }) {
-                                        Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Предыдущий", tint = textColor)
-                                    }
-                                    IconButton(onClick = {
-                                        if (currentSearchIndex < searchResults.size - 1) {
-                                            currentSearchIndex++
-                                            pendingTargetOffset = searchResults[currentSearchIndex].sourceStartOffset
-                                        }
-                                    }) {
-                                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Следующий", tint = textColor)
-                                    }
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Volumetric3DIconButton(
+                                        onClick = {
+                                            if (currentSearchIndex > 0) {
+                                                currentSearchIndex--
+                                                pendingTargetOffset = searchResults[currentSearchIndex].sourceStartOffset
+                                            }
+                                        },
+                                        vectorIcon = Icons.Filled.KeyboardArrowUp,
+                                        contentDescription = "Предыдущий",
+                                        tint = textColor,
+                                        buttonSize = 36.dp,
+                                        iconSize = 20.dp
+                                    )
+                                    Volumetric3DIconButton(
+                                        onClick = {
+                                            if (currentSearchIndex < searchResults.size - 1) {
+                                                currentSearchIndex++
+                                                pendingTargetOffset = searchResults[currentSearchIndex].sourceStartOffset
+                                            }
+                                        },
+                                        vectorIcon = Icons.Filled.KeyboardArrowDown,
+                                        contentDescription = "Следующий",
+                                        tint = textColor,
+                                        buttonSize = 36.dp,
+                                        iconSize = 20.dp
+                                    )
                                 }
                             }
                         }

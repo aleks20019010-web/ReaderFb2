@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
+
+    <!-- Shadow -->
+    <path
+        android:pathData="M4,26 C12,24 20,24 28,26 C29,26.5 28,28 16,28 C4,28 3,26.5 4,26 Z"
+        android:fillColor="#25000000" />
+
+    <!-- 3D Volumetric Round Badge Background (Indigo / Blue Gradient) -->
+    <path
+        android:pathData="M16,4 C22.6,4 28,9.4 28,16 C28,22.6 22.6,28 16,28 C9.4,28 4,22.6 4,16 C4,9.4 9.4,4 16,4 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="4" android:startY="4" android:endX="28" android:endY="28">
+                <item android:offset="0.0" android:color="#FF3F51B5" />
+                <item android:offset="1.0" android:color="#FF1A237E" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Top Gloss Bevel -->
+    <path
+        android:pathData="M16,5 C21.5,5 26,9 26.8,14 C23,12 18,12 16,5 Z"
+        android:fillColor="#35FFFFFF" />
+
+    <!-- 3D Back Arrow Icon (Cyan / Ivory White Linear Gradient) -->
+    <path
+        android:pathData="M21,14.5 L12.8,14.5 L16.4,10.9 L15,9.5 L9,15.5 L15,21.5 L16.4,20.1 L12.8,16.5 L21,16.5 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="9" android:startY="9.5" android:endX="21" android:endY="21.5">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="1.0" android:color="#FF80DEEA" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

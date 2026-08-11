@@ -237,37 +237,35 @@ class SyncOrchestrator(
                             try {
                                 var sha1: String? = null
                                 
-                                if (!SyncKeyHelper.isFb2OrFb2Zip(file.name)) {
-                                    sha1 = SyncKeyHelper.getSyncKey(file.name, null)
-                                    cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
-                                } else {
-                                    // 1. Проверяем кэш
-                                    val cachedEntry = cacheManager.getByPath(normalizedPath)
-                                    if (cachedEntry != null) {
-                                        val cachedSize = cachedEntry.size
-                                        val cloudSize = file.size ?: 0L
-                                        val sizeMatches = cachedSize == 0L || cloudSize == 0L || cachedSize == cloudSize
-                                        val modMatches = cachedEntry.lastModified.isEmpty() || file.modified.isNullOrEmpty() || cachedEntry.lastModified == file.modified
-                                        if (sizeMatches && modMatches) {
-                                            sha1 = cachedEntry.sha1
-                                        }
+                                // 1. Проверяем кэш
+                                val cachedEntry = cacheManager.getByPath(normalizedPath)
+                                val cachedSha = cachedEntry?.sha1 ?: ""
+                                val isValidSha = cachedSha.isNotEmpty() && cachedSha != fileLowerName && !cachedSha.endsWith(".epub", ignoreCase = true) && !cachedSha.contains("/")
+                                if (cachedEntry != null && isValidSha) {
+                                    val cachedSize = cachedEntry.size
+                                    val cloudSize = file.size ?: 0L
+                                    val sizeMatches = cachedSize == 0L || cloudSize == 0L || cachedSize == cloudSize
+                                    val modMatches = cachedEntry.lastModified.isEmpty() || file.modified.isNullOrEmpty() || cachedEntry.lastModified == file.modified
+                                    if (sizeMatches && modMatches) {
+                                        sha1 = cachedEntry.sha1
                                     }
+                                }
 
-                                    // 2. Проверяем локальные книги по совпадению имени
-                                    if (sha1 == null) {
-                                        val matchedSha1 = localBooksMapByName[fileLowerName]
-                                            ?: localBooksMapByName[fileBaseName]
-                                            ?: localBooksMapByName[fileBaseNoFb2]
-                                            
-                                        if (matchedSha1 != null) {
-                                            sha1 = matchedSha1
-                                            cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
-                                            Log.d(TAG, "Matched local book by filename for ${file.name}: $sha1")
-                                        }
+                                // 2. Проверяем локальные книги по совпадению имени
+                                if (sha1 == null) {
+                                    val matchedSha1 = localBooksMapByName[fileLowerName]
+                                        ?: localBooksMapByName[fileBaseName]
+                                        ?: localBooksMapByName[fileBaseNoFb2]
+                                        
+                                    if (matchedSha1 != null) {
+                                        sha1 = matchedSha1
+                                        cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
+                                        Log.d(TAG, "Matched local book by filename for ${file.name}: $sha1")
                                     }
+                                }
 
-                                    // 3. Скачиваем временно для вычисления SHA-1 только при отсутствии в кэше и локальной базе
-                                    if (sha1 == null) {
+                                // 3. Скачиваем временно для вычисления SHA-1 только при отсутствии в кэше и локальной базе
+                                if (sha1 == null) {
                                         Log.d(TAG, "Analyzing cloud file SHA-1: ${file.name}")
                                         val tempFile = File(context.cacheDir, "temp_sha_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}_${file.name}")
                                         try {
@@ -292,7 +290,6 @@ class SyncOrchestrator(
                                             }
                                         }
                                     }
-                                }
 
                                 if (!sha1.isNullOrEmpty()) {
                                     cloudSha1Map[normalizedPath] = sha1
@@ -362,6 +359,20 @@ class SyncOrchestrator(
                     }
                 }
 
+                // 4. Normalized Title match
+                if (matchedBook == null) {
+                    val cloudTitleNorm = cloudName.substringBeforeLast(".").lowercase(java.util.Locale.ROOT).trim()
+                    if (cloudTitleNorm.isNotEmpty()) {
+                        matchedBook = localBooksList.firstOrNull { b ->
+                            val bTitle = b.title.lowercase(java.util.Locale.ROOT).trim()
+                            bTitle.isNotEmpty() && (bTitle == cloudTitleNorm || cloudTitleNorm.contains(bTitle) || bTitle.contains(cloudTitleNorm))
+                        }
+                        if (matchedBook != null) {
+                            matchedBy = "TITLE_MATCH"
+                        }
+                    }
+                }
+
                 val action = if (matchedBook != null) "SKIP" else "DOWNLOAD"
                 val ext = cloudName.substringAfterLast(".", "")
 
@@ -380,7 +391,15 @@ class SyncOrchestrator(
                     ===================================================
                 """.trimIndent())
 
-                if (matchedBook == null) {
+                if (matchedBook != null) {
+                    if (cloudSha1 != matchedBook.sha1) {
+                        try {
+                            cacheManager.save(matchedBook.sha1, normalizedPath, cloudFile.modified ?: "", cloudFile.size ?: 0L)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error updating cacheManager for matched book ${cloudName}", e)
+                        }
+                    }
+                } else {
                     toDownloadPaths.add(normalizedPath)
                 }
             }

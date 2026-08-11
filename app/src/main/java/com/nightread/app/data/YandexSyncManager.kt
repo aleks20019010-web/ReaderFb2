@@ -223,44 +223,33 @@ class YandexSyncManager(private val context: Context) {
                 val cloudBaseName = cloudNameLower.substringBeforeLast(".")
                 val cloudBaseNoFb2 = if (cloudBaseName.endsWith(".fb2")) cloudBaseName.substringBeforeLast(".fb2") else cloudBaseName
 
-                if (!SyncKeyHelper.isFb2OrFb2Zip(cloudBook.name)) {
-                    // Для всех файлов кроме FB2/FB2.ZIP ключ синхронизации — имя файла
-                    val syncKey = SyncKeyHelper.getSyncKey(cloudBook.name, null)
-                    val entity = CloudFileEntity(
-                        path = cleanPath,
-                        sha1 = syncKey,
-                        size = cloudBook.size ?: 0L,
-                        lastModified = cloudBook.modified ?: ""
-                    )
-                    updatedCloudBooks.add(entity)
-                    cloudFileDao.insert(entity)
+                val cached = cachedMap[cleanPath]
+                val cachedSha = cached?.sha1 ?: ""
+                val isValidSha = cachedSha.isNotEmpty() && cachedSha != cloudNameLower && !cachedSha.endsWith(".epub", ignoreCase = true) && !cachedSha.contains("/")
+                val cachedSize = cached?.size ?: 0L
+                val cloudSize = cloudBook.size ?: 0L
+                val sizeMatches = cachedSize == 0L || cloudSize == 0L || cachedSize == cloudSize
+                val modMatches = cached?.lastModified.isNullOrEmpty() || cloudBook.modified.isNullOrEmpty() || cached?.lastModified == cloudBook.modified
+
+                if (cached != null && isValidSha && sizeMatches && modMatches) {
+                    updatedCloudBooks.add(cached)
                 } else {
-                    val cached = cachedMap[cleanPath]
-                    val cachedSize = cached?.size ?: 0L
-                    val cloudSize = cloudBook.size ?: 0L
-                    val sizeMatches = cachedSize == 0L || cloudSize == 0L || cachedSize == cloudSize
-                    val modMatches = cached?.lastModified.isNullOrEmpty() || cloudBook.modified.isNullOrEmpty() || cached?.lastModified == cloudBook.modified
+                    val matchedSha1 = localBooksMapByName[cloudNameLower]
+                        ?: localBooksMapByName[cloudBaseName]
+                        ?: localBooksMapByName[cloudBaseNoFb2]
 
-                    if (cached != null && sizeMatches && modMatches) {
-                        updatedCloudBooks.add(cached)
+                    if (matchedSha1 != null) {
+                        val entity = CloudFileEntity(
+                            path = cleanPath,
+                            sha1 = matchedSha1,
+                            size = cloudSize,
+                            lastModified = cloudBook.modified ?: ""
+                        )
+                        updatedCloudBooks.add(entity)
+                        cloudFileDao.insert(entity)
+                        Log.d(TAG, "Matched cloud book for ${cloudBook.name}: $matchedSha1")
                     } else {
-                        val matchedSha1 = localBooksMapByName[cloudNameLower]
-                            ?: localBooksMapByName[cloudBaseName]
-                            ?: localBooksMapByName[cloudBaseNoFb2]
-
-                        if (matchedSha1 != null) {
-                            val entity = CloudFileEntity(
-                                path = cleanPath,
-                                sha1 = matchedSha1,
-                                size = cloudSize,
-                                lastModified = cloudBook.modified ?: ""
-                            )
-                            updatedCloudBooks.add(entity)
-                            cloudFileDao.insert(entity)
-                            Log.d(TAG, "Matched cloud book for ${cloudBook.name}: $matchedSha1")
-                        } else {
-                            needsSha1.add(cloudBook)
-                        }
+                        needsSha1.add(cloudBook)
                     }
                 }
             }
@@ -485,6 +474,20 @@ class YandexSyncManager(private val context: Context) {
                     }
                 }
 
+                // 4. Normalized Title match
+                if (matchedBook == null) {
+                    val cloudTitleNorm = cloudFileName.substringBeforeLast(".").lowercase(java.util.Locale.ROOT).trim()
+                    if (cloudTitleNorm.isNotEmpty()) {
+                        matchedBook = localBooks.firstOrNull { b ->
+                            val bTitle = b.title.lowercase(java.util.Locale.ROOT).trim()
+                            bTitle.isNotEmpty() && (bTitle == cloudTitleNorm || cloudTitleNorm.contains(bTitle) || bTitle.contains(cloudTitleNorm))
+                        }
+                        if (matchedBook != null) {
+                            matchedBy = "TITLE_MATCH"
+                        }
+                    }
+                }
+
                 val action = if (matchedBook != null) "SKIP" else "DOWNLOAD"
                 val ext = cloudFileName.substringAfterLast(".", "")
 
@@ -503,7 +506,15 @@ class YandexSyncManager(private val context: Context) {
                     ===================================================
                 """.trimIndent())
 
-                if (matchedBook == null) {
+                if (matchedBook != null) {
+                    if (cloudSha1 != matchedBook.sha1) {
+                        try {
+                            cloudFileCache.save(matchedBook.sha1, cloudEntity.path, cloudEntity.lastModified, cloudEntity.size)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error updating cloudFileCache for matched book ${cloudFileName}", e)
+                        }
+                    }
+                } else {
                     toDownload.add(cloudEntity)
                 }
             }

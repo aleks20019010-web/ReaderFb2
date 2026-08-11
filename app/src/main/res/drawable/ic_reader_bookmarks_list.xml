@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
+
+    <!-- Shadow -->
+    <path
+        android:pathData="M5,27 L27,27 C28,27 29,27.8 29,29 C29,29.8 28,30 27,30 L5,30 C4,30 3,29.8 3,29 C3,27.8 4,27 5,27 Z"
+        android:fillColor="#25000000" />
+
+    <!-- 3D Base Card (Ivory White) -->
+    <path
+        android:pathData="M5,4 L22,4 C23.7,4 25,5.3 25,7 L25,24 C25,25.7 23.7,27 22,27 L5,27 C3.3,27 2,25.7 2,24 L2,7 C2,5.3 3.3,4 5,4 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="2" android:startY="4" android:endX="25" android:endY="27">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="1.0" android:color="#FFFFF8E1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Bookmark Ribbons Layer (Crimson Red, Gold, Cyan) -->
+    <path
+        android:pathData="M7,4 L11,4 L11,13 L9,11 L7,13 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="7" android:startY="4" android:endX="11" android:endY="13">
+                <item android:offset="0.0" android:color="#FFE53935" />
+                <item android:offset="1.0" android:color="#FFB71C1C" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <path
+        android:pathData="M13,4 L17,4 L17,11 L15,9.5 L13,11 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="13" android:startY="4" android:endX="17" android:endY="11">
+                <item android:offset="0.0" android:color="#FFFFB74D" />
+                <item android:offset="1.0" android:color="#FFF57C00" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- List Lines -->
+    <path
+        android:pathData="M13,15 L22,15 M7,19 L22,19 M7,23 L18,23"
+        android:strokeWidth="2"
+        android:strokeColor="#FF90A4AE"
+        android:strokeLineCap="round" />
+</vector>
