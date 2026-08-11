@@ -35,17 +35,11 @@ import com.nightread.app.ui.customlayout.ReaderSearchEngine
 import com.nightread.app.ui.customlayout.ReaderSearchResult
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Divider
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PlayArrow
@@ -55,6 +49,9 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.lazy.items
+import kotlinx.coroutines.Job
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
@@ -124,6 +121,7 @@ enum class ThemeType(val displayName: String) {
     DAY("День"),
     NIGHT("Ночь"),
     SEPIA("Сепия"),
+    DALI("Сюрреализм Дали"),
     HIGH_CONTRAST("Высокая контрастность")
 }
 
@@ -144,20 +142,25 @@ fun Volumetric3DIconButton(
     vectorIcon: ImageVector? = null,
     contentDescription: String? = null,
     buttonSize: Dp = 38.dp,
-    iconSize: Dp = 24.dp,
+    iconSize: Dp = 22.dp,
     bgGradient: List<Color>? = null,
-    badgeColor: Color = Color(0x30FFFFFF),
-    borderColor: Color = Color(0x40FFFFFF),
+    badgeColor: Color = Color(0x26FFFFFF), // Translucent white (rgba(255, 255, 255, 0.15))
+    borderColor: Color = Color(0x4DFFFFFF), // 1px solid rgba(255, 255, 255, 0.3)
     tint: Color = Color.Unspecified
 ) {
+    val finalTint = if (tint == Color.Unspecified) Color.White else tint
+
     Surface(
         onClick = onClick,
-        modifier = modifier.size(buttonSize),
+        modifier = modifier
+            .size(buttonSize)
+            .graphicsLayer {
+                clip = true
+            },
         shape = CircleShape,
         color = badgeColor,
         border = BorderStroke(1.dp, borderColor),
-        shadowElevation = 6.dp,
-        tonalElevation = 2.dp
+        shadowElevation = 4.dp
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -169,24 +172,27 @@ fun Volumetric3DIconButton(
                     } else {
                         Modifier.background(
                             Brush.verticalGradient(
-                                listOf(Color(0x35FFFFFF), Color(0x10000000))
+                                listOf(
+                                    Color(0x38FFFFFF), // Specular glassy top reflection
+                                    Color(0x12FFFFFF)  // Translucent glass body
+                                )
                             )
                         )
                     }
                 )
         ) {
-            if (iconRes != null) {
-                Icon(
-                    painter = painterResource(id = iconRes),
-                    contentDescription = contentDescription,
-                    tint = tint,
-                    modifier = Modifier.size(iconSize)
-                )
-            } else if (vectorIcon != null) {
+            if (vectorIcon != null) {
                 Icon(
                     imageVector = vectorIcon,
                     contentDescription = contentDescription,
-                    tint = if (tint == Color.Unspecified) MaterialTheme.colorScheme.onSurface else tint,
+                    tint = finalTint,
+                    modifier = Modifier.size(iconSize)
+                )
+            } else if (iconRes != null) {
+                Icon(
+                    painter = painterResource(id = iconRes),
+                    contentDescription = contentDescription,
+                    tint = finalTint,
                     modifier = Modifier.size(iconSize)
                 )
             }
@@ -367,6 +373,7 @@ fun ReaderComposeScreen(
             "day", "light" -> ThemeType.DAY
             "night", "dark", "amoled" -> ThemeType.NIGHT
             "sepia" -> ThemeType.SEPIA
+            "dali", "surrealism" -> ThemeType.DALI
             "contrast", "sepia_contrast" -> ThemeType.HIGH_CONTRAST
             else -> ThemeType.SEPIA
         }
@@ -390,6 +397,7 @@ fun ReaderComposeScreen(
         ThemeType.DAY -> Color(0xFFFBF9F1) to Color(0xFF1B1B1B)
         ThemeType.NIGHT -> Color.Black to Color(0xFFE5E5E5)
         ThemeType.SEPIA -> Color(0xFFF4ECD8) to Color(0xFF3B2F1F)
+        ThemeType.DALI -> Color(0xFFF4E8D1) to Color(0xFF1A1829)
         ThemeType.HIGH_CONTRAST -> Color(0xFFFFFFFF) to Color(0xFF000000)
     }
 
@@ -436,9 +444,18 @@ fun ReaderComposeScreen(
     var webViewRef by remember { mutableStateOf<android.webkit.WebView?>(null) }
 
     // Haptic feedback on page turn
-    LaunchedEffect(pagerState.currentPage) {
-        if (isHapticEnabled && !isSilentModeEnabled && !isRestoringProgress) {
-            view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+    LaunchedEffect(currentWebViewPage, pagerState.currentPage) {
+        if (isHapticEnabled && !isRestoringProgress) {
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                    vibrator?.vibrate(android.os.VibrationEffect.createOneShot(12L, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                }
+            } catch (e: Exception) {
+                view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            }
         }
     }
 
@@ -446,11 +463,11 @@ fun ReaderComposeScreen(
     LaunchedEffect(isSleepTimerEnabled, sleepTimerDuration) {
         if (isSleepTimerEnabled) {
             sleepTimerRemaining = sleepTimerDuration * 60 * 1000L
-            while (sleepTimerRemaining > 0) {
-                delay(10000L) // Check every 10 seconds to be efficient
-                sleepTimerRemaining -= 10000L
+            while (sleepTimerRemaining > 0 && isSleepTimerEnabled) {
+                delay(1000L)
+                sleepTimerRemaining -= 1000L
             }
-            if (isSleepTimerEnabled) { // Double check if still enabled
+            if (isSleepTimerEnabled && sleepTimerRemaining <= 0) {
                 onBackClick()
             }
         }
@@ -1068,10 +1085,10 @@ fun ReaderComposeScreen(
                         navigationIcon = {
                             Volumetric3DIconButton(
                                 onClick = onBackClick,
-                                iconRes = com.nightread.app.R.drawable.ic_reader_back,
+                                vectorIcon = Icons.Filled.ArrowBack,
                                 contentDescription = "Назад",
                                 buttonSize = 40.dp,
-                                iconSize = 26.dp,
+                                iconSize = 22.dp,
                                 modifier = Modifier.padding(start = 4.dp)
                             )
                         },
@@ -1095,10 +1112,11 @@ fun ReaderComposeScreen(
                                             }
                                         }
                                     },
-                                    iconRes = if (isBookmarked) com.nightread.app.R.drawable.ic_reader_bookmark_filled else com.nightread.app.R.drawable.ic_reader_bookmark,
+                                    vectorIcon = if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                                    tint = if (isBookmarked) Color(0xFFFFD54F) else Color.White,
                                     contentDescription = "Закладка",
                                     buttonSize = 38.dp,
-                                    iconSize = 24.dp
+                                    iconSize = 22.dp
                                 )
 
                                 Volumetric3DIconButton(
@@ -1106,18 +1124,18 @@ fun ReaderComposeScreen(
                                         isSearchMode = true
                                         isHideBars = true
                                     },
-                                    iconRes = com.nightread.app.R.drawable.ic_reader_search,
+                                    vectorIcon = Icons.Filled.Search,
                                     contentDescription = "Поиск",
                                     buttonSize = 38.dp,
-                                    iconSize = 24.dp
+                                    iconSize = 22.dp
                                 )
 
                                 Volumetric3DIconButton(
                                     onClick = { showTocSheet = true },
-                                    iconRes = com.nightread.app.R.drawable.ic_reader_toc,
+                                    vectorIcon = Icons.Filled.List,
                                     contentDescription = "Оглавление",
                                     buttonSize = 38.dp,
-                                    iconSize = 24.dp
+                                    iconSize = 22.dp
                                 )
 
                                 Volumetric3DIconButton(
@@ -1126,20 +1144,20 @@ fun ReaderComposeScreen(
                                             BookmarksListBottomSheet.newInstance(sha1).show(fm, "BookmarksList")
                                         }
                                     },
-                                    iconRes = com.nightread.app.R.drawable.ic_reader_bookmarks_list,
+                                    vectorIcon = Icons.Filled.Bookmarks,
                                     contentDescription = "Список закладок",
                                     buttonSize = 38.dp,
-                                    iconSize = 24.dp
+                                    iconSize = 22.dp
                                 )
 
                                 Volumetric3DIconButton(
                                     onClick = {
                                         openTtsSettingsSheet(fragmentActivity, mainText, bookTitle)
                                     },
-                                    iconRes = com.nightread.app.R.drawable.ic_reader_tts,
+                                    vectorIcon = Icons.Filled.VolumeUp,
                                     contentDescription = "Озвучка TTS",
                                     buttonSize = 38.dp,
-                                    iconSize = 24.dp,
+                                    iconSize = 22.dp,
                                     modifier = Modifier.testTag("btn_tts")
                                 )
 
@@ -1149,10 +1167,10 @@ fun ReaderComposeScreen(
                                             SettingsBottomSheet().show(fm, "SettingsBottomSheet")
                                         }
                                     },
-                                    iconRes = com.nightread.app.R.drawable.ic_reader_settings,
+                                    vectorIcon = Icons.Filled.Settings,
                                     contentDescription = "Настройки",
                                     buttonSize = 38.dp,
-                                    iconSize = 24.dp
+                                    iconSize = 22.dp
                                 )
                             }
                         }
@@ -1258,25 +1276,25 @@ fun ReaderComposeScreen(
                             Surface(
                                 onClick = { openTtsSettingsSheet(fragmentActivity, mainText, bookTitle) },
                                 shape = RoundedCornerShape(16.dp),
-                                color = Color(0x35FFFFFF),
-                                border = BorderStroke(1.dp, Color(0x40FFFFFF)),
-                                shadowElevation = 6.dp
+                                color = Color(0x26FFFFFF),
+                                border = BorderStroke(1.dp, Color(0x4DFFFFFF)),
+                                shadowElevation = 4.dp
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .background(
                                             Brush.verticalGradient(
-                                                listOf(Color(0x35FFFFFF), Color(0x10000000))
+                                                listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))
                                             )
                                         )
                                         .padding(horizontal = 14.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        painter = painterResource(id = com.nightread.app.R.drawable.ic_reader_tts),
+                                        imageVector = Icons.Filled.VolumeUp,
                                         contentDescription = null,
-                                        tint = Color.Unspecified,
-                                        modifier = Modifier.size(22.dp)
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
@@ -1299,7 +1317,7 @@ fun ReaderComposeScreen(
                                 },
                                 vectorIcon = if (isTtsSpeaking) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                                 contentDescription = "Воспроизведение TTS",
-                                tint = textColor,
+                                tint = Color.White,
                                 buttonSize = 42.dp,
                                 iconSize = 24.dp
                             )
@@ -1337,7 +1355,7 @@ fun ReaderComposeScreen(
                             onClick = { (context as? BookReaderActivity)?.readPreviousTtsChunk() },
                             vectorIcon = Icons.Filled.SkipPrevious,
                             contentDescription = "Предыдущий",
-                            tint = textColor,
+                            tint = Color.White,
                             buttonSize = 42.dp,
                             iconSize = 24.dp
                         )
@@ -1354,8 +1372,9 @@ fun ReaderComposeScreen(
                                 }
                             },
                             shape = CircleShape,
-                            shadowElevation = 10.dp,
-                            border = BorderStroke(1.5.dp, Color(0xFFFFD54F))
+                            color = Color(0x33FFB300),
+                            border = BorderStroke(1.5.dp, Color(0x80FFFFFF)),
+                            shadowElevation = 6.dp
                         ) {
                             Box(
                                 contentAlignment = Alignment.Center,
@@ -1363,7 +1382,7 @@ fun ReaderComposeScreen(
                                     .size(52.dp)
                                     .background(
                                         Brush.verticalGradient(
-                                            listOf(Color(0xFFFF8F00), Color(0xFFFF3D00))
+                                            listOf(Color(0x40FFD54F), Color(0x20FF8F00))
                                         )
                                     )
                             ) {
@@ -1380,7 +1399,7 @@ fun ReaderComposeScreen(
                             onClick = { (context as? BookReaderActivity)?.readNextTtsChunk() },
                             vectorIcon = Icons.Filled.SkipNext,
                             contentDescription = "Следующий",
-                            tint = textColor,
+                            tint = Color.White,
                             buttonSize = 42.dp,
                             iconSize = 24.dp
                         )
@@ -1400,8 +1419,9 @@ fun ReaderComposeScreen(
 
                         Volumetric3DIconButton(
                             onClick = { openTtsSettingsSheet(fragmentActivity, mainText, bookTitle) },
-                            iconRes = com.nightread.app.R.drawable.ic_reader_settings,
+                            vectorIcon = Icons.Filled.Settings,
                             contentDescription = "Панель TTS",
+                            tint = Color.White,
                             buttonSize = 42.dp,
                             iconSize = 24.dp
                         )
@@ -1483,7 +1503,7 @@ fun ReaderComposeScreen(
                                 },
                                 vectorIcon = Icons.Filled.Close,
                                 contentDescription = "Закрыть",
-                                tint = textColor,
+                                tint = Color.White,
                                 buttonSize = 36.dp,
                                 iconSize = 20.dp
                             )
@@ -1509,7 +1529,7 @@ fun ReaderComposeScreen(
                                         },
                                         vectorIcon = Icons.Filled.KeyboardArrowUp,
                                         contentDescription = "Предыдущий",
-                                        tint = textColor,
+                                        tint = Color.White,
                                         buttonSize = 36.dp,
                                         iconSize = 20.dp
                                     )
@@ -1522,7 +1542,7 @@ fun ReaderComposeScreen(
                                         },
                                         vectorIcon = Icons.Filled.KeyboardArrowDown,
                                         contentDescription = "Следующий",
-                                        tint = textColor,
+                                        tint = Color.White,
                                         buttonSize = 36.dp,
                                         iconSize = 20.dp
                                     )

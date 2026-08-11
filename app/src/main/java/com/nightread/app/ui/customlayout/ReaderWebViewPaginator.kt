@@ -186,6 +186,11 @@ object ReaderWebViewPaginator {
                         text-decoration: underline;
                         cursor: pointer;
                     }
+                    #content-container {
+                        transition: transform 0.2s ease-out, opacity 0.2s ease-out, filter 0.2s ease-out;
+                        transform-origin: center center;
+                        perspective: 1000px;
+                    }
                 </style>
             </head>
             <body>
@@ -361,16 +366,87 @@ object ReaderWebViewPaginator {
                     });
 
                     function scrollToTarget(target, instant) {
-                        try {
-                            window.scrollTo({
-                                left: target,
-                                top: 0,
-                                behavior: instant ? 'auto' : '${if (pageAnimation == "none") "auto" else "smooth"}'
-                            });
-                        } catch (e) {}
-                        document.body.scrollLeft = target;
-                        document.documentElement.scrollLeft = target;
-                        window.scroll(target, 0);
+                        var mode = '${pageAnimation}';
+                        var container = document.getElementById('content-container') || document.body;
+                        
+                        if (instant || mode === 'none') {
+                            container.style.transition = 'none';
+                            container.style.transform = 'none';
+                            container.style.opacity = '1';
+                            container.style.filter = 'none';
+                            window.scrollTo({ left: target, top: 0, behavior: 'auto' });
+                            document.body.scrollLeft = target;
+                            document.documentElement.scrollLeft = target;
+                            return;
+                        }
+
+                        if (mode === 'slide') {
+                            container.style.transition = 'none';
+                            container.style.transform = 'none';
+                            container.style.opacity = '1';
+                            window.scrollTo({ left: target, top: 0, behavior: 'smooth' });
+                            document.body.scrollLeft = target;
+                            document.documentElement.scrollLeft = target;
+                        } else if (mode === 'fade') {
+                            container.style.transition = 'opacity 0.15s ease-out';
+                            container.style.opacity = '0.05';
+                            setTimeout(function() {
+                                window.scrollTo({ left: target, top: 0, behavior: 'auto' });
+                                document.body.scrollLeft = target;
+                                document.documentElement.scrollLeft = target;
+                                setTimeout(function() {
+                                    container.style.opacity = '1';
+                                }, 30);
+                            }, 120);
+                        } else if (mode === 'zoom') {
+                            container.style.transition = 'transform 0.15s ease-out, opacity 0.15s ease-out';
+                            container.style.transform = 'scale(0.85)';
+                            container.style.opacity = '0.3';
+                            setTimeout(function() {
+                                window.scrollTo({ left: target, top: 0, behavior: 'auto' });
+                                document.body.scrollLeft = target;
+                                document.documentElement.scrollLeft = target;
+                                setTimeout(function() {
+                                    container.style.transform = 'scale(1)';
+                                    container.style.opacity = '1';
+                                }, 30);
+                            }, 120);
+                        } else if (mode === 'depth') {
+                            container.style.transition = 'transform 0.15s ease-out, opacity 0.15s ease-out, filter 0.15s ease-out';
+                            container.style.transform = 'scale(0.9) translateZ(-80px)';
+                            container.style.opacity = '0.4';
+                            container.style.filter = 'blur(1px)';
+                            setTimeout(function() {
+                                window.scrollTo({ left: target, top: 0, behavior: 'auto' });
+                                document.body.scrollLeft = target;
+                                document.documentElement.scrollLeft = target;
+                                setTimeout(function() {
+                                    container.style.transform = 'none';
+                                    container.style.opacity = '1';
+                                    container.style.filter = 'none';
+                                }, 30);
+                            }, 120);
+                        } else if (mode === 'curl') {
+                            var curSx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || 0;
+                            var isNext = target > curSx;
+                            container.style.transition = 'transform 0.18s ease-out, opacity 0.18s ease-out';
+                            container.style.transformOrigin = isNext ? 'right center' : 'left center';
+                            container.style.transform = isNext ? 'perspective(1000px) rotateY(-30deg) scale(0.92)' : 'perspective(1000px) rotateY(30deg) scale(0.92)';
+                            container.style.opacity = '0.5';
+                            setTimeout(function() {
+                                window.scrollTo({ left: target, top: 0, behavior: 'auto' });
+                                document.body.scrollLeft = target;
+                                document.documentElement.scrollLeft = target;
+                                setTimeout(function() {
+                                    container.style.transform = 'none';
+                                    container.style.opacity = '1';
+                                }, 30);
+                            }, 140);
+                        } else {
+                            window.scrollTo({ left: target, top: 0, behavior: 'smooth' });
+                            document.body.scrollLeft = target;
+                            document.documentElement.scrollLeft = target;
+                        }
                     }
 
                     function restorePositionFromAnchor(anchor) {

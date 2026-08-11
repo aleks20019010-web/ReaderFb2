@@ -181,11 +181,12 @@ class SettingsBottomSheet : DialogFragment() {
         })
 
         // 5. Theme Selection (Spinner)
-        val themeKeys = listOf("light", "dark", "sepia", "sepia_contrast", "amoled")
+        val themeKeys = listOf("light", "dark", "sepia", "dali", "sepia_contrast", "amoled")
         val themeNames = mapOf(
             "light" to "День",
             "dark" to "Ночь",
             "sepia" to "Сепия",
+            "dali" to "Сюрреализм Дали",
             "sepia_contrast" to "Сепия контраст",
             "amoled" to "Абсолютная сингулярность"
         )
@@ -278,32 +279,6 @@ class SettingsBottomSheet : DialogFragment() {
 
 
 
-        // 7. Auto-Discovery Switch
-        val switchAutoDiscovery = view.findViewById<SwitchCompat>(R.id.switchAutoDiscovery)
-        switchAutoDiscovery.isChecked = SettingsManager.isAutoDiscoveryEnabled(context)
-        switchAutoDiscovery.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked != SettingsManager.isAutoDiscoveryEnabled(context)) {
-                SettingsManager.setAutoDiscoveryEnabled(context, isChecked)
-                if (isChecked) {
-                    com.nightread.app.service.AutoDiscoveryWorker.schedule(context)
-                    com.nightread.app.service.AutoDiscoveryService.start(context)
-                } else {
-                    com.nightread.app.service.AutoDiscoveryWorker.cancel(context)
-                    com.nightread.app.service.AutoDiscoveryService.stop(context)
-                }
-            }
-        }
-
-        // 7b. Auto Reader Theme Switch (Light Sensor based)
-        val switchAutoLightNight = view.findViewById<SwitchCompat>(R.id.switchAutoLightNight)
-        switchAutoLightNight.isChecked = SettingsManager.isReaderAutoThemeEnabled(context)
-        switchAutoLightNight.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked != SettingsManager.isReaderAutoThemeEnabled(context)) {
-                SettingsManager.setReaderAutoThemeEnabled(context, isChecked)
-                (activity as? BookReaderActivity)?.onReaderAutoThemeSettingChanged()
-            }
-        }
-
         // 7c. Auto-Brightness Switch
         val switchAutoBrightness = view.findViewById<SwitchCompat>(R.id.switchAutoBrightness)
         switchAutoBrightness?.isChecked = SettingsManager.isAutoBrightnessEnabled(context)
@@ -313,38 +288,6 @@ class SettingsBottomSheet : DialogFragment() {
                 (activity as? BookReaderActivity)?.onAutoBrightnessSettingChanged(isChecked)
             }
         }
-
-        // 7c. Amber Filter Switch & Intensity Hookup
-        val switchAmberFilter = view.findViewById<SwitchCompat>(R.id.switchAmberFilter)
-        val layoutAmberIntensity = view.findViewById<LinearLayout>(R.id.layoutAmberIntensity)
-        val tvAmberIntensityValue = view.findViewById<TextView>(R.id.tvAmberIntensityValue)
-        val seekBarAmberIntensity = view.findViewById<SeekBar>(R.id.seekBarAmberIntensity)
-
-        val initialAmberEnabled = SettingsManager.isAmberFilterEnabled(context)
-        switchAmberFilter.isChecked = initialAmberEnabled
-        layoutAmberIntensity.visibility = if (initialAmberEnabled) View.VISIBLE else View.GONE
-
-        val initialIntensity = SettingsManager.getAmberFilterIntensity(context)
-        tvAmberIntensityValue.text = "$initialIntensity%"
-        seekBarAmberIntensity.progress = initialIntensity
-
-        switchAmberFilter.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked != SettingsManager.isAmberFilterEnabled(context)) {
-                SettingsManager.setAmberFilterEnabled(context, isChecked)
-                layoutAmberIntensity.visibility = if (isChecked) View.VISIBLE else View.GONE
-            }
-        }
-
-        seekBarAmberIntensity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvAmberIntensityValue.text = "$progress%"
-                if (fromUser) {
-                    SettingsManager.setAmberFilterIntensity(context, progress)
-                }
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
 
         // 7c_2. Extra Dim Switch & Intensity Hookup
         val switchExtraDim = view.findViewById<SwitchCompat>(R.id.switchExtraDim)
@@ -448,14 +391,6 @@ class SettingsBottomSheet : DialogFragment() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        // Hyphenation Switch Hookup
-        val switchHyphenation = view.findViewById<SwitchCompat>(R.id.switchHyphenation)
-        switchHyphenation.isChecked = SettingsManager.isHyphenationEnabled(context)
-        switchHyphenation.setOnCheckedChangeListener { _, isChecked ->
-            switchHyphenation.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
-            SettingsManager.setHyphenationEnabled(context, isChecked)
-        }
-
         // 8. Color Scheme Circle Buttons Hookup
         val btnThemeLight = view.findViewById<FrameLayout>(R.id.btnThemeLight)
         val btnThemeSepia = view.findViewById<FrameLayout>(R.id.btnThemeSepia)
@@ -507,8 +442,6 @@ class SettingsBottomSheet : DialogFragment() {
             
             // Apply settings values
             SettingsManager.setReadingTheme(context, "dark")
-            SettingsManager.setAmberFilterEnabled(context, true)
-            SettingsManager.setAmberFilterIntensity(context, 50)
             SettingsManager.setExtraDimEnabled(context, true)
             SettingsManager.setExtraDimIntensity(context, 30)
             SettingsManager.setSleepTimerEnabled(context, true)
@@ -519,12 +452,6 @@ class SettingsBottomSheet : DialogFragment() {
             val darkIdx = themeKeys.indexOf("dark").coerceAtLeast(0)
             spinnerTheme.setSelection(darkIdx)
             applyThemeColors("dark", view)
-            
-            // Amber Filter Controls
-            switchAmberFilter.isChecked = true
-            layoutAmberIntensity.visibility = View.VISIBLE
-            tvAmberIntensityValue.text = "50%"
-            seekBarAmberIntensity.progress = 50
             
             // Extra Dim Controls
             switchExtraDim.isChecked = true
@@ -579,18 +506,20 @@ class SettingsBottomSheet : DialogFragment() {
 
     private fun applyThemeColors(themeKey: String, rootView: View) {
         val context = requireContext()
+        val isDali = themeKey == "dali"
         val isDarkTheme = themeKey == "dark" || themeKey == "amoled" || themeKey == "contrast"
         
         // Define colors based on theme
-        val cardBgHex = if (isDarkTheme) "#121212" else "#F5F0F8"
-        val itemBgHex = if (isDarkTheme) "#1E1E1E" else "#EAE2F3"
-        val dividerHex = if (isDarkTheme) "#333333" else "#D2C5E3"
-        val textPrimaryHex = if (isDarkTheme) "#E0E0E0" else "#2A1A36"
-        val textSecondaryHex = if (isDarkTheme) "#B0B0B0" else "#2A1A36"
+        val cardBgHex = if (isDali) "#F4E8D1" else if (isDarkTheme) "#121212" else "#F5F0F8"
+        val itemBgHex = if (isDali) "#EFE3C3" else if (isDarkTheme) "#1E1E1E" else "#EAE2F3"
+        val dividerHex = if (isDali) "#D9C398" else if (isDarkTheme) "#333333" else "#D2C5E3"
+        val textPrimaryHex = if (isDali) "#1A1829" else if (isDarkTheme) "#E0E0E0" else "#2A1A36"
+        val textSecondaryHex = if (isDali) "#4A4035" else if (isDarkTheme) "#B0B0B0" else "#2A1A36"
 
         val accentHex = when (themeKey) {
             "light", "beige" -> "#D35400"
             "sepia", "sepia_contrast" -> "#8E44AD"
+            "dali" -> "#E6A100"
             "contrast" -> "#9B59B6"
             "amoled" -> "#D354FF"
             else -> "#9B59B6"
@@ -622,11 +551,7 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvBedtimeTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvHapticFeedbackTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvSilentModeTitle)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvAutoDiscoveryTitle)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvAutoLightNightTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoBrightnessTitle)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvAmberFilterTitle)?.setTextColor(textPrimaryColor)
-        rootView.findViewById<TextView>(R.id.tvAmberIntensityValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvExtraDimTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvExtraDimIntensityValue)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvLineSpacingValue)?.setTextColor(textPrimaryColor)
@@ -639,11 +564,7 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvThemeLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAnimationLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAlignmentLabel)?.setTextColor(textSecondaryColor)
-        rootView.findViewById<TextView>(R.id.tvAutoDiscoveryDesc)?.setTextColor(textSecondaryColor)
-        rootView.findViewById<TextView>(R.id.tvAutoLightNightDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoBrightnessDesc)?.setTextColor(textSecondaryColor)
-        rootView.findViewById<TextView>(R.id.tvAmberFilterDesc)?.setTextColor(textSecondaryColor)
-        rootView.findViewById<TextView>(R.id.tvAmberIntensityLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvExtraDimDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvExtraDimIntensityLabel)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvLineSpacingLabel)?.setTextColor(textSecondaryColor)
@@ -665,7 +586,6 @@ class SettingsBottomSheet : DialogFragment() {
         // 6. Font size, font weight & line spacing SeekBars coloring
         val seekBarFontSize = rootView.findViewById<SeekBar>(R.id.seekBarFontSize)
         val seekBarFontWeight = rootView.findViewById<SeekBar>(R.id.seekBarFontWeight)
-        val seekBarAmberIntensity = rootView.findViewById<SeekBar>(R.id.seekBarAmberIntensity)
         val seekBarExtraDimIntensity = rootView.findViewById<SeekBar>(R.id.seekBarExtraDimIntensity)
         val seekBarSleepTimer = rootView.findViewById<SeekBar>(R.id.seekBarSleepTimer)
         val seekBarLineSpacing = rootView.findViewById<SeekBar>(R.id.seekBarLineSpacing)
@@ -673,8 +593,6 @@ class SettingsBottomSheet : DialogFragment() {
         seekBarFontSize?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarFontWeight?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarFontWeight?.thumbTintList = ColorStateList.valueOf(accentColor)
-        seekBarAmberIntensity?.progressTintList = ColorStateList.valueOf(accentColor)
-        seekBarAmberIntensity?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarExtraDimIntensity?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarExtraDimIntensity?.thumbTintList = ColorStateList.valueOf(accentColor)
         seekBarSleepTimer?.progressTintList = ColorStateList.valueOf(accentColor)
@@ -683,21 +601,9 @@ class SettingsBottomSheet : DialogFragment() {
         seekBarLineSpacing?.thumbTintList = ColorStateList.valueOf(accentColor)
 
         // 7. Auto-discovery SwitchCompat coloring
-        val switchAutoDiscovery = rootView.findViewById<SwitchCompat>(R.id.switchAutoDiscovery)
-        switchAutoDiscovery?.trackTintList = ColorStateList.valueOf(accentColor)
-        switchAutoDiscovery?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
-
-        val switchAutoLightNight = rootView.findViewById<SwitchCompat>(R.id.switchAutoLightNight)
-        switchAutoLightNight?.trackTintList = ColorStateList.valueOf(accentColor)
-        switchAutoLightNight?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
-
         val switchAutoBrightness = rootView.findViewById<SwitchCompat>(R.id.switchAutoBrightness)
         switchAutoBrightness?.trackTintList = ColorStateList.valueOf(accentColor)
         switchAutoBrightness?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
-
-        val switchAmberFilter = rootView.findViewById<SwitchCompat>(R.id.switchAmberFilter)
-        switchAmberFilter?.trackTintList = ColorStateList.valueOf(accentColor)
-        switchAmberFilter?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
 
         val switchExtraDim = rootView.findViewById<SwitchCompat>(R.id.switchExtraDim)
         switchExtraDim?.trackTintList = ColorStateList.valueOf(accentColor)

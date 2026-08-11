@@ -55,6 +55,7 @@ object Fb2ToHtmlConverterAdvanced {
             val (bgColor, textColor) = when (theme.lowercase()) {
                 "light", "beige" -> "#FFFBF0" to "#1A1A1A"
                 "sepia", "sepia_contrast" -> "#F4ECD8" to "#5C4033"
+                "dali", "surrealism" -> "#F4E8D1" to "#1A1829"
                 "dark", "contrast" -> "#121212" to "#E0E0E0"
                 "amoled" -> "#000000" to "#FFFFFF"
                 else -> "#FFFBF0" to "#1A1A1A"
