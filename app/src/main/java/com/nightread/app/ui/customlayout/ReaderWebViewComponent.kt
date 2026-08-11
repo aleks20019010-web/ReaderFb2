@@ -105,9 +105,7 @@ fun ReaderWebViewComponent(
                         post {
                             alpha = 1f
                         }
-                        if (target != null && offset > 0) {
-                            currentOnTargetOffsetHandled()
-                        }
+                        currentOnTargetOffsetHandled()
                     },
                     onWordSelected = onWordSelected,
                     onNoteClicked = onNoteClicked

@@ -299,7 +299,7 @@ class ReaderViewModel @JvmOverloads constructor(
                 val safeRecord = com.nightread.app.data.SafeProgressManager.getInstance(appContext).loadProgressRecord(book.sha1)
 
                 val effectivePage = if (spPage >= 0) spPage else maxOf(safeRecord.pageIndex, book.currentPageIndex).coerceAtLeast(0)
-                val effectiveOffset = if (spOffset >= 0) spOffset else maxOf(safeRecord.pageIndex, book.currentProgressChar).coerceAtLeast(0)
+                val effectiveOffset = if (targetOffset > 0) targetOffset else if (spOffset > 0) spOffset else maxOf(safeRecord.textOffset, book.currentProgressChar).coerceAtLeast(0)
 
                 val restoredBook = book.copy(
                     currentPageIndex = effectivePage,
@@ -919,16 +919,6 @@ class ReaderViewModel @JvmOverloads constructor(
         
         val isWebViewBook = com.nightread.app.data.BookFormatHelper.isWebViewBook(book.filePath)
 
-        try { com.nightread.app.data.SettingsManager.setLastReadBookSha1(appContext, book.sha1) } catch (e: Throwable) {}
-        try { com.nightread.app.data.SafeProgressManager.getInstance(appContext).saveLastOpenedBookIdSync(book.sha1) } catch (e: Throwable) {}
-        try {
-            com.nightread.app.data.SafeProgressManager.getInstance(appContext).saveProgressSync(
-                book.sha1,
-                pageIdx,
-                if (isWebViewBook) BookCache.totalParagraphCount else _pagesState.value.size
-            )
-        } catch (e: Throwable) {}
-
         val totalChars = if (isWebViewBook) BookCache.totalParagraphCount else book.totalCharacters
         val charOffset = if (isWebViewBook) {
             book.currentProgressChar
@@ -939,6 +929,17 @@ class ReaderViewModel @JvmOverloads constructor(
                 book.currentProgressChar
             }
         }
+
+        try { com.nightread.app.data.SettingsManager.setLastReadBookSha1(appContext, book.sha1) } catch (e: Throwable) {}
+        try { com.nightread.app.data.SafeProgressManager.getInstance(appContext).saveLastOpenedBookIdSync(book.sha1) } catch (e: Throwable) {}
+        try {
+            com.nightread.app.data.SafeProgressManager.getInstance(appContext).saveProgressSync(
+                book.sha1,
+                pageIdx,
+                if (isWebViewBook) BookCache.totalParagraphCount else _pagesState.value.size,
+                charOffset
+            )
+        } catch (e: Throwable) {}
 
         sharedPrefs?.edit()
             ?.putInt("book_page_${book.sha1}", pageIdx)

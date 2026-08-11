@@ -285,19 +285,44 @@ object ReaderWebViewPaginator {
                                 var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
                                 var totalPages = Math.max(1, Math.round(totalWidth / vw));
                                 
-                                var centerEl = document.elementFromPoint(vw / 2, vh / 2);
-                                if (!centerEl) {
-                                    centerEl = document.elementFromPoint(16, vh / 2);
-                                }
                                 var offset = 0;
-                                var curr = centerEl;
-                                while (curr && curr !== document.body && curr !== document.documentElement) {
-                                    if (curr.hasAttribute && curr.hasAttribute('data-offset')) {
-                                        offset = parseInt(curr.getAttribute('data-offset')) || 0;
-                                        break;
+                                // 1. Try viewport point sampling
+                                var samplePoints = [
+                                    [vw * 0.15, vh * 0.2], [vw * 0.5, vh * 0.2], [vw * 0.85, vh * 0.2],
+                                    [vw * 0.15, vh * 0.5], [vw * 0.5, vh * 0.5], [vw * 0.85, vh * 0.5],
+                                    [vw * 0.15, vh * 0.8], [vw * 0.5, vh * 0.8], [vw * 0.85, vh * 0.8]
+                                ];
+                                for (var i = 0; i < samplePoints.length; i++) {
+                                    var el = document.elementFromPoint(samplePoints[i][0], samplePoints[i][1]);
+                                    var curr = el;
+                                    while (curr && curr !== document.body && curr !== document.documentElement) {
+                                        if (curr.hasAttribute && curr.hasAttribute('data-offset')) {
+                                            var parsed = parseInt(curr.getAttribute('data-offset'));
+                                            if (!isNaN(parsed) && parsed > 0) {
+                                                offset = parsed;
+                                                break;
+                                            }
+                                        }
+                                        curr = curr.parentElement;
                                     }
-                                    curr = curr.parentElement;
+                                    if (offset > 0) break;
                                 }
+
+                                // 2. Fallback: Find first element with [data-offset] visible in the current page viewport
+                                if (offset <= 0) {
+                                    var allOffsetEls = document.querySelectorAll('[data-offset]');
+                                    for (var j = 0; j < allOffsetEls.length; j++) {
+                                        var rect = allOffsetEls[j].getBoundingClientRect();
+                                        if (rect.right > 5 && rect.left < vw - 5) {
+                                            var parsed = parseInt(allOffsetEls[j].getAttribute('data-offset'));
+                                            if (!isNaN(parsed) && parsed > 0) {
+                                                offset = parsed;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+
                                 lastReadingAnchor = captureReadingAnchor();
                                 runDiagnostics();
                                 window.ReaderBridge.reportPosition(offset, pageIndex, totalPages);
