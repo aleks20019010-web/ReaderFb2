@@ -13,8 +13,8 @@ android {
     applicationId = "com.nightread.app"
     minSdk = 24
     targetSdk = 36
-    versionCode = 8
-    versionName = "3.0.3"
+    versionCode = 9
+    versionName = "3.1.1"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
   signingConfigs {
