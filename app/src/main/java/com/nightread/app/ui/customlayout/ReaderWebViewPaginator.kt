@@ -20,9 +20,10 @@ object ReaderWebViewPaginator {
         bottomPaddingDp: Int = 20,
         leftPaddingDp: Int = 8,
         rightPaddingDp: Int = 8,
-        isHyphenationEnabled: Boolean = true
+        isHyphenationEnabled: Boolean = true,
+        initialTargetOffset: Int = 0
     ): String {
-        Log.d(TAG, "Sanitizing and wrapping HTML: length=${rawText.length}, font=$fontFamily, size=$fontSize, w=$viewportWidth, h=$viewportHeight, anim=$pageAnimation, hyphens=$isHyphenationEnabled, paddingDp=t:$topPaddingDp, b:$bottomPaddingDp, l:$leftPaddingDp, r:$rightPaddingDp")
+        Log.d(TAG, "Sanitizing and wrapping HTML: length=${rawText.length}, font=$fontFamily, size=$fontSize, w=$viewportWidth, h=$viewportHeight, anim=$pageAnimation, hyphens=$isHyphenationEnabled, targetOffset=$initialTargetOffset, paddingDp=t:$topPaddingDp, b:$bottomPaddingDp, l:$leftPaddingDp, r:$rightPaddingDp")
 
         // 1. Convert custom markers ([CHAPTER], [CITE], [SUP], [NOTE], etc.) and clean unsafe tags while preserving safe ones
         val processedHtml = processBookMarkupToHtml(rawText)
@@ -325,6 +326,11 @@ object ReaderWebViewPaginator {
 
                     window.addEventListener('load', function() {
                         runDiagnostics();
+                        if ($initialTargetOffset > 0) {
+                            window.scrollToOffset($initialTargetOffset);
+                        } else {
+                            reportCurrentPosition();
+                        }
                     });
                 </script>
             </body>

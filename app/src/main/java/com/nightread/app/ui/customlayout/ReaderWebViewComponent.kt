@@ -81,6 +81,13 @@ fun ReaderWebViewComponent(
                 alpha = 0f
                 val bridge = ReaderWebViewBridge(
                     onPositionChanged = { offset, page, total ->
+                        val target = currentTargetOffset ?: if (lastValidOffset > 100) lastValidOffset else null
+                        if (target != null && target > 0) {
+                            if (offset <= 30 && target > 100) {
+                                Log.d("WEBVIEW_ENGINE", "Ignoring initial position report offset=$offset while waiting for targetOffset=$target")
+                                return@ReaderWebViewBridge
+                            }
+                        }
                         if (offset > 0) {
                             lastValidOffset = offset
                         }
@@ -89,6 +96,9 @@ fun ReaderWebViewComponent(
                         currentOnPositionChanged(offset, page, total)
                         post {
                             alpha = 1f
+                        }
+                        if (target != null && offset > 0) {
+                            currentOnTargetOffsetHandled()
                         }
                     },
                     onWordSelected = onWordSelected,
@@ -108,18 +118,15 @@ fun ReaderWebViewComponent(
                         Log.d("WEBVIEW_ENGINE", "onPageFinished: offsetToScroll=$offsetToScroll, target=$target, lastValid=$lastValidOffset, page=$currentCurrentPage")
                         if (offsetToScroll != null) {
                             view?.evaluateJavascript("window.scrollToOffset($offsetToScroll);", null)
-                            if (target != null) {
-                                currentOnTargetOffsetHandled()
-                            }
                         } else {
                             view?.evaluateJavascript("window.scrollToPage($currentCurrentPage);", null)
                         }
 
                         view?.postDelayed({
-                            if (view.alpha < 1f) {
-                                view.alpha = 1f
+                            if (view?.alpha ?: 1f < 1f) {
+                                view?.alpha = 1f
                             }
-                        }, 350)
+                        }, 500)
                     }
                 }
 

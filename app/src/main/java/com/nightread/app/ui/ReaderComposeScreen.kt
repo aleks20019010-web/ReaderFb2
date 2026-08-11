@@ -252,26 +252,6 @@ fun ReaderComposeScreen(
         label = "alpha"
     )
 
-    // Set edge-to-edge layout ONCE so the window size never changes
-    LaunchedEffect(Unit) {
-        if (window != null) {
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-        }
-    }
-
-    // Status bar and nav bar hiding
-    LaunchedEffect(isHideBars) {
-        if (window != null) {
-            val insetsController = WindowCompat.getInsetsController(window, view)
-            if (isHideBars) {
-                insetsController.hide(WindowInsetsCompat.Type.systemBars())
-                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            } else {
-                insetsController.show(WindowInsetsCompat.Type.systemBars())
-            }
-        }
-    }
-
     val themeType = if (isAutoThemeEnabled) {
         if (com.nightread.app.data.ThemeHelper.isNightTime()) ThemeType.NIGHT else ThemeType.DAY
     } else {
@@ -282,6 +262,20 @@ fun ReaderComposeScreen(
             "contrast", "sepia_contrast" -> ThemeType.HIGH_CONTRAST
             else -> ThemeType.SEPIA
         }
+    }
+
+    // Ensure edge-to-edge layout and status bar appearance without resizing window
+    DisposableEffect(window, themeType) {
+        if (window != null) {
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            window.navigationBarColor = android.graphics.Color.TRANSPARENT
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            val isDarkTheme = themeType == ThemeType.NIGHT || themeType == ThemeType.HIGH_CONTRAST
+            insetsController.isAppearanceLightStatusBars = !isDarkTheme
+            insetsController.isAppearanceLightNavigationBars = !isDarkTheme
+        }
+        onDispose {}
     }
 
     val (bgColor, textColor) = when (themeType) {
@@ -307,15 +301,28 @@ fun ReaderComposeScreen(
     var isRestoringProgress by remember { mutableStateOf(true) }
     var savedTextOffset by remember { mutableIntStateOf(0) }
     
+    val pagerState = rememberPagerState(pageCount = { readerPages.size.coerceAtLeast(1) })
+
+    val currentReadingOffset = remember(pagerState.currentPage, readerPages, savedTextOffset) {
+        if (readerPages.isNotEmpty() && pagerState.currentPage < readerPages.size) {
+            readerPages[pagerState.currentPage].startOffset
+        } else {
+            savedTextOffset
+        }
+    }
+
     LaunchedEffect(settingsVersion) {
-        if (settingsVersion > 0 && savedTextOffset > 0) {
-            pendingTargetOffset = savedTextOffset
+        if (settingsVersion > 0) {
+            val target = if (savedTextOffset > 0) savedTextOffset else currentReadingOffset
+            if (target > 0) {
+                pendingTargetOffset = target
+                isRestoringProgress = true
+            }
         }
     }
     var isPreparingText by remember { mutableStateOf(true) }
     val textMeasurer = rememberTextMeasurer()
 
-    val pagerState = rememberPagerState(pageCount = { readerPages.size.coerceAtLeast(1) })
     var webViewRef by remember { mutableStateOf<android.webkit.WebView?>(null) }
 
     // Haptic feedback on page turn
@@ -357,14 +364,6 @@ fun ReaderComposeScreen(
             }
             isRestoringProgress = true
             android.util.Log.d("ReadingProgress", "RESTORE bookId=$sha1 offset=$restoredOffset")
-        }
-    }
-
-    val currentReadingOffset = remember(pagerState.currentPage, readerPages, savedTextOffset) {
-        if (readerPages.isNotEmpty() && pagerState.currentPage < readerPages.size) {
-            readerPages[pagerState.currentPage].startOffset
-        } else {
-            savedTextOffset
         }
     }
 
@@ -621,18 +620,11 @@ fun ReaderComposeScreen(
                                         val oldPages = readerPages
                                         readerPages = updatedPages
                                         
-                                        if (oldPages.isEmpty() || isRestoringProgress) {
-                                            val targetPage = findPageForOffset(updatedPages.map { it.startOffset }, targetOffset)
-                                            pagerState.scrollToPage(targetPage)
-                                            isRestoringProgress = false
-                                        }
-                                        
-                                        if (pendingTargetOffset != null && updatedPages.isNotEmpty()) {
-                                            val target = pendingTargetOffset!!
-                                            val targetPage = findPageForOffset(updatedPages.map { it.startOffset }, target)
+                                        val targetToRestore = pendingTargetOffset ?: targetOffset
+                                        if (targetToRestore > 0) {
+                                            val targetPage = findPageForOffset(updatedPages.map { it.startOffset }, targetToRestore)
                                             if (targetPage != -1) {
                                                 pagerState.scrollToPage(targetPage)
-                                                pendingTargetOffset = null
                                             }
                                         }
                                         
@@ -680,6 +672,8 @@ fun ReaderComposeScreen(
                             val rightPaddingDpVal = 8
                             val bottomPaddingDpVal = 20
 
+                            val currentTargetOffsetForHtml = if (savedTextOffset > 0) savedTextOffset else currentReadingOffset
+
                             val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation, topPaddingDpVal, leftPaddingDpVal, rightPaddingDpVal, bottomPaddingDpVal, isHyphenationEnabled) {
                                 com.nightread.app.ui.customlayout.ReaderWebViewEngine.prepareHtmlForBook(
                                     context = context,
@@ -698,7 +692,8 @@ fun ReaderComposeScreen(
                                     bottomPaddingDp = bottomPaddingDpVal,
                                     leftPaddingDp = leftPaddingDpVal,
                                     rightPaddingDp = rightPaddingDpVal,
-                                    isHyphenationEnabled = isHyphenationEnabled
+                                    isHyphenationEnabled = isHyphenationEnabled,
+                                    initialTargetOffset = currentTargetOffsetForHtml
                                 )
                             }
 

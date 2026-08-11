@@ -48,6 +48,9 @@ class BookReaderActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
         openedBookSha1 = sha1
 

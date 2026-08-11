@@ -31,9 +31,10 @@ object ReaderWebViewEngine {
         bottomPaddingDp: Int = 20,
         leftPaddingDp: Int = 8,
         rightPaddingDp: Int = 8,
-        isHyphenationEnabled: Boolean = true
+        isHyphenationEnabled: Boolean = true,
+        initialTargetOffset: Int = 0
     ): String {
-        Log.d(TAG, "Preparing HTML for book: id=$bookId, length=${mainText.length}, viewport=${viewportWidth}x$viewportHeight, anim=$pageAnimation, hyphens=$isHyphenationEnabled")
+        Log.d(TAG, "Preparing HTML for book: id=$bookId, length=${mainText.length}, viewport=${viewportWidth}x$viewportHeight, anim=$pageAnimation, hyphens=$isHyphenationEnabled, targetOffset=$initialTargetOffset")
         return ReaderWebViewPaginator.sanitizeAndWrapHtml(
             rawText = mainText,
             fontFamily = fontFamily,
@@ -49,7 +50,8 @@ object ReaderWebViewEngine {
             bottomPaddingDp = bottomPaddingDp,
             leftPaddingDp = leftPaddingDp,
             rightPaddingDp = rightPaddingDp,
-            isHyphenationEnabled = isHyphenationEnabled
+            isHyphenationEnabled = isHyphenationEnabled,
+            initialTargetOffset = initialTargetOffset
         )
     }
 
