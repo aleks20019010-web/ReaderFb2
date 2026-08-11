@@ -200,23 +200,28 @@ class SyncOrchestrator(
             }
 
             // Stage 2: Анализ файлов с диска (вычисление или получение SHA-1 из кэша)
-            progressTracker.startStage("Вычисление SHA-1", filteredCloudFiles.size, "Анализ файлов на диске...")
+            progressTracker.startStage("Анализ файлов", filteredCloudFiles.size, "Анализ файлов на Яндекс Диске...")
             val cloudSha1Map = java.util.concurrent.ConcurrentHashMap<String, String>() // cloudPath -> sha1
             val cloudSha1ToPath = java.util.concurrent.ConcurrentHashMap<String, String>() // sha1 -> cloudPath
             
             val processedCount = java.util.concurrent.atomic.AtomicInteger(0)
             val semaphore = Semaphore(8)
 
-            // Предварительная загрузка локальных книг для сопоставления по имени и размеру
+            // Предварительная загрузка локальных книг для сопоставления
             val localBooks = try { bookDao.getAllBooksSync() } catch (e: Exception) { emptyList() }
-            val localBooksByNameAndSize = localBooks.mapNotNull { book ->
-                val fileName = book.filePath?.let { File(it).name } ?: return@mapNotNull null
-                "${fileName}_${book.fileSize}" to book.sha1
-            }.toMap()
-            val localBooksByName = localBooks.mapNotNull { book ->
-                val fileName = book.filePath?.let { File(it).name } ?: return@mapNotNull null
-                fileName to book.sha1
-            }.toMap()
+            val localBooksMapByName = HashMap<String, String>()
+            for (b in localBooks) {
+                val sha = b.sha1
+                val fn = b.filePath?.let { File(it).name.lowercase(java.util.Locale.ROOT) } ?: ""
+                if (fn.isNotEmpty() && !sha.isNullOrEmpty()) {
+                    localBooksMapByName[fn] = sha
+                    val fnNoExt = fn.substringBeforeLast(".")
+                    localBooksMapByName[fnNoExt] = sha
+                    if (fnNoExt.endsWith(".fb2")) {
+                        localBooksMapByName[fnNoExt.substringBeforeLast(".fb2")] = sha
+                    }
+                }
+            }
 
             coroutineScope {
                 val jobs = filteredCloudFiles.map { file ->
@@ -225,6 +230,9 @@ class SyncOrchestrator(
                             if (isCancelled) return@async
                             
                             val normalizedPath = YandexDiskManager.normalizePath(file.path)
+                            val fileLowerName = file.name.lowercase(java.util.Locale.ROOT)
+                            val fileBaseName = fileLowerName.substringBeforeLast(".")
+                            val fileBaseNoFb2 = if (fileBaseName.endsWith(".fb2")) fileBaseName.substringBeforeLast(".fb2") else fileBaseName
 
                             try {
                                 var sha1: String? = null
@@ -235,33 +243,41 @@ class SyncOrchestrator(
                                 } else {
                                     // 1. Проверяем кэш
                                     val cachedEntry = cacheManager.getByPath(normalizedPath)
-                                    if (cachedEntry != null && cachedEntry.lastModified == file.modified && cachedEntry.size == file.size) {
-                                        sha1 = cachedEntry.sha1
+                                    if (cachedEntry != null) {
+                                        val cachedSize = cachedEntry.size
+                                        val cloudSize = file.size ?: 0L
+                                        val sizeMatches = cachedSize == 0L || cloudSize == 0L || cachedSize == cloudSize
+                                        val modMatches = cachedEntry.lastModified.isEmpty() || file.modified.isNullOrEmpty() || cachedEntry.lastModified == file.modified
+                                        if (sizeMatches && modMatches) {
+                                            sha1 = cachedEntry.sha1
+                                        }
                                     }
 
-                                    // 2. Проверяем локальные книги по имени и размеру
+                                    // 2. Проверяем локальные книги по совпадению имени
                                     if (sha1 == null) {
-                                        val matchedSha1 = localBooksByNameAndSize["${file.name}_${file.size}"] 
-                                            ?: localBooksByName[file.name]
+                                        val matchedSha1 = localBooksMapByName[fileLowerName]
+                                            ?: localBooksMapByName[fileBaseName]
+                                            ?: localBooksMapByName[fileBaseNoFb2]
                                             
                                         if (matchedSha1 != null) {
                                             sha1 = matchedSha1
                                             cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
-                                            Log.d(TAG, "Matched by local name/size for ${file.name}: $sha1")
+                                            Log.d(TAG, "Matched local book by filename for ${file.name}: $sha1")
                                         }
                                     }
 
-                                    // 3. Если ничего не помогло, скачиваем для вычисления SHA-1 (только новые FB2 книги)
+                                    // 3. Скачиваем временно для вычисления SHA-1 только при отсутствии в кэше и локальной базе
                                     if (sha1 == null) {
-                                        Log.d(TAG, "Downloading temporarily and extracting SHA-1 for FB2: ${file.name}")
+                                        Log.d(TAG, "Analyzing cloud file SHA-1: ${file.name}")
                                         val tempFile = File(context.cacheDir, "temp_sha_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}_${file.name}")
                                         try {
                                             val success = cloudService.downloadFile(normalizedPath, tempFile)
                                             if (success) {
                                                 sha1 = sha1Extractor.extractSha1(tempFile)
-                                                if (sha1 != null) {
-                                                    cacheManager.save(sha1, normalizedPath, file.modified ?: "", file.size ?: 0L)
-                                                    Log.d(TAG, "Calculated and cached SHA-1 for ${file.name}: $sha1")
+                                                if (sha1 != null && sha1.isNotEmpty()) {
+                                                    val finalSize = if ((file.size ?: 0L) > 0L) file.size!! else tempFile.length()
+                                                    cacheManager.save(sha1, normalizedPath, file.modified ?: "", finalSize)
+                                                    Log.d(TAG, "Calculated SHA-1 for ${file.name}: $sha1")
                                                 }
                                             }
                                         } catch (e: Exception) {
@@ -278,7 +294,7 @@ class SyncOrchestrator(
                                     }
                                 }
 
-                                if (sha1 != null) {
+                                if (!sha1.isNullOrEmpty()) {
                                     cloudSha1Map[normalizedPath] = sha1
                                     cloudSha1ToPath[sha1] = normalizedPath
                                 }
@@ -287,7 +303,7 @@ class SyncOrchestrator(
                             } finally {
                                 val processed = processedCount.incrementAndGet()
                                 synchronized(progressTracker) {
-                                    progressTracker.updateProgress(processed, filteredCloudFiles.size, "Анализ файлов: $processed из ${filteredCloudFiles.size}")
+                                    progressTracker.updateProgress(processed, filteredCloudFiles.size, "Анализ файлов Яндекс Диска: $processed из ${filteredCloudFiles.size}")
                                 }
                             }
                         }
@@ -302,26 +318,83 @@ class SyncOrchestrator(
             val repository = BookRepository(bookDao, db.noteDao())
             
             val localBooksList = try { bookDao.getAllBooksSync() } catch (e: Exception) { emptyList() }
-            val localBooksByKey = mutableMapOf<String, BookEntity>()
-            for (book in localBooksList) {
-                val fileName = book.filePath?.let { File(it).name } ?: "${book.title}.fb2"
-                val key = SyncKeyHelper.getSyncKey(fileName, book.sha1)
-                if (key.isNotEmpty()) {
-                    localBooksByKey[key] = book
+            val toDownloadPaths = mutableListOf<String>()
+            val cloudKeysSet = mutableSetOf<String>()
+
+            for (cloudFile in filteredCloudFiles) {
+                val normalizedPath = YandexDiskManager.normalizePath(cloudFile.path)
+                val cloudSha1 = cloudSha1Map[normalizedPath]
+                if (!cloudSha1.isNullOrEmpty()) cloudKeysSet.add(cloudSha1)
+
+                val cloudName = cloudFile.name
+                val cloudNameLower = cloudName.lowercase(java.util.Locale.ROOT)
+
+                var matchedBy = "NONE"
+                var matchedBook: BookEntity? = null
+
+                // 1. SHA-1 match
+                if (!cloudSha1.isNullOrEmpty()) {
+                    matchedBook = localBooksList.firstOrNull { it.sha1 == cloudSha1 }
+                    if (matchedBook != null) {
+                        matchedBy = "SHA1"
+                    }
+                }
+
+                // 2. Exact Filename match (case-insensitive)
+                if (matchedBook == null) {
+                    matchedBook = localBooksList.firstOrNull { b ->
+                        val fn = b.filePath?.let { File(it).name.lowercase(java.util.Locale.ROOT) }
+                        fn != null && fn == cloudNameLower
+                    }
+                    if (matchedBook != null) {
+                        matchedBy = "NAME_EXACT"
+                    }
+                }
+
+                // 3. Compatible FB2/FB3/ZIP match
+                if (matchedBook == null) {
+                    matchedBook = localBooksList.firstOrNull { b ->
+                        val fn = b.filePath?.let { File(it).name } ?: ""
+                        fn.isNotEmpty() && isFb2OrFb3ZipCompatible(cloudName, fn)
+                    }
+                    if (matchedBook != null) {
+                        matchedBy = "FB2_ZIP_COMPATIBLE"
+                    }
+                }
+
+                val action = if (matchedBook != null) "SKIP" else "DOWNLOAD"
+                val ext = cloudName.substringAfterLast(".", "")
+
+                Log.d("SYNC_DIAGNOSTIC", """
+                    ================[ SYNC_DIAGNOSTIC ]================
+                    CLOUD FILE:
+                      name: $cloudName
+                      extension: $ext
+                      size: ${cloudFile.size ?: 0}
+                      sha1: ${cloudSha1 ?: "NONE"}
+                    LOCAL MATCH:
+                      matchedBy: $matchedBy
+                      localPath: ${matchedBook?.filePath ?: "NONE"}
+                      localSha1: ${matchedBook?.sha1 ?: "NONE"}
+                    ACTION: $action
+                    ===================================================
+                """.trimIndent())
+
+                if (matchedBook == null) {
+                    toDownloadPaths.add(normalizedPath)
                 }
             }
 
-            val localKeys = localBooksByKey.keys
-            val cloudKeys = cloudSha1Map.values.toSet()
-
-            val toUploadKeys = localKeys - cloudKeys
-            val toDownloadKeys = cloudKeys - localKeys
-
-            val toUploadBooks = toUploadKeys.mapNotNull { localBooksByKey[it] }
-            val toDownloadPaths = toDownloadKeys.mapNotNull { cloudSha1ToPath[it] }
+            // Книги для загрузки: локальные книги, SHA-1 или имя которых отсутствует в облаке
+            val toUploadBooks = localBooksList.filter { book ->
+                val sha = book.sha1
+                val fn = book.filePath?.let { File(it).name.lowercase(java.util.Locale.ROOT) } ?: ""
+                val fnBase = fn.substringBeforeLast(".")
+                !cloudKeysSet.contains(sha) && (fn.isEmpty() || !cloudKeysSet.contains(fn)) && (fnBase.isEmpty() || !cloudKeysSet.contains(fnBase))
+            }
             
-            toDownloadKeys.take(10).forEach { key ->
-                Log.d(TAG, "Problematic book to download (Key): $key, path: ${cloudSha1ToPath[key]}")
+            toDownloadPaths.take(10).forEach { path ->
+                Log.d(TAG, "Book to download: $path")
             }
 
             progressTracker.updateStats(
@@ -457,19 +530,15 @@ class SyncOrchestrator(
                                             processSuccess = true
                                         } else if (isEpub) {
                                             val metadata = EpubIdentifierHelper.getEpubMetadata(tempFile)
-                                            if (metadata != null) {
-                                                sha1 = metadata.identifier
-                                                titleText = metadata.title
-                                                authorText = metadata.author
-                                                seriesText = null
-                                                seriesIdx = null
-                                                langText = "Unknown"
-                                                truncatedAnnotation = metadata.description?.take(1000)
-                                                coverPath = EpubIdentifierHelper.extractAndSaveEpubCover(tempFile, metadata.coverPath, sha1, context)
-                                                processSuccess = true
-                                            } else {
-                                                Log.e(TAG, "Failed to get metadata for downloaded EPUB: $originalName")
-                                            }
+                                            sha1 = metadata?.identifier?.takeIf { it.isNotBlank() } ?: computeSha1(bytes)
+                                            titleText = metadata?.title?.takeIf { it.isNotBlank() } ?: originalName.substringBeforeLast(".")
+                                            authorText = metadata?.author ?: "Неизвестен"
+                                            seriesText = null
+                                            seriesIdx = null
+                                            langText = "Unknown"
+                                            truncatedAnnotation = metadata?.description?.take(1000)
+                                            coverPath = metadata?.coverPath?.let { EpubIdentifierHelper.extractAndSaveEpubCover(tempFile, it, sha1, context) }
+                                            processSuccess = true
                                         } else if (isMobi) {
                                             val parsed = com.nightread.app.service.MobiParser.parse(tempFile, originalName.substringBeforeLast("."))
                                             sha1 = computeSha1(bytes)
@@ -508,55 +577,53 @@ class SyncOrchestrator(
                                             }
                                         }
 
-                                        if (processSuccess && sha1 != null && titleText != null) {
-                                            val localFile = File(booksDirectory, originalName)
-                                            tempFile.copyTo(localFile, overwrite = true)
+                                        val finalSha1 = sha1?.takeIf { it.isNotBlank() } ?: computeSha1(bytes)
+                                        val finalTitle = titleText?.takeIf { it.isNotBlank() } ?: originalName.substringBeforeLast(".")
+                                        val finalAuthor = authorText?.takeIf { it.isNotBlank() } ?: "Неизвестный автор"
 
-                                            try {
-                                                val cloudProgress = cloudProgressMap[sha1]
-                                                val newBook = BookEntity(
-                                                    sha1 = sha1,
-                                                    title = titleText,
-                                                    author = authorText ?: "Неизвестен",
-                                                    category = "Локальные",
-                                                    currentProgressChar = cloudProgress?.charOffset ?: 0,
-                                                    lastReadTime = cloudProgress?.lastReadTime ?: 0L,
-                                                    filePath = localFile.absolutePath,
-                                                    series = seriesText,
-                                                    seriesIndex = seriesIdx,
-                                                    language = langText ?: "ru",
-                                                    fileSize = bytes.size.toLong(),
-                                                    review = null,
-                                                    isFavorite = false,
-                                                    coverPath = coverPath,
-                                                    annotation = truncatedAnnotation,
-                                                    currentPageIndex = cloudProgress?.page ?: 0,
-                                                    totalCharacters = cloudProgress?.totalChars ?: 0,
-                                                    coverGradientStart = getRandomGradientStartColor(),
-                                                    coverGradientEnd = getRandomGradientEndColor()
-                                                )
+                                        val localFile = File(booksDirectory, originalName)
+                                        tempFile.copyTo(localFile, overwrite = true)
 
-                                                val inserted = bookDao.insertBookSafely(newBook)
+                                        try {
+                                            val cloudProgress = cloudProgressMap[finalSha1]
+                                            val newBook = BookEntity(
+                                                sha1 = finalSha1,
+                                                title = finalTitle,
+                                                author = finalAuthor,
+                                                category = "Локальные",
+                                                currentProgressChar = cloudProgress?.charOffset ?: 0,
+                                                lastReadTime = cloudProgress?.lastReadTime ?: 0L,
+                                                filePath = localFile.absolutePath,
+                                                series = seriesText,
+                                                seriesIndex = seriesIdx,
+                                                language = langText ?: "ru",
+                                                fileSize = bytes.size.toLong(),
+                                                review = null,
+                                                isFavorite = false,
+                                                coverPath = coverPath,
+                                                annotation = truncatedAnnotation,
+                                                currentPageIndex = cloudProgress?.page ?: 0,
+                                                totalCharacters = cloudProgress?.totalChars ?: 0,
+                                                coverGradientStart = getRandomGradientStartColor(),
+                                                coverGradientEnd = getRandomGradientEndColor()
+                                            )
 
-                                                if (inserted) {
-                                                    Log.d(TAG, "Successfully inserted book: $titleText ($sha1)")
-                                                    downloadedCount.incrementAndGet()
-                                                    // Save to cache
-                                                    try {
-                                                        val tokenVal = YandexDiskManager.getToken(context)
-                                                        if (tokenVal != null) {
-                                                            val response = YandexDiskManager.api.getResource("OAuth $tokenVal", remotePath, limit = 1)
-                                                            cacheManager.save(sha1, remotePath, response.modified ?: "", response.size ?: bytes.size.toLong())
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        Log.e(TAG, "Error caching after download", e)
-                                                    }
-                                                } else {
-                                                    Log.e(TAG, "Failed to insert book: $titleText ($sha1)")
+                                            val inserted = bookDao.insertBookSafely(newBook)
+
+                                            if (inserted) {
+                                                Log.d(TAG, "Successfully inserted book: $finalTitle ($finalSha1)")
+                                                downloadedCount.incrementAndGet()
+                                                // Save directly to cache without extra API call
+                                                try {
+                                                    cacheManager.save(finalSha1, remotePath, "", bytes.size.toLong())
+                                                } catch (e: Exception) {
+                                                    Log.e(TAG, "Error caching after download", e)
                                                 }
-                                            } catch (e: Exception) {
-                                                Log.e(TAG, "Exception creating or inserting BookEntity for $titleText", e)
+                                            } else {
+                                                Log.e(TAG, "Failed to insert book: $finalTitle ($finalSha1)")
                                             }
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Exception creating or inserting BookEntity for $finalTitle", e)
                                         }
                                     }
                                 } catch (e: Exception) {
@@ -795,6 +862,42 @@ class SyncOrchestrator(
         val digest = java.security.MessageDigest.getInstance("SHA-1")
         val hash = digest.digest(bytes)
         return hash.joinToString("") { "%02x".format(it) }
+    }
+
+    private fun isFb2OrFb3ZipCompatible(cloudName: String, localName: String): Boolean {
+        val cLower = cloudName.lowercase(java.util.Locale.ROOT)
+        val lLower = localName.lowercase(java.util.Locale.ROOT)
+        if (cLower == lLower) return true
+
+        val cFb2Base = when {
+            cLower.endsWith(".fb2.zip") -> cLower.removeSuffix(".fb2.zip")
+            cLower.endsWith(".fb2") -> cLower.removeSuffix(".fb2")
+            else -> null
+        }
+        val lFb2Base = when {
+            lLower.endsWith(".fb2.zip") -> lLower.removeSuffix(".fb2.zip")
+            lLower.endsWith(".fb2") -> lLower.removeSuffix(".fb2")
+            else -> null
+        }
+        if (cFb2Base != null && lFb2Base != null && cFb2Base == lFb2Base) {
+            return true
+        }
+
+        val cFb3Base = when {
+            cLower.endsWith(".fb3.zip") -> cLower.removeSuffix(".fb3.zip")
+            cLower.endsWith(".fb3") -> cLower.removeSuffix(".fb3")
+            else -> null
+        }
+        val lFb3Base = when {
+            lLower.endsWith(".fb3.zip") -> lLower.removeSuffix(".fb3.zip")
+            lLower.endsWith(".fb3") -> lLower.removeSuffix(".fb3")
+            else -> null
+        }
+        if (cFb3Base != null && lFb3Base != null && cFb3Base == lFb3Base) {
+            return true
+        }
+
+        return false
     }
 
     private fun getRandomGradientStartColor(): String {

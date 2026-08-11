@@ -485,7 +485,7 @@ class YandexSyncFragment : Fragment() {
 
                     txtSyncStatus.text = state.statusText
                     
-                    if (state.stage == YandexSyncState.Stage.SCANNING || state.stage == YandexSyncState.Stage.PREPARING) {
+                    if (state.stage == YandexSyncState.Stage.PREPARING || (state.stage == YandexSyncState.Stage.SCANNING && state.total == 0)) {
                         progressSync.isIndeterminate = true
                         txtSyncProgressCount.text = ""
                     } else {
