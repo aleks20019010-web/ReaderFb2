@@ -40,8 +40,14 @@ fun ReaderWebViewComponent(
 ) {
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var lastLoadedHtml by remember { mutableStateOf("") }
-    var lastReportedOffset by remember { mutableStateOf(-1) }
-    var lastReportedPage by remember { mutableStateOf(-1) }
+    var lastReportedOffset by remember { mutableIntStateOf(-1) }
+    var lastReportedPage by remember { mutableIntStateOf(-1) }
+    var lastValidOffset by remember { mutableIntStateOf(-1) }
+
+    val currentTargetOffset by rememberUpdatedState(targetOffset)
+    val currentOnTargetOffsetHandled by rememberUpdatedState(onTargetOffsetHandled)
+    val currentCurrentPage by rememberUpdatedState(currentPage)
+    val currentOnPositionChanged by rememberUpdatedState(onPositionChanged)
 
     AndroidView(
         modifier = modifier,
@@ -74,9 +80,12 @@ fun ReaderWebViewComponent(
 
                 val bridge = ReaderWebViewBridge(
                     onPositionChanged = { offset, page, total ->
+                        if (offset > 0) {
+                            lastValidOffset = offset
+                        }
                         lastReportedOffset = offset
                         lastReportedPage = page
-                        onPositionChanged(offset, page, total)
+                        currentOnPositionChanged(offset, page, total)
                     },
                     onWordSelected = onWordSelected,
                     onNoteClicked = onNoteClicked
@@ -86,14 +95,20 @@ fun ReaderWebViewComponent(
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
-                        Log.d("WEBVIEW_ENGINE", "WebView page finished loading. Scrolling to currentPage: $currentPage, targetOffset: $targetOffset")
-                        if (targetOffset != null) {
-                            view?.evaluateJavascript("window.scrollToOffset($targetOffset);", null)
-                            onTargetOffsetHandled()
-                        } else if (lastReportedOffset > 0) {
-                            view?.evaluateJavascript("window.scrollToOffset($lastReportedOffset);", null)
+                        val target = currentTargetOffset
+                        val offsetToScroll = when {
+                            target != null && target > 0 -> target
+                            lastValidOffset > 0 -> lastValidOffset
+                            else -> null
+                        }
+                        Log.d("WEBVIEW_ENGINE", "onPageFinished: offsetToScroll=$offsetToScroll, target=$target, lastValid=$lastValidOffset, page=$currentCurrentPage")
+                        if (offsetToScroll != null) {
+                            view?.evaluateJavascript("window.scrollToOffset($offsetToScroll);", null)
+                            if (target != null) {
+                                currentOnTargetOffsetHandled()
+                            }
                         } else {
-                            view?.evaluateJavascript("window.scrollToPage($currentPage);", null)
+                            view?.evaluateJavascript("window.scrollToPage($currentCurrentPage);", null)
                         }
                     }
                 }

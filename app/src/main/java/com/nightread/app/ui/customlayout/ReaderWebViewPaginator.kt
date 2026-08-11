@@ -298,7 +298,7 @@ object ReaderWebViewPaginator {
                                 setTimeout(function() { doScroll(retries - 1); }, 50);
                             }
                         }
-                        setTimeout(function() { doScroll(3); }, 30);
+                        setTimeout(function() { doScroll(10); }, 30);
                     };
 
                     window.nextPage = function() {

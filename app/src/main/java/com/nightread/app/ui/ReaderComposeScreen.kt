@@ -715,7 +715,9 @@ fun ReaderComposeScreen(
                                         isRestoringProgress = false
                                     },
                                     onPositionChanged = { offset, page, total ->
-                                        savedTextOffset = offset
+                                        if (offset > 0) {
+                                            savedTextOffset = offset
+                                        }
                                     },
                                     onWordSelected = { word -> },
                                     onNoteClicked = { noteId -> },
