@@ -121,7 +121,6 @@ enum class ThemeType(val displayName: String) {
     DAY("День"),
     NIGHT("Ночь"),
     SEPIA("Сепия"),
-    DALI("Сюрреализм Дали"),
     HIGH_CONTRAST("Высокая контрастность")
 }
 
@@ -373,7 +372,6 @@ fun ReaderComposeScreen(
             "day", "light" -> ThemeType.DAY
             "night", "dark", "amoled" -> ThemeType.NIGHT
             "sepia" -> ThemeType.SEPIA
-            "dali", "surrealism" -> ThemeType.DALI
             "contrast", "sepia_contrast" -> ThemeType.HIGH_CONTRAST
             else -> ThemeType.SEPIA
         }
@@ -397,7 +395,6 @@ fun ReaderComposeScreen(
         ThemeType.DAY -> Color(0xFFFBF9F1) to Color(0xFF1B1B1B)
         ThemeType.NIGHT -> Color.Black to Color(0xFFE5E5E5)
         ThemeType.SEPIA -> Color(0xFFF4ECD8) to Color(0xFF3B2F1F)
-        ThemeType.DALI -> Color(0xFFF4E8D1) to Color(0xFF1A1829)
         ThemeType.HIGH_CONTRAST -> Color(0xFFFFFFFF) to Color(0xFF000000)
     }
 

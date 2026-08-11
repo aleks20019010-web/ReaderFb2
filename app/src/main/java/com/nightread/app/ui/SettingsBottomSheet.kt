@@ -181,12 +181,11 @@ class SettingsBottomSheet : DialogFragment() {
         })
 
         // 5. Theme Selection (Spinner)
-        val themeKeys = listOf("light", "dark", "sepia", "dali", "sepia_contrast", "amoled")
+        val themeKeys = listOf("light", "dark", "sepia", "sepia_contrast", "amoled")
         val themeNames = mapOf(
             "light" to "День",
             "dark" to "Ночь",
             "sepia" to "Сепия",
-            "dali" to "Сюрреализм Дали",
             "sepia_contrast" to "Сепия контраст",
             "amoled" to "Абсолютная сингулярность"
         )

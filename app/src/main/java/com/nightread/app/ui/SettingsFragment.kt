@@ -85,12 +85,42 @@ class SettingsFragment : Fragment() {
 
         // --- ОФОРМЛЕНИЕ И ТЕМА ---
         val switchAutoTheme = view.findViewById<SwitchCompat>(R.id.switchAutoTheme)
+        val switchDaliTheme = view.findViewById<SwitchCompat>(R.id.switchDaliTheme)
+
         if (switchAutoTheme != null) {
             switchAutoTheme.isChecked = SettingsManager.isAppAutoThemeEnabled(ctx)
             switchAutoTheme.setOnCheckedChangeListener { _, isChecked ->
-                SettingsManager.setAppAutoThemeEnabled(ctx, isChecked)
+                if (isChecked) {
+                    SettingsManager.setAppAutoThemeEnabled(ctx, true)
+                    if (switchDaliTheme != null && switchDaliTheme.isChecked) {
+                        switchDaliTheme.isChecked = false
+                    }
+                } else {
+                    SettingsManager.setAppAutoThemeEnabled(ctx, false)
+                }
                 com.nightread.app.data.ThemeHelper.applyTheme(ctx)
                 activity?.recreate()
+            }
+        }
+
+        if (switchDaliTheme != null) {
+            switchDaliTheme.isChecked = SettingsManager.getTheme(ctx) == "dali" && !SettingsManager.isAppAutoThemeEnabled(ctx)
+            switchDaliTheme.setOnCheckedChangeListener { _, isChecked ->
+                if (isChecked) {
+                    SettingsManager.setTheme(ctx, "dali")
+                    SettingsManager.setAppAutoThemeEnabled(ctx, false)
+                    if (switchAutoTheme != null && switchAutoTheme.isChecked) {
+                        switchAutoTheme.isChecked = false
+                    }
+                    com.nightread.app.data.ThemeHelper.applyTheme(ctx)
+                    activity?.recreate()
+                } else {
+                    if (SettingsManager.getTheme(ctx) == "dali") {
+                        SettingsManager.setTheme(ctx, "light")
+                        com.nightread.app.data.ThemeHelper.applyTheme(ctx)
+                        activity?.recreate()
+                    }
+                }
             }
         }
 

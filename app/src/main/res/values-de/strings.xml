@@ -68,6 +68,8 @@
     <string name="settings_section_appearance">ERSCHEINUNGSBILD &amp; DESIGN</string>
     <string name="settings_auto_theme">Automatisch Wechseln</string>
     <string name="settings_auto_theme_desc">Nachtdesign automatisch umschalten (von 20:00 bis 06:00 Uhr)</string>
+    <string name="settings_dali_theme">Dalí Surrealismus Thema</string>
+    <string name="settings_dali_theme_desc">Salvador Dalí Surrealismus-Thema aktivieren (deaktiviert Auto-Thema)</string>
     <string name="settings_section_sync">SYNCHRONISATION</string>
     <string name="settings_auto_sync">Auto-Sync</string>
     <string name="settings_auto_sync_desc">Bücher im Hintergrund synchronisieren</string>

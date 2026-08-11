@@ -79,8 +79,9 @@ object GalaxyBgHelper {
             }
         }
 
-        // 2. Тематический фон по умолчанию (Тёмный космос или Светлый рассвет)
+        // 2. Тематический фон по умолчанию (Тёмный космос, Дали или Светлый рассвет)
         imageView.setImageDrawable(null)
+        val appTheme = com.nightread.app.data.SettingsManager.getTheme(context)
         if (isNightMode) {
             val darkDrawable = ContextCompat.getDrawable(context, R.drawable.bg_dark_cosmic)
             if (darkDrawable != null) {
@@ -89,6 +90,12 @@ object GalaxyBgHelper {
             } else {
                 imageView.setBackgroundColor(Color.parseColor(DARK_BG_COLOR))
             }
+        } else if (appTheme == "dali") {
+            imageView.setImageDrawable(null)
+            imageView.setBackgroundColor(Color.parseColor("#F4E8D1"))
+            sunbeamView?.visibility = View.VISIBLE
+            starryView?.visibility = View.GONE
+            return
         } else {
             val lightDrawable = ContextCompat.getDrawable(context, R.drawable.light_bg)
             if (lightDrawable != null) {

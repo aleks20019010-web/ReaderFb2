@@ -68,6 +68,8 @@
     <string name="settings_section_appearance">APPEARANCE &amp; THEME</string>
     <string name="settings_auto_theme">Auto Theme Switch</string>
     <string name="settings_auto_theme_desc">Automatically toggle night theme (from 20:00 to 06:00)</string>
+    <string name="settings_dali_theme">Dalí Surrealism Theme</string>
+    <string name="settings_dali_theme_desc">Enable Salvador Dalí surrealism theme (disables auto-theme)</string>
     <string name="settings_section_sync">SYNCHRONIZATION</string>
     <string name="settings_auto_sync">Auto-Sync</string>
     <string name="settings_auto_sync_desc">Sync books in the background</string>

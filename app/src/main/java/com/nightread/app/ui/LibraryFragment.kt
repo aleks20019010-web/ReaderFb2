@@ -1217,7 +1217,8 @@ class LibraryFragment : Fragment() {
         val popup = androidx.appcompat.widget.PopupMenu(ctx, btnToggleTheme)
         popup.menu.add(0, 1, 0, "☀️ Светлая тема")
         popup.menu.add(0, 2, 1, "🌙 Тёмная тема")
-        popup.menu.add(0, 3, 2, "⚙️ Системная тема (авто)")
+        popup.menu.add(0, 3, 2, "🌀 Сюрреализм Дали")
+        popup.menu.add(0, 4, 3, "⚙️ Системная тема (авто)")
 
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -1236,6 +1237,13 @@ class LibraryFragment : Fragment() {
                     activity?.recreate()
                 }
                 3 -> {
+                    SettingsManager.setAppAutoThemeEnabled(ctx, false)
+                    SettingsManager.setTheme(ctx, "dali")
+                    ThemeHelper.applyTheme(ctx)
+                    Toast.makeText(ctx, "Включена тема «Сюрреализм Дали»", Toast.LENGTH_SHORT).show()
+                    activity?.recreate()
+                }
+                4 -> {
                     SettingsManager.setAppAutoThemeEnabled(ctx, true)
                     ThemeHelper.applyTheme(ctx)
                     Toast.makeText(ctx, "Включена автоматическая тема", Toast.LENGTH_SHORT).show()
