@@ -315,6 +315,8 @@ fun ReaderComposeScreen(
     val pageStartOffsets = remember(readerPages) { readerPages.map { it.startOffset } }
     var isRestoringProgress by remember { mutableStateOf(true) }
     var savedTextOffset by remember { mutableIntStateOf(0) }
+    var currentWebViewPage by remember { mutableIntStateOf(0) }
+    var totalWebViewPages by remember { mutableIntStateOf(1) }
     
     val pagerState = rememberPagerState(pageCount = { readerPages.size.coerceAtLeast(1) })
 
@@ -771,7 +773,9 @@ fun ReaderComposeScreen(
                                         isRestoringProgress = false
                                     },
                                     onPositionChanged = { offset, page, total ->
-                                        if (offset > 0) {
+                                        if (page >= 0) currentWebViewPage = page
+                                        if (total > 0) totalWebViewPages = total
+                                        if (offset >= 0) {
                                             savedTextOffset = offset
                                             isRestoringProgress = false
                                             coroutineScope.launch(Dispatchers.IO) {
@@ -1005,15 +1009,12 @@ fun ReaderComposeScreen(
                     var isDraggingSlider by remember { mutableStateOf(false) }
                     var sliderPageValue by remember { mutableStateOf(0f) }
 
-                    val totalPages = pagerState.pageCount
-                    val maxPage = (totalPages - 1).coerceAtLeast(0)
-                    val currentOffset = if (readerPages.isNotEmpty() && pagerState.currentPage < readerPages.size) {
-                        readerPages[pagerState.currentPage].startOffset
-                    } else {
-                        savedTextOffset
-                    }
                     val totalChars = mainText.length.coerceAtLeast(1)
-                    val currentPercent = (currentOffset.toFloat() / totalChars * 100f).coerceIn(0f, 100f)
+                    val currentPercent = if (totalWebViewPages > 1) {
+                        ((currentWebViewPage + 1).toFloat() / totalWebViewPages * 100f).coerceIn(0f, 100f)
+                    } else {
+                        (savedTextOffset.toFloat() / totalChars * 100f).coerceIn(0f, 100f)
+                    }
                     val currentSliderVal = if (isDraggingSlider) sliderPageValue else currentPercent
 
                     Column {
@@ -1022,7 +1023,7 @@ fun ReaderComposeScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Прогресс",
+                                text = if (totalWebViewPages > 1) "Стр. ${currentWebViewPage + 1} из $totalWebViewPages" else "Прогресс",
                                 color = textColor.copy(alpha = 0.8f),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium

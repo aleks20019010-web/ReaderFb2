@@ -275,13 +275,13 @@ object ReaderWebViewPaginator {
                         console.log("[WEBVIEW_DIAGNOSTIC] vw=" + vw + ", vh=" + vh + ", sw=" + sw + ", sh=" + sh + ", cw=" + cw + ", ch=" + ch + ", sx=" + sx + ", sy=" + sy + ", totalPages=" + totalPages + ", pageIndex=" + pageIndex + ", verticalOverflow=" + verticalOverflow + ", horizontalOverflow=" + horizontalOverflow + ", aligned=" + aligned);
                     }
 
-                    function reportCurrentPosition() {
+                    function reportCurrentPosition(overridePageIndex) {
                         try {
                             if (window.ReaderBridge) {
                                 var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
                                 var vw = getPageWidth();
                                 var vh = window.innerHeight || 600;
-                                var pageIndex = Math.round(sx / vw);
+                                var pageIndex = (overridePageIndex !== undefined && overridePageIndex !== null && overridePageIndex >= 0) ? overridePageIndex : Math.round(sx / vw);
                                 var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
                                 var totalPages = Math.max(1, Math.round(totalWidth / vw));
                                 
@@ -334,10 +334,11 @@ object ReaderWebViewPaginator {
 
                     var scrollEndTimer = null;
                     window.addEventListener('scroll', function() {
+                        reportCurrentPosition();
                         if (scrollEndTimer) clearTimeout(scrollEndTimer);
                         scrollEndTimer = setTimeout(function() {
                             reportCurrentPosition();
-                        }, 200);
+                        }, 150);
                     });
 
                     function scrollToTarget(target) {
@@ -511,6 +512,7 @@ object ReaderWebViewPaginator {
                         var targetPage = Math.min(totalPages - 1, currentPage + 1);
                         var target = targetPage * vw;
                         scrollToTarget(target);
+                        reportCurrentPosition(targetPage);
                         setTimeout(reportCurrentPosition, 300);
                     };
 
@@ -521,6 +523,7 @@ object ReaderWebViewPaginator {
                         var targetPage = Math.max(0, currentPage - 1);
                         var target = targetPage * vw;
                         scrollToTarget(target);
+                        reportCurrentPosition(targetPage);
                         setTimeout(reportCurrentPosition, 300);
                     };
 
