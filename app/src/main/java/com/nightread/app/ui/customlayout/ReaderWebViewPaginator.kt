@@ -275,6 +275,8 @@ object ReaderWebViewPaginator {
                         console.log("[WEBVIEW_DIAGNOSTIC] vw=" + vw + ", vh=" + vh + ", sw=" + sw + ", sh=" + sh + ", cw=" + cw + ", ch=" + ch + ", sx=" + sx + ", sy=" + sy + ", totalPages=" + totalPages + ", pageIndex=" + pageIndex + ", verticalOverflow=" + verticalOverflow + ", horizontalOverflow=" + horizontalOverflow + ", aligned=" + aligned);
                     }
 
+                    var currentLogicalPage = 0;
+
                     function reportCurrentPosition(overridePageIndex) {
                         try {
                             if (window.ReaderBridge) {
@@ -285,42 +287,56 @@ object ReaderWebViewPaginator {
                                 var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
                                 var totalPages = Math.max(1, Math.round(totalWidth / vw));
                                 
+                                currentLogicalPage = pageIndex;
+                                var currentEffectiveSx = pageIndex * vw;
                                 var offset = 0;
-                                // 1. Try viewport point sampling
-                                var samplePoints = [
-                                    [vw * 0.15, vh * 0.2], [vw * 0.5, vh * 0.2], [vw * 0.85, vh * 0.2],
-                                    [vw * 0.15, vh * 0.5], [vw * 0.5, vh * 0.5], [vw * 0.85, vh * 0.5],
-                                    [vw * 0.15, vh * 0.8], [vw * 0.5, vh * 0.8], [vw * 0.85, vh * 0.8]
-                                ];
-                                for (var i = 0; i < samplePoints.length; i++) {
-                                    var el = document.elementFromPoint(samplePoints[i][0], samplePoints[i][1]);
-                                    var curr = el;
-                                    while (curr && curr !== document.body && curr !== document.documentElement) {
-                                        if (curr.hasAttribute && curr.hasAttribute('data-offset')) {
-                                            var parsed = parseInt(curr.getAttribute('data-offset'));
-                                            if (!isNaN(parsed) && parsed > 0) {
-                                                offset = parsed;
-                                                break;
+
+                                // 1. Try viewport point sampling if scroll is aligned
+                                if (Math.abs(sx - currentEffectiveSx) < 30) {
+                                    var samplePoints = [
+                                        [vw * 0.15, vh * 0.2], [vw * 0.5, vh * 0.2], [vw * 0.85, vh * 0.2],
+                                        [vw * 0.15, vh * 0.5], [vw * 0.5, vh * 0.5], [vw * 0.85, vh * 0.5],
+                                        [vw * 0.15, vh * 0.8], [vw * 0.5, vh * 0.8], [vw * 0.85, vh * 0.8]
+                                    ];
+                                    for (var i = 0; i < samplePoints.length; i++) {
+                                        var el = document.elementFromPoint(samplePoints[i][0], samplePoints[i][1]);
+                                        var curr = el;
+                                        while (curr && curr !== document.body && curr !== document.documentElement) {
+                                            if (curr.hasAttribute && curr.hasAttribute('data-offset')) {
+                                                var parsed = parseInt(curr.getAttribute('data-offset'));
+                                                if (!isNaN(parsed) && parsed > 0) {
+                                                    offset = parsed;
+                                                    break;
+                                                }
                                             }
+                                            curr = curr.parentElement;
                                         }
-                                        curr = curr.parentElement;
+                                        if (offset > 0) break;
                                     }
-                                    if (offset > 0) break;
                                 }
 
-                                // 2. Fallback: Find first element with [data-offset] visible in the current page viewport
+                                // 2. Fallback: Find element with [data-offset] visible on target pageIndex using document-relative coordinates
                                 if (offset <= 0) {
                                     var allOffsetEls = document.querySelectorAll('[data-offset]');
+                                    var bestOffset = 0;
+                                    var minDiff = Infinity;
                                     for (var j = 0; j < allOffsetEls.length; j++) {
                                         var rect = allOffsetEls[j].getBoundingClientRect();
-                                        if (rect.right > 5 && rect.left < vw - 5) {
-                                            var parsed = parseInt(allOffsetEls[j].getAttribute('data-offset'));
-                                            if (!isNaN(parsed) && parsed > 0) {
-                                                offset = parsed;
-                                                break;
-                                            }
+                                        var absX = rect.left + sx; // Document absolute X position
+                                        var pVal = parseInt(allOffsetEls[j].getAttribute('data-offset'));
+                                        if (isNaN(pVal) || pVal <= 0) continue;
+
+                                        if (absX >= currentEffectiveSx - 15 && absX < currentEffectiveSx + vw - 15) {
+                                            bestOffset = pVal;
+                                            break;
+                                        }
+                                        var diff = Math.abs(absX - currentEffectiveSx);
+                                        if (diff < minDiff) {
+                                            minDiff = diff;
+                                            if (bestOffset <= 0) bestOffset = pVal;
                                         }
                                     }
+                                    offset = bestOffset;
                                 }
 
                                 lastReadingAnchor = captureReadingAnchor();
@@ -334,19 +350,22 @@ object ReaderWebViewPaginator {
 
                     var scrollEndTimer = null;
                     window.addEventListener('scroll', function() {
-                        reportCurrentPosition();
+                        var vw = getPageWidth();
+                        var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
+                        var p = Math.round(sx / vw);
+                        reportCurrentPosition(p);
                         if (scrollEndTimer) clearTimeout(scrollEndTimer);
                         scrollEndTimer = setTimeout(function() {
                             reportCurrentPosition();
                         }, 150);
                     });
 
-                    function scrollToTarget(target) {
+                    function scrollToTarget(target, instant) {
                         try {
                             window.scrollTo({
                                 left: target,
                                 top: 0,
-                                behavior: '${if (pageAnimation == "none") "auto" else "smooth"}'
+                                behavior: instant ? 'auto' : '${if (pageAnimation == "none") "auto" else "smooth"}'
                             });
                         } catch (e) {}
                         document.body.scrollLeft = target;
@@ -437,16 +456,21 @@ object ReaderWebViewPaginator {
                         if (targetPage < 0) targetPage = 0;
                         if (targetPage >= totalPages) targetPage = totalPages - 1;
 
+                        currentLogicalPage = targetPage;
                         var targetX = targetPage * vw;
-                        scrollToTarget(targetX);
-                        reportCurrentPosition();
+                        scrollToTarget(targetX, true);
+                        reportCurrentPosition(targetPage);
+                        setTimeout(function() {
+                            reportCurrentPosition(targetPage);
+                        }, 100);
                     }
 
                     window.scrollToPage = function(pageIndex) {
                         var vw = getPageWidth();
+                        currentLogicalPage = pageIndex;
                         var target = pageIndex * vw;
                         scrollToTarget(target);
-                        reportCurrentPosition();
+                        reportCurrentPosition(pageIndex);
                     };
 
                     window.scrollToOffset = function(targetOffset) {
@@ -505,26 +529,30 @@ object ReaderWebViewPaginator {
 
                     window.nextPage = function() {
                         var vw = getPageWidth();
-                        var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                        var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
+                        var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
                         var totalPages = Math.max(1, Math.round(totalWidth / vw));
-                        var currentPage = Math.round(sx / vw);
-                        var targetPage = Math.min(totalPages - 1, currentPage + 1);
-                        var target = targetPage * vw;
+                        
+                        currentLogicalPage = Math.min(totalPages - 1, currentLogicalPage + 1);
+                        var target = currentLogicalPage * vw;
                         scrollToTarget(target);
-                        reportCurrentPosition(targetPage);
-                        setTimeout(reportCurrentPosition, 300);
+                        reportCurrentPosition(currentLogicalPage);
+                        setTimeout(function() {
+                            reportCurrentPosition(currentLogicalPage);
+                        }, 250);
                     };
 
                     window.prevPage = function() {
                         var vw = getPageWidth();
-                        var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                        var currentPage = Math.round(sx / vw);
-                        var targetPage = Math.max(0, currentPage - 1);
-                        var target = targetPage * vw;
+                        var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
+                        var totalPages = Math.max(1, Math.round(totalWidth / vw));
+
+                        currentLogicalPage = Math.max(0, currentLogicalPage - 1);
+                        var target = currentLogicalPage * vw;
                         scrollToTarget(target);
-                        reportCurrentPosition(targetPage);
-                        setTimeout(reportCurrentPosition, 300);
+                        reportCurrentPosition(currentLogicalPage);
+                        setTimeout(function() {
+                            reportCurrentPosition(currentLogicalPage);
+                        }, 250);
                     };
 
                     window.addEventListener('load', function() {

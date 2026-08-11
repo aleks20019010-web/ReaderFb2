@@ -374,14 +374,24 @@ fun ReaderComposeScreen(
     LaunchedEffect(sha1) {
         if (sha1.isNotEmpty()) {
             val progress = progressRepository.getProgress(sha1)
-            val restoredOffset = progress?.sourceOffset ?: 0
+            val spOffset = context.getSharedPreferences("reader_prefs", Context.MODE_PRIVATE).getInt("book_char_offset_$sha1", 0)
+            val safeRecord = com.nightread.app.data.SafeProgressManager.getInstance(context).loadProgressRecord(sha1)
+            val restoredOffset = maxOf(progress?.sourceOffset ?: 0, spOffset, safeRecord.textOffset)
+
             savedTextOffset = restoredOffset
+            if (safeRecord.pageIndex >= 0) {
+                currentWebViewPage = safeRecord.pageIndex
+            }
+            if (safeRecord.totalPages > 0) {
+                totalWebViewPages = safeRecord.totalPages
+            }
+
             if (restoredOffset > 0) {
                 pendingTargetOffset = restoredOffset
             } else {
                 isRestoringProgress = false
             }
-            android.util.Log.d("ReadingProgress", "RESTORE bookId=$sha1 offset=$restoredOffset")
+            android.util.Log.d("ReadingProgress", "RESTORE bookId=$sha1 offset=$restoredOffset page=${safeRecord.pageIndex}/${safeRecord.totalPages}")
         }
     }
 
