@@ -78,6 +78,7 @@ fun ReaderWebViewComponent(
                     displayZoomControls = false
                 }
 
+                alpha = 0f
                 val bridge = ReaderWebViewBridge(
                     onPositionChanged = { offset, page, total ->
                         if (offset > 0) {
@@ -86,6 +87,9 @@ fun ReaderWebViewComponent(
                         lastReportedOffset = offset
                         lastReportedPage = page
                         currentOnPositionChanged(offset, page, total)
+                        post {
+                            alpha = 1f
+                        }
                     },
                     onWordSelected = onWordSelected,
                     onNoteClicked = onNoteClicked
@@ -110,6 +114,12 @@ fun ReaderWebViewComponent(
                         } else {
                             view?.evaluateJavascript("window.scrollToPage($currentCurrentPage);", null)
                         }
+
+                        view?.postDelayed({
+                            if (view.alpha < 1f) {
+                                view.alpha = 1f
+                            }
+                        }, 350)
                     }
                 }
 
@@ -194,6 +204,7 @@ fun ReaderWebViewComponent(
             if (htmlContent != lastLoadedHtml) {
                 lastLoadedHtml = htmlContent
                 Log.d("WEBVIEW_ENGINE", "WebView content changed, reloading HTML.")
+                view.alpha = 0f
                 view.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
             } else if (targetOffset != null) {
                 Log.d("WEBVIEW_ENGINE", "WebView scrolling to targetOffset: $targetOffset")

@@ -46,8 +46,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material3.*
@@ -503,8 +504,13 @@ fun ReaderComposeScreen(
                             .fillMaxSize()
                     ) {
                         val density = LocalDensity.current
-                        val maxWidthPx = with(density) { constraints.maxWidth }
-                        val maxHeightPx = with(density) { constraints.maxHeight }
+                        val configuration = LocalConfiguration.current
+                        
+                        // Use screen-level configuration dimensions so system bars hiding/showing does not change viewport
+                        val widthDp = configuration.screenWidthDp
+                        val heightDp = configuration.screenHeightDp
+                        val maxWidthPx = with(density) { widthDp.dp.roundToPx() }
+                        val maxHeightPx = with(density) { heightDp.dp.roundToPx() }
                         
                         val currentReadingOffset = remember(pagerState.currentPage, readerPages, savedTextOffset) {
                             if (readerPages.isNotEmpty() && pagerState.currentPage < readerPages.size) {
@@ -537,11 +543,11 @@ fun ReaderComposeScreen(
                         var oldWidthPx by remember { mutableIntStateOf(0) }
                         var oldHeightPx by remember { mutableIntStateOf(0) }
                         
-                        LaunchedEffect(maxWidthPx, maxHeightPx, isHideBars) {
+                        LaunchedEffect(maxWidthPx, maxHeightPx) {
                             if (oldWidthPx != 0 && oldHeightPx != 0 && (oldWidthPx != maxWidthPx || oldHeightPx != maxHeightPx)) {
-                                android.util.Log.e("ReaderViewport", "ERROR: Viewport changed! This will cause repagination.\nold viewport:\nwidth=$oldWidthPx\nheight=$oldHeightPx\n\nnew viewport:\nwidth=$maxWidthPx\nheight=$maxHeightPx\nisHideBars=$isHideBars")
+                                android.util.Log.e("ReaderViewport", "ERROR: Viewport changed! This will cause repagination.\nold viewport:\nwidth=$oldWidthPx\nheight=$oldHeightPx\n\nnew viewport:\nwidth=$maxWidthPx\nheight=$maxHeightPx")
                             } else {
-                                android.util.Log.d("ReaderViewport", "viewport stable\nwidth=$maxWidthPx\nheight=$maxHeightPx\nisHideBars=$isHideBars")
+                                android.util.Log.d("ReaderViewport", "viewport stable\nwidth=$maxWidthPx\nheight=$maxHeightPx")
                             }
                             oldWidthPx = maxWidthPx
                             oldHeightPx = maxHeightPx
@@ -666,7 +672,10 @@ fun ReaderComposeScreen(
                             val widthDp = (maxWidthPx / densityVal).toInt()
                             val heightDp = (maxHeightPx / densityVal).toInt()
                             val displayCutoutTop = WindowInsets.displayCutout.asPaddingValues().calculateTopPadding()
-                            val topPaddingDpVal = (displayCutoutTop + 3.dp).value.toInt()
+                            val topPaddingDpVal = remember(configuration.orientation) {
+                                val rawCutout = displayCutoutTop.value.toInt()
+                                if (rawCutout > 0) rawCutout + 3 else 28
+                            }
                             val leftPaddingDpVal = 8
                             val rightPaddingDpVal = 8
                             val bottomPaddingDpVal = 20
