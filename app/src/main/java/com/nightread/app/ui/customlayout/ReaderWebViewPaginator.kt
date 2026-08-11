@@ -204,6 +204,59 @@ object ReaderWebViewPaginator {
                         return window.innerWidth;
                     }
 
+                    function captureReadingAnchor() {
+                        var vw = getPageWidth();
+                        var vh = window.innerHeight;
+                        var centerX = vw / 2;
+                        var centerY = vh / 2;
+                        var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
+                        var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
+                        
+                        var progress = (sx + centerX) / totalWidth;
+                        
+                        var centerEl = document.elementFromPoint(centerX, centerY);
+                        if (!centerEl) {
+                            centerEl = document.elementFromPoint(16, centerY);
+                        }
+                        
+                        var offset = 0;
+                        var chapterId = null;
+                        var textAnchor = "";
+                        
+                        if (centerEl) {
+                            var curr = centerEl;
+                            while (curr && curr !== document.body && curr !== document.documentElement) {
+                                if (!offset && curr.hasAttribute && curr.hasAttribute('data-offset')) {
+                                    offset = parseInt(curr.getAttribute('data-offset')) || 0;
+                                }
+                                if (!chapterId && curr.id) {
+                                    chapterId = curr.id;
+                                }
+                                curr = curr.parentElement;
+                            }
+                            
+                            var fullText = (centerEl.textContent || centerEl.innerText || "").trim().replace(/\s+/g, ' ');
+                            if (fullText.length > 0) {
+                                if (fullText.length <= 50) {
+                                    textAnchor = fullText;
+                                } else {
+                                    var startIdx = Math.max(0, Math.floor(fullText.length / 2) - 20);
+                                    textAnchor = fullText.substring(startIdx, Math.min(fullText.length, startIdx + 40)).trim();
+                                }
+                            }
+                        }
+                        
+                        return {
+                            progress: progress,
+                            offset: offset,
+                            textAnchor: textAnchor,
+                            chapterId: chapterId,
+                            sx: sx
+                        };
+                    }
+
+                    var lastReadingAnchor = null;
+
                     function runDiagnostics() {
                         var vw = getPageWidth();
                         var vh = window.innerHeight;
@@ -240,6 +293,7 @@ object ReaderWebViewPaginator {
                                     }
                                     element = element.parentElement;
                                 }
+                                lastReadingAnchor = captureReadingAnchor();
                                 runDiagnostics();
                                 window.ReaderBridge.reportPosition(offset, pageIndex, totalPages);
                             }
@@ -261,6 +315,94 @@ object ReaderWebViewPaginator {
                         window.scroll(target, 0);
                     }
 
+                    function restorePositionFromAnchor(anchor) {
+                        var vw = getPageWidth();
+                        if (vw <= 0) vw = window.innerWidth || 360;
+                        var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
+                        var totalPages = Math.max(1, Math.round(totalWidth / vw));
+                        
+                        var targetPage = -1;
+                        var found = false;
+
+                        // Priority 1: Text Anchor search
+                        if (anchor && anchor.textAnchor && anchor.textAnchor.length >= 5) {
+                            var allTextEls = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, blockquote, div');
+                            var bestEl = null;
+                            for (var i = 0; i < allTextEls.length; i++) {
+                                var txt = (allTextEls[i].textContent || '').trim().replace(/\s+/g, ' ');
+                                if (txt.indexOf(anchor.textAnchor) !== -1) {
+                                    bestEl = allTextEls[i];
+                                    break;
+                                }
+                            }
+                            if (!bestEl) {
+                                var shortAnchor = anchor.textAnchor.substring(0, 15);
+                                for (var j = 0; j < allTextEls.length; j++) {
+                                    var txt2 = (allTextEls[j].textContent || '').trim().replace(/\s+/g, ' ');
+                                    if (txt2.indexOf(shortAnchor) !== -1) {
+                                        bestEl = allTextEls[j];
+                                        break;
+                                    }
+                                }
+                            }
+                            if (bestEl) {
+                                var rect = bestEl.getBoundingClientRect();
+                                var curSx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
+                                var absLeft = curSx + rect.left;
+                                targetPage = Math.floor((absLeft + 5) / vw);
+                                found = true;
+                            }
+                        }
+
+                        // Priority 2: Character / Paragraph Offset
+                        if (!found && anchor && anchor.offset > 0) {
+                            var allEls = document.querySelectorAll('[data-offset]');
+                            var bestElOff = null;
+                            var minDiff = Infinity;
+                            for (var k = 0; k < allEls.length; k++) {
+                                var off = parseInt(allEls[k].getAttribute('data-offset')) || 0;
+                                var diff = Math.abs(off - anchor.offset);
+                                if (diff < minDiff) {
+                                    minDiff = diff;
+                                    bestElOff = allEls[k];
+                                }
+                            }
+                            if (bestElOff) {
+                                var rect2 = bestElOff.getBoundingClientRect();
+                                var curSx2 = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
+                                var absLeft2 = curSx2 + rect2.left;
+                                targetPage = Math.floor((absLeft2 + 5) / vw);
+                                found = true;
+                            }
+                        }
+
+                        // Priority 3: Chapter ID
+                        if (!found && anchor && anchor.chapterId) {
+                            var chapEl = document.getElementById(anchor.chapterId);
+                            if (chapEl) {
+                                var rect3 = chapEl.getBoundingClientRect();
+                                var curSx3 = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
+                                var absLeft3 = curSx3 + rect3.left;
+                                targetPage = Math.floor((absLeft3 + 5) / vw);
+                                found = true;
+                            }
+                        }
+
+                        // Priority 4: Relative Document Progress
+                        if (!found && anchor && typeof anchor.progress === 'number' && anchor.progress > 0) {
+                            var progressX = (anchor.progress * totalWidth) - (vw / 2);
+                            targetPage = Math.round(progressX / vw);
+                            found = true;
+                        }
+
+                        if (targetPage < 0) targetPage = 0;
+                        if (targetPage >= totalPages) targetPage = totalPages - 1;
+
+                        var targetX = targetPage * vw;
+                        scrollToTarget(targetX);
+                        reportCurrentPosition();
+                    }
+
                     window.scrollToPage = function(pageIndex) {
                         var vw = getPageWidth();
                         var target = pageIndex * vw;
@@ -270,36 +412,56 @@ object ReaderWebViewPaginator {
 
                     window.scrollToOffset = function(targetOffset) {
                         if (targetOffset === null || targetOffset === undefined) return;
-                        function doScroll(retries) {
-                            var allEls = document.querySelectorAll('[data-offset]');
-                            var bestEl = null;
-                            var minDiff = Infinity;
-                            for (var i = 0; i < allEls.length; i++) {
-                                var off = parseInt(allEls[i].getAttribute('data-offset')) || 0;
-                                var diff = Math.abs(off - targetOffset);
-                                if (diff < minDiff) {
-                                    minDiff = diff;
-                                    bestEl = allEls[i];
-                                }
-                            }
-                            if (bestEl) {
-                                var rect = bestEl.getBoundingClientRect();
-                                var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                                var vw = getPageWidth();
-                                if (vw > 0) {
-                                    var absoluteLeft = sx + rect.left;
-                                    var targetPage = Math.floor((absoluteLeft + 5) / vw);
-                                    var target = targetPage * vw;
-                                    scrollToTarget(target);
-                                    reportCurrentPosition();
-                                } else if (retries > 0) {
-                                    setTimeout(function() { doScroll(retries - 1); }, 50);
-                                }
-                            } else if (retries > 0) {
-                                setTimeout(function() { doScroll(retries - 1); }, 50);
-                            }
+                        var anchor = (lastReadingAnchor && lastReadingAnchor.offset === targetOffset) ? lastReadingAnchor : { offset: targetOffset, progress: 0, textAnchor: '' };
+                        
+                        function doScroll() {
+                            restorePositionFromAnchor(anchor);
                         }
-                        setTimeout(function() { doScroll(10); }, 30);
+                        
+                        requestAnimationFrame(function() {
+                            requestAnimationFrame(function() {
+                                doScroll();
+                            });
+                        });
+                    };
+
+                    window.updateStyles = function(fontFamily, fontSize, fontWeight, lineHeight, textColor, bgColor, isHyphenation, topPaddingDp, bottomPaddingDp, leftPaddingDp, rightPaddingDp) {
+                        var anchor = captureReadingAnchor();
+                        document.documentElement.style.opacity = '0';
+                        
+                        var styleEl = document.getElementById('dynamic-reader-styles');
+                        if (!styleEl) {
+                            styleEl = document.createElement('style');
+                            styleEl.id = 'dynamic-reader-styles';
+                            document.head.appendChild(styleEl);
+                        }
+                        styleEl.innerHTML = `
+                            body {
+                                font-family: '` + fontFamily + `', serif !important;
+                                font-size: ` + fontSize + `px !important;
+                                font-weight: ` + fontWeight + ` !important;
+                                line-height: ` + lineHeight + ` !important;
+                                background-color: ` + bgColor + ` !important;
+                                color: ` + textColor + ` !important;
+                                padding-top: ` + topPaddingDp + `px !important;
+                                padding-bottom: ` + bottomPaddingDp + `px !important;
+                            }
+                            p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, div {
+                                padding-left: ` + leftPaddingDp + `px !important;
+                                padding-right: ` + rightPaddingDp + `px !important;
+                                hyphens: ` + (isHyphenation ? 'auto' : 'none') + ` !important;
+                                -webkit-hyphens: ` + (isHyphenation ? 'auto' : 'none') + ` !important;
+                            }
+                        `;
+                        
+                        requestAnimationFrame(function() {
+                            requestAnimationFrame(function() {
+                                restorePositionFromAnchor(anchor);
+                                requestAnimationFrame(function() {
+                                    document.documentElement.style.opacity = '1';
+                                });
+                            });
+                        });
                     };
 
                     window.nextPage = function() {
