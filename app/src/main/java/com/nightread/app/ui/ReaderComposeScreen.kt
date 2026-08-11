@@ -139,6 +139,20 @@ fun ReaderComposeScreen(
     val view = LocalView.current
     val window = (context as? Activity)?.window
 
+    DisposableEffect(window) {
+        if (window != null) {
+            val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+        onDispose {
+            if (window != null) {
+                val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            }
+        }
+    }
+
     var settingsVersion by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
         SettingsManager.settingsChanged.collect {
@@ -674,7 +688,7 @@ fun ReaderComposeScreen(
 
                             val currentTargetOffsetForHtml = if (savedTextOffset > 0) savedTextOffset else currentReadingOffset
 
-                            val htmlContent = remember(mainText, font, fontSize, mappedFontWeight, lineSpacing, widthDp, heightDp, textColorHex, bgColorHex, pageAnimation, topPaddingDpVal, leftPaddingDpVal, rightPaddingDpVal, bottomPaddingDpVal, isHyphenationEnabled) {
+                            val htmlContent = remember(mainText, widthDp, heightDp, pageAnimation, topPaddingDpVal, leftPaddingDpVal, rightPaddingDpVal, bottomPaddingDpVal) {
                                 com.nightread.app.ui.customlayout.ReaderWebViewEngine.prepareHtmlForBook(
                                     context = context,
                                     bookId = sha1.ifEmpty { "default" },
@@ -710,6 +724,13 @@ fun ReaderComposeScreen(
                                     fontSize = fontSize,
                                     fontWeight = mappedFontWeight.weight.toFloat(),
                                     lineHeight = lineSpacing,
+                                    textColorHex = textColorHex,
+                                    bgColorHex = bgColorHex,
+                                    isHyphenationEnabled = isHyphenationEnabled,
+                                    topPaddingDp = topPaddingDpVal,
+                                    bottomPaddingDp = bottomPaddingDpVal,
+                                    leftPaddingDp = leftPaddingDpVal,
+                                    rightPaddingDp = rightPaddingDpVal,
                                     themeColor = textColor,
                                     bgColor = Color.Transparent,
                                     currentPage = pagerState.currentPage,

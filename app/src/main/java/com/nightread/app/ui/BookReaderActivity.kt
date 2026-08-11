@@ -51,6 +51,10 @@ class BookReaderActivity : FragmentActivity() {
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
+
+        val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+        insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         val sha1 = intent.getStringExtra("BOOK_SHA1") ?: ""
         openedBookSha1 = sha1
 

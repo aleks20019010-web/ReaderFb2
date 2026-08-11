@@ -280,18 +280,23 @@ object ReaderWebViewPaginator {
                             if (window.ReaderBridge) {
                                 var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
                                 var vw = getPageWidth();
+                                var vh = window.innerHeight || 600;
                                 var pageIndex = Math.round(sx / vw);
-                                var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
+                                var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
                                 var totalPages = Math.max(1, Math.round(totalWidth / vw));
                                 
-                                var element = document.elementFromPoint(16, 50);
+                                var centerEl = document.elementFromPoint(vw / 2, vh / 2);
+                                if (!centerEl) {
+                                    centerEl = document.elementFromPoint(16, vh / 2);
+                                }
                                 var offset = 0;
-                                while (element && element !== document.body && element !== document.documentElement) {
-                                    if (element.hasAttribute && element.hasAttribute('data-offset')) {
-                                        offset = parseInt(element.getAttribute('data-offset')) || 0;
+                                var curr = centerEl;
+                                while (curr && curr !== document.body && curr !== document.documentElement) {
+                                    if (curr.hasAttribute && curr.hasAttribute('data-offset')) {
+                                        offset = parseInt(curr.getAttribute('data-offset')) || 0;
                                         break;
                                     }
-                                    element = element.parentElement;
+                                    curr = curr.parentElement;
                                 }
                                 lastReadingAnchor = captureReadingAnchor();
                                 runDiagnostics();
@@ -301,6 +306,14 @@ object ReaderWebViewPaginator {
                             console.error("Error reporting position:", e);
                         }
                     }
+
+                    var scrollEndTimer = null;
+                    window.addEventListener('scroll', function() {
+                        if (scrollEndTimer) clearTimeout(scrollEndTimer);
+                        scrollEndTimer = setTimeout(function() {
+                            reportCurrentPosition();
+                        }, 200);
+                    });
 
                     function scrollToTarget(target) {
                         try {
