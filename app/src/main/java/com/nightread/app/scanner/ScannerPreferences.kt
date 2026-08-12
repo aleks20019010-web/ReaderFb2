@@ -79,13 +79,17 @@ class ScannerPreferences(private val context: Context) {
                         "${MediaStore.Files.FileColumns.MIME_TYPE} NOT LIKE ?"
                 val selectionArgs = arrayOf("image/%")
                 
-                val cursor = context.contentResolver.query(
-                    MediaStore.Files.getContentUri("external"),
-                    projection,
-                    selection,
-                    selectionArgs,
+                val cursor = try {
+                    context.contentResolver.query(
+                        MediaStore.Files.getContentUri("external"),
+                        projection,
+                        selection,
+                        selectionArgs,
+                        null
+                    )
+                } catch (e: Throwable) {
                     null
-                )
+                }
                 
                 cursor?.use {
                     val idColumn = it.getColumnIndex(MediaStore.Files.FileColumns._ID)
@@ -94,9 +98,9 @@ class ScannerPreferences(private val context: Context) {
                     
                     val ids = mutableListOf<String>()
                     while (it.moveToNext()) {
-                        val id = it.getLong(idColumn)
-                        val modified = it.getLong(modifiedColumn)
-                        val size = it.getLong(sizeColumn)
+                        val id = if (idColumn != -1) it.getLong(idColumn) else 0L
+                        val modified = if (modifiedColumn != -1) it.getLong(modifiedColumn) else 0L
+                        val size = if (sizeColumn != -1) it.getLong(sizeColumn) else 0L
                         ids.add("$id:$modified:$size")
                     }
                     
