@@ -290,33 +290,41 @@ class LibraryScanner(
      * Рекурсивное сканирование директории
      */
     private fun scanDirectory(directory: File, result: MutableList<File>) {
-        if (!directory.exists() || !directory.isDirectory) return
-        if (result.size >= MAX_FILES_TO_SCAN) return
-        
-        val files = directory.listFiles() ?: return
-        
-        for (file in files) {
+        try {
+            if (!directory.exists() || !directory.isDirectory) return
             if (result.size >= MAX_FILES_TO_SCAN) return
             
-            if (file.isDirectory) {
-                val dirName = file.name.lowercase()
-                if (excludePaths.contains(dirName) || dirName.startsWith(".")) continue
-                scanDirectory(file, result)
-            } else if (file.isFile && isBookFile(file)) {
-                result.add(file)
+            val files = try { directory.listFiles() } catch (e: Throwable) { null } ?: return
+            
+            for (file in files) {
+                if (result.size >= MAX_FILES_TO_SCAN) return
+                
+                try {
+                    if (file.isDirectory) {
+                        val dirName = file.name.lowercase()
+                        if (excludePaths.contains(dirName) || dirName.startsWith(".")) continue
+                        scanDirectory(file, result)
+                    } else if (file.isFile && isBookFile(file)) {
+                        result.add(file)
+                    }
+                } catch (e: Throwable) {}
             }
-        }
+        } catch (e: Throwable) {}
     }
     
     /**
      * Проверка, является ли файл книгой
      */
     private fun isBookFile(file: File): Boolean {
-        val name = file.name.lowercase()
-        return name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".fbz") ||
-                name.endsWith(".epub") || name.endsWith(".fb3") || name.endsWith(".fb3.zip") ||
-                name.endsWith(".mobi") || name.endsWith(".azw") || name.endsWith(".azw3") ||
-                name.endsWith(".zip")
+        return try {
+            val name = file.name.lowercase()
+            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".fbz") ||
+                    name.endsWith(".epub") || name.endsWith(".fb3") || name.endsWith(".fb3.zip") ||
+                    name.endsWith(".mobi") || name.endsWith(".azw") || name.endsWith(".azw3") ||
+                    name.endsWith(".zip")
+        } catch (e: Throwable) {
+            false
+        }
     }
     
     /**
@@ -324,26 +332,41 @@ class LibraryScanner(
      */
     private fun getDefaultScanDirectories(): List<File> {
         val dirs = mutableListOf<File>()
-        val externalStorage = Environment.getExternalStorageDirectory()
-        
-        val bookDirs = listOf(
-            "Books", "books", "Книги", "книги",
-            "Download", "Downloads", "Загрузки",
-            "Documents", "Документы",
-            "Ebooks", "eBooks", "Library", "library"
-        )
-        
-        for (dirName in bookDirs) {
-            val dir = File(externalStorage, dirName)
-            if (dir.exists() && dir.canRead()) {
-                dirs.add(dir)
+        try {
+            val externalStorage = Environment.getExternalStorageDirectory()
+            val bookDirs = listOf(
+                "Books", "books", "Книги", "книги",
+                "Download", "Downloads", "Загрузки",
+                "Documents", "Документы",
+                "Ebooks", "eBooks", "Library", "library"
+            )
+            
+            for (dirName in bookDirs) {
+                try {
+                    val dir = File(externalStorage, dirName)
+                    if (dir.exists() && dir.canRead()) {
+                        dirs.add(dir)
+                    }
+                } catch (e: Throwable) {}
             }
-        }
-        
-        if (dirs.isEmpty()) {
-            dirs.add(externalStorage)
-        }
-        
+            
+            if (dirs.isEmpty() && externalStorage.exists() && externalStorage.canRead()) {
+                dirs.add(externalStorage)
+            }
+        } catch (e: Throwable) {}
+
+        try {
+            val appDirs = context.getExternalFilesDirs(null)
+            for (dir in appDirs) {
+                if (dir != null && dir.exists() && dir.canRead()) {
+                    dirs.add(dir)
+                }
+            }
+            if (context.filesDir != null && context.filesDir.exists()) {
+                dirs.add(context.filesDir)
+            }
+        } catch (e: Throwable) {}
+
         return dirs
     }
     

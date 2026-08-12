@@ -9,6 +9,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -1203,15 +1204,15 @@ fun ReaderComposeScreen(
                         ) {
                             Text(
                                 text = if (totalWebViewPages > 1) "Стр. ${currentWebViewPage + 1} из $totalWebViewPages" else "Прогресс",
-                                color = textColor.copy(alpha = 0.8f),
+                                color = Color(0xFFF1F5F9),
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = String.format(java.util.Locale.US, "%.1f%%", currentSliderVal),
-                                color = textColor.copy(alpha = 0.8f),
+                                color = Color(0xFF00BCD4),
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Bold
                             )
                         }
                         Spacer(modifier = Modifier.height(2.dp))
@@ -1228,25 +1229,26 @@ fun ReaderComposeScreen(
                             },
                             valueRange = 0f..100f,
                             colors = androidx.compose.material3.SliderDefaults.colors(
-                                thumbColor = textColor,
-                                activeTrackColor = textColor,
-                                inactiveTrackColor = textColor.copy(alpha = 0.2f)
+                                thumbColor = Color(0xFF00BCD4),
+                                activeTrackColor = Color(0xFF00BCD4),
+                                inactiveTrackColor = Color(0xFFB0BEC5).copy(alpha = 0.3f)
                             ),
                             thumb = {
                                 Box(
                                     modifier = Modifier
-                                        .size(12.dp)
-                                        .background(textColor, CircleShape)
+                                        .size(14.dp)
+                                        .background(Color(0xFF00BCD4), CircleShape)
+                                        .border(2.dp, Color.White, CircleShape)
                                 )
                             },
                             track = { sliderState ->
                                 androidx.compose.material3.SliderDefaults.Track(
                                     sliderState = sliderState,
                                     colors = androidx.compose.material3.SliderDefaults.colors(
-                                        activeTrackColor = textColor,
-                                        inactiveTrackColor = textColor.copy(alpha = 0.2f)
+                                        activeTrackColor = Color(0xFF00BCD4),
+                                        inactiveTrackColor = Color(0xFFB0BEC5).copy(alpha = 0.3f)
                                     ),
-                                    modifier = Modifier.height(4.dp)
+                                    modifier = Modifier.height(6.dp)
                                 )
                             },
                             modifier = Modifier
