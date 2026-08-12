@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Light Theme (Day Mode) -->
-    <color name="bg_main">#F5F7FA</color>
-    <color name="bg_gradient_start">#E8EEF2</color>
-    <color name="bg_gradient_end">#F8FAFC</color>
+    <!-- Dark Glassmorphism & Silver Palette (Default Mode) -->
+    <color name="bg_main">#0F1523</color>
+    <color name="bg_gradient_start">#0F1523</color>
+    <color name="bg_gradient_end">#080B12</color>
     
-    <color name="bg_card">#B3FFFFFF</color>
-    <color name="glass_card_stroke">#14000000</color>
+    <color name="bg_card">#A6192236</color>
+    <color name="glass_card_stroke">#73B0BEC5</color>
     
-    <color name="text_primary">#1A1A1A</color>
-    <color name="text_secondary">#5C5C5C</color>
-    <color name="text_sync_primary">#1A1A1A</color>
-    <color name="text_sync_secondary">#5C5C5C</color>
-    <color name="sync_header">#2C3E50</color>
-    <color name="text_title">#1A1A1A</color>
-    <color name="text_author">#5C5C5C</color>
+    <color name="text_primary">#F1F5F9</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="text_sync_primary">#F1F5F9</color>
+    <color name="text_sync_secondary">#94A3B8</color>
+    <color name="sync_header">#E2E8F0</color>
+    <color name="text_title">#F1F5F9</color>
+    <color name="text_author">#94A3B8</color>
 
     <!-- Reading Themes Colors -->
     <color name="reading_day_bg">#FFFFFF</color>
@@ -26,40 +26,40 @@
     <color name="reading_sepia_contrast_bg">#F5E6C8</color>
     <color name="reading_sepia_contrast_text">#1A1A1A</color>
 
-    <!-- Accent: Rich Gray / Dark Blue -->
-    <color name="accent">#2C3E50</color>
-    <color name="accent_hover">#1A252F</color>
-    <color name="shadow">#20000000</color>
-    <color name="divider">#20000000</color>
+    <!-- Accent: Silver / Cosmic Glass -->
+    <color name="accent">#B0BEC5</color>
+    <color name="accent_hover">#94A3B8</color>
+    <color name="shadow">#080B12</color>
+    <color name="divider">#334155</color>
 
-    <!-- Glass Panel Colors (Light: 70-80% opacity) -->
-    <color name="bg_panel">#B3FFFFFF</color>
-    <color name="glass_bg_30">#80FFFFFF</color>
-    <color name="glass_bg_60">#B3FFFFFF</color>
-    <color name="glass_bg_90">#E6FFFFFF</color>
-    <color name="glass_stroke">#99FFFFFF</color>
+    <!-- Glass Panel Colors -->
+    <color name="bg_panel">#A6192236</color>
+    <color name="glass_bg_30">#4D192236</color>
+    <color name="glass_bg_60">#A6192236</color>
+    <color name="glass_bg_90">#E6192236</color>
+    <color name="glass_stroke">#73B0BEC5</color>
 
-    <color name="btn_bg">#2C3E50</color>
-    <color name="btn_text">#FFFFFF</color>
-    <color name="icon_tint">#1A1A1A</color>
-    <color name="accent_light">#E8EEF2</color>
+    <color name="btn_bg">#2A3A5E</color>
+    <color name="btn_text">#F1F5F9</color>
+    <color name="icon_tint">#E2E8F0</color>
+    <color name="accent_light">#1E293B</color>
 
-    <!-- Material 3 Light Theme Colors mapping -->
-    <color name="primary">#2C3E50</color>
-    <color name="onPrimary">#FFFFFF</color>
-    <color name="secondary">#1A252F</color>
-    <color name="onSecondary">#FFFFFF</color>
-    <color name="surface">#B3FFFFFF</color>
-    <color name="onSurface">#1A1A1A</color>
-    <color name="background">#F5F7FA</color>
-    <color name="onBackground">#1A1A1A</color>
+    <!-- Material 3 Dark Theme Colors mapping -->
+    <color name="primary">#B0BEC5</color>
+    <color name="onPrimary">#0F1523</color>
+    <color name="secondary">#94A3B8</color>
+    <color name="onSecondary">#0F1523</color>
+    <color name="surface">#A6192236</color>
+    <color name="onSurface">#F1F5F9</color>
+    <color name="background">#0F1523</color>
+    <color name="onBackground">#F1F5F9</color>
 
     <!-- Legacy / compatibility colors -->
-    <color name="purple_200">#2C3E50</color>
-    <color name="purple_500">#2C3E50</color>
-    <color name="purple_700">#1A252F</color>
-    <color name="teal_200">#2C3E50</color>
-    <color name="teal_700">#1A252F</color>
+    <color name="purple_200">#B0BEC5</color>
+    <color name="purple_500">#94A3B8</color>
+    <color name="purple_700">#64748B</color>
+    <color name="teal_200">#B0BEC5</color>
+    <color name="teal_700">#94A3B8</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

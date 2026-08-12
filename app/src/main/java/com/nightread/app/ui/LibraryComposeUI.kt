@@ -104,7 +104,8 @@ fun LibraryComposeUI(
         Column(modifier = Modifier.fillMaxSize()) {
             GlassmorphicTopBar(
                 bookCount = books.size,
-                onMenuClicked = onMenuClicked
+                onMenuClicked = onMenuClicked,
+                onScanClicked = onScanClicked
             )
 
             if (books.isEmpty()) {
@@ -122,7 +123,8 @@ fun LibraryComposeUI(
 @Composable
 private fun GlassmorphicTopBar(
     bookCount: Int,
-    onMenuClicked: () -> Unit
+    onMenuClicked: () -> Unit,
+    onScanClicked: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -206,24 +208,22 @@ private fun GlassmorphicTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                GlassActionIcon(Icons.Default.Tune, "Filter")
-                GlassActionIcon(Icons.Default.ViewAgenda, "View")
-                GlassActionIcon(Icons.Default.Search, "Search")
-                GlassActionIcon(Icons.Default.CloudSync, "Cloud")
-                GlassActionIcon(Icons.Default.DarkMode, "Theme")
+                GlassActionIcon(Icons.Default.Refresh, "Сканировать книги") { onScanClicked() }
+                GlassActionIcon(Icons.Default.Search, "Поиск") { }
+                GlassActionIcon(Icons.Default.CloudSync, "Синхронизация") { }
             }
         }
     }
 }
 
 @Composable
-private fun GlassActionIcon(imageVector: ImageVector, description: String) {
+private fun GlassActionIcon(imageVector: ImageVector, description: String, onClick: () -> Unit = {}) {
     Box(
         modifier = Modifier
             .size(34.dp)
             .clip(CircleShape)
             .background(Color(0xFF222C44).copy(alpha = 0.5f))
-            .clickable { },
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
         Icon(

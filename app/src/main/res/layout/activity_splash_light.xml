@@ -3,11 +3,11 @@
     android:id="@+id/splash_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F0EB"
+    android:background="#0F1523"
     android:clickable="true"
     android:focusable="true">
 
-    <!-- Background overlay for Light theme -->
+    <!-- Background overlay for Dark Glass theme -->
     <include
         android:id="@+id/splash_starry_bg"
         layout="@layout/layout_galaxy_bg" />
@@ -26,7 +26,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="40dp"
             android:text="N I G H T R E A D"
-            android:textColor="#1A1A1A"
+            android:textColor="#E2E8F0"
             android:textSize="24sp"
             android:fontFamily="sans-serif-thin"
             android:letterSpacing="0.35" />
@@ -37,7 +37,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:text="@string/app_subtitle"
-            android:textColor="#665A48"
+            android:textColor="#94A3B8"
             android:textSize="11sp"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.25" />
@@ -65,7 +65,7 @@
                     android:layout_width="150dp"
                     android:layout_height="150dp"
                     android:layout_gravity="center_horizontal"
-                    android:background="@drawable/bg_circle_light"
+                    android:background="@drawable/bg_circle_dark"
                     android:padding="16dp">
 
                     <!-- Circle glow overlay behind icon -->
@@ -75,7 +75,7 @@
                         android:layout_height="match_parent"
                         android:alpha="0.25"
                         android:background="@drawable/bg_circle_light"
-                        android:backgroundTint="#D4AF37" />
+                        android:backgroundTint="#B0BEC5" />
 
                     <ImageView
                         android:id="@+id/iv_splash_logo"
@@ -83,8 +83,7 @@
                         android:layout_height="match_parent"
                         android:layout_gravity="center"
                         android:scaleType="fitCenter"
-                        android:src="@drawable/ic_premium_moon"
-                        android:tint="#D4AF37" />
+                        android:src="@drawable/ic_premium_moon" />
                 </FrameLayout>
 
                 <!-- Mood Title -->
@@ -94,7 +93,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="28dp"
                     android:text="@string/app_mood_title"
-                    android:textColor="#1A1A1A"
+                    android:textColor="#F1F5F9"
                     android:textSize="24sp"
                     android:textStyle="bold"
                     android:fontFamily="sans-serif-medium"
@@ -107,7 +106,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:text="@string/app_mood_subtitle"
-                    android:textColor="#D4AF37"
+                    android:textColor="#E2E8F0"
                     android:textSize="11sp"
                     android:fontFamily="sans-serif"
                     android:letterSpacing="0.2" />
@@ -121,7 +120,7 @@
                     android:layout_marginLeft="16dp"
                     android:layout_marginRight="16dp"
                     android:text="@string/app_mood_quote"
-                    android:textColor="#3A342E"
+                    android:textColor="#94A3B8"
                     android:textSize="15sp"
                     android:fontFamily="serif"
                     android:gravity="center"
@@ -144,7 +143,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/app_init_loading"
-                android:textColor="#665A48"
+                android:textColor="#94A3B8"
                 android:textSize="13sp"
                 android:fontFamily="sans-serif-medium"
                 android:letterSpacing="0.05"
@@ -159,7 +158,7 @@
                 android:layout_marginRight="24dp"
                 android:max="100"
                 android:progress="0"
-                android:progressDrawable="@drawable/bg_splash_progress_light" />
+                android:progressDrawable="@drawable/bg_splash_progress" />
         </LinearLayout>
 
     </LinearLayout>

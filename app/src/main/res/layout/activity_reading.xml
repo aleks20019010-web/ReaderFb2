@@ -103,10 +103,12 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:background="#DD000000"
+            android:background="@drawable/bg_panel"
             android:gravity="center_vertical"
-            android:padding="8dp"
+            android:padding="12dp"
             android:layout_gravity="top"
+            android:layout_margin="12dp"
+            android:elevation="8dp"
             android:fitsSystemWindows="true">
 
             <ImageButton
@@ -115,7 +117,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_arrow_back"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#FFFFFF"
+                app:tint="#E2E8F0"
                 android:contentDescription="Назад"/>
 
             <TextView
@@ -123,8 +125,9 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textColor="#FFFFFF"
+                android:textColor="#F1F5F9"
                 android:textSize="18sp"
+                android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
                 android:ellipsize="end"
                 android:paddingHorizontal="8dp"
@@ -134,9 +137,9 @@
                 android:id="@+id/tvSleepTimerIndicator"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#FFB74D"
+                android:textColor="#B0BEC5"
                 android:textSize="13sp"
-                android:textStyle="bold"
+                android:fontFamily="sans-serif-medium"
                 android:paddingHorizontal="6dp"
                 android:visibility="gone"
                 android:text="⏳ 30:00" />
@@ -147,7 +150,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_reader_bookmark"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#FFFFFF"
+                app:tint="#B0BEC5"
                 android:contentDescription="Закладка"/>
 
             <ImageButton
@@ -156,7 +159,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_reader_toc"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#FFFFFF"
+                app:tint="#B0BEC5"
                 android:contentDescription="Список закладок"/>
 
             <ImageButton
@@ -165,7 +168,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_reader_toc"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#FFFFFF"
+                app:tint="#B0BEC5"
                 android:contentDescription="Оглавление (AI)"
                 android:visibility="gone"/>
 
@@ -175,7 +178,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_action_search"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#FFFFFF"
+                app:tint="#B0BEC5"
                 android:contentDescription="Умный поиск"
                 android:visibility="gone"/>
 
@@ -185,7 +188,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_action_help"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#FFFFFF"
+                app:tint="#B0BEC5"
                 android:contentDescription="Задать вопрос книге"
                 android:visibility="gone"/>
 
@@ -195,7 +198,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_settings"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#FFFFFF"
+                app:tint="#B0BEC5"
                 android:contentDescription="Настройки"/>
         </LinearLayout>
 
@@ -205,9 +208,11 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#DD000000"
+            android:background="@drawable/bg_panel"
             android:padding="16dp"
             android:layout_gravity="bottom"
+            android:layout_margin="12dp"
+            android:elevation="8dp"
             android:fitsSystemWindows="true">
 
             <TextView
@@ -215,8 +220,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:textColor="#FFFFFF"
+                android:textColor="#E2E8F0"
                 android:textSize="14sp"
+                android:fontFamily="sans-serif-medium"
                 android:text=""
                 android:paddingBottom="8dp"/>
 
