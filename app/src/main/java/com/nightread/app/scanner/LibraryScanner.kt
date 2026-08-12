@@ -117,7 +117,7 @@ class LibraryScanner(
                 progressManager.forceUpdate {
                     it.copy(phase = ScanPhase.CANCELLED, overallProgress = 100)
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e(TAG, "Scan error", e)
                 progressManager.forceUpdate {
                     it.copy(
@@ -499,9 +499,9 @@ class LibraryScanner(
                             Log.w(TAG, "Timeout processing: ${file.name}")
                             ProcessResult.Error(null, null)
                         }
-                    } catch (e: Exception) {
+                    } catch (e: Throwable) {
                         Log.e(TAG, "Error processing ${file.name}", e)
-                        ProcessResult.Error(null, e)
+                        ProcessResult.Error(null, Exception(e))
                     }
                 }
             }.awaitAll()

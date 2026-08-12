@@ -339,13 +339,6 @@ fun ReaderComposeScreen(
         }
     }
 
-    // Auto-hide top and bottom bars after 3 seconds of inactivity when visible
-    LaunchedEffect(isHideBars, lastInteractionTime) {
-        if (!isHideBars) {
-            delay(3000L)
-            isHideBars = true
-        }
-    }
 
     // Apply brightness on launch
     LaunchedEffect(currentBrightness) {
@@ -1038,8 +1031,8 @@ fun ReaderComposeScreen(
                 }
             }
 
-            val glassBgColor = bgColor.copy(alpha = if (themeType == ThemeType.NIGHT || themeType == ThemeType.HIGH_CONTRAST) 0.85f else 0.90f)
-            val glassBorder = BorderStroke(1.dp, textColor.copy(alpha = 0.18f))
+            val glassBgColor = Color(0xFF192236).copy(alpha = 0.92f)
+            val glassBorder = BorderStroke(1.dp, Color(0xFF00BCD4).copy(alpha = 0.3f))
 
             // Top Panel (Glassmorphism)
             AnimatedVisibility(

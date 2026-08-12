@@ -105,7 +105,7 @@ class ScannerPreferences(private val context: Context) {
                         .digest(input.toByteArray())
                         .joinToString("") { "%02x".format(it) }
                 } ?: ""
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 // Fallback: hash external storage book files
                 val externalStorage = Environment.getExternalStorageDirectory()
                 val bookDirs = listOf("Books", "books", "Книги", "книги", "Download", "Downloads", "Загрузки", "Documents", "Документы")
