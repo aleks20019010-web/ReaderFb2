@@ -96,43 +96,7 @@ class SettingsActivity : BaseActivity() {
             finish()
         }
 
-        // --- ОФОРМЛЕНИЕ И ТЕМА ---
-        val switchAutoTheme = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchAutoTheme)
-        val switchDaliTheme = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchDaliTheme)
 
-        if (switchAutoTheme != null) {
-            switchAutoTheme.isChecked = SettingsManager.isAppAutoThemeEnabled(this)
-            switchAutoTheme.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) {
-                    SettingsManager.setAppAutoThemeEnabled(this, true)
-                    if (switchDaliTheme != null && switchDaliTheme.isChecked) {
-                        switchDaliTheme.isChecked = false
-                    }
-                } else {
-                    SettingsManager.setAppAutoThemeEnabled(this, false)
-                }
-                com.nightread.app.data.ThemeHelper.applyTheme(this)
-            }
-        }
-
-        if (switchDaliTheme != null) {
-            switchDaliTheme.isChecked = SettingsManager.getTheme(this) == "dali" && !SettingsManager.isAppAutoThemeEnabled(this)
-            switchDaliTheme.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) {
-                    SettingsManager.setTheme(this, "dali")
-                    SettingsManager.setAppAutoThemeEnabled(this, false)
-                    if (switchAutoTheme != null && switchAutoTheme.isChecked) {
-                        switchAutoTheme.isChecked = false
-                    }
-                    com.nightread.app.data.ThemeHelper.applyTheme(this)
-                } else {
-                    if (SettingsManager.getTheme(this) == "dali") {
-                        SettingsManager.setTheme(this, "light")
-                        com.nightread.app.data.ThemeHelper.applyTheme(this)
-                    }
-                }
-            }
-        }
 
         // --- ЯЗЫК ИНТЕРФЕЙСА ---
         val spinnerLanguage = findViewById<Spinner>(R.id.spinnerLanguage)

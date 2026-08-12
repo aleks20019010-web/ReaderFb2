@@ -229,12 +229,40 @@ class LibraryFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         return inflater.inflate(R.layout.library_fragment, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        val composeView = view.findViewById<androidx.compose.ui.platform.ComposeView>(R.id.composeLibraryView)
+        composeView?.setContent {
+            androidx.compose.material3.MaterialTheme {
+                LibraryWithBooksScreen(
+                    onMenuClicked = {
+                        (requireActivity() as? com.nightread.app.MainActivity)?.openDrawer()
+                    },
+                    onSearchClicked = {
+                        CustomToast.show(requireContext(), "Поиск", android.widget.Toast.LENGTH_SHORT)
+                    },
+                    onSortClicked = {
+                        showSortDialog()
+                    },
+                    onViewModeClicked = {
+                        isGridView = !isGridView
+                        requireContext().getSharedPreferences("library_prefs", android.content.Context.MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("key_is_grid_view", isGridView)
+                            .apply()
+                        applyViewMode()
+                    },
+                    onDownloadClicked = {
+                        filePickerLauncher.launch(arrayOf("*/*"))
+                    }
+                )
+            }
+        }
 
         val layoutNormalHeader: View = view.findViewById(R.id.layoutNormalHeader)
         val layoutSelectionHeader: View = view.findViewById(R.id.layoutSelectionHeader)

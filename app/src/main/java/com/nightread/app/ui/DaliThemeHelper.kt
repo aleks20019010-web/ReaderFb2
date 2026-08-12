@@ -30,11 +30,7 @@ object DaliThemeHelper {
     const val COLOR_INK = "#2C1E12"
 
     fun isDaliActive(context: Context): Boolean {
-        val theme = SettingsManager.getTheme(context)
-        if (theme == "dali") return true
-        if (theme == "light") return true
-        if (!com.nightread.app.data.ThemeHelper.shouldBeNightMode(context) && theme != "dark") return true
-        return false
+        return SettingsManager.getTheme(context) == "dali"
     }
 
     /**

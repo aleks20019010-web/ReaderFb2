@@ -102,9 +102,14 @@ object GalaxyBgHelper {
             starryView?.visibility = View.GONE
             return
         } else {
-            imageView.setImageDrawable(null)
-            imageView.setBackgroundColor(Color.parseColor("#3A2212"))
-            sunbeamView?.visibility = View.GONE
+            val lightDrawable = ContextCompat.getDrawable(context, R.drawable.light_bg)
+            if (lightDrawable != null) {
+                imageView.setImageDrawable(lightDrawable)
+                imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+            } else {
+                imageView.setBackgroundColor(Color.parseColor(LIGHT_BG_COLOR))
+            }
+            sunbeamView?.visibility = View.VISIBLE
             starryView?.visibility = View.GONE
             return
         }

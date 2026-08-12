@@ -161,19 +161,7 @@ class BookDetailActivity : BaseActivity() {
         setupClickListeners()
         setupNotesTab()
 
-        DaliThemeHelper.styleBookDetail(
-            this,
-            toolbar,
-            btnReadToolbar,
-            findViewById(R.id.llDetailContent),
-            findViewById(R.id.flCoverContainer),
-            tvTitle,
-            tvAuthor,
-            tvSeries,
-            findViewById(R.id.cardAnnotation),
-            tvAnnotation,
-            findViewById(R.id.tvAnnotationHeader)
-        )
+
     }
 
     private var notesJob: kotlinx.coroutines.Job? = null
