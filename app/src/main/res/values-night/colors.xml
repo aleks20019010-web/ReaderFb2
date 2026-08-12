@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Dark Cosmic Theme Palette (Night Mode) -->
-    <color name="bg_main">#050510</color>
-    <color name="bg_gradient_start">#050510</color>
-    <color name="bg_gradient_end">#1A0B2E</color>
+    <!-- Dark Glassmorphism & Silver Palette (Night Mode) -->
+    <color name="bg_main">#0F1523</color>
+    <color name="bg_gradient_start">#0F1523</color>
+    <color name="bg_gradient_end">#080B12</color>
     
-    <color name="bg_card">#14FFFFFF</color>
-    <color name="glass_card_stroke">#26FFFFFF</color>
+    <color name="bg_card">#A6192236</color>
+    <color name="glass_card_stroke">#73B0BEC5</color>
 
-    <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#B3FFFFFF</color>
-    <color name="text_sync_primary">#FFFFFF</color>
-    <color name="text_sync_secondary">#B3FFFFFF</color>
-    <color name="sync_header">#D4B3E2</color>
-    <color name="text_title">#FFFFFF</color>
-    <color name="text_author">#B3FFFFFF</color>
+    <color name="text_primary">#F1F5F9</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="text_sync_primary">#F1F5F9</color>
+    <color name="text_sync_secondary">#94A3B8</color>
+    <color name="sync_header">#E2E8F0</color>
+    <color name="text_title">#F1F5F9</color>
+    <color name="text_author">#94A3B8</color>
 
     <!-- Reading Themes Colors -->
     <color name="reading_day_bg">#FFFFFF</color>
@@ -26,40 +26,40 @@
     <color name="reading_sepia_contrast_bg">#F5E6C8</color>
     <color name="reading_sepia_contrast_text">#1A1A1A</color>
 
-    <!-- Accent: Cosmic Purple / White gradients -->
-    <color name="accent">#9B59B6</color>
-    <color name="accent_hover">#7D3C98</color>
-    <color name="shadow">#2A1A3E</color>
-    <color name="divider">#3A2A4E</color>
+    <!-- Accent: Silver / Cosmic Glass -->
+    <color name="accent">#B0BEC5</color>
+    <color name="accent_hover">#94A3B8</color>
+    <color name="shadow">#080B12</color>
+    <color name="divider">#334155</color>
 
-    <!-- Glass Panel Colors (Dark: 60% transparency = 40% opacity = #66...) Wait, the prompt says "bg_glass_panel_60 (60% прозрачности)", so 60% opacity -> #99... or #66...? Let's use 60% opacity = #991A1A2E -->
-    <color name="bg_panel">#991A1A2E</color>
-    <color name="glass_bg_30">#4D1A1A2E</color>
-    <color name="glass_bg_60">#991A1A2E</color>
-    <color name="glass_bg_90">#E61A1A2E</color>
-    <color name="glass_stroke">#33FFFFFF</color>
+    <!-- Glass Panel Colors -->
+    <color name="bg_panel">#A6192236</color>
+    <color name="glass_bg_30">#4D192236</color>
+    <color name="glass_bg_60">#A6192236</color>
+    <color name="glass_bg_90">#E6192236</color>
+    <color name="glass_stroke">#73B0BEC5</color>
 
-    <color name="btn_bg">#9B59B6</color>
-    <color name="btn_text">#FFFFFF</color>
-    <color name="icon_tint">#FFFFFF</color>
-    <color name="accent_light">#3A2A4E</color>
+    <color name="btn_bg">#2A3A5E</color>
+    <color name="btn_text">#F1F5F9</color>
+    <color name="icon_tint">#E2E8F0</color>
+    <color name="accent_light">#1E293B</color>
 
     <!-- Material 3 Dark Theme Colors mapping -->
-    <color name="primary">#9B59B6</color>
-    <color name="onPrimary">#FFFFFF</color>
-    <color name="secondary">#7D3C98</color>
-    <color name="onSecondary">#FFFFFF</color>
-    <color name="surface">#14FFFFFF</color>
-    <color name="onSurface">#FFFFFF</color>
-    <color name="background">#050510</color>
-    <color name="onBackground">#FFFFFF</color>
+    <color name="primary">#B0BEC5</color>
+    <color name="onPrimary">#0F1523</color>
+    <color name="secondary">#94A3B8</color>
+    <color name="onSecondary">#0F1523</color>
+    <color name="surface">#A6192236</color>
+    <color name="onSurface">#F1F5F9</color>
+    <color name="background">#0F1523</color>
+    <color name="onBackground">#F1F5F9</color>
 
     <!-- Legacy / compatibility colors -->
-    <color name="purple_200">#9B59B6</color>
-    <color name="purple_500">#9B59B6</color>
-    <color name="purple_700">#7D3C98</color>
-    <color name="teal_200">#9B59B6</color>
-    <color name="teal_700">#7D3C98</color>
+    <color name="purple_200">#B0BEC5</color>
+    <color name="purple_500">#94A3B8</color>
+    <color name="purple_700">#64748B</color>
+    <color name="teal_200">#B0BEC5</color>
+    <color name="teal_700">#94A3B8</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

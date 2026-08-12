@@ -5,8 +5,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -17,36 +19,39 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.nightread.app.data.BookEntity
 
 // =========================================================
-// 1. ЦВЕТОВАЯ ПАЛИТРА
+// 1. ПАЛИТРА ТЕМНОГО СТЕКЛОМОРФИЗМА И СЕРЕБРА
 // =========================================================
-object LibraryColors {
-    val WoodBase = Color(0xFF3D2B1F)
-    val WoodHighlight = Color(0xFF5E3A28)
-    val WoodDark = Color(0xFF1E120C)
-    val MetalPrimary = Color(0xFFC4A47A) // Базовый цвет латуни
-    val MetalHighlight = Color(0xFFEFDFC0) // Светлый блик
-    val MetalShadow = Color(0xFF6E5B42) // Тёмная тень металла
-    val Glow = Color(0xFFFFD700).copy(alpha = 0.4f)
-    val ParchmentBase = Color(0xFFEAD9B4)
-    val ParchmentDark = Color(0xFFB89B6B)
-    val ParchmentLight = Color(0xFFF4E8CE)
+object GlassLibraryColors {
+    val SpaceTop = Color(0xFF0F1523)
+    val SpaceMid = Color(0xFF141D30)
+    val SpaceBottom = Color(0xFF080B12)
+
+    val GlassSurface = Color(0xFF192236).copy(alpha = 0.65f)
+    val GlassSurfaceHover = Color(0xFF222F4B).copy(alpha = 0.8f)
+    
+    val SilverBorder = Color(0xFFB0BEC5).copy(alpha = 0.45f)
+    val SilverHighlight = Color(0xFFE2E8F0)
+    val SilverGlow = Color(0xFF94A3B8).copy(alpha = 0.25f)
+
+    val TextMain = Color(0xFFF1F5F9)
+    val TextMuted = Color(0xFF94A3B8)
 }
 
 // =========================================================
@@ -60,369 +65,383 @@ fun LibraryComposeUI(
     onBookClicked: (BookEntity) -> Unit
 ) {
     Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Фон: Дерево + прожилки
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRect(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
                 brush = Brush.verticalGradient(
-                    listOf(LibraryColors.WoodHighlight, LibraryColors.WoodBase, LibraryColors.WoodDark)
+                    listOf(
+                        GlassLibraryColors.SpaceTop,
+                        GlassLibraryColors.SpaceMid,
+                        GlassLibraryColors.SpaceBottom
+                    )
                 )
             )
-            // Текстура
-            for (i in 0..10) {
-                val yPos = i * 130f + 40f
-                drawLine(
-                    brush = SolidColor(Color(0xFF1A100A).copy(alpha = 0.25f)),
-                    start = Offset(0f, yPos),
-                    end = Offset(size.width, yPos + 40f),
-                    strokeWidth = (6..25).random().toFloat()
-                )
-            }
+    ) {
+        // Фоновые космические звезды / туманность
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val starColors = listOf(Color.White, Color(0xFFB3E5FC), Color(0xFFE1BEE7))
+            // Несколько мягких световых бликов туманности
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFF3F51B5).copy(alpha = 0.15f), Color.Transparent),
+                    center = Offset(size.width * 0.2f, size.height * 0.3f),
+                    radius = 400f
+                ),
+                radius = 400f,
+                center = Offset(size.width * 0.2f, size.height * 0.3f)
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFF00BCD4).copy(alpha = 0.1f), Color.Transparent),
+                    center = Offset(size.width * 0.8f, size.height * 0.7f),
+                    radius = 500f
+                ),
+                radius = 500f,
+                center = Offset(size.width * 0.8f, size.height * 0.7f)
+            )
         }
 
         Column(modifier = Modifier.fillMaxSize()) {
-            VectorFullWidthMetalTopBar(onMenuClicked = onMenuClicked)
+            GlassmorphicTopBar(
+                bookCount = books.size,
+                onMenuClicked = onMenuClicked
+            )
 
             if (books.isEmpty()) {
-                EmptyLibraryScreen(onScanClicked = onScanClicked)
+                GlassEmptyState(onScanClicked = onScanClicked)
             } else {
-                BookshelfScreen(books = books, onBookClicked = onBookClicked)
+                GlassBookGrid(books = books, onBookClicked = onBookClicked)
             }
         }
     }
 }
 
 // =========================================================
-// 3. ВЕРХНЯЯ МЕТАЛЛИЧЕСКАЯ ПЛАШКА
+// 3. ВЕРХНЯЯ СТЕКЛЯННАЯ ПЛАШКА С СЕРЕБРОМ
 // =========================================================
 @Composable
-private fun VectorFullWidthMetalTopBar(onMenuClicked: () -> Unit) {
+private fun GlassmorphicTopBar(
+    bookCount: Int,
+    onMenuClicked: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .height(52.dp)
-            .shadow(8.dp, RoundedCornerShape(12.dp), spotColor = Color.Black.copy(alpha = 0.3f))
-            .clip(RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .height(64.dp)
+            .shadow(16.dp, RoundedCornerShape(20.dp), spotColor = GlassLibraryColors.SilverGlow)
+            .clip(RoundedCornerShape(20.dp))
             .background(
                 brush = Brush.horizontalGradient(
-                    colors = listOf(LibraryColors.MetalShadow, LibraryColors.MetalPrimary, LibraryColors.MetalHighlight, LibraryColors.MetalPrimary, LibraryColors.MetalShadow)
+                    colors = listOf(
+                        Color(0xFF222B40).copy(alpha = 0.8f),
+                        Color(0xFF1A2234).copy(alpha = 0.7f),
+                        Color(0xFF25304A).copy(alpha = 0.8f)
+                    )
                 )
             )
             .drawBehind {
-                // Обводка
+                // Тонкий серебряный контур стекломорфизма
                 drawRoundRect(
-                    color = Color.White.copy(alpha = 0.15f),
-                    cornerRadius = CornerRadius(12f, 12f),
-                    size = Size(size.width - 2, size.height - 2),
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            GlassLibraryColors.SilverHighlight.copy(alpha = 0.7f),
+                            GlassLibraryColors.SilverBorder.copy(alpha = 0.2f),
+                            GlassLibraryColors.SilverHighlight.copy(alpha = 0.5f)
+                        )
+                    ),
+                    cornerRadius = CornerRadius(20.dp.toPx(), 20.dp.toPx()),
+                    size = Size(size.width - 2f, size.height - 2f),
                     topLeft = Offset(1f, 1f),
                     style = Stroke(width = 1.5f)
                 )
             }
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            // Левая часть: Меню с серебряным фоном + Текст "Библиотека" / счетчик
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Menu",
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp).clickable { onMenuClicked() }
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text("Библиотека", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
-                Icon(Icons.Default.Sort, contentDescription = "Sort", tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(12.dp))
-                Icon(Icons.Default.ViewAgenda, contentDescription = "View", tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(12.dp))
-                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(12.dp))
-                Icon(Icons.Default.Download, contentDescription = "Download", tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(18.dp))
-            }
-        }
-    }
-}
-
-// --- Экран "Нет книг" ---
-@Composable
-private fun EmptyLibraryScreen(onScanClicked: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        VectorImportIcon()
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = "Начните сканирование или импортируйте\nкниги",
-            color = Color.LightGray.copy(alpha = 0.8f),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Light,
-            textAlign = TextAlign.Center,
-            letterSpacing = 0.5.sp,
-            lineHeight = 20.sp
-        )
-        Spacer(modifier = Modifier.height(48.dp))
-        VectorMetalScanButton(onClick = onScanClicked)
-    }
-}
-
-// --- Экран "Есть книги" ---
-@Composable
-private fun BookshelfScreen(books: List<BookEntity>, onBookClicked: (BookEntity) -> Unit) {
-    LazyRow(
-        modifier = Modifier.fillMaxWidth().padding(top = 16.dp, start = 16.dp, end = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        items(books) { book ->
-            BookCard(
-                title = book.title,
-                author = book.author ?: "Неизвестный автор",
-                imageUrl = book.coverPath ?: "",
-                onBookClicked = { onBookClicked(book) }
-            )
-        }
-    }
-}
-
-// =========================================================
-// 4. ИСПРАВЛЕННАЯ 3D ИКОНКА ИМПОРТА
-// =========================================================
-@Composable
-private fun VectorImportIcon() {
-    Box(
-        modifier = Modifier
-            .size(100.dp)
-            .shadow(20.dp, RoundedCornerShape(50), spotColor = LibraryColors.Glow)
-            .clip(RoundedCornerShape(50))
-            .background(Color(0xFF7C6B41)) // Темный фон под иконку
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val cX = size.width / 2
-            val cY = size.height / 2
-            val metalGradient = Brush.linearGradient(
-                listOf(Color(0xFFF5E6C8), Color(0xFFA0865B), Color(0xFF5C4A2E)),
-                start = Offset(0f, 0f),
-                end = Offset(size.width, size.height)
-            )
-
-            // Сама иконка (ящик)
-            val rectPath = Path().apply {
-                moveTo(cX - 30f, cY - 5f)
-                lineTo(cX - 40f, cY + 18f)
-                lineTo(cX + 40f, cY + 18f)
-                lineTo(cX + 30f, cY - 5f)
-                close()
-            }
-            drawPath(path = rectPath, brush = metalGradient)
-
-            // Полка
-            drawRoundRect(
-                brush = metalGradient,
-                topLeft = Offset(cX - 42f, cY + 18f),
-                size = Size(84f, 8f),
-                cornerRadius = CornerRadius(4f, 4f)
-            )
-
-            // Стрелка
-            val arrowPath = Path().apply {
-                moveTo(cX - 22f, cY - 30f)
-                lineTo(cX - 12f, cY - 30f)
-                lineTo(cX - 12f, cY - 5f)
-                lineTo(cX - 22f, cY - 5f)
-                close()
-            }
-            drawPath(path = arrowPath, brush = metalGradient)
-
-            val arrowHeadPath = Path().apply {
-                moveTo(cX - 28f, cY - 5f)
-                lineTo(cX, cY + 8f)
-                lineTo(cX + 28f, cY - 5f)
-                close()
-            }
-            drawPath(path = arrowHeadPath, brush = metalGradient)
-        }
-    }
-}
-
-// =========================================================
-// 5. ИСПРАВЛЕННАЯ 3D КНОПКА "СКАНИРОВАТЬ"
-// =========================================================
-@Composable
-private fun VectorMetalScanButton(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .width(260.dp)
-            .height(60.dp)
-            .shadow(12.dp, RoundedCornerShape(12.dp), spotColor = LibraryColors.Glow)
-            .clip(RoundedCornerShape(12.dp))
-            .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(LibraryColors.MetalShadow, LibraryColors.MetalPrimary, LibraryColors.MetalHighlight, LibraryColors.MetalPrimary, LibraryColors.MetalShadow)
-                )
-            )
-            .clickable { onClick() }
-            .drawBehind {
-                drawRoundRect(
-                    color = Color.White.copy(alpha = 0.2f),
-                    cornerRadius = CornerRadius(12f, 12f),
-                    size = Size(size.width - 4, size.height - 4),
-                    topLeft = Offset(2f, 2f),
-                    style = Stroke(width = 1f)
-                )
-            }
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            // Иконка внутри кнопки
-            Box(modifier = Modifier.size(24.dp).background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(4.dp))) {
-                Canvas(modifier = Modifier.fillMaxSize().padding(4.dp)) {
-                    drawRect(
-                        brush = SolidColor(Color.White.copy(alpha = 0.7f)),
-                        topLeft = Offset(0f, 8f),
-                        size = Size(16f, 8f)
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF2A3754).copy(alpha = 0.6f))
+                        .clickable { onMenuClicked() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "Menu",
+                        tint = GlassLibraryColors.SilverHighlight,
+                        modifier = Modifier.size(22.dp)
                     )
-                    drawLine(
-                        brush = SolidColor(Color.White),
-                        start = Offset(4f, 8f),
-                        end = Offset(8f, 0f),
-                        strokeWidth = 4f
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column {
+                    Text(
+                        text = "Библиотека",
+                        color = GlassLibraryColors.TextMain,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.3.sp
                     )
-                    drawLine(
-                        brush = SolidColor(Color.White),
-                        start = Offset(12f, 8f),
-                        end = Offset(8f, 0f),
-                        strokeWidth = 4f
+                    Text(
+                        text = "$bookCount книг",
+                        color = GlassLibraryColors.TextMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Text(
-                text = "Сканировать",
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold
+
+            // Правая часть: Иконки инструментов в стиле стекло
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                GlassActionIcon(Icons.Default.Tune, "Filter")
+                GlassActionIcon(Icons.Default.ViewAgenda, "View")
+                GlassActionIcon(Icons.Default.Search, "Search")
+                GlassActionIcon(Icons.Default.CloudSync, "Cloud")
+                GlassActionIcon(Icons.Default.DarkMode, "Theme")
+            }
+        }
+    }
+}
+
+@Composable
+private fun GlassActionIcon(imageVector: ImageVector, description: String) {
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(Color(0xFF222C44).copy(alpha = 0.5f))
+            .clickable { },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = imageVector,
+            contentDescription = description,
+            tint = GlassLibraryColors.SilverHighlight.copy(alpha = 0.9f),
+            modifier = Modifier.size(17.dp)
+        )
+    }
+}
+
+// =========================================================
+// 4. СЕТКА КНИГ (3 КОЛОНКИ СТЕКЛОМОРФИЗМ)
+// =========================================================
+@Composable
+private fun GlassBookGrid(books: List<BookEntity>, onBookClicked: (BookEntity) -> Unit) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(bottom = 24.dp, top = 4.dp)
+    ) {
+        items(books) { book ->
+            GlassBookCard(
+                book = book,
+                onClicked = { onBookClicked(book) }
             )
         }
     }
 }
 
-// =========================================================
-// 6. 3D КАРТОЧКА КНИГИ
-// =========================================================
 @Composable
-private fun BookCard(title: String, author: String, imageUrl: String, onBookClicked: () -> Unit) {
-    val coverUri = remember(imageUrl) {
-        if (imageUrl.isNotBlank()) {
-            try {
-                Uri.fromFile(java.io.File(imageUrl))
-            } catch (e: Exception) {
-                null
-            }
+private fun GlassBookCard(book: BookEntity, onClicked: () -> Unit) {
+    val coverUri = remember(book.coverPath) {
+        if (!book.coverPath.isNullOrBlank()) {
+            try { Uri.fromFile(java.io.File(book.coverPath)) } catch (e: Exception) { null }
         } else null
     }
 
     Box(
         modifier = Modifier
-            .width(160.dp)
-            .height(260.dp)
-            .shadow(8.dp, RoundedCornerShape(12.dp), spotColor = Color.Black.copy(alpha = 0.4f))
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF5D4037)) // Внешняя деревянная рамка
-            .clickable { onBookClicked() }
-    ) {
-        // Внутренний пергамент
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(6.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(
-                    brush = Brush.verticalGradient(listOf(LibraryColors.ParchmentLight, LibraryColors.ParchmentBase, LibraryColors.ParchmentDark))
-                )
-        ) {
-            Column(modifier = Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // 3D Обложка
-                Box(
-                    modifier = Modifier
-                        .width(130.dp)
-                        .height(110.dp)
-                        .shadow(6.dp, RoundedCornerShape(4.dp), spotColor = Color.Black.copy(alpha = 0.3f))
-                        .clip(RoundedCornerShape(4.dp))
-                ) {
-                    AsyncImage(
-                        model = coverUri,
-                        contentDescription = "Book Cover",
-                        modifier = Modifier.fillMaxSize().padding(start = 16.dp), // Корешок
-                        contentScale = ContentScale.Crop,
-                        error = androidx.compose.ui.res.painterResource(com.nightread.app.R.drawable.ic_launcher_background)
+            .height(240.dp)
+            .shadow(12.dp, RoundedCornerShape(14.dp), spotColor = GlassLibraryColors.SilverGlow)
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                brush = Brush.verticalGradient(
+                    listOf(
+                        Color(0xFF202A42).copy(alpha = 0.75f),
+                        Color(0xFF131A2B).copy(alpha = 0.85f)
                     )
-                    // 3D Тени обложки
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        drawRect(color = Color.Black.copy(alpha = 0.4f), topLeft = Offset(0f, 0f), size = Size(16f, size.height))
-                        drawRect(
-                            brush = Brush.linearGradient(listOf(Color.Black.copy(alpha = 0.5f), Color.Transparent)),
-                            topLeft = Offset(0f, 0f),
-                            size = Size(24f, size.height)
-                        )
-                        drawRect(
-                            brush = Brush.horizontalGradient(
-                                listOf(Color.Transparent, Color.White.copy(alpha = 0.15f), Color.Transparent, Color.Black.copy(alpha = 0.2f))
-                            ),
-                            topLeft = Offset(16f, 0f),
-                            size = Size(size.width - 16, size.height)
-                        )
-                    }
-                    // Текст на обложке
-                    Box(
-                        modifier = Modifier.fillMaxSize().padding(start = 22.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = title,
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            style = TextStyle(brush = Brush.linearGradient(listOf(Color(0xFF76FF03), Color(0xFF64DD17)))),
-                            modifier = Modifier.rotate(-3f)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = title,
-                    color = Color(0xFF2E1B0E),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 18.sp,
-                    maxLines = 2
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = author,
-                    color = Color(0xFF5D4037),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center
+            )
+            .clickable { onClicked() }
+            .drawBehind {
+                // Серебряная окантовка карточки
+                drawRoundRect(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            GlassLibraryColors.SilverHighlight.copy(alpha = 0.4f),
+                            GlassLibraryColors.SilverBorder.copy(alpha = 0.15f),
+                            GlassLibraryColors.SilverHighlight.copy(alpha = 0.3f)
+                        )
+                    ),
+                    cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx()),
+                    size = Size(size.width - 2f, size.height - 2f),
+                    topLeft = Offset(1f, 1f),
+                    style = Stroke(width = 1f)
                 )
             }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Обложка книги
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(130.dp)
+                    .shadow(4.dp, RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF0D121F))
+            ) {
+                AsyncImage(
+                    model = coverUri,
+                    contentDescription = book.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    error = androidx.compose.ui.res.painterResource(com.nightread.app.R.drawable.ic_launcher_background)
+                )
+                // Легкий отсвет стекла поверх обложки
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.3f))
+                            )
+                        )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Название книги
+            Text(
+                text = book.title,
+                color = GlassLibraryColors.TextMain,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                lineHeight = 15.sp
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Автор
+            Text(
+                text = book.author ?: "Неизвестный автор",
+                color = GlassLibraryColors.TextMuted,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+// =========================================================
+// 5. ПУСТОЙ ЭКРАН В СТИЛЕ СТЕКЛОМОРФИЗМ
+// =========================================================
+@Composable
+private fun GlassEmptyState(onScanClicked: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(90.dp)
+                .shadow(16.dp, CircleShape, spotColor = GlassLibraryColors.SilverHighlight)
+                .clip(CircleShape)
+                .background(Color(0xFF1C2740).copy(alpha = 0.8f))
+                .drawBehind {
+                    drawCircle(
+                        brush = Brush.linearGradient(
+                            listOf(GlassLibraryColors.SilverHighlight, GlassLibraryColors.SilverBorder)
+                        ),
+                        style = Stroke(width = 2f)
+                    )
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.FolderOpen,
+                contentDescription = null,
+                tint = GlassLibraryColors.SilverHighlight,
+                modifier = Modifier.size(42.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Text(
+            text = "Библиотека пуста",
+            color = GlassLibraryColors.TextMain,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Начните сканирование устройства или добавьте файлы книг",
+            color = GlassLibraryColors.TextMuted,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+            lineHeight = 18.sp
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(
+            onClick = onScanClicked,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF2A3A5E)
+            ),
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier
+                .height(50.dp)
+                .width(220.dp)
+                .shadow(8.dp, RoundedCornerShape(14.dp), spotColor = GlassLibraryColors.SilverHighlight)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = null,
+                tint = GlassLibraryColors.SilverHighlight,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "Сканировать",
+                color = GlassLibraryColors.SilverHighlight,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
