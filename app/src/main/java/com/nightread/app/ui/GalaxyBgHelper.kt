@@ -102,14 +102,9 @@ object GalaxyBgHelper {
             starryView?.visibility = View.GONE
             return
         } else {
-            val woodDrawable = ContextCompat.getDrawable(context, R.drawable.bg_wood_shelf)
-            if (woodDrawable != null) {
-                imageView.setImageDrawable(woodDrawable)
-                imageView.scaleType = ImageView.ScaleType.CENTER_CROP
-            } else {
-                imageView.setBackgroundColor(Color.parseColor("#3A2212"))
-            }
-            sunbeamView?.visibility = View.VISIBLE
+            imageView.setImageDrawable(null)
+            imageView.setBackgroundColor(Color.parseColor("#3A2212"))
+            sunbeamView?.visibility = View.GONE
             starryView?.visibility = View.GONE
             return
         }
