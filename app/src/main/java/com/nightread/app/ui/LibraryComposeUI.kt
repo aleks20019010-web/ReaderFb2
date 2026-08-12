@@ -3,20 +3,23 @@ package com.nightread.app.ui
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
@@ -60,10 +63,33 @@ object GlassLibraryColors {
 @Composable
 fun LibraryComposeUI(
     books: List<BookEntity>,
+    isScanning: Boolean = false,
+    scanProgressText: String = "",
+    isGridView: Boolean = true,
+    isSearchActive: Boolean = false,
+    searchQuery: String = "",
+    onSearchQueryChanged: (String) -> Unit = {},
+    onSearchActiveChanged: (Boolean) -> Unit = {},
     onScanClicked: () -> Unit,
+    onSearchClicked: () -> Unit = {},
+    onViewModeClicked: () -> Unit = {},
+    onManualImportClicked: () -> Unit = {},
+    onSortClicked: () -> Unit = {},
     onMenuClicked: () -> Unit,
     onBookClicked: (BookEntity) -> Unit
 ) {
+    var visibleBanner by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(isScanning, scanProgressText) {
+        if (isScanning) {
+            visibleBanner = true
+        } else if (scanProgressText.isNotEmpty()) {
+            visibleBanner = true
+            kotlinx.coroutines.delay(3000)
+            visibleBanner = false
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -105,13 +131,92 @@ fun LibraryComposeUI(
             GlassmorphicTopBar(
                 bookCount = books.size,
                 onMenuClicked = onMenuClicked,
-                onScanClicked = onScanClicked
+                onScanClicked = onScanClicked,
+                onSearchClicked = onSearchClicked,
+                onViewModeClicked = onViewModeClicked,
+                onManualImportClicked = onManualImportClicked,
+                onSortClicked = onSortClicked
             )
+
+            if (isSearchActive) {
+                val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+                LaunchedEffect(Unit) {
+                    focusRequester.requestFocus()
+                }
+
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChanged,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .focusRequester(focusRequester),
+                    placeholder = { Text("Поиск по названию или автору...", color = GlassLibraryColors.TextMuted) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = GlassLibraryColors.SilverHighlight) },
+                    trailingIcon = {
+                        IconButton(onClick = { 
+                            onSearchQueryChanged("")
+                            onSearchActiveChanged(false)
+                        }) {
+                            Icon(Icons.Default.Close, contentDescription = "Закрыть поиск", tint = GlassLibraryColors.SilverHighlight)
+                        }
+                    },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF00BCD4),
+                        unfocusedBorderColor = Color(0xFFB0BEC5).copy(alpha = 0.5f),
+                        focusedTextColor = GlassLibraryColors.TextMain,
+                        unfocusedTextColor = GlassLibraryColors.TextMain,
+                        cursorColor = Color(0xFF00BCD4)
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                )
+            }
+
+            if (visibleBanner && (isScanning || scanProgressText.isNotEmpty())) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0xFF192236).copy(alpha = 0.85f))
+                        .border(1.dp, Color(0xFFB0BEC5).copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (isScanning) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color(0xFFB0BEC5),
+                                strokeWidth = 2.5.dp
+                            )
+                        }
+                        Text(
+                            text = scanProgressText.ifEmpty { "Сканирование устройства..." },
+                            color = Color(0xFFF1F5F9),
+                            fontSize = 13.sp,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
 
             if (books.isEmpty()) {
                 GlassEmptyState(onScanClicked = onScanClicked)
             } else {
-                GlassBookGrid(books = books, onBookClicked = onBookClicked)
+                if (isGridView) {
+                    GlassBookGrid(books = books, onBookClicked = onBookClicked)
+                } else {
+                    GlassBookList(books = books, onBookClicked = onBookClicked)
+                }
             }
         }
     }
@@ -124,7 +229,11 @@ fun LibraryComposeUI(
 private fun GlassmorphicTopBar(
     bookCount: Int,
     onMenuClicked: () -> Unit,
-    onScanClicked: () -> Unit
+    onScanClicked: () -> Unit,
+    onSearchClicked: () -> Unit,
+    onViewModeClicked: () -> Unit,
+    onManualImportClicked: () -> Unit,
+    onSortClicked: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -206,11 +315,13 @@ private fun GlassmorphicTopBar(
             // Правая часть: Иконки инструментов в стиле стекло
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 GlassActionIcon(Icons.Default.Refresh, "Сканировать книги") { onScanClicked() }
-                GlassActionIcon(Icons.Default.Search, "Поиск") { }
-                GlassActionIcon(Icons.Default.CloudSync, "Синхронизация") { }
+                GlassActionIcon(Icons.Default.Search, "Поиск книг") { onSearchClicked() }
+                GlassActionIcon(Icons.Default.GridView, "Смена вида") { onViewModeClicked() }
+                GlassActionIcon(Icons.Default.FolderOpen, "Ручной импорт") { onManualImportClicked() }
+                GlassActionIcon(Icons.Default.Sort, "Сортировка") { onSortClicked() }
             }
         }
     }
@@ -442,6 +553,116 @@ private fun GlassEmptyState(onScanClicked: () -> Unit) {
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
+        }
+    }
+}
+
+@Composable
+private fun GlassBookList(books: List<BookEntity>, onBookClicked: (BookEntity) -> Unit) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(bottom = 24.dp, top = 4.dp)
+    ) {
+        items(books) { book ->
+            GlassBookRowItem(book = book, onClicked = { onBookClicked(book) })
+        }
+    }
+}
+
+@Composable
+private fun GlassBookRowItem(book: BookEntity, onClicked: () -> Unit) {
+    val coverUri = remember(book.coverPath) {
+        if (!book.coverPath.isNullOrBlank()) {
+            try { Uri.fromFile(java.io.File(book.coverPath)) } catch (e: Exception) { null }
+        } else null
+    }
+
+    val progress = if (book.totalCharacters > 0) (book.currentProgressChar.toFloat() / book.totalCharacters) else 0f
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(88.dp)
+            .shadow(8.dp, RoundedCornerShape(14.dp), spotColor = GlassLibraryColors.SilverGlow)
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                brush = Brush.horizontalGradient(
+                    listOf(
+                        Color(0xFF202A42).copy(alpha = 0.8f),
+                        Color(0xFF131A2B).copy(alpha = 0.9f)
+                    )
+                )
+            )
+            .clickable { onClicked() }
+            .border(1.dp, Color(0xFFB0BEC5).copy(alpha = 0.3f), RoundedCornerShape(14.dp))
+            .padding(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(52.dp)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF2E3B55))
+            ) {
+                if (coverUri != null) {
+                    coil.compose.AsyncImage(
+                        model = coverUri,
+                        contentDescription = book.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Book,
+                            contentDescription = null,
+                            tint = GlassLibraryColors.SilverHighlight.copy(alpha = 0.6f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = book.title.ifEmpty { "Без названия" },
+                    color = GlassLibraryColors.TextMain,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = book.author?.ifEmpty { "Неизвестный автор" } ?: "Неизвестный автор",
+                    color = GlassLibraryColors.TextMuted,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = { progress.coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = Color(0xFF00BCD4),
+                    trackColor = Color(0xFF2A3752)
+                )
+            }
         }
     }
 }
