@@ -15,7 +15,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -31,23 +34,23 @@ import coil.compose.AsyncImage
 import com.nightread.app.data.BookEntity
 
 // =========================================================
-// 1. ЦВЕТОВАЯ ПАЛИТРА ИЗОЛИРОВАНА ЗДЕСЬ
+// 1. ЦВЕТОВАЯ ПАЛИТРА
 // =========================================================
 object LibraryColors {
     val WoodBase = Color(0xFF3D2B1F)
     val WoodHighlight = Color(0xFF5E3A28)
     val WoodDark = Color(0xFF1E120C)
-    val MetalPrimary = Color(0xFFC4A47A)
-    val MetalHighlight = Color(0xFFEFDFC0)
-    val MetalShadow = Color(0xFF6E5B42)
-    val Glow = Color(0xFFFFD700).copy(alpha = 0.3f)
+    val MetalPrimary = Color(0xFFC4A47A) // Базовый цвет латуни
+    val MetalHighlight = Color(0xFFEFDFC0) // Светлый блик
+    val MetalShadow = Color(0xFF6E5B42) // Тёмная тень металла
+    val Glow = Color(0xFFFFD700).copy(alpha = 0.4f)
     val ParchmentBase = Color(0xFFEAD9B4)
     val ParchmentDark = Color(0xFFB89B6B)
     val ParchmentLight = Color(0xFFF4E8CE)
 }
 
 // =========================================================
-// 2. ГЛАВНАЯ ТОЧКА ВХОДА (ПУБЛИЧНАЯ)
+// 2. ГЛАВНАЯ ТОЧКА ВХОДА
 // =========================================================
 @Composable
 fun LibraryComposeUI(
@@ -57,27 +60,30 @@ fun LibraryComposeUI(
     onBookClicked: (BookEntity) -> Unit
 ) {
     Box(
-        modifier = Modifier.fillMaxSize().background(
-            brush = Brush.verticalGradient(
-                listOf(LibraryColors.WoodHighlight, LibraryColors.WoodBase, LibraryColors.WoodDark)
-            )
-        )
+        modifier = Modifier.fillMaxSize()
     ) {
-        // Векторная текстура дерева
+        // Фон: Дерево + прожилки
         Canvas(modifier = Modifier.fillMaxSize()) {
-            for (i in 0..10) drawLine(
-                brush = SolidColor(Color(0xFF1A100A).copy(alpha = 0.3f)),
-                start = Offset(0f, i * 120f + 40f),
-                end = Offset(size.width, i * 120f + 80f),
-                strokeWidth = (6..20).random().toFloat()
+            drawRect(
+                brush = Brush.verticalGradient(
+                    listOf(LibraryColors.WoodHighlight, LibraryColors.WoodBase, LibraryColors.WoodDark)
+                )
             )
+            // Текстура
+            for (i in 0..10) {
+                val yPos = i * 130f + 40f
+                drawLine(
+                    brush = SolidColor(Color(0xFF1A100A).copy(alpha = 0.25f)),
+                    start = Offset(0f, yPos),
+                    end = Offset(size.width, yPos + 40f),
+                    strokeWidth = (6..25).random().toFloat()
+                )
+            }
         }
 
         Column(modifier = Modifier.fillMaxSize()) {
-            // Верхняя плашка
             VectorFullWidthMetalTopBar(onMenuClicked = onMenuClicked)
 
-            // Логика переключения: Пусто или Книги
             if (books.isEmpty()) {
                 EmptyLibraryScreen(onScanClicked = onScanClicked)
             } else {
@@ -88,45 +94,56 @@ fun LibraryComposeUI(
 }
 
 // =========================================================
-// 3. ВСПОМОГАТЕЛЬНЫЕ ПРИВАТНЫЕ ФУНКЦИИ (ОТРИСОВКА)
+// 3. ВЕРХНЯЯ МЕТАЛЛИЧЕСКАЯ ПЛАШКА
 // =========================================================
-
-// --- Верхняя металлическая плашка ---
 @Composable
 private fun VectorFullWidthMetalTopBar(onMenuClicked: () -> Unit) {
-    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).height(52.dp)) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRoundRect(
-                brush = Brush.horizontalGradient(listOf(LibraryColors.MetalShadow, LibraryColors.MetalPrimary, LibraryColors.MetalShadow)),
-                cornerRadius = CornerRadius(8f, 8f), size = size
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .height(52.dp)
+            .shadow(8.dp, RoundedCornerShape(12.dp), spotColor = Color.Black.copy(alpha = 0.3f))
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(LibraryColors.MetalShadow, LibraryColors.MetalPrimary, LibraryColors.MetalHighlight, LibraryColors.MetalPrimary, LibraryColors.MetalShadow)
+                )
             )
-            drawRoundRect(
-                color = LibraryColors.MetalHighlight.copy(alpha = 0.2f),
-                cornerRadius = CornerRadius(8f, 8f),
-                size = Size(size.width - 4, size.height - 4),
-                topLeft = Offset(2f, 2f),
-                style = Stroke(width = 1.5f)
-            )
-        }
-        Row(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            .drawBehind {
+                // Обводка
+                drawRoundRect(
+                    color = Color.White.copy(alpha = 0.15f),
+                    cornerRadius = CornerRadius(12f, 12f),
+                    size = Size(size.width - 2, size.height - 2),
+                    topLeft = Offset(1f, 1f),
+                    style = Stroke(width = 1.5f)
+                )
+            }
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Menu,
                     contentDescription = "Menu",
-                    tint = LibraryColors.MetalHighlight,
+                    tint = Color.White,
                     modifier = Modifier.size(28.dp).clickable { onMenuClicked() }
                 )
                 Spacer(modifier = Modifier.width(12.dp))
-                Text("Библиотека", color = LibraryColors.MetalHighlight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Библиотека", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
-                Icon(Icons.Default.Sort, contentDescription = "Sort", tint = LibraryColors.MetalHighlight, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Sort, contentDescription = "Sort", tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(12.dp))
-                Icon(Icons.Default.ViewAgenda, contentDescription = "View", tint = LibraryColors.MetalHighlight, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.ViewAgenda, contentDescription = "View", tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(12.dp))
-                Icon(Icons.Default.Search, contentDescription = "Search", tint = LibraryColors.MetalHighlight, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(12.dp))
-                Icon(Icons.Default.Download, contentDescription = "Download", tint = LibraryColors.MetalHighlight, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Download, contentDescription = "Download", tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -174,67 +191,138 @@ private fun BookshelfScreen(books: List<BookEntity>, onBookClicked: (BookEntity)
     }
 }
 
-// --- Иконка импорта ---
+// =========================================================
+// 4. ИСПРАВЛЕННАЯ 3D ИКОНКА ИМПОРТА
+// =========================================================
 @Composable
 private fun VectorImportIcon() {
-    Canvas(modifier = Modifier.size(120.dp)) {
-        val cX = size.width / 2
-        val cY = size.height / 2
-        val metalGradient = Brush.linearGradient(
-            listOf(LibraryColors.MetalHighlight, LibraryColors.MetalPrimary, LibraryColors.MetalShadow),
-            start = Offset(0f, 0f),
-            end = Offset(size.width, size.height)
-        )
-        drawCircle(color = LibraryColors.Glow, radius = 70f, center = Offset(cX, cY))
-        val rectPath = Path().apply { moveTo(cX - 40f, cY); lineTo(cX - 50f, cY + 30f); lineTo(cX + 50f, cY + 30f); lineTo(cX + 40f, cY); close() }
-        drawPath(path = rectPath, brush = metalGradient)
-        drawRoundRect(brush = metalGradient, topLeft = Offset(cX - 55f, cY + 30f), size = Size(110f, 8f), cornerRadius = CornerRadius(4f, 4f))
-        val arrowPath = Path().apply { moveTo(cX - 30f, cY - 40f); lineTo(cX - 20f, cY - 40f); lineTo(cX - 20f, cY - 10f); lineTo(cX - 30f, cY - 10f); close() }
-        drawPath(path = arrowPath, brush = metalGradient)
-        val arrowHeadPath = Path().apply { moveTo(cX - 35f, cY - 10f); lineTo(cX, cY + 10f); lineTo(cX + 35f, cY - 10f); close() }
-        drawPath(path = arrowHeadPath, brush = metalGradient)
+    Box(
+        modifier = Modifier
+            .size(100.dp)
+            .shadow(20.dp, RoundedCornerShape(50), spotColor = LibraryColors.Glow)
+            .clip(RoundedCornerShape(50))
+            .background(Color(0xFF7C6B41)) // Темный фон под иконку
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val cX = size.width / 2
+            val cY = size.height / 2
+            val metalGradient = Brush.linearGradient(
+                listOf(Color(0xFFF5E6C8), Color(0xFFA0865B), Color(0xFF5C4A2E)),
+                start = Offset(0f, 0f),
+                end = Offset(size.width, size.height)
+            )
+
+            // Сама иконка (ящик)
+            val rectPath = Path().apply {
+                moveTo(cX - 30f, cY - 5f)
+                lineTo(cX - 40f, cY + 18f)
+                lineTo(cX + 40f, cY + 18f)
+                lineTo(cX + 30f, cY - 5f)
+                close()
+            }
+            drawPath(path = rectPath, brush = metalGradient)
+
+            // Полка
+            drawRoundRect(
+                brush = metalGradient,
+                topLeft = Offset(cX - 42f, cY + 18f),
+                size = Size(84f, 8f),
+                cornerRadius = CornerRadius(4f, 4f)
+            )
+
+            // Стрелка
+            val arrowPath = Path().apply {
+                moveTo(cX - 22f, cY - 30f)
+                lineTo(cX - 12f, cY - 30f)
+                lineTo(cX - 12f, cY - 5f)
+                lineTo(cX - 22f, cY - 5f)
+                close()
+            }
+            drawPath(path = arrowPath, brush = metalGradient)
+
+            val arrowHeadPath = Path().apply {
+                moveTo(cX - 28f, cY - 5f)
+                lineTo(cX, cY + 8f)
+                lineTo(cX + 28f, cY - 5f)
+                close()
+            }
+            drawPath(path = arrowHeadPath, brush = metalGradient)
+        }
     }
 }
 
-// --- Кнопка "Сканировать" ---
+// =========================================================
+// 5. ИСПРАВЛЕННАЯ 3D КНОПКА "СКАНИРОВАТЬ"
+// =========================================================
 @Composable
 private fun VectorMetalScanButton(onClick: () -> Unit) {
-    Box(modifier = Modifier.width(260.dp).height(60.dp).clickable { onClick() }) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRoundRect(
-                brush = Brush.horizontalGradient(listOf(LibraryColors.MetalShadow, LibraryColors.MetalPrimary, LibraryColors.MetalShadow)),
-                cornerRadius = CornerRadius(12f, 12f), size = size
+    Box(
+        modifier = Modifier
+            .width(260.dp)
+            .height(60.dp)
+            .shadow(12.dp, RoundedCornerShape(12.dp), spotColor = LibraryColors.Glow)
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(LibraryColors.MetalShadow, LibraryColors.MetalPrimary, LibraryColors.MetalHighlight, LibraryColors.MetalPrimary, LibraryColors.MetalShadow)
+                )
             )
-            drawRoundRect(
-                color = LibraryColors.MetalHighlight.copy(alpha = 0.3f),
-                cornerRadius = CornerRadius(12f, 12f),
-                size = Size(size.width - 4, size.height - 4),
-                topLeft = Offset(2f, 2f),
-                style = Stroke(width = 2f)
-            )
-        }
-        Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            Canvas(modifier = Modifier.size(24.dp)) {
-                drawRect(brush = SolidColor(Color.White.copy(alpha = 0.5f)), topLeft = Offset(0f, 8f), size = Size(24f, 16f))
-                drawLine(brush = SolidColor(Color.White), start = Offset(4f, 8f), end = Offset(12f, 0f), strokeWidth = 4f)
-                drawLine(brush = SolidColor(Color.White), start = Offset(20f, 8f), end = Offset(12f, 0f), strokeWidth = 4f)
+            .clickable { onClick() }
+            .drawBehind {
+                drawRoundRect(
+                    color = Color.White.copy(alpha = 0.2f),
+                    cornerRadius = CornerRadius(12f, 12f),
+                    size = Size(size.width - 4, size.height - 4),
+                    topLeft = Offset(2f, 2f),
+                    style = Stroke(width = 1f)
+                )
             }
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            // Иконка внутри кнопки
+            Box(modifier = Modifier.size(24.dp).background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(4.dp))) {
+                Canvas(modifier = Modifier.fillMaxSize().padding(4.dp)) {
+                    drawRect(
+                        brush = SolidColor(Color.White.copy(alpha = 0.7f)),
+                        topLeft = Offset(0f, 8f),
+                        size = Size(16f, 8f)
+                    )
+                    drawLine(
+                        brush = SolidColor(Color.White),
+                        start = Offset(4f, 8f),
+                        end = Offset(8f, 0f),
+                        strokeWidth = 4f
+                    )
+                    drawLine(
+                        brush = SolidColor(Color.White),
+                        start = Offset(12f, 8f),
+                        end = Offset(8f, 0f),
+                        strokeWidth = 4f
+                    )
+                }
+            }
+            
             Spacer(modifier = Modifier.width(16.dp))
+            
             Text(
                 text = "Сканировать",
                 color = Color.White,
                 fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                style = TextStyle(brush = Brush.linearGradient(listOf(Color.White, LibraryColors.MetalHighlight)))
+                fontWeight = FontWeight.Bold
             )
         }
     }
 }
 
-// --- Карточка 3D книги (САМАЯ ВАЖНАЯ ОТРИСОВКА) ---
+// =========================================================
+// 6. 3D КАРТОЧКА КНИГИ
+// =========================================================
 @Composable
 private fun BookCard(title: String, author: String, imageUrl: String, onBookClicked: () -> Unit) {
-    // Конвертация пути в Uri
     val coverUri = remember(imageUrl) {
         if (imageUrl.isNotBlank()) {
             try {
@@ -249,92 +337,92 @@ private fun BookCard(title: String, author: String, imageUrl: String, onBookClic
         modifier = Modifier
             .width(160.dp)
             .height(260.dp)
-            .clickable { onBookClicked() } // Весь блок кликабельный
+            .shadow(8.dp, RoundedCornerShape(12.dp), spotColor = Color.Black.copy(alpha = 0.4f))
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF5D4037)) // Внешняя деревянная рамка
+            .clickable { onBookClicked() }
     ) {
-        // Фон карточки
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRoundRect(color = Color(0xFF5D4037), cornerRadius = CornerRadius(12f, 12f), size = size)
-            drawRoundRect(
-                brush = Brush.verticalGradient(listOf(LibraryColors.ParchmentLight, LibraryColors.ParchmentBase, LibraryColors.ParchmentDark)),
-                cornerRadius = CornerRadius(8f, 8f),
-                size = Size(size.width - 8, size.height - 8),
-                topLeft = Offset(4f, 4f)
-            )
-            drawRect(color = Color.Black.copy(alpha = 0.15f), topLeft = Offset(8f, 16f), size = Size(size.width - 40, 120f))
-        }
-
-        Column(modifier = Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 3D Обложка
-            Box(modifier = Modifier.width(130.dp).height(110.dp)) {
-                AsyncImage(
-                    model = coverUri,
-                    contentDescription = "Book Cover",
-                    modifier = Modifier.fillMaxSize().padding(start = 20.dp),
-                    contentScale = ContentScale.Crop,
-                    error = androidx.compose.ui.res.painterResource(com.nightread.app.R.drawable.ic_launcher_background)
+        // Внутренний пергамент
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(6.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(
+                    brush = Brush.verticalGradient(listOf(LibraryColors.ParchmentLight, LibraryColors.ParchmentBase, LibraryColors.ParchmentDark))
                 )
-                // 3D Тени (Корешок и изгиб) - ОТРИСОВКА ТУТ
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    drawRect(color = Color.Black.copy(alpha = 0.4f), topLeft = Offset(0f, 0f), size = Size(20f, size.height))
-                    drawRect(
-                        brush = Brush.linearGradient(listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent)),
-                        topLeft = Offset(0f, 0f),
-                        size = Size(30f, size.height)
-                    )
-                    drawRect(
-                        brush = Brush.horizontalGradient(
-                            listOf(
-                                Color.Transparent,
-                                Color.White.copy(alpha = 0.1f),
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.3f)
-                            )
-                        ),
-                        topLeft = Offset(20f, 0f),
-                        size = Size(size.width - 20, size.height)
-                    )
-                }
-                // Текст на обложке
+        ) {
+            Column(modifier = Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // 3D Обложка
                 Box(
-                    modifier = Modifier.fillMaxSize().padding(start = 26.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier
+                        .width(130.dp)
+                        .height(110.dp)
+                        .shadow(6.dp, RoundedCornerShape(4.dp), spotColor = Color.Black.copy(alpha = 0.3f))
+                        .clip(RoundedCornerShape(4.dp))
                 ) {
-                    Text(
-                        text = title,
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        style = TextStyle(brush = Brush.linearGradient(listOf(Color(0xFF76FF03), Color(0xFF64DD17)))),
-                        modifier = Modifier.rotate(-3f)
+                    AsyncImage(
+                        model = coverUri,
+                        contentDescription = "Book Cover",
+                        modifier = Modifier.fillMaxSize().padding(start = 16.dp), // Корешок
+                        contentScale = ContentScale.Crop,
+                        error = androidx.compose.ui.res.painterResource(com.nightread.app.R.drawable.ic_launcher_background)
                     )
+                    // 3D Тени обложки
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        drawRect(color = Color.Black.copy(alpha = 0.4f), topLeft = Offset(0f, 0f), size = Size(16f, size.height))
+                        drawRect(
+                            brush = Brush.linearGradient(listOf(Color.Black.copy(alpha = 0.5f), Color.Transparent)),
+                            topLeft = Offset(0f, 0f),
+                            size = Size(24f, size.height)
+                        )
+                        drawRect(
+                            brush = Brush.horizontalGradient(
+                                listOf(Color.Transparent, Color.White.copy(alpha = 0.15f), Color.Transparent, Color.Black.copy(alpha = 0.2f))
+                            ),
+                            topLeft = Offset(16f, 0f),
+                            size = Size(size.width - 16, size.height)
+                        )
+                    }
+                    // Текст на обложке
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(start = 22.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = title,
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            style = TextStyle(brush = Brush.linearGradient(listOf(Color(0xFF76FF03), Color(0xFF64DD17)))),
+                            modifier = Modifier.rotate(-3f)
+                        )
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = title,
+                    color = Color(0xFF2E1B0E),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp,
+                    maxLines = 2
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = author,
+                    color = Color(0xFF5D4037),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
+                )
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Название внизу
-            Text(
-                text = title,
-                color = Color(0xFF2E1B0E),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                lineHeight = 18.sp,
-                maxLines = 2
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Автор внизу
-            Text(
-                text = author,
-                color = Color(0xFF5D4037),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center
-            )
         }
     }
 }
