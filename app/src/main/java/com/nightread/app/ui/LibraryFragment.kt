@@ -707,35 +707,91 @@ fun VectorMetalScanButton(onClick: () -> Unit) {
     }
 }
 
+// =======================================================================
+//  ИСПРАВЛЕННАЯ КАРТОЧКА: БЕЗ ХАРДКОДА И С ПРАВИЛЬНОЙ ЗАГРУЗКОЙ URI
+// =======================================================================
 @Composable
 fun BookCard(title: String, author: String, imageUrl: String) {
+    // Конвертируем строку пути в Android Uri (чтобы Coil мог прочитать файл)
+    val coverUri = remember(imageUrl) {
+        if (imageUrl.isNotBlank()) {
+            try {
+                Uri.fromFile(java.io.File(imageUrl))
+            } catch (e: Exception) {
+                null
+            }
+        } else null
+    }
+
     Box(modifier = Modifier.width(160.dp).height(260.dp)) {
         // Фон карточки
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawRoundRect(color = Color(0xFF5D4037), cornerRadius = CornerRadius(12f, 12f), size = size)
-            drawRoundRect(brush = Brush.verticalGradient(listOf(ParchmentLight, ParchmentBase, ParchmentDark)), cornerRadius = CornerRadius(8f, 8f), size = Size(size.width - 8, size.height - 8), topLeft = Offset(4f, 4f))
+            drawRoundRect(
+                brush = Brush.verticalGradient(listOf(ParchmentLight, ParchmentBase, ParchmentDark)),
+                cornerRadius = CornerRadius(8f, 8f),
+                size = Size(size.width - 8, size.height - 8),
+                topLeft = Offset(4f, 4f)
+            )
             drawRect(color = Color.Black.copy(alpha = 0.15f), topLeft = Offset(8f, 16f), size = Size(size.width - 40, 120f))
         }
+        
         Column(modifier = Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(modifier = Modifier.height(8.dp))
-            // 3D Обложка
+            
+            // 3D Обложка (теперь с Uri и заглушкой, если нет картинки)
             Box(modifier = Modifier.width(130.dp).height(110.dp)) {
-                AsyncImage(model = imageUrl, contentDescription = "Book Cover", modifier = Modifier.fillMaxSize().padding(start = 20.dp), contentScale = ContentScale.Crop)
+                AsyncImage(
+                    model = coverUri, 
+                    contentDescription = "Book Cover", 
+                    modifier = Modifier.fillMaxSize().padding(start = 20.dp), 
+                    contentScale = ContentScale.Crop,
+                    // Заглушка (если у книги нет обложки). Можно заменить на R.drawable.ваш_плейсхолдер
+                    error = androidx.compose.ui.res.painterResource(R.drawable.ic_launcher_background)
+                )
+                // 3D Тени (Корешок и изгиб)
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     drawRect(color = Color.Black.copy(alpha = 0.4f), topLeft = Offset(0f, 0f), size = Size(20f, size.height))
                     drawRect(brush = Brush.linearGradient(listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent)), topLeft = Offset(0f, 0f), size = Size(30f, size.height))
                     drawRect(brush = Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.1f), Color.Transparent, Color.Black.copy(alpha = 0.3f))), topLeft = Offset(20f, 0f), size = Size(size.width - 20, size.height))
                 }
+                // Текст на обложке
                 Box(modifier = Modifier.fillMaxSize().padding(start = 26.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), contentAlignment = Alignment.Center) {
-                    Text(text = title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, style = TextStyle(brush = Brush.linearGradient(listOf(Color(0xFF76FF03), Color(0xFF64DD17)))), modifier = Modifier.rotate(-3f))
+                    Text(
+                        text = title, 
+                        color = Color.White, 
+                        fontSize = 13.sp, 
+                        fontWeight = FontWeight.Bold, 
+                        textAlign = TextAlign.Center, 
+                        style = TextStyle(brush = Brush.linearGradient(listOf(Color(0xFF76FF03), Color(0xFF64DD17)))), 
+                        modifier = Modifier.rotate(-3f)
+                    )
                 }
             }
+            
             Spacer(modifier = Modifier.height(12.dp))
-            Text(title, color = Color(0xFF2E1B0E), fontSize = 14.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = 18.sp, maxLines = 2)
+            
+            // Название
+            Text(
+                text = title, 
+                color = Color(0xFF2E1B0E), 
+                fontSize = 14.sp, 
+                fontWeight = FontWeight.Bold, 
+                textAlign = TextAlign.Center, 
+                lineHeight = 18.sp, 
+                maxLines = 2
+            )
             Spacer(modifier = Modifier.height(4.dp))
-            Text(author, color = Color(0xFF5D4037), fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
-            Spacer(modifier = Modifier.height(2.dp))
-            Text("Системный практик", color = Color(0xFF8D6E63), fontSize = 11.sp, textAlign = TextAlign.Center)
+            
+            // Автор
+            Text(
+                text = author, 
+                color = Color(0xFF5D4037), 
+                fontSize = 12.sp, 
+                fontWeight = FontWeight.Medium, 
+                textAlign = TextAlign.Center
+            )
+            // !!! ХАРДКОД УДАЛЕН. БОЛЬШЕ НЕТ СТРОКИ "Системный практик" !!!
         }
     }
-}
+} 
