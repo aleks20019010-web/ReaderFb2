@@ -30,7 +30,11 @@ object DaliThemeHelper {
     const val COLOR_INK = "#2C1E12"
 
     fun isDaliActive(context: Context): Boolean {
-        return SettingsManager.getTheme(context) == "dali"
+        val theme = SettingsManager.getTheme(context)
+        if (theme == "dali") return true
+        if (theme == "light") return true
+        if (!com.nightread.app.data.ThemeHelper.shouldBeNightMode(context) && theme != "dark") return true
+        return false
     }
 
     /**
@@ -166,5 +170,48 @@ object DaliThemeHelper {
             rootView.setBackgroundColor(Color.parseColor(COLOR_PARCHMENT))
             GalaxyBgHelper.applyBackground(rootView)
         }
+    }
+
+    /**
+     * Styles the Book Detail screen to match the surreal Salvador Dalí screenshot.
+     */
+    fun styleBookDetail(
+        context: Context,
+        toolbar: androidx.appcompat.widget.Toolbar?,
+        btnReadToolbar: TextView?,
+        contentContainer: View?,
+        coverContainer: View?,
+        tvTitle: TextView?,
+        tvAuthor: TextView?,
+        tvSeries: TextView?,
+        annotationCard: View?,
+        tvAnnotation: TextView?,
+        tvAnnotationHeader: TextView?
+    ) {
+        if (!isDaliActive(context)) return
+
+        toolbar?.setNavigationIcon(R.drawable.ic_dali_snake_back)
+
+        btnReadToolbar?.apply {
+            setBackgroundResource(R.drawable.ic_dali_read_slab)
+            setTextColor(Color.parseColor("#3A2510"))
+            text = "ЧИТАТЬ"
+            setPadding(16, 4, 16, 4)
+        }
+
+        contentContainer?.setBackgroundResource(R.drawable.bg_dali_book_scroll)
+
+        coverContainer?.let {
+            it.background = ContextCompat.getDrawable(context, R.drawable.bg_card_glass)
+            it.setPadding(16, 16, 16, 16)
+        }
+
+        tvTitle?.setTextColor(Color.parseColor("#2C1E12"))
+        tvAuthor?.setTextColor(Color.parseColor("#5C3A21"))
+        tvSeries?.setTextColor(Color.parseColor("#7A4B24"))
+
+        annotationCard?.background = ContextCompat.getDrawable(context, R.drawable.bg_dali_annotation_watch)
+        tvAnnotationHeader?.setTextColor(Color.parseColor("#5C3A21"))
+        tvAnnotation?.setTextColor(Color.parseColor("#2C1E12"))
     }
 }

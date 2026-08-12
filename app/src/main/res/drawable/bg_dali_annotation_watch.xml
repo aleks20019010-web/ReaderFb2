@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="360dp"
+    android:height="200dp"
+    android:viewportWidth="360"
+    android:viewportHeight="200">
+
+    <!-- Watch Outer Gold/Bronze Melting Rim -->
+    <path
+        android:fillColor="#5C3A21"
+        android:pathData="M 30,12 C 70,4 290,4 330,12 C 352,18 350,182 328,188 C 290,196 70,196 32,188 C 10,182 8,18 30,12 Z" />
+    <path
+        android:fillColor="#8B6508"
+        android:pathData="M 32,15 C 70,7 290,7 328,15 C 348,20 346,180 326,185 C 290,192 70,192 34,185 C 14,180 12,20 32,15 Z" />
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M 35,18 C 70,10 290,10 325,18 C 344,22 342,178 323,182 C 290,188 70,188 37,182 C 18,178 16,22 35,18 Z" />
+
+    <!-- Cream Parchment Watch Face -->
+    <path
+        android:fillColor="#F6ECDA"
+        android:pathData="M 38,20 C 70,12 290,12 322,20 C 340,24 338,176 320,180 C 290,185 70,185 40,180 C 22,176 20,24 38,20 Z" />
+
+    <!-- Clock Numbers (1 to 12) placed organically along the oval rim -->
+    <!-- 12 at top center -->
+    <path android:fillColor="#3A2510" android:pathData="M 175,22 L 180,22 L 180,30 M 172,25 L 175,22" />
+    <!-- 1 -->
+    <path android:fillColor="#3A2510" android:pathData="M 220,24 L 223,24 L 223,32" />
+    <!-- 2 -->
+    <path android:fillColor="#3A2510" android:pathData="M 265,30 Q 272,25 264,35 L 260,38 L 270,38" />
+    <!-- 3 -->
+    <path android:fillColor="#3A2510" android:pathData="M 305,55 L 312,55 M 305,60 L 312,60 M 305,65 L 312,65" />
+    <!-- 4 -->
+    <path android:fillColor="#3A2510" android:pathData="M 315,105 L 312,112 L 318,112 M 317,100 L 317,118" />
+    <!-- 5 -->
+    <path android:fillColor="#3A2510" android:pathData="M 295,150 Q 302,150 298,160 L 295,162 Q 302,162 302,155" />
+    <!-- 6 (bottom with a Dali melting drip) -->
+    <path android:fillColor="#3A2510" android:pathData="M 175,170 Q 180,182 175,178 Q 170,175 170,170 Z" />
+    <!-- 7 -->
+    <path android:fillColor="#3A2510" android:pathData="M 105,165 L 112,155 L 108,155" />
+    <!-- 8 -->
+    <path android:fillColor="#3A2510" android:pathData="M 65,150 A 4,4 0 1,1 65,142 A 4,4 0 1,1 65,150 Z M 65,142 A 3,3 0 1,1 65,136 A 3,3 0 1,1 65,142 Z" />
+    <!-- 9 -->
+    <path android:fillColor="#3A2510" android:pathData="M 45,95 A 5,5 0 1,1 45,85 A 5,5 0 1,1 45,95 Z M 48,95 L 48,103" />
+    <!-- 10 -->
+    <path android:fillColor="#3A2510" android:pathData="M 65,55 L 70,55 L 70,65 M 58,58 L 62,55 L 62,65" />
+    <!-- 11 -->
+    <path android:fillColor="#3A2510" android:pathData="M 125,28 L 128,28 L 128,36 M 132,28 L 135,28 L 135,36" />
+</vector>

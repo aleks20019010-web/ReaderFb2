@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="400dp"
+    android:height="800dp"
+    android:viewportWidth="400"
+    android:viewportHeight="800">
+
+    <!-- Deep Mahogany Wood Base -->
+    <path
+        android:fillColor="#211006"
+        android:pathData="M0,0 H400 V800 H0 Z" />
+
+    <!-- Individual Wood Planks with rich grain shades -->
+    <!-- Plank 1 (Left: 0 to 133) -->
+    <path
+        android:fillColor="#3A1E0B"
+        android:pathData="M0,0 H133 V800 H0 Z" />
+    <path
+        android:fillColor="#2D1507"
+        android:pathData="M20,0 V800 M50,0 V800 M90,0 V800 M115,0 V800"
+        android:strokeColor="#170A03"
+        android:strokeWidth="3" />
+    <path
+        android:fillColor="#4A2610"
+        android:pathData="M10,0 V800 M35,0 V800 M75,0 V800"
+        android:strokeColor="#522C12"
+        android:strokeWidth="2" />
+
+    <!-- Plank 2 (Middle: 133 to 266) -->
+    <path
+        android:fillColor="#41210D"
+        android:pathData="M133,0 H266 V800 H133 Z" />
+    <path
+        android:fillColor="#2D1507"
+        android:pathData="M150,0 V800 M180,0 V800 M220,0 V800 M250,0 V800"
+        android:strokeColor="#170A03"
+        android:strokeWidth="3" />
+    <path
+        android:fillColor="#522C12"
+        android:pathData="M165,0 V800 M200,0 V800 M235,0 V800"
+        android:strokeColor="#5C3315"
+        android:strokeWidth="2" />
+
+    <!-- Plank 3 (Right: 266 to 400) -->
+    <path
+        android:fillColor="#381B09"
+        android:pathData="M266,0 H400 V800 H266 Z" />
+    <path
+        android:fillColor="#2D1507"
+        android:pathData="M285,0 V800 M320,0 V800 M360,0 V800 M385,0 V800"
+        android:strokeColor="#170A03"
+        android:strokeWidth="3" />
+    <path
+        android:fillColor="#4A2610"
+        android:pathData="M300,0 V800 M340,0 V800 M375,0 V800"
+        android:strokeColor="#522C12"
+        android:strokeWidth="2" />
+
+    <!-- Deep Plank Separator Grooves (Shadows) -->
+    <path
+        android:strokeColor="#0E0502"
+        android:strokeWidth="5"
+        android:pathData="M133,0 V800 M266,0 V800" />
+    <path
+        android:strokeColor="#5C3214"
+        android:strokeWidth="1.5"
+        android:pathData="M135,0 V800 M268,0 V800" />
+
+    <!-- Organic Wood Knots & Swirls -->
+    <!-- Knot 1 -->
+    <path
+        android:fillColor="#281205"
+        android:pathData="M70,250 C60,240 50,260 65,270 C80,280 90,260 70,250 Z" />
+    <path
+        android:strokeColor="#1D0C03"
+        android:strokeWidth="2"
+        android:pathData="M55,245 C40,230 40,290 85,285" />
+
+    <!-- Knot 2 -->
+    <path
+        android:fillColor="#281205"
+        android:pathData="M210,550 C200,540 190,560 205,570 C220,580 230,560 210,550 Z" />
+    <path
+        android:strokeColor="#1D0C03"
+        android:strokeWidth="2"
+        android:pathData="M195,545 C180,530 180,590 225,585" />
+
+    <!-- Knot 3 -->
+    <path
+        android:fillColor="#281205"
+        android:pathData="M320,150 C310,140 300,160 315,170 C330,180 340,160 320,150 Z" />
+
+    <!-- Subtle Polished Wood Lighting Shimmer (Top-to-Bottom gradient simulation) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.04"
+        android:pathData="M0,0 H400 V300 H0 Z" />
+    <path
+        android:fillColor="#000000"
+        android:fillAlpha="0.25"
+        android:pathData="M0,500 H400 V800 H0 Z" />
+</vector>

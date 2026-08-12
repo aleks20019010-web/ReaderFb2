@@ -102,13 +102,16 @@ object GalaxyBgHelper {
             starryView?.visibility = View.GONE
             return
         } else {
-            val lightDrawable = ContextCompat.getDrawable(context, R.drawable.light_bg)
-            if (lightDrawable != null) {
-                imageView.setImageDrawable(lightDrawable)
+            val woodDrawable = ContextCompat.getDrawable(context, R.drawable.bg_wood_shelf)
+            if (woodDrawable != null) {
+                imageView.setImageDrawable(woodDrawable)
                 imageView.scaleType = ImageView.ScaleType.CENTER_CROP
             } else {
-                imageView.setBackgroundColor(Color.parseColor(LIGHT_BG_COLOR))
+                imageView.setBackgroundColor(Color.parseColor("#3A2212"))
             }
+            sunbeamView?.visibility = View.VISIBLE
+            starryView?.visibility = View.GONE
+            return
         }
         updateOverlayVisibility()
     }
