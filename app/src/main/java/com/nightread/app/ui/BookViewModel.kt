@@ -711,10 +711,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 android.util.Log.e("BookScanner", "Error importing from SAF: ", e)
                 withContext(Dispatchers.Main) {
-                    onResult(false, "Ошибка импорта: ${e.localizedMessage}")
+                    onResult(false, "Ошибка импорта: ${e.localizedMessage ?: "неизвестная ошибка"}")
                 }
             }
         }
@@ -986,7 +986,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 scanner.scanBooks(force = true).join()
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 android.util.Log.e("BookViewModel", "Failed to scan books locally", e)
             } finally {
                 withContext(Dispatchers.Main) {
@@ -1048,7 +1048,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 scanner.checkForNewBooks().join()
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 android.util.Log.e("BookViewModel", "Failed to scan books incrementally", e)
             } finally {
                 withContext(Dispatchers.Main) {
