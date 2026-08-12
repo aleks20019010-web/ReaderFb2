@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="64dp"
+    android:viewportWidth="48"
+    android:viewportHeight="64">
+
+    <!-- Spindly Long Legs (Ultra thin stilt legs) -->
+    <path
+        android:strokeColor="#7A7067"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:pathData="M 16,24 L 10,62 M 20,24 L 18,62 M 28,24 L 30,62 M 32,24 L 38,62" />
+
+    <!-- Elephant Body -->
+    <path
+        android:fillColor="#8C8278"
+        android:pathData="M 14,20 C 14,14 34,14 34,20 C 36,25 12,25 14,20 Z" />
+
+    <!-- Elephant Head & Trunk Curved Upwards -->
+    <path
+        android:fillColor="#8C8278"
+        android:pathData="M 12,20 C 8,22 6,26 8,30 C 9,33 11,28 10,24 C 12,23 13,21 12,20 Z" />
+
+    <!-- Large Ear -->
+    <path
+        android:fillColor="#A0968C"
+        android:pathData="M 14,16 C 10,18 10,24 15,22 Z" />
+
+    <!-- Obelisk/Tower on Elephant Back (Dali's Space Elephant Motif) -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M 22,14 L 26,14 L 25,2 L 23,2 Z" />
+    <path
+        android:fillColor="#E6A100"
+        android:pathData="M 23,2 L 25,2 L 24,0 Z" />
+</vector>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="360dp"
+    android:height="800dp"
+    android:viewportWidth="360"
+    android:viewportHeight="800">
+
+    <!-- Overall Dark Base -->
+    <path
+        android:fillColor="#150D20"
+        android:pathData="M 0,0 L 360,0 L 360,800 L 0,800 Z" />
+
+    <!-- Top Desert Sunset Sky Gradient -->
+    <path
+        android:fillColor="#2A1738"
+        android:pathData="M 0,0 L 360,0 L 360,180 L 0,180 Z" />
+    <path
+        android:fillColor="#5A283B"
+        android:pathData="M 0,50 L 360,50 L 360,180 L 0,180 Z" />
+    <path
+        android:fillColor="#C87B3F"
+        android:pathData="M 0,100 L 360,100 L 360,180 L 0,180 Z" />
+    <path
+        android:fillColor="#E2BD82"
+        android:pathData="M 0,140 L 360,140 L 360,180 L 0,180 Z" />
+
+    <!-- Desert Mountain Horizon Contour -->
+    <path
+        android:fillColor="#6A3B22"
+        android:pathData="M 0,165 C 40,150 90,175 140,160 C 200,145 280,170 360,155 L 360,180 L 0,180 Z" />
+    <path
+        android:fillColor="#3A1D12"
+        android:pathData="M 0,172 C 60,162 120,180 180,168 C 240,158 300,175 360,165 L 360,185 L 0,185 Z" />
+
+    <!-- Lower Bio-Organic Dark Roots & Swirls Background -->
+    <path
+        android:fillColor="#1D1228"
+        android:pathData="M 0,182 L 360,182 L 360,800 L 0,800 Z" />
+
+    <!-- Organic Purple/Indigo Swirls & Tentacle Shadows -->
+    <path
+        android:fillColor="#2B193C"
+        android:pathData="M 0,220 C 80,180 120,300 40,380 C -20,440 60,520 0,600 Z" />
+    <path
+        android:fillColor="#2B193C"
+        android:pathData="M 360,280 C 280,240 240,360 320,440 C 380,500 300,600 360,680 Z" />
+    <path
+        android:fillColor="#231332"
+        android:pathData="M 0,500 C 100,450 150,650 50,750 C 10,790 0,800 0,800 Z" />
+    <path
+        android:fillColor="#231332"
+        android:pathData="M 360,450 C 260,400 210,600 310,700 C 350,750 360,800 360,800 Z" />
+
+    <!-- Subtle Golden Roots -->
+    <path
+        android:strokeColor="#4A321A"
+        android:strokeWidth="3"
+        android:pathData="M 0,200 C 60,250 10,350 70,420 C 120,480 30,580 80,680" />
+    <path
+        android:strokeColor="#4A321A"
+        android:strokeWidth="3"
+        android:pathData="M 360,220 C 300,270 350,370 290,440 C 240,500 330,600 280,700" />
+</vector>

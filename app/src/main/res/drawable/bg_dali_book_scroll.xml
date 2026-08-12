@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="70dp"
+    android:viewportWidth="120"
+    android:viewportHeight="70">
+
+    <!-- Scroll Drop Shadow -->
+    <path
+        android:fillColor="#25000000"
+        android:pathData="M 4,6 C 0,10 0,58 4,62 C 30,62 50,69 60,70 C 70,69 90,62 116,62 C 120,58 120,10 116,6 Z" />
+
+    <!-- Outer Brown Stroke -->
+    <path
+        android:fillColor="#7A4B24"
+        android:pathData="M 2,4 C -2,8 -2,56 2,60 C 28,60 48,67 60,68 C 72,67 92,60 118,60 C 122,56 122,8 118,4 Z" />
+
+    <!-- Parchment Fill -->
+    <path
+        android:fillColor="#F0E2C3"
+        android:pathData="M 4,6 C 0,10 0,54 4,58 C 28,58 48,65 60,66 C 72,65 92,58 116,58 C 120,54 120,10 116,6 Z" />
+
+    <!-- Top Left Scroll Curl -->
+    <path
+        android:fillColor="#D9C49E"
+        android:pathData="M 4,6 C 0,10 2,20 8,20 C 10,14 6,8 4,6 Z" />
+
+    <!-- Top Right Scroll Curl -->
+    <path
+        android:fillColor="#D9C49E"
+        android:pathData="M 116,6 C 120,10 118,20 112,20 C 110,14 114,8 116,6 Z" />
+
+    <!-- Inner Lighter Parchment Highlight -->
+    <path
+        android:fillColor="#F9F1DF"
+        android:pathData="M 8,8 C 5,12 5,50 8,54 C 30,54 48,61 60,62 C 72,61 90,54 112,54 C 115,50 115,12 112,8 Z" />
+</vector>

@@ -347,6 +347,7 @@ class BookAdapter(
         private val shimmerCover: com.facebook.shimmer.ShimmerFrameLayout? = itemView.findViewById(R.id.shimmerCover)
         private val vCoverGlow: View? = itemView.findViewById(R.id.vCoverGlow)
         private val cvBookCover: View = itemView.findViewById(R.id.cvBookCover)
+        private val textContainer: View? = itemView.findViewById(R.id.textContainer)
         private val cbSelect: android.widget.CheckBox? = itemView.findViewById(R.id.cbSelect)
         private val vSelectionOverlay: View? = itemView.findViewById(R.id.vSelectionOverlay)
         private val vReadingProgressTrack: View? = itemView.findViewById(R.id.vReadingProgressTrack)
@@ -497,12 +498,11 @@ class BookAdapter(
             android.util.Log.d("BookAdapter", "Binding book in ViewHolder: title='${book.title}', author='${book.author}', sha1='${book.sha1}', coverPath='${book.coverPath}'")
             if (DaliThemeHelper.isDaliActive(itemView.context)) {
                 val card = itemView as? com.google.android.material.card.MaterialCardView
-                if (card != null) {
-                    DaliThemeHelper.styleBookCard(card, true)
-                }
                 val coverCard = cvBookCover as? com.google.android.material.card.MaterialCardView
-                if (coverCard != null) {
-                    DaliThemeHelper.styleBookCard(coverCard, true)
+                if (card != null && coverCard != null && textContainer != null) {
+                    DaliThemeHelper.styleGridItem(card, coverCard, textContainer, tvBookTitle, tvBookAuthor, tvBookSeries)
+                } else if (card != null) {
+                    DaliThemeHelper.styleBookCard(card, true)
                 }
             }
             ivCover.transitionName = "cover_${book.sha1}"

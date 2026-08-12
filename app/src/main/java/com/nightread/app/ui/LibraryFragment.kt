@@ -317,6 +317,19 @@ class LibraryFragment : Fragment() {
         val starryOverlay = view.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
         starryOverlay?.transparentBackground = true
         GalaxyBgHelper.applyBackground(view)
+        val headerCard = view.findViewById<com.google.android.material.card.MaterialCardView>(R.id.glassHeaderContainer)
+        val ivDaliTopClock = view.findViewById<ImageView>(R.id.ivDaliTopClock)
+        DaliThemeHelper.styleLibraryHeader(
+            requireContext(),
+            headerCard,
+            ivDaliTopClock,
+            tvTitle,
+            tvBookCount,
+            btnMenu,
+            btnSearchToggle,
+            btnSort,
+            btnToggleTheme
+        )
 
         rvBooks.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
             var totalScrollY = 0

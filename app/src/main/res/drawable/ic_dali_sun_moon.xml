@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="42dp"
+    android:height="42dp"
+    android:viewportWidth="42"
+    android:viewportHeight="42">
+
+    <!-- Sun Rays on Left/Top -->
+    <path
+        android:fillColor="#E6A100"
+        android:pathData="M 21,3 L 23,8 L 27,2 L 26,8 L 32,5 L 29,10 L 36,11 L 31,14 L 38,18 L 32,20 L 38,24 L 31,25 L 36,30 L 29,29 L 32,35 L 26,32 L 27,38 L 23,33 L 21,39 Z" />
+
+    <!-- Golden Sun Left Half -->
+    <path
+        android:fillColor="#F5B041"
+        android:pathData="M 21,6 A 15,15 0 0,0 21,36 Z" />
+    <!-- Sun Eye and Eyebrow -->
+    <path
+        android:strokeColor="#5C3A21"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:pathData="M 12,18 C 14,16 18,16 20,18" />
+    <path
+        android:fillColor="#3A2510"
+        android:pathData="M 14,20 C 15,18 18,18 19,20 C 18,21 15,21 14,20 Z" />
+
+    <!-- Blue Crescent Moon Right Half -->
+    <path
+        android:fillColor="#3182CE"
+        android:pathData="M 21,6 A 15,15 0 0,1 21,36 A 12,12 0 0,0 21,6 Z" />
+    <!-- Moon Eye and Profile Nose Contour -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:pathData="M 23,18 C 25,16 28,16 29,18" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 24,20 C 25,19 27,19 28,20 C 27,21 25,21 24,20 Z" />
+    <!-- Stars on Moon side -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 33,12 L 34,14 L 36,14 L 34.5,15.5 L 35,17.5 L 33,16 L 31,17.5 L 31.5,15.5 L 30,14 L 32,14 Z" />
+</vector>

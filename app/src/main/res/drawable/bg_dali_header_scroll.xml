@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="360dp"
+    android:height="56dp"
+    android:viewportWidth="360"
+    android:viewportHeight="56">
+
+    <!-- Scroll Shadow -->
+    <path
+        android:fillColor="#30000000"
+        android:pathData="M 6,8 C 0,14 2,46 10,50 C 130,51 160,56 180,58 C 200,56 230,51 350,50 C 358,46 360,14 354,8 Z" />
+
+    <!-- Outer Bronze Scroll Border -->
+    <path
+        android:fillColor="#5C3A21"
+        android:pathData="M 4,4 C -2,12 0,44 8,48 C 130,49 160,54 180,56 C 200,54 230,49 352,48 C 360,44 362,12 356,4 Z" />
+
+    <!-- Parchment Scroll Body -->
+    <path
+        android:fillColor="#F0E2C3"
+        android:pathData="M 6,6 C 1,12 2,42 10,46 C 130,47 160,52 180,54 C 200,52 230,47 350,46 C 358,42 359,12 354,6 Z" />
+
+    <!-- Left Scroll Curl Highlight -->
+    <path
+        android:fillColor="#D8C29D"
+        android:pathData="M 6,6 C 1,12 2,42 10,46 C 12,46 8,24 16,10 Z" />
+
+    <!-- Right Scroll Curl Highlight -->
+    <path
+        android:fillColor="#D8C29D"
+        android:pathData="M 354,6 C 359,12 358,42 350,46 C 348,46 352,24 344,10 Z" />
+
+    <!-- Inner Parchment Highlight -->
+    <path
+        android:fillColor="#F9F2E1"
+        android:pathData="M 16,8 C 12,20 14,38 20,44 C 130,45 160,50 180,52 C 200,50 230,45 340,44 C 346,38 348,20 344,8 Z" />
+</vector>

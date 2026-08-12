@@ -4,9 +4,12 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.View
+import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.nightread.app.R
 import com.nightread.app.data.SettingsManager
@@ -15,7 +18,7 @@ import com.nightread.app.data.SettingsManager
  * Helper class implementing the Salvador Dalí Surrealism design system:
  * - Fluid, asymmetric shapes & glassmorphism
  * - Palette: Warm parchment (#F4E8D1), Melted gold (#E6A100), Crimson (#C53030), Emerald (#2F855A), Azure (#3182CE), Ink navy (#1A1829)
- * - Surreal distortions, melting effects, and status drop indicators.
+ * - Surreal distortions, melting effects, parchment scrolls, top melting clocks, and status drop indicators.
  */
 object DaliThemeHelper {
 
@@ -24,21 +27,102 @@ object DaliThemeHelper {
     const val COLOR_CRIMSON = "#C53030"
     const val COLOR_EMERALD = "#2F855A"
     const val COLOR_AZURE = "#3182CE"
-    const val COLOR_INK = "#1A1829"
+    const val COLOR_INK = "#2C1E12"
 
     fun isDaliActive(context: Context): Boolean {
         return SettingsManager.getTheme(context) == "dali"
     }
 
     /**
-     * Applies Dalí surrealism styling to a book card view (asymmetric corners, glassmorphism, melting border).
+     * Styles the library header bar to match the surreal Dali parchment scroll & eye/sun/moon icons.
+     */
+    fun styleLibraryHeader(
+        context: Context,
+        headerCard: MaterialCardView?,
+        ivTopClock: ImageView?,
+        tvTitle: TextView?,
+        tvBookCount: TextView?,
+        btnMenu: View?,
+        btnSearchToggle: View?,
+        btnSort: View?,
+        btnToggleTheme: View?
+    ) {
+        val active = isDaliActive(context)
+        if (active) {
+            ivTopClock?.visibility = View.VISIBLE
+            ivTopClock?.setImageResource(R.drawable.ic_dali_melting_clock_top)
+
+            if (headerCard != null) {
+                headerCard.background = ContextCompat.getDrawable(context, R.drawable.bg_dali_header_scroll)
+                headerCard.setCardBackgroundColor(Color.TRANSPARENT)
+                headerCard.strokeWidth = 0
+                headerCard.cardElevation = 6f
+            }
+
+            tvTitle?.setTextColor(Color.parseColor("#2C1E12"))
+            tvBookCount?.setTextColor(Color.parseColor("#6B4A2B"))
+
+            if (btnMenu is ImageButton) {
+                btnMenu.setImageResource(R.drawable.ic_dali_menu)
+                btnMenu.imageTintList = null
+            }
+
+            (btnSearchToggle as? MaterialButton)?.let {
+                it.setIconResource(R.drawable.ic_dali_eye_search)
+                it.iconTint = null
+            }
+
+            (btnSort as? MaterialButton)?.let {
+                it.setIconResource(R.drawable.ic_dali_gear)
+                it.iconTint = null
+            }
+
+            (btnToggleTheme as? MaterialButton)?.let {
+                it.setIconResource(R.drawable.ic_dali_sun_moon)
+                it.iconTint = null
+            }
+        } else {
+            ivTopClock?.visibility = View.GONE
+        }
+    }
+
+    /**
+     * Styles a book grid item (cover frame + parchment scroll label + ink text).
+     */
+    fun styleGridItem(
+        outerCard: MaterialCardView,
+        cvBookCover: MaterialCardView,
+        textContainer: View,
+        tvTitle: TextView,
+        tvAuthor: TextView,
+        tvSeries: TextView?
+    ) {
+        val context = outerCard.context
+        if (isDaliActive(context)) {
+            outerCard.setCardBackgroundColor(Color.parseColor("#251433"))
+            outerCard.strokeColor = Color.parseColor("#8B6508")
+            outerCard.strokeWidth = 2
+
+            cvBookCover.setCardBackgroundColor(Color.parseColor("#150D20"))
+            cvBookCover.strokeColor = Color.parseColor("#D4AF37")
+            cvBookCover.strokeWidth = 2
+            cvBookCover.radius = 10f * context.resources.displayMetrics.density
+
+            textContainer.background = ContextCompat.getDrawable(context, R.drawable.bg_dali_book_scroll)
+            tvTitle.setTextColor(Color.parseColor("#2C1E12"))
+            tvAuthor.setTextColor(Color.parseColor("#5C3A21"))
+            tvSeries?.setTextColor(Color.parseColor("#7A4B24"))
+        }
+    }
+
+    /**
+     * Applies Dalí surrealism styling to a book card view.
      */
     fun styleBookCard(cardView: MaterialCardView, isDali: Boolean) {
         if (isDali) {
             cardView.setCardBackgroundColor(Color.parseColor("#EEDDB8"))
             cardView.strokeColor = Color.parseColor("#E6A100")
             cardView.strokeWidth = 2
-            // Asymmetric corners: Top-Left 24dp, Top-Right 8dp, Bottom-Left 6dp, Bottom-Right 20dp
             cardView.shapeAppearanceModel = cardView.shapeAppearanceModel.toBuilder()
                 .setTopLeftCornerSize(28f)
                 .setTopRightCornerSize(10f)
@@ -46,8 +130,6 @@ object DaliThemeHelper {
                 .setBottomRightCornerSize(24f)
                 .build()
             cardView.cardElevation = 6f
-        } else {
-            // Default styling handled by theme
         }
     }
 
@@ -64,10 +146,7 @@ object DaliThemeHelper {
     }
 
     /**
-     * Returns color for book status drop indicator:
-     * - Reading ("читаю") -> Melted Gold (#E6A100)
-     * - Read ("прочитано") -> Emerald (#2F855A)
-     * - Want to read ("хочу прочитать") -> Azure (#3182CE)
+     * Returns color for book status drop indicator.
      */
     fun getStatusDropColor(status: String?): Int {
         return when (status?.lowercase()) {
@@ -79,7 +158,7 @@ object DaliThemeHelper {
     }
 
     /**
-     * Applies Dalí surrealism background or tint to root layouts.
+     * Applies Dalí surrealism background to root layouts.
      */
     fun applyDaliBackground(rootView: View) {
         val context = rootView.context

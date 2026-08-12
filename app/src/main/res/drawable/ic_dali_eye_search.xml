@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="42dp"
+    android:height="42dp"
+    android:viewportWidth="42"
+    android:viewportHeight="42">
+
+    <!-- Magnifying Glass Wooden/Bronze Handle going down-right -->
+    <path
+        android:strokeColor="#5C3A21"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M 28,28 L 38,38" />
+    <path
+        android:strokeColor="#C69255"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M 28,28 L 37,37" />
+
+    <!-- Magnifying Glass Bronze Frame -->
+    <path
+        android:strokeColor="#8B5A2B"
+        android:strokeWidth="3"
+        android:fillColor="#EEDDB8"
+        android:pathData="M 19,4 A 14,14 0 1,1 18.9,4 Z" />
+    <path
+        android:strokeColor="#D4AF37"
+        android:strokeWidth="1.5"
+        android:pathData="M 19,6 A 12,12 0 1,1 18.9,6 Z" />
+
+    <!-- Surreal Eye Shape inside Glass -->
+    <!-- White Sclera -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 9,19 C 12,13 26,13 29,19 C 26,25 12,25 9,19 Z" />
+    <path
+        android:strokeColor="#3A2510"
+        android:strokeWidth="1"
+        android:pathData="M 9,19 C 12,13 26,13 29,19 C 26,25 12,25 9,19 Z" />
+
+    <!-- Iris (Teal/Emerald Green) -->
+    <path
+        android:fillColor="#2F855A"
+        android:pathData="M 16,19 A 3.5,3.5 0 1,0 23,19 A 3.5,3.5 0 1,0 16,19" />
+
+    <!-- Pupil (Black with white light reflection) -->
+    <path
+        android:fillColor="#1A1829"
+        android:pathData="M 18,19 A 1.5,1.5 0 1,0 21,19 A 1.5,1.5 0 1,0 18,19" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 18.5,18.2 A 0.6,0.6 0 1,0 19.7,18.2 A 0.6,0.6 0 1,0 18.5,18.2" />
+</vector>

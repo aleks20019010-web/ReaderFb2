@@ -91,8 +91,13 @@ object GalaxyBgHelper {
                 imageView.setBackgroundColor(Color.parseColor(DARK_BG_COLOR))
             }
         } else if (appTheme == "dali") {
-            imageView.setImageDrawable(null)
-            imageView.setBackgroundColor(Color.parseColor("#F4E8D1"))
+            val daliDrawable = ContextCompat.getDrawable(context, R.drawable.bg_dali_desert)
+            if (daliDrawable != null) {
+                imageView.setImageDrawable(daliDrawable)
+                imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+            } else {
+                imageView.setBackgroundColor(Color.parseColor("#F4E8D1"))
+            }
             sunbeamView?.visibility = View.VISIBLE
             starryView?.visibility = View.GONE
             return
