@@ -108,14 +108,5 @@ class MainApplication : Application(), ImageLoaderFactory, androidx.work.Configu
 
         // Apply theme immediately on startup
         ThemeManager.applyTheme(this)
-
-        // Always ensure background auto-discovery runs by default
-        try {
-            AutoDiscoveryWorker.schedule(this)
-            AutoDiscoveryWorker.runOnce(this)
-            AutoDiscoveryService.start(this)
-        } catch (e: Throwable) {
-            Log.e("MainApplication", "Error starting background auto-discovery", e)
-        }
     }
 }

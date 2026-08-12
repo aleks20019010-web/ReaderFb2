@@ -93,15 +93,22 @@ class AutoDiscoveryService : Service() {
                 val bookDao = AppDatabase.getDatabase(this@AutoDiscoveryService).bookDao()
                 val scanner = com.nightread.app.scanner.LibraryScanner(this@AutoDiscoveryService, bookDao)
                 
-                val initialCount = bookDao.getSha1ToPathMap().size
+                val initialCount = try { bookDao.getSha1ToPathMap().size } catch (e: Throwable) { 0 }
                 scanner.scanBooks().join()
-                val newCount = bookDao.getSha1ToPathMap().size
+                val newCount = try { bookDao.getSha1ToPathMap().size } catch (e: Throwable) { initialCount }
                 
                 val added = newCount - initialCount
-                if (added > 0) {
-                    showNewBooksNotification(added)
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    try {
+                        val msg = if (added > 0) {
+                            "Найдено новых книг: $added"
+                        } else {
+                            "Новых книг не найдено"
+                        }
+                        android.widget.Toast.makeText(this@AutoDiscoveryService, msg, android.widget.Toast.LENGTH_SHORT).show()
+                    } catch (e: Throwable) {}
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e("AutoDiscoveryService", "Error scanning new file", e)
             }
         }

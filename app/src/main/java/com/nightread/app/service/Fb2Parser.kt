@@ -99,7 +99,7 @@ object Fb2Parser : BookParser {
                     annotation = metadata.annotation
                 )
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Failed to parse FB2 file: ${file.name}", e)
             createFallbackBook(defaultTitle)
         }
@@ -126,14 +126,11 @@ object Fb2Parser : BookParser {
                 ByteArrayInputStream(headerBytes).use { stream ->
                     parseWithXmlPullParser(stream, defaultTitle)
                 }
-            } catch (e: XmlPullParserException) {
+            } catch (e: Throwable) {
                 Log.w(TAG, "XmlPullParser failed, falling back to Regex for header parsing", e)
                 parseWithRegex(headerBytes, headerBytes.size, defaultTitle)
-            } catch (e: Exception) {
-                Log.w(TAG, "XmlPullParser error, falling back to Regex", e)
-                parseWithRegex(headerBytes, headerBytes.size, defaultTitle)
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Failed to parse FB2 InputStream", e)
             createFallbackMetadata(defaultTitle)
         }

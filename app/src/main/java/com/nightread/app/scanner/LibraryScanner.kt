@@ -459,17 +459,23 @@ class LibraryScanner(
                     addedCount++
                     try {
                         com.nightread.app.data.BookPreloader.preload(context, result.entity.sha1, file.absolutePath)
-                    } catch (e: Exception) {}
+                    } catch (e: Throwable) {}
                 }
             }
             
             val entities = batchResults.mapNotNull { it.entity }
             if (entities.isNotEmpty()) {
+                for (entity in entities) {
+                    try {
+                        bookDao.insertBook(entity)
+                    } catch (e: Throwable) {
+                        Log.e(TAG, "Failed to insert single book ${entity.title}", e)
+                    }
+                }
                 try {
-                    bookDao.insertBooks(entities)
                     updateCache(entities, batch)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to insert books", e)
+                } catch (e: Throwable) {
+                    Log.e(TAG, "Failed to update cache", e)
                 }
             }
             

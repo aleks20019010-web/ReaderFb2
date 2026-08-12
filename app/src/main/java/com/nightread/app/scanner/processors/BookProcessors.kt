@@ -59,7 +59,7 @@ class Fb2Processor : BookProcessor {
             
             val coverPath = try {
                 NewCoverExtractor.extractAndSaveCover(decodedText, sha1, context)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.w("Fb2Processor", "Cover error ${book.name}", e)
                 null
             }
@@ -80,7 +80,7 @@ class Fb2Processor : BookProcessor {
                 coverGradientStart = getRandomGradientStartColor(),
                 coverGradientEnd = getRandomGradientEndColor()
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("Fb2Processor", "Processing error ${book.name}", e)
             null
         }
@@ -95,15 +95,15 @@ class Fb2Processor : BookProcessor {
                 val encName = match.groupValues[1].trim()
                 try {
                     return String(bytes, java.nio.charset.Charset.forName(encName))
-                } catch (e: Exception) { /* ignore */ }
+                } catch (e: Throwable) { /* ignore */ }
             }
-        } catch (e: Exception) { /* ignore */ }
+        } catch (e: Throwable) { /* ignore */ }
         return try {
             String(bytes, java.nio.charset.StandardCharsets.UTF_8)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             try {
                 String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
-            } catch (e2: Exception) {
+            } catch (e2: Throwable) {
                 String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
             }
         }
@@ -221,7 +221,7 @@ class MobiProcessor : BookProcessor {
                 if (meta.coverBytes != null && meta.coverBytes.isNotEmpty()) {
                     NewCoverExtractor.saveCoverBytes(meta.coverBytes, sha1, context)
                 } else null
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.w("MobiProcessor", "Cover error ${book.name}", e)
                 null
             }
