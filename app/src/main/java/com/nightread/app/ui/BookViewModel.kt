@@ -592,10 +592,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 
                 try {
                     if (ext == "fb3" || fileName.endsWith(".fb3.zip", true)) {
-                        val parsed = com.nightread.app.service.Fb3Parser.parseFb3(localFile, fileName.substringBeforeLast(".").removeSuffix(".fb3"))
+                        val parsed = com.nightread.app.service.Fb3Parser.parseFb3(localFile, fileName.substringBeforeLast(".").removeSuffix(".fb3"), extractContent = false)
                         parsedTitle = parsed.title
                         parsedAuthor = parsed.author
-                        parsedContent = parsed.content
+                        parsedContent = ""
                         parsedSeries = parsed.series
                         parsedSeriesIndex = parsed.seriesIndex
                         parsedLanguage = parsed.language
@@ -621,10 +621,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                         } catch (e: Throwable) { null }
                     } else if (ext == "zip") {
                         if (com.nightread.app.service.Fb3Parser.isFb3(localFile)) {
-                            val parsed = com.nightread.app.service.Fb3Parser.parseFb3(localFile, fileName.substringBeforeLast("."))
+                            val parsed = com.nightread.app.service.Fb3Parser.parseFb3(localFile, fileName.substringBeforeLast("."), extractContent = false)
                             parsedTitle = parsed.title
                             parsedAuthor = parsed.author
-                            parsedContent = parsed.content
+                            parsedContent = ""
                             parsedSeries = parsed.series
                             parsedSeriesIndex = parsed.seriesIndex
                             parsedLanguage = parsed.language
@@ -704,21 +704,17 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     Log.e("BookScanner", "Error parsing manual imported book", e)
                 }
                 
-                if (parsedContent.isBlank()) {
-                    parsedContent = "Содержимое книги недоступно"
-                }
-                
-                val strippedContent = if (localFile.extension.lowercase() == "fb2") {
-                    com.nightread.app.service.NewCoverExtractor.stripBinarySections(parsedContent)
+                val approxTotalChars = if (parsedContent.isNotBlank() && parsedContent != "Содержимое книги недоступно") {
+                    parsedContent.length
                 } else {
-                    parsedContent
+                    (localFile.length() / 2).toInt().coerceAtLeast(1000)
                 }
                 
                 val newBook = BookEntity(
                     title = if (parsedTitle.isBlank()) fileName.substringBeforeLast(".") else parsedTitle,
                     author = parsedAuthor,
                     category = "Локальные",
-                    totalCharacters = strippedContent.length,
+                    totalCharacters = approxTotalChars,
                     coverGradientStart = getRandomGradientStartColor(),
                     coverGradientEnd = getRandomGradientEndColor(),
                     filePath = localFile.absolutePath,

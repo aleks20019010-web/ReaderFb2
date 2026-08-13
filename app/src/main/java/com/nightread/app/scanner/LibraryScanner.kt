@@ -471,11 +471,16 @@ class LibraryScanner(
             
             val entities = batchResults.mapNotNull { it.entity }
             if (entities.isNotEmpty()) {
-                for (entity in entities) {
-                    try {
-                        bookDao.insertBook(entity)
-                    } catch (e: Throwable) {
-                        Log.e(TAG, "Failed to insert single book ${entity.title}", e)
+                try {
+                    bookDao.insertBooks(entities)
+                } catch (e: Throwable) {
+                    Log.w(TAG, "Batch insert failed, falling back to individual inserts: ${e.message}")
+                    for (entity in entities) {
+                        try {
+                            bookDao.insertBook(entity)
+                        } catch (e2: Throwable) {
+                            Log.e(TAG, "Failed to insert single book ${entity.title}", e2)
+                        }
                     }
                 }
                 try {

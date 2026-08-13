@@ -26,21 +26,26 @@ abstract class BaseActivity : AppCompatActivity() {
         super.attachBaseContext(SettingsManager.applyLocale(newBase))
     }
 
+    open fun shouldApplyGalaxyBackground(): Boolean = true
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         currentLanguage = SettingsManager.getLanguage(this)
         currentNightMode = com.nightread.app.data.ThemeManager.shouldBeNightMode(this)
         com.nightread.app.data.ThemeManager.applyTheme(this)
-        // Устанавливаем фон на уровне окна в зависимости от темы
-        if (currentNightMode) {
-            window.setBackgroundDrawable(StarryNightDrawable())
-        } else {
-            window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.parseColor(GalaxyBgHelper.LIGHT_BG_COLOR)))
-        }
-        updateStatusBarColor()
         
-        findViewById<android.view.View>(android.R.id.content)?.let {
-            GalaxyBgHelper.applyBackground(it)
+        if (shouldApplyGalaxyBackground()) {
+            // Устанавливаем фон на уровне окна в зависимости от темы
+            if (currentNightMode) {
+                window.setBackgroundDrawable(StarryNightDrawable())
+            } else {
+                window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.parseColor(GalaxyBgHelper.LIGHT_BG_COLOR)))
+            }
+            updateStatusBarColor()
+            
+            findViewById<android.view.View>(android.R.id.content)?.let {
+                GalaxyBgHelper.applyBackground(it)
+            }
         }
     }
 
@@ -65,10 +70,12 @@ abstract class BaseActivity : AppCompatActivity() {
             )
             recreate()
         }
-        updateStatusBarColor()
-
-        findViewById<android.view.View>(android.R.id.content)?.let {
-            GalaxyBgHelper.applyBackground(it)
+        
+        if (shouldApplyGalaxyBackground()) {
+            updateStatusBarColor()
+            findViewById<android.view.View>(android.R.id.content)?.let {
+                GalaxyBgHelper.applyBackground(it)
+            }
         }
         val lang = SettingsManager.getLanguage(this)
         if (lang != currentLanguage) {

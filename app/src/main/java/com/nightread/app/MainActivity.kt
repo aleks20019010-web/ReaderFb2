@@ -44,6 +44,8 @@ class MainActivity : BaseActivity() {
 
     private var isMainUiInitialized = false
 
+    override fun shouldApplyGalaxyBackground(): Boolean = !isSplashActive
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // 1. Theme and super setup, then immediate splash view
         com.nightread.app.data.ThemeHelper.applyTheme(this)
@@ -77,11 +79,8 @@ class MainActivity : BaseActivity() {
     }
 
     private fun runSplashAndLoadData(savedInstanceState: Bundle?, isNightMode: Boolean) {
-        // Ensure dark starry background and hide sunbeam overlay during splash
-        val splashBgRoot = findViewById<android.view.View>(R.id.splash_starry_bg)
-        val starryBg = splashBgRoot?.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
-        val sunbeamBg = splashBgRoot?.findViewById<android.view.View>(R.id.sunbeamOverlay)
-        sunbeamBg?.visibility = View.GONE
+        // Configure deep dark starry cosmic view for splash
+        val starryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.splash_starry_view)
         starryBg?.visibility = View.VISIBLE
         starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
 
@@ -150,6 +149,9 @@ class MainActivity : BaseActivity() {
                     window.statusBarColor = Color.parseColor(com.nightread.app.ui.GalaxyBgHelper.LIGHT_BG_COLOR)
                 }
                 setContentView(R.layout.activity_main)
+                findViewById<android.view.View>(android.R.id.content)?.let {
+                    com.nightread.app.ui.GalaxyBgHelper.applyBackground(it)
+                }
                 val mainRoot = findViewById<View>(R.id.drawer_layout) ?: findViewById<View>(R.id.fragment_container)
                 mainRoot?.alpha = 0f
                 mainRoot?.animate()?.alpha(1f)?.setDuration(300)?.start()
