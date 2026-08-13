@@ -15,6 +15,7 @@ import kotlinx.coroutines.coroutineScope
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import okio.buffer
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
@@ -412,27 +413,18 @@ object YandexDiskManager {
         }
     }
 
-    suspend fun uploadBook(context: Context, cleanPath: String, fileBytes: ByteArray): Boolean = withContext(Dispatchers.IO) {
+    suspend fun uploadBook(context: Context, cleanPath: String, file: File): Boolean = withContext(Dispatchers.IO) {
         val token = getToken(context) ?: return@withContext false
         val authHeader = "OAuth $token"
         try {
-            val originalName = File(cleanPath).name
-            val totalSize = fileBytes.size.toLong()
+            val originalName = file.name
+            val totalSize = file.length()
             
-            // Align SHA-1 calculation with uncompressed FB2 bytes or EPUB metadata identifier
-            val tempFileForSha1 = File(context.cacheDir, "temp_upload_${System.nanoTime()}_$originalName")
-            val sha1 = try {
-                tempFileForSha1.writeBytes(fileBytes)
-                if (com.nightread.app.data.EpubIdentifierHelper.isEpub(tempFileForSha1)) {
-                    com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(tempFileForSha1)?.identifier
-                } else {
-                    com.nightread.app.data.Sha1Helper.computeSha1FromContent(tempFileForSha1)
-                }
-            } finally {
-                if (tempFileForSha1.exists()) {
-                    tempFileForSha1.delete()
-                }
-            } ?: computeSha1(fileBytes)
+            val sha1 = if (com.nightread.app.data.EpubIdentifierHelper.isEpub(file)) {
+                com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(file)?.identifier
+            } else {
+                com.nightread.app.data.Sha1Helper.computeSha1Stream(file.inputStream())
+            } ?: com.nightread.app.data.Sha1Helper.computeSha1Stream(file.inputStream())
             
             YandexSyncState.update {
                 it.copy(
@@ -444,7 +436,7 @@ object YandexDiskManager {
 
             val linkResponse = api.getUploadLink(authHeader, cleanPath)
             
-            val baseBody = fileBytes.toRequestBody("application/octet-stream".toMediaType())
+            val baseBody = file.asRequestBody("application/octet-stream".toMediaType())
             var lastUpdateBytes = 0L
             val updateThreshold = 50 * 1024 // 50 KB
             
@@ -470,7 +462,7 @@ object YandexDiskManager {
             // Сохраняем в кэш
             val db = AppDatabase.getDatabase(context)
             val cache = CloudFileCache(db.cloudFileDao())
-            cache.save(sha1, cleanPath, modified, fileBytes.size.toLong())
+            cache.save(sha1, cleanPath, modified, totalSize)
             
             Log.d(TAG, "Uploaded book and cached SHA-1: $cleanPath")
             true

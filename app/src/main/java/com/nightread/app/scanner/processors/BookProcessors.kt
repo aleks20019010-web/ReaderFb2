@@ -35,7 +35,8 @@ class Fb2Processor : BookProcessor {
             val contentResolver = context.contentResolver
             val sha1 = computeBookSha1(book, context)
             
-            val fullBytes = withContext(Dispatchers.IO) {
+            // 1. Parse Metadata
+            val metadata = withContext(Dispatchers.IO) {
                 contentResolver.openInputStream(book.uri)?.use { input ->
                     val actualInput = if (book.name.lowercase().endsWith(".zip") || book.name.lowercase().endsWith(".fb2.zip")) {
                         val zis = java.util.zip.ZipInputStream(input)
@@ -47,21 +48,34 @@ class Fb2Processor : BookProcessor {
                     } else {
                         input
                     }
-                    actualInput?.readBytes()
+                    if (actualInput != null) {
+                        com.nightread.app.service.Fb2Parser.parse(actualInput, book.name.substringBeforeLast('.'))
+                    } else null
                 }
             } ?: return null
             
-            val decodedText = decodeBytesToString(fullBytes)
-            
-            val metadata = withContext(Dispatchers.Default) {
-                Fb2Parser.parse(decodedText, book.name.substringBeforeLast('.'))
-            }
-            
-            val coverPath = try {
-                NewCoverExtractor.extractAndSaveCover(decodedText, sha1, context)
-            } catch (e: Throwable) {
-                Log.w("Fb2Processor", "Cover error ${book.name}", e)
-                null
+            // 2. Extract Cover
+            val coverPath = withContext(Dispatchers.IO) {
+                try {
+                    contentResolver.openInputStream(book.uri)?.use { input ->
+                        val actualInput = if (book.name.lowercase().endsWith(".zip") || book.name.lowercase().endsWith(".fb2.zip")) {
+                            val zis = java.util.zip.ZipInputStream(input)
+                            var entry = zis.nextEntry
+                            while (entry != null && !entry.name.lowercase().endsWith(".fb2")) {
+                                entry = zis.nextEntry
+                            }
+                            if (entry != null) zis else null
+                        } else {
+                            input
+                        }
+                        if (actualInput != null) {
+                            com.nightread.app.service.Fb2CoverExtractor.extract(actualInput, sha1, context)
+                        } else null
+                    }
+                } catch (e: Throwable) {
+                    Log.w("Fb2Processor", "Cover error ${book.name}", e)
+                    null
+                }
             }
             
             BookEntity(
@@ -252,7 +266,11 @@ class ZipProcessor : BookProcessor {
             val contentResolver = context.contentResolver
             val sha1 = computeBookSha1(book, context)
             
-            val innerBookData = withContext(Dispatchers.IO) {
+            var innerName: String? = null
+            var innerExt: String? = null
+            var tempFile: File? = null
+            
+            withContext(Dispatchers.IO) {
                 contentResolver.openInputStream(book.uri)?.use { input ->
                     java.util.zip.ZipInputStream(input).use { zis ->
                         var entry = zis.nextEntry
@@ -267,34 +285,36 @@ class ZipProcessor : BookProcessor {
                                 entryName.endsWith(".azw") || 
                                 entryName.endsWith(".azw3")
                             )) {
-                                val bytes = zis.readBytes()
-                                if (bytes.isNotEmpty()) {
-                                    return@withContext Pair(entry.name, bytes)
+                                innerName = entry.name
+                                innerExt = innerName!!.substringAfterLast('.', "").lowercase()
+                                tempFile = File.createTempFile("inner_book_", ".$innerExt", context.cacheDir)
+                                tempFile!!.outputStream().use { fos ->
+                                    val buffer = ByteArray(8192)
+                                    var count: Int
+                                    while (zis.read(buffer).also { count = it } != -1) {
+                                        fos.write(buffer, 0, count)
+                                    }
                                 }
+                                break
                             }
                             entry = zis.nextEntry
                         }
-                        null
                     }
                 }
-            } ?: return null
-
-            val (innerName, innerBytes) = innerBookData
-            val innerExt = innerName.substringAfterLast('.', "").lowercase()
-
-            val tempFile = File.createTempFile("inner_book_", ".$innerExt", context.cacheDir)
-            tempFile.writeBytes(innerBytes)
-
+            }
+            
+            if (innerName == null || tempFile == null) return null
+            
             val innerBookSource = BookSource(
-                uri = Uri.fromFile(tempFile),
-                name = innerName,
-                size = innerBytes.size.toLong(),
+                uri = android.net.Uri.fromFile(tempFile),
+                name = innerName!!,
+                size = tempFile!!.length(),
                 modified = book.modified,
-                realPath = tempFile.absolutePath
+                realPath = tempFile!!.absolutePath
             )
 
             val processor = when {
-                innerExt == "fb2" || innerName.endsWith(".fb2.xml") -> Fb2Processor()
+                innerExt == "fb2" || innerName!!.endsWith(".fb2.xml") -> Fb2Processor()
                 innerExt == "epub" -> EpubProcessor()
                 innerExt == "fb3" -> Fb3Processor()
                 innerExt == "mobi" || innerExt == "azw" || innerExt == "azw3" -> MobiProcessor()
@@ -302,14 +322,14 @@ class ZipProcessor : BookProcessor {
             }
 
             val entity = processor?.process(innerBookSource, context)
-            tempFile.delete()
+            tempFile?.delete()
 
             if (entity != null) {
                 entity.copy(
                     sha1 = sha1,
                     filePath = resolveBookPath(book, context),
                     fileSize = book.size,
-                    title = if (entity.title.isBlank() || entity.title == innerName.substringBeforeLast('.')) book.name.substringBeforeLast('.') else entity.title
+                    title = if (entity.title.isBlank() || entity.title == innerName!!.substringBeforeLast('.')) book.name.substringBeforeLast('.') else entity.title
                 )
             } else {
                 null

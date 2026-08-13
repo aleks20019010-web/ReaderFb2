@@ -110,24 +110,28 @@ class ScannerPreferences(private val context: Context) {
                         .joinToString("") { "%02x".format(it) }
                 } ?: ""
             } catch (e: Throwable) {
-                // Fallback: hash external storage book files
-                val externalStorage = Environment.getExternalStorageDirectory()
-                val bookDirs = listOf("Books", "books", "Книги", "книги", "Download", "Downloads", "Загрузки", "Documents", "Документы")
-                val sb = StringBuilder()
-                for (dirName in bookDirs) {
-                    val dir = File(externalStorage, dirName)
-                    if (dir.exists() && dir.isDirectory) {
-                        dir.listFiles()?.forEach { file ->
-                            if (file.isFile) {
-                                sb.append(file.absolutePath).append("_").append(file.length()).append("_").append(file.lastModified()).append("|")
+                // Fallback: hash external storage book files safely
+                try {
+                    val externalStorage = Environment.getExternalStorageDirectory()
+                    val bookDirs = listOf("Books", "books", "Книги", "книги", "Download", "Downloads", "Загрузки", "Documents", "Документы")
+                    val sb = StringBuilder()
+                    for (dirName in bookDirs) {
+                        val dir = File(externalStorage, dirName)
+                        if (dir.exists() && dir.isDirectory) {
+                            dir.listFiles()?.forEach { file ->
+                                if (file.isFile) {
+                                    sb.append(file.absolutePath).append("_").append(file.length()).append("_").append(file.lastModified()).append("|")
+                                }
                             }
                         }
                     }
+                    val input = if (sb.isNotEmpty()) sb.toString() else System.currentTimeMillis().toString()
+                    MessageDigest.getInstance("SHA-1")
+                        .digest(input.toByteArray())
+                        .joinToString("") { "%02x".format(it) }
+                } catch (fallbackEx: Throwable) {
+                    System.currentTimeMillis().toString()
                 }
-                val input = if (sb.isNotEmpty()) sb.toString() else System.currentTimeMillis().toString()
-                MessageDigest.getInstance("SHA-1")
-                    .digest(input.toByteArray())
-                    .joinToString("") { "%02x".format(it) }
             }
         }
     }

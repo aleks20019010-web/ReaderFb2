@@ -7,6 +7,7 @@ import android.os.Environment
 import android.util.Log
 import com.nightread.app.service.NewCoverExtractor
 import com.nightread.app.service.Fb2Parser
+import com.nightread.app.data.Sha1Helper.computeSha1Stream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -788,7 +789,6 @@ class YandexSyncManager(private val context: Context) {
                             }
                         }
                         
-                        val bytes = tempFile.readBytes()
                         val isEpub = originalName.lowercase().endsWith(".epub") || EpubIdentifierHelper.isEpub(tempFile)
                         
                         var sha1: String? = null
@@ -808,7 +808,7 @@ class YandexSyncManager(private val context: Context) {
                         
                         if (isFb3) {
                             val parsed = com.nightread.app.service.Fb3Parser.parseFb3(tempFile, originalName.substringBeforeLast(".").removeSuffix(".fb3"))
-                            sha1 = computeSha1(bytes)
+                            sha1 = computeSha1Stream(tempFile.inputStream())
                             titleText = parsed.title
                             authorText = parsed.author
                             seriesText = parsed.series
@@ -816,12 +816,12 @@ class YandexSyncManager(private val context: Context) {
                             langText = parsed.language
                             truncatedAnnotation = parsed.annotation?.take(1000)
                             if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
-                                coverPath = com.nightread.app.service.NewCoverExtractor.saveCoverBytes(parsed.coverBytes, sha1, context)
+                                coverPath = com.nightread.app.service.NewCoverExtractor.saveCoverBytes(parsed.coverBytes, sha1!!, context)
                             }
                             processSuccess = true
                         } else if (isEpub) {
                             val metadata = EpubIdentifierHelper.getEpubMetadata(tempFile)
-                            sha1 = metadata?.identifier?.takeIf { it.isNotBlank() } ?: computeSha1(bytes)
+                            sha1 = metadata?.identifier?.takeIf { it.isNotBlank() } ?: computeSha1Stream(tempFile.inputStream())
                             titleText = metadata?.title?.takeIf { it.isNotBlank() }
                             authorText = metadata?.author?.takeIf { it.isNotBlank() }
                             seriesText = null
@@ -831,7 +831,7 @@ class YandexSyncManager(private val context: Context) {
                             coverPath = metadata?.coverPath?.let { EpubIdentifierHelper.extractAndSaveEpubCover(tempFile, it, sha1!!, context) }
                         } else if (isMobi) {
                             val parsed = com.nightread.app.service.MobiParser.parse(tempFile, originalName.substringBeforeLast("."))
-                            sha1 = computeSha1(bytes)
+                            sha1 = computeSha1Stream(tempFile.inputStream())
                             titleText = parsed.title
                             authorText = parsed.author
                             seriesText = null
@@ -850,22 +850,53 @@ class YandexSyncManager(private val context: Context) {
                                 }
                             }
                         } else {
-                            val fb2Bytes = extractFb2Bytes(bytes, originalName)
-                            if (fb2Bytes.isNotEmpty()) {
-                                sha1 = computeSha1(fb2Bytes)
-                                val content = decodeBytesToString(fb2Bytes)
-                                val meta = Fb2Parser.parse(content, originalName)
-                                titleText = meta.title
-                                authorText = meta.author
-                                seriesText = meta.series
-                                seriesIdx = meta.seriesIndex
-                                langText = meta.language
-                                truncatedAnnotation = meta.annotation?.take(1000)
-                                coverPath = NewCoverExtractor.extractAndSaveCover(content, sha1, context)
+                            var innerName = originalName
+                            val fb2StreamAndDo = { action: (java.io.InputStream) -> Unit ->
+                                if (originalName.lowercase().endsWith(".zip") || originalName.lowercase().endsWith(".fb2.zip")) {
+                                    java.util.zip.ZipInputStream(tempFile.inputStream()).use { zis ->
+                                        var entry = zis.nextEntry
+                                        var found = false
+                                        while (entry != null) {
+                                            if (!entry.isDirectory && entry.name.lowercase().endsWith(".fb2")) {
+                                                innerName = entry.name
+                                                action(zis)
+                                                found = true
+                                                break
+                                            }
+                                            entry = zis.nextEntry
+                                        }
+                                        if (!found) {
+                                            action(tempFile.inputStream())
+                                        }
+                                    }
+                                } else {
+                                    tempFile.inputStream().use { action(it) }
+                                }
+                            }
+
+                            fb2StreamAndDo { input ->
+                                val meta = Fb2Parser.parse(input, innerName)
+                                if (meta.title.isNotBlank()) {
+                                    titleText = meta.title
+                                    authorText = meta.author
+                                    seriesText = meta.series
+                                    seriesIdx = meta.seriesIndex
+                                    langText = meta.language
+                                    truncatedAnnotation = meta.annotation?.take(1000)
+                                    processSuccess = true
+                                }
+                            }
+                            
+                            sha1 = computeSha1Stream(tempFile.inputStream())
+                            
+                            if (processSuccess) {
+                                fb2StreamAndDo { input ->
+                                    coverPath = com.nightread.app.service.Fb2CoverExtractor.extract(input, sha1!!, context)
+                                }
                             }
                         }
                         
-                        val finalSha1 = sha1?.takeIf { it.isNotBlank() } ?: computeSha1(bytes)
+                        val finalSha1 = sha1?.takeIf { it.isNotBlank() } ?: computeSha1Stream(tempFile.inputStream())
                         val finalTitle = titleText?.takeIf { it.isNotBlank() } ?: originalName.substringBeforeLast(".")
                         val finalAuthor = authorText?.takeIf { it.isNotBlank() } ?: "Неизвестный автор"
 
@@ -886,7 +917,7 @@ class YandexSyncManager(private val context: Context) {
                                 seriesIndex = seriesIdx,
                                 language = langText ?: "ru",
                                 annotation = truncatedAnnotation,
-                                fileSize = bytes.size.toLong(),
+                                fileSize = tempFile.length(),
                                 coverPath = coverPath,
                                 currentPageIndex = progressPayload?.page ?: 0,
                                 currentProgressChar = progressPayload?.charOffset ?: 0,
@@ -950,8 +981,7 @@ class YandexSyncManager(private val context: Context) {
                 if (localFile != null && localFile.exists()) {
                     try {
                         val cleanPath = YandexDiskManager.normalizePath("$syncFolder/$originalName")
-                        val fileBytes = localFile.readBytes()
-                        val success = YandexDiskManager.uploadBook(context, cleanPath, fileBytes)
+                        val success = YandexDiskManager.uploadBook(context, cleanPath, localFile)
                         if (success) {
                             uploadedCount++
                             Log.d(TAG, "Успешно загружена книга: $originalName")
@@ -985,71 +1015,6 @@ class YandexSyncManager(private val context: Context) {
             false
         } finally {
             cleanupTempFiles()
-        }
-    }
-
-    private fun computeSha1(bytes: ByteArray): String {
-        val digest = java.security.MessageDigest.getInstance("SHA-1")
-        val hash = digest.digest(bytes)
-        return hash.joinToString("") { "%02x".format(it) }
-    }
-
-    private fun extractFb2Bytes(bytes: ByteArray, fileName: String): ByteArray {
-        return try {
-            val lowerName = fileName.lowercase()
-            if (lowerName.endsWith(".zip") || lowerName.endsWith(".fb2.zip")) {
-                java.util.zip.ZipInputStream(bytes.inputStream()).use { zis ->
-                    var entry = zis.nextEntry
-                    while (entry != null) {
-                        if (!entry.isDirectory && entry.name.lowercase().endsWith(".fb2")) {
-                            return zis.readBytes()
-                        }
-                        entry = zis.nextEntry
-                    }
-                }
-                byteArrayOf()
-            } else {
-                bytes
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error extracting FB2 bytes from $fileName", e)
-            byteArrayOf()
-        }
-    }
-
-    private fun decodeBytesToString(bytes: ByteArray): String {
-        return try {
-            val prefixLen = minOf(bytes.size, 2048)
-            val prefix = String(bytes, 0, prefixLen, StandardCharsets.UTF_8)
-            if (prefix.contains("<?xml", ignoreCase = true) || prefix.contains("<fictionbook", ignoreCase = true)) {
-                String(bytes, StandardCharsets.UTF_8)
-            } else {
-                String(bytes, java.nio.charset.Charset.forName("windows-1251"))
-            }
-        } catch (e: Exception) {
-            String(bytes, StandardCharsets.UTF_8)
-        }
-    }
-    
-    private fun extractContentFromBytes(bytes: ByteArray, fileName: String): String {
-        return try {
-            if (fileName.lowercase().endsWith(".zip")) {
-                java.util.zip.ZipInputStream(bytes.inputStream()).use { zis ->
-                    var entry = zis.nextEntry
-                    while (entry != null) {
-                        if (!entry.isDirectory && entry.name.lowercase().endsWith(".fb2")) {
-                            return zis.bufferedReader().use { it.readText() }
-                        }
-                        entry = zis.nextEntry
-                    }
-                }
-                ""
-            } else {
-                String(bytes, StandardCharsets.UTF_8)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error extracting content from $fileName", e)
-            ""
         }
     }
 

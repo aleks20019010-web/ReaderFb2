@@ -467,12 +467,16 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val contentResolver = context.contentResolver
                 var fileName = "imported_book.fb2"
-                val cursor = contentResolver.query(uri, null, null, null, null)
+                val cursor = try {
+                    contentResolver.query(uri, null, null, null, null)
+                } catch (e: Throwable) {
+                    null
+                }
                 cursor?.use {
                     if (it.moveToFirst()) {
                         val nameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                         if (nameIndex != -1) {
-                            fileName = it.getString(nameIndex)
+                            fileName = it.getString(nameIndex) ?: "imported_book.fb2"
                         }
                     }
                 }
@@ -480,7 +484,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 var ext = fileName.substringAfterLast(".", "").lowercase()
                 if (ext == fileName.lowercase()) ext = ""
                 if (ext.isEmpty() || ext == "bin" || ext == "file") {
-                    val mimeType = contentResolver.getType(uri)
+                    val mimeType = try { contentResolver.getType(uri) } catch (e: Throwable) { null }
                     ext = when (mimeType) {
                         "application/epub+zip" -> "epub"
                         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> "docx"
@@ -492,63 +496,44 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                         else -> ext
                     }
                 }
-                
-                val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                if (bytes == null || bytes.isEmpty()) {
-                    withContext(Dispatchers.Main) {
-                        onResult(false, "Не удалось прочитать файл (файл пуст).")
-                    }
-                    return@launch
+                if (ext.isEmpty()) ext = "fb2"
+
+                val importedFolder = java.io.File(context.filesDir, "imported_books")
+                if (!importedFolder.exists()) {
+                    importedFolder.mkdirs()
                 }
-                
-                // Align ZIP SHA-1 calculation with uncompressed FB2 bytes just like in scanning
-                var bytesForSha1 = bytes
-                if (ext == "zip") {
-                    try {
-                        java.io.ByteArrayInputStream(bytes).use { bais ->
-                            java.util.zip.ZipInputStream(bais).use { zis ->
-                                var entry = zis.nextEntry
-                                var foundFb2 = false
-                                while (entry != null) {
-                                    val entryName = entry.name.lowercase()
-                                    if (!entry.isDirectory && entryName.endsWith(".fb2")) {
-                                        foundFb2 = true
-                                        val buffer = java.io.ByteArrayOutputStream()
-                                        val data = ByteArray(8192)
-                                        var nRead: Int
-                                        while (zis.read(data, 0, data.size).also { nRead = it } != -1) {
-                                            buffer.write(data, 0, nRead)
-                                        }
-                                        bytesForSha1 = buffer.toByteArray()
-                                        break
-                                    }
-                                    entry = zis.nextEntry
-                                }
-                                if (!foundFb2) {
-                                    withContext(Dispatchers.Main) {
-                                        onResult(false, "Внутри ZIP-архива не найден файл .fb2")
-                                    }
-                                    return@launch
-                                }
-                            }
+
+                val tempFile = java.io.File(importedFolder, "temp_${System.currentTimeMillis()}.$ext")
+                try {
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        tempFile.outputStream().use { output ->
+                            input.copyTo(output)
                         }
-                    } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
+                    } ?: run {
                         withContext(Dispatchers.Main) {
-                            onResult(false, "Ошибка чтения ZIP-архива: ${e.localizedMessage}")
+                            onResult(false, "Не удалось открыть поток для файла.")
                         }
+                        try { tempFile.delete() } catch (ignored: Throwable) {}
                         return@launch
                     }
+                } catch (e: Throwable) {
+                    withContext(Dispatchers.Main) {
+                        onResult(false, "Ошибка копирования файла: ${e.localizedMessage ?: "неизвестная ошибка"}")
+                    }
+                    try { tempFile.delete() } catch (ignored: Throwable) {}
+                    return@launch
                 }
+
+                if (!tempFile.exists() || tempFile.length() <= 0L) {
+                    withContext(Dispatchers.Main) {
+                        onResult(false, "Файл пуст или не может быть прочитан.")
+                    }
+                    try { tempFile.delete() } catch (ignored: Throwable) {}
+                    return@launch
+                }
+
+                val computedSha1 = com.nightread.app.data.Sha1Helper.computeSha1FromContent(tempFile) ?: java.util.UUID.randomUUID().toString()
                 
-                val finalBytesForSha1: ByteArray = bytesForSha1!!
-                
-                val digest = java.security.MessageDigest.getInstance("SHA-1")
-                digest.update(finalBytesForSha1)
-                val fileSha1 = digest.digest().joinToString("") { String.format("%02x", it) }
-                
-                var computedSha1 = fileSha1
                 var parsedTitle = fileName.substringBeforeLast(".")
                 var parsedAuthor = "Неизвестен"
                 var parsedContent = ""
@@ -557,72 +542,57 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 var parsedLanguage: String? = "ru"
                 var parsedAnnotation: String? = null
                 var coverPath: String? = null
-                
-                val importedFolder = java.io.File(context.filesDir, "imported_books")
-                if (!importedFolder.exists()) {
-                    importedFolder.mkdirs()
-                }
 
-                // If it is an EPUB, parse its identifier first
                 if (ext == "epub") {
-                    val tempLocalFile = java.io.File(importedFolder, "temp_$fileSha1.epub")
-                    tempLocalFile.writeBytes(bytes)
-                    val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(tempLocalFile)
-                    if (metadata != null) {
-                        computedSha1 = metadata.identifier
-                        parsedTitle = metadata.title
-                        parsedAuthor = metadata.author
-                        parsedContent = metadata.content
-                        parsedAnnotation = metadata.description
+                    try {
+                        val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(tempFile)
+                        if (metadata != null) {
+                            parsedTitle = metadata.title
+                            parsedAuthor = metadata.author
+                            parsedContent = metadata.content
+                            parsedAnnotation = metadata.description
+                        }
+                    } catch (e: Throwable) {
+                        Log.e("BookScanner", "Error reading EPUB metadata", e)
                     }
-                    try { tempLocalFile.delete() } catch (ignored: Exception) {}
                 }
 
                 val sanitizedFileName = computedSha1.replace("[^a-zA-Z0-9._-]".toRegex(), "_")
                 val localFile = java.io.File(importedFolder, "$sanitizedFileName.$ext")
-                localFile.writeBytes(bytes)
+                try {
+                    if (tempFile.absolutePath != localFile.absolutePath) {
+                        if (localFile.exists()) localFile.delete()
+                        tempFile.renameTo(localFile)
+                    }
+                } catch (e: Throwable) {
+                    try { tempFile.copyTo(localFile, overwrite = true); tempFile.delete() } catch (ignored: Throwable) {}
+                }
+
+                if (!localFile.exists()) {
+                    tempFile.inputStream().use { input ->
+                        localFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    try { tempFile.delete() } catch (ignored: Throwable) {}
+                }
 
                 Log.d("BookScanner", "[MANUAL-SHA1] Calculated SHA-1: $computedSha1 for manual imported file: $fileName")
                 
-                // Query database directly to avoid any flow latency/cache duplication issues
-                val duplicate = repository.getBookBySha1(computedSha1)
-                
+                val duplicate = try { repository.getBookBySha1(computedSha1) } catch (e: Throwable) { null }
                 if (duplicate != null) {
-                    Log.d("BookScanner", "[MANUAL-DUPLICATE] Book with SHA-1 $computedSha1 already exists in database. Updating its file path to ${localFile.absolutePath}")
+                    Log.d("BookScanner", "[MANUAL-DUPLICATE] Book with SHA-1 $computedSha1 already exists. Updating path.")
                     val updatedBook = duplicate.copy(filePath = localFile.absolutePath)
-                    repository.insertBook(updatedBook)
+                    try { repository.insertBook(updatedBook) } catch (e: Throwable) {}
                     withContext(Dispatchers.Main) {
-                        onResult(true, "Книга \"${duplicate.title}\" успешно обновлена (путь изменен)!")
+                        onResult(true, "Книга \"${duplicate.title}\" успешно обновлена!")
                     }
                     return@launch
                 }
                 
-                if (ext == "fb3" || fileName.endsWith(".fb3.zip", true)) {
-                    val parsed = com.nightread.app.service.Fb3Parser.parseFb3(localFile, fileName.substringBeforeLast(".").removeSuffix(".fb3"))
-                    parsedTitle = parsed.title
-                    parsedAuthor = parsed.author
-                    parsedContent = parsed.content
-                    parsedSeries = parsed.series
-                    parsedSeriesIndex = parsed.seriesIndex
-                    parsedLanguage = parsed.language
-                    parsedAnnotation = parsed.annotation
-                    if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
-                        coverPath = com.nightread.app.service.NewCoverExtractor.saveCoverBytes(parsed.coverBytes, computedSha1, context)
-                    }
-                } else if (ext == "fb2") {
-                    val rawText = decodeBytesToString(bytes)
-                    val parsed = parseFb2DetailedText(rawText, parsedTitle)
-                    parsedTitle = parsed.title
-                    parsedAuthor = parsed.author
-                    parsedContent = parsed.content
-                    parsedSeries = parsed.series
-                    parsedSeriesIndex = parsed.seriesIndex
-                    parsedLanguage = parsed.language
-                    parsedAnnotation = parsed.annotation
-                    coverPath = extractAndSaveCover(localFile, computedSha1)
-                } else if (ext == "zip") {
-                    if (com.nightread.app.service.Fb3Parser.isFb3(localFile)) {
-                        val parsed = com.nightread.app.service.Fb3Parser.parseFb3(localFile, fileName.substringBeforeLast("."))
+                try {
+                    if (ext == "fb3" || fileName.endsWith(".fb3.zip", true)) {
+                        val parsed = com.nightread.app.service.Fb3Parser.parseFb3(localFile, fileName.substringBeforeLast(".").removeSuffix(".fb3"))
                         parsedTitle = parsed.title
                         parsedAuthor = parsed.author
                         parsedContent = parsed.content
@@ -633,10 +603,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                         if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
                             coverPath = com.nightread.app.service.NewCoverExtractor.saveCoverBytes(parsed.coverBytes, computedSha1, context)
                         }
-                    } else {
-                        // Extract data from the uncompressed bytes we found earlier
-                        val rawText = decodeBytesToString(finalBytesForSha1)
-                        val parsed = parseFb2DetailedText(rawText, fileName.substringBeforeLast(".").removeSuffix(".fb2"))
+                    } else if (ext == "fb2") {
+                        val parsed = java.io.FileInputStream(localFile).use { input -> 
+                            com.nightread.app.service.Fb2Parser.parse(input, parsedTitle)
+                        }
                         parsedTitle = parsed.title
                         parsedAuthor = parsed.author
                         parsedContent = parsed.content
@@ -644,40 +614,98 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                         parsedSeriesIndex = parsed.seriesIndex
                         parsedLanguage = parsed.language
                         parsedAnnotation = parsed.annotation
-                        coverPath = extractAndSaveCover(localFile, computedSha1)
+                        coverPath = try {
+                            java.io.FileInputStream(localFile).use { input ->
+                                com.nightread.app.service.Fb2CoverExtractor.extract(input, computedSha1, context)
+                            }
+                        } catch (e: Throwable) { null }
+                    } else if (ext == "zip") {
+                        if (com.nightread.app.service.Fb3Parser.isFb3(localFile)) {
+                            val parsed = com.nightread.app.service.Fb3Parser.parseFb3(localFile, fileName.substringBeforeLast("."))
+                            parsedTitle = parsed.title
+                            parsedAuthor = parsed.author
+                            parsedContent = parsed.content
+                            parsedSeries = parsed.series
+                            parsedSeriesIndex = parsed.seriesIndex
+                            parsedLanguage = parsed.language
+                            parsedAnnotation = parsed.annotation
+                            if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
+                                coverPath = com.nightread.app.service.NewCoverExtractor.saveCoverBytes(parsed.coverBytes, computedSha1, context)
+                            }
+                        } else {
+                            val innerFile = java.io.File.createTempFile("manual_zip_", ".fb2", context.cacheDir)
+                            var foundFb2 = false
+                            java.io.FileInputStream(localFile).use { fis ->
+                                java.util.zip.ZipInputStream(fis).use { zis ->
+                                    var entry = zis.nextEntry
+                                    while (entry != null) {
+                                        if (!entry.isDirectory && entry.name.lowercase().endsWith(".fb2")) {
+                                            innerFile.outputStream().use { fos ->
+                                                val bufferData = ByteArray(8192)
+                                                var n: Int
+                                                while (zis.read(bufferData, 0, bufferData.size).also { n = it } != -1) {
+                                                    fos.write(bufferData, 0, n)
+                                                }
+                                            }
+                                            foundFb2 = true
+                                            break
+                                        }
+                                        entry = zis.nextEntry
+                                    }
+                                }
+                            }
+                            
+                            if (foundFb2) {
+                                val parsed = java.io.FileInputStream(innerFile).use { input -> 
+                                    com.nightread.app.service.Fb2Parser.parse(input, fileName.substringBeforeLast(".").removeSuffix(".fb2"))
+                                }
+                                parsedTitle = parsed.title
+                                parsedAuthor = parsed.author
+                                parsedContent = parsed.content
+                                parsedSeries = parsed.series
+                                parsedSeriesIndex = parsed.seriesIndex
+                                parsedLanguage = parsed.language
+                                parsedAnnotation = parsed.annotation
+                                coverPath = try {
+                                    java.io.FileInputStream(innerFile).use { input ->
+                                        com.nightread.app.service.Fb2CoverExtractor.extract(input, computedSha1, context)
+                                    }
+                                } catch (e: Throwable) { null }
+                                try { innerFile.delete() } catch (ignored: Throwable) {}
+                            }
+                        }
+                    } else if (ext == "epub") {
+                        val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(localFile)
+                        if (metadata != null) {
+                            parsedTitle = metadata.title
+                            parsedAuthor = metadata.author
+                            parsedContent = metadata.content
+                            parsedAnnotation = metadata.description
+                            coverPath = com.nightread.app.data.EpubIdentifierHelper.extractAndSaveEpubCover(localFile, metadata.coverPath, computedSha1, context)
+                        }
+                    } else if (ext in listOf("mobi", "azw", "azw3")) {
+                        val parsed = com.nightread.app.service.MobiParser.parse(localFile, fileName.substringBeforeLast("."))
+                        parsedTitle = parsed.title
+                        parsedAuthor = parsed.author
+                        parsedContent = parsed.content
+                        if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
+                            try {
+                                val coversDir = java.io.File(context.filesDir, "covers")
+                                if (!coversDir.exists()) coversDir.mkdirs()
+                                val coverFile = java.io.File(coversDir, "$computedSha1.jpg")
+                                coverFile.writeBytes(parsed.coverBytes)
+                                coverPath = coverFile.absolutePath
+                            } catch (e: Throwable) {}
+                        }
+                    } else {
+                        parsedContent = try { localFile.readText() } catch (e: Throwable) { "Текст недоступен" }
                     }
-                } else if (ext == "epub") {
-                    val metadata = com.nightread.app.data.EpubIdentifierHelper.getEpubMetadata(localFile)
-                    if (metadata != null) {
-                        coverPath = com.nightread.app.data.EpubIdentifierHelper.extractAndSaveEpubCover(localFile, metadata.coverPath, computedSha1, context)
-                    }
-                } else if (ext in listOf("mobi", "azw", "azw3")) {
-                    val parsed = com.nightread.app.service.MobiParser.parse(localFile, fileName.substringBeforeLast("."))
-                    parsedTitle = parsed.title
-                    parsedAuthor = parsed.author
-                    parsedContent = parsed.content
-                    if (parsed.coverBytes != null && parsed.coverBytes.isNotEmpty()) {
-                        try {
-                            val coversDir = File(context.filesDir, "covers")
-                            if (!coversDir.exists()) coversDir.mkdirs()
-                            val coverFile = File(coversDir, "$computedSha1.jpg")
-                            coverFile.writeBytes(parsed.coverBytes)
-                            coverPath = coverFile.absolutePath
-                        } catch (e: Exception) { Log.e("BookScanner", "Cover error", e) }
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        onResult(false, "Формат $ext не поддерживается.")
-                    }
-                    try { localFile.delete() } catch (e: Exception) {}
-                    return@launch
+                } catch (e: Throwable) {
+                    Log.e("BookScanner", "Error parsing manual imported book", e)
                 }
                 
                 if (parsedContent.isBlank()) {
-                    withContext(Dispatchers.Main) {
-                        onResult(false, "Файл не содержит читаемого текста.")
-                    }
-                    return@launch
+                    parsedContent = "Содержимое книги недоступно"
                 }
                 
                 val strippedContent = if (localFile.extension.lowercase() == "fb2") {
@@ -687,7 +715,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 
                 val newBook = BookEntity(
-                    title = parsedTitle,
+                    title = if (parsedTitle.isBlank()) fileName.substringBeforeLast(".") else parsedTitle,
                     author = parsedAuthor,
                     category = "Локальные",
                     totalCharacters = strippedContent.length,
@@ -697,17 +725,21 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     sha1 = computedSha1,
                     series = parsedSeries,
                     language = parsedLanguage,
-                    fileSize = bytes.size.toLong(),
+                    fileSize = localFile.length(),
                     coverPath = coverPath,
                     seriesIndex = parsedSeriesIndex,
                     annotation = parsedAnnotation
                 )
                 
                 Log.d("BookScanner", "[MANUAL-DB-INSERT] Saving newly imported book: ${newBook.title} (SHA-1: ${newBook.sha1})")
-                repository.insertBook(newBook)
+                try {
+                    repository.insertBook(newBook)
+                } catch (e: Throwable) {
+                    Log.e("BookScanner", "Error inserting manual book into DB", e)
+                }
                 
                 withContext(Dispatchers.Main) {
-                    onResult(true, "Книга \"$parsedTitle\" успешно импортирована!")
+                    onResult(true, "Книга \"${newBook.title}\" успешно импортирована!")
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -981,8 +1013,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
             try {
-                val app = context as? com.nightread.app.MainApplication
-                val scanner = app?.bookScanner ?: com.nightread.app.scanner.LibraryScanner(context, dao).also { app?.bookScanner = it }
+                val scanner = com.nightread.app.scanner.LibraryScanner(context, dao)
                 scanner.scanBooks(force = true).join()
             } catch (e: CancellationException) {
                 throw e
@@ -1043,8 +1074,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
             try {
-                val app = context as? com.nightread.app.MainApplication
-                val scanner = app?.bookScanner ?: com.nightread.app.scanner.LibraryScanner(context, dao).also { app?.bookScanner = it }
+                val scanner = com.nightread.app.scanner.LibraryScanner(context, dao)
                 scanner.checkForNewBooks().join()
             } catch (e: CancellationException) {
                 throw e
@@ -1190,8 +1220,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                                 parsedAnnotation = parsed.annotation
                             }
                             else -> {
-                                val bytes = file.readBytes()
-                                parsedContent = decodeBytesToString(bytes)
+                                parsedContent = file.readText()
                                 parsedAuthor = "Локальный TXT"
                             }
                         }
@@ -1363,49 +1392,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         return hashBytes.joinToString("") { String.format("%02x", it) }
     }
 
-    private fun readTextFile(file: java.io.File): String {
-        val bytes = file.readBytes()
-        return decodeBytesToString(bytes)
-    }
-
-    private fun decodeBytesToString(bytes: ByteArray): String {
-        try {
-            // Safe detection from XML prolog first
-            val headerSize = if (bytes.size > 1024) 1024 else bytes.size
-            val header = String(bytes, 0, headerSize, java.nio.charset.StandardCharsets.ISO_8859_1)
-            val match = """encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(header)
-            if (match != null) {
-                val encName = match.groupValues[1].trim()
-                try {
-                    return String(bytes, java.nio.charset.Charset.forName(encName))
-                } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                    // fall back if charset name is invalid or unsupported
-                }
-            }
-        } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-            // ignore and fallback
-        }
-
-        try {
-            val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
-            utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
-            val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
-            return charBuffer.toString()
-        } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-            try {
-                return String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
-            } catch (e2: Exception) {
-                return String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
-            }
-        }
-    }
-
     private fun parseFb2FromZip(file: java.io.File): ParsedBook {
         java.io.FileInputStream(file).use { fis ->
             java.util.zip.ZipInputStream(fis).use { zis ->
@@ -1413,9 +1399,16 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 while (entry != null) {
                     val entryName = entry.name.lowercase()
                     if (!entry.isDirectory && entryName.endsWith(".fb2")) {
-                        val bytes = zis.readBytes()
-                        val rawText = decodeBytesToString(bytes)
-                        return parseFb2DetailedText(rawText, entryName.removeSuffix(".fb2"))
+                        val parsed = com.nightread.app.service.Fb2Parser.parse(zis, entryName.removeSuffix(".fb2"))
+                        return ParsedBook(
+                            title = parsed.title,
+                            author = parsed.author,
+                            content = parsed.content,
+                            series = parsed.series,
+                            language = parsed.language,
+                            seriesIndex = parsed.seriesIndex,
+                            annotation = parsed.annotation
+                        )
                     }
                     entry = zis.nextEntry
                 }
@@ -1448,8 +1441,18 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun parseFb2Detailed(file: java.io.File): ParsedBook {
-        val rawText = readTextFile(file)
-        return parseFb2DetailedText(rawText, file.nameWithoutExtension)
+        val parsed = java.io.FileInputStream(file).use { input ->
+            com.nightread.app.service.Fb2Parser.parse(input, file.nameWithoutExtension)
+        }
+        return ParsedBook(
+            title = parsed.title,
+            author = parsed.author,
+            content = parsed.content,
+            series = parsed.series,
+            language = parsed.language,
+            seriesIndex = parsed.seriesIndex,
+            annotation = parsed.annotation
+        )
     }
 
 
@@ -1611,31 +1614,25 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
     fun extractAndSaveCover(file: java.io.File, sha1: String): String? {
         val ext = file.extension.lowercase()
-        var bitmap: android.graphics.Bitmap? = null
         try {
             if (ext == "fb2") {
-                val fb2Content = readTextFile(file)
-                bitmap = extractCoverFromFb2(fb2Content) ?: extractCoverUsingRegex(fb2Content)
+                return java.io.FileInputStream(file).use { input ->
+                    com.nightread.app.service.Fb2CoverExtractor.extract(input, sha1, getApplication<Application>())
+                }
             } else if (ext == "zip") {
-                java.io.FileInputStream(file).use { fis ->
+                return java.io.FileInputStream(file).use { fis ->
                     java.util.zip.ZipInputStream(fis).use { zis ->
                         var entry = zis.nextEntry
                         while (entry != null) {
                             val entryName = entry.name.lowercase()
                             if (!entry.isDirectory && entryName.endsWith(".fb2")) {
-                                val bytes = zis.readBytes()
-                                val fb2Content = decodeBytesToString(bytes)
-                                bitmap = extractCoverFromFb2(fb2Content) ?: extractCoverUsingRegex(fb2Content)
-                                break
+                                return@use com.nightread.app.service.Fb2CoverExtractor.extract(zis, sha1, getApplication<Application>())
                             }
                             entry = zis.nextEntry
                         }
+                        null
                     }
                 }
-            }
-            
-            if (bitmap != null) {
-                return saveCoverToCache(getApplication<Application>(), sha1, bitmap)
             }
         } catch (e: CancellationException) {
                 throw e

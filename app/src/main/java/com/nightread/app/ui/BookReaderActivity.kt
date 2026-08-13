@@ -93,7 +93,7 @@ class BookReaderActivity : FragmentActivity() {
                                             "epub" -> com.nightread.app.service.EpubParser.parse(f, f.nameWithoutExtension).content
                                             "mobi", "azw", "azw3" -> com.nightread.app.service.MobiParser.parse(f, f.nameWithoutExtension).content
                                             "zip" -> readZipFile(f)
-                                            else -> decodeBytesToString(f.readBytes())
+                                            else -> f.readText()
                                         }
                                         val cleaned = cleanHtmlContent(text)
                                         try { contentFile.writeText(cleaned) } catch (e: Exception) {}
@@ -328,26 +328,27 @@ class BookReaderActivity : FragmentActivity() {
             java.io.FileInputStream(file).use { fis ->
                 java.util.zip.ZipInputStream(fis).use { zis ->
                     var entry = zis.nextEntry
-                    var fallbackBytes: ByteArray? = null
+                    var fallbackContent: String? = null
                     while (entry != null) {
                         val entryName = entry.name.lowercase()
                         if (!entry.isDirectory && !entryName.startsWith("__macosx") && !entryName.contains(".ds_store")) {
                             if (entryName.endsWith(".fb3")) {
                                 val bytes = zis.readBytes()
                                 return com.nightread.app.service.Fb3Parser.parseBytes(bytes, entryName.removeSuffix(".fb3")).content
-                            } else if (entryName.endsWith(".fb2") || entryName.endsWith(".xml") || entryName.endsWith(".html") || entryName.endsWith(".htm") || entryName.endsWith(".txt")) {
-                                val bytes = zis.readBytes()
-                                val decoded = decodeBytesToString(bytes)
+                            } else if (entryName.endsWith(".fb2")) {
+                                val parsed = com.nightread.app.service.Fb2Parser.parse(zis, entryName.removeSuffix(".fb2"))
+                                if (parsed.content.isNotBlank()) return parsed.content
+                            } else if (entryName.endsWith(".xml") || entryName.endsWith(".html") || entryName.endsWith(".htm") || entryName.endsWith(".txt")) {
+                                val decoded = decodeBytesToString(zis.readBytes())
                                 if (decoded.isNotBlank()) return decoded
-                            } else if (fallbackBytes == null) {
-                                fallbackBytes = zis.readBytes()
+                            } else if (fallbackContent == null) {
+                                fallbackContent = decodeBytesToString(zis.readBytes())
                             }
                         }
                         entry = zis.nextEntry
                     }
-                    fallbackBytes?.let {
-                        val decoded = decodeBytesToString(it)
-                        if (decoded.isNotBlank()) return decoded
+                    fallbackContent?.let {
+                        if (it.isNotBlank()) return it
                     }
                 }
             }

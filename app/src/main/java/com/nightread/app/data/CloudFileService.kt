@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 
 class CloudFileService(private val context: Context) {
@@ -45,7 +46,7 @@ class CloudFileService(private val context: Context) {
         val cleanPath = YandexDiskManager.normalizePath(remotePath)
         return try {
             val linkResponse = api.getUploadLink(authHeader, cleanPath)
-            val baseBody = localFile.readBytes().toRequestBody("application/octet-stream".toMediaType())
+            val baseBody = localFile.asRequestBody("application/octet-stream".toMediaType())
             api.uploadFile(linkResponse.href, baseBody)
             true
         } catch (e: Exception) {

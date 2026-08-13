@@ -35,12 +35,10 @@ class DatabaseProvider(private val context: Context) {
     }
     
     private fun buildDatabase(): AppDatabase {
-        val dbFile = getDatabaseFile()
-        
         return Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
-            dbFile.absolutePath
+            DATABASE_NAME
         )
         .addMigrations(*DatabaseMigrations.getAllMigrations())
         .setQueryExecutor(DatabaseExecutors.queryExecutor)
