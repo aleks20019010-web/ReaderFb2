@@ -22,30 +22,33 @@ object EpubCoverExtractor {
 
             // Pass 1: Resolve HTML target paths to image paths without loading all images
             if (targetPath != null && (targetPath.endsWith(".xhtml") || targetPath.endsWith(".html") || targetPath.endsWith(".htm"))) {
-                ZipInputStream(createInputStream()!!.buffered()).use { zip ->
-                    var entry = zip.nextEntry
-                    while (entry != null) {
-                        val name = EpubPathResolver.cleanZipPath(entry.name)
-                        if (!entry.isDirectory && (name == targetPath || name.endsWith("/$targetPath") || targetPath!!.endsWith("/$name"))) {
-                            val buffer = ByteArrayOutputStream()
-                            val data = ByteArray(8192)
-                            var nRead: Int
-                            var totalRead = 0
-                            while (zip.read(data, 0, data.size).also { nRead = it } != -1 && totalRead < 256 * 1024) {
-                                buffer.write(data, 0, nRead)
-                                totalRead += nRead
+                val inStream = try { createInputStream()?.buffered() } catch (e: Throwable) { null }
+                if (inStream != null) {
+                    ZipInputStream(inStream).use { zip ->
+                        var entry = zip.nextEntry
+                        while (entry != null) {
+                            val name = EpubPathResolver.cleanZipPath(entry.name)
+                            if (!entry.isDirectory && (name == targetPath || name.endsWith("/$targetPath") || targetPath!!.endsWith("/$name"))) {
+                                val buffer = ByteArrayOutputStream()
+                                val data = ByteArray(8192)
+                                var nRead: Int
+                                var totalRead = 0
+                                while (zip.read(data, 0, data.size).also { nRead = it } != -1 && totalRead < 256 * 1024) {
+                                    buffer.write(data, 0, nRead)
+                                    totalRead += nRead
+                                }
+                                val htmlStr = buffer.toString("UTF-8")
+                                val imgMatch = Regex("<(?:img|image)[^>]+(?:src|href|xlink:href)\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(htmlStr)
+                                    ?: Regex("url\\(['\"]?([^'\"]+)['\"]?\\)", RegexOption.IGNORE_CASE).find(htmlStr)
+                                if (imgMatch != null) {
+                                    val imgSrc = imgMatch.groupValues[1]
+                                    val htmlDir = if (name.contains("/")) name.substringBeforeLast("/") else ""
+                                    targetPath = EpubPathResolver.resolvePath(htmlDir, imgSrc)
+                                }
+                                break
                             }
-                            val htmlStr = buffer.toString("UTF-8")
-                            val imgMatch = Regex("<(?:img|image)[^>]+(?:src|href|xlink:href)\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(htmlStr)
-                                ?: Regex("url\\(['\"]?([^'\"]+)['\"]?\\)", RegexOption.IGNORE_CASE).find(htmlStr)
-                            if (imgMatch != null) {
-                                val imgSrc = imgMatch.groupValues[1]
-                                val htmlDir = if (name.contains("/")) name.substringBeforeLast("/") else ""
-                                targetPath = EpubPathResolver.resolvePath(htmlDir, imgSrc)
-                            }
-                            break
+                            entry = zip.nextEntry
                         }
-                        entry = zip.nextEntry
                     }
                 }
             }
@@ -54,7 +57,8 @@ object EpubCoverExtractor {
             val validExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
             var bestScore = -1
 
-            ZipInputStream(createInputStream()!!.buffered()).use { zip ->
+            val pass2Stream = try { createInputStream()?.buffered() } catch (e: Throwable) { null } ?: return null
+            ZipInputStream(pass2Stream).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
                     if (!entry.isDirectory) {

@@ -11,6 +11,28 @@ import java.security.MessageDigest
 
 const val SHA1_MAX_FILE_SIZE = 50L * 1024 * 1024
 
+fun openBookInputStream(book: BookSource, context: Context): java.io.InputStream? {
+    return try {
+        if (!book.realPath.isNullOrBlank()) {
+            val file = File(book.realPath)
+            if (file.exists() && file.canRead()) {
+                return file.inputStream().buffered()
+            }
+        }
+        if (book.uri.scheme == "file") {
+            val path = book.uri.path ?: book.uri.toString().removePrefix("file://")
+            val file = File(path)
+            if (file.exists() && file.canRead()) {
+                return file.inputStream().buffered()
+            }
+        }
+        context.contentResolver.openInputStream(book.uri)?.buffered()
+    } catch (e: Throwable) {
+        Log.w("ScannerHelpers", "Error opening stream for ${book.name}: ${e.message}")
+        null
+    }
+}
+
 suspend fun computeBookSha1(book: BookSource, context: Context): String {
     return withContext(Dispatchers.IO) {
         try {
@@ -20,23 +42,24 @@ suspend fun computeBookSha1(book: BookSource, context: Context): String {
                     if (file.length() < SHA1_MAX_FILE_SIZE) {
                         Sha1Helper.computeSha1FromContent(file) 
                             ?: Sha1Helper.computeSha1FileNio(file)
+                            ?: generateFastHash(book)
                     } else {
                         generateFastHash(book)
                     }
                 } else {
-                    context.contentResolver.openInputStream(book.uri)?.use { 
+                    openBookInputStream(book, context)?.use { 
                         Sha1Helper.computeSha1Stream(it) 
-                    }
+                    } ?: generateFastHash(book)
                 }
             } else {
-                context.contentResolver.openInputStream(book.uri)?.use { 
+                openBookInputStream(book, context)?.use { 
                     Sha1Helper.computeSha1Stream(it) 
-                }
+                } ?: generateFastHash(book)
             }
         } catch (e: Throwable) {
             Log.w("ScannerHelpers", "Error computing SHA1 for ${book.name}", e)
             generateFastHash(book)
-        } ?: generateFastHash(book)
+        }
     }
 }
 

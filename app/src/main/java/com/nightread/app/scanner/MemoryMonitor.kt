@@ -18,13 +18,15 @@ class MemoryMonitor {
     
     fun isMemoryLow(): Boolean {
         val runtime = Runtime.getRuntime()
-        val freeMemory = runtime.freeMemory()
-        val maxMemory = runtime.maxMemory()
-        return freeMemory < maxMemory * MEMORY_LOW_THRESHOLD
+        val usedMemory = runtime.totalMemory() - runtime.freeMemory()
+        val availableMemory = runtime.maxMemory() - usedMemory
+        return availableMemory < runtime.maxMemory() * MEMORY_LOW_THRESHOLD
     }
     
     fun getFreeMemoryMB(): Long {
-        return Runtime.getRuntime().freeMemory() / (1024 * 1024)
+        val runtime = Runtime.getRuntime()
+        val usedMemory = runtime.totalMemory() - runtime.freeMemory()
+        return (runtime.maxMemory() - usedMemory) / (1024 * 1024)
     }
     
     fun getUsedMemoryMB(): Long {

@@ -23,9 +23,9 @@ class LibraryScanner(
 ) {
     companion object {
         private const val TAG = "LibraryScanner"
-        private const val BATCH_SIZE = 4
+        private const val BATCH_SIZE = 10
         private const val MAX_ZIP_SIZE_MB = 25
-        private const val TIMEOUT_PER_BOOK_MS = 20_000L
+        private const val TIMEOUT_PER_BOOK_MS = 15_000L
         private const val MAX_FILES_TO_SCAN = 10000
         private const val SCAN_COOLDOWN_MS = 5000L
         private const val CACHE_CLEANUP_INTERVAL = 7 * 24 * 60 * 60 * 1000L // 7 дней
@@ -218,7 +218,9 @@ class LibraryScanner(
                 }
             }
             if (booksToDelete.isNotEmpty()) {
-                db.bookDao().deleteBooksBySha1s(booksToDelete.toList())
+                booksToDelete.chunked(500).forEach { chunk ->
+                    db.bookDao().deleteBooksBySha1s(chunk)
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error cleaning duplicates in performScan", e)
@@ -310,7 +312,7 @@ class LibraryScanner(
                         false
                     }
                 }
-                .take(MAX_FILES_TO_SCAN - result.size)
+                .take((MAX_FILES_TO_SCAN - result.size).coerceAtLeast(0))
                 .forEach { file ->
                     if (result.size < MAX_FILES_TO_SCAN) {
                         result.add(file)
@@ -523,28 +525,26 @@ class LibraryScanner(
      * Обработка одного батча книг
      */
     private suspend fun processBookBatch(batch: List<File>): List<ProcessResult> {
-        return coroutineScope {
+        return withContext(Dispatchers.IO) {
             batch.map { file ->
-                async(Dispatchers.IO) {
-                    if (!_isScanning.get()) {
-                        return@async ProcessResult.Error(null, null)
+                if (!_isScanning.get()) {
+                    return@map ProcessResult.Error(null, null)
+                }
+                
+                try {
+                    val result = withTimeoutOrNull(TIMEOUT_PER_BOOK_MS) {
+                        processBook(file)
                     }
                     
-                    try {
-                        val result = withTimeoutOrNull(TIMEOUT_PER_BOOK_MS) {
-                            processBook(file)
-                        }
-                        
-                        result ?: run {
-                            Log.w(TAG, "Timeout processing: ${file.name}")
-                            ProcessResult.Error(null, null)
-                        }
-                    } catch (e: Throwable) {
-                        Log.e(TAG, "Error processing ${file.name}", e)
-                        ProcessResult.Error(null, Exception(e))
+                    result ?: run {
+                        Log.w(TAG, "Timeout processing: ${file.name}")
+                        ProcessResult.Error(null, null)
                     }
+                } catch (e: Throwable) {
+                    Log.e(TAG, "Error processing ${file.name}", e)
+                    ProcessResult.Error(null, Exception(e))
                 }
-            }.awaitAll()
+            }
         }
     }
     

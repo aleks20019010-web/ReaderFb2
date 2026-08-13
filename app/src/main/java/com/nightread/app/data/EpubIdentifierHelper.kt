@@ -90,7 +90,8 @@ object EpubIdentifierHelper {
             val zipFiles = mutableMapOf<String, ByteArray>()
             var coverPath: String? = null
 
-            ZipInputStream(createInputStream()!!.buffered()).use { zip ->
+            val inStream = try { createInputStream()?.buffered() } catch (e: Throwable) { null } ?: return null
+            ZipInputStream(inStream).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
                     val normalizedName = cleanZipPath(entry.name)
