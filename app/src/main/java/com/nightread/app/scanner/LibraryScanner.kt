@@ -473,7 +473,7 @@ class LibraryScanner(
                     }
                 }
                 try {
-                    updateCache(entities, batch)
+                    updateCache(batchResults, batch)
                 } catch (e: Throwable) {
                     Log.e(TAG, "Failed to update cache", e)
                 }
@@ -589,9 +589,10 @@ class LibraryScanner(
     /**
      * Обновление кеша после обработки
      */
-    private suspend fun updateCache(entities: List<BookEntity>, files: List<File>) {
+    private suspend fun updateCache(results: List<ProcessResult>, files: List<File>) {
         try {
-            val cacheList = entities.zip(files).map { (entity, file) ->
+            val cacheList = results.zip(files).mapNotNull { (result, file) ->
+                val entity = result.entity ?: return@mapNotNull null
                 BookCache(
                     path = file.absolutePath,
                     fingerprint = entity.sha1,

@@ -28,12 +28,12 @@ object Fb2CoverExtractor {
                         }
                     } else if (name == "binary") {
                         val id = parser.getAttributeValue(null, "id")
-                        if (id != null) {
+                        if (id != null && (id == targetCoverId || (targetCoverId == null && id.contains("cover", ignoreCase = true)))) {
                             val text = parser.nextText()
-                            if (id == targetCoverId || (targetCoverId == null && id.contains("cover", ignoreCase = true))) {
-                                val bytes = Base64.decode(text.replace("\\s".toRegex(), ""), Base64.DEFAULT)
-                                return NewCoverExtractor.saveCoverBytes(bytes, sha1, context)
-                            }
+                            val bytes = Base64.decode(text.replace("\\s".toRegex(), ""), Base64.DEFAULT)
+                            return NewCoverExtractor.saveCoverBytes(bytes, sha1, context)
+                        } else {
+                            skip(parser)
                         }
                     }
                 }
@@ -43,5 +43,29 @@ object Fb2CoverExtractor {
             Log.e("Fb2CoverExtractor", "Error extracting cover", e)
         }
         return null
+    }
+
+    private fun skip(parser: XmlPullParser) {
+        if (parser.eventType != XmlPullParser.START_TAG) {
+            return
+        }
+        try {
+            if (parser.isEmptyElementTag) {
+                return
+            }
+            var depth = 1
+            while (depth > 0) {
+                val nextEvent = parser.next()
+                if (nextEvent == XmlPullParser.END_TAG) {
+                    depth--
+                } else if (nextEvent == XmlPullParser.START_TAG) {
+                    depth++
+                } else if (nextEvent == XmlPullParser.END_DOCUMENT) {
+                    return
+                }
+            }
+        } catch (e: Throwable) {
+            Log.w("Fb2CoverExtractor", "Error skipping tag", e)
+        }
     }
 }

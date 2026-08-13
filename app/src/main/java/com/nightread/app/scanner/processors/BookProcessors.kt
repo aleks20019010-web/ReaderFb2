@@ -41,7 +41,7 @@ class Fb2Processor : BookProcessor {
                     val actualInput = if (book.name.lowercase().endsWith(".zip") || book.name.lowercase().endsWith(".fb2.zip")) {
                         val zis = java.util.zip.ZipInputStream(input)
                         var entry = zis.nextEntry
-                        while (entry != null && !entry.name.lowercase().endsWith(".fb2")) {
+                        while (entry != null && !entry.name.lowercase().endsWith(".fb2") && !entry.name.lowercase().endsWith(".fb2.xml") && !entry.name.lowercase().endsWith(".xml")) {
                             entry = zis.nextEntry
                         }
                         if (entry != null) zis else null
@@ -61,7 +61,7 @@ class Fb2Processor : BookProcessor {
                         val actualInput = if (book.name.lowercase().endsWith(".zip") || book.name.lowercase().endsWith(".fb2.zip")) {
                             val zis = java.util.zip.ZipInputStream(input)
                             var entry = zis.nextEntry
-                            while (entry != null && !entry.name.lowercase().endsWith(".fb2")) {
+                            while (entry != null && !entry.name.lowercase().endsWith(".fb2") && !entry.name.lowercase().endsWith(".fb2.xml") && !entry.name.lowercase().endsWith(".xml")) {
                                 entry = zis.nextEntry
                             }
                             if (entry != null) zis else null

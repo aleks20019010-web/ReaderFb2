@@ -410,21 +410,27 @@ class BookDetailActivity : BaseActivity() {
                                 val fontFamily = com.nightread.app.data.SettingsManager.getFontFamily(this@BookDetailActivity)
                                 val fontWeight = com.nightread.app.data.SettingsManager.getFontWeightAsInt(this@BookDetailActivity)
 
+                                val ext = file.extension.lowercase()
                                 val contentCacheFile = java.io.File(cacheDir, "$sha1.content")
                                 val rawContent = if (contentCacheFile.exists()) {
                                     contentCacheFile.readText()
                                 } else {
-                                    val parsed = when (file.extension.lowercase()) {
-                                        "fb3" -> com.nightread.app.service.Fb3Parser.parse(file, file.nameWithoutExtension).content
-                                        "epub" -> com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
-                                        "mobi", "azw", "azw3" -> com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension).content
-                                        else -> file.readText()
+                                    val parsed = if (ext == "zip" || ext == "fbz" || file.name.endsWith(".fb2.zip", true) || file.name.endsWith(".fb3.zip", true)) {
+                                        this@BookDetailActivity.readZipContent(file)
+                                    } else {
+                                        when (ext) {
+                                            "fb3" -> com.nightread.app.service.Fb3Parser.parse(file, file.nameWithoutExtension).content
+                                            "epub" -> com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension).content
+                                            "mobi", "azw", "azw3" -> com.nightread.app.service.MobiParser.parse(file, file.nameWithoutExtension).content
+                                            "fb2" -> this@BookDetailActivity.decodeBytesToString(file.readBytes())
+                                            else -> this@BookDetailActivity.decodeBytesToString(file.readBytes())
+                                        }
                                     }
                                     try { contentCacheFile.writeText(parsed) } catch (e: Exception) {}
                                     parsed
                                 }
 
-                                val converted = if (file.extension.lowercase() == "fb2" || file.name.endsWith(".fb2.zip", true) || file.name.endsWith(".zip", true)) {
+                                val converted = if (ext == "fb2" || file.name.endsWith(".fb2.zip", true) || file.name.endsWith(".zip", true) || ext == "fbz") {
                                     com.nightread.app.service.Fb2ToHtmlConverterAdvanced.convert(
                                         fb2Xml = rawContent,
                                         theme = theme,
@@ -1060,6 +1066,68 @@ class BookDetailActivity : BaseActivity() {
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL)?.setTextColor(Color.parseColor(accentStr))
         }
         dialog.show()
+    }
+
+    private fun readZipContent(file: File): String {
+        try {
+            if (com.nightread.app.service.Fb3Parser.isFb3(file)) {
+                return com.nightread.app.service.Fb3Parser.parseFb3(file, file.nameWithoutExtension).content
+            }
+            java.io.FileInputStream(file).use { fis ->
+                java.util.zip.ZipInputStream(fis).use { zis ->
+                    var entry = zis.nextEntry
+                    while (entry != null) {
+                        val entryName = entry.name.lowercase()
+                        if (!entry.isDirectory && !entryName.startsWith("__macosx") && !entryName.contains(".ds_store")) {
+                            if (entryName.endsWith(".fb3")) {
+                                val bytes = zis.readBytes()
+                                return com.nightread.app.service.Fb3Parser.parseBytes(bytes, entryName.removeSuffix(".fb3")).content
+                            } else if (entryName.endsWith(".fb2")) {
+                                val parsed = com.nightread.app.service.Fb2Parser.parse(zis, entryName.removeSuffix(".fb2"))
+                                if (parsed.content.isNotBlank()) return parsed.content
+                            } else if (entryName.endsWith(".xml") || entryName.endsWith(".html") || entryName.endsWith(".htm") || entryName.endsWith(".txt")) {
+                                return decodeBytesToString(zis.readBytes())
+                            }
+                        }
+                        entry = zis.nextEntry
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BookDetailActivity", "Error loading zip file content ${file.name}", e)
+        }
+        return ""
+    }
+
+    private fun decodeBytesToString(bytes: ByteArray): String {
+        try {
+            val headerSize = if (bytes.size > 1024) 1024 else bytes.size
+            val header = String(bytes, 0, headerSize, java.nio.charset.StandardCharsets.ISO_8859_1)
+            val match = """encoding=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(header)
+            if (match != null) {
+                val encName = match.groupValues[1].trim()
+                try {
+                    return String(bytes, java.nio.charset.Charset.forName(encName))
+                } catch (e: Exception) {
+                    // fall back if charset name is invalid or unsupported
+                }
+            }
+        } catch (e: Exception) {
+            // ignore and fallback
+        }
+
+        try {
+            val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+            utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
+            return charBuffer.toString()
+        } catch (e: Exception) {
+            try {
+                return String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
+            } catch (e2: Exception) {
+                return String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+            }
+        }
     }
 }
 

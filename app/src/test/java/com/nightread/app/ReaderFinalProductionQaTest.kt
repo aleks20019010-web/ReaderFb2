@@ -28,7 +28,7 @@ class ReaderFinalProductionQaTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private fun runReaderTest(block: suspend (TextMeasurer, Context) -> Unit) = runBlocking {
+    private fun runReaderTest(block: suspend (TextMeasurer, Context) -> Unit) {
         var measurer: TextMeasurer? = null
         var context: Context? = null
         
@@ -36,9 +36,11 @@ class ReaderFinalProductionQaTest {
             measurer = androidx.compose.ui.text.rememberTextMeasurer()
             context = LocalContext.current
         }
-        composeTestRule.waitForIdle()
-        
-        block(measurer!!, context!!)
+        composeTestRule.runOnIdle {
+            kotlinx.coroutines.runBlocking {
+                block(measurer!!, context!!)
+            }
+        }
     }
 
     @Test
