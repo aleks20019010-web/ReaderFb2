@@ -69,71 +69,68 @@ class ScannerPreferences(private val context: Context) {
     suspend fun calculateMediaStoreHash(): String {
         return withContext(Dispatchers.IO) {
             try {
-                val projection = arrayOf(
-                    MediaStore.Files.FileColumns._ID,
-                    MediaStore.Files.FileColumns.DATE_MODIFIED,
-                    MediaStore.Files.FileColumns.SIZE
+                val externalStorage = Environment.getExternalStorageDirectory()
+                val bookDirs = listOf(
+                    "Books", "books", "Книги", "книги",
+                    "Download", "Downloads", "Загрузки",
+                    "Documents", "Документы",
+                    "Ebooks", "eBooks", "Library", "library"
                 )
+                val sb = java.lang.StringBuilder()
                 
-                val selection = "${MediaStore.Files.FileColumns.MIME_TYPE} IS NULL OR " +
-                        "${MediaStore.Files.FileColumns.MIME_TYPE} NOT LIKE ?"
-                val selectionArgs = arrayOf("image/%")
-                
-                val cursor = try {
-                    context.contentResolver.query(
-                        MediaStore.Files.getContentUri("external"),
-                        projection,
-                        selection,
-                        selectionArgs,
-                        null
-                    )
-                } catch (e: Throwable) {
-                    null
+                val dirs = mutableListOf<File>()
+                for (dirName in bookDirs) {
+                    val dir = File(externalStorage, dirName)
+                    if (dir.exists() && dir.isDirectory) {
+                        dirs.add(dir)
+                    }
                 }
                 
-                cursor?.use {
-                    val idColumn = it.getColumnIndex(MediaStore.Files.FileColumns._ID)
-                    val modifiedColumn = it.getColumnIndex(MediaStore.Files.FileColumns.DATE_MODIFIED)
-                    val sizeColumn = it.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
-                    
-                    val ids = mutableListOf<String>()
-                    while (it.moveToNext()) {
-                        val id = if (idColumn != -1) it.getLong(idColumn) else 0L
-                        val modified = if (modifiedColumn != -1) it.getLong(modifiedColumn) else 0L
-                        val size = if (sizeColumn != -1) it.getLong(sizeColumn) else 0L
-                        ids.add("$id:$modified:$size")
-                    }
-                    
-                    val input = ids.joinToString("|")
-                    MessageDigest.getInstance("SHA-1")
-                        .digest(input.toByteArray())
-                        .joinToString("") { "%02x".format(it) }
-                } ?: ""
-            } catch (e: Throwable) {
-                // Fallback: hash external storage book files safely
                 try {
-                    val externalStorage = Environment.getExternalStorageDirectory()
-                    val bookDirs = listOf("Books", "books", "Книги", "книги", "Download", "Downloads", "Загрузки", "Documents", "Документы")
-                    val sb = StringBuilder()
-                    for (dirName in bookDirs) {
-                        val dir = File(externalStorage, dirName)
-                        if (dir.exists() && dir.isDirectory) {
-                            dir.listFiles()?.forEach { file ->
-                                if (file.isFile) {
-                                    sb.append(file.absolutePath).append("_").append(file.length()).append("_").append(file.lastModified()).append("|")
-                                }
-                            }
+                    val appDirs = context.getExternalFilesDirs(null)
+                    for (dir in appDirs) {
+                        if (dir != null && dir.exists() && dir.canRead()) {
+                            dirs.add(dir)
                         }
                     }
-                    val input = if (sb.isNotEmpty()) sb.toString() else System.currentTimeMillis().toString()
-                    MessageDigest.getInstance("SHA-1")
-                        .digest(input.toByteArray())
-                        .joinToString("") { "%02x".format(it) }
-                } catch (fallbackEx: Throwable) {
-                    System.currentTimeMillis().toString()
+                    if (context.filesDir != null && context.filesDir.exists()) {
+                        dirs.add(context.filesDir)
+                    }
+                } catch (e: Throwable) {}
+
+                var totalCount = 0
+                for (dir in dirs) {
+                    dir.walkTopDown()
+                        .maxDepth(4)
+                        .filter { it.isFile && isBookFile(it) }
+                        .take(1000)
+                        .forEach { file ->
+                            sb.append(file.absolutePath)
+                              .append("_")
+                              .append(file.length())
+                              .append("_")
+                              .append(file.lastModified())
+                              .append("|")
+                            totalCount++
+                        }
                 }
+                
+                val input = if (sb.isNotEmpty()) sb.toString() else System.currentTimeMillis().toString()
+                MessageDigest.getInstance("SHA-1")
+                    .digest(input.toByteArray())
+                    .joinToString("") { "%02x".format(it) }
+            } catch (e: Throwable) {
+                System.currentTimeMillis().toString()
             }
         }
+    }
+
+    private fun isBookFile(file: File): Boolean {
+        val name = file.name.lowercase()
+        return name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".fbz") ||
+                name.endsWith(".epub") || name.endsWith(".fb3") || name.endsWith(".fb3.zip") ||
+                name.endsWith(".mobi") || name.endsWith(".azw") || name.endsWith(".azw3") ||
+                name.endsWith(".zip")
     }
     
     fun clear() {
