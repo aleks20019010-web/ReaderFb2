@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <!-- Semi-transparent cosmic color -->
-    <solid android:color="#4D1E293B" />
-    <!-- Light glowing rim -->
+    <!-- Semi-transparent deep dark circle gradient -->
+    <gradient
+        android:angle="135"
+        android:startColor="#66334155"
+        android:centerColor="#4D1E293B"
+        android:endColor="#800F172A"
+        android:type="linear" />
+    <!-- Light glowing glass rim -->
     <stroke 
         android:width="1.5dp" 
-        android:color="#80B0BEC5" />
+        android:color="#6694A3B8" />
 </shape>

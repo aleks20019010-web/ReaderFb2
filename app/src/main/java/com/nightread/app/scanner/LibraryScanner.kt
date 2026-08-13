@@ -23,9 +23,9 @@ class LibraryScanner(
 ) {
     companion object {
         private const val TAG = "LibraryScanner"
-        private const val BATCH_SIZE = 25
+        private const val BATCH_SIZE = 4
         private const val MAX_ZIP_SIZE_MB = 25
-        private const val TIMEOUT_PER_BOOK_MS = 30_000L
+        private const val TIMEOUT_PER_BOOK_MS = 20_000L
         private const val MAX_FILES_TO_SCAN = 10000
         private const val SCAN_COOLDOWN_MS = 5000L
         private const val CACHE_CLEANUP_INTERVAL = 7 * 24 * 60 * 60 * 1000L // 7 дней
@@ -295,14 +295,21 @@ class LibraryScanner(
             
             directory.walkTopDown()
                 .onEnter { dir ->
-                    val dirName = dir.name.lowercase()
-                    if (excludePaths.contains(dirName) || dirName.startsWith(".")) {
+                    try {
+                        val dirName = dir.name.lowercase()
+                        !excludePaths.contains(dirName) && !dirName.startsWith(".")
+                    } catch (e: Throwable) {
                         false
-                    } else {
-                        true
                     }
                 }
-                .filter { it.isFile && isBookFile(it) }
+                .onFail { _, _ -> /* Ignore permission and I/O failures gracefully */ }
+                .filter { file ->
+                    try {
+                        file.isFile && isBookFile(file)
+                    } catch (e: Throwable) {
+                        false
+                    }
+                }
                 .take(MAX_FILES_TO_SCAN - result.size)
                 .forEach { file ->
                     if (result.size < MAX_FILES_TO_SCAN) {

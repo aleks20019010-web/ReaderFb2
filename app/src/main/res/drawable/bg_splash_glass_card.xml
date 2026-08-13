@@ -1,12 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Semi-transparent deep dark cosmic background -->
-    <solid android:color="#900B101E" />
+    <!-- Deep dark glassmorphism gradient -->
+    <gradient
+        android:angle="135"
+        android:startColor="#B3111827"
+        android:centerColor="#990B101E"
+        android:endColor="#CC030712"
+        android:type="linear" />
     
-    <!-- Thin white/silver light-reflecting stroke -->
+    <!-- Thin translucent glass rim -->
     <stroke 
         android:width="1.5dp" 
-        android:color="#4DFFFFFF" />
+        android:color="#40E2E8F0" />
         
     <!-- Smooth elegant rounded corners -->
     <corners android:radius="24dp" />

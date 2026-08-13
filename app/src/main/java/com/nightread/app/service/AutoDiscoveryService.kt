@@ -88,25 +88,25 @@ class AutoDiscoveryService : Service() {
         }
         serviceScope.launch {
             try {
+                if (AutoDiscoveryService.isManualScanning) return@launch
                 // Small delay to make sure file is fully written
                 kotlinx.coroutines.delay(2000)
+                if (AutoDiscoveryService.isManualScanning) return@launch
                 val bookDao = AppDatabase.getDatabase(this@AutoDiscoveryService).bookDao()
-                val scanner = com.nightread.app.scanner.LibraryScanner(this@AutoDiscoveryService, bookDao)
+                val scanner = com.nightread.app.scanner.LibraryScanner.getInstance(this@AutoDiscoveryService, bookDao)
+                if (scanner.isScanning) return@launch
                 
                 val initialCount = try { bookDao.getSha1ToPathMap().size } catch (e: Throwable) { 0 }
                 scanner.scanBooks().join()
                 val newCount = try { bookDao.getSha1ToPathMap().size } catch (e: Throwable) { initialCount }
                 
                 val added = newCount - initialCount
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    try {
-                        val msg = if (added > 0) {
-                            "Найдено новых книг: $added"
-                        } else {
-                            "Новых книг не найдено"
-                        }
-                        android.widget.Toast.makeText(this@AutoDiscoveryService, msg, android.widget.Toast.LENGTH_SHORT).show()
-                    } catch (e: Throwable) {}
+                if (added > 0) {
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        try {
+                            android.widget.Toast.makeText(this@AutoDiscoveryService, "Найдено новых книг: $added", android.widget.Toast.LENGTH_SHORT).show()
+                        } catch (e: Throwable) {}
+                    }
                 }
             } catch (e: Throwable) {
                 Log.e("AutoDiscoveryService", "Error scanning new file", e)

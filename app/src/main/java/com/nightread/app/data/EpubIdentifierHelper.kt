@@ -227,68 +227,11 @@ object EpubIdentifierHelper {
 
                     val identifier = idMatch?.groupValues?.get(1)?.trim() ?: UUID.randomUUID().toString()
 
-                    val spineMatch = Regex("<spine[^>]*>(.*?)</spine>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(opfContent)
-                    val spine = spineMatch?.groupValues?.get(1) ?: ""
-                    val itemrefMatches = Regex("<itemref\\s+([^>]+)>", RegexOption.IGNORE_CASE).findAll(spine)
-                    val idrefs = mutableListOf<String>()
-                    for (itemref in itemrefMatches) {
-                        val attrs = itemref.groupValues[1]
-                        val idrefM = Regex("idref\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
-                        if (idrefM != null) {
-                            idrefs.add(idrefM.groupValues[1])
-                        }
-                    }
-
-                    val contentBuilder = StringBuilder()
-                    for (idref in idrefs) {
-                        val href = manifestMap[idref]
-                        if (href != null) {
-                            val fullPath = EpubPathResolver.resolvePath(opfDir, href)
-                            var bytes = zipFiles[fullPath]
-                            if (bytes == null) {
-                                bytes = zipFiles[cleanZipPath(href)]
-                            }
-                            if (bytes != null) {
-                                val xhtmlContent = try {
-                                    val strUtf8 = String(bytes, Charsets.UTF_8)
-                                    if (!strUtf8.contains("\uFFFD")) {
-                                        strUtf8
-                                    } else {
-                                        String(bytes, Charset.forName("windows-1251"))
-                                    }
-                                } catch (e: Exception) {
-                                    String(bytes, Charset.forName("windows-1251"))
-                                }
-
-                                val bodyMatch = Regex("<body[^>]*>(.*?)</body>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(xhtmlContent)
-                                if (bodyMatch != null) {
-                                    contentBuilder.append(bodyMatch.groupValues[1])
-                                    contentBuilder.append("\n\n")
-                                }
-                            }
-                        }
-                    }
-
-                    if (contentBuilder.isEmpty()) {
-                        contentBuilder.append("Книга успешно импортирована.")
-                    }
-
-                    if (descriptionText.isNullOrBlank() && contentBuilder.isNotBlank()) {
-                        val excerpt = cleanHtmlAndEntities(contentBuilder.toString())
-                        if (!excerpt.isNullOrBlank()) {
-                            descriptionText = if (excerpt.length > 400) {
-                                excerpt.take(400).trim() + "..."
-                            } else {
-                                excerpt
-                            }
-                        }
-                    }
-
                     return EpubMetadata(
                         identifier = identifier,
                         title = titleText,
                         author = authorText,
-                        content = contentBuilder.toString(),
+                        content = "",
                         coverPath = coverPath,
                         description = descriptionText,
                         opfDir = opfDir

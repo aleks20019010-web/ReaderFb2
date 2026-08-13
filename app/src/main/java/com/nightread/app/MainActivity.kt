@@ -55,7 +55,7 @@ class MainActivity : BaseActivity() {
             }
         }
 
-        // Show splash screen instantly based on current theme
+        // Show splash screen instantly in Dark Glassmorphism style
         val nightMode = androidx.appcompat.app.AppCompatDelegate.getDefaultNightMode()
         val isNightMode = when (nightMode) {
             androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES -> true
@@ -67,8 +67,9 @@ class MainActivity : BaseActivity() {
             setContentView(R.layout.activity_main)
             initMainUI(savedInstanceState)
         } else {
-            val splashLayout = if (isNightMode) R.layout.activity_splash else R.layout.activity_splash_light
-            setContentView(splashLayout)
+            window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.parseColor("#0F1523")))
+            window.statusBarColor = Color.parseColor("#0F1523")
+            setContentView(R.layout.activity_splash)
             hasShownSplash = true
             isSplashActive = true
             runSplashAndLoadData(savedInstanceState, isNightMode)
@@ -76,6 +77,14 @@ class MainActivity : BaseActivity() {
     }
 
     private fun runSplashAndLoadData(savedInstanceState: Bundle?, isNightMode: Boolean) {
+        // Ensure dark starry background and hide sunbeam overlay during splash
+        val splashBgRoot = findViewById<android.view.View>(R.id.splash_starry_bg)
+        val starryBg = splashBgRoot?.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
+        val sunbeamBg = splashBgRoot?.findViewById<android.view.View>(R.id.sunbeamOverlay)
+        sunbeamBg?.visibility = View.GONE
+        starryBg?.visibility = View.VISIBLE
+        starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
+
         runSplashAnimation()
 
         val preventAutoOpen = intent.getBooleanExtra("PREVENT_AUTO_OPEN", false)
@@ -84,14 +93,6 @@ class MainActivity : BaseActivity() {
 
         lifecycleScope.launch {
             val startTime = System.currentTimeMillis()
-
-            // 1. Set firefly color on main thread background view
-            val starryBg = findViewById<android.view.View>(R.id.splash_starry_bg)?.findViewById<com.nightread.app.ui.StarryNightView>(R.id.starryOverlay)
-            if (isNightMode) {
-                starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
-            } else {
-                starryBg?.setFireflyThemeColor(Color.parseColor("#D4AF37"))
-            }
 
             // 2. Load last read book info with safe timeout
             val taskLoadBooks = async(Dispatchers.IO) {
@@ -139,8 +140,15 @@ class MainActivity : BaseActivity() {
                 startActivity(openIntent)
                 overridePendingTransition(0, 0)
             } else {
-                // 3. Set main layout and initialize drawer & navigation with smooth fade in
+                // 3. Apply active theme to window and set main layout with smooth fade in
                 isSplashActive = false
+                if (isNightMode) {
+                    window.setBackgroundDrawable(com.nightread.app.ui.StarryNightDrawable())
+                    window.statusBarColor = Color.TRANSPARENT
+                } else {
+                    window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.parseColor(com.nightread.app.ui.GalaxyBgHelper.LIGHT_BG_COLOR)))
+                    window.statusBarColor = Color.parseColor(com.nightread.app.ui.GalaxyBgHelper.LIGHT_BG_COLOR)
+                }
                 setContentView(R.layout.activity_main)
                 val mainRoot = findViewById<View>(R.id.drawer_layout) ?: findViewById<View>(R.id.fragment_container)
                 mainRoot?.alpha = 0f

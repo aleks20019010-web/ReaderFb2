@@ -1013,7 +1013,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
             try {
-                val scanner = com.nightread.app.scanner.LibraryScanner(context, dao)
+                val scanner = com.nightread.app.scanner.LibraryScanner.getInstance(context, dao)
                 scanner.scanBooks(force = true).join()
             } catch (e: CancellationException) {
                 throw e
@@ -1074,7 +1074,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
             try {
-                val scanner = com.nightread.app.scanner.LibraryScanner(context, dao)
+                val scanner = com.nightread.app.scanner.LibraryScanner.getInstance(context, dao)
                 scanner.checkForNewBooks().join()
             } catch (e: CancellationException) {
                 throw e

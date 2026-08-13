@@ -30,8 +30,20 @@ object Fb2CoverExtractor {
                         val id = parser.getAttributeValue(null, "id")
                         if (id != null && (id == targetCoverId || (targetCoverId == null && id.contains("cover", ignoreCase = true)))) {
                             val text = parser.nextText()
-                            val bytes = Base64.decode(text.replace("\\s".toRegex(), ""), Base64.DEFAULT)
-                            return NewCoverExtractor.saveCoverBytes(bytes, sha1, context)
+                            if (text != null && text.length in 100..(8 * 1024 * 1024)) {
+                                try {
+                                    val cleanText = text.filter { !it.isWhitespace() }
+                                    val bytes = Base64.decode(cleanText, Base64.DEFAULT)
+                                    if (bytes.isNotEmpty()) {
+                                        return NewCoverExtractor.saveCoverBytes(bytes, sha1, context)
+                                    }
+                                } catch (oom: OutOfMemoryError) {
+                                    Log.w("Fb2CoverExtractor", "OOM decoding cover for $sha1")
+                                } catch (e: Throwable) {
+                                    Log.w("Fb2CoverExtractor", "Error decoding cover for $sha1", e)
+                                }
+                            }
+                            return null
                         } else {
                             skip(parser)
                         }
