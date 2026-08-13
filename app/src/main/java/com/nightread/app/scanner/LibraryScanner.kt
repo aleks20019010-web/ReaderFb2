@@ -292,24 +292,26 @@ class LibraryScanner(
     private fun scanDirectory(directory: File, result: MutableList<File>) {
         try {
             if (!directory.exists() || !directory.isDirectory) return
-            if (result.size >= MAX_FILES_TO_SCAN) return
             
-            val files = try { directory.listFiles() } catch (e: Throwable) { null } ?: return
-            
-            for (file in files) {
-                if (result.size >= MAX_FILES_TO_SCAN) return
-                
-                try {
-                    if (file.isDirectory) {
-                        val dirName = file.name.lowercase()
-                        if (excludePaths.contains(dirName) || dirName.startsWith(".")) continue
-                        scanDirectory(file, result)
-                    } else if (file.isFile && isBookFile(file)) {
+            directory.walkTopDown()
+                .onEnter { dir ->
+                    val dirName = dir.name.lowercase()
+                    if (excludePaths.contains(dirName) || dirName.startsWith(".")) {
+                        false
+                    } else {
+                        true
+                    }
+                }
+                .filter { it.isFile && isBookFile(it) }
+                .take(MAX_FILES_TO_SCAN - result.size)
+                .forEach { file ->
+                    if (result.size < MAX_FILES_TO_SCAN) {
                         result.add(file)
                     }
-                } catch (e: Throwable) {}
-            }
-        } catch (e: Throwable) {}
+                }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error scanning directory", e)
+        }
     }
     
     /**
@@ -457,9 +459,6 @@ class LibraryScanner(
             batchResults.zip(batch).forEach { (result, file) ->
                 if (result is ProcessResult.Success) {
                     addedCount++
-                    try {
-                        com.nightread.app.data.BookPreloader.preload(context, result.entity.sha1, file.absolutePath)
-                    } catch (e: Throwable) {}
                 }
             }
             

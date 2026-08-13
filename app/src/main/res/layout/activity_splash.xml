@@ -50,7 +50,10 @@
             android:layout_weight="1"
             android:layout_marginTop="32dp"
             android:layout_marginBottom="32dp"
-            android:background="@null"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"
+            android:background="@drawable/bg_splash_glass_card"
+            android:elevation="8dp"
             android:padding="24dp">
 
             <LinearLayout
@@ -65,7 +68,7 @@
                     android:layout_width="150dp"
                     android:layout_height="150dp"
                     android:layout_gravity="center_horizontal"
-                    android:background="@drawable/bg_circle_dark"
+                    android:background="@drawable/bg_splash_circle_glass"
                     android:padding="16dp">
 
                     <!-- Circle glow overlay behind icon -->
@@ -73,7 +76,7 @@
                         android:id="@+id/view_icon_glow"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:alpha="0.25"
+                        android:alpha="0.3"
                         android:background="@drawable/bg_circle_light"
                         android:backgroundTint="#B0BEC5" />
 
