@@ -14,7 +14,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.sync.Mutex
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -70,7 +69,6 @@ class LibraryScanner(
     
     // Корутин скоуп
     private val scannerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val dbMutex = Mutex()
     
     // Исключаемые папки
     private val excludePaths = setOf(
@@ -101,12 +99,17 @@ class LibraryScanner(
                 return Job()
             }
             
-            val currentHash = scanPrefs.calculateMediaStoreHash()
-            if (!scanPrefs.isLibraryChanged(currentHash)) {
-                Log.d(TAG, "Library unchanged, skipping scan")
-                return Job()
+            try {
+                val currentHash = scanPrefs.calculateMediaStoreHash()
+                if (!scanPrefs.isLibraryChanged(currentHash)) {
+                    Log.d(TAG, "Library unchanged, skipping scan")
+                    return Job()
+                }
+                scanPrefs.saveLibraryHash(currentHash)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking library hash", e)
+                // Продолжаем сканирование даже если проверка не удалась
             }
-            scanPrefs.saveLibraryHash(currentHash)
         }
         
         _isScanning.set(true)
@@ -123,6 +126,20 @@ class LibraryScanner(
                 }
             } catch (e: Throwable) {
                 Log.e(TAG, "Scan error", e)
+                
+                // Показываем ошибку пользователю
+                try {
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            context,
+                            "Ошибка сканирования: ${e.message}",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                } catch (toastError: Exception) {
+                    Log.e(TAG, "Cannot show toast", toastError)
+                }
+                
                 progressManager.forceUpdate {
                     it.copy(
                         phase = ScanPhase.ERROR,
@@ -133,7 +150,11 @@ class LibraryScanner(
             } finally {
                 _isScanning.set(false)
                 scanJob = null
-                cleanupCache()
+                try {
+                    cleanupCache()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error cleaning cache", e)
+                }
             }
         }
         
@@ -146,7 +167,7 @@ class LibraryScanner(
     private suspend fun performScan() {
         val startTime = System.currentTimeMillis()
         
-        Log.d(TAG, "Starting scan. DB exists: ${AppDatabase.getDatabase(context) != null}")
+        Log.d(TAG, "Starting scan")
         
         progressManager.forceUpdate {
             it.copy(phase = ScanPhase.INITIALIZING, overallProgress = 0)
@@ -157,9 +178,10 @@ class LibraryScanner(
             val testBooks = withContext(Dispatchers.IO) {
                 bookDao.getAllBooksSync()
             }
-            Log.d(TAG, "DB test OK. Books in DB: ${testBooks.size}")
+            Log.d(TAG, "DB OK. Books in DB: ${testBooks.size}")
         } catch (e: Exception) {
-            Log.e(TAG, "DB test FAILED", e)
+            Log.e(TAG, "DB check failed", e)
+            // Не прерываем сканирование
         }
         
         val bookFiles = scanFilesWithProgress()
@@ -196,7 +218,11 @@ class LibraryScanner(
                     booksSkipped = bookFiles.size
                 )
             }
-            scanPrefs.saveLastScanCount(0)
+            try {
+                scanPrefs.saveLastScanCount(0)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error saving scan count", e)
+            }
             return
         }
         
@@ -213,8 +239,13 @@ class LibraryScanner(
         val addedCount = processBooksInBatches(booksToProcess)
         
         val duration = (System.currentTimeMillis() - startTime) / 1000
-        scanPrefs.saveLastScanCount(addedCount)
-        scanPrefs.saveLastScanDuration(duration)
+        
+        try {
+            scanPrefs.saveLastScanCount(addedCount)
+            scanPrefs.saveLastScanDuration(duration)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving scan stats", e)
+        }
         
         progressManager.forceUpdate {
             it.copy(
@@ -249,15 +280,14 @@ class LibraryScanner(
                 break
             }
             
-            // Проверяем доступность директории
             if (!rootDir.exists() || !rootDir.canRead()) {
                 Log.d(TAG, "Cannot access directory: ${rootDir.absolutePath}")
                 continue
             }
             
-            val progress = 5 + ((index.toFloat() / rootDirs.size) * 10).toInt()
+            val scanProgress = 5 + ((index.toFloat() / rootDirs.size) * 10).toInt()
             progressManager.update {
-                it.copy(phaseProgress = progress, currentFile = "Сканирование: ${rootDir.name}")
+                it.copy(phaseProgress = scanProgress, currentFile = "Сканирование: ${rootDir.name}")
             }
             
             Log.d(TAG, "Scanning directory: ${rootDir.absolutePath}")
@@ -295,24 +325,14 @@ class LibraryScanner(
     }
     
     /**
-     * Рекурсивное сканирование директории с защитой от вылетов
+     * Рекурсивное сканирование директории
      */
     private fun scanDirectory(directory: File, result: MutableList<File>, depth: Int = 0) {
-        // Проверяем лимиты
-        if (result.size >= MAX_FILES_TO_SCAN) {
-            Log.d(TAG, "Max files limit reached in scanDirectory")
-            return
-        }
-        
-        if (depth > MAX_SCAN_DEPTH) {
-            Log.d(TAG, "Max depth reached: ${directory.path}")
-            return
-        }
+        if (result.size >= MAX_FILES_TO_SCAN) return
+        if (depth > MAX_SCAN_DEPTH) return
         
         try {
-            // Проверяем символические ссылки
             if (directory.canonicalFile != directory.absoluteFile) {
-                Log.d(TAG, "Skipping symlink: ${directory.path}")
                 return
             }
             
@@ -320,7 +340,6 @@ class LibraryScanner(
                 return
             }
             
-            // Получаем список файлов и папок с защитой
             val entries = try {
                 directory.listFiles()
             } catch (e: SecurityException) {
@@ -333,31 +352,22 @@ class LibraryScanner(
             
             if (entries == null) return
             
-            // Сортируем: сначала файлы, потом папки
             val (files, directories) = entries.partition { 
-                try {
-                    it.isFile
-                } catch (e: Exception) {
-                    false
-                }
+                try { it.isFile } catch (e: Exception) { false }
             }
             
-            // Обрабатываем файлы
             for (file in files) {
                 if (result.size >= MAX_FILES_TO_SCAN) break
                 
                 try {
                     if (isBookFile(file) && file.canRead()) {
                         result.add(file)
-                        Log.d(TAG, "Found book: ${file.name}")
                     }
                 } catch (e: Exception) {
                     // Пропускаем проблемные файлы
-                    Log.d(TAG, "Skipping problematic file: ${file.name}")
                 }
             }
             
-            // Рекурсивно обрабатываем папки
             if (result.size < MAX_FILES_TO_SCAN) {
                 for (dir in directories) {
                     if (result.size >= MAX_FILES_TO_SCAN) break
@@ -368,15 +378,12 @@ class LibraryScanner(
                         ""
                     }
                     
-                    // Пропускаем системные и скрытые папки
                     if (dirName.startsWith(".") || excludePaths.contains(dirName)) {
                         continue
                     }
                     
-                    // Защита от бесконечной рекурсии
                     try {
                         if (dir.canonicalPath == directory.canonicalPath) {
-                            Log.d(TAG, "Skipping recursive directory: ${dir.path}")
                             continue
                         }
                     } catch (e: Exception) {
@@ -388,11 +395,11 @@ class LibraryScanner(
             }
             
         } catch (e: SecurityException) {
-            Log.e(TAG, "Security exception scanning: ${directory.absolutePath}", e)
+            Log.e(TAG, "Security exception: ${directory.absolutePath}", e)
         } catch (e: StackOverflowError) {
-            Log.e(TAG, "Stack overflow scanning: ${directory.absolutePath}", e)
+            Log.e(TAG, "Stack overflow: ${directory.absolutePath}", e)
         } catch (e: Exception) {
-            Log.e(TAG, "Error scanning directory: ${directory.absolutePath}", e)
+            Log.e(TAG, "Error scanning: ${directory.absolutePath}", e)
         }
     }
     
@@ -408,12 +415,9 @@ class LibraryScanner(
             
             when (extension) {
                 "fb2", "epub", "fb3", "mobi", "azw", "azw3", "fbz" -> true
-                "zip" -> {
-                    // Для ZIP проверяем имя файла
-                    name.endsWith(".fb2.zip") || 
-                    name.endsWith(".fb3.zip") ||
-                    name.endsWith(".epub.zip")
-                }
+                "zip" -> name.endsWith(".fb2.zip") || 
+                        name.endsWith(".fb3.zip") ||
+                        name.endsWith(".epub.zip")
                 else -> false
             }
         } catch (e: Exception) {
@@ -432,7 +436,6 @@ class LibraryScanner(
             try {
                 val canonicalPath = dir.canonicalPath
                 if (seenPaths.add(canonicalPath)) {
-                    // Дополнительная проверка для Android 13
                     val isAccessible = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         dir.exists() && dir.canRead() && 
                         !dir.absolutePath.contains("/Android/data") &&
@@ -443,24 +446,17 @@ class LibraryScanner(
                     
                     if (isAccessible) {
                         dirs.add(dir)
-                        Log.d(TAG, "Added scan directory: ${dir.absolutePath}")
-                    } else {
-                        Log.w(TAG, "Directory not accessible: ${dir.absolutePath}")
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Cannot add directory: ${dir.absolutePath}", e)
+                // Пропускаем
             }
         }
         
         try {
             val externalStorage = Environment.getExternalStorageDirectory()
-            Log.d(TAG, "External storage: ${externalStorage.absolutePath}")
-            
-            // Проверяем корень хранилища
             addDirectory(externalStorage)
             
-            // Добавляем стандартные папки
             val bookDirs = listOf(
                 "Books", "books", "Книги", "книги",
                 "Download", "Downloads", "Загрузки",
@@ -471,59 +467,31 @@ class LibraryScanner(
             )
             
             for (dirName in bookDirs) {
-                try {
-                    addDirectory(File(externalStorage, dirName))
-                } catch (e: Exception) {
-                    // Пропускаем
-                }
+                addDirectory(File(externalStorage, dirName))
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error getting external storage", e)
         }
 
-        // Добавляем app-specific директории
         try {
             val appDirs = context.getExternalFilesDirs(null)
             for (dir in appDirs) {
-                if (dir != null) {
-                    addDirectory(dir)
-                }
+                if (dir != null) addDirectory(dir)
             }
             
-            if (context.filesDir != null) {
-                addDirectory(context.filesDir)
-            }
-            
-            // Дополнительные внешние директории (SD карты)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                val externalFilesDirs = context.getExternalFilesDirs(null)
-                for (dir in externalFilesDirs) {
-                    if (dir != null) {
-                        val parent = dir.parentFile?.parentFile
-                        if (parent != null) {
-                            val downloads = File(parent, "Download")
-                            addDirectory(downloads)
-                            
-                            val books = File(parent, "Books")
-                            addDirectory(books)
-                        }
-                    }
-                }
-            }
+            if (context.filesDir != null) addDirectory(context.filesDir)
         } catch (e: Exception) {
             Log.e(TAG, "Error getting app directories", e)
         }
 
-        Log.d(TAG, "Total scan directories: ${dirs.size}")
         return dirs
     }
     
     /**
-     * Анализ кеша и отбор книг для обработки (оптимизированная версия)
+     * Анализ кеша и отбор книг для обработки
      */
     private suspend fun analyzeCache(bookFiles: List<File>): List<File> {
         return try {
-            // Получаем ВСЕ книги из БД один раз
             val allBooks = withContext(Dispatchers.IO) {
                 try {
                     bookDao.getAllBooksSync()
@@ -533,7 +501,6 @@ class LibraryScanner(
                 }
             }
             
-            // Создаем множества путей для быстрого поиска
             val existingAbsolutePaths = allBooks.mapNotNull { it.filePath }.toSet()
             val existingCanonicalPaths = allBooks.mapNotNull { 
                 it.filePath?.let { p -> 
@@ -541,7 +508,6 @@ class LibraryScanner(
                 } 
             }.toSet()
             
-            // Фильтруем новые книги
             bookFiles.filter { file ->
                 val path = file.absolutePath
                 val canonicalPath = try { file.canonicalFile.absolutePath } catch (e: Exception) { path }
@@ -551,7 +517,7 @@ class LibraryScanner(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in analyzeCache", e)
-            emptyList()
+            bookFiles // Если ошибка — пробуем обработать все файлы
         }
     }
     
@@ -567,13 +533,12 @@ class LibraryScanner(
         
         sortedBooks.chunked(BATCH_SIZE).forEachIndexed { _, batch ->
             if (!_isScanning.get()) {
-                Log.d(TAG, "Scan cancelled")
                 throw CancellationException()
             }
             
             val batchResults = processBookBatch(batch)
             
-            batchResults.zip(batch).forEach { (result, file) ->
+            batchResults.zip(batch).forEach { (result, _) ->
                 if (result is ProcessResult.Success) {
                     addedCount++
                 }
@@ -588,15 +553,16 @@ class LibraryScanner(
                         bookDao.insertBook(entities.first())
                     }
                 } catch (e: Throwable) {
-                    Log.w(TAG, "Batch insert failed, falling back to individual inserts: ${e.message}")
+                    Log.w(TAG, "Batch insert failed: ${e.message}")
                     for (entity in entities) {
                         try {
                             bookDao.insertBookSafely(entity)
                         } catch (e2: Throwable) {
-                            Log.e(TAG, "Failed to insert single book ${entity.title}", e2)
+                            Log.e(TAG, "Failed to insert: ${entity.title}", e2)
                         }
                     }
                 }
+                
                 try {
                     updateCache(batchResults, batch)
                 } catch (e: Throwable) {
@@ -606,13 +572,13 @@ class LibraryScanner(
             
             processedCount += batch.size
             
-            val progress = 30 + ((processedCount.toFloat() / totalBooks) * 65).toInt()
+            val overallProgress = 30 + ((processedCount.toFloat() / totalBooks) * 65).toInt()
             
             progressManager.update { current ->
                 current.copy(
                     phase = ScanPhase.PROCESSING_BOOKS,
                     phaseProgress = ((processedCount.toFloat() / totalBooks) * 100).toInt(),
-                    overallProgress = progress,
+                    overallProgress = overallProgress,
                     booksFound = totalBooks,
                     booksProcessed = processedCount,
                     booksAdded = addedCount,
@@ -624,7 +590,6 @@ class LibraryScanner(
             }
             
             if (memoryMonitor.isMemoryLow()) {
-                Log.w(TAG, "Memory low, pausing...")
                 delay(500)
                 System.gc()
             }
@@ -649,7 +614,6 @@ class LibraryScanner(
                     }
                     
                     result ?: run {
-                        Log.w(TAG, "Timeout processing: ${file.name}")
                         ProcessResult.Error(null, null)
                     }
                 } catch (e: Throwable) {
@@ -665,31 +629,18 @@ class LibraryScanner(
      */
     private suspend fun processBook(file: File): ProcessResult {
         return try {
-            Log.d(TAG, "Processing: ${file.absolutePath}, size: ${file.length()}")
-            
-            // Проверяем доступность файла
             if (!file.exists() || !file.canRead()) {
-                Log.w(TAG, "File not accessible: ${file.absolutePath}")
                 return ProcessResult.Skipped
             }
             
-            // Проверяем размер файла
             val fileSize = file.length()
-            if (fileSize <= 0) {
-                Log.w(TAG, "Empty file: ${file.name}")
+            if (fileSize <= 0 || fileSize > MAX_FILE_SIZE_BYTES) {
                 return ProcessResult.Skipped
             }
             
-            if (fileSize > MAX_FILE_SIZE_BYTES) {
-                Log.w(TAG, "File too large: ${file.name} (${fileSize / (1024 * 1024)} MB)")
-                return ProcessResult.Skipped
-            }
-            
-            // Проверка для ZIP файлов
             if (file.name.lowercase().endsWith(".zip")) {
                 val sizeMB = fileSize / (1024 * 1024)
                 if (sizeMB > MAX_ZIP_SIZE_MB) {
-                    Log.w(TAG, "Skipping large ZIP: ${file.name} ($sizeMB MB)")
                     return ProcessResult.Skipped
                 }
             }
@@ -711,13 +662,13 @@ class LibraryScanner(
                 ProcessResult.Error()
             }
         } catch (e: SecurityException) {
-            Log.e(TAG, "Security exception processing ${file.name}", e)
+            Log.e(TAG, "Security exception: ${file.name}", e)
             ProcessResult.Error(exception = e)
         } catch (e: OutOfMemoryError) {
-            Log.e(TAG, "OOM processing ${file.name}", e)
+            Log.e(TAG, "OOM: ${file.name}", e)
             ProcessResult.Error(exception = Exception(e))
         } catch (e: Exception) {
-            Log.e(TAG, "Error processing ${file.name}", e)
+            Log.e(TAG, "Error: ${file.name}", e)
             ProcessResult.Error(exception = e)
         }
     }
@@ -738,7 +689,7 @@ class LibraryScanner(
     }
     
     /**
-     * Обновление кеша после обработки
+     * Обновление кеша
      */
     private suspend fun updateCache(results: List<ProcessResult>, files: List<File>) {
         try {
@@ -757,8 +708,14 @@ class LibraryScanner(
             }
             
             if (cacheList.isNotEmpty()) {
-                val db = AppDatabase.getDatabase(context)
-                db.bookCacheDao().insertAll(cacheList)
+                withContext(Dispatchers.IO) {
+                    try {
+                        val db = AppDatabase.getDatabase(context)
+                        db.bookCacheDao().insertAll(cacheList)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "DB insert cache failed", e)
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update cache", e)
@@ -772,54 +729,50 @@ class LibraryScanner(
         _isScanning.set(false)
         scanJob?.cancel()
         scanJob = null
-        Log.d(TAG, "Scan cancelled")
     }
     
     /**
-     * Очистка старого кеша
+     * Очистка кеша
      */
     private suspend fun cleanupCache() {
         try {
-            val db = AppDatabase.getDatabase(context)
-            val oldCache = db.bookCacheDao().getAll().filter {
-                System.currentTimeMillis() - it.lastScanned > CACHE_CLEANUP_INTERVAL
-            }
-            
-            if (oldCache.isNotEmpty()) {
-                val paths = oldCache.map { it.path }
-                paths.chunked(500).forEach { chunk ->
-                    db.bookCacheDao().deleteByPaths(chunk)
+            withContext(Dispatchers.IO) {
+                val db = AppDatabase.getDatabase(context)
+                val oldCache = db.bookCacheDao().getAll().filter {
+                    System.currentTimeMillis() - it.lastScanned > CACHE_CLEANUP_INTERVAL
                 }
-                Log.d(TAG, "Cleaned ${paths.size} old cache entries")
+                
+                if (oldCache.isNotEmpty()) {
+                    val paths = oldCache.map { it.path }
+                    paths.chunked(500).forEach { chunk ->
+                        db.bookCacheDao().deleteByPaths(chunk)
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Cache cleanup failed", e)
         }
     }
     
-    /**
-     * Получение состояния сканирования
-     */
     fun getState(): ScannerState {
         return progress.value.toScannerState()
     }
     
-    /**
-     * Проверка, нужно ли сканирование
-     */
     suspend fun needsScan(): Boolean {
         if (_isScanning.get()) return false
         
         val now = System.currentTimeMillis()
         if (now - lastScanTime < SCAN_COOLDOWN_MS) return false
         
-        val currentHash = scanPrefs.calculateMediaStoreHash()
-        return scanPrefs.isLibraryChanged(currentHash)
+        return try {
+            val currentHash = scanPrefs.calculateMediaStoreHash()
+            scanPrefs.isLibraryChanged(currentHash)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in needsScan", e)
+            true // Если ошибка — лучше просканировать
+        }
     }
     
-    /**
-     * Результат обработки
-     */
     sealed interface ProcessResult {
         val entity: BookEntity?
         
