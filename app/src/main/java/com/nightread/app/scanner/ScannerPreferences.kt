@@ -107,7 +107,7 @@ class ScannerPreferences(private val context: Context) {
             val savedHash = getLibraryHash()
             savedHash != currentHash
         } catch (e: Exception) {
-            true // Если ошибка — считаем, что библиотека изменилась
+            true
         }
     }
     
@@ -124,7 +124,6 @@ class ScannerPreferences(private val context: Context) {
                 
                 val dirs = mutableListOf<File>()
                 
-                // Добавляем только существующие и доступные директории
                 for (dirName in bookDirs) {
                     try {
                         val dir = File(externalStorage, dirName)
@@ -136,7 +135,6 @@ class ScannerPreferences(private val context: Context) {
                     }
                 }
                 
-                // Добавляем app-specific директории
                 try {
                     val appDirs = context.getExternalFilesDirs(null)
                     for (dir in appDirs) {
@@ -151,18 +149,15 @@ class ScannerPreferences(private val context: Context) {
                     Log.e(TAG, "Error getting app dirs", e)
                 }
                 
-                // Если нет директорий — возвращаем текущее время как хеш
                 if (dirs.isEmpty()) {
                     Log.w(TAG, "No scan directories found")
                     return@withContext System.currentTimeMillis().toString()
                 }
                 
                 val sb = StringBuilder()
-                var totalCount = 0
                 
                 for (dir in dirs) {
                     try {
-                        // Используем безопасное сканирование
                         scanDirectoryForHash(dir, sb, 0)
                     } catch (e: Exception) {
                         Log.e(TAG, "Error scanning dir for hash: ${dir.absolutePath}", e)
@@ -180,15 +175,11 @@ class ScannerPreferences(private val context: Context) {
         }
     }
     
-    /**
-     * Безопасное сканирование директории для подсчета хеша
-     */
     private fun scanDirectoryForHash(dir: File, sb: StringBuilder, depth: Int) {
-        if (depth > 3) return // Ограничиваем глубину
-        if (sb.length() > 100_000) return // Ограничиваем размер хеша
+        if (depth > 3) return
+        if (sb.length > 100_000) return  // ИСПРАВЛЕНО: убраны скобки
         
         try {
-            // Проверяем символические ссылки
             if (dir.canonicalFile != dir.absoluteFile) return
             
             val files = try {
@@ -199,9 +190,8 @@ class ScannerPreferences(private val context: Context) {
             
             if (files == null) return
             
-            // Обрабатываем файлы
             for (file in files) {
-                if (sb.length() > 100_000) return
+                if (sb.length > 100_000) return  // ИСПРАВЛЕНО: убраны скобки
                 
                 try {
                     if (file.isFile && isBookFile(file)) {
@@ -217,9 +207,8 @@ class ScannerPreferences(private val context: Context) {
                 }
             }
             
-            // Рекурсивно обрабатываем поддиректории
             for (subDir in files) {
-                if (sb.length() > 100_000) return
+                if (sb.length > 100_000) return  // ИСПРАВЛЕНО: убраны скобки
                 
                 try {
                     if (subDir.isDirectory && !subDir.name.startsWith(".")) {
