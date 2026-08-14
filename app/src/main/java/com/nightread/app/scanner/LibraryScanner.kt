@@ -69,7 +69,7 @@ class LibraryScanner(
     val progress: StateFlow<ScanProgress> = progressManager.progress
     
     // Корутин скоуп
-    private val scannerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val scannerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val dbMutex = Mutex()
     
     // Исключаемые папки
@@ -146,8 +146,20 @@ class LibraryScanner(
     private suspend fun performScan() {
         val startTime = System.currentTimeMillis()
         
+        Log.d(TAG, "Starting scan. DB exists: ${AppDatabase.getDatabase(context) != null}")
+        
         progressManager.forceUpdate {
             it.copy(phase = ScanPhase.INITIALIZING, overallProgress = 0)
+        }
+        
+        // Проверка БД
+        try {
+            val testBooks = withContext(Dispatchers.IO) {
+                bookDao.getAllBooksSync()
+            }
+            Log.d(TAG, "DB test OK. Books in DB: ${testBooks.size}")
+        } catch (e: Exception) {
+            Log.e(TAG, "DB test FAILED", e)
         }
         
         val bookFiles = scanFilesWithProgress()
@@ -420,19 +432,35 @@ class LibraryScanner(
             try {
                 val canonicalPath = dir.canonicalPath
                 if (seenPaths.add(canonicalPath)) {
-                    if (dir.exists() && dir.canRead()) {
+                    // Дополнительная проверка для Android 13
+                    val isAccessible = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        dir.exists() && dir.canRead() && 
+                        !dir.absolutePath.contains("/Android/data") &&
+                        !dir.absolutePath.contains("/Android/obb")
+                    } else {
+                        dir.exists() && dir.canRead()
+                    }
+                    
+                    if (isAccessible) {
                         dirs.add(dir)
                         Log.d(TAG, "Added scan directory: ${dir.absolutePath}")
+                    } else {
+                        Log.w(TAG, "Directory not accessible: ${dir.absolutePath}")
                     }
                 }
             } catch (e: Exception) {
-                Log.d(TAG, "Cannot add directory: ${dir.absolutePath}")
+                Log.e(TAG, "Cannot add directory: ${dir.absolutePath}", e)
             }
         }
         
         try {
-            // Стандартные директории
             val externalStorage = Environment.getExternalStorageDirectory()
+            Log.d(TAG, "External storage: ${externalStorage.absolutePath}")
+            
+            // Проверяем корень хранилища
+            addDirectory(externalStorage)
+            
+            // Добавляем стандартные папки
             val bookDirs = listOf(
                 "Books", "books", "Книги", "книги",
                 "Download", "Downloads", "Загрузки",
@@ -449,15 +477,6 @@ class LibraryScanner(
                     // Пропускаем
                 }
             }
-            
-            // Если ничего не нашли, пробуем корень
-            if (dirs.isEmpty()) {
-                try {
-                    addDirectory(externalStorage)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Cannot access external storage root", e)
-                }
-            }
         } catch (e: Exception) {
             Log.e(TAG, "Error getting external storage", e)
         }
@@ -471,7 +490,6 @@ class LibraryScanner(
                 }
             }
             
-            // Внутренняя директория приложения
             if (context.filesDir != null) {
                 addDirectory(context.filesDir)
             }
@@ -481,7 +499,6 @@ class LibraryScanner(
                 val externalFilesDirs = context.getExternalFilesDirs(null)
                 for (dir in externalFilesDirs) {
                     if (dir != null) {
-                        // Добавляем родительскую директорию для доступа к общим папкам
                         val parent = dir.parentFile?.parentFile
                         if (parent != null) {
                             val downloads = File(parent, "Download")
@@ -497,79 +514,44 @@ class LibraryScanner(
             Log.e(TAG, "Error getting app directories", e)
         }
 
-        // Сортируем: сначала более специфичные директории
-        return dirs.sortedBy { dir ->
-            when {
-                dir.absolutePath.contains("Books", ignoreCase = true) -> 0
-                dir.absolutePath.contains("Download", ignoreCase = true) -> 1
-                else -> 2
-            }
-        }
+        Log.d(TAG, "Total scan directories: ${dirs.size}")
+        return dirs
     }
     
     /**
-     * Анализ кеша и отбор книг для обработки
+     * Анализ кеша и отбор книг для обработки (оптимизированная версия)
      */
     private suspend fun analyzeCache(bookFiles: List<File>): List<File> {
-        val existingPaths = getExistingPaths(bookFiles)
-        
-        val db = AppDatabase.getDatabase(context)
-        val allBooks = try { db.bookDao().getAllBooksSync() } catch (e: Exception) { emptyList() }
-        val canonicalExistingPaths = allBooks.mapNotNull { it.filePath?.let { p -> try { File(p).canonicalPath } catch (e: Exception) { p } } }.toSet()
-
-        return bookFiles.filter { file ->
-            val path = file.absolutePath
-            val canonicalPath = try { file.canonicalFile.absolutePath } catch (e: Exception) { path }
-            !existingPaths.contains(path) && 
-            !canonicalExistingPaths.contains(canonicalPath)
-        }
-    }
-    
-    /**
-     * Получение существующих путей из БД
-     */
-    private suspend fun getExistingPaths(bookFiles: List<File>): Set<String> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val db = AppDatabase.getDatabase(context)
-                val batchSize = 100
-                val existingSet = mutableSetOf<String>()
-                
-                bookFiles.chunked(batchSize).forEach { batch ->
-                    val paths = batch.map { it.absolutePath }
-                    val existing = db.bookDao().getBooksByPaths(paths)
-                    existingSet.addAll(existing.mapNotNull { it.filePath })
+        return try {
+            // Получаем ВСЕ книги из БД один раз
+            val allBooks = withContext(Dispatchers.IO) {
+                try {
+                    bookDao.getAllBooksSync()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error getting books from DB", e)
+                    emptyList()
                 }
-                
-                existingSet
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to get existing books", e)
-                emptySet()
             }
-        }
-    }
-    
-    /**
-     * Получение закешированных путей
-     */
-    private suspend fun getCachedPaths(bookFiles: List<File>): Set<String> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val db = AppDatabase.getDatabase(context)
-                val batchSize = 100
-                val cacheSet = mutableSetOf<String>()
+            
+            // Создаем множества путей для быстрого поиска
+            val existingAbsolutePaths = allBooks.mapNotNull { it.filePath }.toSet()
+            val existingCanonicalPaths = allBooks.mapNotNull { 
+                it.filePath?.let { p -> 
+                    try { File(p).canonicalPath } catch (e: Exception) { p } 
+                } 
+            }.toSet()
+            
+            // Фильтруем новые книги
+            bookFiles.filter { file ->
+                val path = file.absolutePath
+                val canonicalPath = try { file.canonicalFile.absolutePath } catch (e: Exception) { path }
                 
-                bookFiles.chunked(batchSize).forEach { batch ->
-                    val paths = batch.map { it.absolutePath }
-                    val cached = db.bookCacheDao().getByPaths(paths)
-                    cacheSet.addAll(cached.map { it.path })
-                }
-                
-                cacheSet
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to get cache", e)
-                emptySet()
+                !existingAbsolutePaths.contains(path) && 
+                !existingCanonicalPaths.contains(canonicalPath)
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in analyzeCache", e)
+            emptyList()
         }
     }
     
@@ -600,12 +582,16 @@ class LibraryScanner(
             val entities = batchResults.mapNotNull { it.entity }
             if (entities.isNotEmpty()) {
                 try {
-                    bookDao.insertBooks(entities)
+                    if (entities.size > 1) {
+                        bookDao.insertBooks(entities)
+                    } else {
+                        bookDao.insertBook(entities.first())
+                    }
                 } catch (e: Throwable) {
                     Log.w(TAG, "Batch insert failed, falling back to individual inserts: ${e.message}")
                     for (entity in entities) {
                         try {
-                            bookDao.insertBook(entity)
+                            bookDao.insertBookSafely(entity)
                         } catch (e2: Throwable) {
                             Log.e(TAG, "Failed to insert single book ${entity.title}", e2)
                         }
@@ -679,6 +665,8 @@ class LibraryScanner(
      */
     private suspend fun processBook(file: File): ProcessResult {
         return try {
+            Log.d(TAG, "Processing: ${file.absolutePath}, size: ${file.length()}")
+            
             // Проверяем доступность файла
             if (!file.exists() || !file.canRead()) {
                 Log.w(TAG, "File not accessible: ${file.absolutePath}")
@@ -768,8 +756,10 @@ class LibraryScanner(
                 )
             }
             
-            val db = AppDatabase.getDatabase(context)
-            db.bookCacheDao().insertAll(cacheList)
+            if (cacheList.isNotEmpty()) {
+                val db = AppDatabase.getDatabase(context)
+                db.bookCacheDao().insertAll(cacheList)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update cache", e)
         }
