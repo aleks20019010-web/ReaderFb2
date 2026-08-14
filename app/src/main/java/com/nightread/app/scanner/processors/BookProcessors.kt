@@ -30,7 +30,9 @@ interface BookProcessor {
     suspend fun process(book: BookSource, context: Context): BookEntity?
 }
 
-// Вспомогательные функции (только один раз!)
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+// Эти функции должны быть ТОЛЬКО ОДИН раз в файле!
+
 private fun computeBookSha1(book: BookSource, context: Context): String {
     return try {
         openBookInputStream(book, context)?.use { input ->
@@ -69,6 +71,8 @@ private fun resolveBookPath(book: BookSource, context: Context): String? {
         null
     }
 }
+
+// ==================== ПРОЦЕССОРЫ ====================
 
 class Fb2Processor : BookProcessor {
     override suspend fun process(book: BookSource, context: Context): BookEntity? {
@@ -121,11 +125,7 @@ class Fb2Processor : BookProcessor {
                 }
             }
             
-            val filePath = try {
-                resolveBookPath(book, context) ?: book.realPath ?: book.uri.path
-            } catch (e: Exception) {
-                book.realPath ?: book.uri.path
-            }
+            val filePath = resolveBookPath(book, context) ?: book.realPath ?: book.uri.path ?: ""
             
             BookEntity(
                 sha1 = sha1,
@@ -175,11 +175,7 @@ class Fb3Processor : BookProcessor {
                 }
             } else null
             
-            val filePath = try {
-                resolveBookPath(book, context) ?: book.realPath ?: book.uri.path
-            } catch (e: Exception) {
-                book.realPath ?: book.uri.path
-            }
+            val filePath = resolveBookPath(book, context) ?: book.realPath ?: book.uri.path ?: ""
             
             BookEntity(
                 sha1 = sha1,
@@ -230,11 +226,7 @@ class EpubProcessor : BookProcessor {
                 null
             }
             
-            val filePath = try {
-                resolveBookPath(book, context) ?: book.realPath ?: book.uri.path
-            } catch (e: Exception) {
-                book.realPath ?: book.uri.path
-            }
+            val filePath = resolveBookPath(book, context) ?: book.realPath ?: book.uri.path ?: ""
             
             BookEntity(
                 sha1 = sha1,
@@ -300,11 +292,7 @@ class MobiProcessor : BookProcessor {
                 null
             }
             
-            val filePath = try {
-                resolveBookPath(book, context) ?: book.realPath ?: book.uri.path
-            } catch (e: Exception) {
-                book.realPath ?: book.uri.path
-            }
+            val filePath = resolveBookPath(book, context) ?: book.realPath ?: book.uri.path ?: ""
             
             BookEntity(
                 sha1 = sha1,
@@ -405,11 +393,7 @@ class ZipProcessor : BookProcessor {
             val entity = processor?.process(innerBookSource, context)
 
             if (entity != null) {
-                val filePath = try {
-                    resolveBookPath(book, context) ?: book.realPath ?: book.uri.path
-                } catch (e: Exception) {
-                    book.realPath ?: book.uri.path
-                }
+                val filePath = resolveBookPath(book, context) ?: book.realPath ?: book.uri.path ?: ""
                 
                 entity.copy(
                     sha1 = sha1,
