@@ -20,13 +20,23 @@
     <!-- Автозапуск -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     
-    <!-- Доступ к файлам (современный подход) -->
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <!-- Для Android 13+ -->
+    <!-- Доступ к файлам -->
+    <!-- Для Android 10 и ниже -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" 
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
+        android:maxSdkVersion="28" />
+    
+    <!-- Для Android 11+ (управление всеми файлами) -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" 
+        tools:ignore="ScopedStorage" />
+    
+    <!-- Для Android 13+ (доступ к медиафайлам) -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- ВАЖНО: Добавлено для книг -->
+    <uses-permission android:name="android.permission.READ_MEDIA_BOOKS" />
 
     <!-- Для точных будильников -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" 
