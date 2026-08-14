@@ -15,7 +15,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.InputStream
 
 data class BookSource(
     val uri: Uri,
@@ -30,58 +29,25 @@ interface BookProcessor {
     suspend fun process(book: BookSource, context: Context): BookEntity?
 }
 
-// Вспомогательные функции
-internal fun computeSha1(book: BookSource, context: Context): String {
-    return try {
-        openStream(book, context)?.use { input ->
-            val digest = java.security.MessageDigest.getInstance("SHA-1")
-            val buffer = ByteArray(8192)
-            var read = input.read(buffer)
-            while (read != -1) {
-                digest.update(buffer, 0, read)
-                read = input.read(buffer)
-            }
-            digest.digest().joinToString("") { "%02x".format(it) }
-        } ?: book.name.hashCode().toString()
-    } catch (e: Throwable) {
-        book.name.hashCode().toString()
-    }
-}
-
-internal fun openStream(book: BookSource, context: Context): InputStream? {
-    return try {
-        if (book.realPath != null && File(book.realPath).exists()) {
-            File(book.realPath).inputStream()
-        } else {
-            context.contentResolver.openInputStream(book.uri)
-        }
-    } catch (e: Throwable) {
-        null
-    }
-}
-
-internal fun getFilePath(book: BookSource): String {
-    return book.realPath ?: book.uri.path ?: ""
-}
-
 class Fb2Processor : BookProcessor {
     override suspend fun process(book: BookSource, context: Context): BookEntity? {
         return try {
-            val sha1 = computeSha1(book, context)
+            val sha1 = computeBookSha1(book, context)
             
             val metadata = withContext(Dispatchers.IO) {
                 try {
-                    openStream(book, context)?.use { input ->
+                    openBookInputStream(book, context)?.use { input ->
                         Fb2Parser.parse(input, book.name.substringBeforeLast('.'))
                     }
                 } catch (e: Throwable) {
+                    Log.e("Fb2Processor", "Parse error: ${book.name}", e)
                     null
                 }
             } ?: return null
             
             val coverPath = withContext(Dispatchers.IO) {
                 try {
-                    openStream(book, context)?.use { input ->
+                    openBookInputStream(book, context)?.use { input ->
                         com.nightread.app.service.Fb2CoverExtractor.extract(input, sha1, context)
                     }
                 } catch (e: Throwable) {
@@ -95,7 +61,7 @@ class Fb2Processor : BookProcessor {
                 author = metadata.author,
                 annotation = metadata.annotation,
                 category = "Local",
-                filePath = getFilePath(book),
+                filePath = resolveBookPath(book, context),
                 fileSize = book.size,
                 coverPath = coverPath,
                 series = metadata.series,
@@ -115,11 +81,11 @@ class Fb2Processor : BookProcessor {
 class Fb3Processor : BookProcessor {
     override suspend fun process(book: BookSource, context: Context): BookEntity? {
         return try {
-            val sha1 = computeSha1(book, context)
+            val sha1 = computeBookSha1(book, context)
             
             val result = withContext(Dispatchers.Default) {
                 try {
-                    openStream(book, context)?.use { input ->
+                    openBookInputStream(book, context)?.use { input ->
                         Fb3Parser.parseFb3(input, book.name.substringBeforeLast('.'), false)
                     }
                 } catch (e: Throwable) {
@@ -141,7 +107,7 @@ class Fb3Processor : BookProcessor {
                 author = result.author,
                 annotation = result.annotation,
                 category = "Local",
-                filePath = getFilePath(book),
+                filePath = resolveBookPath(book, context),
                 fileSize = book.size,
                 coverPath = coverPath,
                 series = result.series,
@@ -161,11 +127,11 @@ class Fb3Processor : BookProcessor {
 class EpubProcessor : BookProcessor {
     override suspend fun process(book: BookSource, context: Context): BookEntity? {
         return try {
-            val sha1 = computeSha1(book, context)
+            val sha1 = computeBookSha1(book, context)
             
             val meta = withContext(Dispatchers.Default) {
                 try {
-                    EpubIdentifierHelper.getEpubMetadata { openStream(book, context) }
+                    EpubIdentifierHelper.getEpubMetadata { openBookInputStream(book, context) }
                 } catch (e: Throwable) {
                     null
                 }
@@ -173,7 +139,7 @@ class EpubProcessor : BookProcessor {
             
             val savedCover = try {
                 EpubIdentifierHelper.extractAndSaveEpubCover(
-                    { openStream(book, context) },
+                    { openBookInputStream(book, context) },
                     meta.coverPath,
                     sha1,
                     context
@@ -188,7 +154,7 @@ class EpubProcessor : BookProcessor {
                 author = meta.author,
                 annotation = meta.description,
                 category = "Local",
-                filePath = getFilePath(book),
+                filePath = resolveBookPath(book, context),
                 fileSize = book.size,
                 coverPath = savedCover,
                 language = "unknown",
@@ -206,11 +172,11 @@ class EpubProcessor : BookProcessor {
 class MobiProcessor : BookProcessor {
     override suspend fun process(book: BookSource, context: Context): BookEntity? {
         return try {
-            val sha1 = computeSha1(book, context)
+            val sha1 = computeBookSha1(book, context)
             
             val bytes = withContext(Dispatchers.IO) {
                 try {
-                    openStream(book, context)?.use { input ->
+                    openBookInputStream(book, context)?.use { input ->
                         val output = ByteArrayOutputStream()
                         val buffer = ByteArray(8192)
                         var total = 0L
@@ -249,7 +215,7 @@ class MobiProcessor : BookProcessor {
                 author = meta.author,
                 annotation = meta.annotation,
                 category = "Local",
-                filePath = getFilePath(book),
+                filePath = resolveBookPath(book, context),
                 fileSize = book.size,
                 coverPath = coverPath,
                 isNew = true,
@@ -267,14 +233,14 @@ class ZipProcessor : BookProcessor {
     override suspend fun process(book: BookSource, context: Context): BookEntity? {
         var tempFile: File? = null
         return try {
-            val sha1 = computeSha1(book, context)
+            val sha1 = computeBookSha1(book, context)
             
             var innerName: String? = null
             var innerExt: String? = null
             
             withContext(Dispatchers.IO) {
                 try {
-                    openStream(book, context)?.use { input ->
+                    openBookInputStream(book, context)?.use { input ->
                         java.util.zip.ZipInputStream(input).use { zis ->
                             var entry = zis.nextEntry
                             while (entry != null) {
@@ -336,7 +302,7 @@ class ZipProcessor : BookProcessor {
             if (entity != null) {
                 entity.copy(
                     sha1 = sha1,
-                    filePath = getFilePath(book),
+                    filePath = resolveBookPath(book, context),
                     fileSize = book.size
                 )
             } else {
