@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.InputStream
 
 data class BookSource(
     val uri: Uri,
@@ -29,12 +30,51 @@ interface BookProcessor {
     suspend fun process(book: BookSource, context: Context): BookEntity?
 }
 
+// Вспомогательные функции (только один раз!)
+private fun computeBookSha1(book: BookSource, context: Context): String {
+    return try {
+        openBookInputStream(book, context)?.use { input ->
+            val digest = java.security.MessageDigest.getInstance("SHA-1")
+            val buffer = ByteArray(8192)
+            var read: Int
+            while (input.read(buffer).also { read = it } != -1) {
+                digest.update(buffer, 0, read)
+            }
+            digest.digest().joinToString("") { "%02x".format(it) }
+        } ?: book.name.hashCode().toString()
+    } catch (e: Throwable) {
+        Log.e("BookProcessor", "SHA1 calculation error for ${book.name}", e)
+        book.name.hashCode().toString()
+    }
+}
+
+private fun openBookInputStream(book: BookSource, context: Context): InputStream? {
+    return try {
+        if (book.realPath != null && File(book.realPath).exists()) {
+            File(book.realPath).inputStream()
+        } else {
+            context.contentResolver.openInputStream(book.uri)
+        }
+    } catch (e: Throwable) {
+        Log.e("BookProcessor", "Cannot open input stream for ${book.name}", e)
+        null
+    }
+}
+
+private fun resolveBookPath(book: BookSource, context: Context): String? {
+    return try {
+        book.realPath ?: book.uri.path
+    } catch (e: Throwable) {
+        Log.e("BookProcessor", "Cannot resolve path for ${book.name}", e)
+        null
+    }
+}
+
 class Fb2Processor : BookProcessor {
     override suspend fun process(book: BookSource, context: Context): BookEntity? {
         return try {
             val sha1 = computeBookSha1(book, context)
             
-            // 1. Parse Metadata
             val metadata = withContext(Dispatchers.IO) {
                 try {
                     openBookInputStream(book, context)?.use { input ->
@@ -58,7 +98,6 @@ class Fb2Processor : BookProcessor {
                 }
             } ?: return null
             
-            // 2. Extract Cover (отдельно, с полной защитой)
             val coverPath = withContext(Dispatchers.IO) {
                 try {
                     openBookInputStream(book, context)?.use { input ->
@@ -85,7 +124,6 @@ class Fb2Processor : BookProcessor {
             val filePath = try {
                 resolveBookPath(book, context) ?: book.realPath ?: book.uri.path
             } catch (e: Exception) {
-                Log.e("Fb2Processor", "Error resolving path for ${book.name}", e)
                 book.realPath ?: book.uri.path
             }
             
@@ -140,7 +178,6 @@ class Fb3Processor : BookProcessor {
             val filePath = try {
                 resolveBookPath(book, context) ?: book.realPath ?: book.uri.path
             } catch (e: Exception) {
-                Log.e("Fb3Processor", "Error resolving path for ${book.name}", e)
                 book.realPath ?: book.uri.path
             }
             
@@ -196,7 +233,6 @@ class EpubProcessor : BookProcessor {
             val filePath = try {
                 resolveBookPath(book, context) ?: book.realPath ?: book.uri.path
             } catch (e: Exception) {
-                Log.e("EpubProcessor", "Error resolving path for ${book.name}", e)
                 book.realPath ?: book.uri.path
             }
             
@@ -251,7 +287,7 @@ class MobiProcessor : BookProcessor {
                     MobiParser.parseBytes(bytes, book.name.substringBeforeLast('.'))
                 } catch (e: Throwable) {
                     Log.e("MobiProcessor", "Parsing error ${book.name}", e)
-                    return@withContext null
+                    null
                 }
             } ?: return null
             
@@ -267,7 +303,6 @@ class MobiProcessor : BookProcessor {
             val filePath = try {
                 resolveBookPath(book, context) ?: book.realPath ?: book.uri.path
             } catch (e: Exception) {
-                Log.e("MobiProcessor", "Error resolving path for ${book.name}", e)
                 book.realPath ?: book.uri.path
             }
             
@@ -319,7 +354,6 @@ class ZipProcessor : BookProcessor {
                                     innerName = entry.name
                                     innerExt = innerName!!.substringAfterLast('.', "").lowercase()
                                     
-                                    // Проверяем, не является ли внутренний файл ZIP
                                     if (innerExt == "zip") {
                                         Log.w("ZipProcessor", "Nested ZIP not supported: ${book.name}")
                                         break
@@ -353,7 +387,7 @@ class ZipProcessor : BookProcessor {
             }
             
             val innerBookSource = BookSource(
-                uri = android.net.Uri.fromFile(validTempFile),
+                uri = Uri.fromFile(validTempFile),
                 name = innerName!!,
                 size = validTempFile.length(),
                 modified = book.modified,
@@ -374,7 +408,6 @@ class ZipProcessor : BookProcessor {
                 val filePath = try {
                     resolveBookPath(book, context) ?: book.realPath ?: book.uri.path
                 } catch (e: Exception) {
-                    Log.e("ZipProcessor", "Error resolving path for ${book.name}", e)
                     book.realPath ?: book.uri.path
                 }
                 
@@ -395,46 +428,5 @@ class ZipProcessor : BookProcessor {
                 tempFile?.delete()
             } catch (e: Throwable) {}
         }
-    }
-}
-
-// Вспомогательные функции (добавьте в конец файла)
-
-private fun computeBookSha1(book: BookSource, context: Context): String {
-    return try {
-        openBookInputStream(book, context)?.use { input ->
-            val digest = java.security.MessageDigest.getInstance("SHA-1")
-            val buffer = ByteArray(8192)
-            var read: Int
-            while (input.read(buffer).also { read = it } != -1) {
-                digest.update(buffer, 0, read)
-            }
-            digest.digest().joinToString("") { "%02x".format(it) }
-        } ?: book.name.hashCode().toString()
-    } catch (e: Throwable) {
-        Log.e("BookProcessor", "SHA1 calculation error for ${book.name}", e)
-        book.name.hashCode().toString()
-    }
-}
-
-private fun openBookInputStream(book: BookSource, context: Context): java.io.InputStream? {
-    return try {
-        if (book.realPath != null && File(book.realPath).exists()) {
-            File(book.realPath).inputStream()
-        } else {
-            context.contentResolver.openInputStream(book.uri)
-        }
-    } catch (e: Throwable) {
-        Log.e("BookProcessor", "Cannot open input stream for ${book.name}", e)
-        null
-    }
-}
-
-private fun resolveBookPath(book: BookSource, context: Context): String? {
-    return try {
-        book.realPath ?: book.uri.path
-    } catch (e: Throwable) {
-        Log.e("BookProcessor", "Cannot resolve path for ${book.name}", e)
-        null
     }
 }
