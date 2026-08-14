@@ -2,6 +2,7 @@ package com.nightread.app.scanner
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.util.Log
 import com.nightread.app.data.AppDatabase
@@ -29,6 +30,8 @@ class LibraryScanner(
         private const val MAX_FILES_TO_SCAN = 10000
         private const val SCAN_COOLDOWN_MS = 5000L
         private const val CACHE_CLEANUP_INTERVAL = 7 * 24 * 60 * 60 * 1000L // 7 дней
+        private const val MAX_SCAN_DEPTH = 5
+        private const val MAX_FILE_SIZE_BYTES = 100L * 1024 * 1024 // 100 MB
         
         @Volatile
         private var INSTANCE: LibraryScanner? = null
@@ -71,10 +74,11 @@ class LibraryScanner(
     
     // Исключаемые папки
     private val excludePaths = setOf(
-        "Android", "data", "obb", "cache", "system",
+        "android", "data", "obb", "cache", "system",
         "proc", "sys", "root", ".thumbnails",
         "dcim", "pictures", "movies", "music",
-        "notifications", "ringtones", "podcasts"
+        "notifications", "ringtones", "podcasts",
+        "alarms", "audiobooks", "backup", "backups"
     )
     
     suspend fun checkForNewBooks(): Job {
@@ -225,16 +229,34 @@ class LibraryScanner(
         }
         
         val rootDirs = getDefaultScanDirectories()
+        Log.d(TAG, "Found ${rootDirs.size} scan directories")
         
         for ((index, rootDir) in rootDirs.withIndex()) {
-            if (!rootDir.exists() || !rootDir.canRead()) continue
+            if (bookFiles.size >= MAX_FILES_TO_SCAN) {
+                Log.w(TAG, "Reached max files limit: $MAX_FILES_TO_SCAN")
+                break
+            }
+            
+            // Проверяем доступность директории
+            if (!rootDir.exists() || !rootDir.canRead()) {
+                Log.d(TAG, "Cannot access directory: ${rootDir.absolutePath}")
+                continue
+            }
             
             val progress = 5 + ((index.toFloat() / rootDirs.size) * 10).toInt()
             progressManager.update {
                 it.copy(phaseProgress = progress, currentFile = "Сканирование: ${rootDir.name}")
             }
             
-            scanDirectory(rootDir, bookFiles)
+            Log.d(TAG, "Scanning directory: ${rootDir.absolutePath}")
+            
+            try {
+                scanDirectory(rootDir, bookFiles)
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Security exception scanning: ${rootDir.absolutePath}", e)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error scanning: ${rootDir.absolutePath}", e)
+            }
         }
         
         val uniqueFiles = bookFiles.distinctBy { 
@@ -245,6 +267,8 @@ class LibraryScanner(
             } 
         }
 
+        Log.d(TAG, "Found ${uniqueFiles.size} unique book files")
+        
         progressManager.forceUpdate {
             it.copy(
                 phase = ScanPhase.SCANNING_FILES,
@@ -259,37 +283,104 @@ class LibraryScanner(
     }
     
     /**
-     * Рекурсивное сканирование директории
+     * Рекурсивное сканирование директории с защитой от вылетов
      */
-    private fun scanDirectory(directory: File, result: MutableList<File>) {
+    private fun scanDirectory(directory: File, result: MutableList<File>, depth: Int = 0) {
+        // Проверяем лимиты
+        if (result.size >= MAX_FILES_TO_SCAN) {
+            Log.d(TAG, "Max files limit reached in scanDirectory")
+            return
+        }
+        
+        if (depth > MAX_SCAN_DEPTH) {
+            Log.d(TAG, "Max depth reached: ${directory.path}")
+            return
+        }
+        
         try {
-            if (!directory.exists() || !directory.isDirectory) return
+            // Проверяем символические ссылки
+            if (directory.canonicalFile != directory.absoluteFile) {
+                Log.d(TAG, "Skipping symlink: ${directory.path}")
+                return
+            }
             
-            directory.walkTopDown()
-                .onEnter { dir ->
-                    try {
-                        val dirName = dir.name.lowercase()
-                        !excludePaths.contains(dirName) && !dirName.startsWith(".")
-                    } catch (e: Throwable) {
-                        false
-                    }
+            if (!directory.exists() || !directory.isDirectory || !directory.canRead()) {
+                return
+            }
+            
+            // Получаем список файлов и папок с защитой
+            val entries = try {
+                directory.listFiles()
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Security exception listing: ${directory.absolutePath}", e)
+                null
+            } catch (e: Exception) {
+                Log.e(TAG, "Error listing: ${directory.absolutePath}", e)
+                null
+            }
+            
+            if (entries == null) return
+            
+            // Сортируем: сначала файлы, потом папки
+            val (files, directories) = entries.partition { 
+                try {
+                    it.isFile
+                } catch (e: Exception) {
+                    false
                 }
-                .onFail { _, _ -> /* Ignore permission and I/O failures gracefully */ }
-                .filter { file ->
-                    try {
-                        file.isFile && isBookFile(file)
-                    } catch (e: Throwable) {
-                        false
-                    }
-                }
-                .take((MAX_FILES_TO_SCAN - result.size).coerceAtLeast(0))
-                .forEach { file ->
-                    if (result.size < MAX_FILES_TO_SCAN) {
+            }
+            
+            // Обрабатываем файлы
+            for (file in files) {
+                if (result.size >= MAX_FILES_TO_SCAN) break
+                
+                try {
+                    if (isBookFile(file) && file.canRead()) {
                         result.add(file)
+                        Log.d(TAG, "Found book: ${file.name}")
                     }
+                } catch (e: Exception) {
+                    // Пропускаем проблемные файлы
+                    Log.d(TAG, "Skipping problematic file: ${file.name}")
                 }
-        } catch (e: Throwable) {
-            Log.e(TAG, "Error scanning directory", e)
+            }
+            
+            // Рекурсивно обрабатываем папки
+            if (result.size < MAX_FILES_TO_SCAN) {
+                for (dir in directories) {
+                    if (result.size >= MAX_FILES_TO_SCAN) break
+                    
+                    val dirName = try {
+                        dir.name.lowercase()
+                    } catch (e: Exception) {
+                        ""
+                    }
+                    
+                    // Пропускаем системные и скрытые папки
+                    if (dirName.startsWith(".") || excludePaths.contains(dirName)) {
+                        continue
+                    }
+                    
+                    // Защита от бесконечной рекурсии
+                    try {
+                        if (dir.canonicalPath == directory.canonicalPath) {
+                            Log.d(TAG, "Skipping recursive directory: ${dir.path}")
+                            continue
+                        }
+                    } catch (e: Exception) {
+                        continue
+                    }
+                    
+                    scanDirectory(dir, result, depth + 1)
+                }
+            }
+            
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Security exception scanning: ${directory.absolutePath}", e)
+        } catch (e: StackOverflowError) {
+            Log.e(TAG, "Stack overflow scanning: ${directory.absolutePath}", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error scanning directory: ${directory.absolutePath}", e)
         }
     }
     
@@ -298,12 +389,22 @@ class LibraryScanner(
      */
     private fun isBookFile(file: File): Boolean {
         return try {
+            if (!file.isFile || !file.canRead()) return false
+            
             val name = file.name.lowercase()
-            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".fbz") ||
-                    name.endsWith(".epub") || name.endsWith(".fb3") || name.endsWith(".fb3.zip") ||
-                    name.endsWith(".mobi") || name.endsWith(".azw") || name.endsWith(".azw3") ||
-                    name.endsWith(".zip")
-        } catch (e: Throwable) {
+            val extension = file.extension.lowercase()
+            
+            when (extension) {
+                "fb2", "epub", "fb3", "mobi", "azw", "azw3", "fbz" -> true
+                "zip" -> {
+                    // Для ZIP проверяем имя файла
+                    name.endsWith(".fb2.zip") || 
+                    name.endsWith(".fb3.zip") ||
+                    name.endsWith(".epub.zip")
+                }
+                else -> false
+            }
+        } catch (e: Exception) {
             false
         }
     }
@@ -313,42 +414,97 @@ class LibraryScanner(
      */
     private fun getDefaultScanDirectories(): List<File> {
         val dirs = mutableListOf<File>()
+        val seenPaths = mutableSetOf<String>()
+        
+        fun addDirectory(dir: File) {
+            try {
+                val canonicalPath = dir.canonicalPath
+                if (seenPaths.add(canonicalPath)) {
+                    if (dir.exists() && dir.canRead()) {
+                        dirs.add(dir)
+                        Log.d(TAG, "Added scan directory: ${dir.absolutePath}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "Cannot add directory: ${dir.absolutePath}")
+            }
+        }
+        
         try {
+            // Стандартные директории
             val externalStorage = Environment.getExternalStorageDirectory()
             val bookDirs = listOf(
                 "Books", "books", "Книги", "книги",
                 "Download", "Downloads", "Загрузки",
                 "Documents", "Документы",
-                "Ebooks", "eBooks", "Library", "library"
+                "Ebooks", "eBooks", "Library", "library",
+                "FB2", "EPUB", "MOBI", "FictionBook",
+                "Read", "Reading", "Чтение"
             )
             
             for (dirName in bookDirs) {
                 try {
-                    val dir = File(externalStorage, dirName)
-                    if (dir.exists() && dir.canRead()) {
-                        dirs.add(dir)
-                    }
-                } catch (e: Throwable) {}
+                    addDirectory(File(externalStorage, dirName))
+                } catch (e: Exception) {
+                    // Пропускаем
+                }
             }
             
-            if (dirs.isEmpty() && externalStorage.exists() && externalStorage.canRead()) {
-                dirs.add(externalStorage)
+            // Если ничего не нашли, пробуем корень
+            if (dirs.isEmpty()) {
+                try {
+                    addDirectory(externalStorage)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Cannot access external storage root", e)
+                }
             }
-        } catch (e: Throwable) {}
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting external storage", e)
+        }
 
+        // Добавляем app-specific директории
         try {
             val appDirs = context.getExternalFilesDirs(null)
             for (dir in appDirs) {
-                if (dir != null && dir.exists() && dir.canRead()) {
-                    dirs.add(dir)
+                if (dir != null) {
+                    addDirectory(dir)
                 }
             }
-            if (context.filesDir != null && context.filesDir.exists()) {
-                dirs.add(context.filesDir)
+            
+            // Внутренняя директория приложения
+            if (context.filesDir != null) {
+                addDirectory(context.filesDir)
             }
-        } catch (e: Throwable) {}
+            
+            // Дополнительные внешние директории (SD карты)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                val externalFilesDirs = context.getExternalFilesDirs(null)
+                for (dir in externalFilesDirs) {
+                    if (dir != null) {
+                        // Добавляем родительскую директорию для доступа к общим папкам
+                        val parent = dir.parentFile?.parentFile
+                        if (parent != null) {
+                            val downloads = File(parent, "Download")
+                            addDirectory(downloads)
+                            
+                            val books = File(parent, "Books")
+                            addDirectory(books)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting app directories", e)
+        }
 
-        return dirs
+        // Сортируем: сначала более специфичные директории
+        return dirs.sortedBy { dir ->
+            when {
+                dir.absolutePath.contains("Books", ignoreCase = true) -> 0
+                dir.absolutePath.contains("Download", ignoreCase = true) -> 1
+                else -> 2
+            }
+        }
     }
     
     /**
@@ -522,33 +678,59 @@ class LibraryScanner(
      * Обработка одной книги
      */
     private suspend fun processBook(file: File): ProcessResult {
-        if (!file.exists() || !file.canRead()) {
-            return ProcessResult.Skipped
-        }
-        
-        if (file.name.lowercase().endsWith(".zip")) {
-            val sizeMB = file.length() / (1024 * 1024)
-            if (sizeMB > MAX_ZIP_SIZE_MB) {
-                Log.w(TAG, "Skipping large ZIP: ${file.name} ($sizeMB MB)")
+        return try {
+            // Проверяем доступность файла
+            if (!file.exists() || !file.canRead()) {
+                Log.w(TAG, "File not accessible: ${file.absolutePath}")
                 return ProcessResult.Skipped
             }
-        }
-        
-        val processor = getProcessorForFile(file) ?: return ProcessResult.Skipped
-        
-        val bookSource = BookSource(
-            uri = Uri.fromFile(file),
-            name = file.name,
-            size = file.length(),
-            modified = file.lastModified(),
-            realPath = file.absolutePath
-        )
-        
-        val entity = processor.process(bookSource, context)
-        return if (entity != null) {
-            ProcessResult.Success(entity)
-        } else {
-            ProcessResult.Error()
+            
+            // Проверяем размер файла
+            val fileSize = file.length()
+            if (fileSize <= 0) {
+                Log.w(TAG, "Empty file: ${file.name}")
+                return ProcessResult.Skipped
+            }
+            
+            if (fileSize > MAX_FILE_SIZE_BYTES) {
+                Log.w(TAG, "File too large: ${file.name} (${fileSize / (1024 * 1024)} MB)")
+                return ProcessResult.Skipped
+            }
+            
+            // Проверка для ZIP файлов
+            if (file.name.lowercase().endsWith(".zip")) {
+                val sizeMB = fileSize / (1024 * 1024)
+                if (sizeMB > MAX_ZIP_SIZE_MB) {
+                    Log.w(TAG, "Skipping large ZIP: ${file.name} ($sizeMB MB)")
+                    return ProcessResult.Skipped
+                }
+            }
+            
+            val processor = getProcessorForFile(file) ?: return ProcessResult.Skipped
+            
+            val bookSource = BookSource(
+                uri = Uri.fromFile(file),
+                name = file.name,
+                size = fileSize,
+                modified = file.lastModified(),
+                realPath = file.absolutePath
+            )
+            
+            val entity = processor.process(bookSource, context)
+            if (entity != null) {
+                ProcessResult.Success(entity)
+            } else {
+                ProcessResult.Error()
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Security exception processing ${file.name}", e)
+            ProcessResult.Error(exception = e)
+        } catch (e: OutOfMemoryError) {
+            Log.e(TAG, "OOM processing ${file.name}", e)
+            ProcessResult.Error(exception = Exception(e))
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing ${file.name}", e)
+            ProcessResult.Error(exception = e)
         }
     }
     
