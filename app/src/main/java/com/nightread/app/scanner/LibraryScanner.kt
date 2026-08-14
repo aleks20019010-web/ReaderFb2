@@ -124,6 +124,29 @@ class LibraryScanner(
                 progressManager.forceUpdate {
                     it.copy(phase = ScanPhase.CANCELLED, overallProgress = 100)
                 }
+            } catch (e: OutOfMemoryError) {
+                Log.e(TAG, "Out of memory during scan", e)
+                System.gc()
+                
+                try {
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            context,
+                            "Недостаточно памяти для сканирования",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                } catch (toastError: Exception) {
+                    Log.e(TAG, "Cannot show toast", toastError)
+                }
+                
+                progressManager.forceUpdate {
+                    it.copy(
+                        phase = ScanPhase.ERROR,
+                        overallProgress = 100,
+                        currentFile = "Ошибка памяти"
+                    )
+                }
             } catch (e: Throwable) {
                 Log.e(TAG, "Scan error", e)
                 
@@ -488,32 +511,24 @@ class LibraryScanner(
     }
     
     /**
-     * Анализ кеша и отбор книг для обработки
+     * Анализ кеша и отбор книг для обработки (оптимизированная версия)
      */
     private suspend fun analyzeCache(bookFiles: List<File>): List<File> {
         return try {
-            val allBooks = withContext(Dispatchers.IO) {
+            val existingPaths = withContext(Dispatchers.IO) {
                 try {
-                    bookDao.getAllBooksSync()
+                    bookDao.getAllBookPaths()
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error getting books from DB", e)
-                    emptyList()
+                    Log.e(TAG, "Error getting book paths from DB", e)
+                    emptySet()
                 }
             }
-            
-            val existingAbsolutePaths = allBooks.mapNotNull { it.filePath }.toSet()
-            val existingCanonicalPaths = allBooks.mapNotNull { 
-                it.filePath?.let { p -> 
-                    try { File(p).canonicalPath } catch (e: Exception) { p } 
-                } 
-            }.toSet()
             
             bookFiles.filter { file ->
                 val path = file.absolutePath
                 val canonicalPath = try { file.canonicalFile.absolutePath } catch (e: Exception) { path }
                 
-                !existingAbsolutePaths.contains(path) && 
-                !existingCanonicalPaths.contains(canonicalPath)
+                path !in existingPaths && canonicalPath !in existingPaths
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in analyzeCache", e)
@@ -538,7 +553,7 @@ class LibraryScanner(
             
             val batchResults = processBookBatch(batch)
             
-            batchResults.zip(batch).forEach { (result, _) ->
+            batchResults.forEach { result ->
                 if (result is ProcessResult.Success) {
                     addedCount++
                 }
@@ -599,13 +614,13 @@ class LibraryScanner(
     }
     
     /**
-     * Обработка одного батча книг
+     * Обработка одного батча книг (с защитой от ошибок)
      */
     private suspend fun processBookBatch(batch: List<File>): List<ProcessResult> {
         return withContext(Dispatchers.IO) {
-            batch.map { file ->
+            batch.mapNotNull { file ->
                 if (!_isScanning.get()) {
-                    return@map ProcessResult.Error(null, null)
+                    return@mapNotNull null
                 }
                 
                 try {
@@ -613,9 +628,7 @@ class LibraryScanner(
                         processBook(file)
                     }
                     
-                    result ?: run {
-                        ProcessResult.Error(null, null)
-                    }
+                    result ?: ProcessResult.Skipped
                 } catch (e: Throwable) {
                     Log.e(TAG, "Error processing ${file.name}", e)
                     ProcessResult.Error(null, Exception(e))
@@ -659,13 +672,14 @@ class LibraryScanner(
             if (entity != null) {
                 ProcessResult.Success(entity)
             } else {
-                ProcessResult.Error()
+                ProcessResult.Skipped
             }
         } catch (e: SecurityException) {
             Log.e(TAG, "Security exception: ${file.name}", e)
             ProcessResult.Error(exception = e)
         } catch (e: OutOfMemoryError) {
             Log.e(TAG, "OOM: ${file.name}", e)
+            System.gc()
             ProcessResult.Error(exception = Exception(e))
         } catch (e: Exception) {
             Log.e(TAG, "Error: ${file.name}", e)
