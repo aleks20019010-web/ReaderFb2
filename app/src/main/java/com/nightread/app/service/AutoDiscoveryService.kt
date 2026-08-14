@@ -37,6 +37,7 @@ class AutoDiscoveryService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
         
+        var foregroundStarted = false
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
@@ -47,8 +48,13 @@ class AutoDiscoveryService : Service() {
             } else {
                 startForeground(NOTIFICATION_ID, notification)
             }
+            foregroundStarted = true
         } catch (e: Exception) {
             Log.e("AutoDiscoveryService", "Failed to startForeground", e)
+        }
+        if (!foregroundStarted) {
+            stopSelf()
+            return
         }
         setupObservers()
     }

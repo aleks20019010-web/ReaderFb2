@@ -351,6 +351,7 @@ private fun GlassActionIcon(imageVector: ImageVector, description: String, onCli
 // =========================================================
 @Composable
 private fun GlassBookGrid(books: List<BookEntity>, onBookClicked: (BookEntity) -> Unit) {
+    val uniqueBooks = remember(books) { books.distinctBy { it.sha1 } }
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         modifier = Modifier
@@ -360,7 +361,10 @@ private fun GlassBookGrid(books: List<BookEntity>, onBookClicked: (BookEntity) -
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(bottom = 24.dp, top = 4.dp)
     ) {
-        items(books) { book ->
+        items(
+            items = uniqueBooks,
+            key = { it.sha1 }
+        ) { book ->
             GlassBookCard(
                 book = book,
                 onClicked = { onBookClicked(book) }
@@ -559,6 +563,7 @@ private fun GlassEmptyState(onScanClicked: () -> Unit) {
 
 @Composable
 private fun GlassBookList(books: List<BookEntity>, onBookClicked: (BookEntity) -> Unit) {
+    val uniqueBooks = remember(books) { books.distinctBy { it.sha1 } }
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -566,7 +571,10 @@ private fun GlassBookList(books: List<BookEntity>, onBookClicked: (BookEntity) -
         verticalArrangement = Arrangement.spacedBy(10.dp),
         contentPadding = PaddingValues(bottom = 24.dp, top = 4.dp)
     ) {
-        items(books) { book ->
+        items(
+            items = uniqueBooks,
+            key = { it.sha1 }
+        ) { book ->
             GlassBookRowItem(book = book, onClicked = { onBookClicked(book) })
         }
     }

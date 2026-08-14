@@ -59,7 +59,7 @@ class LibraryFragment : Fragment() {
             androidx.compose.material3.MaterialTheme {
                 val searchedBooks by viewModel.searchedBooks.collectAsState(initial = emptyList())
                 val sortOption by viewModel.sortOption.collectAsState(initial = com.nightread.app.data.SettingsManager.SORT_DATE_DESC)
-                val sortedBooks = remember(searchedBooks, sortOption) { viewModel.sortBooks(searchedBooks, sortOption) }
+                val sortedBooks = remember(searchedBooks, sortOption) { viewModel.sortBooks(searchedBooks.distinctBy { it.sha1 }, sortOption) }
 
                 val isScanning = viewModel.isScanning
                 val scanProgressText = viewModel.scanProgressText

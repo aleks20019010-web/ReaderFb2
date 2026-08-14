@@ -101,7 +101,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
                 if (booksToDelete.isNotEmpty()) {
                     android.util.Log.d("BookViewModel", "Removing ${booksToDelete.size} duplicate books")
-                    dao.deleteBooksBySha1s(booksToDelete.toList())
+                    booksToDelete.chunked(500).forEach { chunk ->
+                        dao.deleteBooksBySha1s(chunk)
+                    }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("BookViewModel", "Error in removeDuplicateBooks", e)
@@ -274,11 +276,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             SettingsManager.setAutoDiscoveryEnabled(context, true)
                         }
                         com.nightread.app.service.AutoDiscoveryWorker.schedule(context)
-                        try {
-                            com.nightread.app.service.AutoDiscoveryService.start(context)
-                        } catch (e: Exception) {
-                            Log.e("BookViewModel", "Failed to start AutoDiscoveryService", e)
-                        }
                     }
                 } else {
                     wasEmpty = true
