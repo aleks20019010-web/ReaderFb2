@@ -25,9 +25,6 @@ import androidx.compose.runtime.Composable
 @Config(sdk = [33])
 class ReaderLayoutRegressionTest {
 
-    @get:Rule
-    val composeTestRule = createComposeRule()
-
     private lateinit var context: Context
 
     @Before
@@ -36,13 +33,12 @@ class ReaderLayoutRegressionTest {
     }
 
     private fun runWithMeasurer(block: (TextMeasurer) -> Unit) {
-        var caughtMeasurer: TextMeasurer? = null
-        composeTestRule.setContent {
-            caughtMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
-        }
-        composeTestRule.runOnIdle {
-            block(caughtMeasurer!!)
-        }
+        val measurer = TextMeasurer(
+            androidx.compose.ui.text.font.createFontFamilyResolver(context),
+            androidx.compose.ui.unit.Density(1f, 1f),
+            androidx.compose.ui.unit.LayoutDirection.Ltr
+        )
+        block(measurer)
     }
 
     @Test

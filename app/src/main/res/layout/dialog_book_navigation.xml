@@ -5,7 +5,7 @@
     android:id="@+id/navigationCardRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    app:cardBackgroundColor="#1A0D2A"
+    app:cardBackgroundColor="@color/bg_main"
     app:cardCornerRadius="0dp"
     app:cardElevation="0dp"
     app:cardPreventCornerOverlap="true"
@@ -22,7 +22,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:paddingHorizontal="12dp"
-            android:background="#150924">
+            android:background="@color/bg_panel">
 
             <ImageButton
                 android:id="@+id/btnBack"
@@ -33,7 +33,7 @@
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_arrow_back"
                 android:contentDescription="Назад"
-                app:tint="#E8D8F0" />
+                app:tint="@color/icon_tint" />
 
             <TextView
                 android:id="@+id/tvBookTitle"
@@ -46,7 +46,7 @@
                 android:ellipsize="end"
                 android:singleLine="true"
                 android:text="Название книги"
-                android:textColor="#E8D8F0"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -60,7 +60,7 @@
                 android:src="@android:drawable/ic_menu_more"
                 android:contentDescription="Меню"
                 android:visibility="gone"
-                app:tint="#E8D8F0" />
+                app:tint="@color/icon_tint" />
         </RelativeLayout>
 
         <!-- TabLayout -->
@@ -68,13 +68,13 @@
             android:id="@+id/tabLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#1C0E2E"
+            android:background="@color/bg_card"
             app:tabGravity="fill"
             app:tabMode="fixed"
-            app:tabIndicatorColor="#9B59B6"
+            app:tabIndicatorColor="@color/accent"
             app:tabIndicatorHeight="3dp"
-            app:tabTextColor="#B8A0C8"
-            app:tabSelectedTextColor="#E8D8F0"
+            app:tabTextColor="@color/text_secondary"
+            app:tabSelectedTextColor="@color/text_primary"
             app:tabTextAppearance="@android:style/TextAppearance.Widget.TabWidget" />
 
         <!-- Divider line below TabLayout -->
@@ -82,7 +82,7 @@
             android:id="@+id/dividerTabs"
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="#3A2A4E" />
+            android:background="@color/divider" />
 
         <!-- Content Area: Stacked pages toggled by TabLayout selection -->
         <FrameLayout
@@ -130,7 +130,7 @@
                         android:layout_height="64dp"
                         android:src="@drawable/ic_action_view"
                         android:contentDescription="Главы не найдены"
-                        app:tint="#9B59B6"
+                        app:tint="@color/accent"
                         android:layout_marginBottom="12dp" />
 
                     <TextView
@@ -140,7 +140,7 @@
                         android:text="Главы не найдены"
                         android:textSize="16sp"
                         android:textStyle="bold"
-                        android:textColor="#E8D8F0"
+                        android:textColor="@color/text_primary"
                         android:layout_marginBottom="6dp" />
 
                     <TextView
@@ -149,7 +149,7 @@
                         android:layout_height="wrap_content"
                         android:text="В этой книге не обнаружено структуры глав."
                         android:textSize="13sp"
-                        android:textColor="#B8A0C8"
+                        android:textColor="@color/text_secondary"
                         android:gravity="center" />
                 </LinearLayout>
             </RelativeLayout>
@@ -168,9 +168,9 @@
                     android:layout_marginBottom="8dp"
                     android:hint="Поиск по закладкам"
                     android:paddingHorizontal="12dp"
-                    android:background="#20FFFFFF"
-                    android:textColor="#E8D8F0"
-                    android:textColorHint="#B8A0C8"
+                    android:background="@drawable/bg_search_input"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_secondary"
                     android:textSize="14sp"
                     android:inputType="text"
                     android:maxLines="1" />
@@ -199,7 +199,7 @@
                         android:layout_height="64dp"
                         android:src="@drawable/ic_reader_bookmark"
                         android:contentDescription="Закладок нет"
-                        app:tint="#9B59B6"
+                        app:tint="@color/accent"
                         android:layout_marginBottom="12dp" />
 
                     <TextView
@@ -209,7 +209,7 @@
                         android:text="Закладок нет"
                         android:textSize="16sp"
                         android:textStyle="bold"
-                        android:textColor="#E8D8F0"
+                        android:textColor="@color/text_primary"
                         android:layout_marginBottom="6dp" />
 
                     <TextView
@@ -218,7 +218,7 @@
                         android:layout_height="wrap_content"
                         android:text="Тапните по верхнему правому углу во время чтения, чтобы создать закладку."
                         android:textSize="13sp"
-                        android:textColor="#B8A0C8"
+                        android:textColor="@color/text_secondary"
                         android:gravity="center" />
                 </LinearLayout>
             </RelativeLayout>

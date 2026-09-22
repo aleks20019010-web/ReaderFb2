@@ -128,12 +128,17 @@ object EpubCoverExtractor {
                 }
                 val sanitizedSha1 = sha1.replace("[^a-zA-Z0-9._-]".toRegex(), "_")
                 val coverFile = File(coversDir, "${sanitizedSha1}.jpg")
-                coverFile.writeBytes(coverBytes!!)
-                return coverFile.absolutePath
+                try {
+                    coverFile.writeBytes(coverBytes!!)
+                    return coverFile.absolutePath
+                } catch (writeErr: Throwable) {
+                    Log.w(TAG, "Failed to write cover bytes for $sanitizedSha1", writeErr)
+                    null
+                }
             } else {
                 null
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error extracting EPUB cover", e)
             null
         }

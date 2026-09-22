@@ -20,7 +20,7 @@ import com.nightread.app.core.preferences.TtsPreferences
 import com.nightread.app.ui.BookReaderActivity
 import java.util.Locale
 
-class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
+class TtsForegroundService : Service(), TextToSpeech.OnInitListener, android.media.AudioManager.OnAudioFocusChangeListener {
 
     companion object {
         const val CHANNEL_ID = "nightread_tts_channel"
@@ -62,6 +62,8 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
     private var selectedVoiceName: String? = null
     private var isSpeakingState: Boolean = false
     private var wakeLock: android.os.PowerManager.WakeLock? = null
+    private var audioManager: android.media.AudioManager? = null
+    private var audioFocusRequest: android.media.AudioFocusRequest? = null
 
     private var mediaSession: MediaSessionCompat? = null
 
@@ -69,6 +71,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         super.onCreate()
         isServiceRunning = true
         createNotificationChannel()
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
 
         try {
             startForegroundServiceSafe(false)
@@ -221,6 +224,9 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
                 if (customText.isNotEmpty()) {
                     currentText = customText
                     currentParagraphIndex = -1
+                } else if (TtsDataProvider.currentBookText.isNotEmpty()) {
+                    currentText = TtsDataProvider.currentBookText
+                    currentParagraphIndex = -1
                 } else {
                     val targetId = "p_$startIdx"
                     val foundIndex = TtsDataProvider.paragraphs.indexOfFirst { it.id == targetId }
@@ -314,6 +320,60 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun requestAudioFocus(): Boolean {
+        val am = audioManager ?: return true
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val playbackAttributes = android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                val request = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                    .setAudioAttributes(playbackAttributes)
+                    .setOnAudioFocusChangeListener(this)
+                    .build()
+                    .also { audioFocusRequest = it }
+                am.requestAudioFocus(request) == android.media.AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            } else {
+                @Suppress("DEPRECATION")
+                am.requestAudioFocus(this, android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK) == android.media.AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            }
+        } catch (e: Exception) {
+            Log.e("TtsForegroundService", "Error requesting AudioFocus", e)
+            true
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        try {
+            val am = audioManager ?: return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                audioFocusRequest?.let { am.abandonAudioFocusRequest(it) }
+            } else {
+                @Suppress("DEPRECATION")
+                am.abandonAudioFocus(this)
+            }
+        } catch (e: Exception) {
+            Log.e("TtsForegroundService", "Error abandoning AudioFocus", e)
+        }
+    }
+
+    override fun onAudioFocusChange(focusChange: Int) {
+        when (focusChange) {
+            android.media.AudioManager.AUDIOFOCUS_LOSS,
+            android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                pauseTts()
+            }
+            android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                tts?.setSpeechRate(speechRate * 0.7f)
+            }
+            android.media.AudioManager.AUDIOFOCUS_GAIN -> {
+                tts?.setSpeechRate(speechRate)
+                resumeTts()
+            }
+        }
+    }
+
     private fun speakCurrentText(flush: Boolean = true) {
         if (!isTtsInitialized) return
         
@@ -329,6 +389,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
             tts?.stop()
         }
         
+        requestAudioFocus()
         isSpeakingState = true
         acquireWakeLock()
         
@@ -348,6 +409,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         isSpeakingState = false
         updateNotification(false)
         releaseWakeLock()
+        abandonAudioFocus()
         sendStatusBroadcast(isPlaying = false, isDone = false)
     }
 
@@ -361,6 +423,7 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
         tts?.stop()
         isSpeakingState = false
         releaseWakeLock()
+        abandonAudioFocus()
         sendStatusBroadcast(isPlaying = false, isDone = false)
     }
 
@@ -463,9 +526,9 @@ class TtsForegroundService : Service(), TextToSpeech.OnInitListener {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-
         isServiceRunning = false
         releaseWakeLock()
+        abandonAudioFocus()
         tts?.stop()
         tts?.shutdown()
         tts = null

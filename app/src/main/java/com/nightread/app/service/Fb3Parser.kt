@@ -82,150 +82,162 @@ object Fb3Parser : BookParser {
     }
 
     private fun parseStream(inputStream: InputStream, defaultTitle: String, extractContent: Boolean): Fb3ParsedBook {
-        var descriptionXml: String? = null
-        val bodyXmls = mutableListOf<String>()
-        val zipEntriesMap = mutableMapOf<String, ByteArray>()
-        var nestedFb3Bytes: ByteArray? = null
+        return try {
+            var descriptionXml: String? = null
+            val bodyXmls = mutableListOf<String>()
+            val zipEntriesMap = mutableMapOf<String, ByteArray>()
+            var nestedFb3Bytes: ByteArray? = null
 
-        ZipInputStream(inputStream.buffered()).use { zis ->
-            var entry = zis.nextEntry
-            while (entry != null) {
-                val name = entry.name.lowercase()
-                if (!entry.isDirectory) {
-                    if (name.endsWith(".fb3")) {
-                        nestedFb3Bytes = readEntryBytes(zis)
-                    } else if (name.endsWith("description.xml") || name == "fb3/description.xml") {
-                        val bytes = readEntryBytes(zis)
-                        descriptionXml = String(bytes, Charsets.UTF_8)
-                    } else if (extractContent && (name.endsWith("body.xml") || (name.contains("body") && name.endsWith(".xml")))) {
-                        val bytes = readEntryBytes(zis)
-                        bodyXmls.add(String(bytes, Charsets.UTF_8))
-                    } else if (name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png") || name.endsWith(".xml")) {
-                        val bytes = readEntryBytes(zis)
-                        zipEntriesMap[entry.name] = bytes
-                        zipEntriesMap[name] = bytes
+            ZipInputStream(inputStream.buffered()).use { zis ->
+                var entry = zis.nextEntry
+                while (entry != null) {
+                    val name = entry.name.lowercase()
+                    if (!entry.isDirectory) {
+                        if (name.endsWith(".fb3")) {
+                            nestedFb3Bytes = readEntryBytes(zis, 15 * 1024 * 1024)
+                        } else if (name.endsWith("description.xml") || name == "fb3/description.xml") {
+                            val bytes = readEntryBytes(zis, 2 * 1024 * 1024)
+                            descriptionXml = String(bytes, Charsets.UTF_8)
+                        } else if (extractContent && (name.endsWith("body.xml") || (name.contains("body") && name.endsWith(".xml")))) {
+                            val bytes = readEntryBytes(zis, 10 * 1024 * 1024)
+                            bodyXmls.add(String(bytes, Charsets.UTF_8))
+                        } else if (name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png")) {
+                            // Only collect potential cover images up to limit
+                            if (zipEntriesMap.size < 10 && (name.contains("cover") || name.contains("title") || zipEntriesMap.isEmpty())) {
+                                val bytes = readEntryBytes(zis, 3 * 1024 * 1024)
+                                if (bytes.isNotEmpty()) {
+                                    zipEntriesMap[entry.name] = bytes
+                                    zipEntriesMap[name] = bytes
+                                }
+                            }
+                        }
+                    }
+                    entry = zis.nextEntry
+                }
+            }
+
+            if (nestedFb3Bytes != null && descriptionXml == null) {
+                return parseBytes(nestedFb3Bytes!!, defaultTitle, extractContent)
+            }
+
+            // Extract metadata from description.xml
+            var title = defaultTitle
+            var author = "Неизвестен"
+            var annotation: String? = null
+            var series: String? = null
+            var seriesIndex: Int? = null
+            var language: String? = null
+            var coverPathInZip: String? = null
+
+            if (descriptionXml != null) {
+                val desc = descriptionXml!!
+
+                // Title extraction
+                val titleMainMatch = Regex("<title[^>]*>\\s*<main>\\s*([^<]+?)\\s*</main>", RegexOption.IGNORE_CASE).find(desc)
+                    ?: Regex("<book-title>\\s*([^<]+?)\\s*</book-title>", RegexOption.IGNORE_CASE).find(desc)
+                    ?: Regex("<title>\\s*([^<]+?)\\s*</title>", RegexOption.IGNORE_CASE).find(desc)
+                if (titleMainMatch != null) {
+                    val extractedTitle = unescapeXml(titleMainMatch.groupValues[1].trim())
+                    if (extractedTitle.isNotBlank()) {
+                        title = extractedTitle
                     }
                 }
-                entry = zis.nextEntry
-            }
-        }
 
-        if (nestedFb3Bytes != null && descriptionXml == null) {
-            return parseBytes(nestedFb3Bytes!!, defaultTitle)
-        }
+                // Authors extraction
+                val authorMatches = Regex("<author[^>]*>\\s*(.*?)\\s*</author>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).findAll(desc).toList()
+                val authorList = mutableListOf<String>()
+                for (authMatch in authorMatches) {
+                    val authBlock = authMatch.groupValues[1]
+                    val fn = Regex("<first-name>\\s*([^<]+?)\\s*</first-name>", RegexOption.IGNORE_CASE).find(authBlock)?.groupValues?.get(1)?.trim()
+                    val mn = Regex("<middle-name>\\s*([^<]+?)\\s*</middle-name>", RegexOption.IGNORE_CASE).find(authBlock)?.groupValues?.get(1)?.trim()
+                    val ln = Regex("<last-name>\\s*([^<]+?)\\s*</last-name>", RegexOption.IGNORE_CASE).find(authBlock)?.groupValues?.get(1)?.trim()
+                    val fullName = listOfNotNull(fn, mn, ln).joinToString(" ").trim()
+                    if (fullName.isNotBlank()) {
+                        authorList.add(unescapeXml(fullName))
+                    }
+                }
+                if (authorList.isNotEmpty()) {
+                    author = authorList.joinToString(", ")
+                }
 
-        // Extract metadata from description.xml
-        var title = defaultTitle
-        var author = "Неизвестен"
-        var annotation: String? = null
-        var series: String? = null
-        var seriesIndex: Int? = null
-        var language: String? = null
-        var coverPathInZip: String? = null
+                // Sequence / Series extraction
+                val seqMatch = Regex("<sequence[^>]+>", RegexOption.IGNORE_CASE).find(desc)
+                if (seqMatch != null) {
+                    val attrs = seqMatch.groupValues[0]
+                    val nameMatch = Regex("name\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
+                    val numMatch = Regex("number\\s*=\\s*[\"'](\\d+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
+                    if (nameMatch != null) series = unescapeXml(nameMatch.groupValues[1].trim())
+                    if (numMatch != null) seriesIndex = numMatch.groupValues[1].toIntOrNull()
+                }
 
-        if (descriptionXml != null) {
-            val desc = descriptionXml!!
+                // Language
+                val langMatch = Regex("<lang>\\s*([^<]+?)\\s*</lang>", RegexOption.IGNORE_CASE).find(desc)
+                    ?: Regex("<language>\\s*([^<]+?)\\s*</language>", RegexOption.IGNORE_CASE).find(desc)
+                if (langMatch != null) {
+                    language = langMatch.groupValues[1].trim()
+                }
 
-            // Title extraction
-            val titleMainMatch = Regex("<title[^>]*>\\s*<main>\\s*([^<]+?)\\s*</main>", RegexOption.IGNORE_CASE).find(desc)
-                ?: Regex("<book-title>\\s*([^<]+?)\\s*</book-title>", RegexOption.IGNORE_CASE).find(desc)
-                ?: Regex("<title>\\s*([^<]+?)\\s*</title>", RegexOption.IGNORE_CASE).find(desc)
-            if (titleMainMatch != null) {
-                val extractedTitle = unescapeXml(titleMainMatch.groupValues[1].trim())
-                if (extractedTitle.isNotBlank()) {
-                    title = extractedTitle
+                // Annotation
+                val annotMatch = Regex("<annotation[^>]*>\\s*(.*?)\\s*</annotation>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(desc)
+                if (annotMatch != null) {
+                    val rawAnnot = annotMatch.groupValues[1]
+                    annotation = stripTags(unescapeXml(rawAnnot)).trim()
+                }
+
+                // Cover path inside ZIP
+                val coverMatch = Regex("<cover[^>]*>\\s*<image[^>]+(?:src|href)=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(desc)
+                    ?: Regex("<image[^>]+(?:src|href)=[\"']([^\"']+)[\"'][^>]*class=[\"'][^\"']*cover[^\"']*[\"']", RegexOption.IGNORE_CASE).find(desc)
+                if (coverMatch != null) {
+                    coverPathInZip = coverMatch.groupValues[1]
                 }
             }
 
-            // Authors extraction
-            val authorMatches = Regex("<author[^>]*>\\s*(.*?)\\s*</author>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).findAll(desc).toList()
-            val authorList = mutableListOf<String>()
-            for (authMatch in authorMatches) {
-                val authBlock = authMatch.groupValues[1]
-                val fn = Regex("<first-name>\\s*([^<]+?)\\s*</first-name>", RegexOption.IGNORE_CASE).find(authBlock)?.groupValues?.get(1)?.trim()
-                val mn = Regex("<middle-name>\\s*([^<]+?)\\s*</middle-name>", RegexOption.IGNORE_CASE).find(authBlock)?.groupValues?.get(1)?.trim()
-                val ln = Regex("<last-name>\\s*([^<]+?)\\s*</last-name>", RegexOption.IGNORE_CASE).find(authBlock)?.groupValues?.get(1)?.trim()
-                val fullName = listOfNotNull(fn, mn, ln).joinToString(" ").trim()
-                if (fullName.isNotBlank()) {
-                    authorList.add(unescapeXml(fullName))
-                }
+            // Cover bytes extraction
+            var coverBytes: ByteArray? = null
+            if (!coverPathInZip.isNullOrBlank()) {
+                val key = coverPathInZip!!
+                coverBytes = zipEntriesMap[key] ?: zipEntriesMap[key.lowercase()] ?: zipEntriesMap[key.removePrefix("fb3/")]
             }
-            if (authorList.isNotEmpty()) {
-                author = authorList.joinToString(", ")
+            if (coverBytes == null) {
+                coverBytes = zipEntriesMap.entries.firstOrNull { (k, _) ->
+                    val lk = k.lowercase()
+                    lk.contains("cover") && (lk.endsWith(".jpg") || lk.endsWith(".jpeg") || lk.endsWith(".png"))
+                }?.value
             }
 
-            // Sequence / Series extraction
-            val seqMatch = Regex("<sequence[^>]+>", RegexOption.IGNORE_CASE).find(desc)
-            if (seqMatch != null) {
-                val attrs = seqMatch.groupValues[0]
-                val nameMatch = Regex("name\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
-                val numMatch = Regex("number\\s*=\\s*[\"'](\\d+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
-                if (nameMatch != null) series = unescapeXml(nameMatch.groupValues[1].trim())
-                if (numMatch != null) seriesIndex = numMatch.groupValues[1].toIntOrNull()
+            // Combine body content into HTML string
+            val rawBody = if (extractContent && bodyXmls.isNotEmpty()) {
+                bodyXmls.joinToString("\n")
+            } else {
+                ""
             }
 
-            // Language
-            val langMatch = Regex("<lang>\\s*([^<]+?)\\s*</lang>", RegexOption.IGNORE_CASE).find(desc)
-                ?: Regex("<language>\\s*([^<]+?)\\s*</language>", RegexOption.IGNORE_CASE).find(desc)
-            if (langMatch != null) {
-                language = langMatch.groupValues[1].trim()
-            }
+            val formattedContent = if (extractContent) formatFb3BodyToHtml(rawBody) else ""
 
-            // Annotation
-            val annotMatch = Regex("<annotation[^>]*>\\s*(.*?)\\s*</annotation>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(desc)
-            if (annotMatch != null) {
-                val rawAnnot = annotMatch.groupValues[1]
-                annotation = stripTags(unescapeXml(rawAnnot)).trim()
-            }
-
-            // Cover path inside ZIP
-            val coverMatch = Regex("<cover[^>]*>\\s*<image[^>]+(?:src|href)=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(desc)
-                ?: Regex("<image[^>]+(?:src|href)=[\"']([^\"']+)[\"'][^>]*class=[\"'][^\"']*cover[^\"']*[\"']", RegexOption.IGNORE_CASE).find(desc)
-            if (coverMatch != null) {
-                coverPathInZip = coverMatch.groupValues[1]
-            }
+            Fb3ParsedBook(
+                title = title,
+                author = author,
+                content = formattedContent,
+                annotation = annotation,
+                coverBytes = coverBytes,
+                series = series,
+                seriesIndex = seriesIndex,
+                language = language ?: "ru"
+            )
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error in parseStream for FB3", e)
+            Fb3ParsedBook(title = defaultTitle, author = "Неизвестен", content = "")
         }
-
-        // Cover bytes extraction
-        var coverBytes: ByteArray? = null
-        if (!coverPathInZip.isNullOrBlank()) {
-            val key = coverPathInZip!!
-            coverBytes = zipEntriesMap[key] ?: zipEntriesMap[key.lowercase()] ?: zipEntriesMap[key.removePrefix("fb3/")]
-        }
-        if (coverBytes == null) {
-            coverBytes = zipEntriesMap.entries.firstOrNull { (k, _) ->
-                val lk = k.lowercase()
-                lk.contains("cover") && (lk.endsWith(".jpg") || lk.endsWith(".jpeg") || lk.endsWith(".png"))
-            }?.value
-        }
-
-        // Combine body content into HTML string
-        val rawBody = if (bodyXmls.isNotEmpty()) {
-            bodyXmls.joinToString("\n")
-        } else {
-            ""
-        }
-
-        val formattedContent = formatFb3BodyToHtml(rawBody)
-
-        return Fb3ParsedBook(
-            title = title,
-            author = author,
-            content = formattedContent,
-            annotation = annotation,
-            coverBytes = coverBytes,
-            series = series,
-            seriesIndex = seriesIndex,
-            language = language ?: "ru"
-        )
     }
 
-    private fun readEntryBytes(zis: ZipInputStream): ByteArray {
+    private fun readEntryBytes(zis: ZipInputStream, maxBytes: Long = 5 * 1024 * 1024): ByteArray {
         val bos = ByteArrayOutputStream()
         val buffer = ByteArray(8192)
         var read: Int
-        while (zis.read(buffer, 0, buffer.size).also { read = it } != -1) {
+        var total = 0L
+        while (zis.read(buffer, 0, buffer.size).also { read = it } != -1 && total < maxBytes) {
             bos.write(buffer, 0, read)
+            total += read
         }
         return bos.toByteArray()
     }

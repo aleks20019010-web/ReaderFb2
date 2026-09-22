@@ -39,26 +39,7 @@ import coil.compose.AsyncImage
 import com.nightread.app.data.BookEntity
 
 // =========================================================
-// 1. ПАЛИТРА ТЕМНОГО СТЕКЛОМОРФИЗМА И СЕРЕБРА
-// =========================================================
-object GlassLibraryColors {
-    val SpaceTop = Color(0xFF0F1523)
-    val SpaceMid = Color(0xFF141D30)
-    val SpaceBottom = Color(0xFF080B12)
-
-    val GlassSurface = Color(0xFF192236).copy(alpha = 0.65f)
-    val GlassSurfaceHover = Color(0xFF222F4B).copy(alpha = 0.8f)
-    
-    val SilverBorder = Color(0xFFB0BEC5).copy(alpha = 0.45f)
-    val SilverHighlight = Color(0xFFE2E8F0)
-    val SilverGlow = Color(0xFF94A3B8).copy(alpha = 0.25f)
-
-    val TextMain = Color(0xFFF1F5F9)
-    val TextMuted = Color(0xFF94A3B8)
-}
-
-// =========================================================
-// 2. ГЛАВНАЯ ТОЧКА ВХОДА
+// 1. ГЛАВНАЯ ТОЧКА ВХОДА (МАТЕРИАЛ 3 СТЕКЛОМОРФИЗМ)
 // =========================================================
 @Composable
 fun LibraryComposeUI(
@@ -75,6 +56,7 @@ fun LibraryComposeUI(
     onViewModeClicked: () -> Unit = {},
     onManualImportClicked: () -> Unit = {},
     onSortClicked: () -> Unit = {},
+    onCancelScanClicked: () -> Unit = {},
     onMenuClicked: () -> Unit,
     onBookClicked: (BookEntity) -> Unit
 ) {
@@ -90,15 +72,17 @@ fun LibraryComposeUI(
         }
     }
 
+    val colorScheme = MaterialTheme.colorScheme
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
                     listOf(
-                        GlassLibraryColors.SpaceTop,
-                        GlassLibraryColors.SpaceMid,
-                        GlassLibraryColors.SpaceBottom
+                        colorScheme.background,
+                        colorScheme.surfaceVariant,
+                        Color(0xFF080B12)
                     )
                 )
             )
@@ -151,23 +135,23 @@ fun LibraryComposeUI(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp)
                         .focusRequester(focusRequester),
-                    placeholder = { Text("Поиск по названию или автору...", color = GlassLibraryColors.TextMuted) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = GlassLibraryColors.SilverHighlight) },
+                    placeholder = { Text("Поиск по названию или автору...", color = colorScheme.secondary) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = colorScheme.tertiary) },
                     trailingIcon = {
                         IconButton(onClick = { 
                             onSearchQueryChanged("")
                             onSearchActiveChanged(false)
                         }) {
-                            Icon(Icons.Default.Close, contentDescription = "Закрыть поиск", tint = GlassLibraryColors.SilverHighlight)
+                            Icon(Icons.Default.Close, contentDescription = "Закрыть поиск", tint = colorScheme.tertiary)
                         }
                     },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF00BCD4),
-                        unfocusedBorderColor = Color(0xFFB0BEC5).copy(alpha = 0.5f),
-                        focusedTextColor = GlassLibraryColors.TextMain,
-                        unfocusedTextColor = GlassLibraryColors.TextMain,
-                        cursorColor = Color(0xFF00BCD4)
+                        focusedBorderColor = colorScheme.primary,
+                        unfocusedBorderColor = colorScheme.outline,
+                        focusedTextColor = colorScheme.onSurface,
+                        unfocusedTextColor = colorScheme.onSurface,
+                        cursorColor = colorScheme.primary
                     ),
                     shape = RoundedCornerShape(14.dp)
                 )
@@ -179,8 +163,8 @@ fun LibraryComposeUI(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFF192236).copy(alpha = 0.85f))
-                        .border(1.dp, Color(0xFFB0BEC5).copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                        .background(colorScheme.surface.copy(alpha = 0.85f))
+                        .border(1.dp, colorScheme.outline, RoundedCornerShape(14.dp))
                         .padding(14.dp)
                 ) {
                     Row(
@@ -191,13 +175,13 @@ fun LibraryComposeUI(
                         if (isScanning) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
-                                color = Color(0xFFB0BEC5),
+                                color = colorScheme.tertiary,
                                 strokeWidth = 2.5.dp
                             )
                         }
                         Text(
                             text = scanProgressText.ifEmpty { "Сканирование устройства..." },
-                            color = Color(0xFFF1F5F9),
+                            color = colorScheme.onSurface,
                             fontSize = 13.sp,
                             fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif,
                             fontWeight = FontWeight.Medium,
@@ -205,17 +189,103 @@ fun LibraryComposeUI(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
+                        if (isScanning) {
+                            androidx.compose.material3.TextButton(
+                                onClick = onCancelScanClicked,
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text(
+                                    text = "Отмена",
+                                    color = Color(0xFFFF5252),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            if (books.isEmpty()) {
-                GlassEmptyState(onScanClicked = onScanClicked)
+            var selectedFormatFilter by remember { mutableStateOf("ALL") }
+
+            val filteredBooks = remember(books, selectedFormatFilter) {
+                when (selectedFormatFilter) {
+                    "FB2" -> books.filter { it.filePath?.endsWith(".fb2", true) == true || it.filePath?.endsWith(".fb2.zip", true) == true }
+                    "EPUB" -> books.filter { it.filePath?.endsWith(".epub", true) == true }
+                    "MOBI" -> books.filter { it.filePath?.endsWith(".mobi", true) == true || it.filePath?.endsWith(".azw", true) == true || it.filePath?.endsWith(".azw3", true) == true }
+                    "READING" -> books.filter { it.currentProgressChar > 0 }
+                    "FAVORITE" -> books.filter { it.isFavorite }
+                    else -> books
+                }
+            }
+
+            if (books.isNotEmpty()) {
+                val filterChips = listOf(
+                    "ALL" to "Все",
+                    "READING" to "Читаю сейчас",
+                    "FAVORITE" to "Избранное",
+                    "FB2" to "FB2",
+                    "EPUB" to "EPUB",
+                    "MOBI" to "MOBI"
+                )
+                androidx.compose.foundation.lazy.LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(filterChips.size) { idx ->
+                        val (key, label) = filterChips[idx]
+                        val isSelected = selectedFormatFilter == key
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(
+                                    if (isSelected) colorScheme.primary.copy(alpha = 0.25f)
+                                    else colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) colorScheme.primary else colorScheme.outline.copy(alpha = 0.3f),
+                                    shape = RoundedCornerShape(20.dp)
+                                )
+                                .clickable { selectedFormatFilter = key }
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                color = if (isSelected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.75f),
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (filteredBooks.isEmpty()) {
+                if (books.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Книги в этой категории не найдены",
+                            color = colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
+                        )
+                    }
+                } else {
+                    GlassEmptyState(onScanClicked = onScanClicked)
+                }
             } else {
                 if (isGridView) {
-                    GlassBookGrid(books = books, onBookClicked = onBookClicked)
+                    GlassBookGrid(books = filteredBooks, onBookClicked = onBookClicked)
                 } else {
-                    GlassBookList(books = books, onBookClicked = onBookClicked)
+                    GlassBookList(books = filteredBooks, onBookClicked = onBookClicked)
                 }
             }
         }
@@ -235,12 +305,14 @@ private fun GlassmorphicTopBar(
     onManualImportClicked: () -> Unit,
     onSortClicked: () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 12.dp)
             .height(64.dp)
-            .shadow(16.dp, RoundedCornerShape(20.dp), spotColor = GlassLibraryColors.SilverGlow)
+            .shadow(16.dp, RoundedCornerShape(20.dp), spotColor = colorScheme.outlineVariant)
             .clip(RoundedCornerShape(20.dp))
             .background(
                 brush = Brush.horizontalGradient(
@@ -256,9 +328,9 @@ private fun GlassmorphicTopBar(
                 drawRoundRect(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            GlassLibraryColors.SilverHighlight.copy(alpha = 0.7f),
-                            GlassLibraryColors.SilverBorder.copy(alpha = 0.2f),
-                            GlassLibraryColors.SilverHighlight.copy(alpha = 0.5f)
+                            colorScheme.tertiary.copy(alpha = 0.7f),
+                            colorScheme.outline.copy(alpha = 0.2f),
+                            colorScheme.tertiary.copy(alpha = 0.5f)
                         )
                     ),
                     cornerRadius = CornerRadius(20.dp.toPx(), 20.dp.toPx()),
@@ -288,7 +360,7 @@ private fun GlassmorphicTopBar(
                     Icon(
                         imageVector = Icons.Default.Menu,
                         contentDescription = "Menu",
-                        tint = GlassLibraryColors.SilverHighlight,
+                        tint = colorScheme.tertiary,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -298,14 +370,14 @@ private fun GlassmorphicTopBar(
                 Column {
                     Text(
                         text = "Библиотека",
-                        color = GlassLibraryColors.TextMain,
+                        color = colorScheme.onSurface,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.3.sp
                     )
                     Text(
                         text = "$bookCount книг",
-                        color = GlassLibraryColors.TextMuted,
+                        color = colorScheme.secondary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -329,6 +401,7 @@ private fun GlassmorphicTopBar(
 
 @Composable
 private fun GlassActionIcon(imageVector: ImageVector, description: String, onClick: () -> Unit = {}) {
+    val colorScheme = MaterialTheme.colorScheme
     Box(
         modifier = Modifier
             .size(34.dp)
@@ -340,7 +413,7 @@ private fun GlassActionIcon(imageVector: ImageVector, description: String, onCli
         Icon(
             imageVector = imageVector,
             contentDescription = description,
-            tint = GlassLibraryColors.SilverHighlight.copy(alpha = 0.9f),
+            tint = colorScheme.tertiary.copy(alpha = 0.9f),
             modifier = Modifier.size(17.dp)
         )
     }
@@ -375,6 +448,7 @@ private fun GlassBookGrid(books: List<BookEntity>, onBookClicked: (BookEntity) -
 
 @Composable
 private fun GlassBookCard(book: BookEntity, onClicked: () -> Unit) {
+    val colorScheme = MaterialTheme.colorScheme
     val coverUri = remember(book.coverPath) {
         if (!book.coverPath.isNullOrBlank()) {
             try { Uri.fromFile(java.io.File(book.coverPath)) } catch (e: Exception) { null }
@@ -384,7 +458,7 @@ private fun GlassBookCard(book: BookEntity, onClicked: () -> Unit) {
     Box(
         modifier = Modifier
             .height(240.dp)
-            .shadow(12.dp, RoundedCornerShape(14.dp), spotColor = GlassLibraryColors.SilverGlow)
+            .shadow(12.dp, RoundedCornerShape(14.dp), spotColor = colorScheme.outlineVariant)
             .clip(RoundedCornerShape(14.dp))
             .background(
                 brush = Brush.verticalGradient(
@@ -400,9 +474,9 @@ private fun GlassBookCard(book: BookEntity, onClicked: () -> Unit) {
                 drawRoundRect(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            GlassLibraryColors.SilverHighlight.copy(alpha = 0.4f),
-                            GlassLibraryColors.SilverBorder.copy(alpha = 0.15f),
-                            GlassLibraryColors.SilverHighlight.copy(alpha = 0.3f)
+                            colorScheme.tertiary.copy(alpha = 0.4f),
+                            colorScheme.outline.copy(alpha = 0.15f),
+                            colorScheme.tertiary.copy(alpha = 0.3f)
                         )
                     ),
                     cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx()),
@@ -451,7 +525,7 @@ private fun GlassBookCard(book: BookEntity, onClicked: () -> Unit) {
             // Название книги
             Text(
                 text = book.title,
-                color = GlassLibraryColors.TextMain,
+                color = colorScheme.onSurface,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 2,
@@ -465,7 +539,7 @@ private fun GlassBookCard(book: BookEntity, onClicked: () -> Unit) {
             // Автор
             Text(
                 text = book.author ?: "Неизвестный автор",
-                color = GlassLibraryColors.TextMuted,
+                color = colorScheme.secondary,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Normal,
                 maxLines = 1,
@@ -481,6 +555,7 @@ private fun GlassBookCard(book: BookEntity, onClicked: () -> Unit) {
 // =========================================================
 @Composable
 private fun GlassEmptyState(onScanClicked: () -> Unit) {
+    val colorScheme = MaterialTheme.colorScheme
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -491,13 +566,13 @@ private fun GlassEmptyState(onScanClicked: () -> Unit) {
         Box(
             modifier = Modifier
                 .size(90.dp)
-                .shadow(16.dp, CircleShape, spotColor = GlassLibraryColors.SilverHighlight)
+                .shadow(16.dp, CircleShape, spotColor = colorScheme.tertiary)
                 .clip(CircleShape)
                 .background(Color(0xFF1C2740).copy(alpha = 0.8f))
                 .drawBehind {
                     drawCircle(
                         brush = Brush.linearGradient(
-                            listOf(GlassLibraryColors.SilverHighlight, GlassLibraryColors.SilverBorder)
+                            listOf(colorScheme.tertiary, colorScheme.outline)
                         ),
                         style = Stroke(width = 2f)
                     )
@@ -507,7 +582,7 @@ private fun GlassEmptyState(onScanClicked: () -> Unit) {
             Icon(
                 imageVector = Icons.Default.FolderOpen,
                 contentDescription = null,
-                tint = GlassLibraryColors.SilverHighlight,
+                tint = colorScheme.tertiary,
                 modifier = Modifier.size(42.dp)
             )
         }
@@ -516,7 +591,7 @@ private fun GlassEmptyState(onScanClicked: () -> Unit) {
 
         Text(
             text = "Библиотека пуста",
-            color = GlassLibraryColors.TextMain,
+            color = colorScheme.onSurface,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
@@ -525,7 +600,7 @@ private fun GlassEmptyState(onScanClicked: () -> Unit) {
 
         Text(
             text = "Начните сканирование устройства или добавьте файлы книг",
-            color = GlassLibraryColors.TextMuted,
+            color = colorScheme.secondary,
             fontSize = 13.sp,
             textAlign = TextAlign.Center,
             lineHeight = 18.sp
@@ -536,24 +611,24 @@ private fun GlassEmptyState(onScanClicked: () -> Unit) {
         Button(
             onClick = onScanClicked,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF2A3A5E)
+                containerColor = colorScheme.primary
             ),
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier
                 .height(50.dp)
                 .width(220.dp)
-                .shadow(8.dp, RoundedCornerShape(14.dp), spotColor = GlassLibraryColors.SilverHighlight)
+                .shadow(8.dp, RoundedCornerShape(14.dp), spotColor = colorScheme.tertiary)
         ) {
             Icon(
                 imageVector = Icons.Default.Refresh,
                 contentDescription = null,
-                tint = GlassLibraryColors.SilverHighlight,
+                tint = colorScheme.onPrimary,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = "Сканировать",
-                color = GlassLibraryColors.SilverHighlight,
+                color = colorScheme.onPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -582,6 +657,7 @@ private fun GlassBookList(books: List<BookEntity>, onBookClicked: (BookEntity) -
 
 @Composable
 private fun GlassBookRowItem(book: BookEntity, onClicked: () -> Unit) {
+    val colorScheme = MaterialTheme.colorScheme
     val coverUri = remember(book.coverPath) {
         if (!book.coverPath.isNullOrBlank()) {
             try { Uri.fromFile(java.io.File(book.coverPath)) } catch (e: Exception) { null }
@@ -594,7 +670,7 @@ private fun GlassBookRowItem(book: BookEntity, onClicked: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .height(88.dp)
-            .shadow(8.dp, RoundedCornerShape(14.dp), spotColor = GlassLibraryColors.SilverGlow)
+            .shadow(8.dp, RoundedCornerShape(14.dp), spotColor = colorScheme.outlineVariant)
             .clip(RoundedCornerShape(14.dp))
             .background(
                 brush = Brush.horizontalGradient(
@@ -605,7 +681,7 @@ private fun GlassBookRowItem(book: BookEntity, onClicked: () -> Unit) {
                 )
             )
             .clickable { onClicked() }
-            .border(1.dp, Color(0xFFB0BEC5).copy(alpha = 0.3f), RoundedCornerShape(14.dp))
+            .border(1.dp, colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(14.dp))
             .padding(10.dp)
     ) {
         Row(
@@ -632,7 +708,7 @@ private fun GlassBookRowItem(book: BookEntity, onClicked: () -> Unit) {
                         Icon(
                             imageVector = Icons.Default.Book,
                             contentDescription = null,
-                            tint = GlassLibraryColors.SilverHighlight.copy(alpha = 0.6f),
+                            tint = colorScheme.tertiary.copy(alpha = 0.6f),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -645,7 +721,7 @@ private fun GlassBookRowItem(book: BookEntity, onClicked: () -> Unit) {
             ) {
                 Text(
                     text = book.title.ifEmpty { "Без названия" },
-                    color = GlassLibraryColors.TextMain,
+                    color = colorScheme.onSurface,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -654,7 +730,7 @@ private fun GlassBookRowItem(book: BookEntity, onClicked: () -> Unit) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = book.author?.ifEmpty { "Неизвестный автор" } ?: "Неизвестный автор",
-                    color = GlassLibraryColors.TextMuted,
+                    color = colorScheme.secondary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -667,8 +743,8 @@ private fun GlassBookRowItem(book: BookEntity, onClicked: () -> Unit) {
                         .fillMaxWidth()
                         .height(4.dp)
                         .clip(RoundedCornerShape(2.dp)),
-                    color = Color(0xFF00BCD4),
-                    trackColor = Color(0xFF2A3752)
+                    color = colorScheme.primary,
+                    trackColor = colorScheme.surfaceVariant
                 )
             }
         }

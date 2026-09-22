@@ -14,9 +14,13 @@ object NewCoverExtractor {
     fun extractCover(file: File, sha1: String, context: Context?): String? {
         if (context == null) return null
         return try {
+            if (file.length() > 30 * 1024 * 1024) {
+                // Avoid reading huge files entirely into memory
+                return null
+            }
             val content = file.readText(Charsets.UTF_8)
             extractAndSaveCover(content, sha1, context)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("NewCoverExtractor", "Failed to extract cover from file directly", e)
             null
         }
@@ -129,6 +133,30 @@ object NewCoverExtractor {
         }
     }
 
+    fun decodeSampledBitmap(data: ByteArray, reqWidth: Int = 400, reqHeight: Int = 600): android.graphics.Bitmap? {
+        return try {
+            val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            android.graphics.BitmapFactory.decodeByteArray(data, 0, data.size, options)
+            if (options.outWidth <= 0 || options.outHeight <= 0) return null
+
+            var inSampleSize = 1
+            if (options.outHeight > reqHeight || options.outWidth > reqWidth) {
+                val halfHeight = options.outHeight / 2
+                val halfWidth = options.outWidth / 2
+                while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
+                    inSampleSize *= 2
+                }
+            }
+
+            options.inJustDecodeBounds = false
+            options.inSampleSize = inSampleSize
+            options.inPreferredConfig = android.graphics.Bitmap.Config.RGB_565
+            android.graphics.BitmapFactory.decodeByteArray(data, 0, data.size, options)
+        } catch (e: Throwable) {
+            null
+        }
+    }
+
     fun saveCoverBytes(imageBytes: ByteArray, sha1: String, context: Context?): String? {
         if (context == null) return null
         try {
@@ -138,6 +166,19 @@ object NewCoverExtractor {
             if (!coverDir.exists()) coverDir.mkdirs()
             
             val coverFile = File(coverDir, "cover_$sha1.jpg")
+            
+            // Downsample if image is large (> 300KB) to save memory and disk space
+            if (imageBytes.size > 300 * 1024) {
+                val bitmap = decodeSampledBitmap(imageBytes, 400, 600)
+                if (bitmap != null) {
+                    FileOutputStream(coverFile).use { fos ->
+                        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, fos)
+                    }
+                    bitmap.recycle()
+                    return coverFile.absolutePath
+                }
+            }
+
             FileOutputStream(coverFile).use { fos ->
                 fos.write(imageBytes)
             }

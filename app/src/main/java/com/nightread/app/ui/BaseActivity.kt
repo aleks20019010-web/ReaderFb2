@@ -35,12 +35,7 @@ abstract class BaseActivity : AppCompatActivity() {
         com.nightread.app.data.ThemeManager.applyTheme(this)
         
         if (shouldApplyGalaxyBackground()) {
-            // Устанавливаем фон на уровне окна в зависимости от темы
-            if (currentNightMode) {
-                window.setBackgroundDrawable(StarryNightDrawable())
-            } else {
-                window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.parseColor(GalaxyBgHelper.LIGHT_BG_COLOR)))
-            }
+            window.setBackgroundDrawable(StarryNightDrawable())
             updateStatusBarColor()
             
             findViewById<android.view.View>(android.R.id.content)?.let {
@@ -50,11 +45,7 @@ abstract class BaseActivity : AppCompatActivity() {
     }
 
     private fun updateStatusBarColor() {
-        if (currentNightMode) {
-            window.statusBarColor = android.graphics.Color.TRANSPARENT
-        } else {
-            window.statusBarColor = android.graphics.Color.parseColor(GalaxyBgHelper.LIGHT_BG_COLOR)
-        }
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
     }
 
     override fun onResume() {

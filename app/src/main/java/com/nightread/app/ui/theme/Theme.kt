@@ -10,39 +10,28 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+import androidx.compose.ui.graphics.Color
+
 private val DarkColorScheme = darkColorScheme(
     primary = AccentDark,
-    onPrimary = BtnTextDark,
+    onPrimary = Color.White,
     background = BgMainDark,
     onBackground = TextPrimaryDark,
     surface = BgCardDark,
     onSurface = TextPrimaryDark,
     secondary = TextSecondaryDark,
     onSecondary = BgMainDark,
-    tertiary = AccentHoverDark,
-    surfaceVariant = BgCardDark,
-    onSurfaceVariant = TextPrimaryDark,
-    outline = DividerDark,
+    tertiary = SilverHighlight,
+    onTertiary = TextPrimaryDark,
+    surfaceVariant = BgPanelDark,
+    onSurfaceVariant = TextSecondaryDark,
+    outline = SilverBorder,
+    outlineVariant = SilverGlow,
     primaryContainer = BgCardDark,
     onPrimaryContainer = TextPrimaryDark
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = AccentLight,
-    onPrimary = BtnTextLight,
-    background = BgMainLight,
-    onBackground = TextPrimaryLight,
-    surface = BgCardLight,
-    onSurface = TextPrimaryLight,
-    secondary = TextSecondaryLight,
-    onSecondary = BgMainLight,
-    tertiary = AccentHoverLight,
-    surfaceVariant = BgCardLight,
-    onSurfaceVariant = TextPrimaryLight,
-    outline = DividerLight,
-    primaryContainer = BgCardLight,
-    onPrimaryContainer = TextPrimaryLight
-)
+private val LightColorScheme = DarkColorScheme
 
 @Composable
 fun MyApplicationTheme(

@@ -5,10 +5,10 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="8dp"
-    app:cardBackgroundColor="#1A1528"
+    app:cardBackgroundColor="@color/bg_card"
     app:cardCornerRadius="12dp"
     app:cardElevation="0dp"
-    app:strokeColor="#2E2640"
+    app:strokeColor="@color/glass_stroke"
     app:strokeWidth="1dp"
     android:clickable="true"
     android:focusable="true"
@@ -35,7 +35,7 @@
                 android:paddingHorizontal="8dp"
                 android:paddingVertical="3dp"
                 android:text="Стр. 42"
-                android:textColor="#FFE3A8"
+                android:textColor="@color/accent"
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
@@ -46,7 +46,7 @@
                 android:layout_weight="1"
                 android:gravity="end"
                 android:text="Релевантность RAG"
-                android:textColor="#6C5B83"
+                android:textColor="@color/text_secondary"
                 android:textSize="10sp" />
         </LinearLayout>
 
@@ -56,7 +56,7 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="4"
-            android:textColor="#E0E0E0"
+            android:textColor="@color/text_primary"
             android:textSize="13sp"
             android:lineSpacingExtra="3dp"
             tools:text="...в этот момент Серж подошел к древнему алтарю и прикоснулся к амулету..." />

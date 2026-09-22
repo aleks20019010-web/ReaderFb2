@@ -29,7 +29,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="🔍 RAG-ПОИСК ПО КНИГЕ"
-            android:textColor="#FFE3A8"
+            android:textColor="@color/text_primary"
             android:textSize="15sp"
             android:textStyle="bold"
             android:letterSpacing="0.05" />
@@ -43,7 +43,7 @@
             android:focusable="true"
             android:contentDescription="Закрыть"
             android:src="@android:drawable/ic_menu_close_clear_cancel"
-            app:tint="#8B7CA2" />
+            app:tint="@color/icon_tint" />
     </LinearLayout>
 
     <!-- Search Input Box -->
@@ -61,7 +61,7 @@
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:src="@drawable/ic_action_search"
-            app:tint="#FFE3A8"
+            app:tint="@color/accent"
             android:layout_marginEnd="10dp"
             android:contentDescription="Поиск" />
 
@@ -72,8 +72,8 @@
             android:layout_weight="1"
             android:background="@null"
             android:hint="Имя, событие или фраза из книги..."
-            android:textColorHint="#6C5B83"
-            android:textColor="#FFFFFF"
+            android:textColorHint="@color/text_secondary"
+            android:textColor="@color/text_primary"
             android:textSize="14sp"
             android:imeOptions="actionSearch"
             android:inputType="text"
@@ -84,7 +84,7 @@
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:src="@android:drawable/ic_menu_close_clear_cancel"
-            app:tint="#8B7CA2"
+            app:tint="@color/icon_tint"
             android:contentDescription="Очистить"
             android:visibility="gone"
             android:clickable="true"
@@ -105,14 +105,14 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Введите запрос для RAG поиска"
-            android:textColor="#8B7CA2"
+            android:textColor="@color/text_secondary"
             android:textSize="12sp" />
 
         <ProgressBar
             android:id="@+id/pbRagSearching"
             android:layout_width="16dp"
             android:layout_height="16dp"
-            android:indeterminateTint="#FFE3A8"
+            android:indeterminateTint="@color/accent"
             android:visibility="gone" />
     </LinearLayout>
 
@@ -138,7 +138,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Совпадений не найдено"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_primary"
             android:textSize="15sp"
             android:textStyle="bold"
             android:layout_marginBottom="4dp" />
@@ -148,7 +148,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Попробуйте изменить поисковые слова"
-            android:textColor="#8B7CA2"
+            android:textColor="@color/text_secondary"
             android:textSize="12sp" />
     </LinearLayout>
 

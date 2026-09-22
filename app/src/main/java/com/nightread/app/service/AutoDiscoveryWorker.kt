@@ -19,11 +19,15 @@ class AutoDiscoveryWorker(
         Log.d("AutoDiscoveryWorker", "Starting auto-discovery scan")
         try {
             val bookDao = AppDatabase.getDatabase(context).bookDao()
-            val scanner = com.nightread.app.scanner.LibraryScanner(context, bookDao)
+            val scanner = com.nightread.app.scanner.LibraryScanner.getInstance(context, bookDao)
+            if (scanner.isScanning) {
+                Log.d("AutoDiscoveryWorker", "Scan already in progress, skipping periodic worker run")
+                return Result.success()
+            }
             
-            val initialCount = try { bookDao.getSha1ToPathMap().size } catch (e: Throwable) { 0 }
+            val initialCount = try { bookDao.getBooksCount() } catch (e: Throwable) { 0 }
             scanner.scanBooks().join()
-            val newCount = try { bookDao.getSha1ToPathMap().size } catch (e: Throwable) { initialCount }
+            val newCount = try { bookDao.getBooksCount() } catch (e: Throwable) { initialCount }
             
             val added = newCount - initialCount
             android.os.Handler(android.os.Looper.getMainLooper()).post {

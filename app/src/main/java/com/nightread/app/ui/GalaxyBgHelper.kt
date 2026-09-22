@@ -21,8 +21,8 @@ import com.nightread.app.data.FileStorageHelper
 object GalaxyBgHelper {
 
     private const val TAG = "GalaxyBgHelper"
-    const val DARK_BG_COLOR = "#1A0B2E"
-    const val LIGHT_BG_COLOR = "#F5F0EB"
+    const val DARK_BG_COLOR = "#0F1523"
+    const val LIGHT_BG_COLOR = "#0F1523"
 
     /**
      * Ищет ImageView с ID R.id.ivCustomLibraryBg в предоставленном rootView и применяет к нему фон.
@@ -64,17 +64,31 @@ object GalaxyBgHelper {
         // 1. Приоритет: пользовательское фоновое изображение из галереи (user_bg_dark.jpg / user_bg_light.jpg)
         if (bgFile.exists() && bgFile.length() > 0) {
             try {
-                val bitmap = BitmapFactory.decodeFile(bgFile.absolutePath)
-                if (bitmap != null) {
-                    imageView.setImageBitmap(bitmap)
-                    imageView.scaleType = ImageView.ScaleType.CENTER_CROP
-                    imageView.setBackgroundColor(Color.TRANSPARENT)
-                    updateOverlayVisibility()
-                    return
-                } else {
-                    Log.e(TAG, "BitmapFactory decoded null bitmap for background file: ${bgFile.name}")
+                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(bgFile.absolutePath, options)
+                if (options.outWidth > 0 && options.outHeight > 0) {
+                    val displayMetrics = context.resources.displayMetrics
+                    val reqWidth = displayMetrics.widthPixels
+                    val reqHeight = displayMetrics.heightPixels
+                    var inSampleSize = 1
+                    while (options.outHeight / inSampleSize >= reqHeight && options.outWidth / inSampleSize >= reqWidth) {
+                        inSampleSize *= 2
+                    }
+                    options.inJustDecodeBounds = false
+                    options.inSampleSize = inSampleSize
+                    options.inPreferredConfig = android.graphics.Bitmap.Config.RGB_565
+                    val bitmap = BitmapFactory.decodeFile(bgFile.absolutePath, options)
+                    if (bitmap != null) {
+                        imageView.setImageBitmap(bitmap)
+                        imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+                        imageView.setBackgroundColor(Color.TRANSPARENT)
+                        updateOverlayVisibility()
+                        return
+                    } else {
+                        Log.e(TAG, "BitmapFactory decoded null bitmap for background file: ${bgFile.name}")
+                    }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e(TAG, "Error decoding custom background file, falling back to theme background", e)
             }
         }

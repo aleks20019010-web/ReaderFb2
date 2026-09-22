@@ -24,7 +24,10 @@ class BookScanWorker(
             currentFileName = "Подготовка к поиску файлов..."
         )
 
-        val scanner = com.nightread.app.scanner.LibraryScanner(applicationContext, com.nightread.app.data.AppDatabase.getDatabase(applicationContext).bookDao())
+        val scanner = com.nightread.app.scanner.LibraryScanner.getInstance(
+            applicationContext,
+            com.nightread.app.data.AppDatabase.getDatabase(applicationContext).bookDao()
+        )
 
         try {
             scanner.scanBooks().join()
@@ -39,7 +42,7 @@ class BookScanWorker(
                 title = "Scan finished",
                 message = "Added ${finalState.addedBooks} books, skipped ${finalState.skippedBooks} duplicates"
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("BookScanWorker", "Critical exception during scan", e)
             val errorText = e.localizedMessage ?: "Unknown error"
             val errMsg = "Error: $errorText"

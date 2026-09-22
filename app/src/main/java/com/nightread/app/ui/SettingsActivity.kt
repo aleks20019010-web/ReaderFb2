@@ -232,22 +232,7 @@ class SettingsActivity : BaseActivity() {
 
     private fun checkStoragePermissionAndScan() {
         val ctx = this
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            if (android.os.Environment.isExternalStorageManager()) {
-                viewModel.startLocalBookScan()
-                CustomToast.show(ctx, getString(R.string.settings_toast_scan_started))
-            } else {
-                try {
-                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                        data = android.net.Uri.parse("package:${ctx.packageName}")
-                    }
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                    startActivity(intent)
-                }
-            }
-        } else {
+        if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.S_V2) {
             if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 viewModel.startLocalBookScan()
                 CustomToast.show(ctx, getString(R.string.settings_toast_scan_started))
@@ -258,6 +243,10 @@ class SettingsActivity : BaseActivity() {
                     101
                 )
             }
+        } else {
+            // Android 13+ (API 33+) Scoped Storage
+            viewModel.startLocalBookScan()
+            CustomToast.show(ctx, getString(R.string.settings_toast_scan_started))
         }
     }
 

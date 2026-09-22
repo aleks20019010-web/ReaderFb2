@@ -52,17 +52,43 @@ class SelectionBottomSheet : BottomSheetDialogFragment() {
 
         val btnCopy = view.findViewById<Button>(R.id.btnCopy)
         val btnDict = view.findViewById<Button>(R.id.btnDictionary)
+        val btnTranslate = view.findViewById<Button>(R.id.btnTranslate)
         val btnTts = view.findViewById<Button>(R.id.btnSpeak)
 
         val btnBg = ColorStateList.valueOf(Color.parseColor(btnColor))
         btnCopy.backgroundTintList = btnBg
         btnDict.backgroundTintList = btnBg
+        btnTranslate?.backgroundTintList = btnBg
         btnTts.backgroundTintList = btnBg
 
         btnCopy.setOnClickListener {
             val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val clip = ClipData.newPlainText("Copied Text", selectedText)
             clipboard.setPrimaryClip(clip)
+            dismiss()
+        }
+
+        btnTranslate?.setOnClickListener {
+            val ctx = requireContext()
+            try {
+                val intent = android.content.Intent(android.content.Intent.ACTION_PROCESS_TEXT).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_PROCESS_TEXT, selectedText)
+                    putExtra(android.content.Intent.EXTRA_PROCESS_TEXT_READONLY, true)
+                }
+                ctx.startActivity(intent)
+            } catch (e: Exception) {
+                try {
+                    val encoded = java.net.URLEncoder.encode(selectedText, "UTF-8")
+                    val browserIntent = android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse("https://translate.google.com/?sl=auto&tl=ru&text=$encoded")
+                    )
+                    ctx.startActivity(browserIntent)
+                } catch (ex: Exception) {
+                    CustomToast.show(ctx, "Не удалось открыть переводчик")
+                }
+            }
             dismiss()
         }
 

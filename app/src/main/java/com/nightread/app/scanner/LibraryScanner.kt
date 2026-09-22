@@ -175,13 +175,13 @@ class LibraryScanner(
                 scanJob = null
                 try {
                     cleanupCache()
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     Log.e(TAG, "Error cleaning cache", e)
                 }
             }
         }
         
-        return scanJob!!
+        return scanJob ?: kotlinx.coroutines.CompletableDeferred(Unit)
     }
     
     /**
@@ -193,21 +193,26 @@ class LibraryScanner(
         Log.d(TAG, "Starting scan")
         
         progressManager.forceUpdate {
-            it.copy(phase = ScanPhase.INITIALIZING, overallProgress = 0)
+            it.copy(
+                phase = ScanPhase.INITIALIZING,
+                overallProgress = 0,
+                currentFile = "Инициализация базы данных..."
+            )
         }
         
-        // Проверка БД
+        // Быстрая проверка БД без загрузки всех книг в память
         try {
-            val testBooks = withContext(Dispatchers.IO) {
-                bookDao.getAllBooksSync()
+            val count = withContext(Dispatchers.IO) {
+                bookDao.getBooksCount()
             }
-            Log.d(TAG, "DB OK. Books in DB: ${testBooks.size}")
-        } catch (e: Exception) {
+            Log.d(TAG, "DB OK. Books in DB: $count")
+        } catch (e: Throwable) {
             Log.e(TAG, "DB check failed", e)
             // Не прерываем сканирование
         }
         
         val bookFiles = scanFilesWithProgress()
+        Log.d(TAG, "Found ${bookFiles.size} book files")
         
         if (bookFiles.isEmpty()) {
             progressManager.forceUpdate {
@@ -215,7 +220,8 @@ class LibraryScanner(
                     phase = ScanPhase.COMPLETED,
                     overallProgress = 100,
                     booksFound = 0,
-                    booksAdded = 0
+                    booksAdded = 0,
+                    eta = "Книги не найдены на устройстве"
                 )
             }
             return
@@ -225,7 +231,8 @@ class LibraryScanner(
             it.copy(
                 phase = ScanPhase.ANALYZING_CACHE,
                 overallProgress = 20,
-                booksFound = bookFiles.size
+                booksFound = bookFiles.size,
+                currentFile = "Анализ найденных файлов (${bookFiles.size})..."
             )
         }
         
@@ -238,12 +245,13 @@ class LibraryScanner(
                     overallProgress = 100,
                     booksFound = bookFiles.size,
                     booksAdded = 0,
-                    booksSkipped = bookFiles.size
+                    booksSkipped = bookFiles.size,
+                    eta = "Все книги уже добавлены (${bookFiles.size})"
                 )
             }
             try {
                 scanPrefs.saveLastScanCount(0)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e(TAG, "Error saving scan count", e)
             }
             return
@@ -255,7 +263,8 @@ class LibraryScanner(
                 overallProgress = 30,
                 booksFound = booksToProcess.size,
                 booksProcessed = 0,
-                booksAdded = 0
+                booksAdded = 0,
+                currentFile = "Подготовка к обработке ${booksToProcess.size} книг..."
             )
         }
         
@@ -297,6 +306,7 @@ class LibraryScanner(
         val rootDirs = getDefaultScanDirectories()
         Log.d(TAG, "Found ${rootDirs.size} scan directories")
         
+        val visitedPaths = mutableSetOf<String>()
         for ((index, rootDir) in rootDirs.withIndex()) {
             if (bookFiles.size >= MAX_FILES_TO_SCAN) {
                 Log.w(TAG, "Reached max files limit: $MAX_FILES_TO_SCAN")
@@ -310,24 +320,27 @@ class LibraryScanner(
             
             val scanProgress = 5 + ((index.toFloat() / rootDirs.size) * 10).toInt()
             progressManager.update {
-                it.copy(phaseProgress = scanProgress, currentFile = "Сканирование: ${rootDir.name}")
+                it.copy(
+                    phaseProgress = scanProgress,
+                    currentFile = "Поиск: ${rootDir.name} (найдено: ${bookFiles.size})"
+                )
             }
             
             Log.d(TAG, "Scanning directory: ${rootDir.absolutePath}")
             
             try {
-                scanDirectory(rootDir, bookFiles)
+                scanDirectory(rootDir, bookFiles, 0, visitedPaths)
             } catch (e: SecurityException) {
                 Log.e(TAG, "Security exception scanning: ${rootDir.absolutePath}", e)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e(TAG, "Error scanning: ${rootDir.absolutePath}", e)
             }
         }
         
         val uniqueFiles = bookFiles.distinctBy { 
             try { 
-                it.canonicalFile.absolutePath 
-            } catch (e: Exception) { 
+                it.canonicalPath 
+            } catch (e: Throwable) { 
                 it.absolutePath 
             } 
         }
@@ -340,6 +353,7 @@ class LibraryScanner(
                 phaseProgress = 100,
                 overallProgress = 15,
                 booksFound = uniqueFiles.size,
+                currentFile = "Найдено книг: ${uniqueFiles.size}",
                 memoryUsed = memoryMonitor.getMemoryStatus()
             )
         }
@@ -348,14 +362,26 @@ class LibraryScanner(
     }
     
     /**
-     * Рекурсивное сканирование директории
+     * Рекурсивное сканирование директории с защитой от циклов
      */
-    private fun scanDirectory(directory: File, result: MutableList<File>, depth: Int = 0) {
+    private fun scanDirectory(
+        directory: File,
+        result: MutableList<File>,
+        depth: Int = 0,
+        visitedPaths: MutableSet<String> = mutableSetOf()
+    ) {
         if (result.size >= MAX_FILES_TO_SCAN) return
         if (depth > MAX_SCAN_DEPTH) return
         
         try {
-            if (directory.canonicalFile != directory.absoluteFile) {
+            val canonicalPath = try {
+                directory.canonicalPath
+            } catch (e: Throwable) {
+                directory.absolutePath
+            }
+            
+            // Предотвращаем зацикливание через символические ссылки
+            if (!visitedPaths.add(canonicalPath)) {
                 return
             }
             
@@ -368,52 +394,38 @@ class LibraryScanner(
             } catch (e: SecurityException) {
                 Log.e(TAG, "Security exception listing: ${directory.absolutePath}", e)
                 null
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e(TAG, "Error listing: ${directory.absolutePath}", e)
                 null
             }
             
-            if (entries == null) return
+            if (entries == null || entries.isEmpty()) return
             
-            val (files, directories) = entries.partition { 
-                try { it.isFile } catch (e: Exception) { false }
-            }
-            
-            for (file in files) {
+            for (entry in entries) {
                 if (result.size >= MAX_FILES_TO_SCAN) break
                 
                 try {
-                    if (isBookFile(file) && file.canRead()) {
-                        result.add(file)
-                    }
-                } catch (e: Exception) {
-                    // Пропускаем проблемные файлы
-                }
-            }
-            
-            if (result.size < MAX_FILES_TO_SCAN) {
-                for (dir in directories) {
-                    if (result.size >= MAX_FILES_TO_SCAN) break
-                    
-                    val dirName = try {
-                        dir.name.lowercase()
-                    } catch (e: Exception) {
-                        ""
-                    }
-                    
-                    if (dirName.startsWith(".") || excludePaths.contains(dirName)) {
-                        continue
-                    }
-                    
-                    try {
-                        if (dir.canonicalPath == directory.canonicalPath) {
-                            continue
+                    val isFile = try { entry.isFile } catch (e: Throwable) { false }
+                    if (isFile) {
+                        if (isBookFile(entry) && entry.canRead()) {
+                            result.add(entry)
                         }
-                    } catch (e: Exception) {
-                        continue
+                    } else {
+                        val isDirectory = try { entry.isDirectory } catch (e: Throwable) { false }
+                        if (isDirectory) {
+                            val dirName = try {
+                                entry.name.lowercase()
+                            } catch (e: Throwable) {
+                                ""
+                            }
+                            
+                            if (!dirName.startsWith(".") && !excludePaths.contains(dirName)) {
+                                scanDirectory(entry, result, depth + 1, visitedPaths)
+                            }
+                        }
                     }
-                    
-                    scanDirectory(dir, result, depth + 1)
+                } catch (e: Throwable) {
+                    // Пропускаем проблемные элементы без падения
                 }
             }
             
@@ -421,7 +433,7 @@ class LibraryScanner(
             Log.e(TAG, "Security exception: ${directory.absolutePath}", e)
         } catch (e: StackOverflowError) {
             Log.e(TAG, "Stack overflow: ${directory.absolutePath}", e)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error scanning: ${directory.absolutePath}", e)
         }
     }
@@ -502,7 +514,10 @@ class LibraryScanner(
                 if (dir != null) addDirectory(dir)
             }
             
-            if (context.filesDir != null) addDirectory(context.filesDir)
+            if (context.filesDir != null) {
+                addDirectory(context.filesDir)
+                addDirectory(File(context.filesDir, "books"))
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error getting app directories", e)
         }
@@ -518,7 +533,7 @@ class LibraryScanner(
             val existingPaths = withContext(Dispatchers.IO) {
                 try {
                     bookDao.getAllBookPaths().toSet()
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     Log.e(TAG, "Error getting book paths from DB", e)
                     emptySet()
                 }
@@ -526,13 +541,13 @@ class LibraryScanner(
             
             bookFiles.filter { file ->
                 val path = file.absolutePath
-                val canonicalPath = try { file.canonicalFile.absolutePath } catch (e: Exception) { path }
+                val canonicalPath = try { file.canonicalPath } catch (e: Throwable) { path }
                 
                 path !in existingPaths && canonicalPath !in existingPaths
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error in analyzeCache", e)
-            bookFiles // Если ошибка — пробуем обработать все файлы
+            bookFiles
         }
     }
     
@@ -622,6 +637,8 @@ class LibraryScanner(
                 if (!_isScanning.get()) {
                     return@mapNotNull null
                 }
+                currentCoroutineContext().ensureActive()
+                yield()
                 
                 try {
                     val result = withTimeoutOrNull(TIMEOUT_PER_BOOK_MS) {
@@ -629,6 +646,8 @@ class LibraryScanner(
                     }
                     
                     result ?: ProcessResult.Skipped
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Throwable) {
                     Log.e(TAG, "Error processing ${file.name}", e)
                     ProcessResult.Error(null, Exception(e))

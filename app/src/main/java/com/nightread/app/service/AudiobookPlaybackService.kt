@@ -508,11 +508,23 @@ class AudiobookPlaybackService : Service() {
         return try {
             val file = File(path)
             if (file.exists()) {
-                BitmapFactory.decodeFile(file.absolutePath)
+                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(file.absolutePath, options)
+                if (options.outWidth <= 0 || options.outHeight <= 0) return null
+                
+                var inSampleSize = 1
+                val reqSize = 300
+                while (options.outHeight / inSampleSize >= reqSize && options.outWidth / inSampleSize >= reqSize) {
+                    inSampleSize *= 2
+                }
+                options.inJustDecodeBounds = false
+                options.inSampleSize = inSampleSize
+                options.inPreferredConfig = Bitmap.Config.RGB_565
+                BitmapFactory.decodeFile(file.absolutePath, options)
             } else {
                 null
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             null
         }
     }

@@ -49,7 +49,7 @@
                     android:layout_gravity="center"
                     android:textSize="72sp"
                     android:textStyle="bold"
-                    android:textColor="#E8D8F0"
+                    android:textColor="@color/text_primary"
                     android:visibility="gone"
                     tools:text="О" />
             </FrameLayout>

@@ -4,7 +4,7 @@
     android:id="@+id/rootView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:background="@color/bg_main">
 
     <View
         android:id="@+id/ambientGlowView"
@@ -219,7 +219,7 @@
             android:textSize="12sp"
             android:letterSpacing="0.1"
             android:fontFamily="sans-serif-medium"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_primary"
             android:text="12:00  •  🔋 100%" />
     </LinearLayout>
 
@@ -245,7 +245,7 @@
             android:textSize="11sp"
             android:letterSpacing="0.05"
             android:fontFamily="sans-serif"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_secondary"
             android:layout_marginBottom="8dp"
             android:text="Стр. 1 из 100" />
 
@@ -256,8 +256,8 @@
             android:layout_height="4dp"
             android:max="100"
             android:progress="0"
-            android:progressBackgroundTint="#33CCCCCC"
-            android:progressTint="#FFFFFF" />
+            android:progressBackgroundTint="@color/glass_stroke"
+            android:progressTint="@color/accent" />
     </LinearLayout>
 
     <!-- Accidental Exit Warning -->
@@ -294,7 +294,7 @@
         android:background="@drawable/bg_brightness"
         android:paddingHorizontal="24dp"
         android:paddingVertical="12dp"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/text_primary"
         android:textSize="20sp"
         android:visibility="gone"
         android:text="☀ 75%" />
@@ -309,7 +309,7 @@
         android:background="@drawable/bg_brightness"
         android:paddingHorizontal="24dp"
         android:paddingVertical="12dp"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/text_primary"
         android:textSize="20sp"
         android:visibility="gone"
         android:text="🌡 30%" />
@@ -319,7 +319,7 @@
         android:id="@+id/reader_splash_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#121212"
+        android:background="@color/bg_main"
         android:clickable="true"
         android:focusable="true"
         android:visibility="visible">
@@ -342,7 +342,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="N I G H T R E A D"
-                android:textColor="#FFE3A8"
+                android:textColor="@color/sync_header"
                 android:textSize="20sp"
                 android:fontFamily="sans-serif-thin"
                 android:letterSpacing="0.35" />
@@ -353,7 +353,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:text="АТМОСФЕРА ПОЛУНОЧИ"
-                android:textColor="#8B7CA2"
+                android:textColor="@color/text_secondary"
                 android:textSize="10sp"
                 android:fontFamily="sans-serif-medium"
                 android:letterSpacing="0.25" />
@@ -364,7 +364,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
                 android:text="Настройка ночного уюта..."
-                android:textColor="#8B7CA2"
+                android:textColor="@color/text_secondary"
                 android:textSize="13sp"
                 android:fontFamily="sans-serif-medium"
                 android:letterSpacing="0.05" />

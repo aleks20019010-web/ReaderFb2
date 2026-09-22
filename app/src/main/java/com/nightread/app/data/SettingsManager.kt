@@ -287,7 +287,7 @@ object SettingsManager {
 
     fun getTheme(context: Context): String {
         if (cachedTheme == null) {
-            cachedTheme = getPrefs(context).getString(KEY_THEME, "light") ?: "light"
+            cachedTheme = getPrefs(context).getString(KEY_THEME, "dark") ?: "dark"
         }
         return cachedTheme!!
     }

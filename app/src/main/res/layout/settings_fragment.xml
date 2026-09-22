@@ -297,11 +297,47 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
                 android:layout_marginBottom="8dp"
-                android:text="@string/settings_section_cleanup"
+                android:text="РЕЗЕРВНОЕ КОПИРОВАНИЕ И ОБСЛУЖИВАНИЕ"
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.1" />
+
+            <!-- Export Backup -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnExportBackup"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:text="Создать резервную копию (JSON)"
+                app:strokeColor="@color/accent"
+                app:rippleColor="@color/accent_light"
+                app:cornerRadius="12dp"
+                app:icon="@android:drawable/ic_menu_save"
+                app:iconGravity="textStart"
+                app:iconTint="@color/text_primary" />
+
+            <!-- Import Backup -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnImportBackup"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="10dp"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:text="Восстановить из копии"
+                app:strokeColor="@color/accent"
+                app:rippleColor="@color/accent_light"
+                app:cornerRadius="12dp"
+                app:icon="@android:drawable/ic_menu_upload"
+                app:iconGravity="textStart"
+                app:iconTint="@color/text_primary" />
 
             <!-- Reset Cache -->
             <com.google.android.material.button.MaterialButton

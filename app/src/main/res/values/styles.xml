@@ -8,22 +8,22 @@
 
     <!-- Button Style with Glassmorphism effect -->
     <style name="ButtonStyle" parent="Widget.Material3.Button">
-        <item name="cornerRadius">16dp</item>
+        <item name="cornerRadius">14dp</item>
         <item name="android:elevation">0dp</item>
-        <item name="backgroundTint">@color/glass_bg_60</item>
+        <item name="backgroundTint">@color/btn_bg</item>
         <item name="strokeWidth">1dp</item>
         <item name="strokeColor">@color/glass_stroke</item>
-        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textColor">@color/btn_text</item>
         <item name="rippleColor">#33FFFFFF</item>
     </style>
 
-    <!-- SeekBar Style for Purple Fog Theme -->
+    <!-- SeekBar Style for Glass Starry Theme -->
     <style name="SeekBarStyle" parent="Widget.AppCompat.SeekBar">
         <item name="android:progressTint">@color/accent</item>
         <item name="android:thumbTint">@color/accent</item>
     </style>
 
-    <!-- Switch Style for Purple Fog Theme -->
+    <!-- Switch Style for Glass Starry Theme -->
     <style name="SwitchStyle" parent="Widget.AppCompat.CompoundButton.Switch">
         <item name="trackTint">@color/accent</item>
         <item name="thumbTint">@color/white</item>
@@ -47,7 +47,7 @@
     <!-- Style for settings section headings/labels (compact) -->
     <style name="SettingsLabelStyle">
         <item name="android:textSize">12sp</item>
-        <item name="android:textColor">#5C4D6C</item> <!-- text_secondary -->
+        <item name="android:textColor">@color/text_secondary</item>
         <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:paddingBottom">2dp</item>
     </style>
@@ -55,31 +55,31 @@
     <!-- Style for text values (compact) -->
     <style name="SettingsValueStyle">
         <item name="android:textSize">13sp</item>
-        <item name="android:textColor">#2A1A36</item> <!-- text_primary -->
+        <item name="android:textColor">@color/text_primary</item>
         <item name="android:fontFamily">sans-serif</item>
     </style>
 
     <!-- Compact Spinner Style -->
     <style name="CompactSpinnerStyle" parent="Widget.AppCompat.Spinner">
-        <item name="android:backgroundTint">#9B59B6</item> <!-- accent -->
+        <item name="android:backgroundTint">@color/accent</item>
         <item name="android:padding">4dp</item>
     </style>
 
     <!-- Compact SeekBar Style -->
     <style name="CompactSeekBarStyle" parent="Widget.AppCompat.SeekBar">
-        <item name="android:progressTint">#9B59B6</item>
-        <item name="android:thumbTint">#9B59B6</item>
+        <item name="android:progressTint">@color/accent</item>
+        <item name="android:thumbTint">@color/accent</item>
         <item name="android:paddingStart">6dp</item>
         <item name="android:paddingEnd">6dp</item>
     </style>
 
     <style name="NightReadSpinnerItem" parent="Widget.AppCompat.TextView.SpinnerItem">
-        <item name="android:textColor">#E8D8F0</item>
-        <item name="android:background">#2A1A3E</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:background">@color/bg_panel</item>
     </style>
     
     <style name="NightReadSpinnerDropdown" parent="Widget.AppCompat.Spinner.DropDown">
-        <item name="android:popupBackground">#2A1A3E</item>
+        <item name="android:popupBackground">@color/bg_panel</item>
     </style>
 
     <!-- Dark Purple Bottom Sheet Style -->

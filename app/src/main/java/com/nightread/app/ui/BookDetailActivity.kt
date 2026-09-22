@@ -368,10 +368,24 @@ class BookDetailActivity : BaseActivity() {
 
     private fun deleteBook() {
         val sha1 = bookSha1 ?: return
+        val book = currentBook
         lifecycleScope.launch {
             val db = AppDatabase.getDatabase(this@BookDetailActivity)
             withContext(Dispatchers.IO) {
                 db.bookDao().deleteBookBySha1(sha1)
+                
+                // Clean up book file if it was copied to internal filesDir
+                if (book?.filePath != null) {
+                    val f = File(book.filePath)
+                    if (f.exists() && f.absolutePath.startsWith(filesDir.absolutePath)) {
+                        f.delete()
+                    }
+                }
+                // Clean up cover files
+                val coverFile1 = File(filesDir, "covers/cover_$sha1.jpg")
+                if (coverFile1.exists()) coverFile1.delete()
+                val coverFile2 = File(filesDir, "covers/$sha1.jpg")
+                if (coverFile2.exists()) coverFile2.delete()
             }
             finish()
         }

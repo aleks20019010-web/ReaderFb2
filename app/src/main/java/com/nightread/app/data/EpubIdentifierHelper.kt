@@ -43,7 +43,7 @@ object EpubIdentifierHelper {
                 }
             }
             false
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error checking if file is EPUB: ${file.name}", e)
             false
         }
@@ -65,7 +65,7 @@ object EpubIdentifierHelper {
                 }
                 digest.digest().joinToString("") { "%02x".format(it) }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Failed to compute SHA-1 of local file: ${file.absolutePath}", e)
             null
         }
@@ -240,7 +240,7 @@ object EpubIdentifierHelper {
                 }
             }
             null
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error getting EPUB metadata", e)
             null
         }
@@ -252,10 +252,16 @@ object EpubIdentifierHelper {
         }
         targetDirectory.mkdirs()
         try {
+            val canonicalTargetDir = targetDirectory.canonicalPath
             ZipInputStream(zipFile.inputStream().buffered()).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
                     val file = File(targetDirectory, entry.name)
+                    val canonicalPath = try { file.canonicalPath } catch (e: Throwable) { "" }
+                    if (!canonicalPath.startsWith(canonicalTargetDir)) {
+                        entry = zip.nextEntry
+                        continue
+                    }
                     if (entry.isDirectory) {
                         file.mkdirs()
                     } else {
@@ -267,7 +273,7 @@ object EpubIdentifierHelper {
                     entry = zip.nextEntry
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error unzipping file: ${zipFile.name}", e)
         }
     }

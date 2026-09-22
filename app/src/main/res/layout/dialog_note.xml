@@ -14,7 +14,7 @@
         android:layout_height="4dp"
         android:layout_gravity="center_horizontal"
         android:layout_marginBottom="16dp"
-        android:background="#4D9B59B6" />
+        android:background="@color/glass_stroke" />
 
     <TextView
         android:id="@+id/tvNoteTitle"
@@ -24,13 +24,13 @@
         android:layout_marginBottom="12dp"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="#9B59B6"
+        android:textColor="@color/accent"
         android:text="Сноска" />
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#3A2A4E"
+        android:background="@color/divider"
         android:layout_marginBottom="16dp" />
 
     <TextView

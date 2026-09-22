@@ -39,7 +39,7 @@
                     android:layout_alignParentStart="true"
                     android:layout_centerVertical="true"
                     android:text="@string/drawer_settings"
-                    android:textColor="#E8D8F0"
+                    android:textColor="@color/text_primary"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
@@ -53,7 +53,7 @@
                     android:contentDescription="Закрыть"
                     android:scaleType="centerInside"
                     android:src="@android:drawable/ic_menu_close_clear_cancel"
-                    app:tint="#E8D8F0" />
+                    app:tint="@color/icon_tint" />
             </RelativeLayout>
 
             <!-- Divider -->
@@ -62,7 +62,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginBottom="16dp"
-                android:background="#D2C5E3" />
+                android:background="@color/divider" />
 
             <!-- Bedtime Mode Quick Action Card -->
             <androidx.cardview.widget.CardView
@@ -73,7 +73,7 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:foreground="?android:attr/selectableItemBackground"
-                app:cardBackgroundColor="#EAE2F3"
+                app:cardBackgroundColor="@color/bg_card"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="2dp">
 
@@ -102,7 +102,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/bedtime_mode_title"
-                            android:textColor="#FFFFFF"
+                            android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:textStyle="bold" />
 
@@ -111,7 +111,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/bedtime_mode_desc"
-                            android:textColor="#D1C4E9"
+                            android:textColor="@color/text_secondary"
                             android:textSize="11sp"
                             android:layout_marginTop="2dp" />
                     </LinearLayout>
@@ -365,7 +365,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginBottom="16dp"
-                android:background="#D2C5E3" />
+                android:background="@color/divider" />
 
             <!-- Font Size -->
             <LinearLayout
@@ -493,7 +493,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/auto_brightness_title"
-                        android:textColor="#E8D8F0"
+                        android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -502,7 +502,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/auto_brightness_desc"
-                        android:textColor="#B8A0C8"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -513,7 +513,7 @@
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     app:thumbTint="@color/white"
-                    app:trackTint="#9B59B6" />
+                    app:trackTint="@color/accent" />
             </RelativeLayout>
 
             <!-- Distraction-Free Mode Switch -->
@@ -534,7 +534,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/distraction_free_title"
-                        android:textColor="#E8D8F0"
+                        android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -543,7 +543,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/distraction_free_desc"
-                        android:textColor="#B8A0C8"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -554,7 +554,7 @@
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     app:thumbTint="@color/white"
-                    app:trackTint="#9B59B6" />
+                    app:trackTint="@color/accent" />
             </RelativeLayout>
 
             <!-- Extra Dim Switch -->
@@ -575,7 +575,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/extra_dim_title"
-                        android:textColor="#E8D8F0"
+                        android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -584,7 +584,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/extra_dim_desc"
-                        android:textColor="#B8A0C8"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -595,7 +595,7 @@
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     app:thumbTint="@color/white"
-                    app:trackTint="#9B59B6" />
+                    app:trackTint="@color/accent" />
             </RelativeLayout>
 
             <!-- Extra Dim Intensity SeekBar -->
@@ -616,7 +616,7 @@
                         android:layout_height="wrap_content"
                         android:layout_alignParentStart="true"
                         android:text="@string/extra_dim_intensity"
-                        android:textColor="#B8A0C8"
+                        android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
 
                     <TextView
@@ -624,7 +624,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_alignParentEnd="true"
-                        android:textColor="#E8D8F0"
+                        android:textColor="@color/text_primary"
                         android:textSize="13sp"
                         android:textStyle="bold"
                         android:text="40%" />
@@ -656,7 +656,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/sleep_timer_title"
-                        android:textColor="#E8D8F0"
+                        android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -665,7 +665,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/sleep_timer_desc"
-                        android:textColor="#B8A0C8"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -676,7 +676,7 @@
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     app:thumbTint="@color/white"
-                    app:trackTint="#9B59B6" />
+                    app:trackTint="@color/accent" />
             </RelativeLayout>
 
             <!-- Sleep Timer Duration SeekBar -->
@@ -697,7 +697,7 @@
                         android:layout_height="wrap_content"
                         android:layout_alignParentStart="true"
                         android:text="@string/sleep_timer_duration"
-                        android:textColor="#B8A0C8"
+                        android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
 
                     <TextView
@@ -705,7 +705,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_alignParentEnd="true"
-                        android:textColor="#E8D8F0"
+                        android:textColor="@color/text_primary"
                         android:textSize="13sp"
                         android:textStyle="bold"
                         android:text="30 мин" />
@@ -738,7 +738,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/shake_to_extend_title"
-                        android:textColor="#E8D8F0"
+                        android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -747,7 +747,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/shake_to_extend_desc"
-                        android:textColor="#B8A0C8"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -758,7 +758,7 @@
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     app:thumbTint="@color/white"
-                    app:trackTint="#9B59B6" />
+                    app:trackTint="@color/accent" />
             </RelativeLayout>
 
             <!-- Divider -->
@@ -767,7 +767,7 @@
                 android:layout_height="1dp"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
-                android:background="#D2C5E3" />
+                android:background="@color/divider" />
 
             <!-- Haptic Feedback Switch Row -->
             <RelativeLayout
@@ -787,7 +787,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/bs_haptic_feedback"
-                        android:textColor="#E8D8F0"
+                        android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -796,7 +796,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/bs_haptic_feedback_desc"
-                        android:textColor="#B8A0C8"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -807,7 +807,7 @@
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     app:thumbTint="@color/white"
-                    app:trackTint="#9B59B6" />
+                    app:trackTint="@color/accent" />
             </RelativeLayout>
 
             <!-- Silent Mode Switch Row -->
@@ -828,7 +828,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/silent_mode_title"
-                        android:textColor="#E8D8F0"
+                        android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -837,7 +837,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/silent_mode_desc"
-                        android:textColor="#B8A0C8"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -848,7 +848,7 @@
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     app:thumbTint="@color/white"
-                    app:trackTint="#9B59B6" />
+                    app:trackTint="@color/accent" />
             </RelativeLayout>
 
 

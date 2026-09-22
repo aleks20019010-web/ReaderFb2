@@ -12,6 +12,12 @@ interface NoteDao {
     @Query("SELECT * FROM notes ORDER BY timestamp DESC")
     fun getAllNotes(): Flow<List<NoteEntity>>
 
+    @Query("SELECT * FROM notes")
+    suspend fun getAllNotesSync(): List<NoteEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertNotes(notes: List<NoteEntity>)
+
     @Query("SELECT * FROM notes WHERE bookId = :bookId ORDER BY charOffset ASC")
     fun getNotesForBook(bookId: String): Flow<List<NoteEntity>>
 

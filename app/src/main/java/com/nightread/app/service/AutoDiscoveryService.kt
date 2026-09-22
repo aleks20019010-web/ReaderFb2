@@ -102,9 +102,9 @@ class AutoDiscoveryService : Service() {
                 val scanner = com.nightread.app.scanner.LibraryScanner.getInstance(this@AutoDiscoveryService, bookDao)
                 if (scanner.isScanning) return@launch
                 
-                val initialCount = try { bookDao.getSha1ToPathMap().size } catch (e: Throwable) { 0 }
+                val initialCount = try { bookDao.getBooksCount() } catch (e: Throwable) { 0 }
                 scanner.scanBooks().join()
-                val newCount = try { bookDao.getSha1ToPathMap().size } catch (e: Throwable) { initialCount }
+                val newCount = try { bookDao.getBooksCount() } catch (e: Throwable) { initialCount }
                 
                 val added = newCount - initialCount
                 if (added > 0) {

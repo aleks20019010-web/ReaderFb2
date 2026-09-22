@@ -91,9 +91,10 @@ class BookReaderActivity : FragmentActivity() {
                                         val text = when (ext) {
                                             "fb3" -> com.nightread.app.service.Fb3Parser.parse(f, f.nameWithoutExtension).content
                                             "epub" -> com.nightread.app.service.EpubParser.parse(f, f.nameWithoutExtension).content
+                                            "fb2" -> com.nightread.app.service.Fb2Parser.parse(f, f.nameWithoutExtension).content
                                             "mobi", "azw", "azw3" -> com.nightread.app.service.MobiParser.parse(f, f.nameWithoutExtension).content
                                             "zip" -> readZipFile(f)
-                                            else -> f.readText()
+                                            else -> decodeBytesToString(f.readBytes())
                                         }
                                         val cleaned = cleanHtmlContent(text)
                                         try { contentFile.writeText(cleaned) } catch (e: Exception) {}
@@ -218,9 +219,10 @@ class BookReaderActivity : FragmentActivity() {
 
     fun startOrResumeTts() {
         try {
+            com.nightread.app.service.TtsDataProvider.currentBookText = openedBookText
             val intent = Intent(this, TtsForegroundService::class.java).apply {
                 action = TtsForegroundService.ACTION_START
-                putExtra(TtsForegroundService.EXTRA_TEXT, openedBookText)
+                putExtra(TtsForegroundService.EXTRA_TEXT, "")
                 putExtra(TtsForegroundService.EXTRA_BOOK_TITLE, openedBookTitle)
                 putExtra(TtsForegroundService.EXTRA_SPEED, SettingsManager.getTtsSpeed(this@BookReaderActivity))
                 putExtra(TtsForegroundService.EXTRA_PITCH, SettingsManager.getTtsPitch(this@BookReaderActivity))
@@ -354,6 +356,31 @@ class BookReaderActivity : FragmentActivity() {
             }
         } catch (e: Exception) {}
         return ""
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (openedBookSha1.isNotEmpty()) {
+            val sp = getSharedPreferences("reader_prefs", android.content.Context.MODE_PRIVATE)
+            val offset = sp.getInt("book_char_offset_$openedBookSha1", -1)
+            if (offset >= 0) {
+                sp.edit()
+                    .putInt("book_char_offset_$openedBookSha1", offset)
+                    .putLong("book_last_timestamp_$openedBookSha1", System.currentTimeMillis())
+                    .commit()
+                
+                try {
+                    com.nightread.app.data.SafeProgressManager.getInstance(this).saveProgressSync(
+                        bookId = openedBookSha1,
+                        pageIndex = 0,
+                        totalPages = 0,
+                        textOffset = offset
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("BookReaderActivity", "Failed to flush progress onPause", e)
+                }
+            }
+        }
     }
 
     private fun decodeBytesToString(bytes: ByteArray): String {

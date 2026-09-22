@@ -158,8 +158,9 @@ class ScannerPreferences(private val context: Context) {
                 
                 for (dir in dirs) {
                     try {
-                        scanDirectoryForHash(dir, sb, 0)
-                    } catch (e: Exception) {
+                        val visited = mutableSetOf<String>()
+                        scanDirectoryForHash(dir, sb, 0, visited)
+                    } catch (e: Throwable) {
                         Log.e(TAG, "Error scanning dir for hash: ${dir.absolutePath}", e)
                     }
                 }
@@ -175,23 +176,24 @@ class ScannerPreferences(private val context: Context) {
         }
     }
     
-    private fun scanDirectoryForHash(dir: File, sb: StringBuilder, depth: Int) {
+    private fun scanDirectoryForHash(dir: File, sb: StringBuilder, depth: Int, visitedPaths: MutableSet<String>) {
         if (depth > 3) return
-        if (sb.length > 100_000) return  // ИСПРАВЛЕНО: убраны скобки
+        if (sb.length > 100_000) return
         
         try {
-            if (dir.canonicalFile != dir.absoluteFile) return
+            val canonical = try { dir.canonicalPath } catch (e: Throwable) { dir.absolutePath }
+            if (!visitedPaths.add(canonical)) return
             
             val files = try {
                 dir.listFiles()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 null
             }
             
             if (files == null) return
             
             for (file in files) {
-                if (sb.length > 100_000) return  // ИСПРАВЛЕНО: убраны скобки
+                if (sb.length > 100_000) return
                 
                 try {
                     if (file.isFile && isBookFile(file)) {
@@ -202,23 +204,23 @@ class ScannerPreferences(private val context: Context) {
                           .append(file.lastModified())
                           .append("|")
                     }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     // Пропускаем
                 }
             }
             
             for (subDir in files) {
-                if (sb.length > 100_000) return  // ИСПРАВЛЕНО: убраны скобки
+                if (sb.length > 100_000) return
                 
                 try {
                     if (subDir.isDirectory && !subDir.name.startsWith(".")) {
-                        scanDirectoryForHash(subDir, sb, depth + 1)
+                        scanDirectoryForHash(subDir, sb, depth + 1, visitedPaths)
                     }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     // Пропускаем
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error in scanDirectoryForHash", e)
         }
     }

@@ -14,7 +14,7 @@
         android:layout_height="4dp"
         android:layout_gravity="center_horizontal"
         android:layout_marginBottom="8dp"
-        android:background="#4D9B59B6" />
+        android:background="@color/glass_stroke" />
 
     <!-- Compact Selected Text Banner -->
     <LinearLayout
@@ -31,7 +31,7 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:text="«Выделенный текст»"
-            android:textColor="#F0E6FF"
+            android:textColor="@color/text_primary"
             android:textSize="15sp"
             android:textStyle="bold"
             android:maxLines="2"
@@ -108,17 +108,15 @@
             android:padding="10dp"
             android:hint="Текст заметки..."
             android:textColor="@color/text_primary"
-            android:textColorHint="#6B5980"
+            android:textColorHint="@color/text_secondary"
             android:textSize="14sp"
             android:layout_marginBottom="8dp" />
 
         <Button
             android:id="@+id/btnSaveNote"
-            style="@style/Widget.Material3.Button.ElevatedButton"
+            style="@style/Widget.App.Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Сохранить заметку"
-            android:backgroundTint="@color/btn_bg"
-            android:textColor="@color/btn_text" />
+            android:text="Сохранить заметку" />
     </LinearLayout>
 </LinearLayout>

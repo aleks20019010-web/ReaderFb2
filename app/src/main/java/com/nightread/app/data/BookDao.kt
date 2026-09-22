@@ -52,6 +52,25 @@ interface BookDao {
         }
     }
 
+    @androidx.room.Transaction
+    suspend fun importOrUpdateBook(book: BookEntity) {
+        val existing = getBookBySha1(book.sha1)
+        if (existing != null) {
+            val updated = book.copy(
+                sha1 = existing.sha1,
+                currentProgressChar = existing.currentProgressChar,
+                currentPageIndex = existing.currentPageIndex,
+                totalCharacters = if (book.totalCharacters > 0) book.totalCharacters else existing.totalCharacters,
+                lastReadTime = existing.lastReadTime,
+                isFavorite = existing.isFavorite,
+                isWantToRead = existing.isWantToRead
+            )
+            updateBook(updated)
+        } else {
+            insertBook(book)
+        }
+    }
+
     @Query("SELECT * FROM books WHERE author = :author ORDER BY title ASC")
     fun getBooksByAuthor(author: String): Flow<List<BookEntity>>
 

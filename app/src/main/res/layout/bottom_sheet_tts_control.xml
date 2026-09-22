@@ -19,7 +19,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/text_primary"
         android:textSize="18sp"
         android:textStyle="bold"
         android:text="Озвучка книги"
@@ -38,7 +38,7 @@
             android:layout_height="52dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_media_prev_custom"
-            app:tint="#FFFFFF"
+            app:tint="@color/text_primary"
             android:contentDescription="Предыдущая фраза" />
 
         <ImageButton
@@ -48,7 +48,7 @@
             android:layout_marginHorizontal="20dp"
             android:background="@drawable/bg_button_circle"
             android:src="@drawable/ic_media_play_custom"
-            app:tint="#FFFFFF"
+            app:tint="@color/onPrimary"
             android:contentDescription="Воспроизведение / Пауза" />
 
         <ImageButton
@@ -57,7 +57,7 @@
             android:layout_height="52dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_media_next_custom"
-            app:tint="#FFFFFF"
+            app:tint="@color/text_primary"
             android:contentDescription="Следующая фраза" />
 
         <ImageButton
@@ -67,7 +67,7 @@
             android:layout_marginStart="16dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_media_stop_custom"
-            app:tint="#FF5252"
+            app:tint="@color/status_error"
             android:contentDescription="Остановить" />
 
     </LinearLayout>
@@ -77,7 +77,7 @@
         android:id="@+id/tvTtsSpeedLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="#E0E0E0"
+        android:textColor="@color/text_secondary"
         android:textSize="14sp"
         android:text="Скорость речи: 1.0x"
         android:layout_marginBottom="6dp" />
@@ -95,7 +95,7 @@
         android:id="@+id/tvTtsPitchLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="#E0E0E0"
+        android:textColor="@color/text_secondary"
         android:textSize="14sp"
         android:text="Тон голоса: 1.0x"
         android:layout_marginBottom="6dp" />

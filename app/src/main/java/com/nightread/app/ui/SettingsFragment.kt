@@ -37,6 +37,28 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    private val restoreBackupLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { selectedUri ->
+            val ctx = context ?: return@registerForActivityResult
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val jsonString = ctx.contentResolver.openInputStream(selectedUri)?.bufferedReader()?.use { it.readText() }
+                        ?: throw java.io.IOException("Не удалось прочитать файл")
+                    val (booksCount, notesCount) = com.nightread.app.data.BackupManager.restoreBackupFromJson(ctx, jsonString)
+                    withContext(Dispatchers.Main) {
+                        CustomToast.show(ctx, "Восстановлено: $booksCount книг, $notesCount заметок")
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        CustomToast.show(ctx, "Ошибка восстановления: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
     private var isSelectingForNightMode = false
 
     private val pickBackgroundLauncher = registerForActivityResult(
@@ -188,7 +210,42 @@ class SettingsFragment : Fragment() {
             }, hour, minute, true).show()
         }
 
-        // --- ОЧИСТКА И ВОССТАНОВЛЕНИЕ ---
+        // --- РЕЗЕРВНОЕ КОПИРОВАНИЕ И ОЧИСТКА ---
+        view.findViewById<Button>(R.id.btnExportBackup)?.setOnClickListener {
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val file = com.nightread.app.data.BackupManager.saveBackupToFile(ctx)
+                    withContext(Dispatchers.Main) {
+                        val uri = androidx.core.content.FileProvider.getUriForFile(
+                            ctx,
+                            "${ctx.packageName}.fileprovider",
+                            file
+                        )
+                        val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "application/json"
+                            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                            putExtra(android.content.Intent.EXTRA_SUBJECT, "NightRead Backup")
+                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        startActivity(android.content.Intent.createChooser(sendIntent, "Сохранить резервную копию"))
+                        CustomToast.show(ctx, "Резервная копия создана")
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        CustomToast.show(ctx, "Ошибка создания копии: ${e.message}")
+                    }
+                }
+            }
+        }
+
+        view.findViewById<Button>(R.id.btnImportBackup)?.setOnClickListener {
+            try {
+                restoreBackupLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
+            } catch (e: Exception) {
+                CustomToast.show(ctx, "Не удалось открыть выбор файла: ${e.message}")
+            }
+        }
+
         view.findViewById<Button>(R.id.btnResetCache).setOnClickListener {
             viewModel.clearScanCache()
             CustomToast.show(ctx, getString(R.string.settings_toast_cache_reset))
@@ -212,28 +269,17 @@ class SettingsFragment : Fragment() {
 
     private fun checkStoragePermissionAndScan() {
         val ctx = context ?: return
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            if (android.os.Environment.isExternalStorageManager()) {
-                viewModel.startLocalBookScan()
-                CustomToast.show(ctx, getString(R.string.settings_toast_scan_started))
-            } else {
-                try {
-                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                        data = android.net.Uri.parse("package:${ctx.packageName}")
-                    }
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                    startActivity(intent)
-                }
-            }
-        } else {
+        if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.S_V2) {
             if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 viewModel.startLocalBookScan()
                 CustomToast.show(ctx, getString(R.string.settings_toast_scan_started))
             } else {
                 requestPermissions(arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE), 101)
             }
+        } else {
+            // Android 13+ (API 33+) Scoped Storage
+            viewModel.startLocalBookScan()
+            CustomToast.show(ctx, getString(R.string.settings_toast_scan_started))
         }
     }
 

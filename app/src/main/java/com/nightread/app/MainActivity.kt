@@ -44,7 +44,7 @@ class MainActivity : BaseActivity() {
 
     private var isMainUiInitialized = false
 
-    override fun shouldApplyGalaxyBackground(): Boolean = !isSplashActive
+    override fun shouldApplyGalaxyBackground(): Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // 1. Theme and super setup, then immediate splash view
@@ -139,22 +139,16 @@ class MainActivity : BaseActivity() {
                 startActivity(openIntent)
                 overridePendingTransition(0, 0)
             } else {
-                // 3. Apply active theme to window and set main layout with smooth fade in
+                // 3. Apply active dark theme to window and set main layout cleanly
                 isSplashActive = false
-                if (isNightMode) {
-                    window.setBackgroundDrawable(com.nightread.app.ui.StarryNightDrawable())
-                    window.statusBarColor = Color.TRANSPARENT
-                } else {
-                    window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.parseColor(com.nightread.app.ui.GalaxyBgHelper.LIGHT_BG_COLOR)))
-                    window.statusBarColor = Color.parseColor(com.nightread.app.ui.GalaxyBgHelper.LIGHT_BG_COLOR)
-                }
+                window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.parseColor("#0F1523")))
+                window.statusBarColor = Color.parseColor("#0F1523")
                 setContentView(R.layout.activity_main)
                 findViewById<android.view.View>(android.R.id.content)?.let {
                     com.nightread.app.ui.GalaxyBgHelper.applyBackground(it)
                 }
                 val mainRoot = findViewById<View>(R.id.drawer_layout) ?: findViewById<View>(R.id.fragment_container)
-                mainRoot?.alpha = 0f
-                mainRoot?.animate()?.alpha(1f)?.setDuration(300)?.start()
+                mainRoot?.alpha = 1f
                 initMainUI(savedInstanceState)
             }
 
@@ -519,13 +513,13 @@ class MainActivity : BaseActivity() {
     }
 
     private fun hasStoragePermission(): Boolean {
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            android.os.Environment.isExternalStorageManager()
-        } else {
+        return if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.S_V2) {
             androidx.core.content.ContextCompat.checkSelfPermission(
                 this,
                 android.Manifest.permission.READ_EXTERNAL_STORAGE
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else {
+            true
         }
     }
 

@@ -96,7 +96,7 @@
         android:textColor="@color/text_secondary"
         android:textSize="13sp"
         android:fontFamily="sans-serif-italic"
-        android:background="#15000000"
+        android:background="@drawable/bg_card_glass"
         android:padding="8dp"
         android:lineSpacingMultiplier="1.1"
         android:maxLines="3"
@@ -109,7 +109,7 @@
         android:orientation="vertical"
         android:layout_marginTop="8dp"
         android:padding="8dp"
-        android:background="#209B59B6">
+        android:background="@drawable/bg_card_glass">
 
         <TextView
             android:id="@+id/tvNoteText"

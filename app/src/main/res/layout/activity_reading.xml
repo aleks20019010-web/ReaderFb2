@@ -28,7 +28,7 @@
         android:id="@+id/viewAmberFilter"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#00FF9800"
+        android:background="@color/reading_amber_overlay"
         android:clickable="false"
         android:focusable="false"
         android:importantForAccessibility="no" />
@@ -38,7 +38,7 @@
         android:id="@+id/viewExtraDim"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#00000000"
+        android:background="@android:color/transparent"
         android:clickable="false"
         android:focusable="false"
         android:importantForAccessibility="no" />
@@ -48,7 +48,7 @@
         android:id="@+id/viewEyeComfortFade"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#FF000000"
+        android:background="@color/black"
         android:clickable="false"
         android:focusable="false"
         android:importantForAccessibility="no" />
@@ -71,7 +71,7 @@
         android:background="@drawable/bg_brightness"
         android:paddingHorizontal="24dp"
         android:paddingVertical="12dp"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/text_primary"
         android:textSize="20sp"
         android:visibility="gone"
         android:text="☀ 75%" />
@@ -86,7 +86,7 @@
         android:background="@drawable/bg_brightness"
         android:paddingHorizontal="24dp"
         android:paddingVertical="12dp"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/text_primary"
         android:textSize="20sp"
         android:visibility="gone"
         android:text="🌡 30%" />
@@ -117,7 +117,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_arrow_back"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#E2E8F0"
+                app:tint="@color/icon_tint"
                 android:contentDescription="Назад"/>
 
             <TextView
@@ -125,7 +125,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textColor="#F1F5F9"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
@@ -137,7 +137,7 @@
                 android:id="@+id/tvSleepTimerIndicator"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#B0BEC5"
+                android:textColor="@color/accent"
                 android:textSize="13sp"
                 android:fontFamily="sans-serif-medium"
                 android:paddingHorizontal="6dp"
@@ -150,7 +150,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_reader_bookmark"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#B0BEC5"
+                app:tint="@color/icon_tint"
                 android:contentDescription="Закладка"/>
 
             <ImageButton
@@ -159,7 +159,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_reader_toc"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#B0BEC5"
+                app:tint="@color/icon_tint"
                 android:contentDescription="Список закладок"/>
 
             <ImageButton
@@ -168,7 +168,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_reader_toc"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#B0BEC5"
+                app:tint="@color/icon_tint"
                 android:contentDescription="Оглавление (AI)"
                 android:visibility="gone"/>
 
@@ -178,7 +178,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_action_search"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#B0BEC5"
+                app:tint="@color/icon_tint"
                 android:contentDescription="Умный поиск"
                 android:visibility="gone"/>
 
@@ -188,7 +188,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_action_help"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#B0BEC5"
+                app:tint="@color/icon_tint"
                 android:contentDescription="Задать вопрос книге"
                 android:visibility="gone"/>
 
@@ -198,7 +198,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_settings"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#B0BEC5"
+                app:tint="@color/icon_tint"
                 android:contentDescription="Настройки"/>
         </LinearLayout>
 
@@ -220,7 +220,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:textColor="#E2E8F0"
+                android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif-medium"
                 android:text=""
@@ -251,7 +251,7 @@
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="110dp"
             android:src="@drawable/ic_reader_bookmark"
-            app:tint="#FFFFFF"
+            app:tint="@color/icon_tint"
             app:backgroundTint="@color/accent"
             android:visibility="gone"
             android:contentDescription="Закладка" />
@@ -276,7 +276,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_primary"
             android:visibility="gone"
             android:textSize="14sp" />
     </LinearLayout>

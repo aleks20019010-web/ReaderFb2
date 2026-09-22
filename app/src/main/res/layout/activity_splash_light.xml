@@ -3,7 +3,7 @@
     android:id="@+id/splash_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0F1523"
+    android:background="@color/bg_main"
     android:clickable="true"
     android:focusable="true">
 
@@ -26,7 +26,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="40dp"
             android:text="N I G H T R E A D"
-            android:textColor="#E2E8F0"
+            android:textColor="@color/sync_header"
             android:textSize="24sp"
             android:fontFamily="sans-serif-thin"
             android:letterSpacing="0.35" />
@@ -37,7 +37,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:text="@string/app_subtitle"
-            android:textColor="#94A3B8"
+            android:textColor="@color/text_secondary"
             android:textSize="11sp"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.25" />
@@ -53,7 +53,7 @@
             android:layout_marginLeft="20dp"
             android:layout_marginRight="20dp"
             android:background="@drawable/bg_splash_glass_card"
-            android:elevation="8dp"
+            android:elevation="0dp"
             android:padding="24dp">
 
             <LinearLayout
@@ -78,7 +78,7 @@
                         android:layout_height="match_parent"
                         android:alpha="0.3"
                         android:background="@drawable/bg_circle_light"
-                        android:backgroundTint="#B0BEC5" />
+                        android:backgroundTint="@color/accent" />
 
                     <ImageView
                         android:id="@+id/iv_splash_logo"
@@ -96,7 +96,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="28dp"
                     android:text="@string/app_mood_title"
-                    android:textColor="#F1F5F9"
+                    android:textColor="@color/text_primary"
                     android:textSize="24sp"
                     android:textStyle="bold"
                     android:fontFamily="sans-serif-medium"
@@ -109,7 +109,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:text="@string/app_mood_subtitle"
-                    android:textColor="#E2E8F0"
+                    android:textColor="@color/sync_header"
                     android:textSize="11sp"
                     android:fontFamily="sans-serif"
                     android:letterSpacing="0.2" />
@@ -123,7 +123,7 @@
                     android:layout_marginLeft="16dp"
                     android:layout_marginRight="16dp"
                     android:text="@string/app_mood_quote"
-                    android:textColor="#94A3B8"
+                    android:textColor="@color/text_secondary"
                     android:textSize="15sp"
                     android:fontFamily="serif"
                     android:gravity="center"
@@ -146,7 +146,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/app_init_loading"
-                android:textColor="#94A3B8"
+                android:textColor="@color/text_secondary"
                 android:textSize="13sp"
                 android:fontFamily="sans-serif-medium"
                 android:letterSpacing="0.05"

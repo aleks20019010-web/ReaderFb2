@@ -3,15 +3,22 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="24dp"
+    android:padding="20dp"
     android:background="@drawable/bg_dark_purple_bottom_sheet">
+
+    <View
+        android:layout_width="32dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:background="@color/glass_stroke" />
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="18sp"
         android:textStyle="bold"
-        android:textColor="#E8D8F0"
+        android:textColor="@color/text_primary"
         android:text="Оглавление"
         android:layout_marginBottom="12dp" />
 
@@ -21,6 +28,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:indeterminate="true"
+        android:indeterminateTint="@color/accent"
         android:visibility="gone"
         android:layout_marginBottom="12dp" />
 
@@ -37,6 +45,6 @@
         android:layout_gravity="end"
         android:layout_marginTop="16dp"
         android:text="ЗАКРЫТЬ"
-        android:textColor="#E8D8F0"
+        android:textColor="@color/accent"
         style="@style/Widget.Material3.Button.TextButton" />
 </LinearLayout>

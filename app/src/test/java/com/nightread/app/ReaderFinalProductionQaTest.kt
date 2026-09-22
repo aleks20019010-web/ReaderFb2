@@ -25,21 +25,15 @@ import androidx.compose.ui.unit.Density
 @RunWith(RobolectricTestRunner::class)
 class ReaderFinalProductionQaTest {
 
-    @get:Rule
-    val composeTestRule = createComposeRule()
-
     private fun runReaderTest(block: suspend (TextMeasurer, Context) -> Unit) {
-        var measurer: TextMeasurer? = null
-        var context: Context? = null
-        
-        composeTestRule.setContent {
-            measurer = androidx.compose.ui.text.rememberTextMeasurer()
-            context = LocalContext.current
-        }
-        composeTestRule.runOnIdle {
-            kotlinx.coroutines.runBlocking {
-                block(measurer!!, context!!)
-            }
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val measurer = TextMeasurer(
+            androidx.compose.ui.text.font.createFontFamilyResolver(context),
+            Density(1f, 1f),
+            androidx.compose.ui.unit.LayoutDirection.Ltr
+        )
+        kotlinx.coroutines.runBlocking {
+            block(measurer, context)
         }
     }
 

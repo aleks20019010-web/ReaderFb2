@@ -33,7 +33,7 @@
                     android:id="@+id/vCoverBackground"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:background="#e94560" />
+                    android:background="@color/bg_panel" />
 
                 <ImageView
                     android:id="@+id/ivCover"
@@ -58,7 +58,7 @@
                     android:progress="0"
                     android:max="100"
                     android:progressTint="@color/accent"
-                    android:progressBackgroundTint="#20FFFFFF" />
+                    android:progressBackgroundTint="@color/glass_bg_30" />
             </FrameLayout>
 
             <View

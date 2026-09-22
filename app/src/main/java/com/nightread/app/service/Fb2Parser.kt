@@ -83,26 +83,166 @@ object Fb2Parser : BookParser {
     }
 
     override fun parse(file: File, defaultTitle: String): ParsedBook {
+        return parseFullFb2(file, defaultTitle)
+    }
+
+    fun parseFullFb2(file: File, defaultTitle: String): ParsedBook {
         if (!file.exists()) {
             Log.e(TAG, "File does not exist: ${file.absolutePath}")
             return createFallbackBook(defaultTitle)
         }
 
         return try {
-            file.inputStream().use { inputStream ->
-                val metadata = parse(inputStream, defaultTitle)
-                ParsedBook(
-                    title = metadata.title,
-                    author = metadata.author,
-                    content = metadata.content,
-                    notes = emptyMap(),
-                    annotation = metadata.annotation
-                )
+            val headerBytes = ByteArray(2048)
+            val detectedCharset = file.inputStream().use { stream ->
+                val readCount = stream.read(headerBytes)
+                detectCharset(headerBytes, if (readCount > 0) readCount else 0)
+            }
+
+            file.inputStream().use { stream ->
+                parseFullFb2Stream(stream, detectedCharset, defaultTitle)
             }
         } catch (e: Throwable) {
-            Log.e(TAG, "Failed to parse FB2 file: ${file.name}", e)
+            Log.e(TAG, "Failed to parse full FB2 file: ${file.name}", e)
             createFallbackBook(defaultTitle)
         }
+    }
+
+    fun parseFullFb2Stream(stream: InputStream, charset: Charset, defaultTitle: String): ParsedBook {
+        val parser = parserFactory.newPullParser()
+        val reader = java.io.InputStreamReader(stream, charset)
+        parser.setInput(reader)
+
+        var title = ""
+        var firstName = ""
+        var middleName = ""
+        var lastName = ""
+        val annotationBuilder = StringBuilder()
+        val notes = mutableMapOf<String, String>()
+        val contentBuilder = StringBuilder(100_000)
+
+        var inDescription = false
+        var inBody = false
+        var isNotesBody = false
+        var inTitle = false
+        var currentTag = ""
+        val currentSectionTitle = StringBuilder()
+        val currentParagraph = StringBuilder()
+        var currentNoteId = ""
+        val currentNoteText = StringBuilder()
+
+        try {
+            var eventType = parser.eventType
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        currentTag = parser.name?.lowercase() ?: ""
+                        when (currentTag) {
+                            "description" -> inDescription = true
+                            "body" -> {
+                                inBody = true
+                                val bodyName = parser.getAttributeValue(null, "name")?.lowercase() ?: ""
+                                isNotesBody = bodyName.contains("notes") || bodyName.contains("comments")
+                            }
+                            "title" -> {
+                                if (inBody) {
+                                    inTitle = true
+                                    currentSectionTitle.clear()
+                                }
+                            }
+                            "section" -> {
+                                val id = parser.getAttributeValue(null, "id") ?: ""
+                                if (isNotesBody && id.isNotEmpty()) {
+                                    currentNoteId = id
+                                    currentNoteText.clear()
+                                }
+                            }
+                            "p", "v" -> {
+                                currentParagraph.clear()
+                            }
+                            "empty-line" -> {
+                                if (inBody && !isNotesBody) {
+                                    contentBuilder.append("\n")
+                                }
+                            }
+                        }
+                    }
+                    XmlPullParser.TEXT -> {
+                        val text = parser.text ?: ""
+                        if (inDescription) {
+                            when (currentTag) {
+                                "book-title" -> if (title.isEmpty()) title = text.trim()
+                                "first-name" -> if (firstName.isEmpty()) firstName = text.trim()
+                                "middle-name" -> if (middleName.isEmpty()) middleName = text.trim()
+                                "last-name" -> if (lastName.isEmpty()) lastName = text.trim()
+                                "p" -> annotationBuilder.append(text).append(" ")
+                            }
+                        } else if (inBody) {
+                            if (isNotesBody) {
+                                if (currentNoteId.isNotEmpty()) {
+                                    currentNoteText.append(text)
+                                }
+                            } else if (inTitle) {
+                                currentSectionTitle.append(text)
+                            } else {
+                                currentParagraph.append(text)
+                            }
+                        }
+                    }
+                    XmlPullParser.END_TAG -> {
+                        val endTag = parser.name?.lowercase() ?: ""
+                        when (endTag) {
+                            "description" -> inDescription = false
+                            "body" -> {
+                                inBody = false
+                                isNotesBody = false
+                            }
+                            "title" -> {
+                                if (inBody && inTitle) {
+                                    inTitle = false
+                                    val t = currentSectionTitle.toString().trim()
+                                    if (t.isNotEmpty()) {
+                                        contentBuilder.append("[CHAPTER]\n").append(t).append("\n[/CHAPTER]\n\n")
+                                    }
+                                }
+                            }
+                            "p", "v" -> {
+                                if (inBody) {
+                                    if (isNotesBody && currentNoteId.isNotEmpty()) {
+                                        currentNoteText.append(" ")
+                                    } else if (!inTitle) {
+                                        val p = currentParagraph.toString().trim()
+                                        if (p.isNotEmpty()) {
+                                            contentBuilder.append(p).append("\n\n")
+                                        }
+                                    }
+                                }
+                            }
+                            "section" -> {
+                                if (isNotesBody && currentNoteId.isNotEmpty()) {
+                                    notes[currentNoteId] = currentNoteText.toString().trim()
+                                    currentNoteId = ""
+                                }
+                            }
+                        }
+                    }
+                }
+                eventType = parser.next()
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "Parsing stream finished or stopped: ${e.message}")
+        }
+
+        val authorList = listOf(firstName, middleName, lastName).filter { it.isNotBlank() }
+        val author = if (authorList.isNotEmpty()) authorList.joinToString(" ") else "Unknown Author"
+
+        return ParsedBook(
+            title = title.ifBlank { defaultTitle },
+            author = author,
+            content = contentBuilder.toString().trim(),
+            notes = notes,
+            annotation = annotationBuilder.toString().trim().ifBlank { null }
+        )
     }
 
     fun parse(inputStream: InputStream, defaultTitle: String): BookMetadata {

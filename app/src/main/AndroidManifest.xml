@@ -20,27 +20,16 @@
     <!-- Автозапуск -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     
-    <!-- Доступ к файлам -->
+    <!-- Доступ к файлам (Scoped Storage) -->
     <!-- Для Android 10 и ниже -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" 
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
         android:maxSdkVersion="28" />
     
-    <!-- Для Android 11+ (управление всеми файлами) -->
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" 
-        tools:ignore="ScopedStorage" />
-    
-    <!-- Для Android 13+ (доступ к медиафайлам) -->
+    <!-- Для Android 13+ (доступ к обложкам и аудиокнигам) -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <!-- ВАЖНО: Добавлено для книг -->
-    <uses-permission android:name="android.permission.READ_MEDIA_BOOKS" />
-
-    <!-- Для точных будильников -->
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" 
-        tools:ignore="ExactAlarm" />
 
     <queries>
         <!-- TTS сервисы -->
@@ -166,11 +155,6 @@
             android:name=".ui.NewBooksActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity" />
-
-        <activity
-            android:name=".ui.WantToReadArticle"
-            android:exported="false"
-            android:parentActivityName=".MainActivity" tools:ignore="Instantiatable" />
 
         <activity
             android:name=".ui.WantToReadActivity"

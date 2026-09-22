@@ -23,7 +23,7 @@
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
             android:src="@drawable/ic_reader_bookmark_filled"
-            app:tint="#9B59B6"
+            app:tint="@color/accent"
             android:contentDescription="Закладка" />
 
         <!-- Middle Info: Page & Timestamp -->
@@ -40,7 +40,7 @@
                 android:id="@+id/tvPageNumber"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#E8D8F0"
+                android:textColor="@color/text_primary"
                 android:textSize="15sp"
                 android:textStyle="bold" />
 
@@ -48,7 +48,7 @@
                 android:id="@+id/tvTimestamp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#B8A0C8"
+                android:textColor="@color/text_secondary"
                 android:textSize="11sp"
                 android:layout_marginTop="1dp" />
         </LinearLayout>
@@ -69,7 +69,7 @@
                 android:layout_height="36dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_menu_share"
-                app:tint="#3498DB"
+                app:tint="@color/color_bookmark_blue"
                 android:contentDescription="Поделиться" />
 
             <!-- Edit Button -->
@@ -79,7 +79,7 @@
                 android:layout_height="36dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_menu_edit"
-                app:tint="#F1C40F"
+                app:tint="@color/color_bookmark_yellow"
                 android:contentDescription="Редактировать" />
 
             <!-- Delete Button -->
@@ -89,7 +89,7 @@
                 android:layout_height="36dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_menu_delete"
-                app:tint="#E74C3C"
+                app:tint="@color/color_bookmark_red"
                 android:contentDescription="Удалить" />
         </LinearLayout>
     </RelativeLayout>
@@ -100,9 +100,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:textColor="#B8A0C8"
+        android:textColor="@color/text_secondary"
         android:textSize="13sp"
         android:fontFamily="sans-serif-italic"
+        android:background="@drawable/bg_card_glass"
         android:padding="8dp"
         android:lineSpacingMultiplier="1.1"
         android:maxLines="2"

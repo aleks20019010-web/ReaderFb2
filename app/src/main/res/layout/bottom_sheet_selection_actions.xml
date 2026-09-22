@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#1E192B"
+    android:background="@drawable/bg_dark_purple_bottom_sheet"
     android:padding="20dp">
 
     <View
@@ -11,7 +11,7 @@
         android:layout_height="4dp"
         android:layout_gravity="center_horizontal"
         android:layout_marginBottom="16dp"
-        android:background="#4A4458" />
+        android:background="@color/glass_stroke" />
 
     <TextView
         android:id="@+id/tvSelectionSnippet"
@@ -19,7 +19,7 @@
         android:layout_height="wrap_content"
         android:maxLines="3"
         android:ellipsize="end"
-        android:textColor="#E6E1E5"
+        android:textColor="@color/text_primary"
         android:textSize="15sp"
         android:textStyle="italic"
         android:layout_marginBottom="16dp" />
@@ -28,7 +28,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Цвет выделения (Цитата):"
-        android:textColor="#CAC4D0"
+        android:textColor="@color/text_secondary"
         android:textSize="13sp"
         android:layout_marginBottom="8dp" />
 
@@ -44,27 +44,27 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_marginEnd="16dp"
-            android:background="#FFEE58" />
+            android:background="@color/color_highlight_yellow" />
 
         <View
             android:id="@+id/btnColorGreen"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_marginEnd="16dp"
-            android:background="#81C784" />
+            android:background="@color/color_highlight_green" />
 
         <View
             android:id="@+id/btnColorBlue"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_marginEnd="16dp"
-            android:background="#64B5F6" />
+            android:background="@color/color_highlight_blue" />
 
         <View
             android:id="@+id/btnColorPink"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:background="#F06292" />
+            android:background="@color/color_highlight_pink" />
 
     </LinearLayout>
 
@@ -82,7 +82,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="📝 Добавить заметку"
-            android:textColor="#D0BCFF"
+            android:textColor="@color/accent"
             android:textSize="16sp" />
     </LinearLayout>
 
@@ -100,7 +100,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="📖 Найти в словаре"
-            android:textColor="#D0BCFF"
+            android:textColor="@color/accent"
             android:textSize="16sp" />
     </LinearLayout>
 
@@ -118,7 +118,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="🔊 Озвучить (TTS)"
-            android:textColor="#D0BCFF"
+            android:textColor="@color/accent"
             android:textSize="16sp" />
     </LinearLayout>
 
@@ -136,7 +136,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="📋 Скопировать текст"
-            android:textColor="#E6E1E5"
+            android:textColor="@color/text_primary"
             android:textSize="16sp" />
     </LinearLayout>
 

@@ -26,12 +26,18 @@ class LibraryFragment : Fragment() {
 
     private val viewModel: BookViewModel by activityViewModels()
 
-    private val manualImportLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
+    private val manualImportLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (!uris.isNullOrEmpty()) {
             val ctx = context ?: return@registerForActivityResult
-            viewModel.importBookFromUri(uri, ctx) { success, msg ->
+            viewModel.importBooksFromUris(uris, ctx) { successCount, totalCount ->
                 activity?.runOnUiThread {
-                    CustomToast.show(ctx, if (success) "Книга успешно импортирована!" else "Ошибка импорта: $msg")
+                    if (successCount == totalCount) {
+                        CustomToast.show(ctx, "Успешно добавлено книг: $successCount")
+                    } else if (successCount > 0) {
+                        CustomToast.show(ctx, "Добавлено книг: $successCount из $totalCount")
+                    } else {
+                        CustomToast.show(ctx, "Ошибка при импорте выбранных файлов")
+                    }
                 }
             }
         }
@@ -56,13 +62,14 @@ class LibraryFragment : Fragment() {
 
         val composeView = view.findViewById<androidx.compose.ui.platform.ComposeView>(R.id.composeLibraryView)
         composeView?.setContent {
-            androidx.compose.material3.MaterialTheme {
+            com.nightread.app.ui.theme.MyApplicationTheme {
                 val searchedBooks by viewModel.searchedBooks.collectAsState(initial = emptyList())
                 val sortOption by viewModel.sortOption.collectAsState(initial = com.nightread.app.data.SettingsManager.SORT_DATE_DESC)
                 val sortedBooks = remember(searchedBooks, sortOption) { viewModel.sortBooks(searchedBooks.distinctBy { it.sha1 }, sortOption) }
 
-                val isScanning = viewModel.isScanning
-                val scanProgressText = viewModel.scanProgressText
+                val scanState by viewModel.scanState.collectAsState()
+                val isScanning = scanState.isScanning
+                val scanProgressText = scanState.status
 
                 var isGridView by remember { androidx.compose.runtime.mutableStateOf(true) }
                 var isSearchActive by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -108,6 +115,10 @@ class LibraryFragment : Fragment() {
                     },
                     onSortClicked = {
                         showSortDialog = true
+                    },
+                    onCancelScanClicked = {
+                        viewModel.cancelAllScanningTasks()
+                        CustomToast.show(requireContext(), "Сканирование остановлено")
                     },
                     onMenuClicked = {
                         (requireActivity() as? com.nightread.app.MainActivity)?.openDrawer()
@@ -184,28 +195,17 @@ class LibraryFragment : Fragment() {
 
     private fun checkStoragePermissionAndScan() {
         val ctx = context ?: return
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            if (android.os.Environment.isExternalStorageManager()) {
-                viewModel.startLocalBookScan()
-                CustomToast.show(ctx, "Запуск сканирования книг...")
-            } else {
-                try {
-                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                        data = android.net.Uri.parse("package:${ctx.packageName}")
-                    }
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                    startActivity(intent)
-                }
-            }
-        } else {
+        if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.S_V2) {
             if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 viewModel.startLocalBookScan()
                 CustomToast.show(ctx, "Запуск сканирования книг...")
             } else {
                 requestPermissions(arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE), 101)
             }
+        } else {
+            // Android 13+ (API 33+) Scoped Storage
+            viewModel.startLocalBookScan()
+            CustomToast.show(ctx, "Запуск сканирования книг...")
         }
     }
 

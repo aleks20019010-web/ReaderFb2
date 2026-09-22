@@ -475,6 +475,15 @@ fun ReaderComposeScreen(
         }
     }
 
+    // Silent Mode effect (mute view click sound effects during reading)
+    LaunchedEffect(isSilentModeEnabled) {
+        try {
+            view.isSoundEffectsEnabled = !isSilentModeEnabled
+        } catch (e: Exception) {
+            // Ignore if not supported
+        }
+    }
+
     // Sleep Timer logic
     LaunchedEffect(isSleepTimerEnabled, sleepTimerDuration) {
         if (isSleepTimerEnabled) {
@@ -521,11 +530,11 @@ fun ReaderComposeScreen(
         }
     }
 
-    LaunchedEffect(savedTextOffset, sha1) {
-        if (!isRestoringProgress && sha1.isNotEmpty() && savedTextOffset > 0) {
-            delay(500) // Debounce 500ms
+    LaunchedEffect(savedTextOffset, sha1, currentWebViewPage, totalWebViewPages) {
+        if (!isRestoringProgress && sha1.isNotEmpty() && savedTextOffset >= 0) {
+            delay(400) // Debounce 400ms
             
-            android.util.Log.d("ReadingProgress", "SAVE (debounce) bookId=$sha1 offset=$savedTextOffset")
+            android.util.Log.d("ReadingProgress", "SAVE (debounce) bookId=$sha1 offset=$savedTextOffset page=$currentWebViewPage/$totalWebViewPages")
             progressRepository.saveProgress(
                 com.nightread.app.data.ReadingProgress(
                     bookId = sha1,
@@ -535,25 +544,63 @@ fun ReaderComposeScreen(
             )
             com.nightread.app.data.SafeProgressManager.getInstance(context).saveProgressSync(
                 bookId = sha1,
-                pageIndex = 0,
-                totalPages = 0,
+                pageIndex = currentWebViewPage,
+                totalPages = totalWebViewPages,
                 textOffset = savedTextOffset
             )
             context.getSharedPreferences("reader_prefs", Context.MODE_PRIVATE).edit()
                 .putInt("book_char_offset_$sha1", savedTextOffset)
+                .putLong("book_last_timestamp_$sha1", System.currentTimeMillis())
                 .apply()
         }
     }
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, savedTextOffset) {
+    DisposableEffect(lifecycleOwner, savedTextOffset, currentWebViewPage, totalWebViewPages) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE || event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
                 val offsetToSave = savedTextOffset
-                if (sha1.isNotEmpty() && offsetToSave > 0) {
+                val pageToSave = currentWebViewPage
+                val totalToSave = totalWebViewPages
+                if (sha1.isNotEmpty() && offsetToSave >= 0) {
                     android.util.Log.d("ReadingProgress", "SAVE (lifecycle) bookId=$sha1 offset=$offsetToSave")
                     
                     kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                        try {
+                            progressRepository.saveProgress(
+                                com.nightread.app.data.ReadingProgress(
+                                    bookId = sha1,
+                                    sourceOffset = offsetToSave,
+                                    updatedAt = System.currentTimeMillis()
+                                )
+                            )
+                            com.nightread.app.data.SafeProgressManager.getInstance(context).saveProgressSync(
+                                bookId = sha1,
+                                pageIndex = pageToSave,
+                                totalPages = totalToSave,
+                                textOffset = offsetToSave
+                            )
+                            context.getSharedPreferences("reader_prefs", Context.MODE_PRIVATE).edit()
+                                .putInt("book_char_offset_$sha1", offsetToSave)
+                                .putLong("book_last_timestamp_$sha1", System.currentTimeMillis())
+                                .commit()
+                        } catch (e: Exception) {
+                            android.util.Log.e("ReadingProgress", "Error during lifecycle save", e)
+                        }
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            val offsetToSave = savedTextOffset
+            val pageToSave = currentWebViewPage
+            val totalToSave = totalWebViewPages
+            if (sha1.isNotEmpty() && offsetToSave >= 0) {
+                android.util.Log.d("ReadingProgress", "SAVE (dispose) bookId=$sha1 offset=$offsetToSave")
+                kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                    try {
                         progressRepository.saveProgress(
                             com.nightread.app.data.ReadingProgress(
                                 bookId = sha1,
@@ -563,40 +610,17 @@ fun ReaderComposeScreen(
                         )
                         com.nightread.app.data.SafeProgressManager.getInstance(context).saveProgressSync(
                             bookId = sha1,
-                            pageIndex = 0,
-                            totalPages = 0,
+                            pageIndex = pageToSave,
+                            totalPages = totalToSave,
                             textOffset = offsetToSave
                         )
                         context.getSharedPreferences("reader_prefs", Context.MODE_PRIVATE).edit()
                             .putInt("book_char_offset_$sha1", offsetToSave)
+                            .putLong("book_last_timestamp_$sha1", System.currentTimeMillis())
                             .commit()
+                    } catch (e: Exception) {
+                        android.util.Log.e("ReadingProgress", "Error during dispose save", e)
                     }
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            val offsetToSave = savedTextOffset
-            if (sha1.isNotEmpty() && offsetToSave > 0) {
-                android.util.Log.d("ReadingProgress", "SAVE (dispose) bookId=$sha1 offset=$offsetToSave")
-                kotlinx.coroutines.runBlocking(Dispatchers.IO) {
-                    progressRepository.saveProgress(
-                        com.nightread.app.data.ReadingProgress(
-                            bookId = sha1,
-                            sourceOffset = offsetToSave,
-                            updatedAt = System.currentTimeMillis()
-                        )
-                    )
-                    com.nightread.app.data.SafeProgressManager.getInstance(context).saveProgressSync(
-                        bookId = sha1,
-                        pageIndex = 0,
-                        totalPages = 0,
-                        textOffset = offsetToSave
-                    )
-                    context.getSharedPreferences("reader_prefs", Context.MODE_PRIVATE).edit()
-                        .putInt("book_char_offset_$sha1", offsetToSave)
-                        .commit()
                 }
             }
         }
@@ -914,24 +938,6 @@ fun ReaderComposeScreen(
                                         if (offset >= 0) {
                                             savedTextOffset = offset
                                             isRestoringProgress = false
-                                            coroutineScope.launch(Dispatchers.IO) {
-                                                progressRepository.saveProgress(
-                                                    com.nightread.app.data.ReadingProgress(
-                                                        bookId = sha1,
-                                                        sourceOffset = offset,
-                                                        updatedAt = System.currentTimeMillis()
-                                                    )
-                                                )
-                                                com.nightread.app.data.SafeProgressManager.getInstance(context).saveProgressSync(
-                                                    bookId = sha1,
-                                                    pageIndex = page,
-                                                    totalPages = total,
-                                                    textOffset = offset
-                                                )
-                                                context.getSharedPreferences("reader_prefs", Context.MODE_PRIVATE).edit()
-                                                    .putInt("book_char_offset_$sha1", offset)
-                                                    .apply()
-                                            }
                                         }
                                     },
                                     onWordSelected = { selectedText ->

@@ -48,6 +48,9 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
     private var isUserTrackingSeekBar = false
     private var currentSpeed = 1.0f
     private var chaptersList: List<AudiobookChapter> = emptyList()
+    private var showRemainingTime = false
+    private var currentPositionMs = 0
+    private var totalDurationMs = 0
 
     private val audioStatusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -59,21 +62,27 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
                 currentSpeed = intent.getFloatExtra(AudiobookPlaybackService.EXTRA_SPEED, 1.0f)
                 val timerRemaining = intent.getIntExtra(AudiobookPlaybackService.EXTRA_SLEEP_TIMER_REMAINING, 0)
 
+                currentPositionMs = pos
+                if (duration > 0) {
+                    totalDurationMs = duration
+                }
+
                 updatePlayPauseUI()
                 updateSleepTimerUI(timerRemaining)
 
                 btnSpeedToggle.text = "${currentSpeed}x"
 
-                tvCurrentPosition.text = formatTime(pos)
-                if (duration > 0) {
-                    seekBar.max = duration
-                    tvTotalDuration.text = formatTime(duration)
+                val hasHours = totalDurationMs >= 3600000
+                tvCurrentPosition.text = formatTime(pos, forceHours = hasHours)
+                if (totalDurationMs > 0) {
+                    seekBar.max = totalDurationMs
+                    updateDurationLabel()
                     if (chaptersList.isEmpty()) {
-                        generateChapters(duration)
+                        generateChapters(totalDurationMs)
                     }
                 }
 
-                if (!isUserTrackingSeekBar && duration > 0) {
+                if (!isUserTrackingSeekBar && totalDurationMs > 0) {
                     seekBar.progress = pos
                 }
                 
@@ -134,13 +143,20 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
 
         val initialDuration = getAudioFileDuration(filePath)
         if (initialDuration > 0) {
+            totalDurationMs = initialDuration
             seekBar.max = initialDuration
-            tvTotalDuration.text = formatTime(initialDuration)
+            updateDurationLabel()
             generateChapters(initialDuration)
         } else {
             tvTotalDuration.text = "--:--"
         }
-        tvCurrentPosition.text = formatTime(0)
+        val hasHours = totalDurationMs >= 3600000
+        tvCurrentPosition.text = formatTime(0, forceHours = hasHours)
+
+        tvTotalDuration.setOnClickListener {
+            showRemainingTime = !showRemainingTime
+            updateDurationLabel()
+        }
 
         fabPlayPause.setOnClickListener {
             if (isPlaying) {
@@ -201,7 +217,10 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
-                    tvCurrentPosition.text = formatTime(progress)
+                    currentPositionMs = progress
+                    val hasHours = totalDurationMs >= 3600000
+                    tvCurrentPosition.text = formatTime(progress, forceHours = hasHours)
+                    updateDurationLabel()
                 }
             }
 
@@ -343,12 +362,26 @@ class AudioPlayerBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    private fun formatTime(ms: Int): String {
-        val totalSeconds = ms / 1000
+    private fun updateDurationLabel() {
+        if (totalDurationMs <= 0) {
+            tvTotalDuration.text = "--:--"
+            return
+        }
+        val hasHours = totalDurationMs >= 3600000
+        if (showRemainingTime) {
+            val remainingMs = (totalDurationMs - currentPositionMs).coerceAtLeast(0)
+            tvTotalDuration.text = "-" + formatTime(remainingMs, forceHours = hasHours)
+        } else {
+            tvTotalDuration.text = formatTime(totalDurationMs, forceHours = hasHours)
+        }
+    }
+
+    private fun formatTime(ms: Int, forceHours: Boolean = false): String {
+        val totalSeconds = (ms.coerceAtLeast(0)) / 1000
         val seconds = totalSeconds % 60
         val minutes = (totalSeconds / 60) % 60
         val hours = totalSeconds / 3600
-        return if (hours > 0) {
+        return if (hours > 0 || forceHours) {
             String.format("%02d:%02d:%02d", hours, minutes, seconds)
         } else {
             String.format("%02d:%02d", minutes, seconds)

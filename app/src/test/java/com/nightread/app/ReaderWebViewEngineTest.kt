@@ -64,7 +64,7 @@ class ReaderWebViewEngineTest {
 
         // Verify viewport bounds and safety padding
         assertTrue("HTML must set overflow: hidden for viewport boundary containment", html.contains("overflow: hidden;"))
-        assertTrue("HTML must set side padding to 8dp", html.contains("padding: 12px 8px 12px 8px;"))
+        assertTrue("HTML must set side padding to 8dp", html.contains("padding-left: 8px;") && html.contains("padding-right: 8px;"))
         
         // Verify image max height calculation to avoid vertical overflow
         assertTrue("Image max-height must be constrained to viewportHeight - safety margin", html.contains("max-height: calc(100vh - 80px);"))

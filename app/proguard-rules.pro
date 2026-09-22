@@ -12,11 +12,13 @@
 -renamesourcefileattribute SourceFile
 
 # =========================================================================
-# NIGHTREAD APP RULES - KEEP ALL APP CLASSES INTACT
-# This prevents obfuscation, shrinking, or optimization of your custom code
+# NIGHTREAD APP RULES - KEEP DATA MODELS AND SERIALIZATION
 # =========================================================================
--keep class com.nightread.app.** { *; }
--keep interface com.nightread.app.** { *; }
+-keep class com.nightread.app.data.**Entity { *; }
+-keep class com.nightread.app.data.**Dto { *; }
+-keep class com.nightread.app.data.**Dao { *; }
+-keep class com.nightread.app.syncprogress.** { *; }
+-keep class * implements java.io.Serializable { *; }
 
 # =========================================================================
 # ROOM DATABASE & SQLITE RULES

@@ -145,7 +145,7 @@ object BookFingerprintGenerator {
                     cleanTextHash = null
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error generating fingerprint for file: ${file.name}", e)
         }
 
@@ -337,7 +337,7 @@ object BookFingerprintGenerator {
                 }
                 eventType = parser.next()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.w(TAG, "OPF metadata parse warning: ${e.message}")
         }
         return Pair(author, title)
@@ -372,7 +372,7 @@ object BookFingerprintGenerator {
             } else {
                 title = name
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             title = file.nameWithoutExtension
         }
         return ParsedBookData(author = author, title = title, cleanText = "")

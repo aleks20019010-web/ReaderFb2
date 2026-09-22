@@ -80,7 +80,7 @@
         android:textColor="@color/text_secondary"
         android:textSize="14sp"
         android:fontFamily="sans-serif-italic"
-        android:background="#15000000"
+        android:background="@drawable/bg_card_glass"
         android:padding="8dp"
         android:lineSpacingMultiplier="1.2"
         android:maxLines="3"

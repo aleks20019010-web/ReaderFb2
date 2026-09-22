@@ -12,7 +12,7 @@
         android:id="@+id/toastText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="#F1F5F9"
+        android:textColor="@color/text_primary"
         android:textSize="14sp"
         android:fontFamily="sans-serif-medium"
         android:letterSpacing="0.03"

@@ -39,7 +39,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Аудиокниги"
-                    android:textColor="#FFFFFF"
+                    android:textColor="@color/text_primary"
                     android:textSize="22sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -82,14 +82,14 @@
             android:layout_width="80dp"
             android:layout_height="80dp"
             android:src="@drawable/ic_headphones"
-            app:tint="#8080A0"
+            app:tint="@color/text_secondary"
             android:layout_marginBottom="16dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Аудиокниг пока нет"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_primary"
             android:textSize="18sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
@@ -98,7 +98,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Загрузите или просканируйте устройство на наличие аудиофайлов (.mp3, .m4b, .m4a, .aac, .ogg, .flac)"
-            android:textColor="#A0A0C0"
+            android:textColor="@color/text_secondary"
             android:textSize="14sp"
             android:gravity="center"
             android:layout_marginBottom="20dp" />
@@ -174,7 +174,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Название аудиокниги"
-                    android:textColor="#FFFFFF"
+                    android:textColor="@color/text_primary"
                     android:textSize="15sp"
                     android:textStyle="bold"
                     android:maxLines="1"
@@ -185,7 +185,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Исполнитель / Автор"
-                    android:textColor="#A0A0C0"
+                    android:textColor="@color/text_secondary"
                     android:textSize="13sp"
                     android:maxLines="1"
                     android:ellipsize="end" />

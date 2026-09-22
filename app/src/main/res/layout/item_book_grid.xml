@@ -47,7 +47,7 @@
                 app:cardCornerRadius="10dp"
                 app:cardElevation="3dp"
                 app:strokeWidth="1dp"
-                app:strokeColor="#25FFFFFF"
+                app:strokeColor="@color/glass_stroke"
                 app:cardBackgroundColor="@color/bg_card"
                 app:cardPreventCornerOverlap="false"
                 app:cardUseCompatPadding="false">
@@ -91,7 +91,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
-                        android:textColor="#FFFFFF"
+                        android:textColor="@color/text_primary"
                         android:textSize="28sp"
                         android:textStyle="bold"
                         android:visibility="gone" />
@@ -108,7 +108,7 @@
                         android:layout_width="2.5dp"
                         android:layout_height="match_parent"
                         android:layout_gravity="end"
-                        android:background="#20FFFFFF" />
+                        android:background="@color/glass_stroke" />
 
                     <!-- Translucent air progress line under/bottom of cover -->
                     <LinearLayout
@@ -117,7 +117,7 @@
                         android:layout_height="2dp"
                         android:layout_gravity="bottom"
                         android:orientation="horizontal"
-                        android:background="#20000000"
+                        android:background="@color/glass_bg_30"
                         android:visibility="gone">
 
                         <View
@@ -132,7 +132,7 @@
                             android:layout_width="0dp"
                             android:layout_height="match_parent"
                             android:layout_weight="100"
-                            android:background="#33FFFFFF" />
+                            android:background="@color/glass_stroke" />
                     </LinearLayout>
 
                     <!-- Selection overlay and checkbox -->
@@ -140,7 +140,7 @@
                         android:id="@+id/vSelectionOverlay"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:background="#406C5CE7"
+                        android:background="@color/glass_bg_60"
                         android:visibility="gone" />
 
                     <CheckBox
