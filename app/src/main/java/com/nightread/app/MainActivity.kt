@@ -513,14 +513,20 @@ class MainActivity : BaseActivity() {
         }
     }
 
-    private fun hasStoragePermission(): Boolean {
-        return if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.S_V2) {
-            androidx.core.content.ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        } else {
-            true
+    fun hasStoragePermission(): Boolean {
+        return com.nightread.app.util.StoragePermissionHelper.hasStoragePermission(this)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == com.nightread.app.util.StoragePermissionHelper.REQUEST_CODE_ALL_FILES) {
+            if (hasStoragePermission()) {
+                val bookViewModel = androidx.lifecycle.ViewModelProvider(this).get(com.nightread.app.ui.BookViewModel::class.java)
+                bookViewModel.startLocalBookScan()
+                CustomToast.show(this, "Разрешение получено. Запуск сканирования...")
+            } else {
+                CustomToast.show(this, getString(R.string.storage_permission_denied))
+            }
         }
     }
 

@@ -20,6 +20,10 @@
     <!-- Автозапуск -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     
+    <!-- Доступ ко всем файлам для чтения электронных книг (Android 11+) -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
     <!-- Доступ к файлам (Scoped Storage) -->
     <!-- Для Android 10 и ниже -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" 

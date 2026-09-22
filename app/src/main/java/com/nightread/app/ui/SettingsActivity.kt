@@ -235,34 +235,19 @@ class SettingsActivity : BaseActivity() {
     }
 
     private fun checkStoragePermissionAndScan() {
-        val ctx = this
-        if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.S_V2) {
-            if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                viewModel.startLocalBookScan()
-                CustomToast.show(ctx, getString(R.string.settings_toast_scan_started))
-            } else {
-                androidx.core.app.ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE),
-                    101
-                )
-            }
-        } else {
-            // Android 13+ (API 33+) Scoped Storage
+        com.nightread.app.util.StoragePermissionHelper.checkAndRequestStoragePermission(this) {
             viewModel.startLocalBookScan()
-            CustomToast.show(ctx, getString(R.string.settings_toast_scan_started))
+            CustomToast.show(this, getString(R.string.settings_toast_scan_started))
         }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 101) {
-            if (grantResults.isNotEmpty() && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                viewModel.startLocalBookScan()
-                CustomToast.show(this, getString(R.string.settings_toast_scan_started))
-            } else {
-                CustomToast.show(this, "Разрешение на чтение файлов отклонено")
-            }
+        if (com.nightread.app.util.StoragePermissionHelper.hasStoragePermission(this)) {
+            viewModel.startLocalBookScan()
+            CustomToast.show(this, getString(R.string.settings_toast_scan_started))
+        } else {
+            CustomToast.show(this, getString(R.string.storage_permission_denied))
         }
     }
 

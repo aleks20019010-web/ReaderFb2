@@ -96,6 +96,16 @@ class AudiobooksFragment : Fragment() {
         rvAudiobooks.layoutManager = LinearLayoutManager(requireContext())
         rvAudiobooks.adapter = adapter
 
+        val btnBack = view.findViewById<ImageButton>(R.id.btnBackAudiobooks)
+        btnBack?.setOnClickListener {
+            val act = activity
+            if (act is com.nightread.app.MainActivity) {
+                act.openLibraryFragment()
+            } else {
+                act?.onBackPressedDispatcher?.onBackPressed()
+            }
+        }
+
         btnScan.setOnClickListener { scanDeviceForAudiobooks() }
         btnScanEmpty.setOnClickListener { scanDeviceForAudiobooks() }
 
@@ -172,47 +182,51 @@ class AudiobooksFragment : Fragment() {
     }
 
     private fun scanDeviceForAudiobooks() {
-        CustomToast.show(requireContext(), "Сканирование аудиокниг...")
-        lifecycleScope.launch(Dispatchers.IO) {
-            val discovered = mutableListOf<BookEntity>()
-            val dirsToScan = listOf(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                File(Environment.getExternalStorageDirectory(), "Audiobooks"),
-                File(Environment.getExternalStorageDirectory(), "Books")
-            )
+        val act = activity ?: return
+        val ctx = context ?: return
+        com.nightread.app.util.StoragePermissionHelper.checkAndRequestStoragePermission(act) {
+            CustomToast.show(ctx, "Сканирование аудиокниг...")
+            lifecycleScope.launch(Dispatchers.IO) {
+                val discovered = mutableListOf<BookEntity>()
+                val dirsToScan = listOf(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                    File(Environment.getExternalStorageDirectory(), "Audiobooks"),
+                    File(Environment.getExternalStorageDirectory(), "Books")
+                )
 
-            for (dir in dirsToScan) {
-                if (dir.exists()) {
-                    dir.walkTopDown().forEach { file ->
-                        if (file.isFile && isAudioFile(file.absolutePath, file.length())) {
-                            val (title, author) = extractAudioMetadata(file.absolutePath)
-                            val entity = BookEntity(
-                                sha1 = getFileSha1(file),
-                                title = title,
-                                author = author,
-                                category = "Audiobook",
-                                filePath = file.absolutePath,
-                                fileSize = file.length(),
-                                dateAdded = System.currentTimeMillis()
-                            )
-                            discovered.add(entity)
+                for (dir in dirsToScan) {
+                    if (dir.exists()) {
+                        dir.walkTopDown().forEach { file ->
+                            if (file.isFile && isAudioFile(file.absolutePath, file.length())) {
+                                val (title, author) = extractAudioMetadata(file.absolutePath)
+                                val entity = BookEntity(
+                                    sha1 = getFileSha1(file),
+                                    title = title,
+                                    author = author,
+                                    category = "Audiobook",
+                                    filePath = file.absolutePath,
+                                    fileSize = file.length(),
+                                    dateAdded = System.currentTimeMillis()
+                                )
+                                discovered.add(entity)
+                            }
                         }
                     }
                 }
-            }
 
-            val db = AppDatabase.getDatabase(requireContext())
-            for (audio in discovered) {
-                db.bookDao().insertBook(audio)
-            }
+                val db = AppDatabase.getDatabase(ctx)
+                for (audio in discovered) {
+                    db.bookDao().insertBook(audio)
+                }
 
-            val allAudio = db.bookDao().getAllBooksSync().filter { isAudioFile(it.filePath, it.fileSize) }
+                val allAudio = db.bookDao().getAllBooksSync().filter { isAudioFile(it.filePath, it.fileSize) }
 
-            withContext(Dispatchers.Main) {
-                allAudiobooks = allAudio
-                updateListUI(allAudio)
-                CustomToast.show(requireContext(), "Найдено аудиокниг: ${allAudio.size}")
+                withContext(Dispatchers.Main) {
+                    allAudiobooks = allAudio
+                    updateListUI(allAudio)
+                    CustomToast.show(ctx, "Найдено аудиокниг: ${allAudio.size}")
+                }
             }
         }
     }

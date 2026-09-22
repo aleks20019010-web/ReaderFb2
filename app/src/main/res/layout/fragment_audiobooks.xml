@@ -27,12 +27,22 @@
                 android:layout_alignParentStart="true"
                 android:layout_centerVertical="true">
 
+                <ImageButton
+                    android:id="@+id/btnBackAudiobooks"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_arrow_back"
+                    app:tint="@color/text_primary"
+                    android:contentDescription="Назад"
+                    android:layout_marginEnd="6dp" />
+
                 <ImageView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
                     android:src="@drawable/ic_headphones"
                     app:tint="@color/accent"
-                    android:layout_marginEnd="12dp" />
+                    android:layout_marginEnd="8dp" />
 
                 <TextView
                     android:id="@+id/tvAudiobooksTitle"
@@ -40,7 +50,7 @@
                     android:layout_height="wrap_content"
                     android:text="Аудиокниги"
                     android:textColor="@color/text_primary"
-                    android:textSize="22sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
             </LinearLayout>
 

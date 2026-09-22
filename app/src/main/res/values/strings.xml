@@ -218,4 +218,10 @@
     <string name="bug_report_send_btn">Отправить</string>
     <string name="bug_report_empty_desc_warning">Пожалуйста, укажите описание проблемы</string>
     <string name="bug_report_choose_email_client">Выберите почтовый клиент</string>
+
+    <!-- Storage Permission -->
+    <string name="storage_permission_title">Доступ к книгам на устройстве</string>
+    <string name="storage_permission_message">Чтобы найти и добавить ваши книги (.fb2, .epub, .mobi, .txt, .zip, аудиокниги), приложению необходим доступ к файлам на накопителе.</string>
+    <string name="storage_permission_grant">Предоставить доступ</string>
+    <string name="storage_permission_denied">Без разрешения на доступ к файлам поиск книг невозможен</string>
 </resources>

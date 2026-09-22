@@ -186,4 +186,10 @@
     <string name="bug_report_send_btn">Send</string>
     <string name="bug_report_empty_desc_warning">Please enter a description of the issue</string>
     <string name="bug_report_choose_email_client">Choose email app</string>
+
+    <!-- Storage Permission -->
+    <string name="storage_permission_title">Access to Books on Device</string>
+    <string name="storage_permission_message">To discover and read your books (.fb2, .epub, .mobi, .txt, .zip, audiobooks), the app requires access to files on your device.</string>
+    <string name="storage_permission_grant">Grant Access</string>
+    <string name="storage_permission_denied">File access permission is required to scan for books</string>
 </resources>

@@ -107,7 +107,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             if (cursor.moveToFirst()) {
                                 val nameIdx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                                 if (nameIdx >= 0) {
-                                    displayName = cursor.getString(nameIdx) ?: displayName
+                                    val name = cursor.getString(nameIdx)
+                                    if (!name.isNullOrBlank()) {
+                                        displayName = name
+                                    }
                                 }
                             }
                         }
@@ -115,7 +118,13 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                         Log.w("BookViewModel", "Could not get display name from URI", e)
                     }
 
-                    tempFile = File.createTempFile("import_", ".tmp", context.cacheDir)
+                    val ext = if (displayName.contains(".")) {
+                        displayName.substringAfterLast(".").lowercase()
+                    } else {
+                        "fb2"
+                    }
+
+                    tempFile = File.createTempFile("import_", ".$ext", context.cacheDir)
                     val inputStream = contentResolver.openInputStream(uri)
                     if (inputStream != null) {
                         inputStream.use { input ->
@@ -128,36 +137,49 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                         continue
                     }
 
-                    val parsedBook = scanner.processSingleFile(tempFile)
-                    if (parsedBook != null) {
-                        val ext = if (displayName.contains(".")) displayName.substringAfterLast(".") else "book"
-                        val permanentFile = File(booksDir, "${parsedBook.sha1}.$ext")
-                        
-                        if (!tempFile.renameTo(permanentFile)) {
-                            tempFile.copyTo(permanentFile, overwrite = true)
-                            tempFile.delete()
-                        }
-                        tempFile = null
-
-                        val bookTitle = if (parsedBook.title.isBlank() || parsedBook.title.startsWith("import_")) {
-                            if (displayName.contains(".")) displayName.substringBeforeLast(".") else displayName
-                        } else {
-                            parsedBook.title
-                        }
-
-                        val finalBook = parsedBook.copy(
-                            filePath = permanentFile.absolutePath,
-                            title = bookTitle
+                    var parsedBook = scanner.processSingleFile(tempFile)
+                    if (parsedBook == null) {
+                        // Fallback parsing if scanner didn't pick it up
+                        val bookSha1 = com.nightread.app.data.Sha1Helper.computeSha1FromContent(tempFile)
+                            ?: "imported_${System.currentTimeMillis()}_${(1000..9999).random()}"
+                        val cleanTitle = if (displayName.contains(".")) displayName.substringBeforeLast(".") else displayName
+                        parsedBook = BookEntity(
+                            sha1 = bookSha1,
+                            title = cleanTitle.ifBlank { "Импортированная книга" },
+                            author = "Неизвестен",
+                            category = "Local",
+                            filePath = tempFile.absolutePath,
+                            fileSize = tempFile.length(),
+                            isNew = true,
+                            coverGradientStart = com.nightread.app.data.getRandomGradientStartColor(),
+                            coverGradientEnd = com.nightread.app.data.getRandomGradientEndColor()
                         )
-                        bookDao.importOrUpdateBook(finalBook)
-                        successCount++
-                    } else {
-                        tempFile.delete()
-                        tempFile = null
                     }
+
+                    val permanentFile = File(booksDir, "${parsedBook.sha1}.$ext")
+                    try {
+                        tempFile.copyTo(permanentFile, overwrite = true)
+                        tempFile.delete()
+                    } catch (e: Exception) {
+                        tempFile.renameTo(permanentFile)
+                    }
+                    tempFile = null
+
+                    val bookTitle = if (parsedBook.title.isBlank() || parsedBook.title.startsWith("import_")) {
+                        if (displayName.contains(".")) displayName.substringBeforeLast(".") else displayName
+                    } else {
+                        parsedBook.title
+                    }
+
+                    val finalBook = parsedBook.copy(
+                        filePath = permanentFile.absolutePath,
+                        title = bookTitle
+                    )
+                    bookDao.importOrUpdateBook(finalBook)
+                    successCount++
                 } catch (e: Exception) {
                     Log.e("BookViewModel", "Error importing single URI: $uri", e)
-                    tempFile?.delete()
+                    try { tempFile?.delete() } catch (ignored: Exception) {}
                 }
             }
             withContext(Dispatchers.Main) {
@@ -200,7 +222,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                         if (cursor.moveToFirst()) {
                             val nameIdx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                             if (nameIdx >= 0) {
-                                displayName = cursor.getString(nameIdx) ?: displayName
+                                val name = cursor.getString(nameIdx)
+                                if (!name.isNullOrBlank()) {
+                                    displayName = name
+                                }
                             }
                         }
                     }
@@ -208,7 +233,13 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     Log.w("BookViewModel", "Could not get display name from URI", e)
                 }
 
-                tempFile = File.createTempFile("import_", ".tmp", context.cacheDir)
+                val ext = if (displayName.contains(".")) {
+                    displayName.substringAfterLast(".").lowercase()
+                } else {
+                    "fb2"
+                }
+
+                tempFile = File.createTempFile("import_", ".$ext", context.cacheDir)
                 contentResolver.openInputStream(uri)?.use { input ->
                     tempFile.outputStream().use { output ->
                         input.copyTo(output)
@@ -216,37 +247,48 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 } ?: throw java.io.IOException("Cannot open input stream for URI: $uri")
 
                 val scanner = LibraryScanner.getInstance(context, bookDao)
-                val parsedBook = scanner.processSingleFile(tempFile)
-                if (parsedBook != null) {
-                    val ext = if (displayName.contains(".")) displayName.substringAfterLast(".") else "book"
-                    val permanentFile = File(booksDir, "${parsedBook.sha1}.$ext")
-                    
-                    if (!tempFile.renameTo(permanentFile)) {
-                        tempFile.copyTo(permanentFile, overwrite = true)
-                        tempFile.delete()
-                    }
-                    tempFile = null
-
-                    val bookTitle = if (parsedBook.title.isBlank() || parsedBook.title.startsWith("import_")) {
-                        if (displayName.contains(".")) displayName.substringBeforeLast(".") else displayName
-                    } else {
-                        parsedBook.title
-                    }
-
-                    val finalBook = parsedBook.copy(
-                        filePath = permanentFile.absolutePath,
-                        title = bookTitle
+                var parsedBook = scanner.processSingleFile(tempFile)
+                if (parsedBook == null) {
+                    val bookSha1 = com.nightread.app.data.Sha1Helper.computeSha1FromContent(tempFile)
+                        ?: "imported_${System.currentTimeMillis()}_${(1000..9999).random()}"
+                    val cleanTitle = if (displayName.contains(".")) displayName.substringBeforeLast(".") else displayName
+                    parsedBook = BookEntity(
+                        sha1 = bookSha1,
+                        title = cleanTitle.ifBlank { "Импортированная книга" },
+                        author = "Неизвестен",
+                        category = "Local",
+                        filePath = tempFile.absolutePath,
+                        fileSize = tempFile.length(),
+                        isNew = true,
+                        coverGradientStart = com.nightread.app.data.getRandomGradientStartColor(),
+                        coverGradientEnd = com.nightread.app.data.getRandomGradientEndColor()
                     )
-                    bookDao.importOrUpdateBook(finalBook)
-                    withContext(Dispatchers.Main) { callback?.invoke(true, "Книга успешно добавлена") }
-                } else {
-                    tempFile.delete()
-                    tempFile = null
-                    withContext(Dispatchers.Main) { callback?.invoke(false, "Не удалось распознать формат книги") }
                 }
+
+                val permanentFile = File(booksDir, "${parsedBook.sha1}.$ext")
+                try {
+                    tempFile.copyTo(permanentFile, overwrite = true)
+                    tempFile.delete()
+                } catch (e: Exception) {
+                    tempFile.renameTo(permanentFile)
+                }
+                tempFile = null
+
+                val bookTitle = if (parsedBook.title.isBlank() || parsedBook.title.startsWith("import_")) {
+                    if (displayName.contains(".")) displayName.substringBeforeLast(".") else displayName
+                } else {
+                    parsedBook.title
+                }
+
+                val finalBook = parsedBook.copy(
+                    filePath = permanentFile.absolutePath,
+                    title = bookTitle
+                )
+                bookDao.importOrUpdateBook(finalBook)
+                withContext(Dispatchers.Main) { callback?.invoke(true, "Книга успешно добавлена") }
             } catch (e: Exception) {
                 Log.e("BookViewModel", "Error importing book from URI", e)
-                tempFile?.delete()
+                try { tempFile?.delete() } catch (ignored: Exception) {}
                 withContext(Dispatchers.Main) { callback?.invoke(false, e.localizedMessage ?: "Ошибка импорта") }
             }
         }

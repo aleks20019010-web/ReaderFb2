@@ -370,6 +370,17 @@ class YandexSyncFragment : Fragment() {
                 return
             }
 
+            // Immediately switch UI to active syncing state
+            YandexSyncState.update {
+                it.copy(
+                    isRunning = true,
+                    stage = YandexSyncState.Stage.PREPARING,
+                    statusText = "Запуск синхронизации...",
+                    finished = false,
+                    error = null
+                )
+            }
+
             val workRequest = androidx.work.OneTimeWorkRequestBuilder<com.nightread.app.service.SyncWorker>()
                 .addTag("YandexSyncWork")
                 .build()
@@ -383,6 +394,15 @@ class YandexSyncFragment : Fragment() {
         } catch (e: Throwable) {
             Log.e("SYNC_UI", "Error starting sync", e)
             CustomToast.show(context, "Ошибка при запуске синхронизации")
+            YandexSyncState.update {
+                it.copy(
+                    isRunning = false,
+                    stage = YandexSyncState.Stage.ERROR,
+                    statusText = e.localizedMessage ?: "Ошибка при запуске",
+                    finished = true,
+                    error = e.localizedMessage
+                )
+            }
         }
     }
 

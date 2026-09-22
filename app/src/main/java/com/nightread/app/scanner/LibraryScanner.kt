@@ -50,6 +50,7 @@ class LibraryScanner(
     private val fb3Processor = Fb3Processor()
     private val mobiProcessor = MobiProcessor()
     private val zipProcessor = ZipProcessor()
+    private val txtProcessor = TxtProcessor()
     
     // Состояние
     private val _isScanning = AtomicBoolean(false)
@@ -449,10 +450,8 @@ class LibraryScanner(
             val extension = file.extension.lowercase()
             
             when (extension) {
-                "fb2", "epub", "fb3", "mobi", "azw", "azw3", "fbz" -> true
-                "zip" -> name.endsWith(".fb2.zip") || 
-                        name.endsWith(".fb3.zip") ||
-                        name.endsWith(".epub.zip")
+                "fb2", "epub", "fb3", "mobi", "azw", "azw3", "fbz", "txt" -> true
+                "zip" -> true
                 else -> false
             }
         } catch (e: Exception) {
@@ -716,13 +715,32 @@ class LibraryScanner(
      */
     private fun getProcessorForFile(file: File): BookProcessor? {
         val name = file.name.lowercase()
-        return when {
-            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".fbz") -> fb2Processor
-            name.endsWith(".epub") -> epubProcessor
-            name.endsWith(".fb3") || name.endsWith(".fb3.zip") -> fb3Processor
-            name.endsWith(".mobi") || name.endsWith(".azw") || name.endsWith(".azw3") -> mobiProcessor
-            name.endsWith(".zip") -> zipProcessor
-            else -> null
+        when {
+            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".fbz") -> return fb2Processor
+            name.endsWith(".epub") -> return epubProcessor
+            name.endsWith(".fb3") || name.endsWith(".fb3.zip") -> return fb3Processor
+            name.endsWith(".mobi") || name.endsWith(".azw") || name.endsWith(".azw3") -> return mobiProcessor
+            name.endsWith(".txt") -> return txtProcessor
+            name.endsWith(".zip") -> return zipProcessor
+        }
+
+        // Fallback: analyze file header if extension is unknown or temporary (.tmp)
+        return try {
+            val headerBytes = ByteArray(1024)
+            val readCount = file.inputStream().use { it.read(headerBytes) }
+            if (readCount > 0) {
+                val headerStr = String(headerBytes, 0, readCount, Charsets.UTF_8).lowercase()
+                when {
+                    headerStr.contains("<fictionbook") || headerStr.contains("<?xml") -> fb2Processor
+                    headerBytes[0] == 'P'.code.toByte() && headerBytes[1] == 'K'.code.toByte() -> zipProcessor
+                    headerStr.contains("bookmobi") -> mobiProcessor
+                    else -> txtProcessor
+                }
+            } else {
+                txtProcessor
+            }
+        } catch (e: Exception) {
+            null
         }
     }
     

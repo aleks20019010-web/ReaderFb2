@@ -229,6 +229,32 @@ class MobiProcessor : BookProcessor {
     }
 }
 
+class TxtProcessor : BookProcessor {
+    override suspend fun process(book: BookSource, context: Context): BookEntity? {
+        return try {
+            val sha1 = computeBookSha1(book, context)
+            val title = book.name.substringBeforeLast('.').ifBlank { "Текстовый документ" }
+            BookEntity(
+                sha1 = sha1,
+                title = title,
+                author = "Неизвестен",
+                annotation = null,
+                category = "Local",
+                filePath = resolveBookPath(book, context),
+                fileSize = book.size,
+                coverPath = null,
+                language = "ru",
+                isNew = true,
+                coverGradientStart = getRandomGradientStartColor(),
+                coverGradientEnd = getRandomGradientEndColor()
+            )
+        } catch (e: Throwable) {
+            Log.e("TxtProcessor", "Error: ${book.name}", e)
+            null
+        }
+    }
+}
+
 class ZipProcessor : BookProcessor {
     override suspend fun process(book: BookSource, context: Context): BookEntity? {
         var tempFile: File? = null

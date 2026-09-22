@@ -72,17 +72,37 @@ class SyncWorker(
             }
         }
 
-        // Предварительная проверка сети
-        val networkChecker = SyncNetworkChecker(context)
-        if (!networkChecker.isConnected()) {
-            Log.e("SYNC_WORKER", "SyncWorker: Нет интернета, синхронизация прервана")
-            return Result.failure()
-        }
-
         // Предварительная проверка токена
         val token = com.nightread.app.data.YandexDiskManager.getToken(context)
         if (token.isNullOrBlank()) {
             Log.e("SYNC_WORKER", "SyncWorker: Токен отсутствует, авторизуйтесь в приложении")
+            YandexSyncState.update {
+                it.copy(
+                    isRunning = false,
+                    stage = YandexSyncState.Stage.ERROR,
+                    statusText = "Ошибка: Авторизуйтесь на Яндекс Диске",
+                    finished = true,
+                    success = false,
+                    error = "Ошибка: Авторизуйтесь на Яндекс Диске"
+                )
+            }
+            return Result.failure()
+        }
+
+        // Предварительная проверка сети
+        val networkChecker = SyncNetworkChecker(context)
+        if (!networkChecker.isConnected()) {
+            Log.e("SYNC_WORKER", "SyncWorker: Нет интернета, синхронизация прервана")
+            YandexSyncState.update {
+                it.copy(
+                    isRunning = false,
+                    stage = YandexSyncState.Stage.ERROR,
+                    statusText = "Отсутствует подключение к интернету",
+                    finished = true,
+                    success = false,
+                    error = "Отсутствует подключение к интернету"
+                )
+            }
             return Result.failure()
         }
 
@@ -91,35 +111,23 @@ class SyncWorker(
 
         try {
             stateRepo.updateState(true, "STARTED", 0)
+            YandexSyncState.update {
+                it.copy(
+                    isRunning = true,
+                    stage = YandexSyncState.Stage.PREPARING,
+                    statusText = "Подготовка к синхронизации...",
+                    finished = false,
+                    error = null
+                )
+            }
             
-            // 2. Убедиться, что канал уведомлений создаётся до показа уведомления
+            // Убедиться, что канал уведомлений создаётся до показа уведомления
             createNotificationChannel(context)
 
             try {
                 setForeground(getForegroundInfo())
             } catch (e: Throwable) {
-                Log.e("SYNC_WORKER", "Не удалось запустить foreground режим для WorkManager", e)
-            }
-
-            // 5. Проверить разрешения
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                val hasManageStorage = android.os.Environment.isExternalStorageManager()
-                val hasSaf = com.nightread.app.data.SyncSettingsManager.getDownloadFolderUri(context) != null
-                if (!hasManageStorage && !hasSaf) {
-                    Log.e("SYNC_WORKER", "Missing storage access permissions")
-                    stateRepo.updateState(false, "ERROR", 0, "Missing permissions")
-                    return Result.failure()
-                }
-            } else {
-                val hasReadPermission = androidx.core.content.ContextCompat.checkSelfPermission(
-                    context,
-                    android.Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                if (!hasReadPermission) {
-                    Log.e("SYNC_WORKER", "Missing READ_EXTERNAL_STORAGE permission")
-                    stateRepo.updateState(false, "ERROR", 0, "Missing permissions")
-                    return Result.failure()
-                }
+                Log.w("SYNC_WORKER", "Не удалось запустить foreground режим для WorkManager (продолжаем в фоне)", e)
             }
 
             return withContext(Dispatchers.IO) {
@@ -155,10 +163,31 @@ class SyncWorker(
                 } catch (e: CancellationException) {
                     Log.d("SYNC_WORKER", "SyncWorker cancelled", e)
                     stateRepo.updateState(false, "CANCELLED", 0)
+                    YandexSyncState.update {
+                        it.copy(
+                            isRunning = false,
+                            stage = YandexSyncState.Stage.IDLE,
+                            statusText = "Синхронизация отменена",
+                            finished = true,
+                            success = false,
+                            error = "Синхронизация отменена"
+                        )
+                    }
                     Result.failure()
                 } catch (e: Throwable) {
                     SyncErrorHandler.logError("SyncWorker", e, false)
-                    stateRepo.updateState(false, "ERROR", 0, SyncErrorHandler.getUserFriendlyMessage(e))
+                    val errMsg = SyncErrorHandler.getUserFriendlyMessage(e)
+                    stateRepo.updateState(false, "ERROR", 0, errMsg)
+                    YandexSyncState.update {
+                        it.copy(
+                            isRunning = false,
+                            stage = YandexSyncState.Stage.ERROR,
+                            statusText = errMsg,
+                            finished = true,
+                            success = false,
+                            error = errMsg
+                        )
+                    }
                     Result.failure()
                 } finally {
                     com.nightread.app.data.SyncSettingsManager.setSyncing(context, false)
@@ -168,6 +197,17 @@ class SyncWorker(
             }
         } catch (e: Throwable) {
             SyncErrorHandler.logError("SyncWorker Fatal", e, false)
+            val errMsg = e.localizedMessage ?: "Критическая ошибка синхронизации"
+            YandexSyncState.update {
+                it.copy(
+                    isRunning = false,
+                    stage = YandexSyncState.Stage.ERROR,
+                    statusText = errMsg,
+                    finished = true,
+                    success = false,
+                    error = errMsg
+                )
+            }
             try {
                 com.nightread.app.data.SyncSettingsManager.setSyncing(context, false)
             } catch (ex: Throwable) {
