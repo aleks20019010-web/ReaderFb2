@@ -517,7 +517,7 @@ class LibraryScanner(
         return try {
             val existingPaths = withContext(Dispatchers.IO) {
                 try {
-                    bookDao.getAllBookPaths()
+                    bookDao.getAllBookPaths().toSet()
                 } catch (e: Exception) {
                     Log.e(TAG, "Error getting book paths from DB", e)
                     emptySet()
@@ -637,6 +637,11 @@ class LibraryScanner(
         }
     }
     
+    suspend fun processSingleFile(file: File): BookEntity? {
+        val result = processBook(file)
+        return if (result is ProcessResult.Success) result.entity else null
+    }
+
     /**
      * Обработка одной книги
      */

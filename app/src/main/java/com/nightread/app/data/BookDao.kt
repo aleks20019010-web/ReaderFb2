@@ -30,7 +30,7 @@ interface BookDao {
     suspend fun getSha1ToPathMap(): List<Sha1PathTuple>
 
     @Query("SELECT DISTINCT filePath FROM books WHERE filePath IS NOT NULL")
-    suspend fun getAllBookPaths(): Set<String>
+    suspend fun getAllBookPaths(): List<String>
 
     @Query("UPDATE books SET filePath = :newPath WHERE sha1 = :sha1")
     suspend fun updateFilePath(sha1: String, newPath: String)
