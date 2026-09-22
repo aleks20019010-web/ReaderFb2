@@ -32,19 +32,21 @@ class MainApplication : Application(), ImageLoaderFactory, androidx.work.Configu
         return ImageLoader.Builder(this)
             .memoryCache {
                 MemoryCache.Builder(this)
-                    .maxSizePercent(0.30) // Use 30% of available memory for images
+                    .maxSizePercent(0.25)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
                     .directory(this.cacheDir.resolve("image_cache"))
-                    .maxSizePercent(0.05) // Use up to 5% of storage for disk cache
+                    .maxSizePercent(0.05)
                     .build()
             }
+            .allowRgb565(true)
+            .allowHardware(true)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
             .respectCacheHeaders(false)
-            .crossfade(true)
+            .crossfade(150)
             .build()
     }
 

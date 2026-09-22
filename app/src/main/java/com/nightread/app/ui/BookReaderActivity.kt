@@ -75,37 +75,43 @@ class BookReaderActivity : FragmentActivity() {
                                 authorName = book.author ?: ""
                                 openedBookTitle = bookTitle
 
-                                val contentFile = File(cacheDir, "$sha1.content")
-                                if (contentFile.exists()) {
-                                    val cached = contentFile.readText()
-                                    if (cached.contains("\ufffd") || cached.contains("") || cached.startsWith("[sGv")) {
-                                        contentFile.delete()
-                                    }
-                                }
-                                if (contentFile.exists()) {
-                                    bookText = cleanHtmlContent(contentFile.readText())
-                                } else if (!book.filePath.isNullOrEmpty()) {
-                                    val f = File(book.filePath)
-                                    if (f.exists()) {
-                                        val ext = f.extension.lowercase()
-                                        val text = when (ext) {
-                                            "fb3" -> com.nightread.app.service.Fb3Parser.parse(f, f.nameWithoutExtension).content
-                                            "epub" -> com.nightread.app.service.EpubParser.parse(f, f.nameWithoutExtension).content
-                                            "fb2" -> com.nightread.app.service.Fb2Parser.parse(f, f.nameWithoutExtension).content
-                                            "mobi", "azw", "azw3" -> com.nightread.app.service.MobiParser.parse(f, f.nameWithoutExtension).content
-                                            "zip" -> readZipFile(f)
-                                            else -> decodeBytesToString(f.readBytes())
+                                val memCached = com.nightread.app.data.ReaderDocumentCache.getRawContent(sha1)
+                                if (!memCached.isNullOrEmpty()) {
+                                    bookText = memCached
+                                } else {
+                                    val contentFile = File(cacheDir, "$sha1.content")
+                                    if (contentFile.exists()) {
+                                        val cached = contentFile.readText()
+                                        if (cached.contains("\ufffd") || cached.contains("") || cached.startsWith("[sGv")) {
+                                            contentFile.delete()
                                         }
-                                        val cleaned = cleanHtmlContent(text)
-                                        try { contentFile.writeText(cleaned) } catch (e: Exception) {}
-                                        bookText = cleaned
-                                    } else {
-                                        bookText = "Файл книги не найден на диске"
                                     }
-                                }
-                                val dbAnnot = book.annotation
-                                if (!dbAnnot.isNullOrBlank() && !bookText.contains("[ANNOTATION]") && !bookText.take(300).contains("Аннотация", ignoreCase = true)) {
-                                    bookText = "[ANNOTATION]\n$dbAnnot\n[/ANNOTATION]\n\n$bookText"
+                                    if (contentFile.exists()) {
+                                        bookText = cleanHtmlContent(contentFile.readText())
+                                    } else if (!book.filePath.isNullOrEmpty()) {
+                                        val f = File(book.filePath)
+                                        if (f.exists()) {
+                                            val ext = f.extension.lowercase()
+                                            val text = when (ext) {
+                                                "fb3" -> com.nightread.app.service.Fb3Parser.parse(f, f.nameWithoutExtension).content
+                                                "epub" -> com.nightread.app.service.EpubParser.parse(f, f.nameWithoutExtension).content
+                                                "fb2" -> com.nightread.app.service.Fb2Parser.parse(f, f.nameWithoutExtension).content
+                                                "mobi", "azw", "azw3" -> com.nightread.app.service.MobiParser.parse(f, f.nameWithoutExtension).content
+                                                "zip" -> readZipFile(f)
+                                                else -> decodeBytesToString(f.readBytes())
+                                            }
+                                            val cleaned = cleanHtmlContent(text)
+                                            try { contentFile.writeText(cleaned) } catch (e: Exception) {}
+                                            bookText = cleaned
+                                        } else {
+                                            bookText = "Файл книги не найден на диске"
+                                        }
+                                    }
+                                    val dbAnnot = book.annotation
+                                    if (!dbAnnot.isNullOrBlank() && !bookText.contains("[ANNOTATION]") && !bookText.take(300).contains("Аннотация", ignoreCase = true)) {
+                                        bookText = "[ANNOTATION]\n$dbAnnot\n[/ANNOTATION]\n\n$bookText"
+                                    }
+                                    com.nightread.app.data.ReaderDocumentCache.putRawContent(sha1, bookText)
                                 }
                                 openedBookText = bookText
                             } else {

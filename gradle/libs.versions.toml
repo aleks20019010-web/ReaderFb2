@@ -47,8 +47,10 @@ work = "2.9.1"
 swiperefreshlayout = "1.1.0"
 palette = "1.0.0"
 mockitoKotlin = "5.4.0"
+profileinstaller = "1.4.1"
 
 [libraries]
+androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
 yandex-authsdk = { group = "com.yandex.android", name = "authsdk", version.ref = "yandexAuth" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
 androidx-swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayout" }

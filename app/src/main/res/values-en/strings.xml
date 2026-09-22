@@ -177,4 +177,13 @@
     <string name="achievement_default_title">Title</string>
     <string name="achievement_default_desc">Achievement description...</string>
     <string name="achievement_unlocked">Unlocked 🌟</string>
+
+    <!-- Bug Report -->
+    <string name="settings_bug_report_btn">Report a Bug / Feedback</string>
+    <string name="bug_report_dialog_title">Bug Report</string>
+    <string name="bug_report_dialog_subtitle">Describe what went wrong. System diagnostics will be automatically attached to help diagnose the issue.</string>
+    <string name="bug_report_input_hint">Describe the bug or feature suggestion in detail...</string>
+    <string name="bug_report_send_btn">Send</string>
+    <string name="bug_report_empty_desc_warning">Please enter a description of the issue</string>
+    <string name="bug_report_choose_email_client">Choose email app</string>
 </resources>

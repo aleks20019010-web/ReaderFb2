@@ -1,0 +1,49 @@
+# Baseline Profile for NightRead
+# Optimizes cold startup and eliminates jank during reader pagination and book navigation
+
+# Core Application & Startup
+HSPLcom/nightread/app/MainApplication;->onCreate()V
+HSPLcom/nightread/app/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLcom/nightread/app/MainActivity;->onStart()V
+HSPLcom/nightread/app/MainActivity;->onResume()V
+
+# Database & Entities (Room Ahead-of-Time compilation)
+HSPLcom/nightread/app/data/DatabaseProvider;->getInstance(Landroid/content/Context;)Lcom/nightread/app/data/AppDatabase;
+HSPLcom/nightread/app/data/AppDatabase;->bookDao()Lcom/nightread/app/data/BookDao;
+HSPLcom/nightread/app/data/AppDatabase;->bookmarkDao()Lcom/nightread/app/data/BookmarkDao;
+HSPLcom/nightread/app/data/BookDao;->getAllBooks()Lkotlinx/coroutines/flow/Flow;
+HSPLcom/nightread/app/data/BookDao;->getBookBySha1(Ljava/lang/String;)Lcom/nightread/app/data/BookEntity;
+HSPLcom/nightread/app/data/SettingsManager;->*
+HSPLcom/nightread/app/data/SafeProgressManager;->*
+
+# Reader & Compose Layout Engine
+HSPLcom/nightread/app/ui/BookReaderActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLcom/nightread/app/ui/BookReaderActivity;->onResume()V
+HSPLcom/nightread/app/ui/ReaderComposeScreenKt;->*
+HSPLcom/nightread/app/ui/customlayout/ReaderDocument;->*
+HSPLcom/nightread/app/ui/customlayout/ReaderPage;->*
+HSPLcom/nightread/app/ui/customlayout/ReaderBlock;->*
+HSPLcom/nightread/app/ui/customlayout/AdaptiveTextEngine;->*
+HSPLcom/nightread/app/ui/SettingsBottomSheet;->*
+HSPLcom/nightread/app/ui/TtsSettingsBottomSheet;->*
+HSPLcom/nightread/app/ui/AudioPlayerBottomSheet;->*
+
+# Book Parsing Engines (FB2, EPUB, MOBI, TXT)
+HSPLcom/nightread/app/parser/Fb2Parser;->*
+HSPLcom/nightread/app/parser/EpubParser;->*
+HSPLcom/nightread/app/parser/MobiParser;->*
+HSPLcom/nightread/app/parser/TxtParser;->*
+HSPLcom/nightread/app/parser/BookParserFactory;->*
+
+# Background Services & Media Playback
+HSPLcom/nightread/app/service/TtsForegroundService;->*
+HSPLcom/nightread/app/service/AudiobookPlaybackService;->*
+HSPLcom/nightread/app/service/SyncService;->*
+HSPLcom/nightread/app/service/AutoDiscoveryService;->*
+
+# Jetpack Compose Core Runtime
+HSPLandroidx/compose/runtime/Composer;->*
+HSPLandroidx/compose/runtime/Recomposer;->*
+HSPLandroidx/compose/foundation/pager/PagerState;->*
+HSPLandroidx/compose/foundation/lazy/LazyListState;->*
+HSPLandroidx/compose/material3/MaterialTheme;->*

@@ -375,6 +375,24 @@
                 app:iconGravity="textStart"
                 app:iconTint="@color/text_primary" />
 
+            <!-- Bug Report / Feedback -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnBugReport"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:text="@string/settings_bug_report_btn"
+                app:strokeColor="@color/accent"
+                app:rippleColor="@color/accent_light"
+                app:cornerRadius="12dp"
+                app:icon="@android:drawable/ic_dialog_email"
+                app:iconGravity="textStart"
+                app:iconTint="@color/text_primary" />
+
             <!-- Info -->
             <TextView
                 android:id="@+id/tvAppVersion"

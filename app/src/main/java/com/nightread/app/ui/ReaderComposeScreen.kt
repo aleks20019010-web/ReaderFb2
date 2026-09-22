@@ -773,13 +773,21 @@ fun ReaderComposeScreen(
                             )
                         }
 
-                        LaunchedEffect(mainText, sha1) {
+                        LaunchedEffect(mainText, sha1, fontSize) {
                             if (mainText.isNotEmpty()) {
-                                readerDocument = com.nightread.app.ui.customlayout.ReaderLayoutEngine.parseDocument(
-                                    bookId = sha1.ifEmpty { "default" },
-                                    mainText = mainText,
-                                    baseFontSize = fontSize.sp
-                                )
+                                val cacheKey = "$sha1-${fontSize}"
+                                val cachedDoc = com.nightread.app.data.ReaderDocumentCache.getDocument(cacheKey)
+                                if (cachedDoc != null) {
+                                    readerDocument = cachedDoc
+                                } else {
+                                    val doc = com.nightread.app.ui.customlayout.ReaderLayoutEngine.parseDocument(
+                                        bookId = sha1.ifEmpty { "default" },
+                                        mainText = mainText,
+                                        baseFontSize = fontSize.sp
+                                    )
+                                    com.nightread.app.data.ReaderDocumentCache.putDocument(cacheKey, doc)
+                                    readerDocument = doc
+                                }
                             }
                         }
 

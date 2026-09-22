@@ -1,8 +1,10 @@
 package com.nightread.app.data
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+@Immutable
 @Entity(tableName = "books")
 data class BookEntity(
     @PrimaryKey val sha1: String,

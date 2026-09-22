@@ -323,6 +323,7 @@ class MainActivity : BaseActivity() {
                 R.id.nav_new_books -> openNewBooksFragment()
                 R.id.nav_want_to_read -> openWantToReadFragment()
                 R.id.nav_settings -> openSettingsFragment()
+                R.id.nav_bug_report -> com.nightread.app.util.BugReportHelper.showBugReportDialog(this@MainActivity)
                 else -> {
                     val filter = when (menuItem.itemId) {
                         R.id.nav_reading -> "reading"

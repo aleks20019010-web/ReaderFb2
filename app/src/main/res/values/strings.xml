@@ -209,4 +209,13 @@
     <string name="tab_info">Информация</string>
     <string name="tab_notes">Заметки</string>
     <string name="notes_empty">Нет заметок для этой книги</string>
+
+    <!-- Bug Report -->
+    <string name="settings_bug_report_btn">Сообщить об ошибке / Отзыв</string>
+    <string name="bug_report_dialog_title">Отчёт об ошибке</string>
+    <string name="bug_report_dialog_subtitle">Опишите, что пошло не так. К письму автоматически прикрепятся технические характеристики устройства для быстрой диагностики.</string>
+    <string name="bug_report_input_hint">Подробно опишите ошибку или ваше предложение...</string>
+    <string name="bug_report_send_btn">Отправить</string>
+    <string name="bug_report_empty_desc_warning">Пожалуйста, укажите описание проблемы</string>
+    <string name="bug_report_choose_email_client">Выберите почтовый клиент</string>
 </resources>

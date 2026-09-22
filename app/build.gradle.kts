@@ -109,6 +109,7 @@ dependencies {
   implementation("org.pytorch:executorch-android:0.5.1")
   coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
   implementation("androidx.media:media:1.6.0")
+  implementation(libs.androidx.profileinstaller)
 
   implementation(libs.yandex.authsdk)
   implementation(platform(libs.androidx.compose.bom))

@@ -264,6 +264,10 @@ class SettingsFragment : Fragment() {
                 .show()
         }
 
+        view.findViewById<Button>(R.id.btnBugReport)?.setOnClickListener {
+            com.nightread.app.util.BugReportHelper.showBugReportDialog(requireActivity())
+        }
+
         view.findViewById<TextView>(R.id.tvAppVersion).text = getString(R.string.settings_app_version, com.nightread.app.BuildConfig.VERSION_NAME)
     }
 

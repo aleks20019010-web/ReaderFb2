@@ -227,6 +227,10 @@ class SettingsActivity : BaseActivity() {
         }
 
         // App Version
+        findViewById<Button>(R.id.btnBugReport)?.setOnClickListener {
+            com.nightread.app.util.BugReportHelper.showBugReportDialog(this)
+        }
+
         findViewById<TextView>(R.id.tvAppVersion).text = getString(R.string.settings_app_version, com.nightread.app.BuildConfig.VERSION_NAME)
     }
 
