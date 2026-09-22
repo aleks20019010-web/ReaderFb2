@@ -13,9 +13,20 @@ object MobiParser : BookParser {
             if (!file.exists() || !file.canRead() || file.length() < 78) {
                 return BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
             }
-            val data = file.readBytes()
+            val data = file.inputStream().buffered().use { input ->
+                val output = ByteArrayOutputStream()
+                val buffer = ByteArray(8192)
+                var total = 0L
+                var read: Int
+                while (input.read(buffer).also { read = it } != -1) {
+                    total += read
+                    if (total > 2 * 1024 * 1024) break
+                    output.write(buffer, 0, read)
+                }
+                output.toByteArray()
+            }
             return parseBytes(data, file.nameWithoutExtension.ifBlank { defaultTitle })
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error parsing MOBI/AZW file: ${file.absolutePath}", e)
             return BookParser.ParsedBook(file.nameWithoutExtension, "Неизвестен", "")
         }

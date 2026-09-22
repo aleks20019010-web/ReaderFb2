@@ -23,6 +23,8 @@
     <string name="extra_dim_intensity">Степень затемнения</string>
     <string name="silent_mode_title">Режим тишины</string>
     <string name="silent_mode_desc">Приглушение уведомлений/вибро на высокой скорости (>400 с/мин) и легкая вибрация-встряска при засыпании/задумчивости (&lt;100 с/мин через 2 мин)</string>
+    <string name="distraction_free_title">Режим «Без отвлечений»</string>
+    <string name="distraction_free_desc">Скрывает панели и системные элементы для максимального погружения в текст</string>
     <string name="bedtime_mode_title">Режим сна (Bedtime Mode)</string>
     <string name="bedtime_mode_desc" formatted="false">Мгновенный ночной профиль: черная тема, янтарный фильтр 50%, сверхнизкая яркость 30% и таймер на 30 мин</string>
     <string name="bedtime_mode_activated">Режим сна активирован! Приятного чтения 🌙</string>

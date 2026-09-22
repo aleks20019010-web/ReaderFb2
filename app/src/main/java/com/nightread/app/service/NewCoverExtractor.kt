@@ -100,8 +100,7 @@ object NewCoverExtractor {
                 return null
             }
 
-            val cleanBase64 = finalBase64.replace("\\s".toRegex(), "")
-            val imageBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+            val imageBytes = Base64.decode(finalBase64, Base64.DEFAULT)
             if (imageBytes.isEmpty()) {
                 Log.w("NewCoverExtractor", "Decoded image bytes are empty for book SHA1: $sha1")
                 return null

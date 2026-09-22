@@ -53,6 +53,7 @@ object SettingsManager {
     const val KEY_WORD_SPACING = "word_spacing"
     const val KEY_PARAGRAPH_INDENT = "paragraph_indent"
     const val KEY_SILENT_MODE_ENABLED = "silent_mode_enabled"
+    const val KEY_DISTRACTION_FREE_MODE = "distraction_free_mode"
     const val KEY_SORT_OPTION = "library_sort_option"
     const val KEY_TTS_SPEED = "tts_speed"
     const val KEY_TTS_PITCH = "tts_pitch"
@@ -717,6 +718,22 @@ object SettingsManager {
         if (cachedSilentModeEnabled == enabled) return
         cachedSilentModeEnabled = enabled
         getPrefs(context).edit().putBoolean(KEY_SILENT_MODE_ENABLED, enabled).apply()
+        notifyChanged()
+    }
+
+    private var cachedDistractionFreeEnabled: Boolean? = null
+
+    fun isDistractionFreeEnabled(context: Context): Boolean {
+        if (cachedDistractionFreeEnabled == null) {
+            cachedDistractionFreeEnabled = getPrefs(context).getBoolean(KEY_DISTRACTION_FREE_MODE, false)
+        }
+        return cachedDistractionFreeEnabled!!
+    }
+
+    fun setDistractionFreeEnabled(context: Context, enabled: Boolean) {
+        if (cachedDistractionFreeEnabled == enabled) return
+        cachedDistractionFreeEnabled = enabled
+        getPrefs(context).edit().putBoolean(KEY_DISTRACTION_FREE_MODE, enabled).apply()
         notifyChanged()
     }
 

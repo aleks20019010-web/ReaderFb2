@@ -32,8 +32,7 @@ object Fb2CoverExtractor {
                             val text = parser.nextText()
                             if (text != null && text.length in 100..(8 * 1024 * 1024)) {
                                 try {
-                                    val cleanText = text.filter { !it.isWhitespace() }
-                                    val bytes = Base64.decode(cleanText, Base64.DEFAULT)
+                                    val bytes = Base64.decode(text, Base64.DEFAULT)
                                     if (bytes.isNotEmpty()) {
                                         return NewCoverExtractor.saveCoverBytes(bytes, sha1, context)
                                     }

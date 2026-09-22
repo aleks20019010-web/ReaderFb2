@@ -42,7 +42,8 @@ object Sha1Helper {
             if (lowerName.endsWith(".fb2.zip") || lowerName.endsWith(".fb3.zip") || lowerName.endsWith(".zip")) {
                 ZipInputStream(file.inputStream().buffered()).use { zip ->
                     var entry = zip.nextEntry
-                    while (entry != null) {
+                    var entriesChecked = 0
+                    while (entry != null && entriesChecked++ < 50) {
                         val entryName = entry.name.lowercase()
                         if (entryName.endsWith(".fb2") || entryName.endsWith(".fb3")) {
                             return computeSha1Stream(zip)
@@ -55,7 +56,7 @@ object Sha1Helper {
             } else {
                 computeSha1FileNio(file)
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error calculating SHA-1", e)
             null
         }

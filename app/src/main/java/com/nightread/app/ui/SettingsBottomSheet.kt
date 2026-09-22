@@ -288,6 +288,15 @@ class SettingsBottomSheet : DialogFragment() {
             }
         }
 
+        // 7c_1. Distraction-Free Mode Switch
+        val switchDistractionFree = view.findViewById<SwitchCompat>(R.id.switchDistractionFree)
+        switchDistractionFree?.isChecked = SettingsManager.isDistractionFreeEnabled(context)
+        switchDistractionFree?.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != SettingsManager.isDistractionFreeEnabled(context)) {
+                SettingsManager.setDistractionFreeEnabled(context, isChecked)
+            }
+        }
+
         // 7c_2. Extra Dim Switch & Intensity Hookup
         val switchExtraDim = view.findViewById<SwitchCompat>(R.id.switchExtraDim)
         val layoutExtraDimIntensity = view.findViewById<LinearLayout>(R.id.layoutExtraDimIntensity)
