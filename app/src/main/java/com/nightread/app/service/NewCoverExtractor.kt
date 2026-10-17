@@ -5,6 +5,8 @@ import android.util.Base64
 import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FileInputStream
+import android.util.Base64InputStream
 
 object NewCoverExtractor {
 
@@ -14,8 +16,9 @@ object NewCoverExtractor {
     fun extractCover(file: File, sha1: String, context: Context?): String? {
         if (context == null) return null
         return try {
-            if (file.length() > 30 * 1024 * 1024) {
-                // Avoid reading huge files entirely into memory
+            // Lowered threshold to avoid reading moderately large files into memory
+            if (file.length() > 5L * 1024L * 1024L) {
+                // Avoid reading files larger than 5MB entirely into memory
                 return null
             }
             val content = file.readText(Charsets.UTF_8)
@@ -67,26 +70,26 @@ object NewCoverExtractor {
                 if (start == -1) break
                 val end = fb2Content.indexOf("</binary>", start, ignoreCase = true)
                 if (end == -1) break
-                
+
                 val block = fb2Content.substring(start, end + "</binary>".length)
                 val contentStart = block.indexOf(">")
                 if (contentStart != -1) {
                     val content = block.substring(contentStart + 1, block.length - "</binary>".length).trim()
                     if (content.isNotEmpty()) {
                         val header = block.substring(0, contentStart)
-                        
+
                         // Exact match with targetCoverId from coverpage
                         if (!targetCoverId.isNullOrBlank() && header.contains(targetCoverId, ignoreCase = true)) {
                             base64Data = content
                             break
                         }
-                        
+
                         // Check if header contains cover/thumb/front/image keywords
                         val isCoverKeyword = header.contains("cover", ignoreCase = true) ||
-                                           header.contains("thumb", ignoreCase = true) ||
-                                           header.contains("front", ignoreCase = true) ||
-                                           header.contains("image", ignoreCase = true)
-                        
+                                header.contains("thumb", ignoreCase = true) ||
+                                header.contains("front", ignoreCase = true) ||
+                                header.contains("image", ignoreCase = true)
+
                         if (isCoverKeyword && base64Data == null) {
                             base64Data = content
                         } else if (fallbackFirstBinary == null) {
@@ -104,12 +107,6 @@ object NewCoverExtractor {
                 return null
             }
 
-            val imageBytes = Base64.decode(finalBase64, Base64.DEFAULT)
-            if (imageBytes.isEmpty()) {
-                Log.w("NewCoverExtractor", "Decoded image bytes are empty for book SHA1: $sha1")
-                return null
-            }
-
             // Ensure the directory exists
             val coverDir = File(context.filesDir, "covers")
             if (!coverDir.exists()) {
@@ -117,10 +114,46 @@ object NewCoverExtractor {
             }
 
             val coverFile = File(coverDir, "cover_$sha1.jpg")
-            FileOutputStream(coverFile).use { fos ->
-                fos.write(imageBytes)
+
+            // If base64 text is large, decode in a streaming fashion to avoid large byte[] in memory
+            val largeThreshold = 400 * 1024 // base64 chars threshold (~300KB decoded)
+            if (finalBase64.length > largeThreshold) {
+                var tmpBase64: File? = null
+                try {
+                    tmpBase64 = File.createTempFile("cover_b64_", ".b64", context.cacheDir)
+                    tmpBase64.writeText(finalBase64)
+
+                    FileInputStream(tmpBase64).use { fis ->
+                        Base64InputStream(fis, Base64.DEFAULT).use { b64is ->
+                            FileOutputStream(coverFile).use { fos ->
+                                val buf = ByteArray(8 * 1024)
+                                var read = b64is.read(buf)
+                                while (read >= 0) {
+                                    if (read > 0) fos.write(buf, 0, read)
+                                    read = b64is.read(buf)
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("NewCoverExtractor", "Streaming base64 decode failed for $sha1", e)
+                    tmpBase64?.delete()
+                    return null
+                } finally {
+                    tmpBase64?.delete()
+                }
+            } else {
+                val imageBytes = Base64.decode(finalBase64, Base64.DEFAULT)
+                if (imageBytes.isEmpty()) {
+                    Log.w("NewCoverExtractor", "Decoded image bytes are empty for book SHA1: $sha1")
+                    return null
+                }
+
+                FileOutputStream(coverFile).use { fos ->
+                    fos.write(imageBytes)
+                }
             }
-            
+
             Log.d("NewCoverExtractor", "Cover successfully saved to: ${coverFile.absolutePath}")
             return coverFile.absolutePath
         } catch (e: OutOfMemoryError) {
@@ -161,12 +194,12 @@ object NewCoverExtractor {
         if (context == null) return null
         try {
             if (imageBytes.isEmpty()) return null
-            
+
             val coverDir = File(context.filesDir, "covers")
             if (!coverDir.exists()) coverDir.mkdirs()
-            
+
             val coverFile = File(coverDir, "cover_$sha1.jpg")
-            
+
             // Downsample if image is large (> 300KB) to save memory and disk space
             if (imageBytes.size > 300 * 1024) {
                 val bitmap = decodeSampledBitmap(imageBytes, 400, 600)
