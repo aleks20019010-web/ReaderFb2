@@ -5,13 +5,16 @@ import com.nightread.app.service.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
-import java.io.ByteArrayOutputStream
 import java.util.zip.ZipInputStream
 
 object BookPreloader {
+
+    private const val MAX_PRELOAD_FILE_BYTES = 30L * 1024L * 1024L
+    private const val MAX_PRELOAD_TEXT_BYTES = 8L * 1024L * 1024L
 
     fun preload(context: Context, sha1: String, filePath: String?) {
         if (filePath.isNullOrEmpty() || sha1.isEmpty()) return
@@ -25,6 +28,10 @@ object BookPreloader {
             try {
                 val file = File(filePath)
                 if (!file.exists()) return@launch
+                if (file.length() > MAX_PRELOAD_FILE_BYTES) {
+                    android.util.Log.w("BookPreloader", "Skipping preload for large file: ${file.name} (${file.length()} bytes)")
+                    return@launch
+                }
 
                 val theme = SettingsManager.getReadingTheme(appContext)
                 val fontSize = SettingsManager.getFontSize(appContext)
@@ -36,30 +43,31 @@ object BookPreloader {
                 val rawContent = if (contentCacheFile.exists()) {
                     contentCacheFile.readText()
                 } else {
-                    val parsed = if (ext == "zip" || ext == "fbz" || file.name.endsWith(".fb2.zip", true) || file.name.endsWith(".fb3.zip", true)) {
-                        readZipContent(file)
-                    } else {
-                        when (ext) {
-                            "fb3" -> Fb3Parser.parse(file, file.nameWithoutExtension).content
-                            "epub" -> EpubParser.parse(file, file.nameWithoutExtension).content
-                            "mobi", "azw", "azw3" -> MobiParser.parse(file, file.nameWithoutExtension).content
-                            "fb2" -> {
-                                // Use stream-based parsing to avoid loading whole file into memory
+                    val parsed = when {
+                        ext == "zip" || ext == "fbz" || file.name.endsWith(".fb2.zip", true) || file.name.endsWith(".fb3.zip", true) -> readZipContent(file)
+                        ext == "fb3" -> Fb3Parser.parse(file, file.nameWithoutExtension).content
+                        ext == "epub" -> EpubParser.parse(file, file.nameWithoutExtension).content
+                        ext == "mobi" || ext == "azw" || ext == "azw3" -> MobiParser.parse(file, file.nameWithoutExtension).content
+                        ext == "fb2" -> {
+                            try {
+                                FileInputStream(file).use { fis ->
+                                    Fb2Parser.parse(fis, file.nameWithoutExtension).content
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("BookPreloader", "FB2 stream parse failed for ${file.name}", e)
                                 try {
-                                    FileInputStream(file).use { fis ->
-                                        Fb2Parser.parse(fis, file.nameWithoutExtension).content
-                                    }
-                                } catch (e: Exception) {
-                                    android.util.Log.e("BookPreloader", "FB2 stream parse failed, falling back to file parse for ${file.name}", e)
-                                    // fallback to file-based parser if available
-                                    try { Fb2Parser.parse(file.inputStream(), file.nameWithoutExtension).content } catch (e2: Exception) { "" }
+                                    Fb2Parser.parse(file.inputStream(), file.nameWithoutExtension).content
+                                } catch (e2: Exception) {
+                                    ""
                                 }
                             }
-                            else -> {
-                                // For unknown types, decode stream up to a sensible limit to avoid OOM
-                                decodeFileToStringWithLimit(file)
-                            }
                         }
+                        else -> decodeFileToStringWithLimit(file)
+                    }
+
+                    if (parsed.length > MAX_PRELOAD_TEXT_BYTES) {
+                        android.util.Log.w("BookPreloader", "Parsed content too large for preload cache: ${file.name}")
+                        return@launch
                     }
                     try { contentCacheFile.writeText(parsed) } catch (e: Exception) {}
                     parsed
@@ -102,6 +110,9 @@ object BookPreloader {
                     }
                     try { cacheHtmlFile.writeText(converted) } catch (e: Exception) {}
                 }
+            } catch (e: OutOfMemoryError) {
+                android.util.Log.e("BookPreloader", "Out of memory while preloading $filePath", e)
+                System.gc()
             } catch (e: Throwable) {
                 android.util.Log.e("BookPreloader", "Preloading failed for $filePath", e)
             }
@@ -110,9 +121,14 @@ object BookPreloader {
 
     private fun readZipContent(file: File): String {
         try {
+            if (file.length() > MAX_PRELOAD_FILE_BYTES) {
+                android.util.Log.w("BookPreloader", "Skipping zip preload for large file: ${file.name}")
+                return ""
+            }
             if (Fb3Parser.isFb3(file)) {
                 return Fb3Parser.parseFb3(file, file.nameWithoutExtension).content
             }
+
             FileInputStream(file).use { fis ->
                 ZipInputStream(fis).use { zis ->
                     var entry = zis.nextEntry
@@ -121,27 +137,12 @@ object BookPreloader {
                         if (!entry.isDirectory && !entryName.startsWith("__macosx") && !entryName.contains(".ds_store")) {
                             when {
                                 entryName.endsWith(".fb3") -> {
-                                    // Write entry to temp file and parse to avoid holding bytes in memory
-                                    try {
-                                        val tmp = File.createTempFile("fb3_entry_", ".fb3", file.parentFile)
-                                        tmp.outputStream().use { os ->
-                                            zis.copyTo(os)
-                                        }
-                                        val res = Fb3Parser.parse(tmp, tmp.nameWithoutExtension).content
-                                        tmp.delete()
-                                        if (res.isNotBlank()) return res
-                                    } catch (e: Exception) {
-                                        android.util.Log.e("BookPreloader", "Failed to parse fb3 entry in ${file.name}", e)
-                                    }
+                                    val bytes = zis.readBytes()
+                                    return Fb3Parser.parseBytes(bytes, entryName.removeSuffix(".fb3")).content
                                 }
                                 entryName.endsWith(".fb2") -> {
-                                    // Fb2Parser supports InputStream parsing
-                                    try {
-                                        val parsed = Fb2Parser.parse(zis, entryName.removeSuffix(".fb2"))
-                                        if (parsed.content.isNotBlank()) return parsed.content
-                                    } catch (e: Exception) {
-                                        android.util.Log.e("BookPreloader", "Failed to parse fb2 entry in ${file.name}", e)
-                                    }
+                                    val parsed = Fb2Parser.parse(zis, entryName.removeSuffix(".fb2"))
+                                    if (parsed.content.isNotBlank()) return parsed.content
                                 }
                                 entryName.endsWith(".xml") || entryName.endsWith(".html") || entryName.endsWith(".htm") || entryName.endsWith(".txt") -> {
                                     return decodeStreamToStringWithLimit(zis)
@@ -152,6 +153,9 @@ object BookPreloader {
                     }
                 }
             }
+        } catch (e: OutOfMemoryError) {
+            android.util.Log.e("BookPreloader", "Out of memory while reading zip ${file.name}", e)
+            System.gc()
         } catch (e: Exception) {
             android.util.Log.e("BookPreloader", "Error preloading zip file ${file.name}", e)
         }
@@ -163,6 +167,9 @@ object BookPreloader {
             FileInputStream(file).use { fis ->
                 return decodeStreamToStringWithLimit(fis, maxBytes)
             }
+        } catch (e: OutOfMemoryError) {
+            android.util.Log.e("BookPreloader", "Out of memory while decoding file ${file.name}", e)
+            System.gc()
         } catch (e: Exception) {
             android.util.Log.e("BookPreloader", "Failed to decode file ${file.name}", e)
         }
@@ -184,7 +191,6 @@ object BookPreloader {
             }
             val bytes = buffer.toByteArray()
 
-            // Try to detect encoding from header as before
             try {
                 val headerSize = if (bytes.size > 1024) 1024 else bytes.size
                 val header = String(bytes, 0, headerSize, java.nio.charset.StandardCharsets.ISO_8859_1)
@@ -193,28 +199,36 @@ object BookPreloader {
                     val encName = match.groupValues[1].trim()
                     try {
                         return String(bytes, java.nio.charset.Charset.forName(encName))
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         // fall through
                     }
                 }
-            } catch (e: Exception) {}
+            } catch (_: Exception) {
+                // ignore and fallback
+            }
 
             try {
                 val utf8Decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
                 utf8Decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
                 val charBuffer = utf8Decoder.decode(java.nio.ByteBuffer.wrap(bytes))
                 return charBuffer.toString()
+            } catch (e: OutOfMemoryError) {
+                android.util.Log.e("BookPreloader", "Out of memory while decoding UTF-8 string", e)
+                System.gc()
             } catch (e: Exception) {
                 try {
                     return String(bytes, java.nio.charset.Charset.forName("Windows-1251"))
-                } catch (e2: Exception) {
+                } catch (_: Exception) {
                     return String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
                 }
             }
+        } catch (e: OutOfMemoryError) {
+            android.util.Log.e("BookPreloader", "Out of memory while decoding stream", e)
+            System.gc()
         } catch (e: Exception) {
             android.util.Log.e("BookPreloader", "Failed to decode stream", e)
         }
+
         return ""
     }
-
 }
