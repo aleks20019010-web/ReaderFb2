@@ -140,29 +140,44 @@ fun ReaderWebViewComponent(
                 var downY = 0f
                 var lastY = 0f
                 var downTime = 0L
-                var isDragging = false
+                var isVerticalDrag = false
+                var isHorizontalSwipe = false
 
                 setOnTouchListener { _, event ->
-                    when (event.action) {
+                    val densityPx = resources.displayMetrics.density.coerceAtLeast(1f)
+                    val dragThreshold = 14f * densityPx
+                    val tapSlop = 16f * densityPx
+
+                    when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
                             downX = event.x
                             downY = event.y
                             lastY = event.y
                             downTime = System.currentTimeMillis()
-                            isDragging = false
+                            isVerticalDrag = false
+                            isHorizontalSwipe = false
                         }
                         MotionEvent.ACTION_MOVE -> {
                             val currentX = event.x
                             val currentY = event.y
                             val deltaX = currentX - downX
                             val deltaY = currentY - downY
-                            
-                            if (isDragging) {
+
+                            if (!isVerticalDrag && !isHorizontalSwipe) {
+                                if (Math.abs(deltaX) > dragThreshold && Math.abs(deltaX) >= Math.abs(deltaY)) {
+                                    isHorizontalSwipe = true
+                                } else if (Math.abs(deltaY) > dragThreshold * 1.4f && Math.abs(deltaY) > Math.abs(deltaX) * 1.3f) {
+                                    isVerticalDrag = true
+                                    lastY = currentY
+                                }
+                            }
+
+                            if (isHorizontalSwipe) {
+                                val deltaCssPx = deltaX / densityPx
+                                this.evaluateJavascript("if(window.onSwipeDrag){window.onSwipeDrag($deltaCssPx);}", null)
+                            } else if (isVerticalDrag) {
                                 val stepY = currentY - lastY
                                 onVerticalScroll(downX, stepY)
-                                lastY = currentY
-                            } else if (Math.abs(deltaY) > 20 && Math.abs(deltaY) > Math.abs(deltaX) * 1.2f) {
-                                isDragging = true
                                 lastY = currentY
                             }
                         }
@@ -172,39 +187,52 @@ fun ReaderWebViewComponent(
                             val deltaX = upX - downX
                             val deltaY = upY - downY
                             val duration = System.currentTimeMillis() - downTime
+                            val screenWidth = width.coerceAtLeast(1)
 
-                            if (isDragging) {
-                                // Handled via ACTION_MOVE
-                            } else {
-                                if (duration < 400 && Math.abs(deltaX) < 35 && Math.abs(deltaY) < 35) {
-                                    // Single tap detected!
-                                    val screenWidth = width
-                                    if (upX < screenWidth * 0.3f) {
-                                        this.evaluateJavascript("window.prevPage();", null)
-                                        onPreviousPage()
-                                    } else if (upX > screenWidth * 0.7f) {
-                                        this.evaluateJavascript("window.nextPage();", null)
-                                        onNextPage()
-                                    } else {
-                                        onToggleBars()
-                                    }
-                                } else if (Math.abs(deltaX) > 15 && Math.abs(deltaX) > Math.abs(deltaY)) {
-                                    // Swipe gesture detected!
+                            if (isHorizontalSwipe) {
+                                val swipeCommitDistance = screenWidth * 0.12f
+                                val isQuickFlick = Math.abs(deltaX) > 36f * densityPx && duration < 320
+                                if (Math.abs(deltaX) > swipeCommitDistance || isQuickFlick) {
                                     if (deltaX > 0) {
-                                        this.evaluateJavascript("window.prevPage();", null)
+                                        this.evaluateJavascript("if(window.prevPage){window.prevPage();}", null)
                                         onPreviousPage()
                                     } else {
-                                        this.evaluateJavascript("window.nextPage();", null)
+                                        this.evaluateJavascript("if(window.nextPage){window.nextPage();}", null)
                                         onNextPage()
+                                    }
+                                } else {
+                                    this.evaluateJavascript("if(window.snapCurrentPage){window.snapCurrentPage();}", null)
+                                }
+                            } else if (!isVerticalDrag) {
+                                if (duration < 400 && Math.abs(deltaX) < tapSlop && Math.abs(deltaY) < tapSlop) {
+                                    // Tap zones: left 25% prev page, right 25% next page, center 50% toggle fullscreen
+                                    when {
+                                        upX < screenWidth * 0.25f -> {
+                                            this.evaluateJavascript("if(window.prevPage){window.prevPage();}", null)
+                                            onPreviousPage()
+                                        }
+                                        upX > screenWidth * 0.75f -> {
+                                            this.evaluateJavascript("if(window.nextPage){window.nextPage();}", null)
+                                            onNextPage()
+                                        }
+                                        else -> {
+                                            onToggleBars()
+                                        }
                                     }
                                 }
                             }
+                            isVerticalDrag = false
+                            isHorizontalSwipe = false
                         }
                         MotionEvent.ACTION_CANCEL -> {
-                            isDragging = false
+                            if (isHorizontalSwipe) {
+                                this.evaluateJavascript("if(window.snapCurrentPage){window.snapCurrentPage();}", null)
+                            }
+                            isVerticalDrag = false
+                            isHorizontalSwipe = false
                         }
                     }
-                    true // Consume all touch events to handle navigation ourselves cleanly
+                    true
                 }
 
                 lastLoadedHtml = htmlContent

@@ -1,52 +1,53 @@
-<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="28dp"
-    android:height="28dp"
-    android:viewportWidth="32"
-    android:viewportHeight="32">
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
 
-    <!-- Shadow -->
+    <!-- Deep 3D gear drop shadow -->
     <path
-        android:pathData="M16,29 C21,29 27,27.5 27,26 C27,24.5 21,25 16,25 C11,25 5,24.5 5,26 C5,27.5 11,29 16,29 Z"
-        android:fillColor="#25000000" />
+        android:fillColor="#70000000"
+        android:pathData="M19.4,13.5c0.04,-0.32 0.07,-0.64 0.07,-0.98s-0.03,-0.66 -0.07,-0.98l2.1,-1.65c0.19,-0.15 0.24,-0.42 0.12,-0.64l-2,-3.46c-0.12,-0.22 -0.39,-0.3 -0.61,-0.22l-2.49,1c-0.52,-0.4 -1.08,-0.73 -1.69,-0.98l-0.38,-2.65C14.42,2.62 14.21,2.45 13.96,2.45h-4c-0.25,0 -0.46,0.17 -0.49,0.42l-0.38,2.65c-0.61,0.25 -1.17,0.59 -1.69,0.98l-2.49,-1c-0.23,-0.09 -0.49,0 -0.61,0.22l-2,3.46c-0.13,0.22 -0.07,0.49 0.12,0.64l2.1,1.65c-0.04,0.32 -0.07,0.65 -0.07,0.98s0.03,0.66 0.07,0.98l-2.1,1.65c-0.19,0.15 -0.24,0.42 -0.12,0.64l2,3.46c0.12,0.22 0.39,0.3 0.61,0.22l2.49,-1c0.52,0.4 1.08,0.73 1.69,0.98l0.38,2.65c0.03,0.24 0.24,0.42 0.49,0.42h4c0.25,0 0.46,-0.18 0.49,-0.42l0.38,-2.65c0.61,-0.25 1.17,-0.59 1.69,-0.98l2.49,1c0.23,0.09 0.49,0 0.61,-0.22l2,-3.46c0.12,-0.22 0.07,-0.49 -0.12,-0.64L19.4,13.5z" />
 
-    <!-- Gear Body (Rose Gold & Titanium Metallic 3D) -->
+    <!-- Dark steel gear contour / side extrusion -->
     <path
-        android:pathData="M18.2,3 L13.8,3 L13.2,5.8 C12.3,6.2 11.4,6.7 10.6,7.3 L7.9,6.1 L4.8,9.2 L6.1,11.9 C5.5,12.7 5,13.6 4.6,14.5 L1.8,15.1 L1.8,19.5 L4.6,20.1 C5,21 5.5,21.9 6.1,22.7 L4.8,25.4 L7.9,28.5 L10.6,27.3 C11.4,27.9 12.3,28.4 13.2,28.8 L13.8,31.6 L18.2,31.6 L18.8,28.8 C19.7,28.4 20.6,27.9 21.4,27.3 L24.1,28.5 L27.2,25.4 L25.9,22.7 C26.5,21.9 27,21 27.4,20.1 L30.2,19.5 L30.2,15.1 L27.4,14.5 C27,13.6 26.5,12.7 25.9,11.9 L27.2,9.2 L24.1,6.1 L21.4,7.3 C20.6,6.7 19.7,6.2 18.8,5.8 Z">
+        android:fillColor="#FF111827"
+        android:pathData="M19.4,12.8c0.04,-0.32 0.07,-0.64 0.07,-0.98s-0.03,-0.66 -0.07,-0.98l2.1,-1.65c0.19,-0.15 0.24,-0.42 0.12,-0.64l-2,-3.46c-0.12,-0.22 -0.39,-0.3 -0.61,-0.22l-2.49,1c-0.52,-0.4 -1.08,-0.73 -1.69,-0.98l-0.38,-2.65C14.42,1.92 14.21,1.75 13.96,1.75h-4c-0.25,0 -0.46,0.17 -0.49,0.42l-0.38,2.65c-0.61,0.25 -1.17,0.59 -1.69,0.98l-2.49,-1c-0.23,-0.09 -0.49,0 -0.61,0.22l-2,3.46c-0.13,0.22 -0.07,0.49 0.12,0.64l2.1,1.65c-0.04,0.32 -0.07,0.65 -0.07,0.98s0.03,0.66 0.07,0.98l-2.1,1.65c-0.19,0.15 -0.24,0.42 -0.12,0.64l2,3.46c0.12,0.22 0.39,0.3 0.61,0.22l2.49,-1c0.52,0.4 1.08,0.73 1.69,0.98l0.38,2.65c0.03,0.24 0.24,0.42 0.49,0.42h4c0.25,0 0.46,-0.18 0.49,-0.42l0.38,-2.65c0.61,-0.25 1.17,-0.59 1.69,-0.98l2.49,1c0.23,0.09 0.49,0 0.61,-0.22l2,-3.46c0.12,-0.22 0.07,-0.49 -0.12,-0.64L19.4,12.8z" />
+
+    <!-- Machined high-contrast chrome gear face -->
+    <path android:pathData="M18.6,12.7c0.04,-0.29 0.06,-0.58 0.06,-0.88s-0.02,-0.59 -0.06,-0.88l1.9,-1.48c0.17,-0.13 0.22,-0.38 0.11,-0.57l-1.8,-3.1c-0.11,-0.2 -0.35,-0.27 -0.55,-0.2l-2.24,0.9c-0.47,-0.36 -0.97,-0.66 -1.52,-0.88l-0.34,-2.38C14.14,2.98 13.95,2.82 13.73,2.82h-3.6c-0.22,0 -0.41,0.16 -0.44,0.38l-0.34,2.38c-0.55,0.22 -1.05,0.53 -1.52,0.88l-2.24,-0.9c-0.2,-0.08 -0.44,0 -0.55,0.2l-1.8,3.1c-0.11,0.2 -0.06,0.44 0.11,0.57l1.9,1.48c-0.04,0.29 -0.06,0.58 -0.06,0.88s0.02,0.59 0.06,0.88l-1.9,1.48c-0.17,0.13 -0.22,0.38 -0.11,0.57l1.8,3.1c0.11,0.2 0.35,0.27 0.55,0.2l2.24,-0.9c0.47,0.36 0.97,0.66 1.52,0.88l0.34,2.38c0.03,0.22 0.22,0.38 0.44,0.38h3.6c0.22,0 0.41,-0.16 0.44,-0.38l0.34,-2.38c0.55,-0.22 1.05,-0.53 1.52,-0.88l2.24,0.9c0.2,0.08 0.44,0 0.55,-0.2l1.8,-3.1c0.11,-0.2 0.06,-0.44 -0.11,-0.57L18.6,12.7z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="2" android:startY="3" android:endX="30" android:endY="31">
-                <item android:offset="0.0" android:color="#FFB0BEC5" />
-                <item android:offset="0.5" android:color="#FF78909C" />
-                <item android:offset="1.0" android:color="#FF37474F" />
+            <gradient
+                android:startX="4" android:startY="3"
+                android:endX="20" android:endY="21"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="0.45" android:color="#FFE2E8F0" />
+                <item android:offset="0.8" android:color="#FF94A3B8" />
+                <item android:offset="1.0" android:color="#FF334155" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Inner Bevel Circle Ring -->
+    <!-- Recessed metallic inner ring -->
     <path
-        android:pathData="M16,10 C19.3,10 22,12.7 22,16 C22,19.3 19.3,22 16,22 C12.7,22 10,19.3 10,16 C10,12.7 12.7,10 16,10 Z">
+        android:fillColor="#FF1E293B"
+        android:pathData="M12,7.4c-2.43,0 -4.4,1.97 -4.4,4.4s1.97,4.4 4.4,4.4s4.4,-1.97 4.4,-4.4S14.43,7.4 12,7.4z" />
+
+    <!-- Center axle bore specular ring -->
+    <path android:pathData="M12,8.6c-1.77,0 -3.2,1.43 -3.2,3.2s1.43,3.2 3.2,3.2s3.2,-1.43 3.2,-3.2S13.77,8.6 12,8.6z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="10" android:startY="10" android:endX="22" android:endY="22">
-                <item android:offset="0.0" android:color="#FFCFD8DC" />
-                <item android:offset="1.0" android:color="#FF90A4AE" />
+            <gradient
+                android:startX="9" android:startY="9"
+                android:endX="15" android:endY="15"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF0F172A" />
+                <item android:offset="1.0" android:color="#FF64748B" />
             </gradient>
         </aapt:attr>
     </path>
-
-    <!-- Center Sapphire Jewel Core -->
     <path
-        android:pathData="M16,12 C18.2,12 20,13.8 20,16 C20,18.2 18.2,20 16,20 C13.8,20 12,18.2 12,16 C12,13.8 13.8,12 16,12 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="12" android:startY="12" android:endX="20" android:endY="20">
-                <item android:offset="0.0" android:color="#FF42A5F5" />
-                <item android:offset="1.0" android:color="#FF0D47A1" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <!-- Top Gloss Highlight -->
-    <path
-        android:pathData="M13,13 C14,12.3 15,12 16,12 C17,12 18,12.3 19,13 C17.5,12.2 14.5,12.2 13,13 Z"
-        android:fillColor="#80FFFFFF" />
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,10.2c-0.88,0 -1.6,0.72 -1.6,1.6s0.72,1.6 1.6,1.6s1.6,-0.72 1.6,-1.6S12.88,10.2 12,10.2z" />
 </vector>

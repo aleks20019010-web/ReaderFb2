@@ -50,7 +50,6 @@ class LibraryScanner(
     private val fb3Processor = Fb3Processor()
     private val mobiProcessor = MobiProcessor()
     private val zipProcessor = ZipProcessor()
-    private val txtProcessor = TxtProcessor()
 
     // Состояние
     private val _isScanning = AtomicBoolean(false)
@@ -205,6 +204,7 @@ class LibraryScanner(
         Log.d(TAG, "Found ${bookFiles.size} book files")
 
         if (bookFiles.isEmpty()) {
+            cleanupInvalidEntriesAndBackfillCovers()
             progressManager.forceUpdate {
                 it.copy(
                     phase = ScanPhase.COMPLETED,
@@ -229,6 +229,12 @@ class LibraryScanner(
         val booksToProcess = analyzeCache(bookFiles)
 
         if (booksToProcess.isEmpty()) {
+            val repairedCovers = cleanupInvalidEntriesAndBackfillCovers()
+            val statusText = if (repairedCovers > 0) {
+                "Обновлено обложек: $repairedCovers"
+            } else {
+                "Все книги уже добавлены (${bookFiles.size})"
+            }
             progressManager.forceUpdate {
                 it.copy(
                     phase = ScanPhase.COMPLETED,
@@ -236,7 +242,7 @@ class LibraryScanner(
                     booksFound = bookFiles.size,
                     booksAdded = 0,
                     booksSkipped = bookFiles.size,
-                    eta = "Все книги уже добавлены (${bookFiles.size})"
+                    eta = statusText
                 )
             }
             try {
@@ -259,6 +265,7 @@ class LibraryScanner(
         }
 
         val addedCount = processBooksInBatches(booksToProcess)
+        val repairedCovers = cleanupInvalidEntriesAndBackfillCovers()
 
         val duration = (System.currentTimeMillis() - startTime) / 1000
 
@@ -269,18 +276,132 @@ class LibraryScanner(
             Log.e(TAG, "Error saving scan stats", e)
         }
 
+        val summaryEta = buildString {
+            append("Завершено за ${duration}с")
+            if (repairedCovers > 0) append(" • обложек: +$repairedCovers")
+        }
+
         progressManager.forceUpdate {
             it.copy(
                 phase = ScanPhase.COMPLETED,
                 overallProgress = 100,
                 phaseProgress = 100,
                 booksAdded = addedCount,
-                eta = "Завершено за ${duration}с",
+                eta = summaryEta,
                 speed = "Готово"
             )
         }
 
-        Log.d(TAG, "Scan completed in ${duration}s. Added: $addedCount")
+        Log.d(TAG, "Scan completed in ${duration}s. Added: $addedCount, Repaired covers: $repairedCovers")
+    }
+
+    /**
+     * Cleans up previously imported .txt entries and bookless .zip archives from the DB,
+     * and backfills missing or purged covers for existing books using the improved extractors.
+     */
+    private suspend fun cleanupInvalidEntriesAndBackfillCovers(): Int {
+        var repairedCovers = 0
+        try {
+            val allBooks = withContext(Dispatchers.IO) {
+                try { bookDao.getAllBooksSync() } catch (_: Throwable) { emptyList() }
+            }
+            if (allBooks.isEmpty()) return 0
+
+            val invalidSha1s = mutableListOf<String>()
+            val booksNeedingCovers = mutableListOf<BookEntity>()
+
+            for (book in allBooks) {
+                if (!_isScanning.get()) break
+                val path = book.filePath
+                val lowerPath = path?.lowercase() ?: ""
+
+                // Remove .txt files from library
+                if (lowerPath.endsWith(".txt")) {
+                    invalidSha1s.add(book.sha1)
+                    continue
+                }
+
+                // Remove .zip files that do not contain any supported e-books
+                if (lowerPath.endsWith(".zip") && !lowerPath.endsWith(".fb2.zip") && !lowerPath.endsWith(".fb3.zip")) {
+                    val file = File(path!!)
+                    if (file.exists() && file.canRead() && !ZipProcessor.hasSupportedBookInside(file)) {
+                        invalidSha1s.add(book.sha1)
+                        continue
+                    }
+                }
+
+                // Check if cover is missing, deleted, or sitting in volatile cacheDir
+                val existingCover = book.coverPath
+                val needsCover = existingCover.isNullOrBlank() ||
+                    existingCover.contains("/cache/") ||
+                    try {
+                        val cf = File(existingCover)
+                        !cf.exists() || cf.length() == 0L
+                    } catch (_: Throwable) {
+                        true
+                    }
+
+                if (needsCover && !path.isNullOrBlank()) {
+                    booksNeedingCovers.add(book)
+                }
+            }
+
+            if (invalidSha1s.isNotEmpty()) {
+                withContext(Dispatchers.IO) {
+                    invalidSha1s.chunked(200).forEach { chunk ->
+                        try {
+                            bookDao.deleteBooksBySha1s(chunk)
+                        } catch (e: Throwable) {
+                            Log.w(TAG, "Failed to delete invalid entries", e)
+                        }
+                    }
+                }
+                Log.d(TAG, "Cleaned up ${invalidSha1s.size} invalid (.txt / bookless .zip) entries")
+            }
+
+            if (booksNeedingCovers.isNotEmpty()) {
+                val totalToFix = booksNeedingCovers.size
+                booksNeedingCovers.forEachIndexed { index, book ->
+                    if (!_isScanning.get()) return repairedCovers
+                    currentCoroutineContext().ensureActive()
+
+                    if (index % 5 == 0) {
+                        progressManager.update {
+                            it.copy(
+                                phase = ScanPhase.PROCESSING_BOOKS,
+                                overallProgress = 90 + ((index.toFloat() / totalToFix) * 9).toInt().coerceAtMost(9),
+                                currentFile = "Поиск обложек: ${index + 1}/$totalToFix"
+                            )
+                        }
+                    }
+
+                    val path = book.filePath ?: return@forEachIndexed
+                    val file = File(path)
+                    if (!file.exists() || !file.canRead()) return@forEachIndexed
+
+                    val newCoverPath = withTimeoutOrNull(8_000L) {
+                        withContext(Dispatchers.IO) {
+                            BookCoverBackfillHelper.extractCoverForFile(file, book.sha1, context)
+                        }
+                    }
+                    if (!newCoverPath.isNullOrBlank()) {
+                        withContext(Dispatchers.IO) {
+                            try {
+                                bookDao.updateCoverPath(book.sha1, newCoverPath)
+                                repairedCovers++
+                            } catch (e: Throwable) {
+                                Log.w(TAG, "Failed updating coverPath for ${book.sha1}", e)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error during cleanup/cover backfill", e)
+        }
+        return repairedCovers
     }
 
     private suspend fun scanFilesWithProgress(): List<File> {
@@ -424,14 +545,17 @@ class LibraryScanner(
     private fun isBookFile(file: File): Boolean {
         return try {
             if (!file.isFile || !file.canRead()) return false
-            if (file.length() > MAX_FILE_SIZE_BYTES) return false
+            if (file.length() <= 0L || file.length() > MAX_FILE_SIZE_BYTES) return false
 
             val name = file.name.lowercase()
             val extension = file.extension.lowercase()
 
             when (extension) {
-                "fb2", "epub", "fb3", "mobi", "azw", "azw3", "fbz", "txt" -> true
-                "zip" -> true
+                "fb2", "epub", "fb3", "mobi", "azw", "azw3", "fbz" -> true
+                "zip" -> {
+                    // Explicitly verify archive contains an actual e-book (fast ZipFile central-directory check)
+                    name.endsWith(".fb2.zip") || name.endsWith(".fb3.zip") || ZipProcessor.hasSupportedBookInside(file)
+                }
                 else -> false
             }
         } catch (e: Exception) {
@@ -674,13 +798,13 @@ class LibraryScanner(
     private fun getProcessorForFile(file: File): BookProcessor? {
         val name = file.name.lowercase()
         when {
+            name.endsWith(".txt") -> return null
             name.endsWith(".fb2.zip") || name.endsWith(".fbz") -> return zipProcessor
             name.endsWith(".fb2") -> return fb2Processor
             name.endsWith(".epub") -> return epubProcessor
             name.endsWith(".fb3") || name.endsWith(".fb3.zip") -> return fb3Processor
             name.endsWith(".mobi") || name.endsWith(".azw") || name.endsWith(".azw3") -> return mobiProcessor
-            name.endsWith(".txt") -> return txtProcessor
-            name.endsWith(".zip") -> return zipProcessor
+            name.endsWith(".zip") -> return if (ZipProcessor.hasSupportedBookInside(file)) zipProcessor else null
         }
 
         return try {
@@ -689,13 +813,15 @@ class LibraryScanner(
             if (readCount > 0) {
                 val headerStr = String(headerBytes, 0, readCount, Charsets.UTF_8).lowercase()
                 when {
-                    headerStr.contains("<fictionbook") || headerStr.contains("<?xml") -> fb2Processor
-                    headerBytes[0] == 'P'.code.toByte() && headerBytes[1] == 'K'.code.toByte() -> zipProcessor
+                    headerStr.contains("<fictionbook") -> fb2Processor
+                    headerBytes[0] == 'P'.code.toByte() && headerBytes[1] == 'K'.code.toByte() -> {
+                        if (ZipProcessor.hasSupportedBookInside(file)) zipProcessor else null
+                    }
                     headerStr.contains("bookmobi") -> mobiProcessor
-                    else -> txtProcessor
+                    else -> null
                 }
             } else {
-                txtProcessor
+                null
             }
         } catch (e: OutOfMemoryError) {
             Log.e(TAG, "Out-of-memory while probing file ${file.name}", e)

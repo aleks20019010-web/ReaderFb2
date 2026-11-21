@@ -55,24 +55,41 @@ object ReaderWebViewPaginator {
                     }
                     body {
                         margin: 0;
-                        padding: ${topPaddingDp}px 0 ${bottomPaddingDp}px 0;
+                        padding: 0;
+                        width: 100vw;
                         height: 100vh;
                         overflow: hidden;
                         font-family: '$fontFamily', serif;
                         font-size: ${fontSize}px;
                         font-weight: $fontWeight;
                         line-height: $lineHeight;
+                        box-sizing: border-box;
+                        background-color: $bgColorHex;
+                        color: $textColorHex;
+                        -webkit-locale: "ru";
+                    }
+                    #page-viewport {
+                        position: fixed;
+                        top: ${topPaddingDp}px;
+                        left: 0;
+                        width: 100vw;
+                        height: calc(100vh - ${topPaddingDp}px - ${bottomPaddingDp}px);
+                        overflow: hidden;
+                        box-sizing: border-box;
+                    }
+                    #content-container {
+                        width: 100vw;
+                        height: 100%;
+                        box-sizing: border-box;
                         column-width: 100vw;
                         column-gap: 0px;
                         column-fill: auto;
                         -webkit-column-width: 100vw;
                         -webkit-column-gap: 0px;
                         -webkit-column-fill: auto;
-                        box-sizing: border-box;
-                        background-color: $bgColorHex;
-                        color: $textColorHex;
-                        scroll-behavior: ${if (pageAnimation == "none") "auto" else "smooth"};
-                        -webkit-locale: "ru";
+                        transform: translate3d(0px, 0px, 0px);
+                        will-change: transform;
+                        transform-origin: center center;
                     }
                     p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, div {
                         padding-left: ${leftPaddingDp}px;
@@ -90,6 +107,11 @@ object ReaderWebViewPaginator {
                         word-break: normal;
                         overflow-wrap: break-word;
                     }
+                    #page-viewport, #content-container {
+                        padding-left: 0 !important;
+                        padding-right: 0 !important;
+                        text-indent: 0 !important;
+                    }
                     p:last-child {
                         margin-bottom: 0;
                     }
@@ -105,11 +127,11 @@ object ReaderWebViewPaginator {
                     s, del, strike {
                         text-decoration: line-through;
                     }
-                    body > *:first-child,
-                    body > h1:first-child,
-                    body > .chapter-title:first-child,
-                    body > .prologue-title:first-child,
-                    body > .annotation-title:first-child {
+                    #content-container > *:first-child,
+                    #content-container > h1:first-child,
+                    #content-container > .chapter-title:first-child,
+                    #content-container > .prologue-title:first-child,
+                    #content-container > .annotation-title:first-child {
                         break-before: avoid !important;
                         page-break-before: avoid !important;
                         -webkit-column-break-before: auto !important;
@@ -189,60 +211,86 @@ object ReaderWebViewPaginator {
                         text-decoration: underline;
                         cursor: pointer;
                     }
-                    #content-container {
-                        transition: transform 0.2s ease-out, opacity 0.2s ease-out, filter 0.2s ease-out;
-                        transform-origin: center center;
-                        perspective: 1000px;
-                    }
                 </style>
             </head>
             <body>
-                <div id="content-container">
-                    $processedHtml
+                <div id="page-viewport">
+                    <div id="content-container">
+                        $processedHtml
+                    </div>
                 </div>
                 <script>
+                    var currentLogicalPage = 0;
+                    var lastReadingAnchor = null;
+                    var animTimer = null;
+
+                    function getContainer() {
+                        return document.getElementById('content-container') || document.body;
+                    }
+
                     function getPageWidth() {
-                        if (window.visualViewport && window.visualViewport.width) {
-                            return window.visualViewport.width;
-                        }
-                        var rect = document.documentElement.getBoundingClientRect();
-                        if (rect && rect.width) {
-                            return rect.width;
-                        }
-                        return window.innerWidth;
+                        var vp = document.getElementById('page-viewport');
+                        if (vp && vp.clientWidth > 0) return vp.clientWidth;
+                        if (window.innerWidth > 0) return window.innerWidth;
+                        return document.documentElement.clientWidth || 360;
+                    }
+
+                    function getTotalWidth() {
+                        var vw = getPageWidth();
+                        var container = getContainer();
+                        var sw = container.scrollWidth || vw;
+                        try {
+                            var containerRect = container.getBoundingClientRect();
+                            var lastEl = container.lastElementChild;
+                            if (lastEl) {
+                                var lastRect = lastEl.getBoundingClientRect();
+                                var rightEdge = lastRect.right - containerRect.left;
+                                if (rightEdge > sw) sw = rightEdge;
+                            }
+                        } catch (e) {}
+                        return Math.max(sw, vw);
+                    }
+
+                    function getTotalPages() {
+                        var vw = getPageWidth();
+                        var totalWidth = getTotalWidth();
+                        return Math.max(1, Math.ceil((totalWidth - 2) / vw));
+                    }
+
+                    function getElementAbsLeft(el) {
+                        var container = getContainer();
+                        var cRect = container.getBoundingClientRect();
+                        var eRect = el.getBoundingClientRect();
+                        return eRect.left - cRect.left;
                     }
 
                     function captureReadingAnchor() {
                         var vw = getPageWidth();
-                        var vh = window.innerHeight;
-                        var centerX = vw / 2;
-                        var centerY = vh / 2;
-                        var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                        var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
-                        
-                        var progress = (sx + centerX) / totalWidth;
-                        
-                        var centerEl = document.elementFromPoint(centerX, centerY);
-                        if (!centerEl) {
-                            centerEl = document.elementFromPoint(16, centerY);
-                        }
-                        
+                        var vh = window.innerHeight || 600;
+                        var totalWidth = getTotalWidth();
+                        var sx = currentLogicalPage * vw;
+                        var progress = (sx + vw / 2) / totalWidth;
+
+                        var centerEl = document.elementFromPoint(vw * 0.5, vh * 0.45) ||
+                                       document.elementFromPoint(vw * 0.25, vh * 0.35) ||
+                                       document.elementFromPoint(vw * 0.5, vh * 0.25);
+
                         var offset = 0;
                         var chapterId = null;
                         var textAnchor = "";
-                        
+
                         if (centerEl) {
                             var curr = centerEl;
                             while (curr && curr !== document.body && curr !== document.documentElement) {
                                 if (!offset && curr.hasAttribute && curr.hasAttribute('data-offset')) {
                                     offset = parseInt(curr.getAttribute('data-offset')) || 0;
                                 }
-                                if (!chapterId && curr.id) {
+                                if (!chapterId && curr.id && curr.id !== 'content-container' && curr.id !== 'page-viewport') {
                                     chapterId = curr.id;
                                 }
                                 curr = curr.parentElement;
                             }
-                            
+
                             var fullText = (centerEl.textContent || centerEl.innerText || "").trim().replace(/\s+/g, ' ');
                             if (fullText.length > 0) {
                                 if (fullText.length <= 50) {
@@ -253,7 +301,7 @@ object ReaderWebViewPaginator {
                                 }
                             }
                         }
-                        
+
                         return {
                             progress: progress,
                             offset: offset,
@@ -263,207 +311,143 @@ object ReaderWebViewPaginator {
                         };
                     }
 
-                    var lastReadingAnchor = null;
-
-                    function runDiagnostics() {
-                        var vw = getPageWidth();
-                        var vh = window.innerHeight;
-                        var sw = document.documentElement.scrollWidth;
-                        var sh = document.documentElement.scrollHeight;
-                        var cw = document.documentElement.clientWidth;
-                        var ch = document.documentElement.clientHeight;
-                        var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                        var sy = window.pageYOffset || document.documentElement.scrollTop || 0;
-                        var totalPages = Math.max(1, Math.round(sw / vw));
-                        var pageIndex = Math.round(sx / vw);
-                        var verticalOverflow = sh > ch + 2;
-                        var horizontalOverflow = sw > vw * totalPages + 2;
-                        var aligned = Math.abs(sx - pageIndex * vw) < 2;
-                        
-                        console.log("[WEBVIEW_DIAGNOSTIC] vw=" + vw + ", vh=" + vh + ", sw=" + sw + ", sh=" + sh + ", cw=" + cw + ", ch=" + ch + ", sx=" + sx + ", sy=" + sy + ", totalPages=" + totalPages + ", pageIndex=" + pageIndex + ", verticalOverflow=" + verticalOverflow + ", horizontalOverflow=" + horizontalOverflow + ", aligned=" + aligned);
-                    }
-
-                    var currentLogicalPage = 0;
-
                     function reportCurrentPosition(overridePageIndex) {
                         try {
-                            if (window.ReaderBridge) {
-                                var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                                var vw = getPageWidth();
-                                var vh = window.innerHeight || 600;
-                                var pageIndex = (overridePageIndex !== undefined && overridePageIndex !== null && overridePageIndex >= 0) ? overridePageIndex : Math.round(sx / vw);
-                                var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
-                                var totalPages = Math.max(1, Math.round(totalWidth / vw));
-                                
-                                currentLogicalPage = pageIndex;
-                                var currentEffectiveSx = pageIndex * vw;
-                                var offset = 0;
+                            if (!window.ReaderBridge) return;
+                            var vw = getPageWidth();
+                            var vh = window.innerHeight || 600;
+                            var totalPages = getTotalPages();
+                            var pageIndex = (overridePageIndex !== undefined && overridePageIndex !== null && overridePageIndex >= 0)
+                                ? overridePageIndex
+                                : currentLogicalPage;
+                            pageIndex = Math.max(0, Math.min(totalPages - 1, pageIndex));
+                            currentLogicalPage = pageIndex;
 
-                                // 1. Try viewport point sampling if scroll is aligned
-                                if (Math.abs(sx - currentEffectiveSx) < 30) {
-                                    var samplePoints = [
-                                        [vw * 0.15, vh * 0.2], [vw * 0.5, vh * 0.2], [vw * 0.85, vh * 0.2],
-                                        [vw * 0.15, vh * 0.5], [vw * 0.5, vh * 0.5], [vw * 0.85, vh * 0.5],
-                                        [vw * 0.15, vh * 0.8], [vw * 0.5, vh * 0.8], [vw * 0.85, vh * 0.8]
-                                    ];
-                                    for (var i = 0; i < samplePoints.length; i++) {
-                                        var el = document.elementFromPoint(samplePoints[i][0], samplePoints[i][1]);
-                                        var curr = el;
-                                        while (curr && curr !== document.body && curr !== document.documentElement) {
-                                            if (curr.hasAttribute && curr.hasAttribute('data-offset')) {
-                                                var parsed = parseInt(curr.getAttribute('data-offset'));
-                                                if (!isNaN(parsed) && parsed > 0) {
-                                                    offset = parsed;
-                                                    break;
-                                                }
-                                            }
-                                            curr = curr.parentElement;
-                                        }
-                                        if (offset > 0) break;
-                                    }
-                                }
+                            var currentEffectiveSx = pageIndex * vw;
+                            var offset = 0;
 
-                                // 2. Fallback: Find element with [data-offset] visible on target pageIndex using document-relative coordinates
-                                if (offset <= 0) {
-                                    var allOffsetEls = document.querySelectorAll('[data-offset]');
-                                    var bestOffset = 0;
-                                    var minDiff = Infinity;
-                                    for (var j = 0; j < allOffsetEls.length; j++) {
-                                        var rect = allOffsetEls[j].getBoundingClientRect();
-                                        var absX = rect.left + sx; // Document absolute X position
-                                        var pVal = parseInt(allOffsetEls[j].getAttribute('data-offset'));
-                                        if (isNaN(pVal) || pVal <= 0) continue;
-
-                                        if (absX >= currentEffectiveSx - 15 && absX < currentEffectiveSx + vw - 15) {
-                                            bestOffset = pVal;
+                            var samplePoints = [
+                                [vw * 0.2, vh * 0.25], [vw * 0.5, vh * 0.25], [vw * 0.8, vh * 0.25],
+                                [vw * 0.2, vh * 0.5],  [vw * 0.5, vh * 0.5],  [vw * 0.8, vh * 0.5],
+                                [vw * 0.2, vh * 0.75], [vw * 0.5, vh * 0.75], [vw * 0.8, vh * 0.75]
+                            ];
+                            for (var i = 0; i < samplePoints.length; i++) {
+                                var el = document.elementFromPoint(samplePoints[i][0], samplePoints[i][1]);
+                                var curr = el;
+                                while (curr && curr !== document.body && curr !== document.documentElement) {
+                                    if (curr.hasAttribute && curr.hasAttribute('data-offset')) {
+                                        var parsed = parseInt(curr.getAttribute('data-offset'));
+                                        if (!isNaN(parsed) && parsed > 0) {
+                                            offset = parsed;
                                             break;
                                         }
-                                        var diff = Math.abs(absX - currentEffectiveSx);
-                                        if (diff < minDiff) {
-                                            minDiff = diff;
-                                            if (bestOffset <= 0) bestOffset = pVal;
-                                        }
                                     }
-                                    offset = bestOffset;
+                                    curr = curr.parentElement;
                                 }
-
-                                lastReadingAnchor = captureReadingAnchor();
-                                runDiagnostics();
-                                window.ReaderBridge.reportPosition(offset, pageIndex, totalPages);
+                                if (offset > 0) break;
                             }
+
+                            if (offset <= 0) {
+                                var allOffsetEls = document.querySelectorAll('[data-offset]');
+                                var bestOffset = 0;
+                                var minDiff = Infinity;
+                                for (var j = 0; j < allOffsetEls.length; j++) {
+                                    var absX = getElementAbsLeft(allOffsetEls[j]);
+                                    var pVal = parseInt(allOffsetEls[j].getAttribute('data-offset'));
+                                    if (isNaN(pVal) || pVal < 0) continue;
+
+                                    if (absX >= currentEffectiveSx - 15 && absX < currentEffectiveSx + vw - 15) {
+                                        bestOffset = pVal;
+                                        break;
+                                    }
+                                    var diff = Math.abs(absX - currentEffectiveSx);
+                                    if (diff < minDiff) {
+                                        minDiff = diff;
+                                        bestOffset = pVal;
+                                    }
+                                }
+                                offset = bestOffset;
+                            }
+
+                            lastReadingAnchor = captureReadingAnchor();
+                            window.ReaderBridge.reportPosition(offset, pageIndex, totalPages);
                         } catch (e) {
                             console.error("Error reporting position:", e);
                         }
                     }
 
-                    var scrollEndTimer = null;
-                    window.addEventListener('scroll', function() {
+                    function applyPageTransform(pageIndex, instant) {
                         var vw = getPageWidth();
-                        var sx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                        var p = Math.round(sx / vw);
-                        reportCurrentPosition(p);
-                        if (scrollEndTimer) clearTimeout(scrollEndTimer);
-                        scrollEndTimer = setTimeout(function() {
-                            reportCurrentPosition();
-                        }, 150);
-                    });
+                        var totalPages = getTotalPages();
+                        pageIndex = Math.max(0, Math.min(totalPages - 1, pageIndex));
+                        currentLogicalPage = pageIndex;
 
-                    function scrollToTarget(target, instant) {
+                        var container = getContainer();
                         var mode = '${pageAnimation}';
-                        var container = document.getElementById('content-container') || document.body;
-                        
+                        var translateX = -(pageIndex * vw);
+
+                        if (animTimer) {
+                            clearTimeout(animTimer);
+                            animTimer = null;
+                        }
+
                         if (instant || mode === 'none') {
                             container.style.transition = 'none';
-                            container.style.transform = 'none';
                             container.style.opacity = '1';
                             container.style.filter = 'none';
-                            window.scrollTo({ left: target, top: 0, behavior: 'auto' });
-                            document.body.scrollLeft = target;
-                            document.documentElement.scrollLeft = target;
+                            container.style.transform = 'translate3d(' + translateX + 'px, 0px, 0px)';
                             return;
                         }
 
-                        if (mode === 'slide') {
-                            container.style.transition = 'none';
-                            container.style.transform = 'none';
-                            container.style.opacity = '1';
-                            window.scrollTo({ left: target, top: 0, behavior: 'smooth' });
-                            document.body.scrollLeft = target;
-                            document.documentElement.scrollLeft = target;
-                        } else if (mode === 'fade') {
-                            container.style.transition = 'opacity 0.15s ease-out';
+                        if (mode === 'fade') {
+                            container.style.transition = 'opacity 0.14s ease-out';
                             container.style.opacity = '0.05';
-                            setTimeout(function() {
-                                window.scrollTo({ left: target, top: 0, behavior: 'auto' });
-                                document.body.scrollLeft = target;
-                                document.documentElement.scrollLeft = target;
-                                setTimeout(function() {
+                            animTimer = setTimeout(function() {
+                                container.style.transition = 'none';
+                                container.style.transform = 'translate3d(' + translateX + 'px, 0px, 0px)';
+                                requestAnimationFrame(function() {
+                                    container.style.transition = 'opacity 0.16s ease-in';
                                     container.style.opacity = '1';
-                                }, 30);
+                                });
                             }, 120);
-                        } else if (mode === 'zoom') {
-                            container.style.transition = 'transform 0.15s ease-out, opacity 0.15s ease-out';
-                            container.style.transform = 'scale(0.85)';
-                            container.style.opacity = '0.3';
-                            setTimeout(function() {
-                                window.scrollTo({ left: target, top: 0, behavior: 'auto' });
-                                document.body.scrollLeft = target;
-                                document.documentElement.scrollLeft = target;
-                                setTimeout(function() {
-                                    container.style.transform = 'scale(1)';
-                                    container.style.opacity = '1';
-                                }, 30);
-                            }, 120);
-                        } else if (mode === 'depth') {
-                            container.style.transition = 'transform 0.15s ease-out, opacity 0.15s ease-out, filter 0.15s ease-out';
-                            container.style.transform = 'scale(0.9) translateZ(-80px)';
-                            container.style.opacity = '0.4';
-                            container.style.filter = 'blur(1px)';
-                            setTimeout(function() {
-                                window.scrollTo({ left: target, top: 0, behavior: 'auto' });
-                                document.body.scrollLeft = target;
-                                document.documentElement.scrollLeft = target;
-                                setTimeout(function() {
-                                    container.style.transform = 'none';
-                                    container.style.opacity = '1';
-                                    container.style.filter = 'none';
-                                }, 30);
-                            }, 120);
-                        } else if (mode === 'curl') {
-                            var curSx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || 0;
-                            var isNext = target > curSx;
-                            container.style.transition = 'transform 0.18s ease-out, opacity 0.18s ease-out';
-                            container.style.transformOrigin = isNext ? 'right center' : 'left center';
-                            container.style.transform = isNext ? 'perspective(1000px) rotateY(-30deg) scale(0.92)' : 'perspective(1000px) rotateY(30deg) scale(0.92)';
-                            container.style.opacity = '0.5';
-                            setTimeout(function() {
-                                window.scrollTo({ left: target, top: 0, behavior: 'auto' });
-                                document.body.scrollLeft = target;
-                                document.documentElement.scrollLeft = target;
-                                setTimeout(function() {
-                                    container.style.transform = 'none';
-                                    container.style.opacity = '1';
-                                }, 30);
-                            }, 140);
                         } else {
-                            window.scrollTo({ left: target, top: 0, behavior: 'smooth' });
-                            document.body.scrollLeft = target;
-                            document.documentElement.scrollLeft = target;
+                            // Default smooth GPU slide
+                            container.style.opacity = '1';
+                            container.style.filter = 'none';
+                            container.style.transition = 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)';
+                            container.style.transform = 'translate3d(' + translateX + 'px, 0px, 0px)';
                         }
                     }
 
+                    window.onSwipeDrag = function(deltaX) {
+                        var vw = getPageWidth();
+                        var totalPages = getTotalPages();
+                        var base = -(currentLogicalPage * vw);
+                        var effectiveDelta = deltaX;
+                        if ((currentLogicalPage <= 0 && deltaX > 0) || (currentLogicalPage >= totalPages - 1 && deltaX < 0)) {
+                            effectiveDelta = deltaX * 0.25;
+                        }
+                        var container = getContainer();
+                        container.style.transition = 'none';
+                        container.style.opacity = '1';
+                        container.style.transform = 'translate3d(' + (base + effectiveDelta) + 'px, 0px, 0px)';
+                    };
+
+                    window.snapCurrentPage = function() {
+                        applyPageTransform(currentLogicalPage, false);
+                    };
+
                     function restorePositionFromAnchor(anchor) {
                         var vw = getPageWidth();
-                        if (vw <= 0) vw = window.innerWidth || 360;
-                        var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
-                        var totalPages = Math.max(1, Math.round(totalWidth / vw));
-                        
-                        var targetPage = -1;
+                        if (vw <= 0) vw = 360;
+                        var totalWidth = getTotalWidth();
+                        var totalPages = getTotalPages();
+
+                        var targetPage = 0;
                         var found = false;
 
-                        // Priority 1: Text Anchor search
                         if (anchor && anchor.textAnchor && anchor.textAnchor.length >= 5) {
-                            var allTextEls = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, blockquote, div');
+                            var allTextEls = document.querySelectorAll('#content-container p, #content-container h1, #content-container h2, #content-container h3, #content-container blockquote');
                             var bestEl = null;
                             for (var i = 0; i < allTextEls.length; i++) {
                                 var txt = (allTextEls[i].textContent || '').trim().replace(/\s+/g, ' ');
@@ -483,15 +467,12 @@ object ReaderWebViewPaginator {
                                 }
                             }
                             if (bestEl) {
-                                var rect = bestEl.getBoundingClientRect();
-                                var curSx = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                                var absLeft = curSx + rect.left;
+                                var absLeft = getElementAbsLeft(bestEl);
                                 targetPage = Math.floor((absLeft + 5) / vw);
                                 found = true;
                             }
                         }
 
-                        // Priority 2: Character / Paragraph Offset
                         if (!found && anchor && anchor.offset > 0) {
                             var allEls = document.querySelectorAll('[data-offset]');
                             var bestElOff = null;
@@ -505,64 +486,49 @@ object ReaderWebViewPaginator {
                                 }
                             }
                             if (bestElOff) {
-                                var rect2 = bestElOff.getBoundingClientRect();
-                                var curSx2 = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                                var absLeft2 = curSx2 + rect2.left;
+                                var absLeft2 = getElementAbsLeft(bestElOff);
                                 targetPage = Math.floor((absLeft2 + 5) / vw);
                                 found = true;
                             }
                         }
 
-                        // Priority 3: Chapter ID
                         if (!found && anchor && anchor.chapterId) {
                             var chapEl = document.getElementById(anchor.chapterId);
                             if (chapEl) {
-                                var rect3 = chapEl.getBoundingClientRect();
-                                var curSx3 = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || window.scrollX || 0;
-                                var absLeft3 = curSx3 + rect3.left;
+                                var absLeft3 = getElementAbsLeft(chapEl);
                                 targetPage = Math.floor((absLeft3 + 5) / vw);
                                 found = true;
                             }
                         }
 
-                        // Priority 4: Relative Document Progress
                         if (!found && anchor && typeof anchor.progress === 'number' && anchor.progress > 0) {
                             var progressX = (anchor.progress * totalWidth) - (vw / 2);
                             targetPage = Math.round(progressX / vw);
                             found = true;
                         }
 
-                        if (targetPage < 0) targetPage = 0;
-                        if (targetPage >= totalPages) targetPage = totalPages - 1;
-
-                        currentLogicalPage = targetPage;
-                        var targetX = targetPage * vw;
-                        scrollToTarget(targetX, true);
+                        targetPage = Math.max(0, Math.min(totalPages - 1, targetPage));
+                        applyPageTransform(targetPage, true);
                         reportCurrentPosition(targetPage);
                         setTimeout(function() {
                             reportCurrentPosition(targetPage);
-                        }, 100);
+                        }, 120);
                     }
 
                     window.scrollToPage = function(pageIndex) {
-                        var vw = getPageWidth();
-                        currentLogicalPage = pageIndex;
-                        var target = pageIndex * vw;
-                        scrollToTarget(target);
-                        reportCurrentPosition(pageIndex);
+                        applyPageTransform(pageIndex, true);
+                        reportCurrentPosition(currentLogicalPage);
                     };
 
                     window.scrollToOffset = function(targetOffset) {
                         if (targetOffset === null || targetOffset === undefined) return;
-                        var anchor = (lastReadingAnchor && lastReadingAnchor.offset === targetOffset) ? lastReadingAnchor : { offset: targetOffset, progress: 0, textAnchor: '' };
-                        
-                        function doScroll() {
-                            restorePositionFromAnchor(anchor);
-                        }
-                        
+                        var anchor = (lastReadingAnchor && lastReadingAnchor.offset === targetOffset)
+                            ? lastReadingAnchor
+                            : { offset: targetOffset, progress: 0, textAnchor: '' };
+
                         requestAnimationFrame(function() {
                             requestAnimationFrame(function() {
-                                doScroll();
+                                restorePositionFromAnchor(anchor);
                             });
                         });
                     };
@@ -570,7 +536,7 @@ object ReaderWebViewPaginator {
                     window.updateStyles = function(fontFamily, fontSize, fontWeight, lineHeight, textColor, bgColor, isHyphenation, topPaddingDp, bottomPaddingDp, leftPaddingDp, rightPaddingDp) {
                         var anchor = captureReadingAnchor();
                         document.documentElement.style.opacity = '0';
-                        
+
                         var styleEl = document.getElementById('dynamic-reader-styles');
                         if (!styleEl) {
                             styleEl = document.createElement('style');
@@ -589,14 +555,20 @@ object ReaderWebViewPaginator {
                                 line-height: ` + lineHeight + ` !important;
                                 background-color: ` + bgColor + ` !important;
                                 color: ` + textColor + ` !important;
-                                padding-top: ` + topPaddingDp + `px !important;
-                                padding-bottom: ` + bottomPaddingDp + `px !important;
+                            }
+                            #page-viewport {
+                                top: ` + topPaddingDp + `px !important;
+                                height: calc(100vh - ` + topPaddingDp + `px - ` + bottomPaddingDp + `px) !important;
                             }
                             p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, div {
                                 padding-left: ` + leftPaddingDp + `px !important;
                                 padding-right: ` + rightPaddingDp + `px !important;
                                 hyphens: ` + (isHyphenation ? 'auto' : 'none') + ` !important;
                                 -webkit-hyphens: ` + (isHyphenation ? 'auto' : 'none') + ` !important;
+                            }
+                            #page-viewport, #content-container {
+                                padding-left: 0 !important;
+                                padding-right: 0 !important;
                             }
                             p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, li, div, span {
                                 color: ` + textColor + ` !important;
@@ -605,7 +577,7 @@ object ReaderWebViewPaginator {
                                 color: #007AFF !important;
                             }
                         `;
-                        
+
                         requestAnimationFrame(function() {
                             requestAnimationFrame(function() {
                                 restorePositionFromAnchor(anchor);
@@ -617,39 +589,36 @@ object ReaderWebViewPaginator {
                     };
 
                     window.nextPage = function() {
-                        var vw = getPageWidth();
-                        var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
-                        var totalPages = Math.max(1, Math.round(totalWidth / vw));
-                        
-                        currentLogicalPage = Math.min(totalPages - 1, currentLogicalPage + 1);
-                        var target = currentLogicalPage * vw;
-                        scrollToTarget(target);
+                        var totalPages = getTotalPages();
+                        if (currentLogicalPage < totalPages - 1) {
+                            applyPageTransform(currentLogicalPage + 1, false);
+                        } else {
+                            applyPageTransform(currentLogicalPage, false);
+                        }
                         reportCurrentPosition(currentLogicalPage);
                         setTimeout(function() {
                             reportCurrentPosition(currentLogicalPage);
-                        }, 250);
+                        }, 240);
                     };
 
                     window.prevPage = function() {
-                        var vw = getPageWidth();
-                        var totalWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
-                        var totalPages = Math.max(1, Math.round(totalWidth / vw));
-
-                        currentLogicalPage = Math.max(0, currentLogicalPage - 1);
-                        var target = currentLogicalPage * vw;
-                        scrollToTarget(target);
+                        if (currentLogicalPage > 0) {
+                            applyPageTransform(currentLogicalPage - 1, false);
+                        } else {
+                            applyPageTransform(0, false);
+                        }
                         reportCurrentPosition(currentLogicalPage);
                         setTimeout(function() {
                             reportCurrentPosition(currentLogicalPage);
-                        }, 250);
+                        }, 240);
                     };
 
                     window.addEventListener('load', function() {
-                        runDiagnostics();
                         if ($initialTargetOffset > 0) {
                             window.scrollToOffset($initialTargetOffset);
                         } else {
-                            reportCurrentPosition();
+                            applyPageTransform(0, true);
+                            reportCurrentPosition(0);
                         }
                     });
                 </script>

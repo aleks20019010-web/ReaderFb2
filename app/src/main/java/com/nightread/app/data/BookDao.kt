@@ -35,6 +35,9 @@ interface BookDao {
     @Query("UPDATE books SET filePath = :newPath WHERE sha1 = :sha1")
     suspend fun updateFilePath(sha1: String, newPath: String)
 
+    @Query("UPDATE books SET coverPath = :coverPath WHERE sha1 = :sha1")
+    suspend fun updateCoverPath(sha1: String, coverPath: String)
+
     @Query("SELECT * FROM books WHERE sha1 = :sha1 LIMIT 1")
     suspend fun getBookBySha1(sha1: String): BookEntity?
 

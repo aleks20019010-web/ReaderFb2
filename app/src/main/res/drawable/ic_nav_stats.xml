@@ -1,75 +1,75 @@
-<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="28dp"
-    android:height="28dp"
-    android:viewportWidth="32"
-    android:viewportHeight="32">
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
 
-    <!-- 3D Base Shadow -->
-    <path
-        android:pathData="M3,27 L29,27 C29.5,27 30,27.5 30,28.5 C30,29.5 29.5,30 29,30 L3,30 C2.5,30 2,29.5 2,28.5 C2,27.5 2.5,27 3,27 Z"
-        android:fillColor="#25000000" />
+    <!-- Base shadow -->
+    <path android:fillColor="#66000000" android:pathData="M2.5,20.2h19v2h-19z" />
 
-    <!-- Pillar 1 (Left, Amber Gold) -->
-    <path
-        android:pathData="M4,17 C4,15.9 4.9,15 6,15 C7.1,15 8,15.9 8,17 L8,26 C8,26.5 7.5,27 7,27 L5,27 C4.5,27 4,26.5 4,26 Z">
+    <!-- Metallic 3D baseline -->
+    <path android:pathData="M2,19.0h20v1.9h-20z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="4" android:startY="15" android:endX="8" android:endY="27">
-                <item android:offset="0.0" android:color="#FFFFB74D" />
-                <item android:offset="1.0" android:color="#FFF57C00" />
-            </gradient>
-        </aapt:attr>
-    </path>
-    <!-- Cap 1 Highlight -->
-    <path
-        android:pathData="M4,17 C4,15.9 4.9,15 6,15 C7.1,15 8,15.9 8,17 Z"
-        android:fillColor="#40FFFFFF" />
-
-    <!-- Pillar 2 (Middle Left, Coral Red) -->
-    <path
-        android:pathData="M11,12 C11,10.9 11.9,10 13,10 C14.1,10 15,10.9 15,12 L15,26 C15,26.5 14.5,27 14,27 L12,27 C11.5,27 11,26.5 11,26 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="11" android:startY="10" android:endX="15" android:endY="27">
-                <item android:offset="0.0" android:color="#FFEF5350" />
-                <item android:offset="1.0" android:color="#FFC62828" />
+            <gradient
+                android:startX="2" android:startY="19"
+                android:endX="22" android:endY="20.9"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFE5E7EB" />
+                <item android:offset="0.5" android:color="#FF9CA3AF" />
+                <item android:offset="1.0" android:color="#FF374151" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Pillar 3 (Middle Right, Sapphire Blue) -->
-    <path
-        android:pathData="M18,15 C18,13.9 18.9,13 20,13 C21.1,13 22,13.9 22,15 L22,26 C22,26.5 21.5,27 21,27 L19,27 C18.5,27 18,26.5 18,26 Z">
+    <!-- Bar 1 dark depth bevel -->
+    <path android:fillColor="#FF111827" android:pathData="M3.2,12.2h4.6v6.8h-4.6z" />
+    <!-- Bar 1 silver face -->
+    <path android:pathData="M3.8,12.8h3.4v6.2h-3.4z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="18" android:startY="13" android:endX="22" android:endY="27">
-                <item android:offset="0.0" android:color="#FF42A5F5" />
-                <item android:offset="1.0" android:color="#FF1565C0" />
+            <gradient
+                android:startX="3.8" android:startY="12.8"
+                android:endX="7.2" android:endY="19.0"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="0.5" android:color="#FFD1D5DB" />
+                <item android:offset="1.0" android:color="#FF6B7280" />
             </gradient>
         </aapt:attr>
     </path>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M4.1,13.1h0.8v5.6h-0.8z" />
 
-    <!-- Pillar 4 (Right Tallest, Emerald Green) -->
-    <path
-        android:pathData="M25,8 C25,6.9 25.9,6 27,6 C28.1,6 29,6.9 29,8 L29,26 C29,26.5 28.5,27 28,27 L26,27 C25.5,27 25,26.5 25,26 Z">
+    <!-- Bar 2 dark depth bevel -->
+    <path android:fillColor="#FF111827" android:pathData="M9.7,7.6h4.6v11.4h-4.6z" />
+    <!-- Bar 2 gunmetal/silver face -->
+    <path android:pathData="M10.3,8.2h3.4v10.8h-3.4z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="25" android:startY="6" android:endX="29" android:endY="27">
-                <item android:offset="0.0" android:color="#FF66BB6A" />
-                <item android:offset="1.0" android:color="#FF2E7D32" />
+            <gradient
+                android:startX="10.3" android:startY="8.2"
+                android:endX="13.7" android:endY="19.0"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFF8FAFC" />
+                <item android:offset="0.45" android:color="#FFCBD5E1" />
+                <item android:offset="1.0" android:color="#FF475569" />
             </gradient>
         </aapt:attr>
     </path>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M10.6,8.5h0.8v10.2h-0.8z" />
 
-    <!-- 3D Floating Trend Arrow (Golden Purple) -->
-    <path
-        android:pathData="M5,13 L13,8 L19,11 L28,4"
-        android:strokeWidth="2.5"
-        android:strokeColor="#FF7E57C2"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M24,4 L28,4 L28,8"
-        android:strokeWidth="2.5"
-        android:strokeColor="#FF7E57C2"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+    <!-- Bar 3 dark depth bevel -->
+    <path android:fillColor="#FF111827" android:pathData="M16.2,3.4h4.6v15.6h-4.6z" />
+    <!-- Bar 3 bright chrome face -->
+    <path android:pathData="M16.8,4.0h3.4v15.0h-3.4z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="16.8" android:startY="4.0"
+                android:endX="20.2" android:endY="19.0"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="0.4" android:color="#FFE2E8F0" />
+                <item android:offset="1.0" android:color="#FF4B5563" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M17.1,4.3h0.9v14.4h-0.9z" />
 </vector>

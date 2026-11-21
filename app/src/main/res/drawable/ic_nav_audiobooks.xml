@@ -1,71 +1,66 @@
-<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="28dp"
-    android:height="28dp"
-    android:viewportWidth="32"
-    android:viewportHeight="32">
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
 
-    <!-- Shadow -->
+    <!-- Headband outer dark steel bevel -->
     <path
-        android:pathData="M6,27 C12,25 20,25 26,27 C27,27.5 25,29 16,29 C7,29 5,27.5 6,27 Z"
-        android:fillColor="#25000000" />
+        android:fillColor="#FF111827"
+        android:pathData="M12,2.2c-5.4,0 -9.8,4.4 -9.8,9.8v4.2h2.8V12c0,-3.9 3.1,-7 7,-7s7,3.1 7,7v4.2h2.8V12C21.8,6.6 17.4,2.2 12,2.2z" />
 
-    <!-- Headphone Band (Silver / Polished Titanium 3D Arc) -->
-    <path
-        android:pathData="M7,16 C7,10.2 11.2,5 16,5 C20.8,5 25,10.2 25,16"
-        android:strokeWidth="3.5"
-        android:strokeLineCap="round">
-        <aapt:attr name="android:strokeColor">
-            <gradient android:type="linear" android:startX="7" android:startY="5" android:endX="25" android:endY="16">
-                <item android:offset="0.0" android:color="#FF78909C" />
-                <item android:offset="0.5" android:color="#FFECEFF1" />
-                <item android:offset="1.0" android:color="#FF455A64" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <!-- Ear Cup Left (Vibrant Crimson Red 3D Capsule) -->
-    <path
-        android:pathData="M4,15 C4,13.3 5.3,12 7,12 L8,12 C9.7,12 11,13.3 11,15 L11,21 C11,22.7 9.7,24 8,24 L7,24 C5.3,24 4,22.7 4,21 Z">
+    <!-- Headband metallic silver arc -->
+    <path android:pathData="M12,2.9c-5.0,0 -9.1,4.1 -9.1,9.1v3.4h1.6V12c0,-4.15 3.35,-7.5 7.5,-7.5s7.5,3.35 7.5,7.5v3.4h1.6V12C21.1,7.0 17.0,2.9 12,2.9z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="4" android:startY="12" android:endX="11" android:endY="24">
-                <item android:offset="0.0" android:color="#FFE53935" />
-                <item android:offset="1.0" android:color="#FF8E0000" />
+            <gradient
+                android:startX="3" android:startY="3"
+                android:endX="21" android:endY="14"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="0.5" android:color="#FFD1D5DB" />
+                <item android:offset="1.0" android:color="#FF4B5563" />
             </gradient>
         </aapt:attr>
     </path>
-    <!-- Ear Cushion Cushion Left -->
-    <path
-        android:pathData="M9,13.5 L11,13.5 L11,22.5 L9,22.5 Z"
-        android:fillColor="#FF212121" />
 
-    <!-- Ear Cup Right (Vibrant Crimson Red 3D Capsule) -->
+    <!-- Left Earcup dark cushion & shadow -->
     <path
-        android:pathData="M21,15 C21,13.3 22.3,12 24,12 L25,12 C26.7,12 28,13.3 28,15 L28,21 C28,22.7 26.7,24 25,24 L24,24 C22.3,24 21,22.7 21,21 Z">
+        android:fillColor="#FF0F172A"
+        android:pathData="M2.2,13.0h4.4c1.3,0 2.4,1.1 2.4,2.4v4.0c0,1.3 -1.1,2.4 -2.4,2.4H4.6c-1.3,0 -2.4,-1.1 -2.4,-2.4z" />
+    <!-- Left Earcup sculpted silver shell -->
+    <path android:pathData="M2.8,13.6h2.8c0.9,0 1.6,0.7 1.6,1.6v4.0c0,0.9 -0.7,1.6 -1.6,1.6H4.4c-0.9,0 -1.6,-0.7 -1.6,-1.6z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="21" android:startY="12" android:endX="28" android:endY="24">
-                <item android:offset="0.0" android:color="#FFE53935" />
-                <item android:offset="1.0" android:color="#FF8E0000" />
+            <gradient
+                android:startX="2.8" android:startY="13.6"
+                android:endX="7.2" android:endY="20.8"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="0.5" android:color="#FFD1D5DB" />
+                <item android:offset="1.0" android:color="#FF4B5563" />
             </gradient>
         </aapt:attr>
     </path>
-    <!-- Ear Cushion Right -->
-    <path
-        android:pathData="M21,13.5 L23,13.5 L23,22.5 L21,22.5 Z"
-        android:fillColor="#FF212121" />
+    <!-- Left specular bar -->
+    <path android:fillColor="#FFFFFFFF" android:pathData="M3.6,14.8h0.9v4.6h-0.9z" />
 
-    <!-- Center 3D Book Disk / Audio Waves -->
+    <!-- Right Earcup dark cushion & shadow -->
     <path
-        android:pathData="M16,13 C18.2,13 20,14.8 20,17 C20,19.2 18.2,21 16,21 C13.8,21 12,19.2 12,17 C12,14.8 13.8,13 16,13 Z">
+        android:fillColor="#FF0F172A"
+        android:pathData="M17.4,13.0h4.4v6.4c0,1.3 -1.1,2.4 -2.4,2.4h-2.0c-1.3,0 -2.4,-1.1 -2.4,-2.4v-4.0c0,-1.3 1.1,-2.4 2.4,-2.4z" />
+    <!-- Right Earcup sculpted silver shell -->
+    <path android:pathData="M18.4,13.6h2.8v5.6c0,0.9 -0.7,1.6 -1.6,1.6h-1.2c-0.9,0 -1.6,-0.7 -1.6,-1.6v-4.0c0,-0.9 0.7,-1.6 1.6,-1.6z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="12" android:startY="13" android:endX="20" android:endY="21">
-                <item android:offset="0.0" android:color="#FFFFB74D" />
-                <item android:offset="1.0" android:color="#FFF57C00" />
+            <gradient
+                android:startX="16.8" android:startY="13.6"
+                android:endX="21.2" android:endY="20.8"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="0.5" android:color="#FFCBD5E1" />
+                <item android:offset="1.0" android:color="#FF4B5563" />
             </gradient>
         </aapt:attr>
     </path>
-    <path
-        android:pathData="M16,15.5 C16.8,15.5 17.5,16.2 17.5,17 C17.5,17.8 16.8,18.5 16,18.5 C15.2,18.5 14.5,17.8 14.5,17 C14.5,16.2 15.2,15.5 16,15.5 Z"
-        android:fillColor="#FFFFFFFF" />
+    <!-- Right specular bar -->
+    <path android:fillColor="#FFFFFFFF" android:pathData="M19.5,14.8h0.9v4.6h-0.9z" />
 </vector>

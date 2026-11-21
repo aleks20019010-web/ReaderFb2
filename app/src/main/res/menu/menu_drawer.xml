@@ -27,7 +27,7 @@
             android:title="@string/drawer_new_books" />
         <item
             android:id="@+id/nav_want_to_read"
-            android:icon="@drawable/ic_pin"
+            android:icon="@drawable/ic_nav_pin"
             android:title="@string/drawer_want_to_read" />
         <item
             android:id="@+id/nav_stats"
@@ -48,7 +48,7 @@
             android:title="@string/drawer_settings" />
         <item
             android:id="@+id/nav_bug_report"
-            android:icon="@android:drawable/ic_dialog_email"
+            android:icon="@drawable/ic_nav_bug_report"
             android:title="@string/settings_bug_report_btn" />
     </group>
 </menu>

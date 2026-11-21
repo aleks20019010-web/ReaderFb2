@@ -11,18 +11,13 @@ import android.util.Base64InputStream
 object NewCoverExtractor {
 
     /**
-     * Extracts cover from file, fallback implementation.
+     * Extracts cover from FB2 file using the fault-tolerant streaming extractor
+     * (handles files of any size and broken XML entities without OOM).
      */
     fun extractCover(file: File, sha1: String, context: Context?): String? {
         if (context == null) return null
         return try {
-            // Lowered threshold to avoid reading moderately large files into memory
-            if (file.length() > 5L * 1024L * 1024L) {
-                // Avoid reading files larger than 5MB entirely into memory
-                return null
-            }
-            val content = file.readText(Charsets.UTF_8)
-            extractAndSaveCover(content, sha1, context)
+            Fb2CoverExtractor.extractFromFile(file, sha1, context)
         } catch (e: Throwable) {
             Log.e("NewCoverExtractor", "Failed to extract cover from file directly", e)
             null

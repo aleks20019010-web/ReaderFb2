@@ -1,6 +1,12 @@
 package com.nightread.app.ui
 
 import android.net.Uri
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -420,18 +426,40 @@ private fun GlassActionIcon(imageVector: ImageVector, description: String, onCli
 }
 
 // =========================================================
-// 4. СЕТКА КНИГ (3 КОЛОНКИ СТЕКЛОМОРФИЗМ)
+// 4. СЕТКА КНИГ (3 КОЛОНКИ С ПУЛЬСИРУЮЩИМИ 3D ОБЛОЖКАМИ)
 // =========================================================
 @Composable
 private fun GlassBookGrid(books: List<BookEntity>, onBookClicked: (BookEntity) -> Unit) {
     val uniqueBooks = remember(books) { books.distinctBy { it.sha1 } }
+
+    // Общая плавная анимация пульсации обложек как на экране серии
+    val infiniteTransition = rememberInfiniteTransition(label = "cover_pulse_transition")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 1.03f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "cover_pulse_scale"
+    )
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.55f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "cover_glow_alpha"
+    )
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
         contentPadding = PaddingValues(bottom = 24.dp, top = 4.dp)
     ) {
         items(
@@ -440,6 +468,8 @@ private fun GlassBookGrid(books: List<BookEntity>, onBookClicked: (BookEntity) -
         ) { book ->
             GlassBookCard(
                 book = book,
+                pulseScale = pulseScale,
+                glowAlpha = glowAlpha,
                 onClicked = { onBookClicked(book) }
             )
         }
@@ -447,7 +477,12 @@ private fun GlassBookGrid(books: List<BookEntity>, onBookClicked: (BookEntity) -
 }
 
 @Composable
-private fun GlassBookCard(book: BookEntity, onClicked: () -> Unit) {
+private fun GlassBookCard(
+    book: BookEntity,
+    pulseScale: Float = 1.0f,
+    glowAlpha: Float = 0.35f,
+    onClicked: () -> Unit
+) {
     val colorScheme = MaterialTheme.colorScheme
     val coverUri = remember(book.coverPath) {
         if (!book.coverPath.isNullOrBlank()) {
@@ -459,6 +494,15 @@ private fun GlassBookCard(book: BookEntity, onClicked: () -> Unit) {
             }
         } else null
     }
+
+    val glowColor = remember(book.coverGradientStart) {
+        try {
+            Color(android.graphics.Color.parseColor(book.coverGradientStart))
+        } catch (_: Exception) {
+            Color(0xFF4A6FA5)
+        }
+    }
+
     val fallbackGradient = remember(book.coverGradientStart, book.coverGradientEnd) {
         val start = try {
             Color(android.graphics.Color.parseColor(book.coverGradientStart))
@@ -473,16 +517,28 @@ private fun GlassBookCard(book: BookEntity, onClicked: () -> Unit) {
         Brush.linearGradient(listOf(start, end))
     }
 
+    val progressFraction = remember(book.currentProgressChar, book.totalCharacters) {
+        if (book.totalCharacters > 0 && book.currentProgressChar > 0) {
+            (book.currentProgressChar.toFloat() / book.totalCharacters.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+    }
+
+    val initialLetter = remember(book.title) {
+        book.title.trim().firstOrNull()?.uppercase() ?: "К"
+    }
+
     Box(
         modifier = Modifier
-            .height(240.dp)
-            .shadow(12.dp, RoundedCornerShape(14.dp), spotColor = colorScheme.outlineVariant)
+            .height(280.dp)
+            .shadow(10.dp, RoundedCornerShape(14.dp), spotColor = colorScheme.outlineVariant)
             .clip(RoundedCornerShape(14.dp))
             .background(
                 brush = Brush.verticalGradient(
                     listOf(
-                        Color(0xFF202A42).copy(alpha = 0.75f),
-                        Color(0xFF131A2B).copy(alpha = 0.85f)
+                        Color(0xFF1E273D).copy(alpha = 0.80f),
+                        Color(0xFF111827).copy(alpha = 0.90f)
                     )
                 )
             )
@@ -492,86 +548,174 @@ private fun GlassBookCard(book: BookEntity, onClicked: () -> Unit) {
                 drawRoundRect(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            colorScheme.tertiary.copy(alpha = 0.4f),
-                            colorScheme.outline.copy(alpha = 0.15f),
-                            colorScheme.tertiary.copy(alpha = 0.3f)
+                            colorScheme.tertiary.copy(alpha = 0.45f),
+                            colorScheme.outline.copy(alpha = 0.18f),
+                            colorScheme.tertiary.copy(alpha = 0.35f)
                         )
                     ),
                     cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx()),
                     size = Size(size.width - 2f, size.height - 2f),
                     topLeft = Offset(1f, 1f),
-                    style = Stroke(width = 1f)
+                    style = Stroke(width = 1.2f)
                 )
             }
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Обложка книги
+            // Область обложки с пульсацией, свечением и 3D-корешком (как на экране серии)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(130.dp)
-                    .shadow(4.dp, RoundedCornerShape(8.dp))
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(brush = fallbackGradient),
+                    .height(195.dp)
+                    .padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Book,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.45f),
-                    modifier = Modifier.size(36.dp)
-                )
-                if (coverUri != null) {
-                    AsyncImage(
-                        model = coverUri,
-                        contentDescription = book.title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-                // Легкий отсвет стекла поверх обложки
+                // Пульсирующее цветное свечение позади обложки
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = pulseScale * 1.04f
+                            scaleY = pulseScale * 1.04f
+                            alpha = glowAlpha
+                        }
                         .background(
-                            brush = Brush.verticalGradient(
-                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.3f))
-                            )
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    glowColor.copy(alpha = 0.65f),
+                                    glowColor.copy(alpha = 0.15f),
+                                    Color.Transparent
+                                )
+                            ),
+                            shape = RoundedCornerShape(12.dp)
                         )
                 )
+
+                // Пульсирующая обложка с 3D-эффектом книги
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = pulseScale
+                            scaleY = pulseScale
+                        }
+                        .shadow(8.dp, RoundedCornerShape(10.dp), spotColor = Color.Black)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(brush = fallbackGradient)
+                        .border(
+                            width = 1.dp,
+                            color = Color.White.copy(alpha = 0.22f),
+                            shape = RoundedCornerShape(10.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (coverUri != null) {
+                        AsyncImage(
+                            model = coverUri,
+                            contentDescription = book.title,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        // Стильная заглавная буква для книг без обложки
+                        Text(
+                            text = initialLetter,
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // 3D эффект сгиба корешка слева
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(16.dp)
+                            .align(Alignment.CenterStart)
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color(0x66000000),
+                                        Color(0x22FFFFFF),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                    )
+
+                    // Блик торца страниц справа
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(2.5.dp)
+                            .align(Alignment.CenterEnd)
+                            .background(Color.White.copy(alpha = 0.28f))
+                    )
+
+                    // Тонкая полоса прогресса чтения внизу обложки
+                    if (progressFraction > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .align(Alignment.BottomCenter)
+                                .background(Color.Black.copy(alpha = 0.45f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(progressFraction)
+                                    .background(colorScheme.primary)
+                            )
+                        }
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // Текстовый блок снизу (выравнивание по левому краю как на экране серии)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.Top
+            ) {
+                Text(
+                    text = book.title.ifBlank { "Без названия" },
+                    color = colorScheme.onSurface,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Start,
+                    lineHeight = 14.sp
+                )
 
-            // Название книги
-            Text(
-                text = book.title,
-                color = colorScheme.onSurface,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                lineHeight = 15.sp
-            )
+                Spacer(modifier = Modifier.height(3.dp))
 
-            Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = book.author?.takeIf { it.isNotBlank() } ?: "Неизвестный автор",
+                    color = colorScheme.secondary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Start
+                )
 
-            // Автор
-            Text(
-                text = book.author ?: "Неизвестный автор",
-                color = colorScheme.secondary,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
+                if (!book.series.isNullOrBlank()) {
+                    Text(
+                        text = book.series,
+                        color = colorScheme.tertiary.copy(alpha = 0.78f),
+                        fontSize = 9.5.sp,
+                        fontWeight = FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Start
+                    )
+                }
+            }
         }
     }
 }

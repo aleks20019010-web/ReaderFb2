@@ -1,77 +1,66 @@
-<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="28dp"
-    android:height="28dp"
-    android:viewportWidth="32"
-    android:viewportHeight="32">
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
 
-    <!-- 3D Shadow -->
+    <!-- Drop shadow -->
     <path
-        android:pathData="M3,23 C9,20 15,22 16,23 C17,22 23,20 29,23 L28,26 C22,23 17,25 16,26 C15,25 10,23 4,26 Z"
-        android:fillColor="#25000000" />
+        android:fillColor="#66000000"
+        android:pathData="M2.5,19.4c3,-1 6.5,-0.8 9.5,1.4c3,-2.2 6.5,-2.4 9.5,-1.4v1.6c-3,-1 -6.5,-0.6 -9.5,1.4c-3,-2 -6.5,-2.4 -9.5,-1.4z" />
 
-    <!-- Book Base / Cover (Volumetric Sunset Orange/Coral) -->
+    <!-- Hard dark 3D cover base -->
     <path
-        android:pathData="M2,9 C8,6 15,8 16,9 C17,8 24,6 30,9 L30,22 C24,19 17,21 16,22 C15,21 8,19 2,22 Z">
+        android:fillColor="#FF111827"
+        android:pathData="M2,5.5c3.5,-1.1 7.2,-0.6 10,1.4c2.8,-2 6.5,-2.5 10,-1.4v13.8c-3.5,-1.1 -7.2,-0.6 -10,1.4c-2.8,-2 -6.5,-2.5 -10,-1.4z" />
+
+    <!-- Left Page (bright high-contrast silver) -->
+    <path android:pathData="M3.1,5.9c2.9,-0.8 6.1,-0.3 8.6,1.4v11.6c-2.5,-1.5 -5.7,-1.9 -8.6,-1.1z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="2" android:startY="6" android:endX="30" android:endY="22">
-                <item android:offset="0.0" android:color="#FFFF6F00" />
-                <item android:offset="0.5" android:color="#FFFF8F00" />
-                <item android:offset="1.0" android:color="#FFD84315" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <!-- Pages Curved Left (Warm Ivory/White Gradient) -->
-    <path
-        android:pathData="M3,8 C8.5,5.2 14.8,7.2 15.5,8.2 L15.5,20.2 C14.8,19.2 8.5,17.2 3,20 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="3" android:startY="5" android:endX="15" android:endY="20">
+            <gradient
+                android:startX="3.1" android:startY="5.5"
+                android:endX="11.7" android:endY="18.9"
+                android:type="linear">
                 <item android:offset="0.0" android:color="#FFFFFFFF" />
-                <item android:offset="1.0" android:color="#FFFFECB3" />
+                <item android:offset="0.65" android:color="#FFD1D5DB" />
+                <item android:offset="1.0" android:color="#FF6B7280" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Pages Curved Right (Warm Cream Gradient) -->
-    <path
-        android:pathData="M16.5,8.2 C17.2,7.2 23.5,5.2 29,8 L29,20 C23.5,17.2 17.2,19.2 16.5,20.2 Z">
+    <!-- Right Page (sculpted steel grey) -->
+    <path android:pathData="M12.3,7.3c2.5,-1.7 5.7,-2.2 8.6,-1.4v11.9c-2.9,-0.8 -6.1,-0.4 -8.6,1.1z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="16" android:startY="5" android:endX="29" android:endY="20">
-                <item android:offset="0.0" android:color="#FFFFECB3" />
-                <item android:offset="1.0" android:color="#FFFFF8E1" />
+            <gradient
+                android:startX="12.3" android:startY="7.3"
+                android:endX="20.9" android:endY="17.8"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF9CA3AF" />
+                <item android:offset="0.4" android:color="#FFE5E7EB" />
+                <item android:offset="1.0" android:color="#FF9CA3AF" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Center Spine Shadow Line -->
+    <!-- Center spine shadow crease -->
     <path
-        android:pathData="M15.5,8 L16.5,8 L16.5,21 L15.5,21 Z"
-        android:fillColor="#30000000" />
+        android:fillColor="#FF1F2937"
+        android:pathData="M11.6,7.1h0.8v11.9h-0.8z" />
 
-    <!-- Page Text Lines 3D Detail Left -->
-    <path
-        android:pathData="M5,11 L13,9 M5,14 L12,12 M5,17 L10,16"
-        android:strokeWidth="1.2"
-        android:strokeColor="#FFBCAAA4"
-        android:strokeLineCap="round" />
+    <!-- Embossed text lines on pages -->
+    <path android:fillColor="#FF374151" android:pathData="M4.8,8.7l5.2,0.7v1.0l-5.2,-0.7z" />
+    <path android:fillColor="#FF4B5563" android:pathData="M4.8,11.3l5.2,0.7v1.0l-5.2,-0.7z" />
+    <path android:fillColor="#FF4B5563" android:pathData="M4.8,13.9l4.2,0.6v1.0l-4.2,-0.6z" />
 
-    <!-- Page Text Lines 3D Detail Right -->
-    <path
-        android:pathData="M19,9 L27,11 M20,12 L27,14 M22,16 L27,17"
-        android:strokeWidth="1.2"
-        android:strokeColor="#FFBCAAA4"
-        android:strokeLineCap="round" />
+    <path android:fillColor="#FF374151" android:pathData="M14.0,9.4l5.2,-0.7v1.0l-5.2,0.7z" />
+    <path android:fillColor="#FF4B5563" android:pathData="M14.0,12.0l5.2,-0.7v1.0l-5.2,0.7z" />
 
-    <!-- Hanging Crimson Ribbon Bookmark with Gold Tip -->
+    <!-- High-contrast dark metallic bookmark ribbon -->
     <path
-        android:pathData="M14.5,7 L17.5,7 L17.5,16 L16,14.5 L14.5,16 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="14" android:startY="7" android:endX="17" android:endY="16">
-                <item android:offset="0.0" android:color="#FFE53935" />
-                <item android:offset="1.0" android:color="#FFB71C1C" />
-            </gradient>
-        </aapt:attr>
-    </path>
+        android:fillColor="#FF0F172A"
+        android:pathData="M15.2,4.4h3.2v8.2l-1.6,-1.4l-1.6,1.4z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M15.8,4.9h1.1v6.2l-0.55,-0.5l-0.55,0.5z" />
 </vector>

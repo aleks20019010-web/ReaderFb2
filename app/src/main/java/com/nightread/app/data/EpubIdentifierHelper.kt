@@ -174,13 +174,15 @@ object EpubIdentifierHelper {
                     }
 
                     val manifestMap = mutableMapOf<String, String>()
+                    val manifestMapLower = mutableMapOf<String, String>()
                     val manifestMediaTypeMap = mutableMapOf<String, String>()
                     var epub3CoverHref: String? = null
+                    var firstImageHref: String? = null
 
                     val itemMatches = Regex("<item\\s+([^>]+)>", RegexOption.IGNORE_CASE).findAll(opfContent)
                     for (item in itemMatches) {
                         val attrs = item.groupValues[1]
-                        val idM = Regex("id\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
+                        val idM = Regex("\\bid\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
                         val hrefM = Regex("href\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
                         val mediaTypeM = Regex("media-type\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
                         val propertiesM = Regex("properties\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
@@ -192,9 +194,13 @@ object EpubIdentifierHelper {
 
                         if (id.isNotEmpty() && href.isNotEmpty()) {
                             manifestMap[id] = href
+                            manifestMapLower[id.lowercase()] = href
                         }
                         if (href.isNotEmpty()) {
                             manifestMediaTypeMap[href] = mediaType
+                            if (firstImageHref == null && mediaType.startsWith("image/", ignoreCase = true)) {
+                                firstImageHref = href
+                            }
                         }
 
                         if (properties.contains("cover-image", ignoreCase = true) && href.isNotEmpty()) {
@@ -205,21 +211,41 @@ object EpubIdentifierHelper {
                     var rawCoverPath: String? = epub3CoverHref
 
                     if (rawCoverPath == null && coverIdOrPath != null) {
-                        if (manifestMap.containsKey(coverIdOrPath)) {
-                            rawCoverPath = manifestMap[coverIdOrPath]
-                        } else if (coverIdOrPath.contains(".") || coverIdOrPath.contains("/")) {
-                            rawCoverPath = coverIdOrPath
+                        val keyLower = coverIdOrPath.lowercase()
+                        rawCoverPath = manifestMap[coverIdOrPath]
+                            ?: manifestMapLower[keyLower]
+                            ?: if (coverIdOrPath.contains(".") || coverIdOrPath.contains("/")) coverIdOrPath else null
+                    }
+
+                    if (rawCoverPath == null) {
+                        val coverKeys = listOf("cover", "cover-image", "coverimage", "cover_image", "cover-img", "img-cover", "title-page", "titlepage", "thumb", "thumbnail")
+                        for (key in coverKeys) {
+                            val found = manifestMapLower[key]
+                            if (found != null) {
+                                rawCoverPath = found
+                                break
+                            }
+                        }
+                    }
+
+                    // Check EPUB 2 <guide><reference type="cover" href="..."/>
+                    if (rawCoverPath == null) {
+                        val refMatches = Regex("<reference\\s+([^>]+)>", RegexOption.IGNORE_CASE).findAll(opfContent)
+                        for (ref in refMatches) {
+                            val attrs = ref.groupValues[1]
+                            val typeM = Regex("type\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
+                            val hrefM = Regex("href\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).find(attrs)
+                            val refType = typeM?.groupValues?.get(1)?.lowercase() ?: ""
+                            val refHref = hrefM?.groupValues?.get(1)?.substringBefore("#") ?: ""
+                            if ((refType == "cover" || refType == "other.ms-coverimage-standard") && refHref.isNotEmpty()) {
+                                rawCoverPath = refHref
+                                break
+                            }
                         }
                     }
 
                     if (rawCoverPath == null) {
-                        val coverKeys = listOf("cover", "cover-image", "coverimage", "cover_image", "title-page", "titlepage", "thumb", "thumbnail")
-                        for (key in coverKeys) {
-                            if (manifestMap.containsKey(key)) {
-                                rawCoverPath = manifestMap[key]
-                                break
-                            }
-                        }
+                        rawCoverPath = firstImageHref
                     }
 
                     if (rawCoverPath != null) {

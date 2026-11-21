@@ -1,76 +1,86 @@
-<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="28dp"
-    android:height="28dp"
-    android:viewportWidth="32"
-    android:viewportHeight="32">
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
 
-    <!-- 3D Base Drop Shadow -->
+    <!-- Ground shadow -->
     <path
-        android:pathData="M3,27 L29,27 C29.55,27 30,27.45 30,28 C30,28.55 29.55,29 29,29 L3,29 C2.45,29 2,28.55 2,28 C2,27.45 2.45,27 3,27 Z"
-        android:fillColor="#25000000" />
+        android:fillColor="#66000000"
+        android:pathData="M2.5,20.5h19v2.2h-19z" />
 
-    <!-- Book 1 (Left, Amber/Gold) -->
-    <path
-        android:pathData="M4,10 L9,8 L9,26 L4,26 Z">
+    <!-- Bottom 3D shelf ledge -->
+    <path android:pathData="M2,19.2h20v2h-20z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="4" android:startY="8" android:endX="9" android:endY="26">
-                <item android:offset="0.0" android:color="#FFFB8C00" />
-                <item android:offset="1.0" android:color="#FFE65100" />
-            </gradient>
-        </aapt:attr>
-    </path>
-    <!-- Book 1 Spine Highlight -->
-    <path
-        android:pathData="M4,10 L5.5,9.4 L5.5,26 L4,26 Z"
-        android:fillColor="#30FFFFFF" />
-
-    <!-- Book 2 (Middle, Emerald Green) -->
-    <path
-        android:pathData="M11,6 L17,6 L17,26 L11,26 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="11" android:startY="6" android:endX="17" android:endY="26">
-                <item android:offset="0.0" android:color="#FF26A69A" />
-                <item android:offset="1.0" android:color="#FF004D40" />
-            </gradient>
-        </aapt:attr>
-    </path>
-    <!-- Book 2 Spine Highlight -->
-    <path
-        android:pathData="M11,6 L12.8,6 L12.8,26 L11,26 Z"
-        android:fillColor="#35FFFFFF" />
-    <path
-        android:pathData="M13,10 L15,10 L15,14 L13,14 Z"
-        android:fillColor="#40FFFFFF" />
-
-    <!-- Book 3 (Right, Sapphire Blue) -->
-    <path
-        android:pathData="M19,8 L25,8 L25,26 L19,26 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="19" android:startY="8" android:endX="25" android:endY="26">
-                <item android:offset="0.0" android:color="#FF42A5F5" />
-                <item android:offset="1.0" android:color="#FF0D47A1" />
-            </gradient>
-        </aapt:attr>
-    </path>
-    <path
-        android:pathData="M19,8 L20.8,8 L20.8,26 L19,26 Z"
-        android:fillColor="#35FFFFFF" />
-
-    <!-- Book 4 (Leaning, Ruby Red) -->
-    <path
-        android:pathData="M26.2,11.2 L29.8,23.8 L25.5,25.2 L22,12.5 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="22" android:startY="11" android:endX="29" android:endY="25">
-                <item android:offset="0.0" android:color="#FFEF5350" />
-                <item android:offset="1.0" android:color="#FFB71C1C" />
+            <gradient
+                android:startX="2" android:startY="19.2"
+                android:endX="22" android:endY="21.2"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFE5E7EB" />
+                <item android:offset="0.5" android:color="#FF9CA3AF" />
+                <item android:offset="1.0" android:color="#FF374151" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Golden Book Band Accent -->
+    <!-- Left Book 3D side bevel -->
     <path
-        android:pathData="M11,18 L17,18 L17,20 L11,20 Z"
-        android:fillColor="#FFFFD54F" />
+        android:fillColor="#FF1F2937"
+        android:pathData="M3,4.2c0,-0.7 0.5,-1.2 1.2,-1.2h3.6c0.7,0 1.2,0.5 1.2,1.2v15h-6z" />
+    <!-- Left Book silver front face -->
+    <path android:pathData="M3.6,3.6h4.2c0.4,0 0.7,0.3 0.7,0.7v14.9h-4.9z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="3.6" android:startY="3.6"
+                android:endX="8.5" android:endY="19.2"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="0.45" android:color="#FFD1D5DB" />
+                <item android:offset="1.0" android:color="#FF6B7280" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Left Book dark spine bands -->
+    <path android:fillColor="#FF111827" android:pathData="M4.2,6.2h3.6v1.1h-3.6z" />
+    <path android:fillColor="#FF111827" android:pathData="M4.2,15.4h3.6v1.1h-3.6z" />
+
+    <!-- Middle Book 3D dark depth -->
+    <path
+        android:fillColor="#FF111827"
+        android:pathData="M9.4,5.8c0,-0.7 0.5,-1.2 1.2,-1.2h3.8c0.7,0 1.2,0.5 1.2,1.2v13.4h-6.2z" />
+    <!-- Middle Book metallic face -->
+    <path android:pathData="M10,5.2h4.4c0.4,0 0.7,0.3 0.7,0.7v13.3h-5.1z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="10" android:startY="5.2"
+                android:endX="15.1" android:endY="19.2"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFF3F4F6" />
+                <item android:offset="0.5" android:color="#FF9CA3AF" />
+                <item android:offset="1.0" android:color="#FF4B5563" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M10.4,5.6h0.8v13.2h-0.8z" />
+    <path android:fillColor="#FF111827" android:pathData="M10.8,8.5h3.5v1.1h-3.5z" />
+
+    <!-- Right Leaning Book shadow/bevel -->
+    <path
+        android:fillColor="#FF111827"
+        android:pathData="M15.8,4.6l3.9,-0.8c0.6,-0.1 1.2,0.3 1.3,0.9l1.2,14.5h-4.7z" />
+    <!-- Right Leaning Book bright silver face -->
+    <path android:pathData="M16.2,4.4l3.2,-0.6c0.4,-0.1 0.8,0.2 0.9,0.6l1.1,14.8h-3.8z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="16.2" android:startY="3.8"
+                android:endX="21.4" android:endY="19.2"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="0.5" android:color="#FFE5E7EB" />
+                <item android:offset="1.0" android:color="#FF6B7280" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#FF1F2937" android:pathData="M17.2,7.2l2.6,-0.4l0.1,1.1l-2.6,0.4z" />
 </vector>

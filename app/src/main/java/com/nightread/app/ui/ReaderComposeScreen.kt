@@ -216,20 +216,6 @@ fun ReaderComposeScreen(
     val view = LocalView.current
     val window = (context as? Activity)?.window
 
-    DisposableEffect(window) {
-        if (window != null) {
-            val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
-            insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-            insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
-        onDispose {
-            if (window != null) {
-                val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
-                insetsController.show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-            }
-        }
-    }
-
     var settingsVersion by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
         SettingsManager.settingsChanged.collect {
@@ -384,22 +370,23 @@ fun ReaderComposeScreen(
         }
     }
 
-    // Ensure edge-to-edge layout, status bar appearance, and immersive system bars mode when in distraction-free mode
-    DisposableEffect(window, themeType, isDistractionFreeMode) {
+    // Unified full-screen immersion: hides ALL system bars when bars are hidden (pure text mode)
+    val isFullScreenCleanMode = isHideBars || isDistractionFreeMode
+    DisposableEffect(window, themeType, isFullScreenCleanMode) {
         if (window != null) {
-            WindowCompat.setDecorFitsSystemWindows(window, !isDistractionFreeMode)
+            WindowCompat.setDecorFitsSystemWindows(window, false)
             val insetsController = WindowCompat.getInsetsController(window, view)
             val isDarkTheme = themeType == ThemeType.NIGHT
             insetsController.isAppearanceLightStatusBars = !isDarkTheme
             insetsController.isAppearanceLightNavigationBars = !isDarkTheme
-            
-            if (isDistractionFreeMode) {
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            window.navigationBarColor = android.graphics.Color.TRANSPARENT
+
+            if (isFullScreenCleanMode) {
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             } else {
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
-                window.statusBarColor = android.graphics.Color.TRANSPARENT
-                window.navigationBarColor = android.graphics.Color.TRANSPARENT
             }
         }
         onDispose {
@@ -982,16 +969,10 @@ fun ReaderComposeScreen(
                                         webViewRef = webView
                                     },
                                     onToggleBars = {
-                                        if (isDistractionFreeMode) {
-                                            isDistractionFreeMode = false
-                                            isHideBars = false
-                                            SettingsManager.setDistractionFreeEnabled(context, false)
-                                            gestureIndicatorText = "Режим «Без отвлечений» выключен"
-                                            gestureIndicatorIcon = Icons.Filled.FullscreenExit
-                                            showGestureIndicatorTime = System.currentTimeMillis()
-                                        } else {
-                                            isHideBars = !isHideBars
-                                        }
+                                        val nextHidden = !(isHideBars || isDistractionFreeMode)
+                                        isHideBars = nextHidden
+                                        isDistractionFreeMode = nextHidden
+                                        SettingsManager.setDistractionFreeEnabled(context, nextHidden)
                                         lastInteractionTime = System.currentTimeMillis()
                                     },
                                     onVerticalScroll = { startX, dragAmount ->
@@ -1160,17 +1141,6 @@ fun ReaderComposeScreen(
                                 )
 
                                 Volumetric3DIconButton(
-                                    onClick = {
-                                        isSearchMode = true
-                                        isHideBars = true
-                                    },
-                                    vectorIcon = Icons.Filled.Search,
-                                    contentDescription = "Поиск",
-                                    buttonSize = 38.dp,
-                                    iconSize = 22.dp
-                                )
-
-                                Volumetric3DIconButton(
                                     onClick = { showTocSheet = true },
                                     vectorIcon = Icons.Filled.List,
                                     contentDescription = "Оглавление",
@@ -1192,34 +1162,14 @@ fun ReaderComposeScreen(
 
                                 Volumetric3DIconButton(
                                     onClick = {
-                                        openTtsSettingsSheet(fragmentActivity, mainText, bookTitle)
-                                    },
-                                    vectorIcon = Icons.Filled.VolumeUp,
-                                    contentDescription = "Озвучка TTS",
-                                    buttonSize = 38.dp,
-                                    iconSize = 22.dp,
-                                    modifier = Modifier.testTag("btn_tts")
-                                )
-
-                                Volumetric3DIconButton(
-                                    onClick = {
-                                        val newMode = !isDistractionFreeMode
+                                        val newMode = !(isHideBars || isDistractionFreeMode)
                                         isDistractionFreeMode = newMode
                                         isHideBars = newMode
                                         SettingsManager.setDistractionFreeEnabled(context, newMode)
-                                        if (newMode) {
-                                            gestureIndicatorText = "Режим «Без отвлечений» включен"
-                                            gestureIndicatorIcon = Icons.Filled.Fullscreen
-                                            showGestureIndicatorTime = System.currentTimeMillis()
-                                        } else {
-                                            gestureIndicatorText = "Режим «Без отвлечений» выключен"
-                                            gestureIndicatorIcon = Icons.Filled.FullscreenExit
-                                            showGestureIndicatorTime = System.currentTimeMillis()
-                                        }
                                     },
                                     vectorIcon = if (isDistractionFreeMode) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
                                     tint = if (isDistractionFreeMode) Color(0xFF00BCD4) else Color.White,
-                                    contentDescription = "Режим «Без отвлечений»",
+                                    contentDescription = "Полноэкранный режим",
                                     buttonSize = 38.dp,
                                     iconSize = 22.dp,
                                     modifier = Modifier.testTag("btn_distraction_free")
@@ -1618,43 +1568,7 @@ fun ReaderComposeScreen(
                 }
             }
 
-            // Subtle Overlay Exit Button for Distraction-Free Mode
-            if (isDistractionFreeMode && isHideBars) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.TopEnd
-                ) {
-                    Surface(
-                        onClick = {
-                            isDistractionFreeMode = false
-                            isHideBars = false
-                            SettingsManager.setDistractionFreeEnabled(context, false)
-                            gestureIndicatorText = "Режим «Без отвлечений» выключен"
-                            gestureIndicatorIcon = Icons.Filled.FullscreenExit
-                            showGestureIndicatorTime = System.currentTimeMillis()
-                        },
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = 0.35f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
-                        shadowElevation = 4.dp,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .testTag("btn_exit_distraction_free")
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Filled.FullscreenExit,
-                                contentDescription = "Выйти из режима без отвлечений",
-                                tint = Color.White.copy(alpha = 0.85f),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-            }
+            // Fullscreen clean-text mode leaves zero floating overlay buttons (center tap toggles UI)
         }
 
         // --- Table of Contents Bottom Sheet ---

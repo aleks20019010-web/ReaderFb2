@@ -31,17 +31,16 @@ class BookReaderActivity : FragmentActivity() {
     var onPrevPage: (() -> Unit)? = null
 
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
-        if (event.action == android.view.KeyEvent.ACTION_DOWN) {
-            when (event.keyCode) {
-                android.view.KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                    onNextPage?.invoke()
-                    return true
-                }
-                android.view.KeyEvent.KEYCODE_VOLUME_UP -> {
-                    onPrevPage?.invoke()
-                    return true
+        if (event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN ||
+            event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP
+        ) {
+            if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+                when (event.keyCode) {
+                    android.view.KeyEvent.KEYCODE_VOLUME_DOWN -> onNextPage?.invoke()
+                    android.view.KeyEvent.KEYCODE_VOLUME_UP -> onPrevPage?.invoke()
                 }
             }
+            return true
         }
         return super.dispatchKeyEvent(event)
     }

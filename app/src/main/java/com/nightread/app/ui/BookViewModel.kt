@@ -143,6 +143,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     }
 
                     val ext = sanitizeBookExtension(displayName)
+                    if (ext == "txt") {
+                        Log.d("BookViewModel", "Skipping unsupported .txt file: $displayName")
+                        continue
+                    }
 
                     tempFile = File.createTempFile("import_", ".$ext", appContext.cacheDir)
                     val inputStream = contentResolver.openInputStream(uri)
@@ -157,21 +161,12 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                         continue
                     }
 
-                    var parsedBook = scanner.processSingleFile(tempFile)
+                    val parsedBook = scanner.processSingleFile(tempFile)
                     if (parsedBook == null) {
-                        val bookSha1 = com.nightread.app.data.Sha1Helper.computeSha1FromContent(tempFile)
-                            ?: "imported_${System.currentTimeMillis()}_${(1000..9999).random()}"
-                        parsedBook = BookEntity(
-                            sha1 = bookSha1,
-                            title = cleanBookTitleFromName(displayName),
-                            author = "Неизвестен",
-                            category = "Local",
-                            filePath = tempFile.absolutePath,
-                            fileSize = tempFile.length(),
-                            isNew = true,
-                            coverGradientStart = com.nightread.app.data.getRandomGradientStartColor(),
-                            coverGradientEnd = com.nightread.app.data.getRandomGradientEndColor()
-                        )
+                        Log.w("BookViewModel", "Skipping unsupported or bookless file: $displayName")
+                        tempFile.delete()
+                        tempFile = null
+                        continue
                     }
 
                     val permanentFile = File(booksDir, "${parsedBook.sha1}.$ext")
@@ -256,6 +251,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 val ext = sanitizeBookExtension(displayName)
+                if (ext == "txt") {
+                    withContext(Dispatchers.Main) { callback?.invoke(false, "Формат TXT не поддерживается библиотекой") }
+                    return@launch
+                }
 
                 tempFile = File.createTempFile("import_", ".$ext", appContext.cacheDir)
                 contentResolver.openInputStream(uri)?.use { input ->
@@ -265,21 +264,12 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 } ?: throw java.io.IOException("Cannot open input stream for URI: $uri")
 
                 val scanner = LibraryScanner.getInstance(appContext, bookDao)
-                var parsedBook = scanner.processSingleFile(tempFile)
+                val parsedBook = scanner.processSingleFile(tempFile)
                 if (parsedBook == null) {
-                    val bookSha1 = com.nightread.app.data.Sha1Helper.computeSha1FromContent(tempFile)
-                        ?: "imported_${System.currentTimeMillis()}_${(1000..9999).random()}"
-                    parsedBook = BookEntity(
-                        sha1 = bookSha1,
-                        title = cleanBookTitleFromName(displayName),
-                        author = "Неизвестен",
-                        category = "Local",
-                        filePath = tempFile.absolutePath,
-                        fileSize = tempFile.length(),
-                        isNew = true,
-                        coverGradientStart = com.nightread.app.data.getRandomGradientStartColor(),
-                        coverGradientEnd = com.nightread.app.data.getRandomGradientEndColor()
-                    )
+                    tempFile.delete()
+                    tempFile = null
+                    withContext(Dispatchers.Main) { callback?.invoke(false, "Файл не содержит поддерживаемую книгу (FB2, EPUB, FB3, MOBI)") }
+                    return@launch
                 }
 
                 val permanentFile = File(booksDir, "${parsedBook.sha1}.$ext")
