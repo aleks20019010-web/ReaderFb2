@@ -118,6 +118,7 @@ class SyncService : Service() {
         // Запускаем синхронизацию
         syncJob = serviceScope.launch {
             val context = this@SyncService
+            var progressTracker: SyncProgressTracker? = null
             
             try {
                 // Устанавливаем флаг синхронизации
@@ -127,7 +128,7 @@ class SyncService : Service() {
                 val sha1Extractor = Sha1Extractor()
                 val db = AppDatabase.getDatabase(context)
                 val cacheManager = SyncCacheManager(db.cloudFileDao())
-                val progressTracker = SyncProgressTracker(context)
+                progressTracker = SyncProgressTracker(context)
 
                 val orch = SyncOrchestrator(
                     context,
@@ -158,6 +159,7 @@ class SyncService : Service() {
                 Log.d(TAG, "Sync completed")
 
             } finally {
+                progressTracker?.stop()
                 // Очищаем ресурсы на Main потоке
                 withContext(Dispatchers.Main) {
                     cleanup()

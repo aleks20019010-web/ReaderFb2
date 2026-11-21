@@ -389,7 +389,7 @@ fun ReaderComposeScreen(
         if (window != null) {
             WindowCompat.setDecorFitsSystemWindows(window, !isDistractionFreeMode)
             val insetsController = WindowCompat.getInsetsController(window, view)
-            val isDarkTheme = themeType == ThemeType.NIGHT || themeType == ThemeType.HIGH_CONTRAST
+            val isDarkTheme = themeType == ThemeType.NIGHT
             insetsController.isAppearanceLightStatusBars = !isDarkTheme
             insetsController.isAppearanceLightNavigationBars = !isDarkTheme
             
@@ -411,10 +411,10 @@ fun ReaderComposeScreen(
     }
 
     val (bgColor, textColor) = when (themeType) {
-        ThemeType.DAY -> Color(0xFFFBF9F1) to Color(0xFF1B1B1B)
+        ThemeType.DAY -> Color(0xFFFBF9F1) to Color.Black
         ThemeType.NIGHT -> Color.Black to Color(0xFFE5E5E5)
-        ThemeType.SEPIA -> Color(0xFFF4ECD8) to Color(0xFF3B2F1F)
-        ThemeType.HIGH_CONTRAST -> Color(0xFFFFFFFF) to Color(0xFF000000)
+        ThemeType.SEPIA -> Color(0xFFF4ECD8) to Color.Black
+        ThemeType.HIGH_CONTRAST -> Color(0xFFFFFFFF) to Color.Black
     }
 
     val font = when (fontFamilyStr) {
@@ -1082,6 +1082,7 @@ fun ReaderComposeScreen(
 
             val glassBgColor = Color(0xFF192236).copy(alpha = 0.92f)
             val glassBorder = BorderStroke(1.dp, Color(0xFF00BCD4).copy(alpha = 0.3f))
+            val panelTextColor = Color(0xFFF1F5F9)
 
             // Top Panel (Glassmorphism)
             AnimatedVisibility(
@@ -1106,7 +1107,7 @@ fun ReaderComposeScreen(
                             Column {
                                 Text(
                                     text = bookTitle,
-                                    color = textColor,
+                                    color = panelTextColor,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
                                     maxLines = 1,
@@ -1114,7 +1115,7 @@ fun ReaderComposeScreen(
                                 )
                                 Text(
                                     text = authorAndChapter,
-                                    color = textColor.copy(alpha = 0.7f),
+                                    color = panelTextColor.copy(alpha = 0.7f),
                                     fontSize = 12.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -1329,7 +1330,7 @@ fun ReaderComposeScreen(
                                 .padding(horizontal = 16.dp)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        HorizontalDivider(color = textColor.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 16.dp))
+                        HorizontalDivider(color = panelTextColor.copy(alpha = 0.12f), modifier = Modifier.padding(horizontal = 16.dp))
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1363,7 +1364,7 @@ fun ReaderComposeScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "Озвучка (TTS)",
-                                        color = textColor,
+                                        color = panelTextColor,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1544,13 +1545,13 @@ fun ReaderComposeScreen(
                                     }
                                 },
                                 modifier = Modifier.weight(1f),
-                                placeholder = { Text("Поиск...", color = textColor.copy(alpha = 0.5f)) },
+                                placeholder = { Text("Поиск...", color = panelTextColor.copy(alpha = 0.5f)) },
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color.Transparent,
                                     unfocusedContainerColor = Color.Transparent,
-                                    focusedTextColor = textColor,
-                                    unfocusedTextColor = textColor,
-                                    cursorColor = textColor,
+                                    focusedTextColor = panelTextColor,
+                                    unfocusedTextColor = panelTextColor,
+                                    cursorColor = panelTextColor,
                                     focusedIndicatorColor = Color.Transparent,
                                     unfocusedIndicatorColor = Color.Transparent
                                 ),
@@ -1574,13 +1575,13 @@ fun ReaderComposeScreen(
                         }
                         
                         if (searchResults.isNotEmpty()) {
-                            androidx.compose.material3.Divider(color = textColor.copy(alpha = 0.1f))
+                            androidx.compose.material3.Divider(color = panelTextColor.copy(alpha = 0.12f))
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
                             ) {
-                                Text("${currentSearchIndex + 1} из ${searchResults.size}", color = textColor)
+                                Text("${currentSearchIndex + 1} из ${searchResults.size}", color = panelTextColor)
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {

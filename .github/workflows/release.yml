@@ -10,7 +10,7 @@ on:
 jobs:
   build:
     name: Build Signed APK
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
       contents: write # Разрешение на создание релизов и загрузку файлов
 
@@ -19,17 +19,22 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
-          cache: 'gradle'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
           validate-wrappers: false
+
+      - name: Accept Android SDK Licenses
+        run: |
+          if [ -n "$ANDROID_HOME" ] && [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          fi
 
       - name: Extract Version Name
         id: get_version
@@ -45,7 +50,7 @@ jobs:
             echo "ERROR: KEYSTORE_BASE64 is missing from GitHub Secrets!"
             exit 1
           fi
-          echo "$KEYSTORE_BASE64" | base64 --decode > "${{ github.workspace }}/release.keystore"
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > "${{ github.workspace }}/release.keystore"
 
       - name: Build Release APK
         env:
@@ -54,7 +59,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: gradle assembleRelease --no-daemon
+        run: gradle assembleRelease --no-daemon --stacktrace
 
       - name: Rename & Prepare APK
         run: |
@@ -69,12 +74,21 @@ jobs:
             exit 1
           fi
 
+      - name: Upload APK as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NightRead-release-v${{ steps.get_version.outputs.VERSION_NAME }}
+          path: build-artifacts/NightRead-release-v${{ steps.get_version.outputs.VERSION_NAME }}.apk
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.get_version.outputs.VERSION_NAME }}
           name: NightRead v${{ steps.get_version.outputs.VERSION_NAME }}
           files: build-artifacts/NightRead-release-v${{ steps.get_version.outputs.VERSION_NAME }}.apk
+          overwrite_files: true
           body: |
             ## NightRead Release v${{ steps.get_version.outputs.VERSION_NAME }}
             

@@ -90,21 +90,21 @@ class LibraryScanner(
     suspend fun scanBooks(force: Boolean = false): Job {
         if (_isScanning.get()) {
             Log.d(TAG, "Scan already in progress")
-            return scanJob ?: Job()
+            return scanJob ?: CompletableDeferred(Unit)
         }
 
         if (!force) {
             val now = System.currentTimeMillis()
             if (now - lastScanTime < SCAN_COOLDOWN_MS) {
                 Log.d(TAG, "Recent scan, skipping")
-                return Job()
+                return CompletableDeferred(Unit)
             }
 
             try {
                 val currentHash = scanPrefs.calculateMediaStoreHash()
                 if (!scanPrefs.isLibraryChanged(currentHash)) {
                     Log.d(TAG, "Library unchanged, skipping scan")
-                    return Job()
+                    return CompletableDeferred(Unit)
                 }
                 scanPrefs.saveLibraryHash(currentHash)
             } catch (e: Exception) {
@@ -545,15 +545,11 @@ class LibraryScanner(
 
             val entities = batchResults.mapNotNull { it.entity }
             if (entities.isNotEmpty()) {
-                try {
-                    if (entities.size > 1) {
-                        bookDao.insertBooks(entities)
-                    } else {
-                        bookDao.insertBook(entities.first())
-                    }
-                } catch (e: Throwable) {
-                    Log.w(TAG, "Batch insert failed: ${e.message}")
-                    for (entity in entities) {
+                for (entity in entities) {
+                    try {
+                        bookDao.importOrUpdateBook(entity)
+                    } catch (e: Throwable) {
+                        Log.w(TAG, "importOrUpdateBook failed for ${entity.title}: ${e.message}")
                         try {
                             bookDao.insertBookSafely(entity)
                         } catch (e2: Throwable) {
@@ -660,6 +656,8 @@ class LibraryScanner(
             } else {
                 ProcessResult.Skipped
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: SecurityException) {
             Log.e(TAG, "Security exception: ${file.name}", e)
             ProcessResult.Error(exception = e)
@@ -667,16 +665,17 @@ class LibraryScanner(
             Log.e(TAG, "OOM: ${file.name}", e)
             System.gc()
             ProcessResult.Error(exception = Exception(e))
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error: ${file.name}", e)
-            ProcessResult.Error(exception = e)
+            ProcessResult.Error(exception = if (e is Exception) e else Exception(e))
         }
     }
 
     private fun getProcessorForFile(file: File): BookProcessor? {
         val name = file.name.lowercase()
         when {
-            name.endsWith(".fb2") || name.endsWith(".fb2.zip") || name.endsWith(".fbz") -> return fb2Processor
+            name.endsWith(".fb2.zip") || name.endsWith(".fbz") -> return zipProcessor
+            name.endsWith(".fb2") -> return fb2Processor
             name.endsWith(".epub") -> return epubProcessor
             name.endsWith(".fb3") || name.endsWith(".fb3.zip") -> return fb3Processor
             name.endsWith(".mobi") || name.endsWith(".azw") || name.endsWith(".azw3") -> return mobiProcessor

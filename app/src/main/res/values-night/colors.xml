@@ -18,13 +18,13 @@
 
     <!-- Reading Themes Colors -->
     <color name="reading_day_bg">#FFFFFF</color>
-    <color name="reading_day_text">#1A1A1A</color>
+    <color name="reading_day_text">#000000</color>
     <color name="reading_night_bg">#1A1A1A</color>
     <color name="reading_night_text">#FFFFFF</color>
     <color name="reading_sepia_bg">#F5F2EB</color>
-    <color name="reading_sepia_text">#2C2C2C</color>
+    <color name="reading_sepia_text">#000000</color>
     <color name="reading_sepia_contrast_bg">#F5E6C8</color>
-    <color name="reading_sepia_contrast_text">#1A1A1A</color>
+    <color name="reading_sepia_contrast_text">#000000</color>
 
     <!-- Accent: Silver / Cosmic Glass -->
     <color name="accent">#B0BEC5</color>

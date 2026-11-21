@@ -181,8 +181,11 @@ object ReaderWebViewPaginator {
                         padding: 2px 4px;
                         border-radius: 3px;
                     }
+                    p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, li, div, span {
+                        color: $textColorHex !important;
+                    }
                     .note {
-                        color: #007AFF;
+                        color: #007AFF !important;
                         text-decoration: underline;
                         cursor: pointer;
                     }
@@ -575,6 +578,10 @@ object ReaderWebViewPaginator {
                             document.head.appendChild(styleEl);
                         }
                         styleEl.innerHTML = `
+                            html {
+                                background-color: ` + bgColor + ` !important;
+                                color: ` + textColor + ` !important;
+                            }
                             body {
                                 font-family: '` + fontFamily + `', serif !important;
                                 font-size: ` + fontSize + `px !important;
@@ -590,6 +597,12 @@ object ReaderWebViewPaginator {
                                 padding-right: ` + rightPaddingDp + `px !important;
                                 hyphens: ` + (isHyphenation ? 'auto' : 'none') + ` !important;
                                 -webkit-hyphens: ` + (isHyphenation ? 'auto' : 'none') + ` !important;
+                            }
+                            p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, li, div, span {
+                                color: ` + textColor + ` !important;
+                            }
+                            .note {
+                                color: #007AFF !important;
                             }
                         `;
                         

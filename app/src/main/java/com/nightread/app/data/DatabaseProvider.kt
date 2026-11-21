@@ -43,7 +43,7 @@ class DatabaseProvider(private val context: Context) {
         .addMigrations(*DatabaseMigrations.getAllMigrations())
         .setQueryExecutor(DatabaseExecutors.queryExecutor)
         .setTransactionExecutor(DatabaseExecutors.transactionExecutor)
-        .fallbackToDestructiveMigrationOnDowngrade() // Только при понижении версии
+        .fallbackToDestructiveMigration()
         .build()
     }
     

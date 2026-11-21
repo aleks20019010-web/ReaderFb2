@@ -77,28 +77,8 @@ class AutoSyncWorker(
             }
             */
 
-            // Проверить разрешения
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                val hasManageStorage = android.os.Environment.isExternalStorageManager()
-                val hasSaf = com.nightread.app.data.SyncSettingsManager.getDownloadFolderUri(context) != null
-                if (!hasManageStorage && !hasSaf) {
-                    Log.e("AUTO_SYNC_WORKER", "Missing storage access permissions")
-                    stateRepo.updateState(false, "ERROR", 0, "Missing permissions")
-                    return Result.failure()
-                }
-            } else {
-                val hasReadPermission = androidx.core.content.ContextCompat.checkSelfPermission(
-                    context,
-                    android.Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                if (!hasReadPermission) {
-                    Log.e("AUTO_SYNC_WORKER", "Missing READ_EXTERNAL_STORAGE permission")
-                    stateRepo.updateState(false, "ERROR", 0, "Missing permissions")
-                    return Result.failure()
-                }
-            }
-
             return withContext(Dispatchers.IO) {
+                var progressTracker: SyncProgressTracker? = null
                 try {
                     com.nightread.app.data.SyncSettingsManager.setSyncing(context, true)
 
@@ -106,7 +86,7 @@ class AutoSyncWorker(
                     val sha1Extractor = Sha1Extractor()
                     val db = AppDatabase.getDatabase(context)
                     val cacheManager = SyncCacheManager(db.cloudFileDao())
-                    val progressTracker = SyncProgressTracker(context)
+                    progressTracker = SyncProgressTracker(context)
 
                     val orch = SyncOrchestrator(
                         context,
@@ -137,6 +117,7 @@ class AutoSyncWorker(
                     stateRepo.updateState(false, "ERROR", 0, SyncErrorHandler.getUserFriendlyMessage(e))
                     Result.failure()
                 } finally {
+                    progressTracker?.stop()
                     com.nightread.app.data.SyncSettingsManager.setSyncing(context, false)
                     SyncCancellationManager.reset()
                     fileManager.cleanup()

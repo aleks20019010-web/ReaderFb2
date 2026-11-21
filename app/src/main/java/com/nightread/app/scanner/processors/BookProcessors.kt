@@ -275,7 +275,8 @@ class ZipProcessor : BookProcessor {
                                     entryName.endsWith(".fb2") || 
                                     entryName.endsWith(".epub") || 
                                     entryName.endsWith(".fb3") || 
-                                    entryName.endsWith(".mobi")
+                                    entryName.endsWith(".mobi") ||
+                                    entryName.endsWith(".txt")
                                 )) {
                                     innerName = entry.name
                                     innerExt = innerName!!.substringAfterLast('.', "").lowercase()
@@ -315,11 +316,12 @@ class ZipProcessor : BookProcessor {
                 realPath = validTempFile.absolutePath
             )
 
-            val processor = when {
-                innerExt == "fb2" -> Fb2Processor()
-                innerExt == "epub" -> EpubProcessor()
-                innerExt == "fb3" -> Fb3Processor()
-                innerExt == "mobi" -> MobiProcessor()
+            val processor = when (innerExt) {
+                "fb2" -> Fb2Processor()
+                "epub" -> EpubProcessor()
+                "fb3" -> Fb3Processor()
+                "mobi" -> MobiProcessor()
+                "txt" -> TxtProcessor()
                 else -> null
             }
 

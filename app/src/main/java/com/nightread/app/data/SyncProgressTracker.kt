@@ -73,6 +73,10 @@ class SyncProgressTracker(private val context: Context) {
         timer = null
     }
 
+    fun stop() {
+        cancelTimer()
+    }
+
     fun startStage(stageName: String, total: Int = 0, msg: String = "") {
         stageStartTime = System.currentTimeMillis()
         _state.value = _state.value.copy(

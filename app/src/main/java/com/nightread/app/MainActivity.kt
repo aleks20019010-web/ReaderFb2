@@ -530,6 +530,19 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == com.nightread.app.util.StoragePermissionHelper.REQUEST_CODE_LEGACY_STORAGE) {
+            if (hasStoragePermission()) {
+                val bookViewModel = androidx.lifecycle.ViewModelProvider(this).get(com.nightread.app.ui.BookViewModel::class.java)
+                bookViewModel.startLocalBookScan()
+                CustomToast.show(this, "Разрешение получено. Запуск сканирования...")
+            } else {
+                CustomToast.show(this, getString(R.string.storage_permission_denied))
+            }
+        }
+    }
+
     companion object {
         var isSplashActive = true
         var hasShownSplash = false

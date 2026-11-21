@@ -82,7 +82,7 @@ class BookReaderActivity : FragmentActivity() {
                                     val contentFile = File(cacheDir, "$sha1.content")
                                     if (contentFile.exists()) {
                                         val cached = contentFile.readText()
-                                        if (cached.contains("\ufffd") || cached.contains("") || cached.startsWith("[sGv")) {
+                                        if (cached.isBlank() || cached.contains("\ufffd") || cached.startsWith("[sGv")) {
                                             contentFile.delete()
                                         }
                                     }

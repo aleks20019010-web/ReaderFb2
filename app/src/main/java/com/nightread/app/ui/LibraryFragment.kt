@@ -28,16 +28,15 @@ class LibraryFragment : Fragment() {
 
     private val manualImportLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (!uris.isNullOrEmpty()) {
-            val ctx = context ?: return@registerForActivityResult
-            viewModel.importBooksFromUris(uris, ctx) { successCount, totalCount ->
-                activity?.runOnUiThread {
-                    if (successCount == totalCount) {
-                        CustomToast.show(ctx, "Успешно добавлено книг: $successCount")
-                    } else if (successCount > 0) {
-                        CustomToast.show(ctx, "Добавлено книг: $successCount из $totalCount")
-                    } else {
-                        CustomToast.show(ctx, "Ошибка при импорте выбранных файлов")
-                    }
+            val appCtx = context?.applicationContext ?: return@registerForActivityResult
+            viewModel.importBooksFromUris(uris, appCtx) { successCount, totalCount ->
+                val toastCtx = context ?: appCtx
+                if (successCount == totalCount) {
+                    CustomToast.show(toastCtx, "Успешно добавлено книг: $successCount")
+                } else if (successCount > 0) {
+                    CustomToast.show(toastCtx, "Добавлено книг: $successCount из $totalCount")
+                } else {
+                    CustomToast.show(toastCtx, "Ошибка при импорте выбранных файлов")
                 }
             }
         }

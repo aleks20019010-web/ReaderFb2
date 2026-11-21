@@ -1,49 +1,88 @@
 # Baseline Profile for NightRead
-# Optimizes cold startup and eliminates jank during reader pagination and book navigation
+# Optimizes cold startup and reduces jank during reader pagination and book navigation
 
 # Core Application & Startup
-HSPLcom/nightread/app/MainApplication;->onCreate()V
-HSPLcom/nightread/app/MainActivity;->onCreate(Landroid/os/Bundle;)V
-HSPLcom/nightread/app/MainActivity;->onStart()V
-HSPLcom/nightread/app/MainActivity;->onResume()V
+Lcom/nightread/app/MainApplication;
+HSPLcom/nightread/app/MainApplication;->**(**)**
+Lcom/nightread/app/MainActivity;
+HSPLcom/nightread/app/MainActivity;->**(**)**
 
-# Database & Entities (Room Ahead-of-Time compilation)
-HSPLcom/nightread/app/data/DatabaseProvider;->getInstance(Landroid/content/Context;)Lcom/nightread/app/data/AppDatabase;
-HSPLcom/nightread/app/data/AppDatabase;->bookDao()Lcom/nightread/app/data/BookDao;
-HSPLcom/nightread/app/data/AppDatabase;->bookmarkDao()Lcom/nightread/app/data/BookmarkDao;
-HSPLcom/nightread/app/data/BookDao;->getAllBooks()Lkotlinx/coroutines/flow/Flow;
-HSPLcom/nightread/app/data/BookDao;->getBookBySha1(Ljava/lang/String;)Lcom/nightread/app/data/BookEntity;
-HSPLcom/nightread/app/data/SettingsManager;->*
-HSPLcom/nightread/app/data/SafeProgressManager;->*
+# Database, Caching & Preferences
+Lcom/nightread/app/data/AppDatabase;
+HSPLcom/nightread/app/data/AppDatabase;->**(**)**
+Lcom/nightread/app/data/DatabaseProvider;
+HSPLcom/nightread/app/data/DatabaseProvider;->**(**)**
+Lcom/nightread/app/data/BookDao;
+HSPLcom/nightread/app/data/BookDao;->**(**)**
+Lcom/nightread/app/data/BookmarkDatabase;
+HSPLcom/nightread/app/data/BookmarkDatabase;->**(**)**
+Lcom/nightread/app/data/BookmarkDao;
+HSPLcom/nightread/app/data/BookmarkDao;->**(**)**
+Lcom/nightread/app/data/SettingsManager;
+HSPLcom/nightread/app/data/SettingsManager;->**(**)**
+Lcom/nightread/app/data/SafeProgressManager;
+HSPLcom/nightread/app/data/SafeProgressManager;->**(**)**
+Lcom/nightread/app/data/ReaderDocumentCache;
+HSPLcom/nightread/app/data/ReaderDocumentCache;->**(**)**
 
 # Reader & Compose Layout Engine
-HSPLcom/nightread/app/ui/BookReaderActivity;->onCreate(Landroid/os/Bundle;)V
-HSPLcom/nightread/app/ui/BookReaderActivity;->onResume()V
-HSPLcom/nightread/app/ui/ReaderComposeScreenKt;->*
-HSPLcom/nightread/app/ui/customlayout/ReaderDocument;->*
-HSPLcom/nightread/app/ui/customlayout/ReaderPage;->*
-HSPLcom/nightread/app/ui/customlayout/ReaderBlock;->*
-HSPLcom/nightread/app/ui/customlayout/AdaptiveTextEngine;->*
-HSPLcom/nightread/app/ui/SettingsBottomSheet;->*
-HSPLcom/nightread/app/ui/TtsSettingsBottomSheet;->*
-HSPLcom/nightread/app/ui/AudioPlayerBottomSheet;->*
+Lcom/nightread/app/ui/BookReaderActivity;
+HSPLcom/nightread/app/ui/BookReaderActivity;->**(**)**
+Lcom/nightread/app/ui/ReaderComposeScreenKt;
+HSPLcom/nightread/app/ui/ReaderComposeScreenKt;->**(**)**
+Lcom/nightread/app/ui/ReaderViewModel;
+HSPLcom/nightread/app/ui/ReaderViewModel;->**(**)**
+Lcom/nightread/app/ui/customlayout/ReaderDocument;
+HSPLcom/nightread/app/ui/customlayout/ReaderDocument;->**(**)**
+Lcom/nightread/app/ui/customlayout/ReaderPage;
+HSPLcom/nightread/app/ui/customlayout/ReaderPage;->**(**)**
+Lcom/nightread/app/ui/customlayout/ReaderLayoutEngine;
+HSPLcom/nightread/app/ui/customlayout/ReaderLayoutEngine;->**(**)**
+Lcom/nightread/app/ui/customlayout/ReaderPager;
+HSPLcom/nightread/app/ui/customlayout/ReaderPager;->**(**)**
+Lcom/nightread/app/ui/customlayout/PageSplitter;
+HSPLcom/nightread/app/ui/customlayout/PageSplitter;->**(**)**
+Lcom/nightread/app/ui/customlayout/PriorityPaginationController;
+HSPLcom/nightread/app/ui/customlayout/PriorityPaginationController;->**(**)**
+Lcom/nightread/app/ui/customlayout/TextLayoutBuilder;
+HSPLcom/nightread/app/ui/customlayout/TextLayoutBuilder;->**(**)**
+Lcom/nightread/app/ui/SettingsBottomSheet;
+HSPLcom/nightread/app/ui/SettingsBottomSheet;->**(**)**
+Lcom/nightread/app/ui/TtsSettingsBottomSheet;
+HSPLcom/nightread/app/ui/TtsSettingsBottomSheet;->**(**)**
+Lcom/nightread/app/ui/AudioPlayerBottomSheet;
+HSPLcom/nightread/app/ui/AudioPlayerBottomSheet;->**(**)**
 
-# Book Parsing Engines (FB2, EPUB, MOBI, TXT)
-HSPLcom/nightread/app/parser/Fb2Parser;->*
-HSPLcom/nightread/app/parser/EpubParser;->*
-HSPLcom/nightread/app/parser/MobiParser;->*
-HSPLcom/nightread/app/parser/TxtParser;->*
-HSPLcom/nightread/app/parser/BookParserFactory;->*
+# Book Parsing Engines (FB2, FB3, EPUB, MOBI)
+Lcom/nightread/app/service/BookParser;
+HSPLcom/nightread/app/service/BookParser;->**(**)**
+Lcom/nightread/app/service/Fb2Parser;
+HSPLcom/nightread/app/service/Fb2Parser;->**(**)**
+Lcom/nightread/app/service/Fb3Parser;
+HSPLcom/nightread/app/service/Fb3Parser;->**(**)**
+Lcom/nightread/app/service/EpubParser;
+HSPLcom/nightread/app/service/EpubParser;->**(**)**
+Lcom/nightread/app/service/MobiParser;
+HSPLcom/nightread/app/service/MobiParser;->**(**)**
 
 # Background Services & Media Playback
-HSPLcom/nightread/app/service/TtsForegroundService;->*
-HSPLcom/nightread/app/service/AudiobookPlaybackService;->*
-HSPLcom/nightread/app/service/SyncService;->*
-HSPLcom/nightread/app/service/AutoDiscoveryService;->*
+Lcom/nightread/app/service/TtsForegroundService;
+HSPLcom/nightread/app/service/TtsForegroundService;->**(**)**
+Lcom/nightread/app/service/AudiobookPlaybackService;
+HSPLcom/nightread/app/service/AudiobookPlaybackService;->**(**)**
+Lcom/nightread/app/service/SyncService;
+HSPLcom/nightread/app/service/SyncService;->**(**)**
+Lcom/nightread/app/service/AutoDiscoveryService;
+HSPLcom/nightread/app/service/AutoDiscoveryService;->**(**)**
 
 # Jetpack Compose Core Runtime
-HSPLandroidx/compose/runtime/Composer;->*
-HSPLandroidx/compose/runtime/Recomposer;->*
-HSPLandroidx/compose/foundation/pager/PagerState;->*
-HSPLandroidx/compose/foundation/lazy/LazyListState;->*
-HSPLandroidx/compose/material3/MaterialTheme;->*
+Landroidx/compose/runtime/Composer;
+HSPLandroidx/compose/runtime/Composer;->**(**)**
+Landroidx/compose/runtime/Recomposer;
+HSPLandroidx/compose/runtime/Recomposer;->**(**)**
+Landroidx/compose/foundation/pager/PagerState;
+HSPLandroidx/compose/foundation/pager/PagerState;->**(**)**
+Landroidx/compose/foundation/lazy/LazyListState;
+HSPLandroidx/compose/foundation/lazy/LazyListState;->**(**)**
+Landroidx/compose/material3/MaterialTheme;
+HSPLandroidx/compose/material3/MaterialTheme;->**(**)**

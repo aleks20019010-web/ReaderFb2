@@ -90,13 +90,37 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun sanitizeBookExtension(displayName: String): String {
+        val lower = displayName.trim().lowercase()
+        return when {
+            lower.endsWith(".fb2.zip") -> "fb2.zip"
+            lower.endsWith(".fb3.zip") -> "fb3.zip"
+            lower.contains(".") -> {
+                val raw = lower.substringAfterLast(".").replace(Regex("[^a-z0-9]"), "")
+                if (raw.isNotEmpty() && raw.length <= 8) raw else "fb2"
+            }
+            else -> "fb2"
+        }
+    }
+
+    private fun cleanBookTitleFromName(displayName: String): String {
+        val trimmed = displayName.trim()
+        return when {
+            trimmed.lowercase().endsWith(".fb2.zip") -> trimmed.dropLast(8)
+            trimmed.lowercase().endsWith(".fb3.zip") -> trimmed.dropLast(8)
+            trimmed.contains(".") -> trimmed.substringBeforeLast(".")
+            else -> trimmed
+        }.ifBlank { "Импортированная книга" }
+    }
+
     fun importBooksFromUris(uris: List<Uri>, context: Context, callback: ((Int, Int) -> Unit)? = null) {
+        val appContext = context.applicationContext
         viewModelScope.launch(Dispatchers.IO) {
             var successCount = 0
             val total = uris.size
-            val contentResolver = context.contentResolver
-            val booksDir = File(context.filesDir, "books").apply { if (!exists()) mkdirs() }
-            val scanner = LibraryScanner.getInstance(context, bookDao)
+            val contentResolver = appContext.contentResolver
+            val booksDir = File(appContext.filesDir, "books").apply { if (!exists()) mkdirs() }
+            val scanner = LibraryScanner.getInstance(appContext, bookDao)
 
             for (uri in uris) {
                 var tempFile: File? = null
@@ -114,17 +138,13 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                                 }
                             }
                         }
-                    } catch (e: Exception) {
+                    } catch (e: Throwable) {
                         Log.w("BookViewModel", "Could not get display name from URI", e)
                     }
 
-                    val ext = if (displayName.contains(".")) {
-                        displayName.substringAfterLast(".").lowercase()
-                    } else {
-                        "fb2"
-                    }
+                    val ext = sanitizeBookExtension(displayName)
 
-                    tempFile = File.createTempFile("import_", ".$ext", context.cacheDir)
+                    tempFile = File.createTempFile("import_", ".$ext", appContext.cacheDir)
                     val inputStream = contentResolver.openInputStream(uri)
                     if (inputStream != null) {
                         inputStream.use { input ->
@@ -139,13 +159,11 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
                     var parsedBook = scanner.processSingleFile(tempFile)
                     if (parsedBook == null) {
-                        // Fallback parsing if scanner didn't pick it up
                         val bookSha1 = com.nightread.app.data.Sha1Helper.computeSha1FromContent(tempFile)
                             ?: "imported_${System.currentTimeMillis()}_${(1000..9999).random()}"
-                        val cleanTitle = if (displayName.contains(".")) displayName.substringBeforeLast(".") else displayName
                         parsedBook = BookEntity(
                             sha1 = bookSha1,
-                            title = cleanTitle.ifBlank { "Импортированная книга" },
+                            title = cleanBookTitleFromName(displayName),
                             author = "Неизвестен",
                             category = "Local",
                             filePath = tempFile.absolutePath,
@@ -160,13 +178,13 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     try {
                         tempFile.copyTo(permanentFile, overwrite = true)
                         tempFile.delete()
-                    } catch (e: Exception) {
+                    } catch (e: Throwable) {
                         tempFile.renameTo(permanentFile)
                     }
                     tempFile = null
 
                     val bookTitle = if (parsedBook.title.isBlank() || parsedBook.title.startsWith("import_")) {
-                        if (displayName.contains(".")) displayName.substringBeforeLast(".") else displayName
+                        cleanBookTitleFromName(displayName)
                     } else {
                         parsedBook.title
                     }
@@ -177,9 +195,12 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                     )
                     bookDao.importOrUpdateBook(finalBook)
                     successCount++
-                } catch (e: Exception) {
+                } catch (e: CancellationException) {
+                    try { tempFile?.delete() } catch (_: Throwable) {}
+                    throw e
+                } catch (e: Throwable) {
                     Log.e("BookViewModel", "Error importing single URI: $uri", e)
-                    try { tempFile?.delete() } catch (ignored: Exception) {}
+                    try { tempFile?.delete() } catch (_: Throwable) {}
                 }
             }
             withContext(Dispatchers.Main) {
@@ -192,7 +213,7 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 bookDao.deleteBookBySha1(book.sha1)
-                val ctx = context ?: getApplication<Application>()
+                val ctx = context?.applicationContext ?: getApplication<Application>()
                 if (book.filePath != null) {
                     val f = File(book.filePath)
                     if (f.exists() && f.absolutePath.startsWith(ctx.filesDir.absolutePath)) {
@@ -210,11 +231,12 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun importBookFromUri(uri: Uri, context: Context, callback: ((Boolean, String) -> Unit)? = null) {
+        val appContext = context.applicationContext
         viewModelScope.launch(Dispatchers.IO) {
             var tempFile: File? = null
             try {
-                val contentResolver = context.contentResolver
-                val booksDir = File(context.filesDir, "books").apply { if (!exists()) mkdirs() }
+                val contentResolver = appContext.contentResolver
+                val booksDir = File(appContext.filesDir, "books").apply { if (!exists()) mkdirs() }
                 
                 var displayName = "imported_book"
                 try {
@@ -229,32 +251,27 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                             }
                         }
                     }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     Log.w("BookViewModel", "Could not get display name from URI", e)
                 }
 
-                val ext = if (displayName.contains(".")) {
-                    displayName.substringAfterLast(".").lowercase()
-                } else {
-                    "fb2"
-                }
+                val ext = sanitizeBookExtension(displayName)
 
-                tempFile = File.createTempFile("import_", ".$ext", context.cacheDir)
+                tempFile = File.createTempFile("import_", ".$ext", appContext.cacheDir)
                 contentResolver.openInputStream(uri)?.use { input ->
                     tempFile.outputStream().use { output ->
                         input.copyTo(output)
                     }
                 } ?: throw java.io.IOException("Cannot open input stream for URI: $uri")
 
-                val scanner = LibraryScanner.getInstance(context, bookDao)
+                val scanner = LibraryScanner.getInstance(appContext, bookDao)
                 var parsedBook = scanner.processSingleFile(tempFile)
                 if (parsedBook == null) {
                     val bookSha1 = com.nightread.app.data.Sha1Helper.computeSha1FromContent(tempFile)
                         ?: "imported_${System.currentTimeMillis()}_${(1000..9999).random()}"
-                    val cleanTitle = if (displayName.contains(".")) displayName.substringBeforeLast(".") else displayName
                     parsedBook = BookEntity(
                         sha1 = bookSha1,
-                        title = cleanTitle.ifBlank { "Импортированная книга" },
+                        title = cleanBookTitleFromName(displayName),
                         author = "Неизвестен",
                         category = "Local",
                         filePath = tempFile.absolutePath,
@@ -269,13 +286,13 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 try {
                     tempFile.copyTo(permanentFile, overwrite = true)
                     tempFile.delete()
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     tempFile.renameTo(permanentFile)
                 }
                 tempFile = null
 
                 val bookTitle = if (parsedBook.title.isBlank() || parsedBook.title.startsWith("import_")) {
-                    if (displayName.contains(".")) displayName.substringBeforeLast(".") else displayName
+                    cleanBookTitleFromName(displayName)
                 } else {
                     parsedBook.title
                 }
@@ -286,9 +303,12 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 bookDao.importOrUpdateBook(finalBook)
                 withContext(Dispatchers.Main) { callback?.invoke(true, "Книга успешно добавлена") }
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                try { tempFile?.delete() } catch (_: Throwable) {}
+                throw e
+            } catch (e: Throwable) {
                 Log.e("BookViewModel", "Error importing book from URI", e)
-                try { tempFile?.delete() } catch (ignored: Exception) {}
+                try { tempFile?.delete() } catch (_: Throwable) {}
                 withContext(Dispatchers.Main) { callback?.invoke(false, e.localizedMessage ?: "Ошибка импорта") }
             }
         }

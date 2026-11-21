@@ -451,8 +451,26 @@ private fun GlassBookCard(book: BookEntity, onClicked: () -> Unit) {
     val colorScheme = MaterialTheme.colorScheme
     val coverUri = remember(book.coverPath) {
         if (!book.coverPath.isNullOrBlank()) {
-            try { Uri.fromFile(java.io.File(book.coverPath)) } catch (e: Exception) { null }
+            try {
+                val file = java.io.File(book.coverPath)
+                if (file.exists() && file.length() > 0L) Uri.fromFile(file) else null
+            } catch (e: Exception) {
+                null
+            }
         } else null
+    }
+    val fallbackGradient = remember(book.coverGradientStart, book.coverGradientEnd) {
+        val start = try {
+            Color(android.graphics.Color.parseColor(book.coverGradientStart))
+        } catch (_: Exception) {
+            Color(0xFF1A233A)
+        }
+        val end = try {
+            Color(android.graphics.Color.parseColor(book.coverGradientEnd))
+        } catch (_: Exception) {
+            Color(0xFF0D121F)
+        }
+        Brush.linearGradient(listOf(start, end))
     }
 
     Box(
@@ -499,15 +517,23 @@ private fun GlassBookCard(book: BookEntity, onClicked: () -> Unit) {
                     .height(130.dp)
                     .shadow(4.dp, RoundedCornerShape(8.dp))
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF0D121F))
+                    .background(brush = fallbackGradient),
+                contentAlignment = Alignment.Center
             ) {
-                AsyncImage(
-                    model = coverUri,
-                    contentDescription = book.title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    error = androidx.compose.ui.res.painterResource(com.nightread.app.R.drawable.ic_launcher_background)
+                Icon(
+                    imageVector = Icons.Default.Book,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.45f),
+                    modifier = Modifier.size(36.dp)
                 )
+                if (coverUri != null) {
+                    AsyncImage(
+                        model = coverUri,
+                        contentDescription = book.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
                 // Легкий отсвет стекла поверх обложки
                 Box(
                     modifier = Modifier
@@ -660,7 +686,12 @@ private fun GlassBookRowItem(book: BookEntity, onClicked: () -> Unit) {
     val colorScheme = MaterialTheme.colorScheme
     val coverUri = remember(book.coverPath) {
         if (!book.coverPath.isNullOrBlank()) {
-            try { Uri.fromFile(java.io.File(book.coverPath)) } catch (e: Exception) { null }
+            try {
+                val file = java.io.File(book.coverPath)
+                if (file.exists() && file.length() > 0L) Uri.fromFile(file) else null
+            } catch (e: Exception) {
+                null
+            }
         } else null
     }
 

@@ -131,6 +131,7 @@ class SyncWorker(
             }
 
             return withContext(Dispatchers.IO) {
+                var progressTracker: SyncProgressTracker? = null
                 try {
                     com.nightread.app.data.SyncSettingsManager.setSyncing(context, true)
 
@@ -138,7 +139,7 @@ class SyncWorker(
                     val sha1Extractor = Sha1Extractor()
                     val db = AppDatabase.getDatabase(context)
                     val cacheManager = SyncCacheManager(db.cloudFileDao())
-                    val progressTracker = SyncProgressTracker(context)
+                    progressTracker = SyncProgressTracker(context)
 
                     val orch = SyncOrchestrator(
                         context,
@@ -190,6 +191,7 @@ class SyncWorker(
                     }
                     Result.failure()
                 } finally {
+                    progressTracker?.stop()
                     com.nightread.app.data.SyncSettingsManager.setSyncing(context, false)
                     SyncCancellationManager.reset()
                     fileManager.cleanup()
