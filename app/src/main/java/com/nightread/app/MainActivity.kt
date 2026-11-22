@@ -246,6 +246,13 @@ class MainActivity : BaseActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             com.nightread.app.ui.HyphenatorHelper.init(this@MainActivity)
+            try {
+                val db = com.nightread.app.data.AppDatabase.getDatabase(this@MainActivity)
+                com.nightread.app.scanner.LibraryScanner.getInstance(this@MainActivity, db.bookDao())
+                    .quickCleanupInvalidEntries()
+            } catch (_: Throwable) {
+                // Ignore startup cleanup errors
+            }
         }
 
         drawerLayout = findViewById(R.id.drawer_layout)

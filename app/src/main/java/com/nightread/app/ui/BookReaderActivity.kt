@@ -79,38 +79,43 @@ class BookReaderActivity : FragmentActivity() {
                                     bookText = memCached
                                 } else {
                                     val contentFile = File(cacheDir, "$sha1.content")
+                                    val diskFile = if (!book.filePath.isNullOrEmpty()) File(book.filePath) else null
                                     if (contentFile.exists()) {
-                                        val cached = contentFile.readText()
-                                        if (cached.isBlank() || cached.contains("\ufffd") || cached.startsWith("[sGv")) {
+                                        val cached = try { contentFile.readText() } catch (_: Throwable) { "" }
+                                        val diskLen = diskFile?.takeIf { it.exists() }?.length() ?: 0L
+                                        val looksTruncated = diskLen > 8000L && cached.length < 1500 && !cached.contains("[CHAPTER]")
+                                        val missingParagraphBreaks = cached.length > 2000 && !cached.contains("\n")
+                                        if (cached.isBlank() || cached.contains("\ufffd") || cached.startsWith("[sGv") || looksTruncated || missingParagraphBreaks) {
                                             contentFile.delete()
                                         }
                                     }
                                     if (contentFile.exists()) {
                                         bookText = cleanHtmlContent(contentFile.readText())
-                                    } else if (!book.filePath.isNullOrEmpty()) {
-                                        val f = File(book.filePath)
-                                        if (f.exists()) {
-                                            val ext = f.extension.lowercase()
-                                            val text = when (ext) {
-                                                "fb3" -> com.nightread.app.service.Fb3Parser.parse(f, f.nameWithoutExtension).content
-                                                "epub" -> com.nightread.app.service.EpubParser.parse(f, f.nameWithoutExtension).content
-                                                "fb2" -> com.nightread.app.service.Fb2Parser.parse(f, f.nameWithoutExtension).content
-                                                "mobi", "azw", "azw3" -> com.nightread.app.service.MobiParser.parse(f, f.nameWithoutExtension).content
-                                                "zip" -> readZipFile(f)
-                                                else -> decodeBytesToString(f.readBytes())
-                                            }
-                                            val cleaned = cleanHtmlContent(text)
-                                            try { contentFile.writeText(cleaned) } catch (e: Exception) {}
-                                            bookText = cleaned
-                                        } else {
-                                            bookText = "Файл книги не найден на диске"
+                                    } else if (diskFile != null && diskFile.exists()) {
+                                        val ext = diskFile.extension.lowercase()
+                                        val text = when (ext) {
+                                            "fb3" -> com.nightread.app.service.Fb3Parser.parse(diskFile, diskFile.nameWithoutExtension).content
+                                            "epub" -> com.nightread.app.service.EpubParser.parse(diskFile, diskFile.nameWithoutExtension).content
+                                            "fb2" -> com.nightread.app.service.Fb2Parser.parseFullFb2(diskFile, diskFile.nameWithoutExtension).content
+                                            "mobi", "azw", "azw3" -> com.nightread.app.service.MobiParser.parse(diskFile, diskFile.nameWithoutExtension).content
+                                            "zip", "fbz" -> readZipFile(diskFile)
+                                            else -> decodeBytesToString(diskFile.readBytes())
                                         }
+                                        val cleaned = cleanHtmlContent(text)
+                                        if (cleaned.isNotBlank()) {
+                                            try { contentFile.writeText(cleaned) } catch (e: Exception) {}
+                                        }
+                                        bookText = cleaned
+                                    } else if (!book.filePath.isNullOrEmpty()) {
+                                        bookText = "Файл книги не найден на диске"
                                     }
                                     val dbAnnot = book.annotation
                                     if (!dbAnnot.isNullOrBlank() && !bookText.contains("[ANNOTATION]") && !bookText.take(300).contains("Аннотация", ignoreCase = true)) {
                                         bookText = "[ANNOTATION]\n$dbAnnot\n[/ANNOTATION]\n\n$bookText"
                                     }
-                                    com.nightread.app.data.ReaderDocumentCache.putRawContent(sha1, bookText)
+                                    if (bookText.isNotBlank()) {
+                                        com.nightread.app.data.ReaderDocumentCache.putRawContent(sha1, bookText)
+                                    }
                                 }
                                 openedBookText = bookText
                             } else {
@@ -301,14 +306,53 @@ class BookReaderActivity : FragmentActivity() {
     }
 
     private fun cleanHtmlContent(html: String): String {
+        if (html.isBlank()) return ""
+        val hasHtmlTags = Regex("<(?:p|div|br|h[1-6]|html|body|span|section|blockquote|li|tr)\\b", RegexOption.IGNORE_CASE).containsMatchIn(html)
+        if (!hasHtmlTags) {
+            // Already plain text with [CHAPTER] / paragraph newlines — do NOT pass to Html.fromHtml which collapses all \n into spaces!
+            return html
+                .replace("\r\n", "\n")
+                .replace("\r", "\n")
+                .replace("&nbsp;", " ")
+                .replace("&mdash;", "—")
+                .replace("&ndash;", "–")
+                .replace("&laquo;", "«")
+                .replace("&raquo;", "»")
+                .replace("&hellip;", "…")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&apos;", "'")
+                .replace(Regex("[ \t]+\\n"), "\n")
+                .replace(Regex("\\n[ \t]+"), "\n")
+                .replace(Regex("\\n{3,}"), "\n\n")
+                .trim()
+        }
         return try {
-            val spanned = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_LEGACY)
-            } else {
-                @Suppress("DEPRECATION")
-                android.text.Html.fromHtml(html)
-            }
-            spanned.toString()
+            val normalizedHtml = html
+                .replace(Regex("<script[^>]*>.*?</script>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
+                .replace(Regex("<style[^>]*>.*?</style>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
+                .replace(Regex("<h[1-3][^>]*>(.*?)</h[1-3]>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))) { m ->
+                    val heading = m.groupValues[1].replace(Regex("<[^>]*>"), "").trim()
+                    if (heading.isNotEmpty()) "\n[CHAPTER]\n$heading\n[/CHAPTER]\n\n" else ""
+                }
+                .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
+                .replace(Regex("</(?:p|div|li|blockquote|section|tr|h[4-6])>", RegexOption.IGNORE_CASE), "\n\n")
+                .replace(Regex("<[^>]*>"), "")
+
+            normalizedHtml
+                .replace("&nbsp;", " ")
+                .replace("&mdash;", "—")
+                .replace("&ndash;", "–")
+                .replace("&laquo;", "«")
+                .replace("&raquo;", "»")
+                .replace("&hellip;", "…")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&apos;", "'")
                 .replace(Regex("[ \t]+\\n"), "\n")
                 .replace(Regex("\\n[ \t]+"), "\n")
                 .replace(Regex("\\n{3,}"), "\n\n")
@@ -331,25 +375,51 @@ class BookReaderActivity : FragmentActivity() {
             val parsed = com.nightread.app.service.Fb3Parser.parseFb3(file, file.nameWithoutExtension)
             if (parsed.content.isNotBlank()) return parsed.content
         }
+        if (com.nightread.app.data.EpubIdentifierHelper.isEpub(file)) {
+            val parsed = com.nightread.app.service.EpubParser.parse(file, file.nameWithoutExtension)
+            if (parsed.content.isNotBlank()) return parsed.content
+        }
         try {
-            java.io.FileInputStream(file).use { fis ->
+            java.io.FileInputStream(file).buffered().use { fis ->
                 java.util.zip.ZipInputStream(fis).use { zis ->
                     var entry = zis.nextEntry
                     var fallbackContent: String? = null
                     while (entry != null) {
-                        val entryName = entry.name.lowercase()
-                        if (!entry.isDirectory && !entryName.startsWith("__macosx") && !entryName.contains(".ds_store")) {
-                            if (entryName.endsWith(".fb3")) {
-                                val bytes = zis.readBytes()
-                                return com.nightread.app.service.Fb3Parser.parseBytes(bytes, entryName.removeSuffix(".fb3")).content
-                            } else if (entryName.endsWith(".fb2")) {
-                                val parsed = com.nightread.app.service.Fb2Parser.parse(zis, entryName.removeSuffix(".fb2"))
-                                if (parsed.content.isNotBlank()) return parsed.content
-                            } else if (entryName.endsWith(".xml") || entryName.endsWith(".html") || entryName.endsWith(".htm") || entryName.endsWith(".txt")) {
-                                val decoded = decodeBytesToString(zis.readBytes())
-                                if (decoded.isNotBlank()) return decoded
-                            } else if (fallbackContent == null) {
-                                fallbackContent = decodeBytesToString(zis.readBytes())
+                        val entryName = entry.name.replace("\\", "/").lowercase()
+                        val fileName = entryName.substringAfterLast("/")
+                        if (!entry.isDirectory && !entryName.contains("__macosx/") && !fileName.startsWith("._") && fileName != ".ds_store") {
+                            when {
+                                entryName.endsWith(".fb3") -> {
+                                    val bytes = zis.readBytes()
+                                    val parsed = com.nightread.app.service.Fb3Parser.parseBytes(bytes, fileName.removeSuffix(".fb3"))
+                                    if (parsed.content.isNotBlank()) return parsed.content
+                                }
+                                entryName.endsWith(".fb2") -> {
+                                    val parsed = com.nightread.app.service.Fb2Parser.parseFullFb2Stream(zis, fileName.removeSuffix(".fb2"))
+                                    if (parsed.content.isNotBlank()) return parsed.content
+                                }
+                                entryName.endsWith(".epub") -> {
+                                    val tempEpub = File.createTempFile("read_epub_", ".epub", cacheDir)
+                                    try {
+                                        tempEpub.outputStream().buffered().use { fos -> zis.copyTo(fos) }
+                                        val parsed = com.nightread.app.service.EpubParser.parse(tempEpub, fileName.removeSuffix(".epub"))
+                                        if (parsed.content.isNotBlank()) return parsed.content
+                                    } finally {
+                                        tempEpub.delete()
+                                    }
+                                }
+                                entryName.endsWith(".mobi") || entryName.endsWith(".azw") || entryName.endsWith(".azw3") -> {
+                                    val bytes = zis.readBytes()
+                                    val parsed = com.nightread.app.service.MobiParser.parseBytes(bytes, fileName.substringBeforeLast("."))
+                                    if (parsed.content.isNotBlank()) return parsed.content
+                                }
+                                entryName.endsWith(".xml") || entryName.endsWith(".html") || entryName.endsWith(".htm") -> {
+                                    val decoded = decodeBytesToString(zis.readBytes())
+                                    if (decoded.isNotBlank()) return decoded
+                                }
+                                fallbackContent == null -> {
+                                    fallbackContent = decodeBytesToString(zis.readBytes())
+                                }
                             }
                         }
                         entry = zis.nextEntry
@@ -359,7 +429,9 @@ class BookReaderActivity : FragmentActivity() {
                     }
                 }
             }
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("BookReaderActivity", "Error reading zip file ${file.name}", e)
+        }
         return ""
     }
 

@@ -296,6 +296,72 @@ class LibraryScanner(
     }
 
     /**
+     * Fast, silent startup cleanup that removes previously imported .txt files,
+     * non-book files (e.g., CMakeLists, README, LICENSE), and .zip archives without e-books.
+     */
+    suspend fun quickCleanupInvalidEntries(): Int = withContext(Dispatchers.IO) {
+        try {
+            val allBooks = try { bookDao.getAllBooksSync() } catch (_: Throwable) { emptyList() }
+            if (allBooks.isEmpty()) return@withContext 0
+
+            val invalidSha1s = mutableListOf<String>()
+            for (book in allBooks) {
+                if (isInvalidLibraryEntry(book)) {
+                    invalidSha1s.add(book.sha1)
+                }
+            }
+
+            if (invalidSha1s.isNotEmpty()) {
+                invalidSha1s.chunked(200).forEach { chunk ->
+                    try {
+                        bookDao.deleteBooksBySha1s(chunk)
+                    } catch (e: Throwable) {
+                        Log.w(TAG, "Failed deleting invalid startup entries", e)
+                    }
+                }
+                Log.d(TAG, "Quick startup cleanup removed ${invalidSha1s.size} invalid entries")
+            }
+            invalidSha1s.size
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error during quickCleanupInvalidEntries", e)
+            0
+        }
+    }
+
+    private fun isInvalidLibraryEntry(book: BookEntity): Boolean {
+        val path = book.filePath
+        val lowerPath = path?.lowercase()?.trim() ?: ""
+        if (lowerPath.isEmpty()) return false
+
+        // Always reject .txt files
+        if (lowerPath.endsWith(".txt")) return true
+
+        // Supported e-book extensions
+        val hasSupportedExt = lowerPath.endsWith(".fb2") ||
+            lowerPath.endsWith(".epub") ||
+            lowerPath.endsWith(".fb3") ||
+            lowerPath.endsWith(".mobi") ||
+            lowerPath.endsWith(".azw") ||
+            lowerPath.endsWith(".azw3") ||
+            lowerPath.endsWith(".fbz") ||
+            lowerPath.endsWith(".fb2.zip") ||
+            lowerPath.endsWith(".fb3.zip")
+
+        if (hasSupportedExt) return false
+
+        if (lowerPath.endsWith(".zip")) {
+            val file = File(path!!)
+            if (file.exists() && file.canRead()) {
+                return !ZipProcessor.hasSupportedBookInside(file)
+            }
+            return false
+        }
+
+        // Any other file extension (e.g., CMakeLists.txt, README.md, LICENSE, .xml, .json, extensionless junk)
+        return true
+    }
+
+    /**
      * Cleans up previously imported .txt entries and bookless .zip archives from the DB,
      * and backfills missing or purged covers for existing books using the improved extractors.
      */
@@ -313,21 +379,10 @@ class LibraryScanner(
             for (book in allBooks) {
                 if (!_isScanning.get()) break
                 val path = book.filePath
-                val lowerPath = path?.lowercase() ?: ""
 
-                // Remove .txt files from library
-                if (lowerPath.endsWith(".txt")) {
+                if (isInvalidLibraryEntry(book)) {
                     invalidSha1s.add(book.sha1)
                     continue
-                }
-
-                // Remove .zip files that do not contain any supported e-books
-                if (lowerPath.endsWith(".zip") && !lowerPath.endsWith(".fb2.zip") && !lowerPath.endsWith(".fb3.zip")) {
-                    val file = File(path!!)
-                    if (file.exists() && file.canRead() && !ZipProcessor.hasSupportedBookInside(file)) {
-                        invalidSha1s.add(book.sha1)
-                        continue
-                    }
                 }
 
                 // Check if cover is missing, deleted, or sitting in volatile cacheDir

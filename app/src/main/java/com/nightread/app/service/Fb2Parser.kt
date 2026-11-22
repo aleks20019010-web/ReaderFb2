@@ -93,14 +93,8 @@ object Fb2Parser : BookParser {
         }
 
         return try {
-            val headerBytes = ByteArray(2048)
-            val detectedCharset = file.inputStream().use { stream ->
-                val readCount = stream.read(headerBytes)
-                detectCharset(headerBytes, if (readCount > 0) readCount else 0)
-            }
-
-            file.inputStream().use { stream ->
-                parseFullFb2Stream(stream, detectedCharset, defaultTitle)
+            file.inputStream().buffered().use { stream ->
+                parseFullFb2Stream(stream, defaultTitle)
             }
         } catch (e: Throwable) {
             Log.e(TAG, "Failed to parse full FB2 file: ${file.name}", e)
@@ -108,10 +102,40 @@ object Fb2Parser : BookParser {
         }
     }
 
+    /**
+     * Parses full FB2 book text from any InputStream (including ZipInputStream),
+     * auto-detecting charset, stopping before <binary> to avoid OOM, sanitizing
+     * broken HTML entities, and falling back to tag-stripping if XML is malformed.
+     */
+    fun parseFullFb2Stream(stream: InputStream, defaultTitle: String): ParsedBook {
+        return try {
+            val headerBytes = ByteArray(2048)
+            var headerRead = 0
+            while (headerRead < headerBytes.size) {
+                val r = stream.read(headerBytes, headerRead, headerBytes.size - headerRead)
+                if (r <= 0) break
+                headerRead += r
+            }
+            if (headerRead <= 0) return createFallbackBook(defaultTitle)
+
+            val actualHeader = if (headerRead == headerBytes.size) headerBytes else headerBytes.copyOf(headerRead)
+            val detectedCharset = detectCharset(actualHeader, actualHeader.size)
+            val combined = java.io.SequenceInputStream(ByteArrayInputStream(actualHeader), stream)
+            parseFullFb2Stream(combined, detectedCharset, defaultTitle)
+        } catch (e: Throwable) {
+            Log.e(TAG, "parseFullFb2Stream(auto) failed for $defaultTitle", e)
+            createFallbackBook(defaultTitle)
+        }
+    }
+
     fun parseFullFb2Stream(stream: InputStream, charset: Charset, defaultTitle: String): ParsedBook {
-        val parser = parserFactory.newPullParser()
-        val reader = java.io.InputStreamReader(stream, charset)
-        parser.setInput(reader)
+        // Read XML text up to <binary> (skipping huge base64 cover/image payloads to keep RAM low)
+        val rawXml = readFb2TextBeforeBinary(stream, charset)
+        if (rawXml.isBlank()) {
+            return createFallbackBook(defaultTitle)
+        }
+
+        val sanitizedXml = sanitizeFb2XmlForPullParser(rawXml)
 
         var title = ""
         var firstName = ""
@@ -122,6 +146,7 @@ object Fb2Parser : BookParser {
         val contentBuilder = StringBuilder(100_000)
 
         var inDescription = false
+        var inAnnotation = false
         var inBody = false
         var isNotesBody = false
         var inTitle = false
@@ -130,8 +155,11 @@ object Fb2Parser : BookParser {
         val currentParagraph = StringBuilder()
         var currentNoteId = ""
         val currentNoteText = StringBuilder()
+        var parserFailedEarly = false
 
         try {
+            val parser = parserFactory.newPullParser()
+            parser.setInput(java.io.StringReader(sanitizedXml))
             var eventType = parser.eventType
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 when (eventType) {
@@ -139,6 +167,7 @@ object Fb2Parser : BookParser {
                         currentTag = parser.name?.lowercase() ?: ""
                         when (currentTag) {
                             "description" -> inDescription = true
+                            "annotation" -> if (inDescription) inAnnotation = true
                             "body" -> {
                                 inBody = true
                                 val bodyName = parser.getAttributeValue(null, "name")?.lowercase() ?: ""
@@ -150,6 +179,11 @@ object Fb2Parser : BookParser {
                                     currentSectionTitle.clear()
                                 }
                             }
+                            "subtitle" -> {
+                                if (inBody && !isNotesBody) {
+                                    currentParagraph.clear()
+                                }
+                            }
                             "section" -> {
                                 val id = parser.getAttributeValue(null, "id") ?: ""
                                 if (isNotesBody && id.isNotEmpty()) {
@@ -158,24 +192,27 @@ object Fb2Parser : BookParser {
                                 }
                             }
                             "p", "v" -> {
-                                currentParagraph.clear()
+                                if (!inTitle) {
+                                    currentParagraph.clear()
+                                }
                             }
                             "empty-line" -> {
                                 if (inBody && !isNotesBody) {
                                     contentBuilder.append("\n")
                                 }
                             }
+                            "binary" -> break
                         }
                     }
                     XmlPullParser.TEXT -> {
                         val text = parser.text ?: ""
                         if (inDescription) {
-                            when (currentTag) {
-                                "book-title" -> if (title.isEmpty()) title = text.trim()
-                                "first-name" -> if (firstName.isEmpty()) firstName = text.trim()
-                                "middle-name" -> if (middleName.isEmpty()) middleName = text.trim()
-                                "last-name" -> if (lastName.isEmpty()) lastName = text.trim()
-                                "p" -> annotationBuilder.append(text).append(" ")
+                            when {
+                                inAnnotation -> annotationBuilder.append(text)
+                                currentTag == "book-title" && title.isEmpty() -> title = text.trim()
+                                currentTag == "first-name" && firstName.isEmpty() -> firstName = text.trim()
+                                currentTag == "middle-name" && middleName.isEmpty() -> middleName = text.trim()
+                                currentTag == "last-name" && lastName.isEmpty() -> lastName = text.trim()
                             }
                         } else if (inBody) {
                             if (isNotesBody) {
@@ -192,7 +229,11 @@ object Fb2Parser : BookParser {
                     XmlPullParser.END_TAG -> {
                         val endTag = parser.name?.lowercase() ?: ""
                         when (endTag) {
-                            "description" -> inDescription = false
+                            "description" -> {
+                                inDescription = false
+                                inAnnotation = false
+                            }
+                            "annotation" -> inAnnotation = false
                             "body" -> {
                                 inBody = false
                                 isNotesBody = false
@@ -200,21 +241,37 @@ object Fb2Parser : BookParser {
                             "title" -> {
                                 if (inBody && inTitle) {
                                     inTitle = false
-                                    val t = currentSectionTitle.toString().trim()
+                                    val t = currentSectionTitle.toString()
+                                        .replace(Regex("\\s+"), " ")
+                                        .trim()
                                     if (t.isNotEmpty()) {
                                         contentBuilder.append("[CHAPTER]\n").append(t).append("\n[/CHAPTER]\n\n")
                                     }
                                 }
                             }
+                            "subtitle" -> {
+                                if (inBody && !isNotesBody) {
+                                    val s = currentParagraph.toString().trim()
+                                    if (s.isNotEmpty()) {
+                                        contentBuilder.append(s).append("\n\n")
+                                    }
+                                    currentParagraph.clear()
+                                }
+                            }
                             "p", "v" -> {
-                                if (inBody) {
+                                if (inDescription && inAnnotation) {
+                                    annotationBuilder.append("\n")
+                                } else if (inBody) {
                                     if (isNotesBody && currentNoteId.isNotEmpty()) {
                                         currentNoteText.append(" ")
-                                    } else if (!inTitle) {
+                                    } else if (inTitle) {
+                                        currentSectionTitle.append(" ")
+                                    } else {
                                         val p = currentParagraph.toString().trim()
                                         if (p.isNotEmpty()) {
                                             contentBuilder.append(p).append("\n\n")
                                         }
+                                        currentParagraph.clear()
                                     }
                                 }
                             }
@@ -230,7 +287,26 @@ object Fb2Parser : BookParser {
                 eventType = parser.next()
             }
         } catch (e: Throwable) {
-            Log.w(TAG, "Parsing stream finished or stopped: ${e.message}")
+            parserFailedEarly = true
+            Log.w(TAG, "XmlPullParser stopped early during full FB2 parse: ${e.message}")
+        }
+
+        // If XmlPullParser failed early or extracted suspiciously little text compared to raw <body>,
+        // run fault-tolerant regex body extraction so the user ALWAYS gets the full book!
+        var finalContent = contentBuilder.toString().trim()
+        val bodyStartIdx = rawXml.indexOf("<body", ignoreCase = true)
+        val estimatedBodySize = if (bodyStartIdx >= 0) (rawXml.length - bodyStartIdx) else rawXml.length
+        if (parserFailedEarly || (estimatedBodySize > 2000 && finalContent.length < estimatedBodySize / 8)) {
+            val fallbackText = extractBodyTextFallback(rawXml)
+            if (fallbackText.length > finalContent.length) {
+                finalContent = fallbackText
+            }
+        }
+
+        if (title.isBlank()) {
+            TITLE_REGEX.find(rawXml.take(65536))?.groupValues?.get(1)?.let {
+                title = cleanXmlText(it)
+            }
         }
 
         val authorList = listOf(firstName, middleName, lastName).filter { it.isNotBlank() }
@@ -239,10 +315,133 @@ object Fb2Parser : BookParser {
         return ParsedBook(
             title = title.ifBlank { defaultTitle },
             author = author,
-            content = contentBuilder.toString().trim(),
+            content = finalContent,
             notes = notes,
             annotation = annotationBuilder.toString().trim().ifBlank { null }
         )
+    }
+
+    private fun readFb2TextBeforeBinary(stream: InputStream, charset: Charset): String {
+        val maxChars = 16 * 1024 * 1024 // 16M chars cap for safety
+        val sb = StringBuilder(65536)
+        val reader = java.io.BufferedReader(java.io.InputStreamReader(stream, charset), 32768)
+        val buf = CharArray(16384)
+        while (sb.length < maxChars) {
+            val n = reader.read(buf)
+            if (n <= 0) break
+            val prevLen = sb.length
+            sb.append(buf, 0, n)
+            // Check if <binary started near the newly appended region
+            val searchFrom = (prevLen - 16).coerceAtLeast(0)
+            val binIdx = sb.indexOf("<binary", searchFrom, ignoreCase = true)
+            if (binIdx != -1) {
+                sb.setLength(binIdx)
+                break
+            }
+        }
+        return sb.toString()
+    }
+
+    private fun sanitizeFb2XmlForPullParser(xml: String): String {
+        val sb = StringBuilder(xml.length)
+        var i = 0
+        val len = xml.length
+        while (i < len) {
+            val c = xml[i]
+            // Strip illegal XML 1.0 control characters
+            if (c.code < 0x20 && c != '\t' && c != '\n' && c != '\r') {
+                i++
+                continue
+            }
+            if (c == '&') {
+                val semi = xml.indexOf(';', i + 1)
+                if (semi != -1 && semi - i <= 12) {
+                    val entity = xml.substring(i + 1, semi)
+                    when (entity.lowercase()) {
+                        "lt", "gt", "amp", "quot", "apos" -> {
+                            sb.append(xml, i, semi + 1)
+                            i = semi + 1
+                            continue
+                        }
+                        "nbsp" -> { sb.append(' '); i = semi + 1; continue }
+                        "mdash" -> { sb.append('—'); i = semi + 1; continue }
+                        "ndash" -> { sb.append('–'); i = semi + 1; continue }
+                        "laquo" -> { sb.append('«'); i = semi + 1; continue }
+                        "raquo" -> { sb.append('»'); i = semi + 1; continue }
+                        "hellip" -> { sb.append('…'); i = semi + 1; continue }
+                        "copy" -> { sb.append('©'); i = semi + 1; continue }
+                        "shy" -> { i = semi + 1; continue }
+                        "deg" -> { sb.append('°'); i = semi + 1; continue }
+                        "times" -> { sb.append('×'); i = semi + 1; continue }
+                        else -> {
+                            if (entity.startsWith("#")) {
+                                sb.append(xml, i, semi + 1)
+                                i = semi + 1
+                                continue
+                            }
+                            sb.append("&amp;")
+                            i++
+                            continue
+                        }
+                    }
+                } else {
+                    sb.append("&amp;")
+                    i++
+                    continue
+                }
+            }
+            sb.append(c)
+            i++
+        }
+        return sb.toString()
+    }
+
+    private fun extractBodyTextFallback(rawXml: String): String {
+        val bodyStart = rawXml.indexOf("<body", ignoreCase = true)
+        if (bodyStart == -1) return ""
+        val bodyTagEnd = rawXml.indexOf('>', bodyStart)
+        if (bodyTagEnd == -1) return ""
+
+        // Take main body (stop before notes body or </body or <binary)
+        var bodyEnd = rawXml.indexOf("</body>", bodyTagEnd, ignoreCase = true)
+        if (bodyEnd == -1) bodyEnd = rawXml.length
+        val bodyChunk = rawXml.substring(bodyTagEnd + 1, bodyEnd)
+
+        val withChapters = bodyChunk
+            .replace(Regex("<title\\b[^>]*>(.*?)</title>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))) { m ->
+                val inner = cleanXmlText(m.groupValues[1])
+                if (inner.isNotBlank()) "\n[CHAPTER]\n$inner\n[/CHAPTER]\n\n" else ""
+            }
+            .replace(Regex("</(?:p|v|subtitle|section|poem|stanza|epigraph|cite)>", RegexOption.IGNORE_CASE), "\n\n")
+            .replace(Regex("<empty-line\\s*/?>", RegexOption.IGNORE_CASE), "\n\n")
+            .replace(Regex("<[^>]+>"), "")
+
+        return decodeCommonEntities(withChapters)
+            .replace(Regex("[ \\t\\r]+"), " ")
+            .replace(Regex(" *\\n *"), "\n")
+            .replace(Regex("\\n{3,}"), "\n\n")
+            .trim()
+    }
+
+    private fun cleanXmlText(text: String): String {
+        return decodeCommonEntities(text.replace(Regex("<[^>]+>"), " "))
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
+
+    private fun decodeCommonEntities(text: String): String {
+        return text
+            .replace("&nbsp;", " ")
+            .replace("&mdash;", "—")
+            .replace("&ndash;", "–")
+            .replace("&laquo;", "«")
+            .replace("&raquo;", "»")
+            .replace("&hellip;", "…")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&amp;", "&")
     }
 
     fun parse(inputStream: InputStream, defaultTitle: String): BookMetadata {

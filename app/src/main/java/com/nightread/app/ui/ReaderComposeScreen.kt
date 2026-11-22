@@ -921,7 +921,7 @@ fun ReaderComposeScreen(
                                     rightPaddingDp = rightPaddingDpVal,
                                     themeColor = textColor,
                                     bgColor = Color.Transparent,
-                                    currentPage = pagerState.currentPage,
+                                    currentPage = currentWebViewPage,
                                     targetOffset = pendingTargetOffset,
                                     onTargetOffsetHandled = {
                                         pendingTargetOffset = null

@@ -79,8 +79,8 @@ fun ReaderWebViewComponent(
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
-                    loadWithOverviewMode = false
-                    useWideViewPort = false
+                    loadWithOverviewMode = true
+                    useWideViewPort = true
                     setSupportZoom(false)
                     builtInZoomControls = false
                     displayZoomControls = false
@@ -89,14 +89,12 @@ fun ReaderWebViewComponent(
                 alpha = 0f
                 val bridge = ReaderWebViewBridge(
                     onPositionChanged = { offset, page, total ->
-                        val target = currentTargetOffset ?: if (lastValidOffset > 100) lastValidOffset else null
-                        if (target != null && target > 0) {
-                            if (offset <= 30 && target > 100) {
-                                Log.d("WEBVIEW_ENGINE", "Ignoring initial position report offset=$offset while waiting for targetOffset=$target")
-                                return@ReaderWebViewBridge
-                            }
+                        val target = currentTargetOffset
+                        if (target != null && target > 100 && offset <= 30 && page == 0) {
+                            Log.d("WEBVIEW_ENGINE", "Ignoring initial position report offset=$offset while waiting for targetOffset=$target")
+                            return@ReaderWebViewBridge
                         }
-                        if (offset > 0) {
+                        if (offset >= 0) {
                             lastValidOffset = offset
                         }
                         lastReportedOffset = offset

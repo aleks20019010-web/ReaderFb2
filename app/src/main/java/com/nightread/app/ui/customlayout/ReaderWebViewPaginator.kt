@@ -74,8 +74,14 @@ object ReaderWebViewPaginator {
                         left: 0;
                         width: 100vw;
                         height: calc(100vh - ${topPaddingDp}px - ${bottomPaddingDp}px);
-                        overflow: hidden;
+                        overflow-x: auto;
+                        overflow-y: hidden;
+                        -webkit-overflow-scrolling: auto;
+                        scrollbar-width: none;
                         box-sizing: border-box;
+                    }
+                    #page-viewport::-webkit-scrollbar {
+                        display: none;
                     }
                     #content-container {
                         width: 100vw;
@@ -87,9 +93,6 @@ object ReaderWebViewPaginator {
                         -webkit-column-width: 100vw;
                         -webkit-column-gap: 0px;
                         -webkit-column-fill: auto;
-                        transform: translate3d(0px, 0px, 0px);
-                        will-change: transform;
-                        transform-origin: center center;
                     }
                     p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, div {
                         padding-left: ${leftPaddingDp}px;
@@ -223,28 +226,56 @@ object ReaderWebViewPaginator {
                     var currentLogicalPage = 0;
                     var lastReadingAnchor = null;
                     var animTimer = null;
+                    var scrollAnimFrame = null;
+
+                    function getViewport() {
+                        return document.getElementById('page-viewport');
+                    }
 
                     function getContainer() {
                         return document.getElementById('content-container') || document.body;
                     }
 
+                    function syncViewportMetrics() {
+                        var vp = getViewport();
+                        var container = getContainer();
+                        if (!vp || !container) return;
+                        var vw = Math.floor(vp.clientWidth || window.innerWidth || document.documentElement.clientWidth || 360);
+                        var vh = Math.floor(vp.clientHeight || window.innerHeight || 600);
+                        if (vw > 0) {
+                            container.style.width = vw + 'px';
+                            container.style.columnWidth = vw + 'px';
+                            container.style.webkitColumnWidth = vw + 'px';
+                            container.style.columnGap = '0px';
+                            container.style.webkitColumnGap = '0px';
+                        }
+                        if (vh > 0) {
+                            container.style.height = vh + 'px';
+                        }
+                    }
+
                     function getPageWidth() {
-                        var vp = document.getElementById('page-viewport');
-                        if (vp && vp.clientWidth > 0) return vp.clientWidth;
-                        if (window.innerWidth > 0) return window.innerWidth;
-                        return document.documentElement.clientWidth || 360;
+                        var vp = getViewport();
+                        if (vp && vp.clientWidth > 0) return Math.floor(vp.clientWidth);
+                        if (window.innerWidth > 0) return Math.floor(window.innerWidth);
+                        return Math.floor(document.documentElement.clientWidth || 360);
                     }
 
                     function getTotalWidth() {
                         var vw = getPageWidth();
+                        var vp = getViewport();
                         var container = getContainer();
-                        var sw = container.scrollWidth || vw;
+                        var sw = Math.max(
+                            (vp && vp.scrollWidth) ? vp.scrollWidth : vw,
+                            (container && container.scrollWidth) ? container.scrollWidth : vw
+                        );
                         try {
-                            var containerRect = container.getBoundingClientRect();
+                            var vpRect = vp ? vp.getBoundingClientRect() : { left: 0 };
+                            var scrollLeft = vp ? vp.scrollLeft : 0;
                             var lastEl = container.lastElementChild;
                             if (lastEl) {
                                 var lastRect = lastEl.getBoundingClientRect();
-                                var rightEdge = lastRect.right - containerRect.left;
+                                var rightEdge = (lastRect.right - vpRect.left) + scrollLeft;
                                 if (rightEdge > sw) sw = rightEdge;
                             }
                         } catch (e) {}
@@ -258,10 +289,11 @@ object ReaderWebViewPaginator {
                     }
 
                     function getElementAbsLeft(el) {
-                        var container = getContainer();
-                        var cRect = container.getBoundingClientRect();
+                        var vp = getViewport();
+                        var vpRect = vp ? vp.getBoundingClientRect() : { left: 0 };
+                        var scrollLeft = vp ? vp.scrollLeft : 0;
                         var eRect = el.getBoundingClientRect();
-                        return eRect.left - cRect.left;
+                        return (eRect.left - vpRect.left) + scrollLeft;
                     }
 
                     function captureReadingAnchor() {
@@ -376,65 +408,99 @@ object ReaderWebViewPaginator {
                         }
                     }
 
-                    function applyPageTransform(pageIndex, instant) {
+                    function cancelActiveAnimations() {
+                        if (animTimer) {
+                            clearTimeout(animTimer);
+                            animTimer = null;
+                        }
+                        if (scrollAnimFrame) {
+                            cancelAnimationFrame(scrollAnimFrame);
+                            scrollAnimFrame = null;
+                        }
+                    }
+
+                    function animateScrollLeft(vp, targetLeft, durationMs) {
+                        var startLeft = vp.scrollLeft;
+                        var diff = targetLeft - startLeft;
+                        if (Math.abs(diff) < 1 || durationMs <= 0) {
+                            vp.scrollLeft = targetLeft;
+                            return;
+                        }
+                        var startTime = performance.now ? performance.now() : Date.now();
+                        function step(now) {
+                            var currentNow = now || (performance.now ? performance.now() : Date.now());
+                            var elapsed = currentNow - startTime;
+                            var t = Math.min(1, elapsed / durationMs);
+                            // Smooth cubic ease-out
+                            var eased = 1 - Math.pow(1 - t, 3);
+                            vp.scrollLeft = startLeft + diff * eased;
+                            if (t < 1) {
+                                scrollAnimFrame = requestAnimationFrame(step);
+                            } else {
+                                vp.scrollLeft = targetLeft;
+                                scrollAnimFrame = null;
+                            }
+                        }
+                        scrollAnimFrame = requestAnimationFrame(step);
+                    }
+
+                    function applyPageScroll(pageIndex, instant) {
+                        syncViewportMetrics();
                         var vw = getPageWidth();
                         var totalPages = getTotalPages();
                         pageIndex = Math.max(0, Math.min(totalPages - 1, pageIndex));
                         currentLogicalPage = pageIndex;
 
+                        var vp = getViewport();
                         var container = getContainer();
+                        if (!vp) return;
                         var mode = '${pageAnimation}';
-                        var translateX = -(pageIndex * vw);
+                        var targetLeft = pageIndex * vw;
 
-                        if (animTimer) {
-                            clearTimeout(animTimer);
-                            animTimer = null;
-                        }
+                        cancelActiveAnimations();
 
                         if (instant || mode === 'none') {
                             container.style.transition = 'none';
                             container.style.opacity = '1';
-                            container.style.filter = 'none';
-                            container.style.transform = 'translate3d(' + translateX + 'px, 0px, 0px)';
+                            vp.scrollLeft = targetLeft;
                             return;
                         }
 
                         if (mode === 'fade') {
-                            container.style.transition = 'opacity 0.14s ease-out';
+                            container.style.transition = 'opacity 0.12s ease-out';
                             container.style.opacity = '0.05';
                             animTimer = setTimeout(function() {
-                                container.style.transition = 'none';
-                                container.style.transform = 'translate3d(' + translateX + 'px, 0px, 0px)';
+                                vp.scrollLeft = targetLeft;
                                 requestAnimationFrame(function() {
-                                    container.style.transition = 'opacity 0.16s ease-in';
+                                    container.style.transition = 'opacity 0.14s ease-in';
                                     container.style.opacity = '1';
                                 });
-                            }, 120);
+                            }, 110);
                         } else {
-                            // Default smooth GPU slide
+                            container.style.transition = 'none';
                             container.style.opacity = '1';
-                            container.style.filter = 'none';
-                            container.style.transition = 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)';
-                            container.style.transform = 'translate3d(' + translateX + 'px, 0px, 0px)';
+                            animateScrollLeft(vp, targetLeft, 180);
                         }
                     }
 
                     window.onSwipeDrag = function(deltaX) {
+                        var vp = getViewport();
+                        if (!vp) return;
+                        cancelActiveAnimations();
                         var vw = getPageWidth();
                         var totalPages = getTotalPages();
-                        var base = -(currentLogicalPage * vw);
+                        var base = currentLogicalPage * vw;
                         var effectiveDelta = deltaX;
                         if ((currentLogicalPage <= 0 && deltaX > 0) || (currentLogicalPage >= totalPages - 1 && deltaX < 0)) {
-                            effectiveDelta = deltaX * 0.25;
+                            effectiveDelta = deltaX * 0.2;
                         }
-                        var container = getContainer();
-                        container.style.transition = 'none';
-                        container.style.opacity = '1';
-                        container.style.transform = 'translate3d(' + (base + effectiveDelta) + 'px, 0px, 0px)';
+                        var maxScroll = Math.max(0, (totalPages - 1) * vw);
+                        var target = Math.max(0, Math.min(maxScroll, base - effectiveDelta));
+                        vp.scrollLeft = target;
                     };
 
                     window.snapCurrentPage = function() {
-                        applyPageTransform(currentLogicalPage, false);
+                        applyPageScroll(currentLogicalPage, false);
                     };
 
                     function restorePositionFromAnchor(anchor) {
@@ -508,7 +574,7 @@ object ReaderWebViewPaginator {
                         }
 
                         targetPage = Math.max(0, Math.min(totalPages - 1, targetPage));
-                        applyPageTransform(targetPage, true);
+                        applyPageScroll(targetPage, true);
                         reportCurrentPosition(targetPage);
                         setTimeout(function() {
                             reportCurrentPosition(targetPage);
@@ -516,7 +582,7 @@ object ReaderWebViewPaginator {
                     }
 
                     window.scrollToPage = function(pageIndex) {
-                        applyPageTransform(pageIndex, true);
+                        applyPageScroll(pageIndex, true);
                         reportCurrentPosition(currentLogicalPage);
                     };
 
@@ -579,7 +645,9 @@ object ReaderWebViewPaginator {
                         `;
 
                         requestAnimationFrame(function() {
+                            syncViewportMetrics();
                             requestAnimationFrame(function() {
+                                syncViewportMetrics();
                                 restorePositionFromAnchor(anchor);
                                 requestAnimationFrame(function() {
                                     document.documentElement.style.opacity = '1';
@@ -589,37 +657,50 @@ object ReaderWebViewPaginator {
                     };
 
                     window.nextPage = function() {
+                        syncViewportMetrics();
                         var totalPages = getTotalPages();
                         if (currentLogicalPage < totalPages - 1) {
-                            applyPageTransform(currentLogicalPage + 1, false);
+                            applyPageScroll(currentLogicalPage + 1, false);
                         } else {
-                            applyPageTransform(currentLogicalPage, false);
+                            applyPageScroll(currentLogicalPage, false);
                         }
                         reportCurrentPosition(currentLogicalPage);
                         setTimeout(function() {
                             reportCurrentPosition(currentLogicalPage);
-                        }, 240);
+                        }, 220);
                     };
 
                     window.prevPage = function() {
+                        syncViewportMetrics();
                         if (currentLogicalPage > 0) {
-                            applyPageTransform(currentLogicalPage - 1, false);
+                            applyPageScroll(currentLogicalPage - 1, false);
                         } else {
-                            applyPageTransform(0, false);
+                            applyPageScroll(0, false);
                         }
                         reportCurrentPosition(currentLogicalPage);
                         setTimeout(function() {
                             reportCurrentPosition(currentLogicalPage);
-                        }, 240);
+                        }, 220);
                     };
 
+                    window.addEventListener('resize', function() {
+                        syncViewportMetrics();
+                        applyPageScroll(currentLogicalPage, true);
+                        reportCurrentPosition(currentLogicalPage);
+                    });
+
                     window.addEventListener('load', function() {
+                        syncViewportMetrics();
                         if ($initialTargetOffset > 0) {
                             window.scrollToOffset($initialTargetOffset);
                         } else {
-                            applyPageTransform(0, true);
+                            applyPageScroll(0, true);
                             reportCurrentPosition(0);
                         }
+                        setTimeout(function() {
+                            syncViewportMetrics();
+                            reportCurrentPosition(currentLogicalPage);
+                        }, 150);
                     });
                 </script>
             </body>

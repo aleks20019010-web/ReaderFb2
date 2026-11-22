@@ -50,23 +50,19 @@ object BookPreloader {
                         ext == "mobi" || ext == "azw" || ext == "azw3" -> MobiParser.parse(file, file.nameWithoutExtension).content
                         ext == "fb2" -> {
                             try {
-                                FileInputStream(file).use { fis ->
-                                    Fb2Parser.parse(fis, file.nameWithoutExtension).content
-                                }
+                                Fb2Parser.parseFullFb2(file, file.nameWithoutExtension).content
                             } catch (e: Exception) {
-                                android.util.Log.e("BookPreloader", "FB2 stream parse failed for ${file.name}", e)
-                                try {
-                                    Fb2Parser.parse(file.inputStream(), file.nameWithoutExtension).content
-                                } catch (e2: Exception) {
-                                    ""
-                                }
+                                android.util.Log.e("BookPreloader", "FB2 full parse failed for ${file.name}", e)
+                                ""
                             }
                         }
                         else -> decodeFileToStringWithLimit(file)
                     }
 
-                    if (parsed.length > MAX_PRELOAD_TEXT_BYTES) {
-                        android.util.Log.w("BookPreloader", "Parsed content too large for preload cache: ${file.name}")
+                    if (parsed.isBlank() || parsed.length > MAX_PRELOAD_TEXT_BYTES) {
+                        if (parsed.length > MAX_PRELOAD_TEXT_BYTES) {
+                            android.util.Log.w("BookPreloader", "Parsed content too large for preload cache: ${file.name}")
+                        }
                         return@launch
                     }
                     try { contentCacheFile.writeText(parsed) } catch (e: Exception) {}
@@ -141,10 +137,10 @@ object BookPreloader {
                                     return Fb3Parser.parseBytes(bytes, entryName.removeSuffix(".fb3")).content
                                 }
                                 entryName.endsWith(".fb2") -> {
-                                    val parsed = Fb2Parser.parse(zis, entryName.removeSuffix(".fb2"))
+                                    val parsed = Fb2Parser.parseFullFb2Stream(zis, entryName.removeSuffix(".fb2"))
                                     if (parsed.content.isNotBlank()) return parsed.content
                                 }
-                                entryName.endsWith(".xml") || entryName.endsWith(".html") || entryName.endsWith(".htm") || entryName.endsWith(".txt") -> {
+                                entryName.endsWith(".xml") || entryName.endsWith(".html") || entryName.endsWith(".htm") -> {
                                     return decodeStreamToStringWithLimit(zis)
                                 }
                             }

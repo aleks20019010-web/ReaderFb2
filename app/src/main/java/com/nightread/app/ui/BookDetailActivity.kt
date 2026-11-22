@@ -1097,9 +1097,9 @@ class BookDetailActivity : BaseActivity() {
                                 val bytes = zis.readBytes()
                                 return com.nightread.app.service.Fb3Parser.parseBytes(bytes, entryName.removeSuffix(".fb3")).content
                             } else if (entryName.endsWith(".fb2")) {
-                                val parsed = com.nightread.app.service.Fb2Parser.parse(zis, entryName.removeSuffix(".fb2"))
+                                val parsed = com.nightread.app.service.Fb2Parser.parseFullFb2Stream(zis, entryName.removeSuffix(".fb2"))
                                 if (parsed.content.isNotBlank()) return parsed.content
-                            } else if (entryName.endsWith(".xml") || entryName.endsWith(".html") || entryName.endsWith(".htm") || entryName.endsWith(".txt")) {
+                            } else if (entryName.endsWith(".xml") || entryName.endsWith(".html") || entryName.endsWith(".htm")) {
                                 return decodeBytesToString(zis.readBytes())
                             }
                         }
