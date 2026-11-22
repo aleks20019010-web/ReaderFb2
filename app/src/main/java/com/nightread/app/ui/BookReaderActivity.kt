@@ -335,7 +335,7 @@ class BookReaderActivity : FragmentActivity() {
                 .replace(Regex("<style[^>]*>.*?</style>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
                 .replace(Regex("<h[1-3][^>]*>(.*?)</h[1-3]>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))) { m ->
                     val heading = m.groupValues[1].replace(Regex("<[^>]*>"), "").trim()
-                    if (heading.isNotEmpty()) "\n[CHAPTER]\n$heading\n[/CHAPTER]\n\n" else ""
+                    if (heading.isNotEmpty()) "\n[CHAPTER]$heading[/CHAPTER]\n\n" else ""
                 }
                 .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
                 .replace(Regex("</(?:p|div|li|blockquote|section|tr|h[4-6])>", RegexOption.IGNORE_CASE), "\n\n")

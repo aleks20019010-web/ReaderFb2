@@ -139,40 +139,36 @@ class SettingsBottomSheet : DialogFragment() {
         
         fun getWeightLabel(weight: Int): String {
             return when (weight) {
-                100 -> "Сверхтонкий (100)"
-                150 -> "Ультратонкий (150)"
-                200 -> "Тонкий (200)"
-                250 -> "Очень легкий (250)"
-                300 -> "Легкий (300)"
-                350 -> "Книжный (350)"
-                400 -> "Обычный (400)"
-                450 -> "Литературный (450)"
-                500 -> "Средний (500)"
-                550 -> "Умеренно жирный (550)"
-                600 -> "Полужирный (600)"
-                650 -> "Плотный (650)"
-                700 -> "Жирный (700)"
-                750 -> "Очень жирный (750)"
-                800 -> "Сверхжирный (800)"
-                850 -> "Экстратяжелый (850)"
-                900 -> "Тяжелый (900)"
-                else -> "Обычный ($weight)"
+                in 100..174 -> "Сверхтонкий ($weight)"
+                in 175..249 -> "Тонкий ($weight)"
+                in 250..324 -> "Лёгкий ($weight)"
+                in 325..374 -> "Книжный ($weight)"
+                in 375..424 -> "Обычный ($weight)"
+                in 425..474 -> "Литературный ($weight)"
+                in 475..524 -> "Средний ($weight)"
+                in 525..574 -> "Умеренный ($weight)"
+                in 575..649 -> "Полужирный ($weight)"
+                in 650..749 -> "Жирный ($weight)"
+                in 750..824 -> "Очень жирный ($weight)"
+                else -> "Тяжёлый ($weight)"
             }
         }
 
-        val currentWeight = SettingsManager.getFontWeightAsInt(context)
+        val currentWeight = SettingsManager.getFontWeightAsInt(context).coerceIn(100, 900)
         tvFontWeightValue?.text = getWeightLabel(currentWeight)
-        seekBarFontWeight?.progress = ((currentWeight - 100) / 50).coerceIn(0, 16)
-        var lastFontWeightProgress = seekBarFontWeight?.progress ?: 6
+        seekBarFontWeight?.max = 80
+        seekBarFontWeight?.progress = ((currentWeight - 100) / 10).coerceIn(0, 80)
+        var lastHapticBucket = (seekBarFontWeight?.progress ?: 30) / 5
         seekBarFontWeight?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val weightValue = (progress * 50) + 100
+                val weightValue = (progress * 10) + 100
                 tvFontWeightValue?.text = getWeightLabel(weightValue)
                 if (fromUser) {
                     SettingsManager.setFontWeight(context, weightValue.toString())
-                    if (progress != lastFontWeightProgress) {
+                    val bucket = progress / 5
+                    if (bucket != lastHapticBucket) {
                         seekBar?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                        lastFontWeightProgress = progress
+                        lastHapticBucket = bucket
                     }
                 }
             }
@@ -285,15 +281,6 @@ class SettingsBottomSheet : DialogFragment() {
             if (isChecked != SettingsManager.isAutoBrightnessEnabled(context)) {
                 SettingsManager.setAutoBrightnessEnabled(context, isChecked)
                 (activity as? BookReaderActivity)?.onAutoBrightnessSettingChanged(isChecked)
-            }
-        }
-
-        // 7c_1. Distraction-Free Mode Switch
-        val switchDistractionFree = view.findViewById<SwitchCompat>(R.id.switchDistractionFree)
-        switchDistractionFree?.isChecked = SettingsManager.isDistractionFreeEnabled(context)
-        switchDistractionFree?.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked != SettingsManager.isDistractionFreeEnabled(context)) {
-                SettingsManager.setDistractionFreeEnabled(context, isChecked)
             }
         }
 

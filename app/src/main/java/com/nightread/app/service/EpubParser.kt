@@ -131,7 +131,7 @@ object EpubParser : BookParser {
 
         val heading = (h1Match?.groupValues?.get(1) ?: titleMatch?.groupValues?.get(1))?.trim()
         if (!heading.isNullOrBlank() && !heading.equals("untitled", ignoreCase = true)) {
-            sb.append("[CHAPTER]\n").append(heading).append("\n[/CHAPTER]\n\n")
+            sb.append("[CHAPTER]").append(heading).append("[/CHAPTER]\n\n")
         }
 
         // Clean out styles and scripts

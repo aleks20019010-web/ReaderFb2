@@ -436,7 +436,7 @@
                     style="@style/CompactSeekBarStyle"
                     android:layout_width="match_parent"
                     android:layout_height="32dp"
-                    android:max="16" />
+                    android:max="80" />
             </LinearLayout>
 
             <!-- Line Spacing -->
@@ -508,47 +508,6 @@
 
                 <androidx.appcompat.widget.SwitchCompat
                     android:id="@+id/switchAutoBrightness"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentEnd="true"
-                    android:layout_centerVertical="true"
-                    app:thumbTint="@color/white"
-                    app:trackTint="@color/accent" />
-            </RelativeLayout>
-
-            <!-- Distraction-Free Mode Switch -->
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingVertical="8dp">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentStart="true"
-                    android:layout_toStartOf="@+id/switchDistractionFree"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/tvDistractionFreeTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/distraction_free_title"
-                        android:textColor="@color/text_primary"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/tvDistractionFreeDesc"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/distraction_free_desc"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <androidx.appcompat.widget.SwitchCompat
-                    android:id="@+id/switchDistractionFree"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_alignParentEnd="true"

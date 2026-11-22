@@ -27,6 +27,8 @@ object ReaderWebViewPaginator {
 
         // 1. Convert custom markers ([CHAPTER], [CITE], [SUP], [NOTE], etc.) and clean unsafe tags while preserving safe ones
         val processedHtml = processBookMarkupToHtml(rawText)
+        val resolvedFontStack = resolveCssFontStack(fontFamily)
+        val weightCss = computeFontWeightCss(fontFamily, fontWeight)
 
         // 2. Build controlled CSS and HTML wrapper
         return """
@@ -59,14 +61,15 @@ object ReaderWebViewPaginator {
                         width: 100vw;
                         height: 100vh;
                         overflow: hidden;
-                        font-family: '$fontFamily', serif;
+                        font-family: $resolvedFontStack;
                         font-size: ${fontSize}px;
-                        font-weight: $fontWeight;
+                        $weightCss
                         line-height: $lineHeight;
                         box-sizing: border-box;
                         background-color: $bgColorHex;
                         color: $textColorHex;
                         -webkit-locale: "ru";
+                        -webkit-font-smoothing: antialiased;
                     }
                     #page-viewport {
                         position: fixed;
@@ -119,7 +122,8 @@ object ReaderWebViewPaginator {
                         margin-bottom: 0;
                     }
                     b, strong {
-                        font-weight: bold;
+                        font-weight: 700;
+                        -webkit-text-stroke: 0px transparent;
                     }
                     i, em {
                         font-style: italic;
@@ -136,17 +140,17 @@ object ReaderWebViewPaginator {
                     #content-container > .prologue-title:first-child,
                     #content-container > .annotation-title:first-child {
                         break-before: avoid !important;
-                        page-break-before: avoid !important;
                         -webkit-column-break-before: auto !important;
                     }
                     h1, h2, h3, h4, h5, h6, .chapter-title, .prologue-title, .annotation-title {
                         break-inside: avoid !important;
-                        page-break-inside: avoid !important;
-                        -webkit-column-break-inside: avoid !important;
-                        margin-top: 1.2em !important;
-                        margin-bottom: 1.2em !important;
-                        font-size: 1.6em !important;
-                        font-weight: bold !important;
+                        break-after: avoid !important;
+                        margin-top: 0 !important;
+                        padding-top: 1.1em !important;
+                        margin-bottom: 1.0em !important;
+                        font-size: 1.55em !important;
+                        font-weight: 700 !important;
+                        -webkit-text-stroke: 0px transparent !important;
                         text-align: center !important;
                         text-indent: 0 !important;
                         display: block !important;
@@ -154,19 +158,31 @@ object ReaderWebViewPaginator {
                         padding-right: 0 !important;
                     }
                     h1, h2, .chapter-title, .prologue-title, .annotation-title {
-                        break-before: page !important;
                         break-before: column !important;
-                        page-break-before: always !important;
-                        -webkit-column-break-before: always !important;
+                    }
+                    h1 + h1, h1 + h2, h2 + h1,
+                    .chapter-title + .chapter-title,
+                    .prologue-title + .chapter-title,
+                    .annotation-title + .chapter-title {
+                        break-before: auto !important;
+                        padding-top: 0.4em !important;
                     }
                     .page-break {
-                        break-before: page;
                         break-before: column;
-                        page-break-before: always;
-                        -webkit-column-break-before: always;
                         height: 0;
                         margin: 0;
                         padding: 0;
+                    }
+                    #page-turn-fx {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100vw;
+                        height: 100vh;
+                        pointer-events: none;
+                        z-index: 30;
+                        opacity: 0;
+                        will-change: transform, opacity;
                     }
                     blockquote {
                         margin: 0.6em 0;
@@ -222,11 +238,21 @@ object ReaderWebViewPaginator {
                         $processedHtml
                     </div>
                 </div>
+                <div id="page-turn-fx"></div>
                 <script>
                     var currentLogicalPage = 0;
                     var lastReadingAnchor = null;
                     var animTimer = null;
                     var scrollAnimFrame = null;
+                    var currentAnimationMode = '${pageAnimation}';
+
+                    window.setPageAnimation = function(mode) {
+                        if (mode) currentAnimationMode = String(mode).toLowerCase();
+                    };
+
+                    function getFxOverlay() {
+                        return document.getElementById('page-turn-fx');
+                    }
 
                     function getViewport() {
                         return document.getElementById('page-viewport');
@@ -417,6 +443,90 @@ object ReaderWebViewPaginator {
                             cancelAnimationFrame(scrollAnimFrame);
                             scrollAnimFrame = null;
                         }
+                        var vp = getViewport();
+                        if (vp) {
+                            vp.style.transition = 'none';
+                            vp.style.transform = 'none';
+                            vp.style.opacity = '1';
+                            vp.style.transformOrigin = 'center center';
+                        }
+                        var container = getContainer();
+                        if (container) {
+                            container.style.transition = 'none';
+                            container.style.opacity = '1';
+                        }
+                        var fx = getFxOverlay();
+                        if (fx) {
+                            fx.style.transition = 'none';
+                            fx.style.opacity = '0';
+                            fx.style.transform = 'none';
+                        }
+                    }
+
+                    function isPageBlank(pageIndex) {
+                        try {
+                            var container = getContainer();
+                            var children = container ? container.children : null;
+                            if (!children || children.length === 0) return false;
+                            var vw = getPageWidth();
+                            var vp = getViewport();
+                            var vpRect = vp ? vp.getBoundingClientRect() : { left: 0 };
+                            var scrollLeft = vp ? vp.scrollLeft : 0;
+                            var pageLeft = pageIndex * vw + 4;
+                            var pageRight = (pageIndex + 1) * vw - 4;
+
+                            var lo = 0, hi = children.length - 1, idx = children.length;
+                            while (lo <= hi) {
+                                var mid = (lo + hi) >> 1;
+                                var r = children[mid].getBoundingClientRect();
+                                var absRight = (r.right - vpRect.left) + scrollLeft;
+                                if (absRight > pageLeft) {
+                                    idx = mid;
+                                    hi = mid - 1;
+                                } else {
+                                    lo = mid + 1;
+                                }
+                            }
+
+                            var startCheck = Math.max(0, idx - 2);
+                            var endCheck = Math.min(children.length - 1, idx + 3);
+                            for (var i = startCheck; i <= endCheck; i++) {
+                                var el = children[i];
+                                var r2 = el.getBoundingClientRect();
+                                if (r2.width <= 0 && r2.height <= 0) continue;
+                                var absL = (r2.left - vpRect.left) + scrollLeft;
+                                var absR = (r2.right - vpRect.left) + scrollLeft;
+                                if (absR > pageLeft && absL < pageRight) {
+                                    var txt = (el.textContent || '').trim();
+                                    if (txt.length > 0 || el.querySelector('img')) {
+                                        return false;
+                                    }
+                                }
+                            }
+                            return true;
+                        } catch (e) {
+                            return false;
+                        }
+                    }
+
+                    function findNearestNonBlankPage(startPage, direction, totalPages) {
+                        var p = Math.max(0, Math.min(totalPages - 1, startPage));
+                        var step = direction < 0 ? -1 : 1;
+                        var guard = 0;
+                        while (guard < 6 && isPageBlank(p)) {
+                            var nextP = p + step;
+                            if (nextP < 0 || nextP >= totalPages) {
+                                // Try opposite direction if we hit an edge
+                                var altP = p - step;
+                                if (altP >= 0 && altP < totalPages && !isPageBlank(altP)) {
+                                    return altP;
+                                }
+                                break;
+                            }
+                            p = nextP;
+                            guard++;
+                        }
+                        return p;
                     }
 
                     function animateScrollLeft(vp, targetLeft, durationMs) {
@@ -431,7 +541,6 @@ object ReaderWebViewPaginator {
                             var currentNow = now || (performance.now ? performance.now() : Date.now());
                             var elapsed = currentNow - startTime;
                             var t = Math.min(1, elapsed / durationMs);
-                            // Smooth cubic ease-out
                             var eased = 1 - Math.pow(1 - t, 3);
                             vp.scrollLeft = startLeft + diff * eased;
                             if (t < 1) {
@@ -444,42 +553,130 @@ object ReaderWebViewPaginator {
                         scrollAnimFrame = requestAnimationFrame(step);
                     }
 
-                    function applyPageScroll(pageIndex, instant) {
+                    function applyPageScroll(pageIndex, instant, directionHint) {
                         syncViewportMetrics();
                         var vw = getPageWidth();
                         var totalPages = getTotalPages();
+                        var prevPage = currentLogicalPage;
+                        var dir = (directionHint !== undefined && directionHint !== 0)
+                            ? (directionHint > 0 ? 1 : -1)
+                            : (pageIndex >= prevPage ? 1 : -1);
+
                         pageIndex = Math.max(0, Math.min(totalPages - 1, pageIndex));
+                        if (isPageBlank(pageIndex)) {
+                            pageIndex = findNearestNonBlankPage(pageIndex, dir, totalPages);
+                        }
                         currentLogicalPage = pageIndex;
 
                         var vp = getViewport();
                         var container = getContainer();
+                        var fx = getFxOverlay();
                         if (!vp) return;
-                        var mode = '${pageAnimation}';
+                        var mode = (currentAnimationMode || 'slide').toLowerCase();
                         var targetLeft = pageIndex * vw;
 
                         cancelActiveAnimations();
 
                         if (instant || mode === 'none') {
-                            container.style.transition = 'none';
-                            container.style.opacity = '1';
                             vp.scrollLeft = targetLeft;
                             return;
                         }
 
                         if (mode === 'fade') {
-                            container.style.transition = 'opacity 0.12s ease-out';
-                            container.style.opacity = '0.05';
+                            vp.style.transition = 'opacity 0.12s ease-out';
+                            vp.style.opacity = '0.05';
                             animTimer = setTimeout(function() {
                                 vp.scrollLeft = targetLeft;
                                 requestAnimationFrame(function() {
-                                    container.style.transition = 'opacity 0.14s ease-in';
-                                    container.style.opacity = '1';
+                                    vp.style.transition = 'opacity 0.15s ease-in';
+                                    vp.style.opacity = '1';
                                 });
-                            }, 110);
+                            }, 115);
+                        } else if (mode === 'curl') {
+                            // 3D Page Curl with spine fold shadow sweep across viewport
+                            var origin = dir > 0 ? 'left center' : 'right center';
+                            var tiltOut = dir > 0 ? -16 : 16;
+                            var tiltIn = dir > 0 ? 10 : -10;
+                            vp.style.transformOrigin = origin;
+                            vp.style.transition = 'transform 0.13s ease-in, opacity 0.13s ease-in';
+                            vp.style.transform = 'perspective(1200px) rotateY(' + tiltOut + 'deg) scale(0.985)';
+                            vp.style.opacity = '0.82';
+
+                            if (fx) {
+                                fx.style.background = 'linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.20) 35%, rgba(255,255,255,0.14) 50%, rgba(0,0,0,0.34) 65%, rgba(0,0,0,0) 100%)';
+                                fx.style.transition = 'none';
+                                fx.style.opacity = '0.9';
+                                fx.style.transform = 'translate3d(' + (dir > 0 ? '70%' : '-70%') + ', 0, 0)';
+                                requestAnimationFrame(function() {
+                                    fx.style.transition = 'transform 0.27s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.27s ease-out';
+                                    fx.style.transform = 'translate3d(' + (dir > 0 ? '-70%' : '70%') + ', 0, 0)';
+                                    fx.style.opacity = '0';
+                                });
+                            }
+
+                            animTimer = setTimeout(function() {
+                                vp.scrollLeft = targetLeft;
+                                vp.style.transition = 'none';
+                                vp.style.transform = 'perspective(1200px) rotateY(' + tiltIn + 'deg) scale(0.99)';
+                                requestAnimationFrame(function() {
+                                    vp.style.transition = 'transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease-out';
+                                    vp.style.transform = 'perspective(1200px) rotateY(0deg) scale(1)';
+                                    vp.style.opacity = '1';
+                                });
+                            }, 125);
+                        } else if (mode === 'depth') {
+                            // Depth card stack transition
+                            vp.style.transformOrigin = 'center center';
+                            if (dir > 0) {
+                                vp.style.transition = 'transform 0.12s ease-in, opacity 0.12s ease-in';
+                                vp.style.transform = 'scale(0.92)';
+                                vp.style.opacity = '0.45';
+                                animTimer = setTimeout(function() {
+                                    vp.scrollLeft = targetLeft;
+                                    vp.style.transition = 'none';
+                                    vp.style.transform = 'translate3d(22%, 0, 0) scale(1)';
+                                    vp.style.opacity = '0.85';
+                                    requestAnimationFrame(function() {
+                                        vp.style.transition = 'transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease-out';
+                                        vp.style.transform = 'translate3d(0, 0, 0) scale(1)';
+                                        vp.style.opacity = '1';
+                                    });
+                                }, 115);
+                            } else {
+                                vp.style.transition = 'transform 0.12s ease-in, opacity 0.12s ease-in';
+                                vp.style.transform = 'translate3d(22%, 0, 0)';
+                                vp.style.opacity = '0.45';
+                                animTimer = setTimeout(function() {
+                                    vp.scrollLeft = targetLeft;
+                                    vp.style.transition = 'none';
+                                    vp.style.transform = 'scale(0.92)';
+                                    vp.style.opacity = '0.7';
+                                    requestAnimationFrame(function() {
+                                        vp.style.transition = 'transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease-out';
+                                        vp.style.transform = 'scale(1)';
+                                        vp.style.opacity = '1';
+                                    });
+                                }, 115);
+                            }
+                        } else if (mode === 'zoom') {
+                            // Zoom-out then zoom-in transition
+                            vp.style.transformOrigin = 'center center';
+                            vp.style.transition = 'transform 0.12s ease-in, opacity 0.12s ease-in';
+                            vp.style.transform = 'scale(0.86)';
+                            vp.style.opacity = '0.25';
+                            animTimer = setTimeout(function() {
+                                vp.scrollLeft = targetLeft;
+                                vp.style.transition = 'none';
+                                vp.style.transform = 'scale(0.90)';
+                                requestAnimationFrame(function() {
+                                    vp.style.transition = 'transform 0.17s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.17s ease-out';
+                                    vp.style.transform = 'scale(1)';
+                                    vp.style.opacity = '1';
+                                });
+                            }, 115);
                         } else {
-                            container.style.transition = 'none';
-                            container.style.opacity = '1';
-                            animateScrollLeft(vp, targetLeft, 180);
+                            // Default smooth slide
+                            animateScrollLeft(vp, targetLeft, 190);
                         }
                     }
 
@@ -500,7 +697,7 @@ object ReaderWebViewPaginator {
                     };
 
                     window.snapCurrentPage = function() {
-                        applyPageScroll(currentLogicalPage, false);
+                        applyPageScroll(currentLogicalPage, false, 0);
                     };
 
                     function restorePositionFromAnchor(anchor) {
@@ -599,9 +796,44 @@ object ReaderWebViewPaginator {
                         });
                     };
 
+                    function resolveFontStackJs(fontFamily) {
+                        var f = (fontFamily || '').toLowerCase();
+                        if (f === 'roboto' || f === 'sansserif' || f === 'sans-serif' || f === 'default' || f === 'opendyslexic') {
+                            return "'Roboto', 'Noto Sans', sans-serif";
+                        }
+                        if (f === 'monospace') {
+                            return "'Roboto Mono', monospace";
+                        }
+                        return "'Noto Serif', Georgia, serif";
+                    }
+
+                    function isVariableSansJs(fontFamily) {
+                        var f = (fontFamily || '').toLowerCase();
+                        return (f === 'roboto' || f === 'sansserif' || f === 'sans-serif' || f === 'default');
+                    }
+
+                    function computeWeightCssJs(fontFamily, rawWeight) {
+                        var w = Math.max(100, Math.min(900, Math.round(Number(rawWeight) || 400)));
+                        if (isVariableSansJs(fontFamily)) {
+                            return 'font-weight: ' + w + ' !important; font-variation-settings: "wght" ' + w + ' !important; -webkit-text-stroke: 0px transparent !important;';
+                        }
+                        // Static Serif / Monospace on Android only have 400 and 700 weights.
+                        // Keep base weight at 400 up to 699 and smoothly increase optical stroke so
+                        // 400 -> 450 -> 500 -> 550 -> 600 -> 650 transitions gradually with zero 500->550 jump!
+                        if (w <= 400) {
+                            return 'font-weight: 400 !important; font-variation-settings: "wght" ' + w + ' !important; -webkit-text-stroke: 0px transparent !important; paint-order: stroke fill !important;';
+                        } else if (w < 700) {
+                            var strokeEm = (((w - 400) / 300) * 0.052).toFixed(4);
+                            return 'font-weight: 400 !important; font-variation-settings: "wght" ' + w + ' !important; -webkit-text-stroke: ' + strokeEm + 'em currentColor !important; paint-order: stroke fill !important;';
+                        } else {
+                            var extraStrokeEm = (((w - 700) / 200) * 0.032).toFixed(4);
+                            var strokeDecl = (w > 700) ? (extraStrokeEm + 'em currentColor') : '0px transparent';
+                            return 'font-weight: 700 !important; font-variation-settings: "wght" ' + w + ' !important; -webkit-text-stroke: ' + strokeDecl + ' !important; paint-order: stroke fill !important;';
+                        }
+                    }
+
                     window.updateStyles = function(fontFamily, fontSize, fontWeight, lineHeight, textColor, bgColor, isHyphenation, topPaddingDp, bottomPaddingDp, leftPaddingDp, rightPaddingDp) {
                         var anchor = captureReadingAnchor();
-                        document.documentElement.style.opacity = '0';
 
                         var styleEl = document.getElementById('dynamic-reader-styles');
                         if (!styleEl) {
@@ -609,49 +841,23 @@ object ReaderWebViewPaginator {
                             styleEl.id = 'dynamic-reader-styles';
                             document.head.appendChild(styleEl);
                         }
-                        styleEl.innerHTML = `
-                            html {
-                                background-color: ` + bgColor + ` !important;
-                                color: ` + textColor + ` !important;
-                            }
-                            body {
-                                font-family: '` + fontFamily + `', serif !important;
-                                font-size: ` + fontSize + `px !important;
-                                font-weight: ` + fontWeight + ` !important;
-                                line-height: ` + lineHeight + ` !important;
-                                background-color: ` + bgColor + ` !important;
-                                color: ` + textColor + ` !important;
-                            }
-                            #page-viewport {
-                                top: ` + topPaddingDp + `px !important;
-                                height: calc(100vh - ` + topPaddingDp + `px - ` + bottomPaddingDp + `px) !important;
-                            }
-                            p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, div {
-                                padding-left: ` + leftPaddingDp + `px !important;
-                                padding-right: ` + rightPaddingDp + `px !important;
-                                hyphens: ` + (isHyphenation ? 'auto' : 'none') + ` !important;
-                                -webkit-hyphens: ` + (isHyphenation ? 'auto' : 'none') + ` !important;
-                            }
-                            #page-viewport, #content-container {
-                                padding-left: 0 !important;
-                                padding-right: 0 !important;
-                            }
-                            p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, li, div, span {
-                                color: ` + textColor + ` !important;
-                            }
-                            .note {
-                                color: #007AFF !important;
-                            }
-                        `;
+                        var fontStack = resolveFontStackJs(fontFamily);
+                        var weightCss = computeWeightCssJs(fontFamily, fontWeight);
+                        styleEl.innerHTML =
+                            'html { background-color: ' + bgColor + ' !important; color: ' + textColor + ' !important; } ' +
+                            'body { font-family: ' + fontStack + ' !important; font-size: ' + fontSize + 'px !important; ' + weightCss + ' line-height: ' + lineHeight + ' !important; background-color: ' + bgColor + ' !important; color: ' + textColor + ' !important; } ' +
+                            '#page-viewport { top: ' + topPaddingDp + 'px !important; height: calc(100vh - ' + topPaddingDp + 'px - ' + bottomPaddingDp + 'px) !important; } ' +
+                            'p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, div { padding-left: ' + leftPaddingDp + 'px !important; padding-right: ' + rightPaddingDp + 'px !important; hyphens: ' + (isHyphenation ? 'auto' : 'none') + ' !important; -webkit-hyphens: ' + (isHyphenation ? 'auto' : 'none') + ' !important; } ' +
+                            '#page-viewport, #content-container { padding-left: 0 !important; padding-right: 0 !important; } ' +
+                            'p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, li, div, span { color: ' + textColor + ' !important; } ' +
+                            'h1, h2, h3, h4, h5, h6, .chapter-title, .prologue-title, .annotation-title, b, strong { font-weight: 700 !important; -webkit-text-stroke: 0px transparent !important; } ' +
+                            '.note { color: #007AFF !important; }';
 
                         requestAnimationFrame(function() {
                             syncViewportMetrics();
                             requestAnimationFrame(function() {
                                 syncViewportMetrics();
                                 restorePositionFromAnchor(anchor);
-                                requestAnimationFrame(function() {
-                                    document.documentElement.style.opacity = '1';
-                                });
                             });
                         });
                     };
@@ -660,27 +866,30 @@ object ReaderWebViewPaginator {
                         syncViewportMetrics();
                         var totalPages = getTotalPages();
                         if (currentLogicalPage < totalPages - 1) {
-                            applyPageScroll(currentLogicalPage + 1, false);
+                            var target = findNearestNonBlankPage(currentLogicalPage + 1, 1, totalPages);
+                            applyPageScroll(target, false, 1);
                         } else {
-                            applyPageScroll(currentLogicalPage, false);
+                            applyPageScroll(currentLogicalPage, false, 1);
                         }
                         reportCurrentPosition(currentLogicalPage);
                         setTimeout(function() {
                             reportCurrentPosition(currentLogicalPage);
-                        }, 220);
+                        }, 300);
                     };
 
                     window.prevPage = function() {
                         syncViewportMetrics();
+                        var totalPages = getTotalPages();
                         if (currentLogicalPage > 0) {
-                            applyPageScroll(currentLogicalPage - 1, false);
+                            var target = findNearestNonBlankPage(currentLogicalPage - 1, -1, totalPages);
+                            applyPageScroll(target, false, -1);
                         } else {
-                            applyPageScroll(0, false);
+                            applyPageScroll(0, false, -1);
                         }
                         reportCurrentPosition(currentLogicalPage);
                         setTimeout(function() {
                             reportCurrentPosition(currentLogicalPage);
-                        }, 220);
+                        }, 300);
                     };
 
                     window.addEventListener('resize', function() {
@@ -708,13 +917,71 @@ object ReaderWebViewPaginator {
         """.trimIndent()
     }
 
+    private fun resolveCssFontStack(fontFamily: String): String {
+        return when (fontFamily.trim().lowercase()) {
+            "roboto", "sansserif", "sans-serif", "default", "opendyslexic" -> "'Roboto', 'Noto Sans', sans-serif"
+            "monospace" -> "'Roboto Mono', monospace"
+            else -> "'Noto Serif', Georgia, serif"
+        }
+    }
+
+    private fun computeFontWeightCss(fontFamily: String, rawWeight: Float): String {
+        val w = rawWeight.toInt().coerceIn(100, 900)
+        val isVarSans = when (fontFamily.trim().lowercase()) {
+            "roboto", "sansserif", "sans-serif", "default" -> true
+            else -> false
+        }
+        if (isVarSans) {
+            return "font-weight: $w; font-variation-settings: \"wght\" $w; -webkit-text-stroke: 0px transparent;"
+        }
+        return when {
+            w <= 400 ->
+                "font-weight: 400; font-variation-settings: \"wght\" $w; -webkit-text-stroke: 0px transparent; paint-order: stroke fill;"
+            w < 700 -> {
+                val strokeEm = String.format(java.util.Locale.US, "%.4f", ((w - 400f) / 300f) * 0.052f)
+                "font-weight: 400; font-variation-settings: \"wght\" $w; -webkit-text-stroke: ${strokeEm}em currentColor; paint-order: stroke fill;"
+            }
+            else -> {
+                val strokeDecl = if (w > 700) {
+                    val extraEm = String.format(java.util.Locale.US, "%.4f", ((w - 700f) / 200f) * 0.032f)
+                    "${extraEm}em currentColor"
+                } else {
+                    "0px transparent"
+                }
+                "font-weight: 700; font-variation-settings: \"wght\" $w; -webkit-text-stroke: $strokeDecl; paint-order: stroke fill;"
+            }
+        }
+    }
+
+    private val CHAPTER_OPEN_REGEX = Regex("\\[CHAPTER]|<CHAPTER>", RegexOption.IGNORE_CASE)
+    private val CHAPTER_CLOSE_REGEX = Regex("\\[/CHAPTER]|</CHAPTER>", RegexOption.IGNORE_CASE)
+    private val ANY_MARKUP_TAG_REGEX = Regex(
+        "\\[/?(?:CHAPTER|ANNOTATION|PROLOGUE|CITE|SUP|NOTE)]|</?CHAPTER>",
+        RegexOption.IGNORE_CASE
+    )
+
     private fun processBookMarkupToHtml(raw: String): String {
         val sb = StringBuilder()
         var currentOffset = 0
         val lines = raw.split('\n')
-        
+
         var inAnnotation = false
         var inPrologue = false
+        var inChapter = false
+        var chapterStartOffset = 0
+        val chapterBuffer = StringBuilder()
+
+        fun flushChapterBuffer() {
+            val cleanTitle = chapterBuffer.toString()
+                .replace(ANY_MARKUP_TAG_REGEX, "")
+                .replace(Regex("<[^>]*>"), "")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+            chapterBuffer.clear()
+            if (cleanTitle.isNotEmpty()) {
+                sb.append("<h1 class=\"chapter-title\" data-offset=\"$chapterStartOffset\">${escapeHtmlPreservingTags(cleanTitle)}</h1>\n")
+            }
+        }
 
         for (line in lines) {
             val lineStartOffset = currentOffset
@@ -732,80 +999,125 @@ object ReaderWebViewPaginator {
                 if (processedLine.isBlank()) continue
             }
 
-            // 1. Handle ANNOTATION tags
-            if (processedLine.contains("[ANNOTATION]")) {
-                inAnnotation = true
-                processedLine = processedLine.replace("[ANNOTATION]", "")
-                sb.append("<h1 class=\"annotation-title\" data-offset=\"$lineStartOffset\">Аннотация</h1>\n")
-                if (processedLine.contains("[/ANNOTATION]")) {
-                    processedLine = processedLine.replace("[/ANNOTATION]", "")
-                    inAnnotation = false
-                    if (processedLine.isNotBlank()) {
-                        sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
-                    }
-                    continue
-                } else {
-                    if (processedLine.isNotBlank()) {
-                        sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
-                    }
-                    continue
+            // 0. Handle multi-line and single-line [CHAPTER]...[/CHAPTER] / <CHAPTER>...</CHAPTER>
+            val hasChapterOpen = CHAPTER_OPEN_REGEX.containsMatchIn(processedLine)
+            val hasChapterClose = CHAPTER_CLOSE_REGEX.containsMatchIn(processedLine)
+
+            if (inChapter) {
+                val stripped = processedLine
+                    .replace(CHAPTER_OPEN_REGEX, "")
+                    .replace(CHAPTER_CLOSE_REGEX, "")
+                    .trim()
+                if (stripped.isNotEmpty()) {
+                    if (chapterBuffer.isNotEmpty()) chapterBuffer.append(' ')
+                    chapterBuffer.append(stripped)
                 }
-            } else if (processedLine.contains("[/ANNOTATION]")) {
+                if (hasChapterClose) {
+                    inChapter = false
+                    flushChapterBuffer()
+                }
+                continue
+            }
+
+            if (hasChapterOpen) {
+                val stripped = processedLine
+                    .replace(CHAPTER_OPEN_REGEX, "")
+                    .replace(CHAPTER_CLOSE_REGEX, "")
+                    .trim()
+                chapterStartOffset = lineStartOffset
+                if (hasChapterClose) {
+                    chapterBuffer.clear()
+                    if (stripped.isNotEmpty()) {
+                        chapterBuffer.append(stripped)
+                        flushChapterBuffer()
+                    }
+                } else {
+                    inChapter = true
+                    chapterBuffer.clear()
+                    if (stripped.isNotEmpty()) {
+                        chapterBuffer.append(stripped)
+                    }
+                }
+                continue
+            }
+
+            if (hasChapterClose) {
+                // Stray closing [/CHAPTER] tag outside a chapter block -> strip it completely
+                processedLine = processedLine.replace(CHAPTER_CLOSE_REGEX, "").trim()
+                if (processedLine.isEmpty()) continue
+            }
+
+            // 1. Handle ANNOTATION tags
+            if (processedLine.contains("[ANNOTATION]", ignoreCase = true)) {
+                inAnnotation = true
+                processedLine = processedLine.replace(Regex("\\[ANNOTATION]", RegexOption.IGNORE_CASE), "")
+                sb.append("<h1 class=\"annotation-title\" data-offset=\"$lineStartOffset\">Аннотация</h1>\n")
+                if (processedLine.contains("[/ANNOTATION]", ignoreCase = true)) {
+                    processedLine = processedLine.replace(Regex("\\[/ANNOTATION]", RegexOption.IGNORE_CASE), "")
+                    inAnnotation = false
+                }
+                val cleanAnn = processedLine.replace(ANY_MARKUP_TAG_REGEX, "").trim()
+                if (cleanAnn.isNotEmpty()) {
+                    sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanAnn)}</p>\n")
+                }
+                continue
+            } else if (processedLine.contains("[/ANNOTATION]", ignoreCase = true)) {
                 inAnnotation = false
-                processedLine = processedLine.replace("[/ANNOTATION]", "")
-                if (processedLine.isNotBlank()) {
-                    sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
+                val cleanAnn = processedLine.replace(ANY_MARKUP_TAG_REGEX, "").trim()
+                if (cleanAnn.isNotEmpty()) {
+                    sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanAnn)}</p>\n")
                 }
                 continue
             } else if (inAnnotation) {
-                sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
+                val cleanAnn = processedLine.replace(ANY_MARKUP_TAG_REGEX, "").trim()
+                if (cleanAnn.isNotEmpty()) {
+                    sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanAnn)}</p>\n")
+                }
                 continue
             }
 
             // 2. Handle PROLOGUE tags
-            if (processedLine.contains("[PROLOGUE]")) {
+            if (processedLine.contains("[PROLOGUE]", ignoreCase = true)) {
                 inPrologue = true
-                processedLine = processedLine.replace("[PROLOGUE]", "")
+                processedLine = processedLine.replace(Regex("\\[PROLOGUE]", RegexOption.IGNORE_CASE), "")
                 sb.append("<h1 class=\"prologue-title\" data-offset=\"$lineStartOffset\">Пролог</h1>\n")
-                if (processedLine.contains("[/PROLOGUE]")) {
-                    processedLine = processedLine.replace("[/PROLOGUE]", "")
+                if (processedLine.contains("[/PROLOGUE]", ignoreCase = true)) {
+                    processedLine = processedLine.replace(Regex("\\[/PROLOGUE]", RegexOption.IGNORE_CASE), "")
                     inPrologue = false
-                    if (processedLine.isNotBlank()) {
-                        sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
-                    }
-                    continue
-                } else {
-                    if (processedLine.isNotBlank()) {
-                        sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
-                    }
-                    continue
                 }
-            } else if (processedLine.contains("[/PROLOGUE]")) {
+                val cleanProl = processedLine.replace(ANY_MARKUP_TAG_REGEX, "").trim()
+                if (cleanProl.isNotEmpty()) {
+                    sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanProl)}</p>\n")
+                }
+                continue
+            } else if (processedLine.contains("[/PROLOGUE]", ignoreCase = true)) {
                 inPrologue = false
-                processedLine = processedLine.replace("[/PROLOGUE]", "")
-                if (processedLine.isNotBlank()) {
-                    sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
+                val cleanProl = processedLine.replace(ANY_MARKUP_TAG_REGEX, "").trim()
+                if (cleanProl.isNotEmpty()) {
+                    sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanProl)}</p>\n")
                 }
                 continue
             } else if (inPrologue) {
-                sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(processedLine)}</p>\n")
+                val cleanProl = processedLine.replace(ANY_MARKUP_TAG_REGEX, "").trim()
+                if (cleanProl.isNotEmpty()) {
+                    sb.append("<p data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanProl)}</p>\n")
+                }
                 continue
             }
 
-            // 3. Handle CHAPTER tags / <CHAPTER> / <title> / <h1> / <h2>
-            val containsChapterTag = processedLine.contains("[CHAPTER]") || processedLine.contains("<CHAPTER>") ||
-                    processedLine.startsWith("<title", ignoreCase = true) || processedLine.startsWith("<h1", ignoreCase = true) ||
-                    processedLine.startsWith("<h2", ignoreCase = true)
+            // 3. Handle HTML heading tags <title> / <h1> / <h2>
+            val isHtmlHeading = processedLine.startsWith("<title", ignoreCase = true) ||
+                processedLine.startsWith("<h1", ignoreCase = true) ||
+                processedLine.startsWith("<h2", ignoreCase = true)
 
-            if (containsChapterTag) {
+            if (isHtmlHeading) {
                 val cleanChapterContent = processedLine
-                    .replace("[CHAPTER]", "")
-                    .replace("[/CHAPTER]", "")
-                    .replace("<CHAPTER>", "")
-                    .replace("</CHAPTER>", "")
+                    .replace(ANY_MARKUP_TAG_REGEX, "")
                     .replace(Regex("<[^>]*>"), "")
                     .trim()
-                sb.append("<h1 class=\"chapter-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanChapterContent)}</h1>\n")
+                if (cleanChapterContent.isNotEmpty()) {
+                    sb.append("<h1 class=\"chapter-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanChapterContent)}</h1>\n")
+                }
                 continue
             }
 
@@ -824,20 +1136,29 @@ object ReaderWebViewPaginator {
             }
 
             if (isChapterHeaderLine(processedLine)) {
-                val cleanTitle = processedLine.replace(Regex("<[^>]*>"), "").trim()
-                sb.append("<h1 class=\"chapter-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanTitle)}</h1>\n")
+                val cleanTitle = processedLine
+                    .replace(ANY_MARKUP_TAG_REGEX, "")
+                    .replace(Regex("<[^>]*>"), "")
+                    .trim()
+                if (cleanTitle.isNotEmpty()) {
+                    sb.append("<h1 class=\"chapter-title\" data-offset=\"$lineStartOffset\">${escapeHtmlPreservingTags(cleanTitle)}</h1>\n")
+                }
                 continue
             }
 
-            if (processedLine.contains("[CITE]")) {
+            if (processedLine.contains("[CITE]", ignoreCase = true)) {
                 processedLine = processedLine
-                    .replace("[CITE]", "<blockquote data-offset=\"$lineStartOffset\">")
-                    .replace("[/CITE]", "</blockquote>")
-            } else if (processedLine.contains("[SUP]")) {
+                    .replace(Regex("\\[CITE]", RegexOption.IGNORE_CASE), "<blockquote data-offset=\"$lineStartOffset\">")
+                    .replace(Regex("\\[/CITE]", RegexOption.IGNORE_CASE), "</blockquote>")
+                    .replace(ANY_MARKUP_TAG_REGEX, "")
+            } else if (processedLine.contains("[SUP]", ignoreCase = true)) {
                 processedLine = processedLine
-                    .replace("[SUP]", "<sup>")
-                    .replace("[/SUP]", "</sup>")
+                    .replace(Regex("\\[SUP]", RegexOption.IGNORE_CASE), "<sup>")
+                    .replace(Regex("\\[/SUP]", RegexOption.IGNORE_CASE), "</sup>")
+                    .replace(ANY_MARKUP_TAG_REGEX, "")
             } else {
+                processedLine = processedLine.replace(ANY_MARKUP_TAG_REGEX, "").trim()
+                if (processedLine.isEmpty()) continue
                 // Check if it's already an HTML block or regular paragraph
                 if (!processedLine.startsWith("<")) {
                     val escaped = escapeHtmlPreservingTags(processedLine)
@@ -859,6 +1180,10 @@ object ReaderWebViewPaginator {
             }
 
             sb.append(processedLine).append("\n")
+        }
+
+        if (inChapter) {
+            flushChapterBuffer()
         }
 
         return sb.toString()

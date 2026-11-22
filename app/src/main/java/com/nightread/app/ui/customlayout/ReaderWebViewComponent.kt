@@ -27,6 +27,7 @@ fun ReaderWebViewComponent(
     textColorHex: String = "#000000",
     bgColorHex: String = "#FFFFFF",
     isHyphenationEnabled: Boolean = true,
+    pageAnimation: String = "slide",
     topPaddingDp: Int = 0,
     bottomPaddingDp: Int = 20,
     leftPaddingDp: Int = 8,
@@ -48,6 +49,7 @@ fun ReaderWebViewComponent(
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var lastLoadedHtml by remember { mutableStateOf("") }
     var lastStyleKey by remember { mutableStateOf("") }
+    var lastAnimationMode by remember { mutableStateOf(pageAnimation) }
     var lastReportedOffset by remember { mutableIntStateOf(-1) }
     var lastReportedPage by remember { mutableIntStateOf(-1) }
     var lastValidOffset by remember { mutableIntStateOf(-1) }
@@ -235,6 +237,7 @@ fun ReaderWebViewComponent(
 
                 lastLoadedHtml = htmlContent
                 lastStyleKey = "$fontFamily-$fontSize-$fontWeight-$lineHeight-$textColorHex-$bgColorHex-$isHyphenationEnabled-$topPaddingDp-$bottomPaddingDp-$leftPaddingDp-$rightPaddingDp"
+                lastAnimationMode = pageAnimation
                 loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
                 webViewRef = this
                 onWebViewCreated(this)
@@ -246,18 +249,25 @@ fun ReaderWebViewComponent(
             if (htmlContent != lastLoadedHtml) {
                 lastLoadedHtml = htmlContent
                 lastStyleKey = currentStyleKey
+                lastAnimationMode = pageAnimation
                 Log.d("WEBVIEW_ENGINE", "WebView content changed, reloading HTML.")
                 view.alpha = 0f
                 view.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
-            } else if (currentStyleKey != lastStyleKey) {
-                lastStyleKey = currentStyleKey
-                Log.d("WEBVIEW_ENGINE", "Updating WebView styles seamlessly without full reload.")
-                val jsCode = "if (window.updateStyles) { window.updateStyles('$fontFamily', $fontSize, $fontWeight, $lineHeight, '$textColorHex', '$bgColorHex', ${if (isHyphenationEnabled) "true" else "false"}, $topPaddingDp, $bottomPaddingDp, $leftPaddingDp, $rightPaddingDp); }"
-                view.evaluateJavascript(jsCode, null)
-            } else if (targetOffset != null) {
-                Log.d("WEBVIEW_ENGINE", "WebView scrolling to targetOffset: $targetOffset")
-                view.evaluateJavascript("window.scrollToOffset($targetOffset);", null)
-                onTargetOffsetHandled()
+            } else {
+                if (pageAnimation != lastAnimationMode) {
+                    lastAnimationMode = pageAnimation
+                    view.evaluateJavascript("if (window.setPageAnimation) { window.setPageAnimation('$pageAnimation'); }", null)
+                }
+                if (currentStyleKey != lastStyleKey) {
+                    lastStyleKey = currentStyleKey
+                    Log.d("WEBVIEW_ENGINE", "Updating WebView styles seamlessly without full reload.")
+                    val jsCode = "if (window.updateStyles) { window.updateStyles('$fontFamily', $fontSize, $fontWeight, $lineHeight, '$textColorHex', '$bgColorHex', ${if (isHyphenationEnabled) "true" else "false"}, $topPaddingDp, $bottomPaddingDp, $leftPaddingDp, $rightPaddingDp); }"
+                    view.evaluateJavascript(jsCode, null)
+                } else if (targetOffset != null) {
+                    Log.d("WEBVIEW_ENGINE", "WebView scrolling to targetOffset: $targetOffset")
+                    view.evaluateJavascript("window.scrollToOffset($targetOffset);", null)
+                    onTargetOffsetHandled()
+                }
             }
         }
     )

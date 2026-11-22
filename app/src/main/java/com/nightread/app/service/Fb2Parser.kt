@@ -245,7 +245,7 @@ object Fb2Parser : BookParser {
                                         .replace(Regex("\\s+"), " ")
                                         .trim()
                                     if (t.isNotEmpty()) {
-                                        contentBuilder.append("[CHAPTER]\n").append(t).append("\n[/CHAPTER]\n\n")
+                                        contentBuilder.append("[CHAPTER]").append(t).append("[/CHAPTER]\n\n")
                                     }
                                 }
                             }
@@ -410,7 +410,7 @@ object Fb2Parser : BookParser {
         val withChapters = bodyChunk
             .replace(Regex("<title\\b[^>]*>(.*?)</title>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))) { m ->
                 val inner = cleanXmlText(m.groupValues[1])
-                if (inner.isNotBlank()) "\n[CHAPTER]\n$inner\n[/CHAPTER]\n\n" else ""
+                if (inner.isNotBlank()) "\n[CHAPTER]$inner[/CHAPTER]\n\n" else ""
             }
             .replace(Regex("</(?:p|v|subtitle|section|poem|stanza|epigraph|cite)>", RegexOption.IGNORE_CASE), "\n\n")
             .replace(Regex("<empty-line\\s*/?>", RegexOption.IGNORE_CASE), "\n\n")

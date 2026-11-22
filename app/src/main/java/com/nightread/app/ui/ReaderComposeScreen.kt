@@ -876,12 +876,12 @@ fun ReaderComposeScreen(
 
                             val currentTargetOffsetForHtml = if (savedTextOffset > 0) savedTextOffset else currentReadingOffset
 
-                            val htmlContent = remember(mainText, widthDp, heightDp, pageAnimation, topPaddingDpVal, leftPaddingDpVal, rightPaddingDpVal, bottomPaddingDpVal) {
+                            val htmlContent = remember(mainText, widthDp, heightDp, topPaddingDpVal, leftPaddingDpVal, rightPaddingDpVal, bottomPaddingDpVal) {
                                 com.nightread.app.ui.customlayout.ReaderWebViewEngine.prepareHtmlForBook(
                                     context = context,
                                     bookId = sha1.ifEmpty { "default" },
                                     mainText = mainText,
-                                    fontFamily = "Serif",
+                                    fontFamily = fontFamilyStr,
                                     fontSize = fontSize,
                                     fontWeight = mappedFontWeight.weight.toFloat(),
                                     lineHeight = lineSpacing,
@@ -908,13 +908,14 @@ fun ReaderComposeScreen(
                                 com.nightread.app.ui.customlayout.ReaderWebViewComponent(
                                     modifier = Modifier.fillMaxSize().testTag("reader_webview"),
                                     htmlContent = htmlContent,
-                                    fontFamily = "Serif",
+                                    fontFamily = fontFamilyStr,
                                     fontSize = fontSize,
                                     fontWeight = mappedFontWeight.weight.toFloat(),
                                     lineHeight = lineSpacing,
                                     textColorHex = textColorHex,
                                     bgColorHex = bgColorHex,
                                     isHyphenationEnabled = isHyphenationEnabled,
+                                    pageAnimation = pageAnimation,
                                     topPaddingDp = topPaddingDpVal,
                                     bottomPaddingDp = bottomPaddingDpVal,
                                     leftPaddingDp = leftPaddingDpVal,
