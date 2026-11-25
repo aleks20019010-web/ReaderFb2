@@ -3,7 +3,6 @@ package com.nightread.app.service
 import android.util.Log
 import com.nightread.app.service.BookParser.ParsedBook
 import org.xmlpull.v1.XmlPullParser
-import org.xmlpull.v1.XmlPullParserException
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -25,7 +24,7 @@ data class BookMetadata(
 
 /**
  * Гибридный парсер FB2 файлов.
- * 
+ *
  * Стратегия:
  * 1. Пробуем XmlPullParser (корректная кодировка, структура XML)
  * 2. При ошибке XML валидации падаем на Regex парсер (устойчивость к повреждённым файлам)
@@ -129,7 +128,6 @@ object Fb2Parser : BookParser {
     }
 
     fun parseFullFb2Stream(stream: InputStream, charset: Charset, defaultTitle: String): ParsedBook {
-        // Read XML text up to <binary> (skipping huge base64 cover/image payloads to keep RAM low)
         val rawXml = readFb2TextBeforeBinary(stream, charset)
         if (rawXml.isBlank()) {
             return createFallbackBook(defaultTitle)
@@ -153,6 +151,7 @@ object Fb2Parser : BookParser {
         var currentTag = ""
         val currentSectionTitle = StringBuilder()
         val currentParagraph = StringBuilder()
+        val styleTagStack = ArrayDeque<String?>()
         var currentNoteId = ""
         val currentNoteText = StringBuilder()
         var parserFailedEarly = false
@@ -182,6 +181,7 @@ object Fb2Parser : BookParser {
                             "subtitle" -> {
                                 if (inBody && !isNotesBody) {
                                     currentParagraph.clear()
+                                    styleTagStack.clear()
                                 }
                             }
                             "section" -> {
@@ -194,6 +194,42 @@ object Fb2Parser : BookParser {
                             "p", "v" -> {
                                 if (!inTitle) {
                                     currentParagraph.clear()
+                                    styleTagStack.clear()
+                                }
+                            }
+                            "emphasis", "em", "i" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("<i>")
+                            }
+                            "strong", "b" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("<b>")
+                            }
+                            "u" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("<u>")
+                            }
+                            "strikethrough", "s", "del" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("<s>")
+                            }
+                            "sup" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("<sup>")
+                            }
+                            "sub" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("<sub>")
+                            }
+                            "code" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("<code>")
+                            }
+                            "style" -> {
+                                if (inBody && !isNotesBody && !inTitle) {
+                                    val styleName = parser.getAttributeValue(null, "name")?.lowercase().orEmpty()
+                                    val mapped = when {
+                                        styleName.contains("underline") || styleName == "u" -> "u"
+                                        styleName.contains("italic") || styleName.contains("emphasis") -> "i"
+                                        styleName.contains("bold") || styleName.contains("strong") -> "b"
+                                        styleName.contains("strike") -> "s"
+                                        else -> null
+                                    }
+                                    styleTagStack.addLast(mapped)
+                                    if (mapped != null) currentParagraph.append("<$mapped>")
                                 }
                             }
                             "empty-line" -> {
@@ -222,7 +258,11 @@ object Fb2Parser : BookParser {
                             } else if (inTitle) {
                                 currentSectionTitle.append(text)
                             } else {
-                                currentParagraph.append(text)
+                                currentParagraph.append(
+                                    text.replace("&", "&amp;")
+                                        .replace("<", "&lt;")
+                                        .replace(">", "&gt;")
+                                )
                             }
                         }
                     }
@@ -256,6 +296,33 @@ object Fb2Parser : BookParser {
                                         contentBuilder.append(s).append("\n\n")
                                     }
                                     currentParagraph.clear()
+                                    styleTagStack.clear()
+                                }
+                            }
+                            "emphasis", "em", "i" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("</i>")
+                            }
+                            "strong", "b" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("</b>")
+                            }
+                            "u" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("</u>")
+                            }
+                            "strikethrough", "s", "del" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("</s>")
+                            }
+                            "sup" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("</sup>")
+                            }
+                            "sub" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("</sub>")
+                            }
+                            "code" -> {
+                                if (inBody && !isNotesBody && !inTitle) currentParagraph.append("</code>")
+                            }
+                            "style" -> {
+                                if (inBody && !isNotesBody && !inTitle && styleTagStack.isNotEmpty()) {
+                                    styleTagStack.removeLast()?.let { currentParagraph.append("</$it>") }
                                 }
                             }
                             "p", "v" -> {
@@ -272,6 +339,7 @@ object Fb2Parser : BookParser {
                                             contentBuilder.append(p).append("\n\n")
                                         }
                                         currentParagraph.clear()
+                                        styleTagStack.clear()
                                     }
                                 }
                             }
@@ -291,8 +359,6 @@ object Fb2Parser : BookParser {
             Log.w(TAG, "XmlPullParser stopped early during full FB2 parse: ${e.message}")
         }
 
-        // If XmlPullParser failed early or extracted suspiciously little text compared to raw <body>,
-        // run fault-tolerant regex body extraction so the user ALWAYS gets the full book!
         var finalContent = contentBuilder.toString().trim()
         val bodyStartIdx = rawXml.indexOf("<body", ignoreCase = true)
         val estimatedBodySize = if (bodyStartIdx >= 0) (rawXml.length - bodyStartIdx) else rawXml.length
@@ -331,7 +397,6 @@ object Fb2Parser : BookParser {
             if (n <= 0) break
             val prevLen = sb.length
             sb.append(buf, 0, n)
-            // Check if <binary started near the newly appended region
             val searchFrom = (prevLen - 16).coerceAtLeast(0)
             val binIdx = sb.indexOf("<binary", searchFrom, ignoreCase = true)
             if (binIdx != -1) {
@@ -348,7 +413,6 @@ object Fb2Parser : BookParser {
         val len = xml.length
         while (i < len) {
             val c = xml[i]
-            // Strip illegal XML 1.0 control characters
             if (c.code < 0x20 && c != '\t' && c != '\n' && c != '\r') {
                 i++
                 continue
@@ -402,7 +466,6 @@ object Fb2Parser : BookParser {
         val bodyTagEnd = rawXml.indexOf('>', bodyStart)
         if (bodyTagEnd == -1) return ""
 
-        // Take main body (stop before notes body or </body or <binary)
         var bodyEnd = rawXml.indexOf("</body>", bodyTagEnd, ignoreCase = true)
         if (bodyEnd == -1) bodyEnd = rawXml.length
         val bodyChunk = rawXml.substring(bodyTagEnd + 1, bodyEnd)
@@ -414,7 +477,14 @@ object Fb2Parser : BookParser {
             }
             .replace(Regex("</(?:p|v|subtitle|section|poem|stanza|epigraph|cite)>", RegexOption.IGNORE_CASE), "\n\n")
             .replace(Regex("<empty-line\\s*/?>", RegexOption.IGNORE_CASE), "\n\n")
-            .replace(Regex("<[^>]+>"), "")
+            .replace(Regex("<emphasis\\b[^>]*>", RegexOption.IGNORE_CASE), "<i>")
+            .replace(Regex("</emphasis>", RegexOption.IGNORE_CASE), "</i>")
+            .replace(Regex("<strong\\b[^>]*>", RegexOption.IGNORE_CASE), "<b>")
+            .replace(Regex("</strong>", RegexOption.IGNORE_CASE), "</b>")
+            .replace(Regex("<strikethrough\\b[^>]*>", RegexOption.IGNORE_CASE), "<s>")
+            .replace(Regex("</strikethrough>", RegexOption.IGNORE_CASE), "</s>")
+            .replace(Regex("<(u|b|i|s|sup|sub|code)\\b[^>]*>", RegexOption.IGNORE_CASE), "<$1>")
+            .replace(Regex("<(?!/?(?:b|i|u|s|sup|sub|code)\\b)[^>]+>", RegexOption.IGNORE_CASE), "")
 
         return decodeCommonEntities(withChapters)
             .replace(Regex("[ \\t\\r]+"), " ")
@@ -424,7 +494,7 @@ object Fb2Parser : BookParser {
     }
 
     private fun cleanXmlText(text: String): String {
-        return decodeCommonEntities(text.replace(Regex("<[^>]+>"), " "))
+        return decodeXmlEntities(text.replace(Regex("<[^>]+>"), " "))
             .replace(Regex("\\s+"), " ")
             .trim()
     }
@@ -439,9 +509,6 @@ object Fb2Parser : BookParser {
             .replace("&hellip;", "…")
             .replace("&quot;", "\"")
             .replace("&apos;", "'")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&amp;", "&")
     }
 
     fun parse(inputStream: InputStream, defaultTitle: String): BookMetadata {
@@ -460,7 +527,6 @@ object Fb2Parser : BookParser {
 
             val headerBytes = if (totalRead == HEADER_SIZE) buffer else buffer.copyOf(totalRead)
 
-            // 1. Пробуем XmlPullParser
             try {
                 ByteArrayInputStream(headerBytes).use { stream ->
                     parseWithXmlPullParser(stream, defaultTitle)
@@ -488,9 +554,6 @@ object Fb2Parser : BookParser {
         return metadata.annotation
     }
 
-    /**
-     * Парсинг через XmlPullParser (для корректных XML файлов).
-     */
     private fun parseWithXmlPullParser(inputStream: InputStream, defaultTitle: String): BookMetadata {
         val parser = parserFactory.newPullParser()
         parser.setInput(inputStream, null)
@@ -559,9 +622,6 @@ object Fb2Parser : BookParser {
         return buildMetadata(title, firstName, middleName, lastName, series, seriesIndex, language, annotation, defaultTitle)
     }
 
-    /**
-     * Читает аннотацию через XmlPullParser с ограничением размера.
-     */
     private fun readAnnotationWithXmlParser(parser: XmlPullParser): String? {
         val annotationText = StringBuilder()
         var depth = 1
@@ -605,9 +665,6 @@ object Fb2Parser : BookParser {
             .takeIf { it.isNotEmpty() }
     }
 
-    /**
-     * Fallback парсинг через Regex (для повреждённых XML файлов).
-     */
     private fun parseWithRegex(bytes: ByteArray, length: Int, defaultTitle: String): BookMetadata {
         try {
             if (length <= 0) return createFallbackMetadata(defaultTitle)
@@ -665,9 +722,6 @@ object Fb2Parser : BookParser {
         }
     }
 
-    /**
-     * Очистка аннотации через Regex (удаление тегов и декодирование XML сущностей).
-     */
     private fun cleanAnnotationWithRegex(text: String): String? {
         if (text.isBlank()) return null
 
@@ -686,9 +740,6 @@ object Fb2Parser : BookParser {
         }
     }
 
-    /**
-     * Декодирует XML сущности (именованные, десятичные и шестнадцатеричные).
-     */
     private fun decodeXmlEntities(text: String): String {
         if (text.isEmpty()) return text
         var result = text
@@ -736,9 +787,6 @@ object Fb2Parser : BookParser {
         return result
     }
 
-    /**
-     * Определяет кодировку из XML-декларации.
-     */
     private fun detectCharset(bytes: ByteArray, length: Int): Charset {
         try {
             val prefix = String(bytes, 0, minOf(200, length), Charsets.UTF_8)

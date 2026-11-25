@@ -48,11 +48,4 @@
         android:text="Перевести"
         android:layout_marginBottom="8dp" />
 
-    <Button
-        android:id="@+id/btnSpeak"
-        style="@style/Widget.App.Button"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Озвучить (TTS)" />
-
 </LinearLayout>

@@ -107,7 +107,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import android.content.Intent
 import android.os.Build
-import com.nightread.app.service.TtsForegroundService
 import com.nightread.app.data.SettingsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -272,31 +271,6 @@ fun ReaderComposeScreen(
 
     var pendingTargetOffset by remember { mutableStateOf<Int?>(null) }
     var showTocSheet by remember { mutableStateOf(false) }
-
-    var isTtsActive by remember { mutableStateOf(TtsForegroundService.isServiceRunning) }
-    var isTtsSpeaking by remember { mutableStateOf(false) }
-
-    DisposableEffect(context) {
-        val receiver = object : android.content.BroadcastReceiver() {
-            override fun onReceive(ctx: Context?, intent: Intent?) {
-                if (intent?.action == TtsForegroundService.BROADCAST_TTS_STATUS) {
-                    isTtsSpeaking = intent.getBooleanExtra(TtsForegroundService.EXTRA_IS_SPEAKING, false)
-                    isTtsActive = TtsForegroundService.isServiceRunning || isTtsSpeaking
-                }
-            }
-        }
-        val filter = android.content.IntentFilter(TtsForegroundService.BROADCAST_TTS_STATUS)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            context.registerReceiver(receiver, filter)
-        }
-        onDispose {
-            try {
-                context.unregisterReceiver(receiver)
-            } catch (e: Exception) {}
-        }
-    }
     
     // --------------------------------
     
@@ -940,25 +914,6 @@ fun ReaderComposeScreen(
                                         if (selectedText.isNotBlank()) {
                                             fragmentActivity?.supportFragmentManager?.let { fm ->
                                                 val sheet = SelectionBottomSheet.newInstance(selectedText)
-                                                sheet.setTtsListener { textToSpeak ->
-                                                    try {
-                                                        val intent = Intent(context, TtsForegroundService::class.java).apply {
-                                                            action = TtsForegroundService.ACTION_START
-                                                            putExtra(TtsForegroundService.EXTRA_TEXT, textToSpeak)
-                                                            putExtra(TtsForegroundService.EXTRA_BOOK_TITLE, bookTitle)
-                                                            putExtra(TtsForegroundService.EXTRA_SPEED, SettingsManager.getTtsSpeed(context))
-                                                            putExtra(TtsForegroundService.EXTRA_PITCH, SettingsManager.getTtsPitch(context))
-                                                            putExtra(TtsForegroundService.EXTRA_VOICE, SettingsManager.getTtsVoice(context))
-                                                        }
-                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                                            context.startForegroundService(intent)
-                                                        } else {
-                                                            context.startService(intent)
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        android.util.Log.e("ReaderComposeScreen", "Error starting TTS for selected text", e)
-                                                    }
-                                                }
                                                 sheet.show(fm, "SelectionBottomSheet")
                                             }
                                         }
@@ -1282,168 +1237,10 @@ fun ReaderComposeScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         HorizontalDivider(color = panelTextColor.copy(alpha = 0.12f), modifier = Modifier.padding(horizontal = 16.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Surface(
-                                onClick = { openTtsSettingsSheet(fragmentActivity, mainText, bookTitle) },
-                                shape = RoundedCornerShape(16.dp),
-                                color = Color(0x26FFFFFF),
-                                border = BorderStroke(1.dp, Color(0x4DFFFFFF)),
-                                shadowElevation = 4.dp
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .background(
-                                            Brush.verticalGradient(
-                                                listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))
-                                            )
-                                        )
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.VolumeUp,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Озвучка (TTS)",
-                                        color = panelTextColor,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-
-                            Volumetric3DIconButton(
-                                onClick = {
-                                    val act = context as? BookReaderActivity
-                                    if (isTtsSpeaking) {
-                                        act?.pauseTts()
-                                    } else {
-                                        act?.startOrResumeTts()
-                                    }
-                                },
-                                vectorIcon = if (isTtsSpeaking) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                contentDescription = "Воспроизведение TTS",
-                                tint = Color.White,
-                                buttonSize = 42.dp,
-                                iconSize = 24.dp
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
 
-            // Floating Active TTS Player Controller
-            AnimatedVisibility(
-                visible = isTtsActive && !isDistractionFreeMode,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
-                exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(
-                        bottom = if (!isHideBars && !isSearchMode) 150.dp else 24.dp,
-                        start = 16.dp,
-                        end = 16.dp
-                    )
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = glassBgColor,
-                    border = glassBorder,
-                    shadowElevation = 10.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Volumetric3DIconButton(
-                            onClick = { (context as? BookReaderActivity)?.readPreviousTtsChunk() },
-                            vectorIcon = Icons.Filled.SkipPrevious,
-                            contentDescription = "Предыдущий",
-                            tint = Color.White,
-                            buttonSize = 42.dp,
-                            iconSize = 24.dp
-                        )
-
-                        Surface(
-                            onClick = {
-                                val act = context as? BookReaderActivity
-                                if (isTtsSpeaking) {
-                                    act?.pauseTts()
-                                    isTtsSpeaking = false
-                                } else {
-                                    act?.startOrResumeTts()
-                                    isTtsSpeaking = true
-                                }
-                            },
-                            shape = CircleShape,
-                            color = Color(0x33FFB300),
-                            border = BorderStroke(1.5.dp, Color(0x80FFFFFF)),
-                            shadowElevation = 6.dp
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .size(52.dp)
-                                    .background(
-                                        Brush.verticalGradient(
-                                            listOf(Color(0x40FFD54F), Color(0x20FF8F00))
-                                        )
-                                    )
-                            ) {
-                                Icon(
-                                    imageVector = if (isTtsSpeaking) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                    contentDescription = if (isTtsSpeaking) "Пауза" else "Старт",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(30.dp)
-                                )
-                            }
-                        }
-
-                        Volumetric3DIconButton(
-                            onClick = { (context as? BookReaderActivity)?.readNextTtsChunk() },
-                            vectorIcon = Icons.Filled.SkipNext,
-                            contentDescription = "Следующий",
-                            tint = Color.White,
-                            buttonSize = 42.dp,
-                            iconSize = 24.dp
-                        )
-
-                        Volumetric3DIconButton(
-                            onClick = {
-                                (context as? BookReaderActivity)?.stopTts()
-                                isTtsActive = false
-                                isTtsSpeaking = false
-                            },
-                            vectorIcon = Icons.Filled.Stop,
-                            contentDescription = "Остановить",
-                            tint = Color(0xFFFF5252),
-                            buttonSize = 42.dp,
-                            iconSize = 24.dp
-                        )
-
-                        Volumetric3DIconButton(
-                            onClick = { openTtsSettingsSheet(fragmentActivity, mainText, bookTitle) },
-                            vectorIcon = Icons.Filled.Settings,
-                            contentDescription = "Панель TTS",
-                            tint = Color.White,
-                            buttonSize = 42.dp,
-                            iconSize = 24.dp
-                        )
-                    }
-                }
-            }
 
             // Search UI Overlay
             AnimatedVisibility(
@@ -1833,95 +1630,6 @@ fun SettingsStepper(
     }
 }
 
-private fun openTtsSettingsSheet(
-    activity: androidx.fragment.app.FragmentActivity?,
-    mainText: String,
-    bookTitle: String
-) {
-    activity?.supportFragmentManager?.let { fm ->
-        val sheet = TtsSettingsBottomSheet.newInstance(mainText, bookTitle)
-        sheet.setTtsListener(object : TtsSettingsBottomSheet.TtsSettingsListener {
-            override fun onTtsStartRequested(speed: Float, pitch: Float, voiceName: String?, continuous: Boolean) {
-                try {
-                    val intent = Intent(activity, TtsForegroundService::class.java).apply {
-                        action = TtsForegroundService.ACTION_START
-                        putExtra(TtsForegroundService.EXTRA_TEXT, mainText)
-                        putExtra(TtsForegroundService.EXTRA_BOOK_TITLE, bookTitle)
-                        putExtra(TtsForegroundService.EXTRA_SPEED, speed)
-                        putExtra(TtsForegroundService.EXTRA_PITCH, pitch)
-                        putExtra(TtsForegroundService.EXTRA_VOICE, voiceName)
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        activity.startForegroundService(intent)
-                    } else {
-                        activity.startService(intent)
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("ReaderComposeScreen", "Error starting TTS service", e)
-                }
-            }
-
-            override fun onTtsPauseRequested() {
-                try {
-                    val intent = Intent(activity, TtsForegroundService::class.java).apply {
-                        action = TtsForegroundService.ACTION_PAUSE
-                    }
-                    activity.startService(intent)
-                } catch (e: Exception) {
-                    android.util.Log.e("ReaderComposeScreen", "Error pausing TTS service", e)
-                }
-            }
-
-            override fun onTtsStopRequested() {
-                try {
-                    val intent = Intent(activity, TtsForegroundService::class.java).apply {
-                        action = TtsForegroundService.ACTION_STOP
-                    }
-                    activity.startService(intent)
-                } catch (e: Exception) {
-                    android.util.Log.e("ReaderComposeScreen", "Error stopping TTS service", e)
-                }
-            }
-
-            override fun onTtsSpeedChanged(speed: Float) {
-                try {
-                    val intent = Intent(activity, TtsForegroundService::class.java).apply {
-                        action = TtsForegroundService.ACTION_SET_SPEED
-                        putExtra(TtsForegroundService.EXTRA_SPEED, speed)
-                    }
-                    activity.startService(intent)
-                } catch (e: Exception) {
-                    android.util.Log.e("ReaderComposeScreen", "Error set speed TTS service", e)
-                }
-            }
-
-            override fun onTtsPitchChanged(pitch: Float) {
-                try {
-                    val intent = Intent(activity, TtsForegroundService::class.java).apply {
-                        action = TtsForegroundService.ACTION_SET_PITCH
-                        putExtra(TtsForegroundService.EXTRA_PITCH, pitch)
-                    }
-                    activity.startService(intent)
-                } catch (e: Exception) {
-                    android.util.Log.e("ReaderComposeScreen", "Error set pitch TTS service", e)
-                }
-            }
-
-            override fun onTtsVoiceChanged(voiceName: String) {
-                try {
-                    val intent = Intent(activity, TtsForegroundService::class.java).apply {
-                        action = TtsForegroundService.ACTION_SET_VOICE
-                        putExtra(TtsForegroundService.EXTRA_VOICE, voiceName)
-                    }
-                    activity.startService(intent)
-                } catch (e: Exception) {
-                    android.util.Log.e("ReaderComposeScreen", "Error set voice TTS service", e)
-                }
-            }
-        })
-        sheet.show(fm, "TtsSettings")
-    }
-}
 
 val sampleText = """
 для примера, я слышал истории, что были перерожденцы, которые имели Дар, что зависел от солнца. Вот только в том мире, где они переродились, оно появлялось всего раза два в год или три. Оттого человека записали в сумасшедшие, когда он всем рассказал, как он правил и насколько могущественным был, и давай толкать свою идеи. А потому первое правило перерожденца — это молчать об этом. Ты можешь быть бесконечно могущественным в прошлом мире, но в этом тебе просто могут не дать дойти до этого.

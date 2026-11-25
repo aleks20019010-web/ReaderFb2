@@ -3,13 +3,9 @@ package com.nightread.app.service
 import android.util.Log
 import com.nightread.app.data.EpubIdentifierHelper
 import com.nightread.app.data.epub.EpubPathResolver
-import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
-import java.io.ByteArrayInputStream
 import java.io.File
-import java.io.InputStream
 import java.util.zip.ZipFile
-import java.util.zip.ZipInputStream
 
 object EpubParser : BookParser {
     private const val TAG = "EpubParser"
@@ -64,13 +60,11 @@ object EpubParser : BookParser {
                 val bookTitle = titleMatch?.groupValues?.get(1)?.trim() ?: defaultTitle
                 val bookAuthor = authorMatch?.groupValues?.get(1)?.trim() ?: "Unknown"
 
-                // Extract Manifest items: id -> href
                 val manifestMap = mutableMapOf<String, String>()
                 val itemMatches = Regex("<item\\s+[^>]*id\\s*=\\s*[\"']([^\"']+)[\"'][^>]*href\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).findAll(opfContent)
                 for (item in itemMatches) {
                     manifestMap[item.groupValues[1]] = item.groupValues[2]
                 }
-                // Check reverse attribute order in manifest item: href first then id
                 val itemMatchesReverse = Regex("<item\\s+[^>]*href\\s*=\\s*[\"']([^\"']+)[\"'][^>]*id\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).findAll(opfContent)
                 for (item in itemMatchesReverse) {
                     val href = item.groupValues[1]
@@ -80,7 +74,6 @@ object EpubParser : BookParser {
                     }
                 }
 
-                // Extract Spine order
                 val spineIds = mutableListOf<String>()
                 val itemrefMatches = Regex("<itemref\\s+[^>]*idref\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE).findAll(opfContent)
                 for (itemref in itemrefMatches) {
@@ -134,43 +127,36 @@ object EpubParser : BookParser {
             sb.append("[CHAPTER]").append(heading).append("[/CHAPTER]\n\n")
         }
 
-        // Clean out styles and scripts
         val noScripts = html
             .replace(Regex("<script[^>]*>.*?</script>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
             .replace(Regex("<style[^>]*>.*?</style>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
 
-        // Replace block tags with newline markers
         val formattedBlocks = noScripts
             .replace(Regex("<(p|div|section|article|h1|h2|h3|h4|h5|h6)[^>]*>", RegexOption.IGNORE_CASE), "\n\n")
             .replace(Regex("<(br|hr)[^>]*>", RegexOption.IGNORE_CASE), "\n")
             .replace(Regex("</(p|div|section|article|h1|h2|h3|h4|h5|h6)>", RegexOption.IGNORE_CASE), "\n")
 
-        // Strip remaining HTML tags
-        var inTag = false
-        val cleanSb = StringBuilder(formattedBlocks.length)
-        for (i in formattedBlocks.indices) {
-            val c = formattedBlocks[i]
-            if (c == '<') {
-                inTag = true
-            } else if (c == '>') {
-                inTag = false
-            } else if (!inTag) {
-                cleanSb.append(c)
-            }
-        }
+        // Нормализуем теги форматирования и удаляем только остальные HTML-теги
+        val withInlineFormatting = formattedBlocks
+            .replace(Regex("<(?:strong|b)\\b[^>]*>", RegexOption.IGNORE_CASE), "<b>")
+            .replace(Regex("</(?:strong|b)>", RegexOption.IGNORE_CASE), "</b>")
+            .replace(Regex("<(?:em|i)\\b[^>]*>", RegexOption.IGNORE_CASE), "<i>")
+            .replace(Regex("</(?:em|i)>", RegexOption.IGNORE_CASE), "</i>")
+            .replace(Regex("<u\\b[^>]*>", RegexOption.IGNORE_CASE), "<u>")
+            .replace(Regex("</u>", RegexOption.IGNORE_CASE), "</u>")
+            .replace(Regex("<(?:s|del|strike)\\b[^>]*>", RegexOption.IGNORE_CASE), "<s>")
+            .replace(Regex("</(?:s|del|strike)>", RegexOption.IGNORE_CASE), "</s>")
+            .replace(Regex("<(sup|sub|code)\\b[^>]*>", RegexOption.IGNORE_CASE), "<$1>")
+            .replace(Regex("<(?!/?(?:b|i|u|s|sup|sub|code)\\b)[^>]*>", RegexOption.IGNORE_CASE), "")
 
-        val decoded = cleanSb.toString()
+        val decoded = withInlineFormatting
             .replace("&nbsp;", " ")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
             .replace("&quot;", "\"")
             .replace("&apos;", "'")
             .replace("&mdash;", "—")
             .replace("&ndash;", "–")
             .replace("&hellip;", "…")
 
-        // Normalize multiple newlines
         val lines = decoded.split('\n')
         for (line in lines) {
             val trimmed = line.trim()

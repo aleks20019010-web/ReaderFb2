@@ -75,15 +75,6 @@
                 android:text="" />
 
             <ImageButton
-                android:id="@+id/btnTts"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:src="@drawable/ic_headphones"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="@color/icon_tint"
-                android:contentDescription="Озвучка TTS"/>
-
-            <ImageButton
                 android:id="@+id/btnSettings"
                 android:layout_width="48dp"
                 android:layout_height="48dp"

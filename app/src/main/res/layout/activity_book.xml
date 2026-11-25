@@ -117,14 +117,6 @@
             android:src="@drawable/ic_note" />
 
         <ImageButton
-            android:id="@+id/btnTts"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_reader_tts"
-            android:contentDescription="Озвучка TTS" />
-
-        <ImageButton
             android:id="@+id/btnSettings"
             android:layout_width="48dp"
             android:layout_height="48dp"

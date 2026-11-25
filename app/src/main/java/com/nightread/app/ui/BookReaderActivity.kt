@@ -12,8 +12,6 @@ import com.nightread.app.data.SettingsManager
 import com.nightread.app.data.DictionaryDownloader
 import android.content.Intent
 import android.os.Build
-import com.nightread.app.service.TtsForegroundService
-import com.nightread.app.tts.AppTtsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -25,8 +23,6 @@ class BookReaderActivity : FragmentActivity() {
     private var openedBookTitle: String = ""
     private var openedBookSha1: String = ""
     private var openedBookText: String = ""
-    private var ttsManager: AppTtsManager? = null
-
     var onNextPage: (() -> Unit)? = null
     var onPrevPage: (() -> Unit)? = null
 
@@ -78,7 +74,7 @@ class BookReaderActivity : FragmentActivity() {
                                 if (!memCached.isNullOrEmpty()) {
                                     bookText = memCached
                                 } else {
-                                    val contentFile = File(cacheDir, "$sha1.content")
+                                    val contentFile = File(cacheDir, "$sha1.rich.content")
                                     val diskFile = if (!book.filePath.isNullOrEmpty()) File(book.filePath) else null
                                     if (contentFile.exists()) {
                                         val cached = try { contentFile.readText() } catch (_: Throwable) { "" }
@@ -155,13 +151,11 @@ class BookReaderActivity : FragmentActivity() {
         Toast.makeText(this, "Переход к странице ${pageIndex + 1}", Toast.LENGTH_SHORT).show()
     }
 
-
     val navigationEvents = MutableSharedFlow<Int>(extraBufferCapacity = 1)
-    
+
     fun navigateToOffset(offset: Int) {
         navigationEvents.tryEmit(offset)
     }
-
 
     fun fetchAndShowFreeDictionary(word: String) {
         if (word.isBlank()) return
@@ -215,64 +209,6 @@ class BookReaderActivity : FragmentActivity() {
 
     fun getOpenedBookTitle(): String = openedBookTitle
 
-    fun pauseTts() {
-        try {
-            val intent = Intent(this, TtsForegroundService::class.java).apply {
-                action = TtsForegroundService.ACTION_PAUSE
-            }
-            startService(intent)
-        } catch (e: Exception) {
-            ttsManager?.pause()
-        }
-        Toast.makeText(this, "Озвучивание приостановлено", Toast.LENGTH_SHORT).show()
-    }
-
-    fun startOrResumeTts() {
-        try {
-            com.nightread.app.service.TtsDataProvider.currentBookText = openedBookText
-            val intent = Intent(this, TtsForegroundService::class.java).apply {
-                action = TtsForegroundService.ACTION_START
-                putExtra(TtsForegroundService.EXTRA_TEXT, "")
-                putExtra(TtsForegroundService.EXTRA_BOOK_TITLE, openedBookTitle)
-                putExtra(TtsForegroundService.EXTRA_SPEED, SettingsManager.getTtsSpeed(this@BookReaderActivity))
-                putExtra(TtsForegroundService.EXTRA_PITCH, SettingsManager.getTtsPitch(this@BookReaderActivity))
-                putExtra(TtsForegroundService.EXTRA_VOICE, SettingsManager.getTtsVoice(this@BookReaderActivity))
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
-        } catch (e: Exception) {
-            if (ttsManager == null) {
-                ttsManager = AppTtsManager(applicationContext)
-            }
-            if (openedBookText.isNotEmpty()) {
-                ttsManager?.speak(openedBookText.take(2000))
-            }
-        }
-        Toast.makeText(this, "Озвучивание запущено", Toast.LENGTH_SHORT).show()
-    }
-
-    fun stopTts() {
-        try {
-            val intent = Intent(this, TtsForegroundService::class.java).apply {
-                action = TtsForegroundService.ACTION_STOP
-            }
-            startService(intent)
-        } catch (e: Exception) {
-            ttsManager?.stop()
-        }
-        Toast.makeText(this, "Озвучивание остановлено", Toast.LENGTH_SHORT).show()
-    }
-
-    fun readPreviousTtsChunk() {
-        startOrResumeTts()
-    }
-
-    fun readNextTtsChunk() {
-        startOrResumeTts()
-    }
 
     fun performSmartSearch(query: String) {
         if (query.isBlank() || openedBookText.isBlank()) return
@@ -309,7 +245,6 @@ class BookReaderActivity : FragmentActivity() {
         if (html.isBlank()) return ""
         val hasHtmlTags = Regex("<(?:p|div|br|h[1-6]|html|body|span|section|blockquote|li|tr)\\b", RegexOption.IGNORE_CASE).containsMatchIn(html)
         if (!hasHtmlTags) {
-            // Already plain text with [CHAPTER] / paragraph newlines — do NOT pass to Html.fromHtml which collapses all \n into spaces!
             return html
                 .replace("\r\n", "\n")
                 .replace("\r", "\n")
@@ -319,9 +254,6 @@ class BookReaderActivity : FragmentActivity() {
                 .replace("&laquo;", "«")
                 .replace("&raquo;", "»")
                 .replace("&hellip;", "…")
-                .replace("&amp;", "&")
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
                 .replace("&quot;", "\"")
                 .replace("&apos;", "'")
                 .replace(Regex("[ \t]+\\n"), "\n")
@@ -339,7 +271,16 @@ class BookReaderActivity : FragmentActivity() {
                 }
                 .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
                 .replace(Regex("</(?:p|div|li|blockquote|section|tr|h[4-6])>", RegexOption.IGNORE_CASE), "\n\n")
-                .replace(Regex("<[^>]*>"), "")
+                .replace(Regex("<(?:strong|b)\\b[^>]*>", RegexOption.IGNORE_CASE), "<b>")
+                .replace(Regex("</(?:strong|b)>", RegexOption.IGNORE_CASE), "</b>")
+                .replace(Regex("<(?:em|i)\\b[^>]*>", RegexOption.IGNORE_CASE), "<i>")
+                .replace(Regex("</(?:em|i)>", RegexOption.IGNORE_CASE), "</i>")
+                .replace(Regex("<u\\b[^>]*>", RegexOption.IGNORE_CASE), "<u>")
+                .replace(Regex("</u>", RegexOption.IGNORE_CASE), "</u>")
+                .replace(Regex("<(?:s|del|strike)\\b[^>]*>", RegexOption.IGNORE_CASE), "<s>")
+                .replace(Regex("</(?:s|del|strike)>", RegexOption.IGNORE_CASE), "</s>")
+                .replace(Regex("<(sup|sub|code)\\b[^>]*>", RegexOption.IGNORE_CASE), "<$1>")
+                .replace(Regex("<(?!/?(?:b|i|u|s|sup|sub|code)\\b)[^>]*>", RegexOption.IGNORE_CASE), "")
 
             normalizedHtml
                 .replace("&nbsp;", " ")
@@ -348,9 +289,6 @@ class BookReaderActivity : FragmentActivity() {
                 .replace("&laquo;", "«")
                 .replace("&raquo;", "»")
                 .replace("&hellip;", "…")
-                .replace("&amp;", "&")
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
                 .replace("&quot;", "\"")
                 .replace("&apos;", "'")
                 .replace(Regex("[ \t]+\\n"), "\n")
@@ -358,11 +296,8 @@ class BookReaderActivity : FragmentActivity() {
                 .replace(Regex("\\n{3,}"), "\n\n")
                 .trim()
         } catch (e: Exception) {
-            html.replace(Regex("<[^>]*>"), "")
+            html.replace(Regex("<(?!/?(?:b|i|u|s|sup|sub|code)\\b)[^>]*>", RegexOption.IGNORE_CASE), "")
                 .replace("&nbsp;", " ")
-                .replace("&amp;", "&")
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
                 .replace("&quot;", "\"")
                 .replace("&apos;", "'")
                 .replace(Regex("\\n{3,}"), "\n\n")
@@ -445,7 +380,7 @@ class BookReaderActivity : FragmentActivity() {
                     .putInt("book_char_offset_$openedBookSha1", offset)
                     .putLong("book_last_timestamp_$openedBookSha1", System.currentTimeMillis())
                     .commit()
-                
+
                 try {
                     com.nightread.app.data.SafeProgressManager.getInstance(this).saveProgressSync(
                         bookId = openedBookSha1,

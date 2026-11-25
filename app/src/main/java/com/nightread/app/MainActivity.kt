@@ -305,9 +305,7 @@ class MainActivity : BaseActivity() {
 
         navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
-                R.id.nav_audiobooks -> openAudiobooksFragment()
                 R.id.nav_sync -> openSyncFragment()
-                R.id.nav_stats -> openStatsFragment()
                 R.id.nav_favorites -> openFavoritesFragment()
                 R.id.nav_new_books -> openNewBooksFragment()
                 R.id.nav_want_to_read -> openWantToReadFragment()
@@ -340,10 +338,7 @@ class MainActivity : BaseActivity() {
             }
             navView.setCheckedItem(menuId)
 
-            if (intent.getBooleanExtra("OPEN_AUDIOBOOKS", false)) {
-                openAudiobooksFragment()
-                navView.setCheckedItem(R.id.nav_audiobooks)
-            } else if (intent.getBooleanExtra("OPEN_SYNC", false)) {
+            if (intent.getBooleanExtra("OPEN_SYNC", false)) {
                 openSyncFragment()
                 navView.setCheckedItem(R.id.nav_sync)
             } else {
@@ -389,21 +384,9 @@ class MainActivity : BaseActivity() {
             .commit()
     }
 
-    fun openAudiobooksFragment() {
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, com.nightread.app.ui.AudiobooksFragment())
-            .commit()
-    }
-
     fun openSyncFragment() {
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, com.nightread.app.ui.YandexSyncFragment())
-            .commit()
-    }
-
-    fun openStatsFragment() {
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, com.nightread.app.ui.StatsFragment())
             .commit()
     }
 

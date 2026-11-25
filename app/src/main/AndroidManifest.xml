@@ -14,7 +14,6 @@
     
     <!-- Foreground сервисы -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     
     <!-- Автозапуск -->
@@ -32,19 +31,7 @@
         android:maxSdkVersion="28" />
     
     <!-- Для Android 13+ (доступ к обложкам и аудиокнигам) -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-
-    <queries>
-        <!-- TTS сервисы -->
-        <intent>
-            <action android:name="android.intent.action.TTS_SERVICE" />
-        </intent>
-        <!-- Популярные TTS движки -->
-        <package android:name="com.google.android.tts" />
-        <package android:name="com.samsung.android.tts" />
-        <package android:name="com.estsoft.ktts" />
-    </queries>
 
     <application
         android:name=".MainApplication"
@@ -175,18 +162,6 @@
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"
             tools:node="merge" />
-
-        <service
-            android:name="com.nightread.app.service.TtsForegroundService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
-
-        <service
-            android:name="com.nightread.app.service.AudiobookPlaybackService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
 
         <service 
             android:name=".service.AutoDiscoveryService"

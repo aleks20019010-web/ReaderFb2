@@ -30,7 +30,6 @@
     <string name="bedtime_mode_activated">Режим сна активирован! Приятного чтения 🌙</string>
     
     <!-- Stats & Achievements strings -->
-    <string name="stats_title">Статистика и достижения</string>
     <string name="stats_rank_title">Ваш ночной ранг</string>
     <string name="stats_points">Очков опыта: %1$d</string>
     <string name="stats_next_rank">До следующего ранга: %1$d XP</string>
@@ -42,7 +41,6 @@
     <string name="stats_bookmarks">Закладки</string>
     <string name="stats_notes">Заметки</string>
     <string name="stats_categories">Популярные жанры</string>
-    <string name="stats_achievements_title">Ночные достижения</string>
     <string name="stats_ach_unlocked_status">Получено 🌟</string>
     <string name="stats_ach_locked_status">Заблокировано 🔒</string>
 
@@ -50,12 +48,10 @@
     <string name="drawer_library">Библиотека</string>
     <string name="drawer_reading">Читаю</string>
     <string name="drawer_read">Прочитано</string>
-    <string name="drawer_audiobooks">Аудиокниги</string>
     <string name="drawer_bookmarks">Закладки</string>
     <string name="drawer_favorites">Избранное</string>
     <string name="drawer_new_books">Новые книги</string>
     <string name="drawer_want_to_read">Хочу прочитать</string>
-    <string name="drawer_stats_achievements">Статистика и достижения</string>
     <string name="drawer_sync">Синхронизация</string>
     <string name="drawer_settings">Настройки</string>
 
@@ -199,7 +195,6 @@
 
     <!-- Item Achievement -->
     <string name="achievement_default_title">Название</string>
-    <string name="achievement_default_desc">Описание достижения...</string>
     <string name="achievement_unlocked">Получено 🌟</string>
     <string name="settings_download_dict">Скачать словарь</string>
     <string name="settings_update_dict">Обновить словарь</string>
@@ -221,7 +216,7 @@
 
     <!-- Storage Permission -->
     <string name="storage_permission_title">Доступ к книгам на устройстве</string>
-    <string name="storage_permission_message">Чтобы найти и добавить ваши книги (.fb2, .epub, .mobi, .txt, .zip, аудиокниги), приложению необходим доступ к файлам на накопителе.</string>
+    <string name="storage_permission_message">Чтобы найти и добавить ваши книги (.fb2, .epub, .mobi, .txt, .zip), приложению необходим доступ к файлам на накопителе.</string>
     <string name="storage_permission_grant">Предоставить доступ</string>
     <string name="storage_permission_denied">Без разрешения на доступ к файлам поиск книг невозможен</string>
 </resources>

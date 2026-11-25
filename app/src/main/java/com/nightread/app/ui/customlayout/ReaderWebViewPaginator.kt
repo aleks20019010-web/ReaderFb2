@@ -112,6 +112,8 @@ object ReaderWebViewPaginator {
                         -ms-hyphens: ${if (isHyphenationEnabled) "auto" else "none"};
                         word-break: normal;
                         overflow-wrap: break-word;
+                        orphans: 1;
+                        widows: 1;
                     }
                     #page-viewport, #content-container {
                         padding-left: 0 !important;
@@ -123,6 +125,7 @@ object ReaderWebViewPaginator {
                     }
                     b, strong {
                         font-weight: 700;
+                        font-variation-settings: "wght" 700;
                         -webkit-text-stroke: 0px transparent;
                     }
                     i, em {
@@ -150,6 +153,7 @@ object ReaderWebViewPaginator {
                         margin-bottom: 1.0em !important;
                         font-size: 1.55em !important;
                         font-weight: 700 !important;
+                        font-variation-settings: "wght" 700 !important;
                         -webkit-text-stroke: 0px transparent !important;
                         text-align: center !important;
                         text-indent: 0 !important;
@@ -159,6 +163,7 @@ object ReaderWebViewPaginator {
                     }
                     h1, h2, .chapter-title, .prologue-title, .annotation-title {
                         break-before: column !important;
+                        -webkit-column-break-before: always !important;
                     }
                     h1 + h1, h1 + h2, h2 + h1,
                     .chapter-title + .chapter-title,
@@ -211,10 +216,12 @@ object ReaderWebViewPaginator {
                     sup {
                         font-size: 0.75em;
                         vertical-align: super;
+                        line-height: 0;
                     }
                     sub {
                         font-size: 0.75em;
                         vertical-align: sub;
+                        line-height: 0;
                     }
                     code {
                         font-family: monospace;
@@ -276,7 +283,15 @@ object ReaderWebViewPaginator {
                             container.style.webkitColumnGap = '0px';
                         }
                         if (vh > 0) {
-                            container.style.height = vh + 'px';
+                            var cs = window.getComputedStyle(document.body);
+                            var lh = parseFloat(cs.lineHeight);
+                            if (!lh || isNaN(lh) || lh <= 0) {
+                                var fs = parseFloat(cs.fontSize) || 18;
+                                lh = fs * 1.4;
+                            }
+                            var linesPerPage = Math.max(1, Math.floor(vh / lh));
+                            var snappedVh = Math.floor(linesPerPage * lh);
+                            container.style.height = snappedVh + 'px';
                         }
                     }
 
@@ -850,7 +865,7 @@ object ReaderWebViewPaginator {
                             'p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, div { padding-left: ' + leftPaddingDp + 'px !important; padding-right: ' + rightPaddingDp + 'px !important; hyphens: ' + (isHyphenation ? 'auto' : 'none') + ' !important; -webkit-hyphens: ' + (isHyphenation ? 'auto' : 'none') + ' !important; } ' +
                             '#page-viewport, #content-container { padding-left: 0 !important; padding-right: 0 !important; } ' +
                             'p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, li, div, span { color: ' + textColor + ' !important; } ' +
-                            'h1, h2, h3, h4, h5, h6, .chapter-title, .prologue-title, .annotation-title, b, strong { font-weight: 700 !important; -webkit-text-stroke: 0px transparent !important; } ' +
+                            'h1, h2, h3, h4, h5, h6, .chapter-title, .prologue-title, .annotation-title, b, strong { font-weight: 700 !important; font-variation-settings: "wght" 700 !important; -webkit-text-stroke: 0px transparent !important; } ' +
                             '.note { color: #007AFF !important; }';
 
                         requestAnimationFrame(function() {
@@ -1160,7 +1175,8 @@ object ReaderWebViewPaginator {
                 processedLine = processedLine.replace(ANY_MARKUP_TAG_REGEX, "").trim()
                 if (processedLine.isEmpty()) continue
                 // Check if it's already an HTML block or regular paragraph
-                if (!processedLine.startsWith("<")) {
+                val startsWithBlockTag = Regex("^<(?:p|div|blockquote|h[1-6]|ul|ol|table|hr)\\b", RegexOption.IGNORE_CASE).containsMatchIn(processedLine)
+                if (!startsWithBlockTag) {
                     val escaped = escapeHtmlPreservingTags(processedLine)
                     processedLine = "<p data-offset=\"$lineStartOffset\">$escaped</p>"
                 } else {

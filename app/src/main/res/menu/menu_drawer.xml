@@ -14,10 +14,6 @@
             android:icon="@drawable/ic_nav_read"
             android:title="@string/drawer_read" />
         <item
-            android:id="@+id/nav_audiobooks"
-            android:icon="@drawable/ic_nav_audiobooks"
-            android:title="@string/drawer_audiobooks" />
-        <item
             android:id="@+id/nav_favorites"
             android:icon="@drawable/ic_nav_favorites"
             android:title="@string/drawer_favorites" />
@@ -29,10 +25,6 @@
             android:id="@+id/nav_want_to_read"
             android:icon="@drawable/ic_nav_pin"
             android:title="@string/drawer_want_to_read" />
-        <item
-            android:id="@+id/nav_stats"
-            android:icon="@drawable/ic_nav_stats"
-            android:title="@string/drawer_stats_achievements" />
 
         <item
             android:id="@+id/nav_sync"

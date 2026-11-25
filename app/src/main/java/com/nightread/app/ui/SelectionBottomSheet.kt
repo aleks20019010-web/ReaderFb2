@@ -18,7 +18,6 @@ import com.nightread.app.data.SettingsManager
 class SelectionBottomSheet : BottomSheetDialogFragment() {
 
     private var selectedText: String = ""
-    private var onTtsListener: ((String) -> Unit)? = null
 
     companion object {
         fun newInstance(text: String): SelectionBottomSheet {
@@ -53,13 +52,11 @@ class SelectionBottomSheet : BottomSheetDialogFragment() {
         val btnCopy = view.findViewById<Button>(R.id.btnCopy)
         val btnDict = view.findViewById<Button>(R.id.btnDictionary)
         val btnTranslate = view.findViewById<Button>(R.id.btnTranslate)
-        val btnTts = view.findViewById<Button>(R.id.btnSpeak)
 
         val btnBg = ColorStateList.valueOf(Color.parseColor(btnColor))
         btnCopy.backgroundTintList = btnBg
         btnDict.backgroundTintList = btnBg
         btnTranslate?.backgroundTintList = btnBg
-        btnTts.backgroundTintList = btnBg
 
         btnCopy.setOnClickListener {
             val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -98,15 +95,6 @@ class SelectionBottomSheet : BottomSheetDialogFragment() {
             dismiss()
         }
 
-        btnTts.setOnClickListener {
-            onTtsListener?.invoke(selectedText)
-            dismiss()
-        }
-
         return view
-    }
-
-    fun setTtsListener(listener: (String) -> Unit) {
-        this.onTtsListener = listener
     }
 }
