@@ -138,9 +138,6 @@ class SettingsFragment : Fragment() {
         }
 
         // --- НАСТРОЙКИ БИБЛИОТЕКИ ---
-        view.findViewById<View>(R.id.btnSelectBackground)?.setOnClickListener {
-            showPickBackgroundDialog()
-        }
 
         view.findViewById<Button>(R.id.btnScanLibrary).setOnClickListener {
             checkStoragePermissionAndScan()

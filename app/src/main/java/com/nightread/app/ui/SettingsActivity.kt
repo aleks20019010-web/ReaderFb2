@@ -131,9 +131,6 @@ class SettingsActivity : BaseActivity() {
 
         // --- НАСТРОЙКИ БИБЛИОТЕКИ ---
         // Buttons
-        findViewById<View>(R.id.btnSelectBackground)?.setOnClickListener {
-            showPickBackgroundDialog()
-        }
 
         findViewById<Button>(R.id.btnScanLibrary).setOnClickListener {
             checkStoragePermissionAndScan()

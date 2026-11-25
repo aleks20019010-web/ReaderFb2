@@ -80,6 +80,9 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE series = :series ORDER BY seriesIndex ASC, title ASC")
     fun getBooksBySeries(series: String): Flow<List<BookEntity>>
 
+    @Query("SELECT * FROM books WHERE series = :series ORDER BY CASE WHEN seriesIndex IS NULL THEN 999999 ELSE seriesIndex END ASC, title ASC")
+    suspend fun getBooksBySeriesSync(series: String): List<BookEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBook(book: BookEntity): Long
 

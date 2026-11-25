@@ -395,6 +395,37 @@ fun ReaderComposeScreen(
     var savedTextOffset by remember { mutableIntStateOf(0) }
     var currentWebViewPage by remember { mutableIntStateOf(0) }
     var totalWebViewPages by remember { mutableIntStateOf(1) }
+    var nextSeriesBook by remember(sha1) { mutableStateOf<com.nightread.app.data.BookEntity?>(null) }
+    var nextSeriesPositionText by remember(sha1) { mutableStateOf("") }
+    var isNextSeriesCardDismissed by remember(sha1) { mutableStateOf(false) }
+
+    LaunchedEffect(sha1) {
+        if (sha1.isNotEmpty()) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val dao = com.nightread.app.data.AppDatabase.getDatabase(context).bookDao()
+                    val currentBook = dao.getBookBySha1(sha1)
+                    val seriesName = currentBook?.series?.trim()
+                    if (!seriesName.isNullOrEmpty()) {
+                        val seriesBooks = dao.getBooksBySeriesSync(seriesName)
+                        val idx = seriesBooks.indexOfFirst { it.sha1 == sha1 }
+                        if (idx != -1 && idx + 1 < seriesBooks.size) {
+                            nextSeriesBook = seriesBooks[idx + 1]
+                            nextSeriesPositionText = "${idx + 2} из ${seriesBooks.size}"
+                        } else {
+                            nextSeriesBook = null
+                            nextSeriesPositionText = ""
+                        }
+                    } else {
+                        nextSeriesBook = null
+                        nextSeriesPositionText = ""
+                    }
+                } catch (_: Exception) {
+                    nextSeriesBook = null
+                }
+            }
+        }
+    }
     
     val pagerState = rememberPagerState(pageCount = { readerPages.size.coerceAtLeast(1) })
 
@@ -987,6 +1018,16 @@ fun ReaderComposeScreen(
                                     onWebViewCreated = { webView ->
                                         webViewRef = webView
                                     },
+                                    onTopLeftTap = {
+                                        val currentTheme = SettingsManager.getReadingTheme(context).lowercase()
+                                        val isCurrentlyNight = SettingsManager.isNightTheme(currentTheme)
+                                        val targetTheme = if (isCurrentlyNight) "sepia" else "dark"
+                                        SettingsManager.setReadingTheme(context, targetTheme)
+                                        settingsVersion++
+                                        gestureIndicatorText = if (isCurrentlyNight) "Тема: Сепия" else "Тема: Ночь"
+                                        gestureIndicatorIcon = Icons.Filled.WbSunny
+                                        showGestureIndicatorTime = System.currentTimeMillis()
+                                    },
                                     onToggleBars = {
                                         val nextHidden = !(isHideBars || isDistractionFreeMode)
                                         isHideBars = nextHidden
@@ -1073,6 +1114,94 @@ fun ReaderComposeScreen(
                                     color = Color.White,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Next book in series card on the last page
+            val nextBook = nextSeriesBook
+            val isOnLastPage = totalWebViewPages > 1 && currentWebViewPage >= totalWebViewPages - 1
+            AnimatedVisibility(
+                visible = nextBook != null && isOnLastPage && !isNextSeriesCardDismissed && !isSearchMode,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = if (!isHideBars) 128.dp else 20.dp)
+            ) {
+                nextBook?.let { nb ->
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color(0xFF192236).copy(alpha = 0.95f),
+                        border = BorderStroke(1.dp, Color(0xFF00BCD4).copy(alpha = 0.45f)),
+                        shadowElevation = 12.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Следующая в серии" + if (nextSeriesPositionText.isNotEmpty()) " ($nextSeriesPositionText)" else "",
+                                    color = Color(0xFF00BCD4),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                IconButton(
+                                    onClick = { isNextSeriesCardDismissed = true },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "Закрыть",
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = nb.title.ifBlank { "Без названия" },
+                                color = Color(0xFFF1F5F9),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 2,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                            if (!nb.series.isNullOrBlank()) {
+                                Text(
+                                    text = nb.series,
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                            }
+                            Button(
+                                onClick = {
+                                    val openNext = Intent(context, BookReaderActivity::class.java).apply {
+                                        putExtra("BOOK_SHA1", nb.sha1)
+                                    }
+                                    context.startActivity(openNext)
+                                    (context as? Activity)?.finish()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00BCD4)),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth().height(46.dp)
+                            ) {
+                                Text(
+                                    text = "Читать дальше →",
+                                    color = Color(0xFF0A101F),
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }

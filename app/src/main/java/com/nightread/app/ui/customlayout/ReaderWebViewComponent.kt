@@ -43,10 +43,12 @@ fun ReaderWebViewComponent(
     onNextPage: () -> Unit = {},
     onPreviousPage: () -> Unit = {},
     onToggleBars: () -> Unit = {},
+    onTopLeftTap: () -> Unit = {},
     onVerticalScroll: (Float, Float) -> Unit = { _, _ -> },
     onWebViewCreated: (WebView) -> Unit = {}
 ) {
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
+    val latestOnTopLeftTap by rememberUpdatedState(onTopLeftTap)
     var lastLoadedHtml by remember { mutableStateOf("") }
     var lastStyleKey by remember { mutableStateOf("") }
     var lastAnimationMode by remember { mutableStateOf(pageAnimation) }
@@ -205,8 +207,12 @@ fun ReaderWebViewComponent(
                                 }
                             } else if (!isVerticalDrag) {
                                 if (duration < 400 && Math.abs(deltaX) < tapSlop && Math.abs(deltaY) < tapSlop) {
-                                    // Tap zones: left 25% prev page, right 25% next page, center 50% toggle fullscreen
+                                    // Tap zones: top-left corner toggle sepia/night, left 25% prev page, right 25% next page, center 50% toggle fullscreen
+                                    val screenHeight = height.coerceAtLeast(1)
                                     when {
+                                        upX < screenWidth * 0.22f && upY < screenHeight * 0.14f -> {
+                                            latestOnTopLeftTap()
+                                        }
                                         upX < screenWidth * 0.25f -> {
                                             this.evaluateJavascript("if(window.prevPage){window.prevPage();}", null)
                                             onPreviousPage()
