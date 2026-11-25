@@ -3,7 +3,6 @@ package com.nightread.app.ui
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.RuntimeShader
@@ -47,7 +46,6 @@ class LiquidWaveBackgroundView @JvmOverloads constructor(
 
     private val shaderPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val fallbackPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val fadePaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     private val runtimeShader: RuntimeShader? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         RuntimeShader(NIGHTREAD_LIQUID_WAVE_AGSL)
@@ -116,7 +114,6 @@ class LiquidWaveBackgroundView @JvmOverloads constructor(
         val idxA = cyclePos.toInt() % palettes.size
         val idxB = (idxA + 1) % palettes.size
         val rawFrac = (cyclePos - idxA).toFloat()
-        // Косинусное сглаживание: мягко задерживается на палитре и незаметно перетекает в следующую
         val t = (0.5 - 0.5 * cos(rawFrac * PI)).toFloat()
 
         val pA = palettes[idxA]
@@ -138,7 +135,6 @@ class LiquidWaveBackgroundView @JvmOverloads constructor(
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && runtimeShader != null) {
             val t = timeSec.toFloat()
-            // Медленное органическое смещение направления волн
             val flowX = (sin(timeSec * 0.065) * 0.85 + cos(timeSec * 0.037) * 0.45).toFloat()
             val flowY = (cos(timeSec * 0.055) * 0.85 + sin(timeSec * 0.031) * 0.45).toFloat()
 
@@ -158,36 +154,28 @@ class LiquidWaveBackgroundView @JvmOverloads constructor(
     }
 
     private fun drawFallbackCanvas(canvas: Canvas, w: Float, h: Float, timeSec: Float) {
-        val baseColor = if (isLightTheme) Color.rgb(244, 241, 234) else Color.BLACK
+        val baseColor = if (isLightTheme) Color.rgb(244, 241, 234) else Color.rgb(5, 7, 14)
         canvas.drawColor(baseColor)
 
         val phase = timeSec * 0.14f
         val maxDim = maxOf(w, h)
-        val alpha1 = if (isLightTheme) 95 else 170
-        val alpha2 = if (isLightTheme) 80 else 140
+        val alpha1 = if (isLightTheme) 90 else 155
+        val alpha2 = if (isLightTheme) 75 else 130
 
         val col1 = Color.argb(alpha1, (c1Cur[0] * 255).toInt(), (c1Cur[1] * 255).toInt(), (c1Cur[2] * 255).toInt())
         val col2 = Color.argb(alpha2, (c2Cur[0] * 255).toInt(), (c2Cur[1] * 255).toInt(), (c2Cur[2] * 255).toInt())
 
         val x1 = w * (0.50f + 0.24f * cos(phase))
-        val y1 = h * (0.24f + 0.10f * sin(phase * 1.15f))
-        val r1 = maxDim * 0.62f
+        val y1 = h * (0.42f + 0.18f * sin(phase * 1.15f))
+        val r1 = maxDim * 0.78f
         fallbackPaint.shader = RadialGradient(x1, y1, r1, col1, Color.TRANSPARENT, Shader.TileMode.CLAMP)
         canvas.drawCircle(x1, y1, r1, fallbackPaint)
 
-        val x2 = w * (0.30f + 0.26f * sin(phase * 0.8f + 1.4f))
-        val y2 = h * (0.40f + 0.12f * cos(phase * 0.9f))
-        val r2 = maxDim * 0.56f
+        val x2 = w * (0.48f + 0.26f * sin(phase * 0.8f + 1.4f))
+        val y2 = h * (0.58f + 0.18f * cos(phase * 0.9f))
+        val r2 = maxDim * 0.75f
         fallbackPaint.shader = RadialGradient(x2, y2, r2, col2, Color.TRANSPARENT, Shader.TileMode.CLAMP)
         canvas.drawCircle(x2, y2, r2, fallbackPaint)
-
-        fadePaint.shader = LinearGradient(
-            0f, h * 0.45f, 0f, h * 0.92f,
-            Color.TRANSPARENT,
-            baseColor,
-            Shader.TileMode.CLAMP,
-        )
-        canvas.drawRect(0f, h * 0.45f, w, h, fadePaint)
     }
 
     companion object {
@@ -226,12 +214,13 @@ class LiquidWaveBackgroundView @JvmOverloads constructor(
             half4 main(float2 fragCoord) {
                 float2 uv = fragCoord / max(iResolution, float2(1.0));
                 float aspect = iResolution.x / max(iResolution.y, 1.0);
-                float2 p = float2((uv.x - 0.5) * aspect, uv.y - 0.32);
+                // Строгий центр экрана
+                float2 p = float2((uv.x - 0.5) * aspect, uv.y - 0.50);
 
-                // Медленное медитативное течение (примерно в 3 раза плавнее музыкального режима)
+                // Медленное медитативное течение
                 float t = iTime * 0.14;
 
-                // Искривление пространства (жидкий шёлк)
+                // Искривление пространства (жидкий шёлк) по всему экрану
                 float2 q = p + iFlow * 0.45;
                 q.x += 0.34 * sin(q.y * 2.8 + t * 1.1) + 0.16 * cos(q.x * 2.2 - t * 0.7);
                 q.y += 0.32 * cos(q.x * 2.6 - t * 0.9) + 0.14 * sin(q.y * 2.5 + t * 0.8);
@@ -251,20 +240,19 @@ class LiquidWaveBackgroundView @JvmOverloads constructor(
                 float w2 = abs(sin(r.x * 2.2 - r.y * 3.4 - t * 1.0 + 1.7));
                 float ridge1 = pow(clamp(1.0 - w1, 0.0, 1.0), 6.5);
                 float ridge2 = pow(clamp(1.0 - w2, 0.0, 1.0), 7.5);
-                float veins = (ridge1 * 0.62 + ridge2 * 0.42);
+                float veins = (ridge1 * 0.58 + ridge2 * 0.40);
 
-                // Мягкие лучи сверху-по центру
+                // Мягкие лучи из центра экрана
                 float angle = atan(p.y, p.x);
-                float rays = pow(0.5 + 0.5 * sin(angle * 5.0 + t * 0.5), 4.0) * 0.16;
+                float rays = pow(0.5 + 0.5 * sin(angle * 5.0 + t * 0.5), 4.0) * 0.14;
 
-                // Вертикальная маска: сочный свет в верхней части и плавный уход в глубину снизу
-                float topGlow = smoothstep(0.86, 0.04, uv.y);
-                float centerBoost = exp(-dot(p * float2(1.1, 1.25), p * float2(1.1, 1.25)) * 1.5);
-                float mask = clamp(topGlow * 0.80 + centerBoost * 0.45, 0.0, 1.0) * smoothstep(0.95, 0.48, uv.y);
+                // Полное заполнение экрана с мягкой круговой виньеткой от центра
+                float dist = length(p);
+                float vignette = 1.0 - smoothstep(0.32, 1.35, dist) * 0.38;
 
-                float3 darkResult = (baseCol * (0.62 + rays) + mix(baseCol, float3(1.0), 0.55) * veins) * mask * 0.92;
+                float3 darkResult = (baseCol * (0.48 + rays) + mix(baseCol, float3(1.0), 0.52) * veins * 0.78) * vignette;
                 float3 lightBase = float3(0.957, 0.945, 0.918);
-                float3 lightResult = mix(lightBase, baseCol * 0.95 + float3(0.12) * veins, mask * 0.42);
+                float3 lightResult = mix(lightBase, baseCol * 0.95 + float3(0.12) * veins, 0.36 * vignette);
 
                 float3 color = mix(darkResult, lightResult, iLightMode);
                 return half4(clamp(color, 0.0, 1.0), 1.0);
