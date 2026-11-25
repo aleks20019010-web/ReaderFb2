@@ -451,46 +451,58 @@ fun ReaderComposeScreen(
 
     var webViewRef by remember { mutableStateOf<android.webkit.WebView?>(null) }
 
-    // Haptic feedback on page turn
-    var lastHapticPage by remember { mutableStateOf(-1) }
-    LaunchedEffect(currentWebViewPage, pagerState.currentPage) {
-        val activePage = if (currentWebViewPage > 0) currentWebViewPage else pagerState.currentPage
-        if (lastHapticPage == -1) {
-            lastHapticPage = activePage
-            return@LaunchedEffect
-        }
-        if (activePage != lastHapticPage) {
-            lastHapticPage = activePage
-            if (isHapticEnabled && !isRestoringProgress) {
-                try {
-                    val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                        val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
-                        vm?.defaultVibrator
-                    } else {
-                        @Suppress("DEPRECATION")
-                        context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
-                    }
-                    if (vibrator != null && vibrator.hasVibrator()) {
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                            vibrator.vibrate(android.os.VibrationEffect.createPredefined(android.os.VibrationEffect.EFFECT_CLICK))
+    // Reliable vibration helper (Android 13+ VibrationAttributes + fallback)
+    val triggerReaderVibration: (Boolean) -> Unit = remember(context) {
+        { isWakeUp ->
+            try {
+                val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
+                    vm?.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                }
+                if (vibrator != null && vibrator.hasVibrator()) {
+                    if (isWakeUp) {
+                        val timings = longArrayOf(0L, 400L, 150L, 400L, 150L, 500L)
+                        val amplitudes = intArrayOf(0, 255, 0, 255, 0, 255)
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                            val attrs = android.os.VibrationAttributes.Builder()
+                                .setUsage(android.os.VibrationAttributes.USAGE_ALARM)
+                                .build()
+                            vibrator.vibrate(android.os.VibrationEffect.createWaveform(timings, amplitudes, -1), attrs)
                         } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                            vibrator.vibrate(android.os.VibrationEffect.createOneShot(20L, 140))
+                            val attrs = android.media.AudioAttributes.Builder()
+                                .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .build()
+                            @Suppress("DEPRECATION")
+                            vibrator.vibrate(android.os.VibrationEffect.createWaveform(timings, amplitudes, -1), attrs)
                         } else {
                             @Suppress("DEPRECATION")
-                            vibrator.vibrate(20L)
+                            vibrator.vibrate(timings, -1)
                         }
                     } else {
-                        view.performHapticFeedback(
-                            android.view.HapticFeedbackConstants.CLOCK_TICK,
-                            android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-                        )
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                            val attrs = android.os.VibrationAttributes.Builder()
+                                .setUsage(android.os.VibrationAttributes.USAGE_MEDIA)
+                                .build()
+                            vibrator.vibrate(android.os.VibrationEffect.createOneShot(25L, 200), attrs)
+                        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            val attrs = android.media.AudioAttributes.Builder()
+                                .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .build()
+                            @Suppress("DEPRECATION")
+                            vibrator.vibrate(android.os.VibrationEffect.createOneShot(25L, 200), attrs)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            vibrator.vibrate(25L)
+                        }
                     }
-                } catch (_: Exception) {
-                    view.performHapticFeedback(
-                        android.view.HapticFeedbackConstants.CLOCK_TICK,
-                        android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-                    )
                 }
+            } catch (_: Exception) {
+                // Ignore vibration errors
             }
         }
     }
@@ -508,34 +520,11 @@ fun ReaderComposeScreen(
     // Wake-up strong vibration if no page turn for 3 minutes in Silent Mode
     LaunchedEffect(isSilentModeEnabled, currentWebViewPage, pagerState.currentPage) {
         if (!isSilentModeEnabled) return@LaunchedEffect
-        val triggerWakeUpVibration = {
-            try {
-                val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
-                    vm?.defaultVibrator
-                } else {
-                    @Suppress("DEPRECATION")
-                    context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
-                }
-                if (vibrator != null && vibrator.hasVibrator()) {
-                    val timings = longArrayOf(0L, 350L, 150L, 350L, 150L, 450L)
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                        val amplitudes = intArrayOf(0, 255, 0, 255, 0, 255)
-                        vibrator.vibrate(android.os.VibrationEffect.createWaveform(timings, amplitudes, -1))
-                    } else {
-                        @Suppress("DEPRECATION")
-                        vibrator.vibrate(timings, -1)
-                    }
-                }
-            } catch (_: Exception) {
-                // Ignore vibration errors
-            }
-        }
         delay(3 * 60 * 1000L)
-        triggerWakeUpVibration()
+        triggerReaderVibration(true)
         repeat(2) {
             delay(2 * 60 * 1000L)
-            triggerWakeUpVibration()
+            triggerReaderVibration(true)
         }
     }
 
@@ -940,7 +929,7 @@ fun ReaderComposeScreen(
                             }
                             val leftPaddingDpVal = 8
                             val rightPaddingDpVal = 8
-                            val bottomPaddingDpVal = 20
+                            val bottomPaddingDpVal = 4
 
                             val currentTargetOffsetForHtml = if (savedTextOffset > 0) savedTextOffset else currentReadingOffset
 
@@ -1013,8 +1002,8 @@ fun ReaderComposeScreen(
                                         }
                                     },
                                     onNoteClicked = { noteId -> },
-                                    onNextPage = {},
-                                    onPreviousPage = {},
+                                    onNextPage = { if (isHapticEnabled) triggerReaderVibration(false) },
+                                    onPreviousPage = { if (isHapticEnabled) triggerReaderVibration(false) },
                                     onWebViewCreated = { webView ->
                                         webViewRef = webView
                                     },
