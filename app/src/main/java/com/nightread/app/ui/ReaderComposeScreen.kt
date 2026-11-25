@@ -421,27 +421,90 @@ fun ReaderComposeScreen(
     var webViewRef by remember { mutableStateOf<android.webkit.WebView?>(null) }
 
     // Haptic feedback on page turn
+    var lastHapticPage by remember { mutableStateOf(-1) }
     LaunchedEffect(currentWebViewPage, pagerState.currentPage) {
-        if (isHapticEnabled && !isRestoringProgress) {
-            try {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
-                    vibrator?.vibrate(android.os.VibrationEffect.createOneShot(12L, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
-                } else {
-                    view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+        val activePage = if (currentWebViewPage > 0) currentWebViewPage else pagerState.currentPage
+        if (lastHapticPage == -1) {
+            lastHapticPage = activePage
+            return@LaunchedEffect
+        }
+        if (activePage != lastHapticPage) {
+            lastHapticPage = activePage
+            if (isHapticEnabled && !isRestoringProgress) {
+                try {
+                    val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
+                        vm?.defaultVibrator
+                    } else {
+                        @Suppress("DEPRECATION")
+                        context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                    }
+                    if (vibrator != null && vibrator.hasVibrator()) {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                            vibrator.vibrate(android.os.VibrationEffect.createPredefined(android.os.VibrationEffect.EFFECT_CLICK))
+                        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            vibrator.vibrate(android.os.VibrationEffect.createOneShot(20L, 140))
+                        } else {
+                            @Suppress("DEPRECATION")
+                            vibrator.vibrate(20L)
+                        }
+                    } else {
+                        view.performHapticFeedback(
+                            android.view.HapticFeedbackConstants.CLOCK_TICK,
+                            android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+                        )
+                    }
+                } catch (_: Exception) {
+                    view.performHapticFeedback(
+                        android.view.HapticFeedbackConstants.CLOCK_TICK,
+                        android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+                    )
                 }
-            } catch (e: Exception) {
-                view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
             }
         }
     }
 
     // Silent Mode effect (mute view click sound effects during reading)
-    LaunchedEffect(isSilentModeEnabled) {
+    LaunchedEffect(isSilentModeEnabled, webViewRef) {
         try {
             view.isSoundEffectsEnabled = !isSilentModeEnabled
+            webViewRef?.isSoundEffectsEnabled = !isSilentModeEnabled
         } catch (e: Exception) {
             // Ignore if not supported
+        }
+    }
+
+    // Wake-up strong vibration if no page turn for 3 minutes in Silent Mode
+    LaunchedEffect(isSilentModeEnabled, currentWebViewPage, pagerState.currentPage) {
+        if (!isSilentModeEnabled) return@LaunchedEffect
+        val triggerWakeUpVibration = {
+            try {
+                val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
+                    vm?.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                }
+                if (vibrator != null && vibrator.hasVibrator()) {
+                    val timings = longArrayOf(0L, 350L, 150L, 350L, 150L, 450L)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        val amplitudes = intArrayOf(0, 255, 0, 255, 0, 255)
+                        vibrator.vibrate(android.os.VibrationEffect.createWaveform(timings, amplitudes, -1))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vibrator.vibrate(timings, -1)
+                    }
+                }
+            } catch (_: Exception) {
+                // Ignore vibration errors
+            }
+        }
+        delay(3 * 60 * 1000L)
+        triggerWakeUpVibration()
+        repeat(2) {
+            delay(2 * 60 * 1000L)
+            triggerWakeUpVibration()
         }
     }
 

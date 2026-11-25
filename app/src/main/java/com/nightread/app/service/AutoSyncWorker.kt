@@ -128,7 +128,7 @@ class AutoSyncWorker(
                         if (isOverdue) {
                             AutoSyncScheduler.scheduleRetryAfterFailure(context)
                         } else {
-                            AutoSyncScheduler.scheduleAutoSync(context, forceReplace = false)
+                            AutoSyncScheduler.scheduleAutoSync(context, forceReplace = true)
                         }
                     }
                 }

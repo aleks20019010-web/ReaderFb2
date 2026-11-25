@@ -1,1 +1,0 @@
-perl -0777 -pi -e 's/gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup\(\) \{\n                override fun getSpanSize\(position: Int\): Int \{\n                    return 1\n                \}\n            \}//g' app/src/main/java/com/nightread/app/ui/LibraryFragment.kt

@@ -1,1 +1,0 @@
-sed -i 's/fun updateData/fun addBooks(addedBooks: List<BookEntity>, newFilteredList: List<BookEntity>) {\n        addedBooks.forEach { newlyAddedSha1s.add(it.sha1) }\n        updateData(newFilteredList)\n    }\n\n    fun updateData/g' app/src/main/java/com/nightread/app/ui/BookAdapter.kt
