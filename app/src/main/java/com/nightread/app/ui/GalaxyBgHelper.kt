@@ -11,22 +11,12 @@ import androidx.core.content.ContextCompat
 import com.nightread.app.R
 import com.nightread.app.data.FileStorageHelper
 
-/**
- * Класс, отвечающий за загрузку и отображение фона приложения (layout_galaxy_bg.xml).
- * Если пользователь выбрал собственную картинку (сохранённую в /files/user_bg.jpg), отображает её.
- * При отсутствии пользовательской картинки загружает:
- * - Для тёмной темы: тёмный космический фон (bg_dark_cosmic / #1A0B2E).
- * - Для светлой темы: светлый градиент "рассвет" (light_bg / #F5F0EB).
- */
 object GalaxyBgHelper {
 
     private const val TAG = "GalaxyBgHelper"
-    const val DARK_BG_COLOR = "#0F1523"
-    const val LIGHT_BG_COLOR = "#0F1523"
+    const val DARK_BG_COLOR = "#000000"
+    const val LIGHT_BG_COLOR = "#F4F1EA"
 
-    /**
-     * Ищет ImageView с ID R.id.ivCustomLibraryBg в предоставленном rootView и применяет к нему фон.
-     */
     fun applyBackground(rootView: View) {
         val ivBg = rootView.findViewById<ImageView>(R.id.ivCustomLibraryBg)
         if (ivBg != null) {
@@ -34,14 +24,13 @@ object GalaxyBgHelper {
         }
     }
 
-    /**
-     * Применяет пользовательский фон или фоновое изображение в зависимости от выбранной темы.
-     */
     fun applyBackground(context: Context, imageView: ImageView) {
         val nightModeFlags = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        val isNightMode = nightModeFlags == Configuration.UI_MODE_NIGHT_YES || com.nightread.app.data.ThemeHelper.shouldBeNightMode(context)
+        val isNightMode = nightModeFlags == Configuration.UI_MODE_NIGHT_YES ||
+            com.nightread.app.data.ThemeHelper.shouldBeNightMode(context)
 
         val parentView = imageView.parent as? android.view.ViewGroup
+        val liquidWaveView = parentView?.findViewById<LiquidWaveBackgroundView>(R.id.liquidWaveBg)
         val starryView = parentView?.findViewById<View>(R.id.starryOverlay)
         val sunbeamView = parentView?.findViewById<View>(R.id.sunbeamOverlay)
 
@@ -50,28 +39,17 @@ object GalaxyBgHelper {
 
         val bgFile = FileStorageHelper.getUserBackgroundFile(context, isNightMode)
 
-        // Helper to update overlay visibility
-        fun updateOverlayVisibility() {
-            if (isNightMode) {
-                starryView?.visibility = View.VISIBLE
-                sunbeamView?.visibility = View.GONE
-            } else {
-                starryView?.visibility = View.GONE
-                sunbeamView?.visibility = View.VISIBLE
-            }
-        }
-
-        // 1. Приоритет: пользовательское фоновое изображение из галереи (user_bg_dark.jpg / user_bg_light.jpg)
+        // 1. Пользовательское фото из галереи (если выбрано вручную)
         if (bgFile.exists() && bgFile.length() > 0) {
             try {
                 val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeFile(bgFile.absolutePath, options)
                 if (options.outWidth > 0 && options.outHeight > 0) {
-                    val displayMetrics = context.resources.displayMetrics
-                    val reqWidth = displayMetrics.widthPixels
-                    val reqHeight = displayMetrics.heightPixels
+                    val dm = context.resources.displayMetrics
                     var inSampleSize = 1
-                    while (options.outHeight / inSampleSize >= reqHeight && options.outWidth / inSampleSize >= reqWidth) {
+                    while (options.outHeight / inSampleSize >= dm.heightPixels &&
+                        options.outWidth / inSampleSize >= dm.widthPixels
+                    ) {
                         inSampleSize *= 2
                     }
                     options.inJustDecodeBounds = false
@@ -79,32 +57,26 @@ object GalaxyBgHelper {
                     options.inPreferredConfig = android.graphics.Bitmap.Config.RGB_565
                     val bitmap = BitmapFactory.decodeFile(bgFile.absolutePath, options)
                     if (bitmap != null) {
+                        liquidWaveView?.visibility = View.GONE
+                        imageView.visibility = View.VISIBLE
                         imageView.setImageBitmap(bitmap)
                         imageView.scaleType = ImageView.ScaleType.CENTER_CROP
                         imageView.setBackgroundColor(Color.TRANSPARENT)
-                        updateOverlayVisibility()
+                        starryView?.visibility = if (isNightMode) View.VISIBLE else View.GONE
+                        sunbeamView?.visibility = if (isNightMode) View.GONE else View.VISIBLE
                         return
-                    } else {
-                        Log.e(TAG, "BitmapFactory decoded null bitmap for background file: ${bgFile.name}")
                     }
                 }
             } catch (e: Throwable) {
-                Log.e(TAG, "Error decoding custom background file, falling back to theme background", e)
+                Log.e(TAG, "Error decoding custom background file", e)
             }
         }
 
-        // 2. Тематический фон по умолчанию (Тёмный космос, Дали или Светлый рассвет)
-        imageView.setImageDrawable(null)
+        // 2. Специальная тема «Дали» (если выбрана в светлом режиме)
         val appTheme = com.nightread.app.data.SettingsManager.getTheme(context)
-        if (isNightMode) {
-            val darkDrawable = ContextCompat.getDrawable(context, R.drawable.bg_dark_cosmic)
-            if (darkDrawable != null) {
-                imageView.setImageDrawable(darkDrawable)
-                imageView.scaleType = ImageView.ScaleType.CENTER_CROP
-            } else {
-                imageView.setBackgroundColor(Color.parseColor(DARK_BG_COLOR))
-            }
-        } else if (appTheme == "dali") {
+        if (!isNightMode && appTheme == "dali") {
+            liquidWaveView?.visibility = View.GONE
+            imageView.visibility = View.VISIBLE
             val daliDrawable = ContextCompat.getDrawable(context, R.drawable.bg_dali_desert)
             if (daliDrawable != null) {
                 imageView.setImageDrawable(daliDrawable)
@@ -115,18 +87,15 @@ object GalaxyBgHelper {
             sunbeamView?.visibility = View.VISIBLE
             starryView?.visibility = View.GONE
             return
-        } else {
-            val lightDrawable = ContextCompat.getDrawable(context, R.drawable.light_bg)
-            if (lightDrawable != null) {
-                imageView.setImageDrawable(lightDrawable)
-                imageView.scaleType = ImageView.ScaleType.CENTER_CROP
-            } else {
-                imageView.setBackgroundColor(Color.parseColor(LIGHT_BG_COLOR))
-            }
-            sunbeamView?.visibility = View.VISIBLE
-            starryView?.visibility = View.GONE
-            return
         }
-        updateOverlayVisibility()
+
+        // 3. Основной живой переливающийся AGSL-фон (по умолчанию на всех экранах)
+        imageView.setImageDrawable(null)
+        imageView.visibility = View.GONE
+        starryView?.visibility = View.GONE
+        sunbeamView?.visibility = View.GONE
+
+        liquidWaveView?.isLightTheme = !isNightMode
+        liquidWaveView?.visibility = View.VISIBLE
     }
 }

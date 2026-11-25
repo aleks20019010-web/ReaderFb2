@@ -7,7 +7,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -67,7 +66,7 @@ fun LibraryComposeUI(
     onBookClicked: (BookEntity) -> Unit
 ) {
     var visibleBanner by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(isScanning, scanProgressText) {
         if (isScanning) {
             visibleBanner = true
@@ -81,42 +80,8 @@ fun LibraryComposeUI(
     val colorScheme = MaterialTheme.colorScheme
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    listOf(
-                        colorScheme.background,
-                        colorScheme.surfaceVariant,
-                        Color(0xFF080B12)
-                    )
-                )
-            )
+        modifier = Modifier.fillMaxSize()
     ) {
-        // Фоновые космические звезды / туманность
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val starColors = listOf(Color.White, Color(0xFFB3E5FC), Color(0xFFE1BEE7))
-            // Несколько мягких световых бликов туманности
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFF3F51B5).copy(alpha = 0.15f), Color.Transparent),
-                    center = Offset(size.width * 0.2f, size.height * 0.3f),
-                    radius = 400f
-                ),
-                radius = 400f,
-                center = Offset(size.width * 0.2f, size.height * 0.3f)
-            )
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFF00BCD4).copy(alpha = 0.1f), Color.Transparent),
-                    center = Offset(size.width * 0.8f, size.height * 0.7f),
-                    radius = 500f
-                ),
-                radius = 500f,
-                center = Offset(size.width * 0.8f, size.height * 0.7f)
-            )
-        }
-
         Column(modifier = Modifier.fillMaxSize()) {
             GlassmorphicTopBar(
                 bookCount = books.size,
@@ -144,7 +109,7 @@ fun LibraryComposeUI(
                     placeholder = { Text("Поиск по названию или автору...", color = colorScheme.secondary) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = colorScheme.tertiary) },
                     trailingIcon = {
-                        IconButton(onClick = { 
+                        IconButton(onClick = {
                             onSearchQueryChanged("")
                             onSearchActiveChanged(false)
                         }) {
@@ -330,7 +295,6 @@ private fun GlassmorphicTopBar(
                 )
             )
             .drawBehind {
-                // Тонкий серебряный контур стекломорфизма
                 drawRoundRect(
                     brush = Brush.linearGradient(
                         colors = listOf(
@@ -353,7 +317,6 @@ private fun GlassmorphicTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Левая часть: Меню с серебряным фоном + Текст "Библиотека" / счетчик
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
@@ -390,7 +353,6 @@ private fun GlassmorphicTopBar(
                 }
             }
 
-            // Правая часть: Иконки инструментов в стиле стекло
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -432,7 +394,6 @@ private fun GlassActionIcon(imageVector: ImageVector, description: String, onCli
 private fun GlassBookGrid(books: List<BookEntity>, onBookClicked: (BookEntity) -> Unit) {
     val uniqueBooks = remember(books) { books.distinctBy { it.sha1 } }
 
-    // Общая плавная анимация пульсации обложек как на экране серии
     val infiniteTransition = rememberInfiniteTransition(label = "cover_pulse_transition")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
@@ -544,7 +505,6 @@ private fun GlassBookCard(
             )
             .clickable { onClicked() }
             .drawBehind {
-                // Серебряная окантовка карточки
                 drawRoundRect(
                     brush = Brush.linearGradient(
                         colors = listOf(
@@ -563,7 +523,6 @@ private fun GlassBookCard(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Область обложки с пульсацией, свечением и 3D-корешком (как на экране серии)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -571,7 +530,6 @@ private fun GlassBookCard(
                     .padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Пульсирующее цветное свечение позади обложки
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -592,7 +550,6 @@ private fun GlassBookCard(
                         )
                 )
 
-                // Пульсирующая обложка с 3D-эффектом книги
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -618,7 +575,6 @@ private fun GlassBookCard(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        // Стильная заглавная буква для книг без обложки
                         Text(
                             text = initialLetter,
                             color = Color.White.copy(alpha = 0.85f),
@@ -627,7 +583,6 @@ private fun GlassBookCard(
                         )
                     }
 
-                    // 3D эффект сгиба корешка слева
                     Box(
                         modifier = Modifier
                             .fillMaxHeight()
@@ -644,7 +599,6 @@ private fun GlassBookCard(
                             )
                     )
 
-                    // Блик торца страниц справа
                     Box(
                         modifier = Modifier
                             .fillMaxHeight()
@@ -653,7 +607,6 @@ private fun GlassBookCard(
                             .background(Color.White.copy(alpha = 0.28f))
                     )
 
-                    // Тонкая полоса прогресса чтения внизу обложки
                     if (progressFraction > 0f) {
                         Box(
                             modifier = Modifier
@@ -673,7 +626,6 @@ private fun GlassBookCard(
                 }
             }
 
-            // Текстовый блок снизу (выравнивание по левому краю как на экране серии)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

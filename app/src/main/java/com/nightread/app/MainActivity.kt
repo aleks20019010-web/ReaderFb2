@@ -3,7 +3,6 @@ package com.nightread.app
 import android.content.Intent
 import android.os.Bundle
 import android.widget.FrameLayout
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.activity.OnBackPressedCallback
@@ -13,22 +12,12 @@ import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.animation.AnimatorSet
 import android.view.animation.AccelerateDecelerateInterpolator
-import android.widget.ProgressBar
-import com.nightread.app.ui.BookReaderActivity
-import com.nightread.app.data.SettingsManager
 import com.nightread.app.ui.BaseActivity
-import com.nightread.app.ui.BookmarksFragment
-import com.nightread.app.ui.YandexSyncFragment
 import com.nightread.app.ui.LibraryFragment
 import com.nightread.app.ui.CustomToast
 import android.widget.Toast
-import com.nightread.app.ui.FontUtils
-import com.nightread.app.ui.TextFormatter
-import com.nightread.app.ui.BookCache
-import com.nightread.app.service.BookParser
 import com.google.android.material.navigation.NavigationView
 import android.graphics.Color
-import android.text.TextPaint
 import android.widget.TextView
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -47,7 +36,6 @@ class MainActivity : BaseActivity() {
     override fun shouldApplyGalaxyBackground(): Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // 1. Theme and super setup, then immediate splash view
         com.nightread.app.data.ThemeHelper.applyTheme(this)
         super.onCreate(savedInstanceState)
 
@@ -57,7 +45,6 @@ class MainActivity : BaseActivity() {
             }
         }
 
-        // Show splash screen instantly in Dark Glassmorphism style
         val nightMode = androidx.appcompat.app.AppCompatDelegate.getDefaultNightMode()
         val isNightMode = when (nightMode) {
             androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES -> true
@@ -66,6 +53,7 @@ class MainActivity : BaseActivity() {
         }
 
         if (hasShownSplash) {
+            window.statusBarColor = Color.TRANSPARENT
             setContentView(R.layout.activity_main)
             initMainUI(savedInstanceState)
         } else {
@@ -79,7 +67,6 @@ class MainActivity : BaseActivity() {
     }
 
     private fun runSplashAndLoadData(savedInstanceState: Bundle?, isNightMode: Boolean) {
-        // Configure deep dark starry cosmic view for splash
         val starryBg = findViewById<com.nightread.app.ui.StarryNightView>(R.id.splash_starry_view)
         starryBg?.visibility = View.VISIBLE
         starryBg?.setFireflyThemeColor(Color.parseColor("#FFE3A8"))
@@ -93,7 +80,6 @@ class MainActivity : BaseActivity() {
         lifecycleScope.launch {
             val startTime = System.currentTimeMillis()
 
-            // 2. Load last read book info with safe timeout
             val taskLoadBooks = async(Dispatchers.IO) {
                 if (!preventAutoOpen && !hasAutoOpenedInSession) {
                     try {
@@ -124,7 +110,6 @@ class MainActivity : BaseActivity() {
                 // Ignore
             }
 
-            // Ensure minimum splash duration of 1200ms for smooth UX animation
             val elapsed = System.currentTimeMillis() - startTime
             if (elapsed < 1200L) {
                 delay(1200L - elapsed)
@@ -139,20 +124,15 @@ class MainActivity : BaseActivity() {
                 startActivity(openIntent)
                 overridePendingTransition(0, 0)
             } else {
-                // 3. Apply active dark theme to window and set main layout cleanly
                 isSplashActive = false
-                window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.parseColor("#0F1523")))
-                window.statusBarColor = Color.parseColor("#0F1523")
+                window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.BLACK))
+                window.statusBarColor = Color.TRANSPARENT
                 setContentView(R.layout.activity_main)
-                findViewById<android.view.View>(android.R.id.content)?.let {
-                    com.nightread.app.ui.GalaxyBgHelper.applyBackground(it)
-                }
                 val mainRoot = findViewById<View>(R.id.drawer_layout) ?: findViewById<View>(R.id.fragment_container)
                 mainRoot?.alpha = 1f
                 initMainUI(savedInstanceState)
             }
 
-            // 4. Run heavy tasks (library scan & cloud sync) in background AFTER main UI is shown
             launch(Dispatchers.IO) {
                 try {
                     if (hasStoragePermission()) {
@@ -244,6 +224,10 @@ class MainActivity : BaseActivity() {
         if (isMainUiInitialized) return
         isMainUiInitialized = true
 
+        findViewById<android.view.View>(R.id.starry_bg)?.let {
+            com.nightread.app.ui.GalaxyBgHelper.applyBackground(it)
+        }
+
         lifecycleScope.launch(Dispatchers.IO) {
             com.nightread.app.ui.HyphenatorHelper.init(this@MainActivity)
             try {
@@ -282,7 +266,6 @@ class MainActivity : BaseActivity() {
             override fun onDrawerStateChanged(newState: Int) {}
         })
 
-        // Handle back press
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
@@ -299,11 +282,10 @@ class MainActivity : BaseActivity() {
             }
         })
 
-        // Handle WindowInsets for Edge-to-Edge
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         val fragmentContainer = findViewById<FrameLayout>(R.id.fragment_container)
         val drawerLayoutContainer = findViewById<FrameLayout>(R.id.drawer_layout_container)
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(drawerLayout) { view, windowInsets ->
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(drawerLayout) { _, windowInsets ->
             val insets = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             fragmentContainer.setPadding(0, insets.top, 0, insets.bottom)
             drawerLayoutContainer?.setPadding(0, insets.top, 0, insets.bottom)
@@ -380,8 +362,13 @@ class MainActivity : BaseActivity() {
     override fun onResume() {
         super.onResume()
         if (!isSplashActive && !isMainUiInitialized) {
+            window.statusBarColor = Color.TRANSPARENT
             setContentView(R.layout.activity_main)
             initMainUI(null)
+        } else if (!isSplashActive) {
+            findViewById<android.view.View>(R.id.starry_bg)?.let {
+                com.nightread.app.ui.GalaxyBgHelper.applyBackground(it)
+            }
         }
         com.nightread.app.service.ReminderWorker.updateLastOpenTime(this)
         com.nightread.app.service.ReminderWorker.schedule(this)
