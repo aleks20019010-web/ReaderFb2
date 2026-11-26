@@ -48,6 +48,8 @@ fun ReaderWebViewComponent(
     onWebViewCreated: (WebView) -> Unit = {}
 ) {
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
+    val latestOnNextPage by rememberUpdatedState(onNextPage)
+    val latestOnPreviousPage by rememberUpdatedState(onPreviousPage)
     val latestOnTopLeftTap by rememberUpdatedState(onTopLeftTap)
     var lastLoadedHtml by remember { mutableStateOf("") }
     var lastStyleKey by remember { mutableStateOf("") }
@@ -197,10 +199,10 @@ fun ReaderWebViewComponent(
                                 if (Math.abs(deltaX) > swipeCommitDistance || isQuickFlick) {
                                     if (deltaX > 0) {
                                         this.evaluateJavascript("if(window.prevPage){window.prevPage();}", null)
-                                        onPreviousPage()
+                                        latestOnPreviousPage()
                                     } else {
                                         this.evaluateJavascript("if(window.nextPage){window.nextPage();}", null)
-                                        onNextPage()
+                                        latestOnNextPage()
                                     }
                                 } else {
                                     this.evaluateJavascript("if(window.snapCurrentPage){window.snapCurrentPage();}", null)
@@ -215,11 +217,11 @@ fun ReaderWebViewComponent(
                                         }
                                         upX < screenWidth * 0.25f -> {
                                             this.evaluateJavascript("if(window.prevPage){window.prevPage();}", null)
-                                            onPreviousPage()
+                                            latestOnPreviousPage()
                                         }
                                         upX > screenWidth * 0.75f -> {
                                             this.evaluateJavascript("if(window.nextPage){window.nextPage();}", null)
-                                            onNextPage()
+                                            latestOnNextPage()
                                         }
                                         else -> {
                                             onToggleBars()

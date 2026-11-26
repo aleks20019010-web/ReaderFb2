@@ -62,9 +62,31 @@ class LibraryFragment : Fragment() {
         val composeView = view.findViewById<androidx.compose.ui.platform.ComposeView>(R.id.composeLibraryView)
         composeView?.setContent {
             com.nightread.app.ui.theme.MyApplicationTheme {
+                val filterType = remember { arguments?.getString("FILTER_TYPE") ?: "all" }
+                val headerTitle = when (filterType) {
+                    "reading" -> "Читаю"
+                    "read" -> "Прочитано"
+                    else -> "Библиотека"
+                }
                 val searchedBooks by viewModel.searchedBooks.collectAsState(initial = emptyList())
                 val sortOption by viewModel.sortOption.collectAsState(initial = com.nightread.app.data.SettingsManager.SORT_DATE_DESC)
-                val sortedBooks = remember(searchedBooks, sortOption) { viewModel.sortBooks(searchedBooks.distinctBy { it.sha1 }, sortOption) }
+                val sortedBooks = remember(searchedBooks, sortOption, filterType) {
+                    val unique = searchedBooks.distinctBy { it.sha1 }
+                    when (filterType) {
+                        "reading" -> unique
+                            .filter { b ->
+                                val pct = if (b.totalCharacters > 0) (b.currentProgressChar.toFloat() * 100f / b.totalCharacters.toFloat()) else 0f
+                                (b.lastReadTime > 0L || b.currentProgressChar > 0) && pct < 98f
+                            }
+                            .sortedByDescending { it.lastReadTime }
+                        "read" -> unique
+                            .filter { b ->
+                                b.totalCharacters > 0 && (b.currentProgressChar.toFloat() * 100f / b.totalCharacters.toFloat()) >= 98f
+                            }
+                            .sortedByDescending { it.lastReadTime }
+                        else -> viewModel.sortBooks(unique, sortOption)
+                    }
+                }
 
                 val scanState by viewModel.scanState.collectAsState()
                 val isScanning = scanState.isScanning
@@ -77,6 +99,7 @@ class LibraryFragment : Fragment() {
 
                 LibraryComposeUI(
                     books = sortedBooks,
+                    headerTitle = headerTitle,
                     isScanning = isScanning,
                     scanProgressText = scanProgressText,
                     isGridView = isGridView,

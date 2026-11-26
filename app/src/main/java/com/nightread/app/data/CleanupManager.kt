@@ -73,23 +73,69 @@ class CleanupManager(
             emptyList()
         }
         val booksMap = allBooks.associateBy { it.sha1 }
+        val booksByPath = allBooks.mapNotNull { b -> b.filePath?.let { it to b } }.toMap()
 
-        // Compute SHA-1 for each file and group them
-        val fileGroups = mutableMapOf<String, MutableList<File>>()
+        fun normalizeName(raw: String): String {
+            return raw.lowercase()
+                .replace(Regex("\.(?:fb2\.zip|fb2|fb3|epub|mobi|azw3|azw|zip)$"), "")
+                .replace(Regex("\(\d+\)$"), "")
+                .replace(Regex("[^a-zа-яё0-9]+"), " ")
+                .trim()
+        }
+
+        fun computeSha256(file: File): String? = try {
+            val md = java.security.MessageDigest.getInstance("SHA-256")
+            file.inputStream().buffered().use { input ->
+                val buf = ByteArray(16384)
+                var read = input.read(buf)
+                while (read != -1) {
+                    md.update(buf, 0, read)
+                    read = input.read(buf)
+                }
+            }
+            md.digest().joinToString("") { "%02x".format(it) }
+        } catch (_: Exception) {
+            null
+        }
+
+        // 1. Group by SHA-256 hash
+        val hashGroups = mutableMapOf<String, MutableList<File>>()
+        val fileToNameKey = mutableMapOf<String, String>()
         for ((index, file) in filesToProcess.withIndex()) {
             val progressText = "Анализ файла [${index + 1}/$totalFiles]: ${file.name}"
             onProgress(index + 1, totalFiles, progressText)
-            
-            val sha1 = if (EpubIdentifierHelper.isEpub(file)) {
-                EpubIdentifierHelper.getEpubMetadata(file)?.identifier
-            } else {
-                Sha1Helper.computeSha1FromContent(file)
+
+            val sha256 = computeSha256(file)
+            val key = sha256 ?: Sha1Helper.computeSha1FromContent(file)
+            if (key != null) {
+                hashGroups.getOrPut(key) { mutableListOf() }.add(file)
             }
-            if (sha1 != null) {
-                if (!fileGroups.containsKey(sha1)) {
-                    fileGroups[sha1] = mutableListOf()
-                }
-                fileGroups[sha1]?.add(file)
+            val dbBook = booksByPath[file.absolutePath]
+            val titleKey = normalizeName(dbBook?.title?.takeIf { it.isNotBlank() } ?: file.name)
+            if (titleKey.length >= 3) {
+                fileToNameKey[file.absolutePath] = titleKey
+            }
+        }
+
+        val fileGroups = mutableMapOf<String, MutableList<File>>()
+        val groupedPaths = HashSet<String>()
+        for ((hashKey, files) in hashGroups) {
+            if (files.size > 1) {
+                fileGroups[hashKey] = files
+                files.forEach { groupedPaths.add(it.absolutePath) }
+            }
+        }
+
+        // 2. Also group remaining files by matching normalized title/name
+        val nameGroups = mutableMapOf<String, MutableList<File>>()
+        for (file in filesToProcess) {
+            if (groupedPaths.contains(file.absolutePath)) continue
+            val nameKey = fileToNameKey[file.absolutePath] ?: continue
+            nameGroups.getOrPut(nameKey) { mutableListOf() }.add(file)
+        }
+        for ((nameKey, files) in nameGroups) {
+            if (files.size > 1) {
+                fileGroups["name:$nameKey"] = files
             }
         }
 
@@ -97,7 +143,7 @@ class CleanupManager(
         val duplicateGroups = mutableListOf<DuplicateGroup>()
         for ((sha1, files) in fileGroups) {
             if (files.size > 1) {
-                val dbBook = booksMap[sha1]
+                val dbBook = booksMap[sha1] ?: files.firstNotNullOfOrNull { booksByPath[it.absolutePath] }
                 val title = dbBook?.title ?: files.first().nameWithoutExtension
                 val author = dbBook?.author ?: "Неизвестен"
 

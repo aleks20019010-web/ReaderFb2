@@ -49,6 +49,7 @@ import com.nightread.app.data.BookEntity
 @Composable
 fun LibraryComposeUI(
     books: List<BookEntity>,
+    headerTitle: String = "Библиотека",
     isScanning: Boolean = false,
     scanProgressText: String = "",
     isGridView: Boolean = true,
@@ -84,6 +85,7 @@ fun LibraryComposeUI(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             GlassmorphicTopBar(
+                title = headerTitle,
                 bookCount = books.size,
                 onMenuClicked = onMenuClicked,
                 onScanClicked = onScanClicked,
@@ -177,86 +179,13 @@ fun LibraryComposeUI(
                     }
                 }
             }
-
-            var selectedFormatFilter by remember { mutableStateOf("ALL") }
-
-            val filteredBooks = remember(books, selectedFormatFilter) {
-                when (selectedFormatFilter) {
-                    "FB2" -> books.filter { it.filePath?.endsWith(".fb2", true) == true || it.filePath?.endsWith(".fb2.zip", true) == true }
-                    "EPUB" -> books.filter { it.filePath?.endsWith(".epub", true) == true }
-                    "MOBI" -> books.filter { it.filePath?.endsWith(".mobi", true) == true || it.filePath?.endsWith(".azw", true) == true || it.filePath?.endsWith(".azw3", true) == true }
-                    "READING" -> books.filter { it.currentProgressChar > 0 }
-                    "FAVORITE" -> books.filter { it.isFavorite }
-                    else -> books
-                }
-            }
-
-            if (books.isNotEmpty()) {
-                val filterChips = listOf(
-                    "ALL" to "Все",
-                    "READING" to "Читаю сейчас",
-                    "FAVORITE" to "Избранное",
-                    "FB2" to "FB2",
-                    "EPUB" to "EPUB",
-                    "MOBI" to "MOBI"
-                )
-                androidx.compose.foundation.lazy.LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(filterChips.size) { idx ->
-                        val (key, label) = filterChips[idx]
-                        val isSelected = selectedFormatFilter == key
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(
-                                    if (isSelected) colorScheme.primary.copy(alpha = 0.25f)
-                                    else colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    color = if (isSelected) colorScheme.primary else colorScheme.outline.copy(alpha = 0.3f),
-                                    shape = RoundedCornerShape(20.dp)
-                                )
-                                .clickable { selectedFormatFilter = key }
-                                .padding(horizontal = 14.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = label,
-                                color = if (isSelected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.75f),
-                                fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (filteredBooks.isEmpty()) {
-                if (books.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Книги в этой категории не найдены",
-                            color = colorScheme.onSurfaceVariant,
-                            fontSize = 14.sp
-                        )
-                    }
-                } else {
-                    GlassEmptyState(onScanClicked = onScanClicked)
-                }
+            if (books.isEmpty()) {
+                GlassEmptyState(onScanClicked = onScanClicked)
             } else {
                 if (isGridView) {
-                    GlassBookGrid(books = filteredBooks, onBookClicked = onBookClicked)
+                    GlassBookGrid(books = books, isScanning = isScanning, onBookClicked = onBookClicked)
                 } else {
-                    GlassBookList(books = filteredBooks, onBookClicked = onBookClicked)
+                    GlassBookList(books = books, isScanning = isScanning, onBookClicked = onBookClicked)
                 }
             }
         }
@@ -268,6 +197,7 @@ fun LibraryComposeUI(
 // =========================================================
 @Composable
 private fun GlassmorphicTopBar(
+    title: String = "Библиотека",
     bookCount: Int,
     onMenuClicked: () -> Unit,
     onScanClicked: () -> Unit,
@@ -338,7 +268,7 @@ private fun GlassmorphicTopBar(
 
                 Column {
                     Text(
-                        text = "Библиотека",
+                        text = title,
                         color = colorScheme.onSurface,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
@@ -391,8 +321,14 @@ private fun GlassActionIcon(imageVector: ImageVector, description: String, onCli
 // 4. СЕТКА КНИГ (3 КОЛОНКИ С ПУЛЬСИРУЮЩИМИ 3D ОБЛОЖКАМИ)
 // =========================================================
 @Composable
-private fun GlassBookGrid(books: List<BookEntity>, onBookClicked: (BookEntity) -> Unit) {
+private fun GlassBookGrid(books: List<BookEntity>, isScanning: Boolean = false, onBookClicked: (BookEntity) -> Unit) {
     val uniqueBooks = remember(books) { books.distinctBy { it.sha1 } }
+    val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+    LaunchedEffect(isScanning, uniqueBooks.firstOrNull()?.sha1) {
+        if (uniqueBooks.isNotEmpty()) {
+            gridState.scrollToItem(0)
+        }
+    }
 
     val infiniteTransition = rememberInfiniteTransition(label = "cover_pulse_transition")
     val pulseScale by infiniteTransition.animateFloat(
@@ -415,6 +351,7 @@ private fun GlassBookGrid(books: List<BookEntity>, onBookClicked: (BookEntity) -
     )
 
     LazyVerticalGrid(
+        state = gridState,
         columns = GridCells.Fixed(3),
         modifier = Modifier
             .fillMaxSize()
@@ -759,9 +696,16 @@ private fun GlassEmptyState(onScanClicked: () -> Unit) {
 }
 
 @Composable
-private fun GlassBookList(books: List<BookEntity>, onBookClicked: (BookEntity) -> Unit) {
+private fun GlassBookList(books: List<BookEntity>, isScanning: Boolean = false, onBookClicked: (BookEntity) -> Unit) {
     val uniqueBooks = remember(books) { books.distinctBy { it.sha1 } }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    LaunchedEffect(isScanning, uniqueBooks.firstOrNull()?.sha1) {
+        if (uniqueBooks.isNotEmpty()) {
+            listState.scrollToItem(0)
+        }
+    }
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 12.dp),

@@ -485,19 +485,19 @@ fun ReaderComposeScreen(
                     } else {
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                             val attrs = android.os.VibrationAttributes.Builder()
-                                .setUsage(android.os.VibrationAttributes.USAGE_MEDIA)
+                                .setUsage(android.os.VibrationAttributes.USAGE_ALARM)
                                 .build()
-                            vibrator.vibrate(android.os.VibrationEffect.createOneShot(25L, 200), attrs)
+                            vibrator.vibrate(android.os.VibrationEffect.createOneShot(35L, 255), attrs)
                         } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                             val attrs = android.media.AudioAttributes.Builder()
-                                .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                                .setUsage(android.media.AudioAttributes.USAGE_ALARM)
                                 .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
                                 .build()
                             @Suppress("DEPRECATION")
-                            vibrator.vibrate(android.os.VibrationEffect.createOneShot(25L, 200), attrs)
+                            vibrator.vibrate(android.os.VibrationEffect.createOneShot(35L, 255), attrs)
                         } else {
                             @Suppress("DEPRECATION")
-                            vibrator.vibrate(25L)
+                            vibrator.vibrate(35L)
                         }
                     }
                 }
@@ -1002,8 +1002,8 @@ fun ReaderComposeScreen(
                                         }
                                     },
                                     onNoteClicked = { noteId -> },
-                                    onNextPage = { if (isHapticEnabled) triggerReaderVibration(false) },
-                                    onPreviousPage = { if (isHapticEnabled) triggerReaderVibration(false) },
+                                    onNextPage = { if (SettingsManager.isHapticFeedbackEnabled(context)) triggerReaderVibration(false) },
+                                    onPreviousPage = { if (SettingsManager.isHapticFeedbackEnabled(context)) triggerReaderVibration(false) },
                                     onWebViewCreated = { webView ->
                                         webViewRef = webView
                                     },
