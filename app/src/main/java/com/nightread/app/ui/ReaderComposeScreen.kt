@@ -1382,12 +1382,17 @@ fun ReaderComposeScreen(
                     val currentOffset = if (savedTextOffset > 0) savedTextOffset else currentReadingOffset
                     val isBookmarked = bookmarks.any { kotlin.math.abs(it.charOffset - currentOffset) < 50 }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        androidx.compose.ui.viewinterop.AndroidView(
+                            factory = { ctx -> LiquidWaveBackgroundView(ctx).apply { alpha = 0.24f } },
+                            modifier = Modifier.matchParentSize()
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                         IconButton(
                             onClick = onBackClick,
                             modifier = Modifier.size(38.dp)
@@ -1518,6 +1523,7 @@ fun ReaderComposeScreen(
                             }
                         }
                     }
+                    }
                 }
             }
 
@@ -1549,9 +1555,14 @@ fun ReaderComposeScreen(
                     }
                     val currentSliderVal = if (isDraggingSlider) sliderPageValue else currentPercent
 
-                    Column(
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp)
-                    ) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        androidx.compose.ui.viewinterop.AndroidView(
+                            factory = { ctx -> LiquidWaveBackgroundView(ctx).apply { alpha = 0.24f } },
+                            modifier = Modifier.matchParentSize()
+                        )
+                        Column(
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp)
+                        ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1597,43 +1608,57 @@ fun ReaderComposeScreen(
                             thumb = {
                                 Box(
                                     modifier = Modifier
-                                        .size(14.dp)
+                                        .size(12.dp)
                                         .background(accentGold, CircleShape)
                                         .border(1.5.dp, Color(0xFF12141A), CircleShape)
                                 )
                             },
                             track = { sliderState ->
-                                Box(
-                                    modifier = Modifier.fillMaxWidth().height(12.dp),
-                                    contentAlignment = Alignment.Center
+                                val fraction = ((sliderState.value - sliderState.valueRange.start) /
+                                    (sliderState.valueRange.endInclusive - sliderState.valueRange.start).coerceAtLeast(0.001f))
+                                    .coerceIn(0f, 1f)
+                                val chapters = readerDocument?.chapters.orEmpty()
+                                androidx.compose.foundation.Canvas(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(12.dp)
                                 ) {
-                                    androidx.compose.material3.SliderDefaults.Track(
-                                        sliderState = sliderState,
-                                        colors = androidx.compose.material3.SliderDefaults.colors(
-                                            activeTrackColor = accentGold,
-                                            inactiveTrackColor = Color.White.copy(alpha = 0.16f)
-                                        ),
-                                        modifier = Modifier.fillMaxWidth().height(4.dp)
+                                    val centerY = size.height / 2f
+                                    val trackH = 3.dp.toPx()
+                                    val activeEndX = size.width * fraction
+
+                                    // ?????????? ?????? ?????
+                                    drawLine(
+                                        color = Color.White.copy(alpha = 0.16f),
+                                        start = androidx.compose.ui.geometry.Offset(0f, centerY),
+                                        end = androidx.compose.ui.geometry.Offset(size.width, centerY),
+                                        strokeWidth = trackH,
+                                        cap = androidx.compose.ui.graphics.StrokeCap.Round
                                     )
-                                    val chapters = readerDocument?.chapters.orEmpty()
+                                    // ???????? ??????? ?????
+                                    if (activeEndX > 0f) {
+                                        drawLine(
+                                            color = accentGold,
+                                            start = androidx.compose.ui.geometry.Offset(0f, centerY),
+                                            end = androidx.compose.ui.geometry.Offset(activeEndX, centerY),
+                                            strokeWidth = trackH,
+                                            cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                        )
+                                    }
+                                    // ?????????? ??????? ????
                                     if (chapters.size > 1) {
-                                        androidx.compose.foundation.Canvas(
-                                            modifier = Modifier.fillMaxWidth().height(8.dp)
-                                        ) {
-                                            val strokeW = 1.2.dp.toPx()
-                                            val topY = 1.dp.toPx()
-                                            val botY = size.height - 1.dp.toPx()
-                                            chapters.forEach { ch ->
-                                                val frac = (ch.startOffset.toFloat() / totalChars.toFloat()).coerceIn(0f, 1f)
-                                                if (frac > 0.005f && frac < 0.995f) {
-                                                    val x = size.width * frac
-                                                    drawLine(
-                                                        color = Color.White.copy(alpha = 0.45f),
-                                                        start = androidx.compose.ui.geometry.Offset(x, topY),
-                                                        end = androidx.compose.ui.geometry.Offset(x, botY),
-                                                        strokeWidth = strokeW
-                                                    )
-                                                }
+                                        val tickW = 1.dp.toPx()
+                                        val tickHalf = 3.5.dp.toPx()
+                                        chapters.forEach { ch ->
+                                            val frac = (ch.startOffset.toFloat() / totalChars.toFloat()).coerceIn(0f, 1f)
+                                            if (frac > 0.01f && frac < 0.99f) {
+                                                val x = size.width * frac
+                                                drawLine(
+                                                    color = if (x <= activeEndX) Color(0xFF12141A).copy(alpha = 0.55f) else Color.White.copy(alpha = 0.35f),
+                                                    start = androidx.compose.ui.geometry.Offset(x, centerY - tickHalf),
+                                                    end = androidx.compose.ui.geometry.Offset(x, centerY + tickHalf),
+                                                    strokeWidth = tickW
+                                                )
                                             }
                                         }
                                     }
@@ -1643,6 +1668,7 @@ fun ReaderComposeScreen(
                                 .fillMaxWidth()
                                 .height(24.dp)
                         )
+                    }
                     }
                 }
             }

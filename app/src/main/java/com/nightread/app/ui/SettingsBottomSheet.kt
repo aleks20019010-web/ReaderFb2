@@ -509,24 +509,13 @@ class SettingsBottomSheet : DialogFragment() {
 
     private fun applyThemeColors(themeKey: String, rootView: View) {
         val context = requireContext()
-        val isDali = themeKey == "dali"
-        val isDarkTheme = themeKey == "dark" || themeKey == "amoled" || themeKey == "contrast"
-        
-        // Define colors based on theme
-        val cardBgHex = if (isDali) "#F4E8D1" else if (isDarkTheme) "#121212" else "#F5F0F8"
-        val itemBgHex = if (isDali) "#EFE3C3" else if (isDarkTheme) "#1E1E1E" else "#EAE2F3"
-        val dividerHex = if (isDali) "#D9C398" else if (isDarkTheme) "#333333" else "#D2C5E3"
-        val textPrimaryHex = if (isDali) "#1A1829" else if (isDarkTheme) "#E0E0E0" else "#2A1A36"
-        val textSecondaryHex = if (isDali) "#4A4035" else if (isDarkTheme) "#B0B0B0" else "#2A1A36"
-
-        val accentHex = when (themeKey) {
-            "light", "beige" -> "#D35400"
-            "sepia", "sepia_contrast" -> "#8E44AD"
-            "dali" -> "#E6A100"
-            "contrast" -> "#9B59B6"
-            "amoled" -> "#D354FF"
-            else -> "#9B59B6"
-        }
+        // Unified Modern Dark Glass + Gold palette matching Top/Bottom reader bars
+        val cardBgHex = "#12141A"
+        val itemBgHex = "#1C2029"
+        val dividerHex = "#282D38"
+        val textPrimaryHex = "#F4F5F7"
+        val textSecondaryHex = "#9BA1AE"
+        val accentHex = "#E5C07B"
 
         val cardBgColor = Color.parseColor(cardBgHex)
         val itemBgColor = Color.parseColor(itemBgHex)
@@ -536,9 +525,20 @@ class SettingsBottomSheet : DialogFragment() {
         val dividerColor = Color.parseColor(dividerHex)
 
 
-        // 1. Root CardView background color morphing
+        // 1. Root CardView background color morphing + subtle LiquidWave shimmer
         val cardRoot = rootView.findViewById<androidx.cardview.widget.CardView>(R.id.settingsCardRoot)
         cardRoot?.setCardBackgroundColor(cardBgColor)
+        if (cardRoot != null && cardRoot.findViewWithTag<View>("liquid_wave_bg") == null) {
+            val waveBg = LiquidWaveBackgroundView(context).apply {
+                tag = "liquid_wave_bg"
+                alpha = 0.22f
+                layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            }
+            cardRoot.addView(waveBg, 0)
+        }
 
         // Bedtime mode card background morphing
         val cardBedtime = rootView.findViewById<androidx.cardview.widget.CardView>(R.id.cardBedtimeMode)
@@ -605,33 +605,29 @@ class SettingsBottomSheet : DialogFragment() {
         seekBarLineSpacing?.progressTintList = ColorStateList.valueOf(accentColor)
         seekBarLineSpacing?.thumbTintList = ColorStateList.valueOf(accentColor)
 
-        // 7. Auto-discovery SwitchCompat coloring
-        val switchAutoBrightness = rootView.findViewById<SwitchCompat>(R.id.switchAutoBrightness)
-        switchAutoBrightness?.trackTintList = ColorStateList.valueOf(accentColor)
-        switchAutoBrightness?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
-
-        val switchExtraDim = rootView.findViewById<SwitchCompat>(R.id.switchExtraDim)
-        switchExtraDim?.trackTintList = ColorStateList.valueOf(accentColor)
-        switchExtraDim?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
-
-        val switchSleepTimer = rootView.findViewById<SwitchCompat>(R.id.switchSleepTimer)
-        switchSleepTimer?.trackTintList = ColorStateList.valueOf(accentColor)
-        switchSleepTimer?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
-
-        val switchShakeToExtend = rootView.findViewById<SwitchCompat>(R.id.switchShakeToExtend)
-        switchShakeToExtend?.trackTintList = ColorStateList.valueOf(accentColor)
-        switchShakeToExtend?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
-
-        val switchHapticFeedback = rootView.findViewById<SwitchCompat>(R.id.switchHapticFeedback)
-        switchHapticFeedback?.trackTintList = ColorStateList.valueOf(accentColor)
-        switchHapticFeedback?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
-
-        val switchStatusBar = rootView.findViewById<SwitchCompat>(R.id.switchStatusBar)
-        switchStatusBar?.trackTintList = ColorStateList.valueOf(accentColor)
-        switchStatusBar?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
-        val switchSilentMode = rootView.findViewById<SwitchCompat>(R.id.switchSilentMode)
-        switchSilentMode?.trackTintList = ColorStateList.valueOf(accentColor)
-        switchSilentMode?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
+        // 7. SwitchCompat coloring (gold when ON, dark slate when OFF)
+        val switchTrackStates = ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+            intArrayOf(accentColor, Color.parseColor("#2E3440"))
+        )
+        val switchThumbStates = ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+            intArrayOf(Color.parseColor("#12141A"), Color.parseColor("#CBD2DF"))
+        )
+        listOf(
+            R.id.switchAutoBrightness,
+            R.id.switchExtraDim,
+            R.id.switchSleepTimer,
+            R.id.switchShakeToExtend,
+            R.id.switchHapticFeedback,
+            R.id.switchStatusBar,
+            R.id.switchSilentMode
+        ).forEach { id ->
+            rootView.findViewById<SwitchCompat>(id)?.apply {
+                trackTintList = switchTrackStates
+                thumbTintList = switchThumbStates
+            }
+        }
 
 
 
@@ -655,9 +651,9 @@ class SettingsBottomSheet : DialogFragment() {
         // 9. Programmatic styled background drawable for the Spinners to prevent XML color collision
         val spinnerBg = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = 16f
+            cornerRadius = 20f
             setColor(itemBgColor)
-            setStroke(2, accentColor)
+            setStroke(2, dividerColor)
         }
         rootView.findViewById<Spinner>(R.id.spinnerFont)?.background = spinnerBg
         rootView.findViewById<Spinner>(R.id.spinnerTheme)?.background = spinnerBg
@@ -745,8 +741,8 @@ class SettingsBottomSheet : DialogFragment() {
         context: android.content.Context,
         objects: List<T>
     ) : ArrayAdapter<T>(context, R.layout.spinner_item, objects) {
-        var textColor: Int = Color.parseColor("#2A1A36")
-        var itemBgColor: Int = Color.parseColor("#EAE2F3")
+        var textColor: Int = Color.parseColor("#F4F5F7")
+        var itemBgColor: Int = Color.parseColor("#1C2029")
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val view = super.getView(position, convertView, parent)
