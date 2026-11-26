@@ -1537,25 +1537,61 @@ fun ReaderComposeScreen(
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
-                Surface(
+                var isDraggingSlider by remember { mutableStateOf(false) }
+                var sliderPageValue by remember { mutableStateOf(0f) }
+
+                val totalChars = mainText.length.coerceAtLeast(1)
+                val currentPercent = if (totalWebViewPages > 1) {
+                    ((currentWebViewPage + 1).toFloat() / totalWebViewPages * 100f).coerceIn(0f, 100f)
+                } else {
+                    (savedTextOffset.toFloat() / totalChars * 100f).coerceIn(0f, 100f)
+                }
+                val currentSliderVal = if (isDraggingSlider) sliderPageValue else currentPercent
+                val draggedOffset = ((sliderPageValue / 100f) * totalChars).toInt().coerceIn(0, totalChars)
+                val draggedChapterTitle = remember(isDraggingSlider, draggedOffset, readerDocument) {
+                    if (!isDraggingSlider) ""
+                    else readerDocument?.chapters.orEmpty()
+                        .lastOrNull { it.startOffset <= draggedOffset }
+                        ?.title
+                        ?.trim()
+                        .orEmpty()
+                }
+
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    color = glassBgColor,
-                    border = glassBorder,
-                    shadowElevation = 12.dp
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    var isDraggingSlider by remember { mutableStateOf(false) }
-                    var sliderPageValue by remember { mutableStateOf(0f) }
-
-                    val totalChars = mainText.length.coerceAtLeast(1)
-                    val currentPercent = if (totalWebViewPages > 1) {
-                        ((currentWebViewPage + 1).toFloat() / totalWebViewPages * 100f).coerceIn(0f, 100f)
-                    } else {
-                        (savedTextOffset.toFloat() / totalChars * 100f).coerceIn(0f, 100f)
+                    AnimatedVisibility(
+                        visible = isDraggingSlider && draggedChapterTitle.isNotEmpty(),
+                        enter = fadeIn(tween(120)),
+                        exit = fadeOut(tween(120))
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = glassBgColor,
+                            border = BorderStroke(0.8.dp, accentGold.copy(alpha = 0.45f)),
+                            shadowElevation = 8.dp,
+                            modifier = Modifier.padding(bottom = 8.dp, start = 12.dp, end = 12.dp)
+                        ) {
+                            Text(
+                                text = draggedChapterTitle,
+                                color = accentGold,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                            )
+                        }
                     }
-                    val currentSliderVal = if (isDraggingSlider) sliderPageValue else currentPercent
-
-                    Box(modifier = Modifier.fillMaxWidth()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = glassBgColor,
+                        border = glassBorder,
+                        shadowElevation = 12.dp
+                    ) {
+                        Box(modifier = Modifier.fillMaxWidth()) {
                         androidx.compose.ui.viewinterop.AndroidView(
                             factory = { ctx -> LiquidWaveBackgroundView(ctx).apply { setAlpha(0.24f) } },
                             modifier = Modifier.matchParentSize()
@@ -1670,6 +1706,7 @@ fun ReaderComposeScreen(
                         )
                     }
                     }
+                }
                 }
             }
 
@@ -1806,10 +1843,10 @@ fun ReaderComposeScreen(
             ModalBottomSheet(
                 onDismissRequest = { showTocSheet = false },
                 sheetState = sheetState,
-                containerColor = bgColor, // Using bgColor since it's available in broader scope
-                contentColor = textColor,
+                containerColor = Color(0xFF12141A),
+                contentColor = Color(0xFFF4F5F7),
                 tonalElevation = 8.dp,
-                dragHandle = { BottomSheetDefaults.DragHandle(color = textColor.copy(alpha = 0.3f)) }
+                dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0xFFE5C07B).copy(alpha = 0.5f)) }
             ) {
                 Column(
                     modifier = Modifier
@@ -1821,7 +1858,7 @@ fun ReaderComposeScreen(
                         text = "Оглавление",
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.padding(16.dp),
-                        color = textColor
+                        color = Color(0xFFF4F5F7)
                     )
                     
                     LazyColumn(
@@ -1835,14 +1872,14 @@ fun ReaderComposeScreen(
                                     Text(
                                         text = chapter.title,
                                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isCurrent) MaterialTheme.colorScheme.primary else textColor
+                                        color = if (isCurrent) Color(0xFFE5C07B) else Color(0xFFF4F5F7)
                                     )
                                 },
                                 supportingContent = {
                                     Text(
                                         text = "Глава ${chapter.chapterIndex + 1}",
                                         fontSize = 12.sp,
-                                        color = textColor.copy(alpha = 0.6f)
+                                        color = Color(0xFF9BA1AE)
                                     )
                                 },
                                 modifier = Modifier.clickable {
@@ -1852,7 +1889,7 @@ fun ReaderComposeScreen(
                                 },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
-                            HorizontalDivider(color = textColor.copy(alpha = 0.05f))
+                            HorizontalDivider(color = Color(0xFF282D38))
                         }
                     }
                 }

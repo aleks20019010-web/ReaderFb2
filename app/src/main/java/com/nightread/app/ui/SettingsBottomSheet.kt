@@ -83,6 +83,7 @@ class SettingsBottomSheet : DialogFragment() {
         }.apply {
             setDropDownViewResource(R.layout.spinner_dropdown_item)
         }
+        fontAdapter.spinnerRef = spinnerFont
         spinnerFont.adapter = fontAdapter
         
         val currentFont = SettingsManager.getFontFamily(context)
@@ -211,8 +212,20 @@ class SettingsBottomSheet : DialogFragment() {
         )
         val themeDisplayNames = themeKeys.map { themeNames[it] ?: it }
         val spinnerTheme = view.findViewById<Spinner>(R.id.spinnerTheme)
-        val themeAdapter = SettingsSpinnerAdapter(context, themeDisplayNames).apply {
+        val themeSwatches = mapOf(
+            "light" to Color.parseColor("#FFFFFF"),
+            "dark" to Color.parseColor("#181A20"),
+            "sepia" to Color.parseColor("#F4ECD8"),
+            "sepia_contrast" to Color.parseColor("#E8D8B5"),
+            "amoled" to Color.parseColor("#000000")
+        )
+        val themeAdapter = SettingsSpinnerAdapter(
+            context = context,
+            objects = themeDisplayNames,
+            swatchColorProvider = { pos -> themeSwatches[themeKeys.getOrNull(pos)] }
+        ).apply {
             setDropDownViewResource(R.layout.spinner_dropdown_item)
+            spinnerRef = spinnerTheme
         }
         spinnerTheme.adapter = themeAdapter
         
@@ -249,6 +262,7 @@ class SettingsBottomSheet : DialogFragment() {
         val animAdapter = SettingsSpinnerAdapter(context, animDisplayNames).apply {
             setDropDownViewResource(R.layout.spinner_dropdown_item)
         }
+        animAdapter.spinnerRef = spinnerAnimation
         spinnerAnimation.adapter = animAdapter
 
         val currentAnim = SettingsManager.getPageAnimation(context)
@@ -769,19 +783,41 @@ class SettingsBottomSheet : DialogFragment() {
     private class SettingsSpinnerAdapter<T>(
         context: android.content.Context,
         objects: List<T>,
+        private val swatchColorProvider: ((Int) -> Int?)? = null,
         private val typefaceProvider: ((T) -> android.graphics.Typeface?)? = null
     ) : ArrayAdapter<T>(context, R.layout.spinner_item, objects) {
         var textColor: Int = Color.parseColor("#F4F5F7")
         var itemBgColor: Int = Color.parseColor("#1C2029")
+        var activeAccentColor: Int = Color.parseColor("#E5C07B")
+        var spinnerRef: Spinner? = null
+
+        private fun applySwatch(tv: TextView, position: Int) {
+            val color = swatchColorProvider?.invoke(position)
+            if (color != null) {
+                val density = tv.resources.displayMetrics.density
+                val sizePx = (14 * density).toInt()
+                val strokePx = (1.2f * density).toInt().coerceAtLeast(1)
+                val dot = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setSize(sizePx, sizePx)
+                    setColor(color)
+                    setStroke(strokePx, Color.parseColor("#55FFFFFF"))
+                }
+                tv.setCompoundDrawablesRelativeWithIntrinsicBounds(dot, null, null, null)
+                tv.compoundDrawablePadding = (10 * density).toInt()
+            } else {
+                tv.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, null, null)
+            }
+        }
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val view = super.getView(position, convertView, parent)
             if (view is TextView) {
                 view.setTextColor(textColor)
                 view.setBackgroundColor(Color.TRANSPARENT)
-                getItem(position)?.let { item ->
-                    typefaceProvider?.invoke(item)?.let { view.typeface = it }
-                }
+                val baseTf = getItem(position)?.let { typefaceProvider?.invoke(it) } ?: android.graphics.Typeface.DEFAULT
+                view.typeface = baseTf
+                applySwatch(view, position)
             }
             return view
         }
@@ -789,11 +825,16 @@ class SettingsBottomSheet : DialogFragment() {
         override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
             val view = super.getDropDownView(position, convertView, parent)
             if (view is TextView) {
-                view.setTextColor(textColor)
+                val isSelected = spinnerRef?.selectedItemPosition == position
+                view.setTextColor(if (isSelected) activeAccentColor else textColor)
                 view.setBackgroundColor(itemBgColor)
-                getItem(position)?.let { item ->
-                    typefaceProvider?.invoke(item)?.let { view.typeface = it }
+                val baseTf = getItem(position)?.let { typefaceProvider?.invoke(it) } ?: android.graphics.Typeface.DEFAULT
+                view.typeface = if (isSelected) {
+                    android.graphics.Typeface.create(baseTf, android.graphics.Typeface.BOLD)
+                } else {
+                    baseTf
                 }
+                applySwatch(view, position)
             }
             return view
         }

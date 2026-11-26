@@ -118,7 +118,7 @@
                                 style="?android:attr/progressBarStyleHorizontal"
                                 android:layout_width="match_parent"
                                 android:layout_height="8dp"
-                                android:progressTint="@color/accent"
+                                android:progressTint="#E5C07B"
                                 android:progressBackgroundTint="@color/divider" />
                         </LinearLayout>
 
@@ -261,8 +261,8 @@
                             android:layout_width="match_parent"
                             android:layout_height="56dp"
                             android:text="@string/sync_btn_sync_now"
-                            android:backgroundTint="@color/btn_bg"
-                            android:textColor="@color/btn_text"
+                            android:backgroundTint="#E5C07B"
+                            android:textColor="#12141A"
                             android:textStyle="bold"
                             app:cornerRadius="12dp"
                             android:layout_marginBottom="16dp" />
@@ -297,7 +297,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="8dp"
                                 android:max="100"
-                                android:progressTint="@color/accent"
+                                android:progressTint="#E5C07B"
                                 android:progressBackgroundTint="@color/divider"
                                 android:layout_marginBottom="6dp" />
 
@@ -335,7 +335,7 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="6dp"
                                     android:max="100"
-                                    android:progressTint="@color/accent"
+                                    android:progressTint="#E5C07B"
                                     android:progressBackgroundTint="@color/divider"
                                     android:layout_marginBottom="4dp" />
 

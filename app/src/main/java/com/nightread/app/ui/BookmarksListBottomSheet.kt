@@ -206,36 +206,10 @@ class BookmarksListBottomSheet : DialogFragment() {
     }
 
     private fun showEditBookmarkDialog(bookmark: BookmarkEntity) {
-        val cardBgHex: String
-        val accentHex: String
-        val textPrimaryHex: String
-        val textSecondaryHex: String
-        when (activeTheme) {
-            "light", "beige" -> {
-                cardBgHex = "#FAF6F0"
-                accentHex = "#D35400"
-                textPrimaryHex = "#2C3E50"
-                textSecondaryHex = "#7F8C8D"
-            }
-            "sepia", "sepia_contrast" -> {
-                cardBgHex = "#F4ECD8"
-                accentHex = "#8E44AD"
-                textPrimaryHex = "#5B3A29"
-                textSecondaryHex = "#8F7365"
-            }
-            "contrast" -> {
-                cardBgHex = "#000000"
-                accentHex = "#FFFFFF"
-                textPrimaryHex = "#FFFFFF"
-                textSecondaryHex = "#AAAAAA"
-            }
-            else -> {
-                cardBgHex = "#1A0D2A"
-                accentHex = "#9B59B6"
-                textPrimaryHex = "#E8D8F0"
-                textSecondaryHex = "#B8A0C8"
-            }
-        }
+        val cardBgHex = "#12141A"
+        val accentHex = "#E5C07B"
+        val textPrimaryHex = "#F4F5F7"
+        val textSecondaryHex = "#9BA1AE"
 
         val cardBgColor = Color.parseColor(cardBgHex)
         val accentColor = Color.parseColor(accentHex)
@@ -305,42 +279,11 @@ class BookmarksListBottomSheet : DialogFragment() {
     }
 
     private fun applyThemeColors(themeKey: String, rootView: View) {
-        val cardBgHex: String
-        val accentHex: String
-        val textPrimaryHex: String
-        val textSecondaryHex: String
-        val dividerHex: String
-
-        when (themeKey) {
-            "light", "beige" -> {
-                cardBgHex = "#FAF6F0"
-                accentHex = "#D35400"
-                textPrimaryHex = "#2C3E50"
-                textSecondaryHex = "#7F8C8D"
-                dividerHex = "#E0D5C1"
-            }
-            "sepia", "sepia_contrast" -> {
-                cardBgHex = "#F4ECD8"
-                accentHex = "#8E44AD"
-                textPrimaryHex = "#5B3A29"
-                textSecondaryHex = "#8F7365"
-                dividerHex = "#D5C5B5"
-            }
-            "contrast" -> {
-                cardBgHex = "#000000"
-                accentHex = "#FFFFFF"
-                textPrimaryHex = "#FFFFFF"
-                textSecondaryHex = "#AAAAAA"
-                dividerHex = "#333333"
-            }
-            else -> { // "dark" or default
-                cardBgHex = "#1A0D2A"
-                accentHex = "#9B59B6"
-                textPrimaryHex = "#E8D8F0"
-                textSecondaryHex = "#B8A0C8"
-                dividerHex = "#3A2A4E"
-            }
-        }
+        val cardBgHex = "#12141A"
+        val accentHex = "#E5C07B"
+        val textPrimaryHex = "#F4F5F7"
+        val textSecondaryHex = "#9BA1AE"
+        val dividerHex = "#282D38"
 
         val cardBgColor = Color.parseColor(cardBgHex)
         val accentColor = Color.parseColor(accentHex)
@@ -348,9 +291,20 @@ class BookmarksListBottomSheet : DialogFragment() {
         val textSecondaryColor = Color.parseColor(textSecondaryHex)
         val dividerColor = Color.parseColor(dividerHex)
 
-        // Apply background to Card Root
+        // Apply background to Card Root + subtle LiquidWave shimmer
         val cardRoot = rootView.findViewById<androidx.cardview.widget.CardView>(R.id.bookmarksCardRoot)
         cardRoot?.setCardBackgroundColor(cardBgColor)
+        if (cardRoot != null && cardRoot.findViewWithTag<View>("liquid_wave_bg") == null) {
+            val waveBg = LiquidWaveBackgroundView(requireContext()).apply {
+                tag = "liquid_wave_bg"
+                alpha = 0.22f
+                layoutParams = android.widget.FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            }
+            cardRoot.addView(waveBg, 0)
+        }
 
         // Apply text colors
         tvBookmarksTitle.setTextColor(textPrimaryColor)
@@ -372,7 +326,13 @@ class BookmarksListBottomSheet : DialogFragment() {
         // Style Search Input dynamically
         etSearchBookmarks.setTextColor(textPrimaryColor)
         etSearchBookmarks.setHintTextColor(textSecondaryColor)
-        etSearchBookmarks.background?.setTint(textSecondaryColor)
+        etSearchBookmarks.backgroundTintList = null
+        etSearchBookmarks.background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 20f
+            setColor(Color.parseColor("#1C2029"))
+            setStroke(2, dividerColor)
+        }
     }
 
     override fun onStart() {

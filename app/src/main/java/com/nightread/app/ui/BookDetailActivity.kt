@@ -966,7 +966,8 @@ class BookDetailActivity : BaseActivity() {
         tvReadMore.setTextColor(vibrantColor)
 
         // 5. Read Button background tint
-        btnReadToolbar.backgroundTintList = ColorStateList.valueOf(vibrantColor)
+        btnReadToolbar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#E5C07B"))
+        btnReadToolbar.setTextColor(Color.parseColor("#12141A"))
     }
 
     private fun adjustAlpha(color: Int, factor: Float): Int {
