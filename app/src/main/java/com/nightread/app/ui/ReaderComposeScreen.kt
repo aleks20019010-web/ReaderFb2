@@ -1283,7 +1283,7 @@ fun ReaderComposeScreen(
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .navigationBarsPadding()
-                        .padding(horizontal = 14.dp, vertical = 2.dp),
+                        .padding(horizontal = 36.dp, vertical = 2.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -1356,153 +1356,187 @@ fun ReaderComposeScreen(
                 }
             }
 
-            val glassBgColor = Color(0xFF192236).copy(alpha = 0.92f)
-            val glassBorder = BorderStroke(1.dp, Color(0xFF00BCD4).copy(alpha = 0.3f))
-            val panelTextColor = Color(0xFFF1F5F9)
+            val glassBgColor = Color(0xFF12141A).copy(alpha = 0.96f)
+            val glassBorder = BorderStroke(0.8.dp, Color.White.copy(alpha = 0.12f))
+            val panelTextColor = Color(0xFFF4F5F7)
+            val accentGold = Color(0xFFE5C07B)
 
-            // Top Panel (Glassmorphism)
+            // Top Panel (Modern Minimalist Dark Glass)
             AnimatedVisibility(
                 visible = !isHideBars && !isSearchMode,
-                enter = fadeIn(),
-                exit = fadeOut(),
+                enter = fadeIn(tween(180)) + slideInVertically(initialOffsetY = { -it / 2 }),
+                exit = fadeOut(tween(150)) + slideOutVertically(targetOffsetY = { -it / 2 }),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(22.dp),
                     color = glassBgColor,
                     border = glassBorder,
-                    shadowElevation = 8.dp
+                    shadowElevation = 12.dp
                 ) {
-                    TopAppBar(
-                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                        title = {
-                            Column {
-                                Text(
-                                    text = bookTitle,
-                                    color = panelTextColor,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = authorAndChapter,
-                                    color = panelTextColor.copy(alpha = 0.7f),
-                                    fontSize = 12.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                    val fragmentActivity = context as? androidx.fragment.app.FragmentActivity
+                    val currentOffset = if (savedTextOffset > 0) savedTextOffset else currentReadingOffset
+                    val isBookmarked = bookmarks.any { kotlin.math.abs(it.charOffset - currentOffset) < 50 }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = onBackClick,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.ArrowBack,
+                                contentDescription = "Назад",
+                                tint = panelTextColor,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 6.dp)
+                        ) {
+                            Text(
+                                text = bookTitle,
+                                color = panelTextColor,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = authorAndChapter,
+                                color = panelTextColor.copy(alpha = 0.6f),
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        if (isBookmarked) {
+                                            val target = bookmarks.firstOrNull { kotlin.math.abs(it.charOffset - currentOffset) < 50 }
+                                            if (target != null) bookmarkRepo.deleteBookmarkAtOffset(sha1, target.charOffset)
+                                        } else {
+                                            bookmarkRepo.insertBookmark(
+                                                BookmarkEntity(
+                                                    bookSha1 = sha1,
+                                                    bookTitle = bookTitle,
+                                                    charOffset = currentOffset,
+                                                    pageIndex = currentWebViewPage,
+                                                    snippet = "Стр. ${currentWebViewPage + 1}",
+                                                    timestamp = System.currentTimeMillis()
+                                                )
+                                            )
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                                    contentDescription = "Закладка",
+                                    tint = if (isBookmarked) accentGold else panelTextColor.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
-                        },
-                        navigationIcon = {
-                            Volumetric3DIconButton(
-                                onClick = onBackClick,
-                                vectorIcon = Icons.Filled.ArrowBack,
-                                contentDescription = "Назад",
-                                buttonSize = 40.dp,
-                                iconSize = 22.dp,
-                                modifier = Modifier.padding(start = 4.dp)
-                            )
-                        },
-                        actions = {
-                            val fragmentActivity = context as? androidx.fragment.app.FragmentActivity
-                            val currentOffset = if (readerPages.isNotEmpty() && pagerState.currentPage < readerPages.size) readerPages[pagerState.currentPage].startOffset else 0
-                            val isBookmarked = bookmarks.any { it.charOffset == currentOffset }
-                            
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(end = 4.dp)
+
+                            IconButton(
+                                onClick = { showTocSheet = true },
+                                modifier = Modifier.size(36.dp)
                             ) {
-                                Volumetric3DIconButton(
-                                    onClick = {
-                                        coroutineScope.launch {
-                                            if (isBookmarked) {
-                                                bookmarkRepo.deleteBookmarkAtOffset(sha1, currentOffset)
-                                            } else {
-                                                bookmarkRepo.insertBookmark(BookmarkEntity(bookSha1 = sha1, bookTitle = bookTitle, charOffset = currentOffset, pageIndex = pagerState.currentPage, snippet = "Закладка на позиции $currentOffset", timestamp = System.currentTimeMillis()))
-                                            }
-                                        }
-                                    },
-                                    vectorIcon = if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                                    tint = if (isBookmarked) Color(0xFFFFD54F) else Color.White,
-                                    contentDescription = "Закладка",
-                                    buttonSize = 38.dp,
-                                    iconSize = 22.dp
-                                )
-
-                                Volumetric3DIconButton(
-                                    onClick = { showTocSheet = true },
-                                    vectorIcon = Icons.Filled.List,
+                                Icon(
+                                    imageVector = Icons.Filled.List,
                                     contentDescription = "Оглавление",
-                                    buttonSize = 38.dp,
-                                    iconSize = 22.dp
+                                    tint = panelTextColor.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(20.dp)
                                 )
+                            }
 
-                                Volumetric3DIconButton(
-                                    onClick = {
-                                        fragmentActivity?.supportFragmentManager?.let { fm ->
-                                            BookmarksListBottomSheet.newInstance(sha1).show(fm, "BookmarksList")
-                                        }
-                                    },
-                                    vectorIcon = Icons.Filled.Bookmarks,
+                            IconButton(
+                                onClick = {
+                                    fragmentActivity?.supportFragmentManager?.let { fm ->
+                                        BookmarksListBottomSheet.newInstance(sha1).show(fm, "BookmarksList")
+                                    }
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Bookmarks,
                                     contentDescription = "Список закладок",
-                                    buttonSize = 38.dp,
-                                    iconSize = 22.dp
+                                    tint = panelTextColor.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(19.dp)
                                 )
+                            }
 
-                                Volumetric3DIconButton(
-                                    onClick = {
-                                        val newMode = !(isHideBars || isDistractionFreeMode)
-                                        isDistractionFreeMode = newMode
-                                        isHideBars = newMode
-                                        SettingsManager.setDistractionFreeEnabled(context, newMode)
-                                    },
-                                    vectorIcon = if (isDistractionFreeMode) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
-                                    tint = if (isDistractionFreeMode) Color(0xFF00BCD4) else Color.White,
+                            IconButton(
+                                onClick = {
+                                    val newMode = !(isHideBars || isDistractionFreeMode)
+                                    isDistractionFreeMode = newMode
+                                    isHideBars = newMode
+                                    SettingsManager.setDistractionFreeEnabled(context, newMode)
+                                },
+                                modifier = Modifier.size(36.dp).testTag("btn_distraction_free")
+                            ) {
+                                Icon(
+                                    imageVector = if (isDistractionFreeMode) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
                                     contentDescription = "Полноэкранный режим",
-                                    buttonSize = 38.dp,
-                                    iconSize = 22.dp,
-                                    modifier = Modifier.testTag("btn_distraction_free")
+                                    tint = if (isDistractionFreeMode) accentGold else panelTextColor.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(20.dp)
                                 )
+                            }
 
-                                Volumetric3DIconButton(
-                                    onClick = {
-                                        fragmentActivity?.supportFragmentManager?.let { fm ->
-                                            SettingsBottomSheet().show(fm, "SettingsBottomSheet")
-                                        }
-                                    },
-                                    vectorIcon = Icons.Filled.Settings,
+                            IconButton(
+                                onClick = {
+                                    fragmentActivity?.supportFragmentManager?.let { fm ->
+                                        SettingsBottomSheet().show(fm, "SettingsBottomSheet")
+                                    }
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Settings,
                                     contentDescription = "Настройки",
-                                    buttonSize = 38.dp,
-                                    iconSize = 22.dp
+                                    tint = panelTextColor.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
-                    )
+                    }
                 }
             }
 
-            // Bottom Panel (Glassmorphism)
+            // Bottom Panel (Modern Minimalist Dark Glass)
             AnimatedVisibility(
                 visible = !isHideBars && !isSearchMode,
-                enter = fadeIn(),
-                exit = fadeOut(),
+                enter = fadeIn(tween(180)) + slideInVertically(initialOffsetY = { it / 2 }),
+                exit = fadeOut(tween(150)) + slideOutVertically(targetOffsetY = { it / 2 }),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
                     color = glassBgColor,
                     border = glassBorder,
-                    shadowElevation = 8.dp
+                    shadowElevation = 12.dp
                 ) {
                     var isDraggingSlider by remember { mutableStateOf(false) }
                     var sliderPageValue by remember { mutableStateOf(0f) }
@@ -1515,25 +1549,34 @@ fun ReaderComposeScreen(
                     }
                     val currentSliderVal = if (isDraggingSlider) sliderPageValue else currentPercent
 
-                    Column {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp)
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = if (totalWebViewPages > 1) "Стр. ${currentWebViewPage + 1} из $totalWebViewPages" else "Прогресс",
-                                color = Color(0xFFF1F5F9),
+                                color = panelTextColor.copy(alpha = 0.9f),
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Medium
                             )
-                            Text(
-                                text = String.format(java.util.Locale.US, "%.1f%%", currentSliderVal),
-                                color = Color(0xFF00BCD4),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = accentGold.copy(alpha = 0.16f)
+                            ) {
+                                Text(
+                                    text = String.format(java.util.Locale.US, "%.1f%%", currentSliderVal),
+                                    color = accentGold,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         androidx.compose.material3.Slider(
                             value = currentSliderVal.coerceIn(0f, 100f),
                             onValueChange = { newValue ->
@@ -1547,16 +1590,16 @@ fun ReaderComposeScreen(
                             },
                             valueRange = 0f..100f,
                             colors = androidx.compose.material3.SliderDefaults.colors(
-                                thumbColor = Color(0xFF00BCD4),
-                                activeTrackColor = Color(0xFF00BCD4),
-                                inactiveTrackColor = Color(0xFFB0BEC5).copy(alpha = 0.3f)
+                                thumbColor = accentGold,
+                                activeTrackColor = accentGold,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.16f)
                             ),
                             thumb = {
                                 Box(
                                     modifier = Modifier
                                         .size(14.dp)
-                                        .background(Color(0xFF00BCD4), CircleShape)
-                                        .border(2.dp, Color.White, CircleShape)
+                                        .background(accentGold, CircleShape)
+                                        .border(1.5.dp, Color(0xFF12141A), CircleShape)
                                 )
                             },
                             track = { sliderState ->
@@ -1567,17 +1610,17 @@ fun ReaderComposeScreen(
                                     androidx.compose.material3.SliderDefaults.Track(
                                         sliderState = sliderState,
                                         colors = androidx.compose.material3.SliderDefaults.colors(
-                                            activeTrackColor = Color(0xFF00BCD4),
-                                            inactiveTrackColor = Color(0xFFB0BEC5).copy(alpha = 0.3f)
+                                            activeTrackColor = accentGold,
+                                            inactiveTrackColor = Color.White.copy(alpha = 0.16f)
                                         ),
-                                        modifier = Modifier.fillMaxWidth().height(6.dp)
+                                        modifier = Modifier.fillMaxWidth().height(4.dp)
                                     )
                                     val chapters = readerDocument?.chapters.orEmpty()
                                     if (chapters.size > 1) {
                                         androidx.compose.foundation.Canvas(
-                                            modifier = Modifier.fillMaxWidth().height(10.dp)
+                                            modifier = Modifier.fillMaxWidth().height(8.dp)
                                         ) {
-                                            val strokeW = 1.5.dp.toPx()
+                                            val strokeW = 1.2.dp.toPx()
                                             val topY = 1.dp.toPx()
                                             val botY = size.height - 1.dp.toPx()
                                             chapters.forEach { ch ->
@@ -1585,7 +1628,7 @@ fun ReaderComposeScreen(
                                                 if (frac > 0.005f && frac < 0.995f) {
                                                     val x = size.width * frac
                                                     drawLine(
-                                                        color = Color.White.copy(alpha = 0.65f),
+                                                        color = Color.White.copy(alpha = 0.45f),
                                                         start = androidx.compose.ui.geometry.Offset(x, topY),
                                                         end = androidx.compose.ui.geometry.Offset(x, botY),
                                                         strokeWidth = strokeW
@@ -1599,10 +1642,7 @@ fun ReaderComposeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(24.dp)
-                                .padding(horizontal = 16.dp)
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        HorizontalDivider(color = panelTextColor.copy(alpha = 0.12f), modifier = Modifier.padding(horizontal = 16.dp))
                     }
                 }
             }
