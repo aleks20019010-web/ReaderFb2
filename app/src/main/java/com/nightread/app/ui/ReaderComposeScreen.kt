@@ -1612,11 +1612,11 @@ fun ReaderComposeScreen(
                             )
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = accentGold.copy(alpha = 0.16f)
+                                color = panelTextColor.copy(alpha = 0.10f)
                             ) {
                                 Text(
                                     text = String.format(java.util.Locale.US, "%.1f%%", currentSliderVal),
-                                    color = accentGold,
+                                    color = panelTextColor.copy(alpha = 0.90f),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
