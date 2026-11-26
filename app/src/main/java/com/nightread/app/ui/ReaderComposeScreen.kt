@@ -1384,7 +1384,7 @@ fun ReaderComposeScreen(
 
                     Box(modifier = Modifier.fillMaxWidth()) {
                         androidx.compose.ui.viewinterop.AndroidView(
-                            factory = { ctx -> LiquidWaveBackgroundView(ctx).apply { alpha = 0.24f } },
+                            factory = { ctx -> LiquidWaveBackgroundView(ctx).apply { setAlpha(0.24f) } },
                             modifier = Modifier.matchParentSize()
                         )
                         Row(
@@ -1557,7 +1557,7 @@ fun ReaderComposeScreen(
 
                     Box(modifier = Modifier.fillMaxWidth()) {
                         androidx.compose.ui.viewinterop.AndroidView(
-                            factory = { ctx -> LiquidWaveBackgroundView(ctx).apply { alpha = 0.24f } },
+                            factory = { ctx -> LiquidWaveBackgroundView(ctx).apply { setAlpha(0.24f) } },
                             modifier = Modifier.matchParentSize()
                         )
                         Column(
