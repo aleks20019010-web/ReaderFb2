@@ -56,7 +56,31 @@ class SettingsBottomSheet : DialogFragment() {
         // 2. Font Selection (Spinner)
         val fontOptions = listOf("Roboto", "Times New Roman", "Georgia", "Merriweather", "Lora", "EB Garamond", "Literata", "OpenDyslexic", "Monospace")
         val spinnerFont = view.findViewById<Spinner>(R.id.spinnerFont)
-        val fontAdapter = SettingsSpinnerAdapter(context, fontOptions).apply {
+        val fontTypefaceCache = mutableMapOf<String, android.graphics.Typeface>()
+        fun resolvePreviewTypeface(fontName: String): android.graphics.Typeface {
+            return fontTypefaceCache.getOrPut(fontName) {
+                val resId = when (fontName) {
+                    "Roboto" -> R.font.roboto
+                    "Merriweather" -> R.font.merriweather
+                    "Lora" -> R.font.lora
+                    "EB Garamond" -> R.font.eb_garamond
+                    "Literata" -> R.font.literata
+                    "Monospace" -> R.font.jetbrains_mono
+                    else -> null
+                }
+                val loaded = resId?.let {
+                    runCatching { androidx.core.content.res.ResourcesCompat.getFont(context, it) }.getOrNull()
+                }
+                loaded ?: when (fontName) {
+                    "Times New Roman", "Georgia" -> android.graphics.Typeface.SERIF
+                    "Monospace" -> android.graphics.Typeface.MONOSPACE
+                    else -> android.graphics.Typeface.SANS_SERIF
+                }
+            }
+        }
+        val fontAdapter = SettingsSpinnerAdapter(context, fontOptions) { item ->
+            resolvePreviewTypeface(item)
+        }.apply {
             setDropDownViewResource(R.layout.spinner_dropdown_item)
         }
         spinnerFont.adapter = fontAdapter
@@ -744,7 +768,8 @@ class SettingsBottomSheet : DialogFragment() {
 
     private class SettingsSpinnerAdapter<T>(
         context: android.content.Context,
-        objects: List<T>
+        objects: List<T>,
+        private val typefaceProvider: ((T) -> android.graphics.Typeface?)? = null
     ) : ArrayAdapter<T>(context, R.layout.spinner_item, objects) {
         var textColor: Int = Color.parseColor("#F4F5F7")
         var itemBgColor: Int = Color.parseColor("#1C2029")
@@ -754,6 +779,9 @@ class SettingsBottomSheet : DialogFragment() {
             if (view is TextView) {
                 view.setTextColor(textColor)
                 view.setBackgroundColor(Color.TRANSPARENT)
+                getItem(position)?.let { item ->
+                    typefaceProvider?.invoke(item)?.let { view.typeface = it }
+                }
             }
             return view
         }
@@ -763,6 +791,9 @@ class SettingsBottomSheet : DialogFragment() {
             if (view is TextView) {
                 view.setTextColor(textColor)
                 view.setBackgroundColor(itemBgColor)
+                getItem(position)?.let { item ->
+                    typefaceProvider?.invoke(item)?.let { view.typeface = it }
+                }
             }
             return view
         }
