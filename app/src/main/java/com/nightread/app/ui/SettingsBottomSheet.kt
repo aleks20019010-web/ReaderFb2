@@ -648,16 +648,21 @@ class SettingsBottomSheet : DialogFragment() {
         ringSepia?.backgroundTintList = ColorStateList.valueOf(accentColor)
         ringDark?.backgroundTintList = ColorStateList.valueOf(accentColor)
 
-        // 9. Programmatic styled background drawable for the Spinners to prevent XML color collision
-        val spinnerBg = GradientDrawable().apply {
+        // 9. Programmatic styled background drawable for the Spinners (clear XML tint + dark popup)
+        fun createSpinnerBg(): GradientDrawable = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = 20f
             setColor(itemBgColor)
             setStroke(2, dividerColor)
         }
-        rootView.findViewById<Spinner>(R.id.spinnerFont)?.background = spinnerBg
-        rootView.findViewById<Spinner>(R.id.spinnerTheme)?.background = spinnerBg
-        rootView.findViewById<Spinner>(R.id.spinnerAnimation)?.background = spinnerBg
+        listOf(R.id.spinnerFont, R.id.spinnerTheme, R.id.spinnerAnimation).forEach { id ->
+            rootView.findViewById<Spinner>(id)?.apply {
+                backgroundTintList = null
+                androidx.core.view.ViewCompat.setBackgroundTintList(this, null)
+                background = createSpinnerBg()
+                setPopupBackgroundDrawable(createSpinnerBg())
+            }
+        }
         // rootView.findViewById<Spinner>(R.id.spinnerAlignment)?.background = spinnerBg
 
         // 9b. Update Spinner Adapters colors
