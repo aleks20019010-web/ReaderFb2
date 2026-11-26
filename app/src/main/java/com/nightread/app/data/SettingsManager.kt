@@ -53,6 +53,7 @@ object SettingsManager {
     const val KEY_WORD_SPACING = "word_spacing"
     const val KEY_PARAGRAPH_INDENT = "paragraph_indent"
     const val KEY_SILENT_MODE_ENABLED = "silent_mode_enabled"
+    const val KEY_STATUS_BAR_ENABLED = "status_bar_enabled"
     const val KEY_DISTRACTION_FREE_MODE = "distraction_free_mode"
     const val KEY_SORT_OPTION = "library_sort_option"
     const val KEY_TTS_SPEED = "tts_speed"
@@ -110,6 +111,7 @@ object SettingsManager {
     private var cachedWordSpacing: Float? = null
     private var cachedParagraphIndent: Int? = null
     private var cachedSilentModeEnabled: Boolean? = null
+    private var cachedStatusBarEnabled: Boolean? = null
 
     private fun getPrefs(context: Context): SharedPreferences {
         if (prefs == null) {
@@ -719,6 +721,19 @@ object SettingsManager {
         cachedSilentModeEnabled = enabled
         getPrefs(context).edit().putBoolean(KEY_SILENT_MODE_ENABLED, enabled).apply()
         notifyChanged()
+    }
+
+    fun isStatusBarEnabled(context: Context): Boolean {
+        if (cachedStatusBarEnabled == null) {
+            cachedStatusBarEnabled = getPrefs(context).getBoolean(KEY_STATUS_BAR_ENABLED, true)
+        }
+        return cachedStatusBarEnabled!!
+    }
+
+    fun setStatusBarEnabled(context: Context, enabled: Boolean) {
+        if (cachedStatusBarEnabled == enabled) return
+        cachedStatusBarEnabled = enabled
+        getPrefs(context).edit().putBoolean(KEY_STATUS_BAR_ENABLED, enabled).apply()
     }
 
     private var cachedDistractionFreeEnabled: Boolean? = null

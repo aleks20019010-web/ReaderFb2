@@ -73,6 +73,15 @@ class SeriesBooksActivity : BaseActivity() {
             val db = AppDatabase.getDatabase(this@SeriesBooksActivity)
             db.bookDao().getBooksBySeries(series).collect { books ->
                 adapter.updateData(books)
+                val readCount = books.count { b ->
+                    b.totalCharacters > 0 && (b.currentProgressChar.toFloat() * 100f / b.totalCharacters.toFloat()) >= 98f
+                }
+                val titleView = findViewById<android.widget.TextView>(R.id.header_title)
+                titleView?.text = if (books.isNotEmpty()) {
+                    "$series • $readCount/${books.size} прочит."
+                } else {
+                    series
+                }
             }
         }
     }

@@ -233,6 +233,8 @@ fun ReaderComposeScreen(
     val extraDimIntensity = remember(settingsVersion, context) { SettingsManager.getExtraDimIntensity(context) }
     val isHapticEnabled = remember(settingsVersion, context) { SettingsManager.isHapticFeedbackEnabled(context) }
     val isSilentModeEnabled = remember(settingsVersion, context) { SettingsManager.isSilentModeEnabled(context) }
+    val isStatusBarEnabled = remember(settingsVersion, context) { SettingsManager.isStatusBarEnabled(context) }
+    var activeFootnoteText by remember { mutableStateOf<String?>(null) }
     val isHyphenationEnabled = remember(settingsVersion, context) { SettingsManager.isHyphenationEnabled(context) }
     val isSleepTimerEnabled = remember(settingsVersion, context) { SettingsManager.isSleepTimerEnabled(context) }
     val sleepTimerDuration = remember(settingsVersion, context) { SettingsManager.getSleepTimerDuration(context) }
@@ -517,15 +519,29 @@ fun ReaderComposeScreen(
         }
     }
 
-    // Wake-up strong vibration if no page turn for 3 minutes in Silent Mode
+    // Wake-up strong vibration + auto screen-off if no page turn in Silent Mode
     LaunchedEffect(isSilentModeEnabled, currentWebViewPage, pagerState.currentPage) {
+        val act = context as? Activity
         if (!isSilentModeEnabled) return@LaunchedEffect
+        try {
+            act?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } catch (_: Exception) {}
         delay(3 * 60 * 1000L)
         triggerReaderVibration(true)
         repeat(2) {
             delay(2 * 60 * 1000L)
             triggerReaderVibration(true)
         }
+        // User did not wake up after 3 vibrations -> allow screen to turn off
+        delay(60 * 1000L)
+        try {
+            act?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            val lp = act?.window?.attributes
+            if (lp != null) {
+                lp.screenBrightness = 0.01f
+                act.window.attributes = lp
+            }
+        } catch (_: Exception) {}
     }
 
     // Sleep Timer logic
@@ -674,9 +690,11 @@ fun ReaderComposeScreen(
     DisposableEffect(webViewRef) {
         activity?.onNextPage = {
             webViewRef?.evaluateJavascript("window.nextPage();", null)
+            if (SettingsManager.isHapticFeedbackEnabled(context)) triggerReaderVibration(false)
         }
         activity?.onPrevPage = {
             webViewRef?.evaluateJavascript("window.prevPage();", null)
+            if (SettingsManager.isHapticFeedbackEnabled(context)) triggerReaderVibration(false)
         }
         onDispose {
             activity?.onNextPage = null
@@ -700,10 +718,12 @@ fun ReaderComposeScreen(
                     when (event.nativeKeyEvent.keyCode) {
                         android.view.KeyEvent.KEYCODE_VOLUME_DOWN -> {
                             webViewRef?.evaluateJavascript("window.nextPage();", null)
+                            if (SettingsManager.isHapticFeedbackEnabled(context)) triggerReaderVibration(false)
                             true
                         }
                         android.view.KeyEvent.KEYCODE_VOLUME_UP -> {
                             webViewRef?.evaluateJavascript("window.prevPage();", null)
+                            if (SettingsManager.isHapticFeedbackEnabled(context)) triggerReaderVibration(false)
                             true
                         }
                         else -> false
@@ -929,7 +949,7 @@ fun ReaderComposeScreen(
                             }
                             val leftPaddingDpVal = 8
                             val rightPaddingDpVal = 8
-                            val bottomPaddingDpVal = 4
+                            val bottomPaddingDpVal = if (isStatusBarEnabled) 24 else 4
 
                             val currentTargetOffsetForHtml = if (savedTextOffset > 0) savedTextOffset else currentReadingOffset
 
@@ -1001,7 +1021,24 @@ fun ReaderComposeScreen(
                                             }
                                         }
                                     },
-                                    onNoteClicked = { noteId -> },
+                                    onNoteClicked = { noteId ->
+                                        val cleanId = noteId.trim().removePrefix("#").replace("'", "\\'")
+                                        val wv = webViewRef
+                                        if (wv != null && cleanId.isNotEmpty()) {
+                                            val js = "(function(){ var el = document.getElementById('$cleanId') || document.querySelector('[name=\"$cleanId\"]'); return el ? (el.innerText || el.textContent || '') : ''; })()"
+                                            wv.evaluateJavascript(js) { raw ->
+                                                val decoded = raw
+                                                    ?.trim()
+                                                    ?.removeSurrounding("\"")
+                                                    ?.replace("\\n", "\n")
+                                                    ?.replace("\\\"", "\"")
+                                                    ?.trim()
+                                                activeFootnoteText = if (!decoded.isNullOrBlank() && decoded != "null") decoded else noteId
+                                            }
+                                        } else if (noteId.isNotBlank()) {
+                                            activeFootnoteText = noteId
+                                        }
+                                    },
                                     onNextPage = { if (SettingsManager.isHapticFeedbackEnabled(context)) triggerReaderVibration(false) },
                                     onPreviousPage = { if (SettingsManager.isHapticFeedbackEnabled(context)) triggerReaderVibration(false) },
                                     onWebViewCreated = { webView ->
@@ -1010,11 +1047,38 @@ fun ReaderComposeScreen(
                                     onTopLeftTap = {
                                         val currentTheme = SettingsManager.getReadingTheme(context).lowercase()
                                         val isCurrentlyNight = SettingsManager.isNightTheme(currentTheme)
-                                        val targetTheme = if (isCurrentlyNight) "sepia" else "dark"
+                                        val targetTheme = if (isCurrentlyNight) "sepia" else "amoled"
                                         SettingsManager.setReadingTheme(context, targetTheme)
                                         settingsVersion++
                                         gestureIndicatorText = if (isCurrentlyNight) "Тема: Сепия" else "Тема: Ночь"
                                         gestureIndicatorIcon = Icons.Filled.WbSunny
+                                        showGestureIndicatorTime = System.currentTimeMillis()
+                                    },
+                                    onTopRightTap = {
+                                        val offsetNow = if (savedTextOffset > 0) savedTextOffset else currentReadingOffset
+                                        val existing = bookmarks.any { kotlin.math.abs(it.charOffset - offsetNow) < 50 }
+                                        coroutineScope.launch {
+                                            if (existing) {
+                                                val target = bookmarks.firstOrNull { kotlin.math.abs(it.charOffset - offsetNow) < 50 }
+                                                if (target != null) {
+                                                    bookmarkRepo.deleteBookmarkAtOffset(sha1, target.charOffset)
+                                                }
+                                            } else {
+                                                bookmarkRepo.insertBookmark(
+                                                    BookmarkEntity(
+                                                        bookSha1 = sha1,
+                                                        bookTitle = bookTitle,
+                                                        charOffset = offsetNow,
+                                                        pageIndex = currentWebViewPage,
+                                                        snippet = "Стр. ${currentWebViewPage + 1}",
+                                                        timestamp = System.currentTimeMillis()
+                                                    )
+                                                )
+                                            }
+                                        }
+                                        if (SettingsManager.isHapticFeedbackEnabled(context)) triggerReaderVibration(false)
+                                        gestureIndicatorText = if (existing) "Закладка удалена" else "Закладка добавлена"
+                                        gestureIndicatorIcon = if (existing) Icons.Filled.BookmarkBorder else Icons.Filled.Bookmark
                                         showGestureIndicatorTime = System.currentTimeMillis()
                                     },
                                     onToggleBars = {
@@ -1193,6 +1257,100 @@ fun ReaderComposeScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            // BottomStatusBarOverlay (thin status bar at the very bottom)
+            if (isStatusBarEnabled && !isSearchMode && isHideBars) {
+                var timeText by remember { mutableStateOf("") }
+                var batteryPct by remember { mutableIntStateOf(-1) }
+                LaunchedEffect(Unit) {
+                    val fmt = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                    val bm = context.getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
+                    while (true) {
+                        timeText = fmt.format(java.util.Date())
+                        batteryPct = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+                        delay(30_000L)
+                    }
+                }
+                val isNightNow = SettingsManager.isNightTheme(readingThemeStr.lowercase())
+                val statusColor = if (isNightNow) Color(0xFFA8A49B).copy(alpha = 0.6f) else Color(0xFF3E3529).copy(alpha = 0.65f)
+                val pct = if (totalWebViewPages > 1) ((currentWebViewPage + 1) * 100 / totalWebViewPages).coerceIn(0, 100) else 0
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 14.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (batteryPct in 0..100) "$timeText  •  $batteryPct%" else timeText,
+                        color = statusColor,
+                        fontSize = 11.sp
+                    )
+                    Text(
+                        text = if (totalWebViewPages > 1) "${currentWebViewPage + 1} / $totalWebViewPages  ($pct%)" else "$pct%",
+                        color = statusColor,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+
+            // Popup Footnote Card
+            AnimatedVisibility(
+                visible = activeFootnoteText != null,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 28.dp)
+            ) {
+                activeFootnoteText?.let { noteBody ->
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = Color(0xFF192236).copy(alpha = 0.96f),
+                        border = BorderStroke(1.dp, Color(0xFF00BCD4).copy(alpha = 0.4f)),
+                        shadowElevation = 12.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Примечание",
+                                    color = Color(0xFF00BCD4),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                IconButton(
+                                    onClick = { activeFootnoteText = null },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "Закрыть",
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = noteBody,
+                                color = Color(0xFFF1F5F9),
+                                fontSize = 14.sp,
+                                lineHeight = 20.sp
+                            )
                         }
                     }
                 }
@@ -1402,14 +1560,41 @@ fun ReaderComposeScreen(
                                 )
                             },
                             track = { sliderState ->
-                                androidx.compose.material3.SliderDefaults.Track(
-                                    sliderState = sliderState,
-                                    colors = androidx.compose.material3.SliderDefaults.colors(
-                                        activeTrackColor = Color(0xFF00BCD4),
-                                        inactiveTrackColor = Color(0xFFB0BEC5).copy(alpha = 0.3f)
-                                    ),
-                                    modifier = Modifier.height(6.dp)
-                                )
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().height(12.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    androidx.compose.material3.SliderDefaults.Track(
+                                        sliderState = sliderState,
+                                        colors = androidx.compose.material3.SliderDefaults.colors(
+                                            activeTrackColor = Color(0xFF00BCD4),
+                                            inactiveTrackColor = Color(0xFFB0BEC5).copy(alpha = 0.3f)
+                                        ),
+                                        modifier = Modifier.fillMaxWidth().height(6.dp)
+                                    )
+                                    val chapters = readerDocument?.chapters.orEmpty()
+                                    if (chapters.size > 1) {
+                                        androidx.compose.foundation.Canvas(
+                                            modifier = Modifier.fillMaxWidth().height(10.dp)
+                                        ) {
+                                            val strokeW = 1.5.dp.toPx()
+                                            val topY = 1.dp.toPx()
+                                            val botY = size.height - 1.dp.toPx()
+                                            chapters.forEach { ch ->
+                                                val frac = (ch.startOffset.toFloat() / totalChars.toFloat()).coerceIn(0f, 1f)
+                                                if (frac > 0.005f && frac < 0.995f) {
+                                                    val x = size.width * frac
+                                                    drawLine(
+                                                        color = Color.White.copy(alpha = 0.65f),
+                                                        start = androidx.compose.ui.geometry.Offset(x, topY),
+                                                        end = androidx.compose.ui.geometry.Offset(x, botY),
+                                                        strokeWidth = strokeW
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             },
                             modifier = Modifier
                                 .fillMaxWidth()

@@ -482,6 +482,15 @@ class SettingsBottomSheet : DialogFragment() {
         }
 
         // 7g. Silent Mode control
+        
+        val switchStatusBar = view.findViewById<SwitchCompat>(R.id.switchStatusBar)
+        switchStatusBar?.isChecked = SettingsManager.isStatusBarEnabled(context)
+        switchStatusBar?.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != SettingsManager.isStatusBarEnabled(context)) {
+                SettingsManager.setStatusBarEnabled(context, isChecked)
+                onSettingsChanged?.invoke()
+            }
+        }
         val switchSilentMode = view.findViewById<SwitchCompat>(R.id.switchSilentMode)
         switchSilentMode.isChecked = SettingsManager.isSilentModeEnabled(context)
         switchSilentMode.setOnCheckedChangeListener { _, isChecked ->
@@ -546,6 +555,7 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvBedtimeTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvHapticFeedbackTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvSilentModeTitle)?.setTextColor(textPrimaryColor)
+        rootView.findViewById<TextView>(R.id.tvStatusBarTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvAutoBrightnessTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvExtraDimTitle)?.setTextColor(textPrimaryColor)
         rootView.findViewById<TextView>(R.id.tvExtraDimIntensityValue)?.setTextColor(textPrimaryColor)
@@ -569,6 +579,7 @@ class SettingsBottomSheet : DialogFragment() {
         rootView.findViewById<TextView>(R.id.tvBedtimeDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvHapticFeedbackDesc)?.setTextColor(textSecondaryColor)
         rootView.findViewById<TextView>(R.id.tvSilentModeDesc)?.setTextColor(textSecondaryColor)
+        rootView.findViewById<TextView>(R.id.tvStatusBarDesc)?.setTextColor(textSecondaryColor)
 
         // 4. Content Dividers
         rootView.findViewById<View>(R.id.dividerTop)?.setBackgroundColor(dividerColor)
@@ -616,6 +627,9 @@ class SettingsBottomSheet : DialogFragment() {
         switchHapticFeedback?.trackTintList = ColorStateList.valueOf(accentColor)
         switchHapticFeedback?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
 
+        val switchStatusBar = rootView.findViewById<SwitchCompat>(R.id.switchStatusBar)
+        switchStatusBar?.trackTintList = ColorStateList.valueOf(accentColor)
+        switchStatusBar?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)
         val switchSilentMode = rootView.findViewById<SwitchCompat>(R.id.switchSilentMode)
         switchSilentMode?.trackTintList = ColorStateList.valueOf(accentColor)
         switchSilentMode?.thumbTintList = ColorStateList.valueOf(textPrimaryColor)

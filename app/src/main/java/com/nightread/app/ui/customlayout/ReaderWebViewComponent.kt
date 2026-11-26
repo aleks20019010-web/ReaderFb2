@@ -44,6 +44,7 @@ fun ReaderWebViewComponent(
     onPreviousPage: () -> Unit = {},
     onToggleBars: () -> Unit = {},
     onTopLeftTap: () -> Unit = {},
+    onTopRightTap: () -> Unit = {},
     onVerticalScroll: (Float, Float) -> Unit = { _, _ -> },
     onWebViewCreated: (WebView) -> Unit = {}
 ) {
@@ -51,6 +52,7 @@ fun ReaderWebViewComponent(
     val latestOnNextPage by rememberUpdatedState(onNextPage)
     val latestOnPreviousPage by rememberUpdatedState(onPreviousPage)
     val latestOnTopLeftTap by rememberUpdatedState(onTopLeftTap)
+    val latestOnTopRightTap by rememberUpdatedState(onTopRightTap)
     var lastLoadedHtml by remember { mutableStateOf("") }
     var lastStyleKey by remember { mutableStateOf("") }
     var lastAnimationMode by remember { mutableStateOf(pageAnimation) }
@@ -214,6 +216,9 @@ fun ReaderWebViewComponent(
                                     when {
                                         upX < screenWidth * 0.22f && upY < screenHeight * 0.14f -> {
                                             latestOnTopLeftTap()
+                                        }
+                                        upX > screenWidth * 0.78f && upY < screenHeight * 0.14f -> {
+                                            latestOnTopRightTap()
                                         }
                                         upX < screenWidth * 0.25f -> {
                                             this.evaluateJavascript("if(window.prevPage){window.prevPage();}", null)
