@@ -734,6 +734,7 @@ object SettingsManager {
         if (cachedStatusBarEnabled == enabled) return
         cachedStatusBarEnabled = enabled
         getPrefs(context).edit().putBoolean(KEY_STATUS_BAR_ENABLED, enabled).apply()
+        notifyChanged()
     }
 
     private var cachedDistractionFreeEnabled: Boolean? = null

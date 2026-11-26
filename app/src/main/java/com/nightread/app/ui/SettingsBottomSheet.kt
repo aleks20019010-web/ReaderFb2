@@ -488,7 +488,6 @@ class SettingsBottomSheet : DialogFragment() {
         switchStatusBar?.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked != SettingsManager.isStatusBarEnabled(context)) {
                 SettingsManager.setStatusBarEnabled(context, isChecked)
-                onSettingsChanged?.invoke()
             }
         }
         val switchSilentMode = view.findViewById<SwitchCompat>(R.id.switchSilentMode)
