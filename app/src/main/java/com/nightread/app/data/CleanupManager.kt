@@ -77,9 +77,9 @@ class CleanupManager(
 
         fun normalizeName(raw: String): String {
             return raw.lowercase()
-                .replace(Regex("\.(?:fb2\.zip|fb2|fb3|epub|mobi|azw3|azw|zip)$"), "")
-                .replace(Regex("\(\d+\)$"), "")
-                .replace(Regex("[^a-zа-яё0-9]+"), " ")
+                .replace(Regex("\\.(?:fb2\\.zip|fb2|fb3|epub|mobi|azw3|azw|zip)$"), "")
+                .replace(Regex("\\(\\d+\\)$"), "")
+                .replace(Regex("[^a-z?-??0-9]+"), " ")
                 .trim()
         }
 
