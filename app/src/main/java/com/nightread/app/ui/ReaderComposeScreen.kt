@@ -2,119 +2,163 @@ package com.nightread.app.ui
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.FullscreenExit
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.AutoAwesome
-
-import com.nightread.app.data.BookmarkDatabase
-import com.nightread.app.data.BookmarkEntity
-import com.nightread.app.data.BookmarkRepository
-import com.nightread.app.ui.customlayout.ReaderSearchEngine
-import com.nightread.app.ui.customlayout.ReaderSearchResult
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Bookmarks
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.foundation.lazy.items
-import kotlinx.coroutines.Job
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Thermostat
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.foundation.focusable
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.Hyphens
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
-import com.nightread.app.utils.TypographyUtils
-import com.nightread.app.ui.BrightnessHelper
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import android.content.Intent
-import android.os.Build
+import com.nightread.app.data.BookmarkDatabase
+import com.nightread.app.data.BookmarkEntity
+import com.nightread.app.data.BookmarkRepository
 import com.nightread.app.data.SettingsManager
+import com.nightread.app.ui.customlayout.ReaderSearchEngine
+import com.nightread.app.ui.customlayout.ReaderSearchResult
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.launch
-import androidx.compose.ui.platform.testTag
-import kotlinx.coroutines.flow.debounce
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.rememberUpdatedState
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 enum class ThemeType(val displayName: String) {
@@ -230,7 +274,6 @@ fun ReaderComposeScreen(
     val isAmberEnabled = remember(settingsVersion, context) { SettingsManager.isAmberFilterEnabled(context) }
     val isExtraDimEnabled = remember(settingsVersion, context) { SettingsManager.isExtraDimEnabled(context) }
     val extraDimIntensity = remember(settingsVersion, context) { SettingsManager.getExtraDimIntensity(context) }
-    val isHapticEnabled = remember(settingsVersion, context) { SettingsManager.isHapticFeedbackEnabled(context) }
     val isSilentModeEnabled = remember(settingsVersion, context) { SettingsManager.isSilentModeEnabled(context) }
     val isStatusBarEnabled = remember(settingsVersion, context) { SettingsManager.isStatusBarEnabled(context) }
     var activeFootnoteText by remember { mutableStateOf<String?>(null) }
@@ -254,8 +297,6 @@ fun ReaderComposeScreen(
         }
     }
 
-    var isSettingsOpen by remember { mutableStateOf(false) }
-
     // --- Bookmarks & Search State ---
     val bookmarkDb = remember(context) { BookmarkDatabase.getDatabase(context) }
     val bookmarkRepo = remember(bookmarkDb) { BookmarkRepository(bookmarkDb.bookmarkDao()) }
@@ -266,12 +307,9 @@ fun ReaderComposeScreen(
     var searchResults by remember { mutableStateOf<List<ReaderSearchResult>>(emptyList()) }
     var currentSearchIndex by remember { mutableIntStateOf(-1) }
     var isSearchMode by remember { mutableStateOf(false) }
-    var searchJob by remember { mutableStateOf<Job?>(null) }
 
     var pendingTargetOffset by remember { mutableStateOf<Int?>(null) }
     var showTocSheet by remember { mutableStateOf(false) }
-
-    // --------------------------------
 
     val fragmentActivity = context as? androidx.fragment.app.FragmentActivity
     LaunchedEffect(fragmentActivity) {
@@ -285,7 +323,6 @@ fun ReaderComposeScreen(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
 
-    // Brightness and Warmth (amber filter) states
     val initialBrightness = remember(context) {
         val b = SettingsManager.getBrightness(context)
         if (b < 0) {
@@ -310,7 +347,6 @@ fun ReaderComposeScreen(
         }
     }
 
-    // Apply brightness on launch
     LaunchedEffect(currentBrightness) {
         (context as? Activity)?.let {
             BrightnessHelper.setBrightness(it, currentBrightness)
@@ -341,7 +377,6 @@ fun ReaderComposeScreen(
         }
     }
 
-    // Unified full-screen immersion: hides ALL system bars when bars are hidden (pure text mode)
     val isFullScreenCleanMode = isHideBars || isDistractionFreeMode
     DisposableEffect(window, themeType, isFullScreenCleanMode) {
         if (window != null) {
@@ -388,7 +423,6 @@ fun ReaderComposeScreen(
 
     var readerDocument by remember { mutableStateOf<com.nightread.app.ui.customlayout.ReaderDocument?>(null) }
     var readerPages by remember { mutableStateOf<List<com.nightread.app.ui.customlayout.ReaderPage>>(emptyList()) }
-    val pageStartOffsets = remember(readerPages) { readerPages.map { it.startOffset } }
     var isRestoringProgress by remember { mutableStateOf(true) }
     var savedTextOffset by remember { mutableIntStateOf(0) }
     var currentWebViewPage by remember { mutableIntStateOf(0) }
@@ -449,7 +483,6 @@ fun ReaderComposeScreen(
 
     var webViewRef by remember { mutableStateOf<android.webkit.WebView?>(null) }
 
-    // Reliable vibration helper (Android 13+ VibrationAttributes + fallback)
     val triggerReaderVibration: (Boolean) -> Unit = remember(context) {
         { isWakeUp ->
             try {
@@ -505,13 +538,11 @@ fun ReaderComposeScreen(
         }
     }
 
-    // Silent Mode effect (mute view click sound effects during reading)
     LaunchedEffect(isSilentModeEnabled, webViewRef) {
         try {
             view.isSoundEffectsEnabled = !isSilentModeEnabled
             webViewRef?.isSoundEffectsEnabled = !isSilentModeEnabled
-        } catch (e: Exception) {
-            // Ignore if not supported
+        } catch (_: Exception) {
         }
     }
 
@@ -535,7 +566,6 @@ fun ReaderComposeScreen(
         }
     }
 
-    // Sleep Timer logic
     LaunchedEffect(isSleepTimerEnabled, sleepTimerDuration) {
         if (isSleepTimerEnabled) {
             sleepTimerRemaining = sleepTimerDuration * 60 * 1000L
@@ -583,7 +613,7 @@ fun ReaderComposeScreen(
 
     LaunchedEffect(savedTextOffset, sha1, currentWebViewPage, totalWebViewPages) {
         if (!isRestoringProgress && sha1.isNotEmpty() && savedTextOffset >= 0) {
-            delay(400) // Debounce 400ms
+            delay(400)
 
             android.util.Log.d("ReadingProgress", "SAVE (debounce) bookId=$sha1 offset=$savedTextOffset page=$currentWebViewPage/$totalWebViewPages")
             progressRepository.saveProgress(
@@ -751,23 +781,11 @@ fun ReaderComposeScreen(
                     }
                 }
             } else {
-                val cutoutTop = WindowInsets.displayCutout.asPaddingValues().calculateTopPadding()
-                val cutoutBottom = WindowInsets.displayCutout.asPaddingValues().calculateBottomPadding()
-
-                // Container for reader content
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                ) {
-                    // Main Text Content as HorizontalPager with dynamic text measuring
-                    BoxWithConstraints(
-                        modifier = Modifier
-                            .fillMaxSize()
-                    ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                         val density = LocalDensity.current
                         val configuration = LocalConfiguration.current
 
-                        // Use screen-level configuration dimensions so system bars hiding/showing does not change viewport
                         val widthDp = configuration.screenWidthDp
                         val heightDp = configuration.screenHeightDp
                         val maxWidthPx = with(density) { widthDp.dp.roundToPx() }
@@ -798,7 +816,7 @@ fun ReaderComposeScreen(
                                     maxHeightPx = maxHeightPx
                                 )
                             }.debounce(if (value == null) 0L else 400L)
-                             .collect { value = it }
+                                .collect { value = it }
                         }
 
                         var oldWidthPx by remember { mutableIntStateOf(0) }
@@ -806,26 +824,15 @@ fun ReaderComposeScreen(
 
                         LaunchedEffect(maxWidthPx, maxHeightPx) {
                             if (oldWidthPx != 0 && oldHeightPx != 0 && (oldWidthPx != maxWidthPx || oldHeightPx != maxHeightPx)) {
-                                android.util.Log.e("ReaderViewport", "ERROR: Viewport changed! This will cause repagination.\nold viewport:\nwidth=$oldWidthPx\nheight=$oldHeightPx\n\nnew viewport:\nwidth=$maxWidthPx\nheight=$maxHeightPx")
+                                android.util.Log.e(
+                                    "ReaderViewport",
+                                    "ERROR: Viewport changed! This will cause repagination.\nold viewport:\nwidth=$oldWidthPx\nheight=$oldHeightPx\n\nnew viewport:\nwidth=$maxWidthPx\nheight=$maxHeightPx"
+                                )
                             } else {
                                 android.util.Log.d("ReaderViewport", "viewport stable\nwidth=$maxWidthPx\nheight=$maxHeightPx")
                             }
                             oldWidthPx = maxWidthPx
                             oldHeightPx = maxHeightPx
-                        }
-
-                        val readerTextStyle = remember(fontSize, font, mappedFontWeight, lineSpacing, isHyphenationEnabled) {
-                            TextStyle(
-                                fontSize = fontSize.sp,
-                                fontFamily = font,
-                                fontWeight = mappedFontWeight,
-                                textAlign = TextAlign.Justify,
-                                lineHeight = (fontSize * lineSpacing).sp,
-                                letterSpacing = 0.1.sp,
-                                lineBreak = LineBreak.Paragraph,
-                                hyphens = if (isHyphenationEnabled) Hyphens.Auto else Hyphens.None,
-                                platformStyle = PlatformTextStyle(includeFontPadding = false)
-                            )
                         }
 
                         LaunchedEffect(mainText, sha1, fontSize) {
@@ -887,7 +894,6 @@ fun ReaderComposeScreen(
 
                                 pager.pages.collect { updatedPages ->
                                     if (updatedPages.isNotEmpty()) {
-                                        val oldPages = readerPages
                                         readerPages = updatedPages
 
                                         val targetToRestore = pendingTargetOffset ?: targetOffset
@@ -1103,11 +1109,11 @@ fun ReaderComposeScreen(
                                         if (abs(dragAmount) > 1.5f) {
                                             lastInteractionTime = System.currentTimeMillis()
                                             val screenWidth = maxWidthPx
-                                            val activity = context as? Activity
+                                            val act = context as? Activity
                                             if (startX < screenWidth / 2f) {
                                                 currentBrightness = (currentBrightness - dragAmount / 600f).coerceIn(0.02f, 1f)
-                                                if (activity != null) {
-                                                    BrightnessHelper.setBrightness(activity, currentBrightness)
+                                                if (act != null) {
+                                                    BrightnessHelper.setBrightness(act, currentBrightness)
                                                 }
                                                 SettingsManager.setBrightness(context, currentBrightness)
                                                 gestureIndicatorText = "Яркость: ${(currentBrightness * 100).toInt()}%"
@@ -1128,7 +1134,6 @@ fun ReaderComposeScreen(
                         }
                     }
 
-                    // Warmth (Amber filter) overlay
                     if (isAmberEnabled && currentWarmth > 0) {
                         Box(
                             modifier = Modifier
@@ -1137,7 +1142,6 @@ fun ReaderComposeScreen(
                         )
                     }
 
-                    // Extra Dim overlay
                     if (isExtraDimEnabled && extraDimIntensity > 0) {
                         Box(
                             modifier = Modifier
@@ -1146,7 +1150,6 @@ fun ReaderComposeScreen(
                         )
                     }
 
-                    // Gesture Indicator Toast Overlay
                     AnimatedVisibility(
                         visible = gestureIndicatorText != null,
                         enter = fadeIn(animationSpec = tween(150)),
@@ -1238,7 +1241,7 @@ fun ReaderComposeScreen(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 2,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis
                             )
                             if (!nb.series.isNullOrBlank()) {
                                 Text(
@@ -1246,7 +1249,7 @@ fun ReaderComposeScreen(
                                     color = Color(0xFF94A3B8),
                                     fontSize = 12.sp,
                                     maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                             Button(
@@ -1273,7 +1276,7 @@ fun ReaderComposeScreen(
                 }
             }
 
-            // BottomStatusBarOverlay (thin status bar at the very bottom)
+            // BottomStatusBarOverlay
             if (isStatusBarEnabled && !isSearchMode && isHideBars) {
                 var timeText by remember { mutableStateOf("") }
                 var batteryPct by remember { mutableIntStateOf(-1) }
@@ -1372,7 +1375,7 @@ fun ReaderComposeScreen(
             val panelTextColor = Color(0xFFF4F5F7)
             val accentGold = Color(0xFFE5C07B)
 
-            // Top Panel (Modern Minimalist Dark Glass)
+            // Top Panel
             AnimatedVisibility(
                 visible = !isHideBars && !isSearchMode,
                 enter = fadeIn(tween(180)) + slideInVertically(initialOffsetY = { -it / 2 }),
@@ -1389,12 +1392,11 @@ fun ReaderComposeScreen(
                     border = glassBorder,
                     shadowElevation = 12.dp
                 ) {
-                    val fragmentActivity = context as? androidx.fragment.app.FragmentActivity
                     val currentOffset = if (savedTextOffset > 0) savedTextOffset else currentReadingOffset
                     val isBookmarked = bookmarks.any { kotlin.math.abs(it.charOffset - currentOffset) < 50 }
 
                     Box(modifier = Modifier.fillMaxWidth()) {
-                        androidx.compose.ui.viewinterop.AndroidView(
+                        AndroidView(
                             factory = { ctx -> LiquidWaveBackgroundView(ctx).apply { setAlpha(0.24f) } },
                             modifier = Modifier.matchParentSize()
                         )
@@ -1404,141 +1406,141 @@ fun ReaderComposeScreen(
                                 .padding(horizontal = 8.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                        IconButton(
-                            onClick = onBackClick,
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.ArrowBack,
-                                contentDescription = "Назад",
-                                tint = panelTextColor,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 6.dp)
-                        ) {
-                            Text(
-                                text = bookTitle,
-                                color = panelTextColor,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 15.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = authorAndChapter,
-                                color = panelTextColor.copy(alpha = 0.6f),
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
                             IconButton(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        if (isBookmarked) {
-                                            val target = bookmarks.firstOrNull { kotlin.math.abs(it.charOffset - currentOffset) < 50 }
-                                            if (target != null) bookmarkRepo.deleteBookmarkAtOffset(sha1, target.charOffset)
-                                        } else {
-                                            bookmarkRepo.insertBookmark(
-                                                BookmarkEntity(
-                                                    bookSha1 = sha1,
-                                                    bookTitle = bookTitle,
-                                                    charOffset = currentOffset,
-                                                    pageIndex = currentWebViewPage,
-                                                    snippet = "Стр. ${currentWebViewPage + 1}",
-                                                    timestamp = System.currentTimeMillis()
+                                onClick = onBackClick,
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.ArrowBack,
+                                    contentDescription = "Назад",
+                                    tint = panelTextColor,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 6.dp)
+                            ) {
+                                Text(
+                                    text = bookTitle,
+                                    color = panelTextColor,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 15.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = authorAndChapter,
+                                    color = panelTextColor.copy(alpha = 0.6f),
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            if (isBookmarked) {
+                                                val target = bookmarks.firstOrNull { kotlin.math.abs(it.charOffset - currentOffset) < 50 }
+                                                if (target != null) bookmarkRepo.deleteBookmarkAtOffset(sha1, target.charOffset)
+                                            } else {
+                                                bookmarkRepo.insertBookmark(
+                                                    BookmarkEntity(
+                                                        bookSha1 = sha1,
+                                                        bookTitle = bookTitle,
+                                                        charOffset = currentOffset,
+                                                        pageIndex = currentWebViewPage,
+                                                        snippet = "Стр. ${currentWebViewPage + 1}",
+                                                        timestamp = System.currentTimeMillis()
+                                                    )
                                                 )
-                                            )
+                                            }
                                         }
-                                    }
-                                },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                                    contentDescription = "Закладка",
-                                    tint = if (isBookmarked) accentGold else panelTextColor.copy(alpha = 0.85f),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                                        contentDescription = "Закладка",
+                                        tint = if (isBookmarked) accentGold else panelTextColor.copy(alpha = 0.85f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
 
-                            IconButton(
-                                onClick = { showTocSheet = true },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.List,
-                                    contentDescription = "Оглавление",
-                                    tint = panelTextColor.copy(alpha = 0.85f),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                                IconButton(
+                                    onClick = { showTocSheet = true },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.List,
+                                        contentDescription = "Оглавление",
+                                        tint = panelTextColor.copy(alpha = 0.85f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
 
-                            IconButton(
-                                onClick = {
-                                    fragmentActivity?.supportFragmentManager?.let { fm ->
-                                        BookmarksListBottomSheet.newInstance(sha1).show(fm, "BookmarksList")
-                                    }
-                                },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Bookmarks,
-                                    contentDescription = "Список закладок",
-                                    tint = panelTextColor.copy(alpha = 0.85f),
-                                    modifier = Modifier.size(19.dp)
-                                )
-                            }
+                                IconButton(
+                                    onClick = {
+                                        fragmentActivity?.supportFragmentManager?.let { fm ->
+                                            BookmarksListBottomSheet.newInstance(sha1).show(fm, "BookmarksList")
+                                        }
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Bookmarks,
+                                        contentDescription = "Список закладок",
+                                        tint = panelTextColor.copy(alpha = 0.85f),
+                                        modifier = Modifier.size(19.dp)
+                                    )
+                                }
 
-                            IconButton(
-                                onClick = {
-                                    val newMode = !(isHideBars || isDistractionFreeMode)
-                                    isDistractionFreeMode = newMode
-                                    isHideBars = newMode
-                                    SettingsManager.setDistractionFreeEnabled(context, newMode)
-                                },
-                                modifier = Modifier.size(36.dp).testTag("btn_distraction_free")
-                            ) {
-                                Icon(
-                                    imageVector = if (isDistractionFreeMode) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
-                                    contentDescription = "Полноэкранный режим",
-                                    tint = if (isDistractionFreeMode) accentGold else panelTextColor.copy(alpha = 0.85f),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                                IconButton(
+                                    onClick = {
+                                        val newMode = !(isHideBars || isDistractionFreeMode)
+                                        isDistractionFreeMode = newMode
+                                        isHideBars = newMode
+                                        SettingsManager.setDistractionFreeEnabled(context, newMode)
+                                    },
+                                    modifier = Modifier.size(36.dp).testTag("btn_distraction_free")
+                                ) {
+                                    Icon(
+                                        imageVector = if (isDistractionFreeMode) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
+                                        contentDescription = "Полноэкранный режим",
+                                        tint = if (isDistractionFreeMode) accentGold else panelTextColor.copy(alpha = 0.85f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
 
-                            IconButton(
-                                onClick = {
-                                    fragmentActivity?.supportFragmentManager?.let { fm ->
-                                        SettingsBottomSheet().show(fm, "SettingsBottomSheet")
-                                    }
-                                },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Settings,
-                                    contentDescription = "Настройки",
-                                    tint = panelTextColor.copy(alpha = 0.85f),
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                IconButton(
+                                    onClick = {
+                                        fragmentActivity?.supportFragmentManager?.let { fm ->
+                                            SettingsBottomSheet().show(fm, "SettingsBottomSheet")
+                                        }
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Settings,
+                                        contentDescription = "Настройки",
+                                        tint = panelTextColor.copy(alpha = 0.85f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
-                    }
                     }
                 }
             }
 
-            // Bottom Panel (Modern Minimalist Dark Glass)
+            // Bottom Panel
             AnimatedVisibility(
                 visible = !isHideBars && !isSearchMode,
                 enter = fadeIn(tween(180)) + slideInVertically(initialOffsetY = { it / 2 }),
@@ -1549,7 +1551,7 @@ fun ReaderComposeScreen(
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 var isDraggingSlider by remember { mutableStateOf(false) }
-                var sliderPageValue by remember { mutableStateOf(0f) }
+                var sliderPageValue by remember { mutableFloatStateOf(0f) }
 
                 val totalChars = mainText.length.coerceAtLeast(1)
                 val currentPercent = if (totalWebViewPages > 1) {
@@ -1603,116 +1605,117 @@ fun ReaderComposeScreen(
                         shadowElevation = 12.dp
                     ) {
                         Box(modifier = Modifier.fillMaxWidth()) {
-                        androidx.compose.ui.viewinterop.AndroidView(
-                            factory = { ctx -> LiquidWaveBackgroundView(ctx).apply { setAlpha(0.24f) } },
-                            modifier = Modifier.matchParentSize()
-                        )
-                        Column(
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp)
-                        ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (totalWebViewPages > 1) "Стр. ${currentWebViewPage + 1} из $totalWebViewPages" else "Прогресс",
-                                color = panelTextColor.copy(alpha = 0.9f),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
+                            AndroidView(
+                                factory = { ctx -> LiquidWaveBackgroundView(ctx).apply { setAlpha(0.24f) } },
+                                modifier = Modifier.matchParentSize()
                             )
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = panelTextColor.copy(alpha = 0.10f)
+                            Column(
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp)
                             ) {
-                                Text(
-                                    text = String.format(java.util.Locale.US, "%.1f%%", currentSliderVal),
-                                    color = panelTextColor.copy(alpha = 0.90f),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (totalWebViewPages > 1) "Стр. ${currentWebViewPage + 1} из $totalWebViewPages" else "Прогресс",
+                                        color = panelTextColor.copy(alpha = 0.9f),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = panelTextColor.copy(alpha = 0.10f)
+                                    ) {
+                                        Text(
+                                            text = String.format(java.util.Locale.US, "%.1f%%", currentSliderVal),
+                                            color = panelTextColor.copy(alpha = 0.90f),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Slider(
+                                    value = currentSliderVal.coerceIn(0f, 100f),
+                                    onValueChange = { newValue ->
+                                        isDraggingSlider = true
+                                        sliderPageValue = newValue
+                                    },
+                                    onValueChangeFinished = {
+                                        val targetOffset = ((sliderPageValue / 100f) * totalChars).toInt().coerceIn(0, totalChars)
+                                        pendingTargetOffset = targetOffset
+                                        isDraggingSlider = false
+                                    },
+                                    valueRange = 0f..100f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = accentGold,
+                                        activeTrackColor = accentGold,
+                                        inactiveTrackColor = Color.White.copy(alpha = 0.16f)
+                                    ),
+                                    thumb = {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(12.dp)
+                                                .background(accentGold, CircleShape)
+                                                .border(1.5.dp, Color(0xFF12141A), CircleShape)
+                                        )
+                                    },
+                                    track = { sliderState ->
+                                        val fraction = ((sliderState.value - sliderState.valueRange.start) /
+                                            (sliderState.valueRange.endInclusive - sliderState.valueRange.start).coerceAtLeast(0.001f))
+                                            .coerceIn(0f, 1f)
+                                        val chapters = readerDocument?.chapters.orEmpty()
+                                        Canvas(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(12.dp)
+                                        ) {
+                                            val centerY = size.height / 2f
+                                            val trackH = 3.dp.toPx()
+                                            val activeEndX = size.width * fraction
+
+                                            drawLine(
+                                                color = Color.White.copy(alpha = 0.16f),
+                                                start = Offset(0f, centerY),
+                                                end = Offset(size.width, centerY),
+                                                strokeWidth = trackH,
+                                                cap = StrokeCap.Round
+                                            )
+                                            if (activeEndX > 0f) {
+                                                drawLine(
+                                                    color = accentGold,
+                                                    start = Offset(0f, centerY),
+                                                    end = Offset(activeEndX, centerY),
+                                                    strokeWidth = trackH,
+                                                    cap = StrokeCap.Round
+                                                )
+                                            }
+                                            if (chapters.size > 1) {
+                                                val tickW = 1.dp.toPx()
+                                                val tickHalf = 3.5.dp.toPx()
+                                                chapters.forEach { ch ->
+                                                    val frac = (ch.startOffset.toFloat() / totalChars.toFloat()).coerceIn(0f, 1f)
+                                                    if (frac > 0.01f && frac < 0.99f) {
+                                                        val x = size.width * frac
+                                                        drawLine(
+                                                            color = if (x <= activeEndX) Color(0xFF12141A).copy(alpha = 0.55f) else Color.White.copy(alpha = 0.35f),
+                                                            start = Offset(x, centerY - tickHalf),
+                                                            end = Offset(x, centerY + tickHalf),
+                                                            strokeWidth = tickW
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(24.dp)
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        androidx.compose.material3.Slider(
-                            value = currentSliderVal.coerceIn(0f, 100f),
-                            onValueChange = { newValue ->
-                                isDraggingSlider = true
-                                sliderPageValue = newValue
-                            },
-                            onValueChangeFinished = {
-                                val targetOffset = ((sliderPageValue / 100f) * totalChars).toInt().coerceIn(0, totalChars)
-                                pendingTargetOffset = targetOffset
-                                isDraggingSlider = false
-                            },
-                            valueRange = 0f..100f,
-                            colors = androidx.compose.material3.SliderDefaults.colors(
-                                thumbColor = accentGold,
-                                activeTrackColor = accentGold,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.16f)
-                            ),
-                            thumb = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .background(accentGold, CircleShape)
-                                        .border(1.5.dp, Color(0xFF12141A), CircleShape)
-                                )
-                            },
-                            track = { sliderState ->
-                                val fraction = ((sliderState.value - sliderState.valueRange.start) /
-                                    (sliderState.valueRange.endInclusive - sliderState.valueRange.start).coerceAtLeast(0.001f))
-                                    .coerceIn(0f, 1f)
-                                val chapters = readerDocument?.chapters.orEmpty()
-                                androidx.compose.foundation.Canvas(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(12.dp)
-                                ) {
-                                    val centerY = size.height / 2f
-                                    val trackH = 3.dp.toPx()
-                                    val activeEndX = size.width * fraction
-
-                                    drawLine(
-                                        color = Color.White.copy(alpha = 0.16f),
-                                        start = androidx.compose.ui.geometry.Offset(0f, centerY),
-                                        end = androidx.compose.ui.geometry.Offset(size.width, centerY),
-                                        strokeWidth = trackH,
-                                        cap = androidx.compose.ui.graphics.StrokeCap.Round
-                                    )
-                                    if (activeEndX > 0f) {
-                                        drawLine(
-                                            color = accentGold,
-                                            start = androidx.compose.ui.geometry.Offset(0f, centerY),
-                                            end = androidx.compose.ui.geometry.Offset(activeEndX, centerY),
-                                            strokeWidth = trackH,
-                                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                                        )
-                                    }
-                                    if (chapters.size > 1) {
-                                        val tickW = 1.dp.toPx()
-                                        val tickHalf = 3.5.dp.toPx()
-                                        chapters.forEach { ch ->
-                                            val frac = (ch.startOffset.toFloat() / totalChars.toFloat()).coerceIn(0f, 1f)
-                                            if (frac > 0.01f && frac < 0.99f) {
-                                                val x = size.width * frac
-                                                drawLine(
-                                                    color = if (x <= activeEndX) Color(0xFF12141A).copy(alpha = 0.55f) else Color.White.copy(alpha = 0.35f),
-                                                    start = androidx.compose.ui.geometry.Offset(x, centerY - tickHalf),
-                                                    end = androidx.compose.ui.geometry.Offset(x, centerY + tickHalf),
-                                                    strokeWidth = tickW
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(24.dp)
-                        )
-                    }
                     }
                 }
             }
@@ -1797,7 +1800,7 @@ fun ReaderComposeScreen(
                         }
 
                         if (searchResults.isNotEmpty()) {
-                            androidx.compose.material3.Divider(color = panelTextColor.copy(alpha = 0.12f))
+                            Divider(color = panelTextColor.copy(alpha = 0.12f))
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1924,30 +1927,27 @@ fun SettingsContent(
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // Dropdown: Тема
-        val themes = ThemeType.values().map { it.displayName }
+        val themes = ThemeType.entries.map { it.displayName }
         SettingsDropdown(
             label = "ЦВЕТОВАЯ СХЕМА",
             selectedValue = settings.themeType.displayName,
             options = themes,
-            onOptionSelected = { selected ->
-                val type = ThemeType.values().first { it.displayName == selected }
+            onOptionSelected = { selected: String ->
+                val type = ThemeType.entries.first { it.displayName == selected }
                 onSettingsChange(settings.copy(themeType = type))
             }
         )
 
-        // Dropdown: Шрифт
         val fonts = listOf("Default", "Merriweather", "Roboto", "Serif")
         SettingsDropdown(
             label = "ШРИФТ",
             selectedValue = settings.fontFamily,
             options = fonts,
-            onOptionSelected = { selected ->
+            onOptionSelected = { selected: String ->
                 onSettingsChange(settings.copy(fontFamily = selected))
             }
         )
 
-        // Stepper: Размер шрифта
         SettingsStepper(
             label = "РАЗМЕР ШРИФТА",
             value = Math.round(settings.fontSize).toString(),
@@ -1959,7 +1959,6 @@ fun SettingsContent(
             }
         )
 
-        // Slider: Жирность шрифта
         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
             Text("ЖИРНОСТЬ ШРИФТА", color = secondaryTextColor, fontSize = 12.sp)
             Slider(
@@ -1974,7 +1973,6 @@ fun SettingsContent(
             )
         }
 
-        // Stepper: Межстрочный интервал
         SettingsStepper(
             label = "МЕЖСТРОЧНЫЙ ИНТЕРВАЛ",
             value = String.format("%.1f", settings.lineHeight),
@@ -1986,7 +1984,6 @@ fun SettingsContent(
             }
         )
 
-        // Switch: Скрыть бары
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2112,7 +2109,6 @@ fun SettingsStepper(
         }
     }
 }
-
 
 val sampleText = """
 для примера, я слышал истории, что были перерожденцы, которые имели Дар, что зависел от солнца. Вот только в том мире, где они переродились, оно появлялось всего раза два в год или три. Оттого человека записали в сумасшедшие, когда он всем рассказал, как он правил и насколько могущественным был, и давай толкать свою идеи. А потому первое правило перерожденца — это молчать об этом. Ты можешь быть бесконечно могущественным в прошлом мире, но в этом тебе просто могут не дать дойти до этого.
