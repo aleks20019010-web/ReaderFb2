@@ -100,8 +100,6 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.TextUnit
 import com.nightread.app.utils.TypographyUtils
 import com.nightread.app.ui.BrightnessHelper
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -123,6 +121,7 @@ enum class ThemeType(val displayName: String) {
     DAY("День"),
     NIGHT("Ночь"),
     SEPIA("Сепия"),
+    SEPIA_CONTRAST("Сепия контраст"),
     HIGH_CONTRAST("Высокая контрастность")
 }
 
@@ -145,8 +144,8 @@ fun Volumetric3DIconButton(
     buttonSize: Dp = 38.dp,
     iconSize: Dp = 22.dp,
     bgGradient: List<Color>? = null,
-    badgeColor: Color = Color(0x26FFFFFF), // Translucent white (rgba(255, 255, 255, 0.15))
-    borderColor: Color = Color(0x4DFFFFFF), // 1px solid rgba(255, 255, 255, 0.3)
+    badgeColor: Color = Color(0x26FFFFFF),
+    borderColor: Color = Color(0x4DFFFFFF),
     tint: Color = Color.Unspecified
 ) {
     val finalTint = if (tint == Color.Unspecified) Color.White else tint
@@ -174,8 +173,8 @@ fun Volumetric3DIconButton(
                         Modifier.background(
                             Brush.verticalGradient(
                                 listOf(
-                                    Color(0x38FFFFFF), // Specular glassy top reflection
-                                    Color(0x12FFFFFF)  // Translucent glass body
+                                    Color(0x38FFFFFF),
+                                    Color(0x12FFFFFF)
                                 )
                             )
                         )
@@ -256,26 +255,24 @@ fun ReaderComposeScreen(
     }
 
     var isSettingsOpen by remember { mutableStateOf(false) }
-    
+
     // --- Bookmarks & Search State ---
     val bookmarkDb = remember(context) { BookmarkDatabase.getDatabase(context) }
     val bookmarkRepo = remember(bookmarkDb) { BookmarkRepository(bookmarkDb.bookmarkDao()) }
     val bookmarks by bookmarkRepo.getBookmarksForBook(sha1).collectAsState(initial = emptyList())
 
-    
     val searchEngine = remember(mainText) { ReaderSearchEngine(mainText) }
     var searchQuery by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<ReaderSearchResult>>(emptyList()) }
     var currentSearchIndex by remember { mutableIntStateOf(-1) }
     var isSearchMode by remember { mutableStateOf(false) }
     var searchJob by remember { mutableStateOf<Job?>(null) }
-    
 
     var pendingTargetOffset by remember { mutableStateOf<Int?>(null) }
     var showTocSheet by remember { mutableStateOf(false) }
-    
+
     // --------------------------------
-    
+
     val fragmentActivity = context as? androidx.fragment.app.FragmentActivity
     LaunchedEffect(fragmentActivity) {
         if (fragmentActivity is BookReaderActivity) {
@@ -285,8 +282,6 @@ fun ReaderComposeScreen(
         }
     }
 
-
-    
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
 
@@ -315,7 +310,6 @@ fun ReaderComposeScreen(
         }
     }
 
-
     // Apply brightness on launch
     LaunchedEffect(currentBrightness) {
         (context as? Activity)?.let {
@@ -341,7 +335,8 @@ fun ReaderComposeScreen(
             "day", "light" -> ThemeType.DAY
             "night", "dark", "amoled" -> ThemeType.NIGHT
             "sepia" -> ThemeType.SEPIA
-            "contrast", "sepia_contrast" -> ThemeType.HIGH_CONTRAST
+            "sepia_contrast", "sepia-contrast" -> ThemeType.SEPIA_CONTRAST
+            "contrast" -> ThemeType.HIGH_CONTRAST
             else -> ThemeType.SEPIA
         }
     }
@@ -374,9 +369,10 @@ fun ReaderComposeScreen(
     }
 
     val (bgColor, textColor) = when (themeType) {
-        ThemeType.DAY -> Color(0xFFFBF9F1) to Color.Black
+        ThemeType.DAY -> Color(0xFFFBF9F1) to Color(0xFF1C1C1C)
         ThemeType.NIGHT -> Color.Black to Color(0xFFE5E5E5)
-        ThemeType.SEPIA -> Color(0xFFF4ECD8) to Color.Black
+        ThemeType.SEPIA -> Color(0xFFF4ECD8) to Color(0xFF3A3026)
+        ThemeType.SEPIA_CONTRAST -> Color(0xFFE5D5B5) to Color(0xFF140E08)
         ThemeType.HIGH_CONTRAST -> Color(0xFFFFFFFF) to Color.Black
     }
 
@@ -387,7 +383,7 @@ fun ReaderComposeScreen(
         "Monospace" -> FontFamily.Monospace
         else -> FontFamily.Default
     }
-    
+
     val mappedFontWeight = FontWeight(fontWeightInt.coerceIn(100, 900))
 
     var readerDocument by remember { mutableStateOf<com.nightread.app.ui.customlayout.ReaderDocument?>(null) }
@@ -428,7 +424,7 @@ fun ReaderComposeScreen(
             }
         }
     }
-    
+
     val pagerState = rememberPagerState(pageCount = { readerPages.size.coerceAtLeast(1) })
 
     val currentReadingOffset = remember(pagerState.currentPage, readerPages, savedTextOffset) {
@@ -519,29 +515,24 @@ fun ReaderComposeScreen(
         }
     }
 
-    // Wake-up strong vibration + auto screen-off if no page turn in Silent Mode
+    // Silent Mode anti-sleep: keeps screen awake while reading and wakes with vibration after 2 min without page turns
     LaunchedEffect(isSilentModeEnabled, currentWebViewPage, pagerState.currentPage) {
         val act = context as? Activity
-        if (!isSilentModeEnabled) return@LaunchedEffect
+        if (!isSilentModeEnabled) {
+            try {
+                act?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } catch (_: Exception) {}
+            return@LaunchedEffect
+        }
         try {
             act?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } catch (_: Exception) {}
-        delay(3 * 60 * 1000L)
+        delay(2 * 60 * 1000L)
         triggerReaderVibration(true)
-        repeat(2) {
-            delay(2 * 60 * 1000L)
+        while (true) {
+            delay(60 * 1000L)
             triggerReaderVibration(true)
         }
-        // User did not wake up after 3 vibrations -> allow screen to turn off
-        delay(60 * 1000L)
-        try {
-            act?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            val lp = act?.window?.attributes
-            if (lp != null) {
-                lp.screenBrightness = 0.01f
-                act.window.attributes = lp
-            }
-        } catch (_: Exception) {}
     }
 
     // Sleep Timer logic
@@ -557,12 +548,12 @@ fun ReaderComposeScreen(
             }
         }
     }
-    
+
     val currentChapter = remember(pagerState.currentPage, readerPages, readerDocument) {
         val currentOffset = readerPages.getOrNull(pagerState.currentPage)?.startOffset ?: 0
         readerDocument?.chapters?.find { it.startOffset <= currentOffset && it.endOffset > currentOffset }
     }
-    
+
     val database = remember { com.nightread.app.data.DatabaseProvider.getInstance(context) }
     val progressRepository = remember { com.nightread.app.data.RoomReadingProgressRepository(database.bookDao()) }
 
@@ -593,7 +584,7 @@ fun ReaderComposeScreen(
     LaunchedEffect(savedTextOffset, sha1, currentWebViewPage, totalWebViewPages) {
         if (!isRestoringProgress && sha1.isNotEmpty() && savedTextOffset >= 0) {
             delay(400) // Debounce 400ms
-            
+
             android.util.Log.d("ReadingProgress", "SAVE (debounce) bookId=$sha1 offset=$savedTextOffset page=$currentWebViewPage/$totalWebViewPages")
             progressRepository.saveProgress(
                 com.nightread.app.data.ReadingProgress(
@@ -624,7 +615,7 @@ fun ReaderComposeScreen(
                 val totalToSave = totalWebViewPages
                 if (sha1.isNotEmpty() && offsetToSave >= 0) {
                     android.util.Log.d("ReadingProgress", "SAVE (lifecycle) bookId=$sha1 offset=$offsetToSave")
-                    
+
                     kotlinx.coroutines.runBlocking(Dispatchers.IO) {
                         try {
                             progressRepository.saveProgress(
@@ -775,13 +766,13 @@ fun ReaderComposeScreen(
                     ) {
                         val density = LocalDensity.current
                         val configuration = LocalConfiguration.current
-                        
+
                         // Use screen-level configuration dimensions so system bars hiding/showing does not change viewport
                         val widthDp = configuration.screenWidthDp
                         val heightDp = configuration.screenHeightDp
                         val maxWidthPx = with(density) { widthDp.dp.roundToPx() }
                         val maxHeightPx = with(density) { heightDp.dp.roundToPx() }
-                        
+
                         val currentReadingOffset = remember(pagerState.currentPage, readerPages, savedTextOffset) {
                             if (readerPages.isNotEmpty() && pagerState.currentPage < readerPages.size) {
                                 readerPages[pagerState.currentPage].startOffset
@@ -789,11 +780,11 @@ fun ReaderComposeScreen(
                                 savedTextOffset
                             }
                         }
-                        
+
                         val latestOffset = rememberUpdatedState(currentReadingOffset)
 
                         val debouncedConfig by produceState<com.nightread.app.ui.customlayout.ReaderConfiguration?>(
-                            initialValue = null, 
+                            initialValue = null,
                             fontSize, lineSpacing, font, mappedFontWeight, maxWidthPx, maxHeightPx
                         ) {
                             snapshotFlow {
@@ -812,7 +803,7 @@ fun ReaderComposeScreen(
 
                         var oldWidthPx by remember { mutableIntStateOf(0) }
                         var oldHeightPx by remember { mutableIntStateOf(0) }
-                        
+
                         LaunchedEffect(maxWidthPx, maxHeightPx) {
                             if (oldWidthPx != 0 && oldHeightPx != 0 && (oldWidthPx != maxWidthPx || oldHeightPx != maxHeightPx)) {
                                 android.util.Log.e("ReaderViewport", "ERROR: Viewport changed! This will cause repagination.\nold viewport:\nwidth=$oldWidthPx\nheight=$oldHeightPx\n\nnew viewport:\nwidth=$maxWidthPx\nheight=$maxHeightPx")
@@ -861,7 +852,7 @@ fun ReaderComposeScreen(
                             if (doc != null && config != null) {
                                 isPreparingText = true
                                 val targetOffset = latestOffset.value
-                                
+
                                 val viewport = com.nightread.app.ui.customlayout.ReaderViewport(
                                     widthPx = config.maxWidthPx,
                                     heightPx = config.maxHeightPx,
@@ -877,7 +868,7 @@ fun ReaderComposeScreen(
                                     scope = this,
                                     initialTargetOffset = targetOffset
                                 )
-                                
+
                                 launch {
                                     snapshotFlow { pendingTargetOffset }.collectLatest { target ->
                                         if (target != null) {
@@ -898,7 +889,7 @@ fun ReaderComposeScreen(
                                     if (updatedPages.isNotEmpty()) {
                                         val oldPages = readerPages
                                         readerPages = updatedPages
-                                        
+
                                         val targetToRestore = pendingTargetOffset ?: targetOffset
                                         if (targetToRestore > 0) {
                                             val targetPage = findPageForOffset(updatedPages.map { it.startOffset }, targetToRestore)
@@ -906,7 +897,7 @@ fun ReaderComposeScreen(
                                                 pagerState.scrollToPage(targetPage)
                                             }
                                         }
-                                        
+
                                         isPreparingText = false
                                     }
                                 }
@@ -1046,11 +1037,31 @@ fun ReaderComposeScreen(
                                     },
                                     onTopLeftTap = {
                                         val currentTheme = SettingsManager.getReadingTheme(context).lowercase()
-                                        val isCurrentlyNight = SettingsManager.isNightTheme(currentTheme)
-                                        val targetTheme = if (isCurrentlyNight) "sepia" else "amoled"
-                                        SettingsManager.setReadingTheme(context, targetTheme)
-                                        settingsVersion++
-                                        gestureIndicatorText = if (isCurrentlyNight) "Тема: Сепия" else "Тема: Ночь"
+                                        val isCurrentlyNight = SettingsManager.isNightTheme(currentTheme) || currentTheme == "amoled"
+                                        val prefs = context.getSharedPreferences("reader_prefs", Context.MODE_PRIVATE)
+                                        if (isCurrentlyNight) {
+                                            val savedDayTheme = prefs.getString("user_preferred_day_theme", null)
+                                                ?.takeIf {
+                                                    it.isNotBlank() &&
+                                                        !SettingsManager.isNightTheme(it.lowercase()) &&
+                                                        it.lowercase() != "amoled"
+                                                }
+                                                ?: SettingsManager.getUserPreferredDayTheme(context)
+                                            SettingsManager.setReadingTheme(context, savedDayTheme)
+                                            settingsVersion++
+                                            val labelName = when (savedDayTheme.lowercase()) {
+                                                "light", "day" -> "День"
+                                                "sepia_contrast", "sepia-contrast" -> "Сепия контраст"
+                                                "sepia" -> "Сепия"
+                                                else -> savedDayTheme
+                                            }
+                                            gestureIndicatorText = "Тема: $labelName"
+                                        } else {
+                                            prefs.edit().putString("user_preferred_day_theme", currentTheme).apply()
+                                            SettingsManager.setReadingTheme(context, "amoled")
+                                            settingsVersion++
+                                            gestureIndicatorText = "Тема: Ночь"
+                                        }
                                         gestureIndicatorIcon = Icons.Filled.WbSunny
                                         showGestureIndicatorTime = System.currentTimeMillis()
                                     },
@@ -1663,7 +1674,6 @@ fun ReaderComposeScreen(
                                     val trackH = 3.dp.toPx()
                                     val activeEndX = size.width * fraction
 
-                                    // ?????????? ?????? ?????
                                     drawLine(
                                         color = Color.White.copy(alpha = 0.16f),
                                         start = androidx.compose.ui.geometry.Offset(0f, centerY),
@@ -1671,7 +1681,6 @@ fun ReaderComposeScreen(
                                         strokeWidth = trackH,
                                         cap = androidx.compose.ui.graphics.StrokeCap.Round
                                     )
-                                    // ???????? ??????? ?????
                                     if (activeEndX > 0f) {
                                         drawLine(
                                             color = accentGold,
@@ -1681,7 +1690,6 @@ fun ReaderComposeScreen(
                                             cap = androidx.compose.ui.graphics.StrokeCap.Round
                                         )
                                     }
-                                    // ?????????? ??????? ????
                                     if (chapters.size > 1) {
                                         val tickW = 1.dp.toPx()
                                         val tickHalf = 3.5.dp.toPx()
@@ -1707,9 +1715,7 @@ fun ReaderComposeScreen(
                     }
                     }
                 }
-                }
             }
-
 
             // Search UI Overlay
             AnimatedVisibility(
@@ -1741,7 +1747,6 @@ fun ReaderComposeScreen(
                                         coroutineScope.launch {
                                             searchResults = searchEngine.search(query)
                                             if (searchResults.isNotEmpty()) {
-                                                // Find the first result after current offset
                                                 val currentOffset = readerPages.getOrNull(pagerState.currentPage)?.startOffset ?: 0
                                                 var nearestIndex = 0
                                                 for (i in searchResults.indices) {
@@ -1774,7 +1779,7 @@ fun ReaderComposeScreen(
                                 ),
                                 singleLine = true
                             )
-                            
+
                             Volumetric3DIconButton(
                                 onClick = {
                                     isSearchMode = false
@@ -1790,7 +1795,7 @@ fun ReaderComposeScreen(
                                 iconSize = 20.dp
                             )
                         }
-                        
+
                         if (searchResults.isNotEmpty()) {
                             androidx.compose.material3.Divider(color = panelTextColor.copy(alpha = 0.12f))
                             Row(
@@ -1834,8 +1839,6 @@ fun ReaderComposeScreen(
                     }
                 }
             }
-
-            // Fullscreen clean-text mode leaves zero floating overlay buttons (center tap toggles UI)
         }
 
         // --- Table of Contents Bottom Sheet ---
@@ -1860,7 +1863,7 @@ fun ReaderComposeScreen(
                         modifier = Modifier.padding(16.dp),
                         color = Color(0xFFF4F5F7)
                     )
-                    
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 32.dp)
@@ -1868,7 +1871,7 @@ fun ReaderComposeScreen(
                         items(readerDocument!!.chapters) { chapter ->
                             val isCurrent = chapter == currentChapter
                             ListItem(
-                                headlineContent = { 
+                                headlineContent = {
                                     Text(
                                         text = chapter.title,
                                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
@@ -1904,7 +1907,6 @@ fun SettingsContent(
     settings: ReaderSettings,
     onSettingsChange: (ReaderSettings) -> Unit
 ) {
-    val sheetTextColor = Color(0xFF2A3A22)
     val secondaryTextColor = Color.Gray
     val accentColor = Color(0xFF7A9B6A)
 
@@ -2028,6 +2030,8 @@ fun SettingsDropdown(
                 value = selectedValue,
                 onValueChange = {},
                 readOnly = true,
+                singleLine = true,
+                maxLines = 1,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                 modifier = Modifier
                     .menuAnchor()
@@ -2044,11 +2048,21 @@ fun SettingsDropdown(
             ExposedDropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.background(Color(0xFFC8D4BA))
+                modifier = Modifier
+                    .background(Color(0xFFC8D4BA))
+                    .widthIn(min = 200.dp, max = 320.dp)
             ) {
                 options.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option, color = Color(0xFF2A3A22)) },
+                        text = {
+                            Text(
+                                text = option,
+                                color = Color(0xFF2A3A22),
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
                         onClick = {
                             onOptionSelected(option)
                             expanded = false
@@ -2215,5 +2229,3 @@ fun findPageForOffset(offsets: List<Int>, targetOffset: Int): Int {
     }
     return bestPage.coerceIn(0, (offsets.size - 1).coerceAtLeast(0))
 }
-
-
